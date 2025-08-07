@@ -124,7 +124,7 @@ The type of memory.
 
 - Requirement Level: Recommended
   
-- Type: Enum [heap, non_heap]
+- Type: Enum [heap, non_heap, deprecated, experimental]
 - Examples: [
     "heap",
     "non_heap",
@@ -153,6 +153,16 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
+## Metric `jvm.memory.deprecated` 
+
+Instrument: updowncounter
+Unit: By
+Stability: stable
+
+### Attributes
+
+
+  
 ## Metric `jvm.memory.limit` 
 
 Instrument: updowncounter
@@ -169,7 +179,7 @@ The type of memory.
 
 - Requirement Level: Recommended
   
-- Type: Enum [heap, non_heap]
+- Type: Enum [heap, non_heap, deprecated, experimental]
 - Examples: [
     "heap",
     "non_heap",
@@ -214,7 +224,7 @@ The type of memory.
 
 - Requirement Level: Recommended
   
-- Type: Enum [heap, non_heap]
+- Type: Enum [heap, non_heap, deprecated, experimental]
 - Examples: [
     "heap",
     "non_heap",
@@ -242,6 +252,43 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
 - Stability: Stable
   
   
+#### Attribute `jvm.memory.deprecated.attribute`
+
+Something deprecated.
+
+
+- Requirement Level: Recommended
+  
+- Type: boolean
+- Deprecated: {"note": "Use `jvm.memory.stable.attribute` instead.", "reason": "obsoleted"}
+  
+- Stability: Stable
+  
+  
+#### Attribute `jvm.memory.experimental.attribute`
+
+Something experimental.
+
+
+- Requirement Level: Optional
+  
+- Type: boolean
+  
+- Stability: Development
+  
+  
+#### Attribute `jvm.memory.stable.attribute`
+
+Something stable.
+
+
+- Requirement Level: Recommended
+  
+- Type: boolean
+  
+- Stability: Stable
+  
+  
   
 ## Metric `jvm.memory.used_after_last_gc` 
 
@@ -259,7 +306,7 @@ The type of memory.
 
 - Requirement Level: Recommended
   
-- Type: Enum [heap, non_heap]
+- Type: Enum [heap, non_heap, deprecated, experimental]
 - Examples: [
     "heap",
     "non_heap",

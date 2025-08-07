@@ -15,6 +15,25 @@ groups:
               stability: stable
               value: "non_heap"
               brief: "Non-heap memory"
+            - id: dont_generate
+              stability: stable
+              value: "dont_generate"
+              brief: "This member should not be code-generated."
+              annotations:
+                code_generation:
+                  exclude: true
+            - id: deprecated
+              stability: stable
+              value: "deprecated"
+              brief: "This member is deprecated."
+              deprecated:
+                reason: obsoleted
+                note: "Use `heap` or `non_heap` instead."
+            - id: experimental
+              stability: development
+              value: "experimental"
+              brief: "This member is experimental."
+
         requirement_level: recommended
         brief: The type of memory.
         examples: ["heap", "non_heap"]
@@ -28,6 +47,32 @@ groups:
           Pool names are generally obtained via
           [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
 
+  - id: metric.jvm.memory.deprecated
+    type: metric
+    metric_name: jvm.memory.deprecated
+    brief: "Measure something deprecated."
+    instrument: updowncounter
+    unit: "By"
+    stability: stable
+    entity_associations:
+      - service
+    deprecated:
+      reason: obsoleted
+      note: "Use `metric.jvm.memory.used` instead."
+      
+  - id: metric.jvm.memory.dont_generate
+    type: metric
+    metric_name: jvm.memory.dont_generate
+    brief: "Measure something that should not be code-generated."
+    instrument: updowncounter
+    unit: "By"
+    stability: stable
+    entity_associations:
+      - service
+    annotations:
+      code_generation:
+        exclude: true
+
   - id: metric.jvm.memory.used
     type: metric
     metric_name: jvm.memory.used
@@ -38,6 +83,25 @@ groups:
     stability: stable
     entity_associations:
       - service
+    attributes:
+      - id: jvm.memory.deprecated.attribute
+        stability: stable
+        type: boolean
+        brief: "Something deprecated."
+        deprecated:
+          reason: obsoleted
+          note: "Use `jvm.memory.stable.attribute` instead."
+        requirement_level: recommended
+      - id: jvm.memory.experimental.attribute
+        stability: development
+        type: boolean
+        brief: "Something experimental."
+        requirement_level: opt_in
+      - id: jvm.memory.stable.attribute
+        stability: stable
+        type: boolean
+        brief: "Something stable."
+        requirement_level: recommended
 
   - id: metric.jvm.memory.committed
     type: metric
