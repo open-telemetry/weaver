@@ -13,8 +13,7 @@ documentation.
 For a formal definition of the allowed syntax, see the [JSON schema](/schemas/semconv.schema.json).
 
 > [!NOTE]
->
-> Semantic conventions YAML language v2 is in active development, check out [JSON schema](/schemas/semconv.schema.v2.json) and [syntax](/schemas/semconv-syntax.v2.md) documents.
+> Semantic conventions YAML language v2 is in active development, check out [JSON schema v2](/schemas/semconv.schema.v2.json) and [syntax v2](/schemas/semconv-syntax.v2.md) documents.
 
 ## Design Principles
 
