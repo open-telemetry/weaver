@@ -13,7 +13,7 @@ use std::fs::File;
 use std::path::Path;
 use weaver_common::result::WResult;
 
-/// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
+/// A semantic convention file as defined [here](/schemas/semconv-syntax.md)
 /// A semconv file either follows version 1 or 2.  Default is version 1.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
@@ -83,7 +83,7 @@ const _: () = {
     }
 };
 
-/// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
+/// A semantic convention file as defined [here](/schemas/semconv.schema.json)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
