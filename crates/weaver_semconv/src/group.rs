@@ -14,6 +14,7 @@ use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
+use crate::migration::MigrationSpec;
 use crate::provenance::Provenance;
 use crate::semconv::Imports;
 use crate::stability::Stability;
@@ -109,6 +110,9 @@ pub struct GroupSpec {
     /// Note: only valid if type is event
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// Migration details for the namespace/.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub migration: Option<MigrationSpec>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -137,8 +141,8 @@ impl GroupSpec {
             });
         }
 
-        // Field stability is required for all group types except attribute group.
-        if self.r#type != GroupType::AttributeGroup && self.stability.is_none() {
+        // Field stability is required for all group types except namespaces & attribute group.
+        if self.r#type != GroupType::AttributeGroup && self.r#type != GroupType::NameSpace && self.stability.is_none() {
             errors.push(Error::InvalidGroupStability {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
@@ -159,9 +163,10 @@ impl GroupSpec {
         // Groups should only reference attributes once.
         validate_duplicate_attribute_ref(&mut errors, &self.attributes, &self.id, path_or_url);
 
-        // All types, except metric and event, must have extends or attributes or both.
+        // All types, except namespaces, metric and event, must have extends or attributes or both.
         if self.r#type != GroupType::Metric
             && self.r#type != GroupType::Event
+            && self.r#type != GroupType::NameSpace
             && self.extends.is_none()
             && self.attributes.is_empty()
         {
@@ -182,6 +187,7 @@ impl GroupSpec {
                         .to_owned(),
                 });
             }
+            // TODO: this should become a warning as span events are deprecated
             if !self.events.is_empty() {
                 errors.push(Error::InvalidGroup {
                     path_or_url: path_or_url.to_owned(),
@@ -545,7 +551,7 @@ fn validate_any_value(
     }
 }
 
-/// The different types of groups: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`.
+/// The different types of groups: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`, `namespace`.
 ///
 /// Note: The `resource` type is no longer used and is an alias for `entity`.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, JsonSchema)]
@@ -572,6 +578,8 @@ pub enum GroupType {
     Scope,
     /// Undefined group type.
     Undefined,
+    /// Namespace semantic convention.
+    NameSpace,
 }
 
 impl Default for GroupType {
@@ -697,6 +705,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -862,6 +871,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1159,6 +1169,7 @@ mod tests {
                     ),
                 },
             }),
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1374,6 +1385,7 @@ mod tests {
                     ),
                 },
             }),
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1518,6 +1530,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1688,6 +1701,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1840,6 +1854,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1900,6 +1915,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            migration: None,
             annotations: None,
             entity_associations: vec!["test".to_owned()],
         };
@@ -1937,5 +1953,35 @@ mod tests {
             }),
             result
         );
+    }
+
+    #[test]
+    fn test_validate_namespace(){
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::NameSpace,
+            name: Some("test_namespace".to_owned()),
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            display_name: None,
+            attributes: vec![],
+            body: None,
+            migration: None,
+            annotations: None,
+            entity_associations: Vec::new(),
+        };
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
     }
 }
