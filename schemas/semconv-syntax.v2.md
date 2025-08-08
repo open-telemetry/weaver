@@ -81,7 +81,7 @@ Attributes can only be defined inside the `attributes` group. Attribute definiti
 - `brief` - Required. string. A short description of what this attribute represents
 - `note` - Optional. string. A more elaborate description of the attribute.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the attribute
-- `deprecated` - optional, when present marks the attribute as deprecated. See [deprecated](#deprecated-structure) for the details
+- `deprecated` - Optional, when present marks the attribute as deprecated. See [deprecated](#deprecated-structure) for the details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about
   the attribute. See [annotations](#annotations) for details.
 - `examples` - Optional. List of example values for the attribute.
