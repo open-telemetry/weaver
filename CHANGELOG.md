@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# [0.16.2] - 2025-08-08
+# [0.17.0] - 2025-08-08
 
 - Filter based on deprecation, stability, and annotations in signal JQ helpers
   ([#870](https://github.com/open-telemetry/weaver/pull/870) by @lmolkova)
