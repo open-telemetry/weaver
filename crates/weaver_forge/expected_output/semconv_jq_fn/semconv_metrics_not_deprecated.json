@@ -172,16 +172,6 @@
                   "value": "non_heap"
                 },
                 {
-                  "brief": "This member is deprecated.",
-                  "deprecated": {
-                    "note": "Use `heap` or `non_heap` instead.",
-                    "reason": "obsoleted"
-                  },
-                  "id": "deprecated",
-                  "stability": "stable",
-                  "value": "deprecated"
-                },
-                {
                   "brief": "This member is experimental.",
                   "id": "experimental",
                   "stability": "development",
@@ -242,30 +232,6 @@
         "unit": "By"
       },
       {
-        "attributes": null,
-        "brief": "Measure something deprecated.",
-        "deprecated": {
-          "note": "Use `metric.jvm.memory.used` instead.",
-          "reason": "obsoleted"
-        },
-        "entity_associations": [
-          "service"
-        ],
-        "id": "metric.jvm.memory.deprecated",
-        "instrument": "updowncounter",
-        "lineage": {
-          "provenance": {
-            "path": "data/jvm-metrics.yaml",
-            "registry_id": "default"
-          }
-        },
-        "metric_name": "jvm.memory.deprecated",
-        "root_namespace": "jvm",
-        "stability": "stable",
-        "type": "metric",
-        "unit": "By"
-      },
-      {
         "attributes": [
           {
             "brief": "The type of memory.",
@@ -289,16 +255,6 @@
                   "id": "non_heap",
                   "stability": "stable",
                   "value": "non_heap"
-                },
-                {
-                  "brief": "This member is deprecated.",
-                  "deprecated": {
-                    "note": "Use `heap` or `non_heap` instead.",
-                    "reason": "obsoleted"
-                  },
-                  "id": "deprecated",
-                  "stability": "stable",
-                  "value": "deprecated"
                 },
                 {
                   "brief": "This member is experimental.",
@@ -386,16 +342,6 @@
                   "value": "non_heap"
                 },
                 {
-                  "brief": "This member is deprecated.",
-                  "deprecated": {
-                    "note": "Use `heap` or `non_heap` instead.",
-                    "reason": "obsoleted"
-                  },
-                  "id": "deprecated",
-                  "stability": "stable",
-                  "value": "deprecated"
-                },
-                {
                   "brief": "This member is experimental.",
                   "id": "experimental",
                   "stability": "development",
@@ -416,17 +362,6 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": "string"
-          },
-          {
-            "brief": "Something deprecated.",
-            "deprecated": {
-              "note": "Use `jvm.memory.stable.attribute` instead.",
-              "reason": "obsoleted"
-            },
-            "name": "jvm.memory.deprecated.attribute",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "boolean"
           },
           {
             "brief": "Something experimental.",
@@ -507,16 +442,6 @@
                   "id": "non_heap",
                   "stability": "stable",
                   "value": "non_heap"
-                },
-                {
-                  "brief": "This member is deprecated.",
-                  "deprecated": {
-                    "note": "Use `heap` or `non_heap` instead.",
-                    "reason": "obsoleted"
-                  },
-                  "id": "deprecated",
-                  "stability": "stable",
-                  "value": "deprecated"
                 },
                 {
                   "brief": "This member is experimental.",
