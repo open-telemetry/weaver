@@ -25,7 +25,7 @@ Telemetry Schema, 2) Resolved Telemetry Schemas serve as the mechanism for
 distributing Telemetry Schemas throughout the entire ecosystem, and 3) Resolved
 Telemetry Schemas would replace/augment existing SchemaURL.
 
-![Use cases](./images/0240-otel-weaver-use-cases.svg)
+![Use cases](../images/0240-otel-weaver-use-cases.svg)
 
 The main components of a Resolved Telemetry Schema are illustrated in the
 diagram below. The 'OTel Weaver' tool is used to create these schemas. It can
@@ -34,7 +34,7 @@ Resolved Telemetry Schema serves as a key mechanism for interoperability,
 feeding various external tools, including SDK generators, documentation
 generators, policy enforcers, and more.
 
-![Resolved Telemetry Schema](./images/0240-otel-weaver-resolved-schema.svg)
+![Resolved Telemetry Schema](../images/0240-otel-weaver-resolved-schema.svg)
 
 The internal catalog is used to define all the attributes and metrics in this
 artifact. This design allows for the reuse of the same attributes or metrics
