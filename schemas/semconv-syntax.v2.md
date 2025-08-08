@@ -48,7 +48,7 @@ A semantic convention file starts with `version: "2"` and may contain one or mor
 - `events`: Contains definitions of events.
 - `metrics`: Contains definitions of metric instruments.
 - `spans`: Contains definitions of spans.
-- `imports`: Allows importing attributes or signal definitions from a different semantic convention registry.
+- `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `registry_manifest.yaml`).
 
 ### `attributes` definition
 
