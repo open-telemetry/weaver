@@ -18,9 +18,9 @@ bundle:
   - name: server
     brief: Defines a server
     note:
-    attributes
-      - ref: sever.address
-      - ref: sever.port
+    attributes:
+      - ref: server.address
+      - ref: server.port
 ```
 
 Once it is defined, it can then be used on other signals to extend the definition.
@@ -28,9 +28,9 @@ Once it is defined, it can then be used on other signals to extend the definitio
 ```
 span:
   - name: messaging.produced
-    brief: Defines a span for sending a message via a message brooker such as rabbitmq
+    brief: Defines a span for sending a message via a message broker such as RabbitMQ
     note:
-    attributes
+    attributes:
       - ref: message.system.name
     bundles:
       - ref: server
@@ -41,25 +41,26 @@ In terms of the resolved schema, these bundles are blended seamlessly in to the 
 ```
 span:
   - name: messaging.produced
-    brief: Defines a span for sending a message via a message brooker such as rabbitmq
+    brief: Defines a span for sending a message via a message broker such as RabbitMQ
     note:
-    attributes
+    attributes:
       - id: message.system.name
         ....
-      - id: sever.address
+      - id: server.address
         ....
-      - id: sever.port
+      - id: server.port
         ....
 ```
 
 By adopting this approach we are improving the mantainability of the definitions,
-by reusing the definition rather than copy and pasting strucutures.
+by reusing the definition rather than copying and pasting structures.
 
 ### Extending signals
 
 This use case is similiar to the previous except it is focussed on offering optional contextual extensions.
-An example of this extension would be Cloud Events which are only applicable if the application is using Cloud Events, 
-hence the usage is contextual based upon cloud events being used.
+An example of this extension would be CloudEvents which are only applicable if the application is using CloudEvents, 
+hence the usage is contextual based upon CloudEvents being used.
+The concept of CloudEvents is described in [CloudEvents Primer](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/primer.md).
 
 To indicate that a bundle is contextual, this can be done by defining this on the bundle, just like below for `cloud_events`:
 
@@ -69,7 +70,7 @@ bundle:
     brief: For more information on the concepts, terminology and background of CloudEvents consult the CloudEvents Primer document.
     context: Can be used when a cloud event payload is being handled (sent/recieved).
     note:
-    attributes
+    attributes:
       - ref: cloudevents.event_id
       - ref: cloudevents.event_source
       ......
@@ -98,9 +99,9 @@ span:
     attributes
       - id: message.system.name
         ....
-      - id: sever.address
+      - id: server.address
         ....
-      - id: sever.port
+      - id: server.port
         ....
       - id: cloudevents.event_id
         bundle: cloud_events
@@ -112,7 +113,7 @@ span:
         ....
 ```
 
-By adopting this approach the definition of cloud events can easily be added/extended without needing to touch the usage.
+By adopting this approach the definition of CloudEvents can easily be added/extended without needing to touch the usage.
 
 ## Comparison to v1 solution
 Attribute bundles are similiar to attribute groups however,
