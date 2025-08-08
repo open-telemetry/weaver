@@ -27,25 +27,24 @@ pub mod span;
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CommonFields {
-    /// A brief description of the span.
+    /// A brief description of the attribute or signal.
     pub brief: String,
-    /// A more elaborate description of the span.
+    /// A more elaborate description of the attribute or signal.
     /// It defaults to an empty string.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub note: String,
-    /// Specifies the stability of the span.
+    /// Specifies the stability of the attribute or signal.
     pub stability: Stability,
     /// Specifies if the semantic convention is deprecated. The string
     /// provided as description MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
-    /// Annotations for the group.
+    /// Annotations for the attribute or signal.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-/// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
