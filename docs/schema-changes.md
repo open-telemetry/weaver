@@ -136,4 +136,4 @@ items (attributes, metrics, events, spans, resources). Future evolutions of the
 diffing process could generate a more detailed diff report by comparing the fields
 of those top-level schema items.
 
-This [document](schema-changes-explorations-for-future-evolutions.md) explores more complex uses cases.
+This [document](old-stuff/schema-changes-explorations-for-future-evolutions.md) explores more complex uses cases.
