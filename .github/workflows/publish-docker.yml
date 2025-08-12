@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+permissions:
+  contents: read
 env:
   TEST_WEAVER_TAG: otel/weaver:test
 jobs:
