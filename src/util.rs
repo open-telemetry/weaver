@@ -16,10 +16,10 @@ use weaver_common::vdir::VirtualDirectory;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpec;
+use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -34,7 +34,7 @@ use weaver_semconv::semconv::SemConvSpec;
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
     follow_symlinks: bool,
-) -> WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error> {
+) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
     SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks).inspect(
         |semconv_specs, _| {
             log_success(format!(
@@ -151,20 +151,20 @@ pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
 /// if any policy violations occur.
 pub(crate) fn check_policy(
     policy_engine: &Engine,
-    semconv_specs: &[(Provenance, SemConvSpec)],
+    semconv_specs: &[SemConvSpecWithProvenance],
 ) -> WResult<(), Error> {
     // Check policies in parallel
     let results = semconv_specs
         .par_iter()
-        .map(|(source, semconv)| {
+        .map(|semconv| {
             // Create a local policy engine inheriting the policies
             // from the global policy engine
             let mut policy_engine = policy_engine.clone();
             check_policy_stage::<SemConvSpec, ()>(
                 &mut policy_engine,
                 PolicyStage::BeforeResolution,
-                source.path.as_str(),
-                semconv,
+                semconv.provenance.path.as_str(),
+                &semconv.spec,
                 &[],
             )
         })
@@ -215,7 +215,7 @@ pub(crate) fn resolve_semconv_specs(
 /// Resolves the telemetry schema from the given semantic convention specifications.
 pub(crate) fn resolve_telemetry_schema(
     registry_repo: &RegistryRepo,
-    semconv_specs: Vec<(Provenance, SemConvSpec)>,
+    semconv_specs: Vec<SemConvSpecWithProvenance>,
     include_unreferenced: bool,
 ) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
