@@ -15,6 +15,8 @@
 
 `jvm.memory.committed`
 
+`jvm.memory.deprecated`
+
 `jvm.memory.limit`
 
 `jvm.memory.used`
