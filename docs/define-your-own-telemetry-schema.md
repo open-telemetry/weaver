@@ -36,8 +36,9 @@ dependencies:
 > - The `schema_base_url` field is not currently used by the weaver tool. It is
     intended for future use once telemetry schema v2 is fully specified and
     implemented.
-> - Only a single dependency at one level is supported. The most common use case
-    is depending on the OTEL semantic conventions registry.
+> - Weaver supports a maximum of 10 registry levels without circular
+    dependencies. In practice, this is not a limitation, even for complex
+    enterprise environments.
 
 Below is an example of a valid `registry_manifest.yaml` file:
 
