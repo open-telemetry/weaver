@@ -28,24 +28,23 @@ pub struct JsonSchemaValidator {
     validator: jsonschema::Validator,
 }
 
-
 impl JsonSchemaValidator {
     /// Creates a new JSON schema validator.
     #[must_use]
-    pub fn new() -> Self {
-        return Self::new_for::<SemConvSpec>();
+    pub fn new_all_versions() -> Self {
+        Self::new_for::<SemConvSpec>()
     }
 
     /// Creates a new JSON schema validator that ONLY works when `version` is not specified.
     #[must_use]
     pub fn new_unversioned() -> Self {
-        return Self::new_for::<SemConvSpecV1>();
+        Self::new_for::<SemConvSpecV1>()
     }
 
     /// Creates a new JSON schema validator that ONLY works when `version` is specified.
     #[must_use]
     pub fn new_versioned() -> Self {
-        return Self::new_for::<Versioned>();
+        Self::new_for::<Versioned>()
     }
 
     /// Creates a new JSON schema validator that works for any type T.

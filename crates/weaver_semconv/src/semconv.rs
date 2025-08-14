@@ -253,7 +253,13 @@ impl SemConvSpecWithProvenance {
         unversioned_validator: &JsonSchemaValidator,
         versioned_validator: &JsonSchemaValidator,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
-        Self::from_file_with_mapped_path(registry_id, path, unversioned_validator, versioned_validator, |path| path)
+        Self::from_file_with_mapped_path(
+            registry_id,
+            path,
+            unversioned_validator,
+            versioned_validator,
+            |path| path,
+        )
     }
     /// Creates a semantic convention spec with provenance from a file.
     ///
@@ -303,7 +309,12 @@ impl SemConvSpecWithProvenance {
                     let value: Result<Value, _> = serde_yaml::from_reader(&mut semconv_file);
                     if let Ok(yaml_value) = value {
                         // TODO - Check if we should use versioned or unversioned validator.
-                        if yaml_value.as_mapping().and_then(|m| m.get("version")).map(|v| v.is_string()).unwrap_or(false) {
+                        if yaml_value
+                            .as_mapping()
+                            .and_then(|m| m.get("version"))
+                            .map(|v| v.is_string())
+                            .unwrap_or(false)
+                        {
                             // Use versioned validator.
                             versioned_validator.validate_yaml(yaml_value, provenance, e)?;
                         } else {
@@ -321,7 +332,12 @@ impl SemConvSpecWithProvenance {
         }
         let path = path.as_ref().display().to_string();
         let provenance = Provenance::new(registry_id, &path_fixer(path.clone()));
-        let raw_spec = match from_file_or_fatal(path.as_ref(), &path, unversioned_validator, versioned_validator) {
+        let raw_spec = match from_file_or_fatal(
+            path.as_ref(),
+            &path,
+            unversioned_validator,
+            versioned_validator,
+        ) {
             Ok(semconv_spec) => {
                 // Important note: the resolution process expects this step of validation to be done for
                 // each semantic convention spec.
@@ -406,26 +422,29 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_file() {
-        let validator = JsonSchemaValidator::new();
+        let validator = JsonSchemaValidator::new_all_versions();
         // Existing file
         let path = PathBuf::from("data/database.yaml");
 
-        let semconv_spec = SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
-            .into_result_failing_non_fatal()
-            .unwrap();
+        let semconv_spec =
+            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
+                .into_result_failing_non_fatal()
+                .unwrap();
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 10);
 
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
-            .into_result_failing_non_fatal();
+        let semconv_spec =
+            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
+                .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
 
         // Invalid file structure
         let path = PathBuf::from("data/invalid/invalid-semconv.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
-            .into_result_failing_non_fatal();
+        let semconv_spec =
+            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
+                .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
@@ -613,11 +632,12 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_with_provenance_from_file() {
-        let validator = JsonSchemaValidator::new();
+        let validator = JsonSchemaValidator::new_all_versions();
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file("main", &path, &validator, &validator)
-            .into_result_failing_non_fatal()
-            .unwrap();
+        let semconv_spec =
+            SemConvSpecWithProvenance::from_file("main", &path, &validator, &validator)
+                .into_result_failing_non_fatal()
+                .unwrap();
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 10);
         assert_eq!(semconv_spec.provenance.path, path.display().to_string());
     }
