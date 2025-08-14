@@ -5,6 +5,7 @@
 use crate::semconv::SemConvSpec;
 use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
 use crate::{Error, InvalidSemConvSpecError};
+use itertools::Itertools;
 use jsonschema::error::{TypeKind, ValidationErrorKind};
 use jsonschema::{JsonType, JsonTypeSet};
 use miette::{NamedSource, SourceSpan};
@@ -79,7 +80,7 @@ impl JsonSchemaValidator {
             let description = self
                 .build_description_from_xpath(error.schema_path.as_str())
                 .ok();
-            let error_msg = self.build_error_message(&error);
+            let error_msg = self.build_error_message(&error, "".to_owned());
             errors.push(InvalidSemConvSpec(Box::new(InvalidSemConvSpecError {
                 src: NamedSource::new(provenance, yaml_doc.raw_yaml()),
                 err_span: yaml_doc.source_span(error.instance_path.as_str()).ok(),
@@ -101,8 +102,38 @@ impl JsonSchemaValidator {
         }
     }
 
+    // When an anyof or oneof fails, we return all the sub-failures.
+    fn build_variant_error_message(
+        &self,
+        context: &[Vec<jsonschema::ValidationError<'_>>],
+        indent: String,
+    ) -> String {
+        return context
+            .iter()
+            .enumerate()
+            .map(|(idx, errors)| {
+                format!(
+                    "{}(Variant {}):\n{}",
+                    indent,
+                    idx + 1,
+                    errors
+                        .iter()
+                        .map(|e| format!(
+                            "{indent}- {}",
+                            self.build_error_message(e, format!("{indent}  "))
+                        ))
+                        .join("\n")
+                )
+            })
+            .join(&format!("\n"));
+    }
+
     /// Builds a nice error message from the validation error.
-    fn build_error_message(&self, error: &jsonschema::ValidationError<'_>) -> String {
+    fn build_error_message(
+        &self,
+        error: &jsonschema::ValidationError<'_>,
+        indent: String,
+    ) -> String {
         match &error.kind {
             ValidationErrorKind::AdditionalItems { limit } =>
                 format!("Array has more items ({}) than allowed (maximum: {}).", error.instance, limit),
@@ -113,8 +144,8 @@ impl JsonSchemaValidator {
                     unexpected.join(", ")
                 ),
 
-            ValidationErrorKind::AnyOf =>
-                "The following YAML snippet does not match any of the allowed schemas (anyOf, see help section).".to_owned(),
+            ValidationErrorKind::AnyOf { context} =>
+                format!("The following YAML snippet does not match any of the allowed schemas.\n{}", self.build_variant_error_message(context, indent)),
 
             ValidationErrorKind::BacktrackLimitExceeded { error: e } =>
                 format!("Regex match failed: backtrack limit exceeded ({e})"),
@@ -186,11 +217,11 @@ impl JsonSchemaValidator {
             ValidationErrorKind::Not { schema } =>
                 format!("Value {} matches a schema that is explicitly forbidden (not). Schema: {}", error.instance, schema),
 
-            ValidationErrorKind::OneOfMultipleValid =>
-                format!("Value {} matches more than one schema in a 'oneOf' group; it must match exactly one.", error.instance),
+            ValidationErrorKind::OneOfMultipleValid { context} => 
+                format!("Value {} matches more than one schema in a 'oneOf' group; it must match exactly one.\n{}", error.instance, self.build_variant_error_message(context, indent)),
 
-            ValidationErrorKind::OneOfNotValid =>
-                format!("Value {} does not match any schema in a 'oneOf' group; it must match exactly one.", error.instance),
+            ValidationErrorKind::OneOfNotValid { context} =>
+                format!("Value {} does not match any schema in a 'oneOf' group; it must match exactly one.\n{}", error.instance, self.build_variant_error_message(context, indent)),
 
             ValidationErrorKind::Pattern { pattern } =>
                 format!("String {} does not match the required pattern: '{}'.", error.instance, pattern),
