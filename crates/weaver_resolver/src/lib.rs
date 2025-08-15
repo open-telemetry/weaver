@@ -322,7 +322,8 @@ impl SchemaResolver {
 
         let local_path = registry_repo.path().to_path_buf();
         let registry_path_repr = registry_repo.registry_path_repr();
-        let validator = JsonSchemaValidator::new();
+        let versioned_validator = JsonSchemaValidator::new_versioned();
+        let unversioned_validator = JsonSchemaValidator::new_unversioned();
 
         // Loads the semantic convention specifications from the git repo.
         // All yaml files are recursively loaded and parsed in parallel from
@@ -342,7 +343,8 @@ impl SchemaResolver {
                         vec![SemConvRegistry::semconv_spec_from_file(
                             &registry_repo.id(),
                             entry.path(),
-                            &validator,
+                            &unversioned_validator,
+                            &versioned_validator,
                             |path| {
                                 // Replace the local path with the git URL combined with the relative path
                                 // of the semantic convention file.

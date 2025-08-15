@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)
+
 # [0.17.0] - 2025-08-08
 
 - Filter based on deprecation, stability, and annotations in signal JQ helpers
