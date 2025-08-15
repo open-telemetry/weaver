@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# Unreleased
+# [0.17.1] - 2025-08-15
 
 - Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)
 
