@@ -81,7 +81,8 @@ impl SemConvRegistry {
             non_fatal_errors: &mut Vec<Error>,
         ) -> Result<SemConvRegistry, Error> {
             let mut registry = SemConvRegistry::new(registry_id);
-            let validator = JsonSchemaValidator::new();
+            let versioned_validator = JsonSchemaValidator::new_versioned();
+            let unversioned_validator = JsonSchemaValidator::new_unversioned();
             for sc_entry in
                 glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
                     path_pattern: path_pattern.to_owned(),
@@ -95,7 +96,8 @@ impl SemConvRegistry {
                 let (semconv_spec, nfes) = SemConvSpecWithProvenance::from_file(
                     registry_id,
                     path_buf.as_path(),
-                    &validator,
+                    &unversioned_validator,
+                    &versioned_validator,
                 )
                 .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
@@ -203,7 +205,8 @@ impl SemConvRegistry {
     pub fn semconv_spec_from_file<P, F>(
         registry_id: &str,
         semconv_path: P,
-        validator: &JsonSchemaValidator,
+        unversioned_validator: &JsonSchemaValidator,
+        versioned_validator: &JsonSchemaValidator,
         path_fixer: F,
     ) -> WResult<SemConvSpecWithProvenance, Error>
     where
@@ -213,7 +216,8 @@ impl SemConvRegistry {
         SemConvSpecWithProvenance::from_file_with_mapped_path(
             registry_id,
             semconv_path,
-            validator,
+            unversioned_validator,
+            versioned_validator,
             path_fixer,
         )
     }
