@@ -61,7 +61,7 @@ pub fn run() -> anyhow::Result<()> {
                     std::fs::read_to_string(cargo_toml_path.clone())
                         .map_err(|e| e.into())
                         .and_then(|contents| contents.parse::<toml::Table>().map_err(|e| e.into()))
-                        .map(|table| Value::Table(table));
+                        .map(Value::Table);
                 match maybe_toml {
                     Ok(toml) => {
                         if let Err(e) = check_package(cargo_toml_path.as_path(), &toml) {
