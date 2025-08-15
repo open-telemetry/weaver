@@ -108,7 +108,7 @@ impl JsonSchemaValidator {
         context: &[Vec<jsonschema::ValidationError<'_>>],
         indent: String,
     ) -> String {
-        return context
+        context
             .iter()
             .enumerate()
             .map(|(idx, errors)| {
@@ -125,7 +125,7 @@ impl JsonSchemaValidator {
                         .join("\n")
                 )
             })
-            .join(&format!("\n"));
+            .join("\n")
     }
 
     /// Builds a nice error message from the validation error.
