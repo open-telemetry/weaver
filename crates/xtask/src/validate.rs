@@ -57,11 +57,13 @@ pub fn run() -> anyhow::Result<()> {
                         crate_name
                     ));
                 }
-
-                match std::fs::read_to_string(cargo_toml_path.clone()) {
-                    Ok(contents) => {
-                        let toml = contents.parse::<Value>()?;
-
+                let maybe_toml: Result<Value, anyhow::Error> =
+                    std::fs::read_to_string(cargo_toml_path.clone())
+                        .map_err(|e| e.into())
+                        .and_then(|contents| contents.parse::<toml::Table>().map_err(|e| e.into()))
+                        .map(|table| Value::Table(table));
+                match maybe_toml {
+                    Ok(toml) => {
                         if let Err(e) = check_package(cargo_toml_path.as_path(), &toml) {
                             errors.push(e);
                         }
