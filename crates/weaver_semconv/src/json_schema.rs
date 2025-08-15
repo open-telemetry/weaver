@@ -217,7 +217,7 @@ impl JsonSchemaValidator {
             ValidationErrorKind::Not { schema } =>
                 format!("Value {} matches a schema that is explicitly forbidden (not). Schema: {}", error.instance, schema),
 
-            ValidationErrorKind::OneOfMultipleValid { context} => 
+            ValidationErrorKind::OneOfMultipleValid { context } =>
                 format!("Value {} matches more than one schema in a 'oneOf' group; it must match exactly one.\n{}", error.instance, self.build_variant_error_message(context, indent)),
 
             ValidationErrorKind::OneOfNotValid { context} =>
