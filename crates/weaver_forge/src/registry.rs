@@ -15,6 +15,7 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::migration::MigrationSpec;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -116,6 +117,9 @@ pub struct ResolvedGroup {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+    /// Header for the namespace/page.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub migration: Option<MigrationSpec>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -172,6 +176,7 @@ impl ResolvedGroup {
             lineage,
             display_name: group.display_name.clone(),
             body: group.body.clone(),
+            migration: group.migration.clone(),
             entity_associations: group.entity_associations.clone(),
             annotations: group.annotations.clone(),
         })
@@ -233,6 +238,7 @@ impl ResolvedRegistry {
                     lineage,
                     display_name: group.display_name.clone(),
                     body: group.body.clone(),
+                    migration: group.migration.clone(),
                     entity_associations: group.entity_associations.clone(),
                     annotations: group.annotations.clone(),
                 }
