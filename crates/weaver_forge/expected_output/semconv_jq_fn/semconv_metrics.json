@@ -2,6 +2,7 @@
   {
     "metrics": [
       {
+        "attributes": null,
         "brief": "Number of classes currently loaded.",
         "id": "metric.jvm.class.count",
         "instrument": "updowncounter",
@@ -18,6 +19,7 @@
         "unit": "{class}"
       },
       {
+        "attributes": null,
         "brief": "Number of classes loaded since JVM start.",
         "id": "metric.jvm.class.loaded",
         "instrument": "counter",
@@ -34,6 +36,7 @@
         "unit": "{class}"
       },
       {
+        "attributes": null,
         "brief": "Number of classes unloaded since JVM start.",
         "id": "metric.jvm.class.unloaded",
         "instrument": "counter",
@@ -50,6 +53,7 @@
         "unit": "{class}"
       },
       {
+        "attributes": null,
         "brief": "Number of processors available to the Java virtual machine.",
         "id": "metric.jvm.cpu.count",
         "instrument": "updowncounter",
@@ -66,6 +70,7 @@
         "unit": "{cpu}"
       },
       {
+        "attributes": null,
         "brief": "Recent CPU utilization for the process as reported by the JVM.",
         "id": "metric.jvm.cpu.recent_utilization",
         "instrument": "gauge",
@@ -83,6 +88,7 @@
         "unit": "1"
       },
       {
+        "attributes": null,
         "brief": "CPU time used by the process as reported by the JVM.",
         "id": "metric.jvm.cpu.time",
         "instrument": "counter",
@@ -164,6 +170,22 @@
                   "id": "non_heap",
                   "stability": "stable",
                   "value": "non_heap"
+                },
+                {
+                  "brief": "This member is deprecated.",
+                  "deprecated": {
+                    "note": "Use `heap` or `non_heap` instead.",
+                    "reason": "obsoleted"
+                  },
+                  "id": "deprecated",
+                  "stability": "stable",
+                  "value": "deprecated"
+                },
+                {
+                  "brief": "This member is experimental.",
+                  "id": "experimental",
+                  "stability": "development",
+                  "value": "experimental"
                 }
               ]
             }
@@ -220,6 +242,30 @@
         "unit": "By"
       },
       {
+        "attributes": null,
+        "brief": "Measure something deprecated.",
+        "deprecated": {
+          "note": "Use `metric.jvm.memory.used` instead.",
+          "reason": "obsoleted"
+        },
+        "entity_associations": [
+          "service"
+        ],
+        "id": "metric.jvm.memory.deprecated",
+        "instrument": "updowncounter",
+        "lineage": {
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
+        },
+        "metric_name": "jvm.memory.deprecated",
+        "root_namespace": "jvm",
+        "stability": "stable",
+        "type": "metric",
+        "unit": "By"
+      },
+      {
         "attributes": [
           {
             "brief": "The type of memory.",
@@ -243,6 +289,22 @@
                   "id": "non_heap",
                   "stability": "stable",
                   "value": "non_heap"
+                },
+                {
+                  "brief": "This member is deprecated.",
+                  "deprecated": {
+                    "note": "Use `heap` or `non_heap` instead.",
+                    "reason": "obsoleted"
+                  },
+                  "id": "deprecated",
+                  "stability": "stable",
+                  "value": "deprecated"
+                },
+                {
+                  "brief": "This member is experimental.",
+                  "id": "experimental",
+                  "stability": "development",
+                  "value": "experimental"
                 }
               ]
             }
@@ -322,6 +384,22 @@
                   "id": "non_heap",
                   "stability": "stable",
                   "value": "non_heap"
+                },
+                {
+                  "brief": "This member is deprecated.",
+                  "deprecated": {
+                    "note": "Use `heap` or `non_heap` instead.",
+                    "reason": "obsoleted"
+                  },
+                  "id": "deprecated",
+                  "stability": "stable",
+                  "value": "deprecated"
+                },
+                {
+                  "brief": "This member is experimental.",
+                  "id": "experimental",
+                  "stability": "development",
+                  "value": "experimental"
                 }
               ]
             }
@@ -338,6 +416,31 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": "string"
+          },
+          {
+            "brief": "Something deprecated.",
+            "deprecated": {
+              "note": "Use `jvm.memory.stable.attribute` instead.",
+              "reason": "obsoleted"
+            },
+            "name": "jvm.memory.deprecated.attribute",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "boolean"
+          },
+          {
+            "brief": "Something experimental.",
+            "name": "jvm.memory.experimental.attribute",
+            "requirement_level": "opt_in",
+            "stability": "development",
+            "type": "boolean"
+          },
+          {
+            "brief": "Something stable.",
+            "name": "jvm.memory.stable.attribute",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "boolean"
           }
         ],
         "brief": "Measure of memory used.",
@@ -404,6 +507,22 @@
                   "id": "non_heap",
                   "stability": "stable",
                   "value": "non_heap"
+                },
+                {
+                  "brief": "This member is deprecated.",
+                  "deprecated": {
+                    "note": "Use `heap` or `non_heap` instead.",
+                    "reason": "obsoleted"
+                  },
+                  "id": "deprecated",
+                  "stability": "stable",
+                  "value": "deprecated"
+                },
+                {
+                  "brief": "This member is experimental.",
+                  "id": "experimental",
+                  "stability": "development",
+                  "value": "experimental"
                 }
               ]
             }

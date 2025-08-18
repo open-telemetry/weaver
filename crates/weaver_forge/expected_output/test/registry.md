@@ -20,6 +20,8 @@ Url:
 
 # Metrics
 
+- [metric.jvm.memory.deprecated](metric/metric_jvm_memory_deprecated.md)
+- [metric.jvm.memory.dont_generate](metric/metric_jvm_memory_dont_generate.md)
 - [metric.jvm.memory.used](metric/metric_jvm_memory_used.md)
 - [metric.jvm.memory.committed](metric/metric_jvm_memory_committed.md)
 - [metric.jvm.memory.limit](metric/metric_jvm_memory_limit.md)

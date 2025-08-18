@@ -26,7 +26,7 @@ eula = false
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.16.1"
+version = "0.17.1"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -37,7 +37,7 @@ rust-version = "1.81.0"
 [workspace.dependencies]
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
-serde_json = { version = "1.0.140" }
+serde_json = { version = "1.0.142" }
 thiserror = "2.0.12"
 url = "2.5.4"
 ureq = "2.12.1"
@@ -81,8 +81,8 @@ weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
 
-clap = { version = "4.5.40", features = ["derive"] }
-clap_complete = "4.5.54"
+clap = { version = "4.5.41", features = ["derive"] }
+clap_complete = "4.5.55"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
