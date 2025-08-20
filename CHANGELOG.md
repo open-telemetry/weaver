@@ -4,12 +4,25 @@ All notable changes to this project will be documented in this file.
 
 # [Next] - Next
 
+- Support for describing aggregation being done on metrics
+  ([#845](https://github.com/open-telemetry/weaver/pull/822) by @thompson-tomo)
+
+# [0.17.1] - 2025-08-15
+
+- Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)
+
+# [0.17.0] - 2025-08-08
+
+- Filter based on deprecation, stability, and annotations in signal JQ helpers
+  ([#870](https://github.com/open-telemetry/weaver/pull/870) by @lmolkova)
+- Documentation and Repo cleanup ([#873](https://github.com/open-telemetry/weaver/pull/873) by @lquerel))
 - Support structured deprecation info on enum members.
   ([#823](https://github.com/open-telemetry/weaver/pull/823) by @lmolkova)
 - Don't serialize default values and empty arrays when resolving semantic conventions.
   ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
-- Support for describing aggregation being done on metrics
-  ([#845](https://github.com/open-telemetry/weaver/pull/822) by @thompson-tomo)
+- Add support for registry dependency chain, a->b->c. This pattern is useful when making narrow application registries that depend on a corporate registry based on the OpenTelemetry semantic conventions. Max depth is 10.
+  ([#856](https://github.com/open-telemetry/weaver/pull/856) by @jerbly)
+- Improve doc usage section ([#851](https://github.com/open-telemetry/weaver/pull/851) by @tombrk)
 
 # [0.16.1] - 2025-07-04
 
