@@ -90,8 +90,13 @@ fn main() {
 
     if !cli.quiet {
         // Initialize the logger
+        let level = if cli.debug > 0 {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        };
         env_logger::builder()
-            .filter(None, log::LevelFilter::Info)
+            .filter(None, level)
             .format(|buf, record| writeln!(buf, "{}", record.args()))
             .init();
     }
