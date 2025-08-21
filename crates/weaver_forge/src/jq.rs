@@ -10,7 +10,6 @@ use jaq_core::{
     Ctx, Native, RcIter,
 };
 use jaq_json::Val;
-use weaver_common::log_error;
 
 type JqFileType = ();
 
@@ -38,7 +37,7 @@ pub fn execute_jq(
     params: &BTreeMap<String, serde_json::Value>,
 ) -> Result<serde_json::Value, Error> {
     // TODO: save input into temp file for debugging if debug is enabled
-    log::debug!("Executing JQ filter: {} ...", filter_expr);
+    log::debug!("Executing JQ filter: {filter_expr}...");
 
     let loader = Loader::new(
         // ToDo: Allow custom preludes?
@@ -79,7 +78,6 @@ pub fn execute_jq(
     let ctx = Ctx::new(values, &inputs);
 
     // Bundle Results
-    // Bundle Results
     let mut errs = Vec::new();
     let mut values = Vec::new();
     let filter_result = filter.run((ctx, Val::from(input.clone())));
@@ -90,7 +88,7 @@ pub fn execute_jq(
         }
     }
 
-    if errs.is_empty() == false {
+    if !errs.is_empty() {
         return Err(Error::FilterError {
             filter: filter_expr.to_owned(),
             error: errs
