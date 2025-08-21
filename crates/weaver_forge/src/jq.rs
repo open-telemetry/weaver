@@ -10,6 +10,7 @@ use jaq_core::{
     Ctx, Native, RcIter,
 };
 use jaq_json::Val;
+use weaver_common::log_error;
 
 type JqFileType = ();
 
@@ -78,16 +79,27 @@ pub fn execute_jq(
     let ctx = Ctx::new(values, &inputs);
 
     // Bundle Results
-    let mut values = filter
-        .run((ctx, Val::from(input.clone())))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| Error::FilterError {
+    // Bundle Results
+    let mut errs = Vec::new();
+    let mut values = Vec::new();
+    let filter_result = filter.run((ctx, Val::from(input.clone())));
+    for r in filter_result {
+        match r {
+            Ok(v) => values.push(serde_json::Value::from(v)),
+            Err(e) => errs.push(e),
+        }
+    }
+
+    if errs.is_empty() == false {
+        return Err(Error::FilterError {
             filter: filter_expr.to_owned(),
-            error: e.to_string(),
-        })?
-        .into_iter()
-        .map(serde_json::Value::from)
-        .collect::<Vec<_>>();
+            error: errs
+                .into_iter()
+                .map(|e| format!("{e}"))
+                .collect::<Vec<String>>()
+                .join(",\n"),
+        });
+    }
 
     // TODO: save output into temp file for debugging if debug is enabled
     log::debug!("JQ filter produced {} result(s)", values.len());
@@ -228,14 +240,19 @@ mod tests {
 
     #[test]
     fn test_cannot_iterate_error() {
-        let input = json!(["a"]);
+        let input = json!(["a", "b"]);
         let values = BTreeMap::new();
         let error =
-            execute_jq(&input, ".[] | unique", &values).expect_err("Should have failed to parse");
+            execute_jq(&input, ".[] | unique", &values).expect_err("Should have failed to execute");
         let msg = format!("{error}");
+
         assert!(
             msg.contains("cannot use \"a\" as array"),
-            "Expected compile error {msg}"
+            "Expected execute error, but got {msg}"
+        );
+        assert!(
+            msg.contains("cannot use \"b\" as array"),
+            "Expected execute error, but got '{msg}'"
         );
     }
 }
