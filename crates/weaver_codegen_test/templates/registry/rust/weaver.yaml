@@ -22,41 +22,7 @@ comment_formats:
 default_comment_format: rust
 
 templates:
-  - template: README.md
-    filter: .
-    application_mode: single
-  - template: lib.rs
-    filter: .
-    application_mode: single
   - template: attributes/mod.rs.j2
     filter: >
-      if $attributes then
-        semconv_grouped_attributes($params)
-      else
-        empty
-      end
+      semconv_grouped_attributes
     application_mode: single
-  - template: attributes/attributes.rs.j2
-    filter: >
-      if $attributes then
-        semconv_grouped_attributes($params)
-      else
-        empty
-      end
-    application_mode: each
-  - template: metrics/mod.rs.j2
-    filter: >
-      if $metrics then
-        semconv_grouped_metrics
-      else
-        empty
-      end
-    application_mode: single
-  - template: metrics/metrics.rs.j2
-    filter: >
-      if $metrics then
-        semconv_grouped_metrics
-      else
-        empty
-      end
-    application_mode: each

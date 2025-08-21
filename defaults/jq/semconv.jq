@@ -59,7 +59,7 @@ def code_generation_exclude_filter($options):
             or .annotations.code_generation.exclude == false)))
     end;
 
-# Filters the input list of attributes and enum members based on deprecation status. 
+# Filters the input list of attributes and enum members based on deprecation status.
 # $options is an object that can contain:
 # - exclude_deprecated: a boolean to exclude deprecated attributes and enum members. False by default.
 def deprecated_filter($options):
@@ -84,7 +84,7 @@ def deprecated_filter($options):
 def semconv_attributes($options):
     .groups
     | map(select(.type == "attribute_group" and (.id | startswith("registry."))))
-    | map(.attributes) | add
+    | map(.attributes) | add // []
     | stability_filter($options)
     | code_generation_exclude_filter($options)
     | deprecated_filter($options)
