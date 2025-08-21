@@ -381,6 +381,7 @@ mod tests {
 
     #[test]
     fn test_registry_generate_with_symbolic_link_cases() {
+        env_logger::builder().is_test(true).init();
         let test_cases = vec![
             (
                 true, // follow_symlinks
@@ -412,7 +413,7 @@ mod tests {
                 .into_path();
 
             let cli = Cli {
-                debug: 0,
+                debug: 1,
                 quiet: false,
                 future: false,
                 command: Some(Commands::Registry(RegistryCommand {

@@ -55,7 +55,7 @@ templates:
   - template: metrics/metrics.rs.j2
     filter: >
       if $metrics then
-        semconv_grouped_metrics 
+        semconv_grouped_metrics
       else
         empty
       end

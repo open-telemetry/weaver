@@ -91,7 +91,7 @@ fn main() {
     if !cli.quiet {
         // Initialize the logger
         let level = if cli.debug > 0 {
-            log::LevelFilter::Debug
+            log::LevelFilter::Trace
         } else {
             log::LevelFilter::Info
         };

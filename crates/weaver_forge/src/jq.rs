@@ -37,7 +37,8 @@ pub fn execute_jq(
     params: &BTreeMap<String, serde_json::Value>,
 ) -> Result<serde_json::Value, Error> {
     // TODO: save input into temp file for debugging if debug is enabled
-    log::debug!("Executing JQ filter: {filter_expr}...");
+    log::debug!("Executing JQ filter: {filter_expr} with params {:#?}", params);
+    log::trace!("Input JSON: {}", input);
 
     let loader = Loader::new(
         // ToDo: Allow custom preludes?
