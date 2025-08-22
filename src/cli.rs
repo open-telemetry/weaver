@@ -17,7 +17,7 @@ use clap::{Args, Parser, Subcommand};
     arg_required_else_help = true
 )]
 pub struct Cli {
-    /// Turn debugging information on
+    /// Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
     #[arg(long, action = clap::ArgAction::Count, global = true)]
     pub debug: u8,
 

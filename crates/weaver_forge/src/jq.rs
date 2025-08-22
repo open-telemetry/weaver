@@ -36,6 +36,12 @@ pub fn execute_jq(
     // Note: This will be exposed with `${key}` as the variable name.
     params: &BTreeMap<String, serde_json::Value>,
 ) -> Result<serde_json::Value, Error> {
+    if log::log_enabled!(log::Level::Trace) {
+        log::trace!("Executing JQ filter: {filter_expr} with params {params:#?}, input {input:#?}");
+    } else if log::log_enabled!(log::Level::Trace) {
+        log::debug!("Executing JQ filter: {filter_expr} with params {params:#?}");
+    }
+
     let loader = Loader::new(
         // ToDo: Allow custom preludes?
         jaq_std::defs()
@@ -83,6 +89,27 @@ pub fn execute_jq(
             Ok(v) => values.push(serde_json::Value::from(v)),
             Err(e) => errs.push(e),
         }
+    }
+
+    if !errs.is_empty() {
+        return Err(Error::FilterError {
+            filter: filter_expr.to_owned(),
+            error: errs
+                .into_iter()
+                .map(|e| format!("{e}"))
+                .collect::<Vec<String>>()
+                .join(",\n"),
+        });
+    }
+
+    if log::log_enabled!(log::Level::Trace) {
+        log::trace!(
+            "JQ filter produced {} result(s): {}",
+            values.len(),
+            serde_json::Value::from(values.clone())
+        );
+    } else {
+        log::debug!("JQ filter produced {} result(s)", values.len());
     }
 
     if values.len() == 1 {
@@ -216,6 +243,24 @@ mod tests {
         assert!(
             msg.contains("undefined filter"),
             "Expected compile error {msg}"
+        );
+    }
+
+    #[test]
+    fn test_cannot_iterate_error() {
+        let input = json!(["a", "b"]);
+        let values = BTreeMap::new();
+        let error =
+            execute_jq(&input, ".[] | unique", &values).expect_err("Should have failed to execute");
+        let msg = format!("{error}");
+
+        assert!(
+            msg.contains("cannot use \"a\" as array"),
+            "Expected execute error, but got {msg}"
+        );
+        assert!(
+            msg.contains("cannot use \"b\" as array"),
+            "Expected execute error, but got '{msg}'"
         );
     }
 }
