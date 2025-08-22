@@ -12,7 +12,7 @@ Commands:
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-      --debug...  Turn debugging information on
+      --debug...  Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
       --quiet     Turn the quiet mode on (i.e., minimal output)
       --future    Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
   -h, --help      Print help
@@ -40,7 +40,7 @@ Commands:
   help             Print this message or the help of the given subcommand(s)
 
 Options:
-      --debug...  Turn debugging information on
+      --debug...  Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
       --quiet     Turn the quiet mode on (i.e., minimal output)
       --future    Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
   -h, --help      Print help
@@ -65,7 +65,7 @@ Usage: weaver registry check [OPTIONS]
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
@@ -131,7 +131,7 @@ Arguments:
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -t, --templates <TEMPLATES>
           Path to the directory where the templates are located. Default is the `templates` directory
@@ -199,7 +199,7 @@ Usage: weaver registry resolve [OPTIONS]
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
@@ -265,7 +265,7 @@ Arguments:
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
       --quiet
@@ -293,7 +293,7 @@ Usage: weaver registry stats [OPTIONS]
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
       --quiet
@@ -322,7 +322,7 @@ Arguments:
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
       --quiet
@@ -358,7 +358,7 @@ Usage: weaver registry json-schema [OPTIONS]
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -o, --output <OUTPUT>
           Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
@@ -397,7 +397,7 @@ Usage: weaver registry diff [OPTIONS] --baseline-registry <BASELINE_REGISTRY>
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
@@ -461,7 +461,7 @@ Usage: weaver registry live-check [OPTIONS]
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
@@ -522,7 +522,7 @@ Usage: weaver registry emit [OPTIONS]
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
 
   -r, --registry <REGISTRY>
           Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
@@ -581,7 +581,7 @@ Commands:
   help  Print this message or the help of the given subcommand(s)
 
 Options:
-      --debug...  Turn debugging information on
+      --debug...  Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
       --quiet     Turn the quiet mode on (i.e., minimal output)
       --future    Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
   -h, --help      Print help
@@ -599,7 +599,7 @@ Arguments:
 
 Options:
       --debug...
-          Turn debugging information on
+          Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
   -t, --diagnostic-templates-dir <DIAGNOSTIC_TEMPLATES_DIR>
           Optional path where the diagnostic templates directory should be created [default: diagnostic_templates]
       --diagnostic-format <DIAGNOSTIC_FORMAT>
@@ -625,7 +625,7 @@ Arguments:
   <SHELL>  The shell to generate the completions for [possible values: bash, elvish, fish, powershell, zsh]
 
 Options:
-      --debug...  Turn debugging information on
+      --debug...  Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
       --quiet     Turn the quiet mode on (i.e., minimal output)
       --future    Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
   -h, --help      Print help

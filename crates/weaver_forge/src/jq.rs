@@ -36,9 +36,11 @@ pub fn execute_jq(
     // Note: This will be exposed with `${key}` as the variable name.
     params: &BTreeMap<String, serde_json::Value>,
 ) -> Result<serde_json::Value, Error> {
-    // TODO: save input into temp file for debugging if debug is enabled
-    log::debug!("Executing JQ filter: {filter_expr} with params {:#?}", params);
-    log::trace!("Input JSON: {}", input);
+    if log::log_enabled!(log::Level::Trace) {
+        log::trace!("Executing JQ filter: {filter_expr} with params {params:#?}, input {input:#?}");
+    } else if log::log_enabled!(log::Level::Trace) {
+        log::debug!("Executing JQ filter: {filter_expr} with params {params:#?}");
+    }
 
     let loader = Loader::new(
         // ToDo: Allow custom preludes?
@@ -100,8 +102,15 @@ pub fn execute_jq(
         });
     }
 
-    // TODO: save output into temp file for debugging if debug is enabled
-    log::debug!("JQ filter produced {} result(s)", values.len());
+    if log::log_enabled!(log::Level::Trace) {
+        log::trace!(
+            "JQ filter produced {} result(s): {}",
+            values.len(),
+            serde_json::Value::from(values.clone())
+        );
+    } else {
+        log::debug!("JQ filter produced {} result(s)", values.len());
+    }
 
     if values.len() == 1 {
         return Ok(values.pop().expect("values.len() == 1, should not happen"));
