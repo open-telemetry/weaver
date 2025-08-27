@@ -45,7 +45,7 @@ fn test_cli_interface() {
     let json_value: Vec<serde_json::Value> = serde_json::from_str(&stdout).expect("Invalid JSON");
     // We expect 31 policy violations.
     // - 2 legacy template examples format
-    // - 3 missing stability on enum members
+    // - 3 missing stability on enum members when parent is not deprecated
     // - 13 violations before resolution
     // - 3 violations for metrics after resolution
     // - 9 violations for http after resolution

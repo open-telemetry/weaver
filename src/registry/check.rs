@@ -217,7 +217,7 @@ mod tests {
             assert_eq!(
                 diag_msgs.len(),
                 2 /* legacy template examples format */
-                + 3 /* missing stability on enum members */
+                + 3 /* missing stability on enum members when parent is not deprecated */
                 + 13 /* before resolution */
                 + 3 /* metric after resolution */
                 + 9 /* http after resolution */
