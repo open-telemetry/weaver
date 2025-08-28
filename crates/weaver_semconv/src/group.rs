@@ -126,6 +126,13 @@ pub struct GroupSpec {
 pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {
+    /// Apply stability inheritance to all enum members in this group.
+    /// This modifies the group in-place to propagate deprecation status from parent attributes to enum members.
+    pub fn apply_enum_stability_inheritance(&mut self) {
+        for attribute in &mut self.attributes {
+            attribute.apply_enum_stability_inheritance();
+        }
+    }
     /// Validation logic for the group.
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
@@ -2123,6 +2130,237 @@ mod tests {
                 "Validation should pass for deprecation type: {:?}",
                 deprecated_type
             );
+        }
+    }
+
+    #[test]
+    fn test_enum_stability_inheritance_behavior() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "Test group".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: Vec::new(),
+        };
+
+        // Test that inheritance actually applies to the enum members
+        group.attributes = vec![AttributeSpec::Id {
+            id: "deprecated_enum_with_inheritance".to_owned(),
+            r#type: AttributeType::Enum {
+                members: vec![
+                    EnumEntriesSpec {
+                        id: "member1".to_owned(),
+                        value: ValueSpec::String("value1".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: None,  // Should inherit from parent
+                        deprecated: None, // Should inherit from parent
+                        annotations: None,
+                    },
+                    EnumEntriesSpec {
+                        id: "member2".to_owned(),
+                        value: ValueSpec::String("value2".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: Some(Stability::Development), // Explicit stability - should NOT be overridden
+                        deprecated: None,                        // Should inherit from parent
+                        annotations: None,
+                    },
+                    EnumEntriesSpec {
+                        id: "member3".to_owned(),
+                        value: ValueSpec::String("value3".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: None, // Should inherit from parent
+                        deprecated: Some(Deprecated::Renamed {
+                            renamed_to: "new.member3".to_owned(),
+                            note: "Use new member".to_owned(),
+                        }), // Explicit deprecation - should NOT be overridden
+                        annotations: None,
+                    },
+                ],
+            },
+            brief: Some("Test deprecated enum attribute".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "This entire attribute is deprecated".to_owned(),
+            }),
+            examples: Some(Examples::String("value1".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            annotations: None,
+            role: Default::default(),
+        }];
+
+        // Apply inheritance
+        group.apply_enum_stability_inheritance();
+
+        // Check that inheritance was applied correctly
+        if let AttributeSpec::Id {
+            r#type: AttributeType::Enum { members },
+            ..
+        } = &group.attributes[0]
+        {
+            // Member1: should have inherited stability and deprecation
+            assert_eq!(
+                members[0].stability,
+                Some(Stability::Stable),
+                "Member1 should inherit parent stability"
+            );
+            assert_eq!(
+                members[0].deprecated,
+                Some(Deprecated::Obsoleted {
+                    note: "This entire attribute is deprecated".to_owned(),
+                }),
+                "Member1 should inherit parent deprecation"
+            );
+
+            // Member2: should keep explicit stability but inherit deprecation
+            assert_eq!(
+                members[1].stability,
+                Some(Stability::Development),
+                "Member2 should keep explicit stability"
+            );
+            assert_eq!(
+                members[1].deprecated,
+                Some(Deprecated::Obsoleted {
+                    note: "This entire attribute is deprecated".to_owned(),
+                }),
+                "Member2 should inherit parent deprecation"
+            );
+
+            // Member3: should inherit stability but keep explicit deprecation
+            assert_eq!(
+                members[2].stability,
+                Some(Stability::Stable),
+                "Member3 should inherit parent stability"
+            );
+            assert_eq!(
+                members[2].deprecated,
+                Some(Deprecated::Renamed {
+                    renamed_to: "new.member3".to_owned(),
+                    note: "Use new member".to_owned(),
+                }),
+                "Member3 should keep explicit deprecation"
+            );
+        } else {
+            panic!("Expected enum attribute");
+        }
+
+        // Test case where parent has no stability - should default to experimental
+        group.attributes = vec![AttributeSpec::Id {
+            id: "deprecated_enum_no_stability".to_owned(),
+            r#type: AttributeType::Enum {
+                members: vec![EnumEntriesSpec {
+                    id: "member1".to_owned(),
+                    value: ValueSpec::String("value1".to_owned()),
+                    brief: None,
+                    note: None,
+                    stability: None,
+                    deprecated: None,
+                    annotations: None,
+                }],
+            },
+            brief: Some("Test deprecated enum attribute without stability".to_owned()),
+            stability: None, // No explicit stability
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "This entire attribute is deprecated".to_owned(),
+            }),
+            examples: Some(Examples::String("value1".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            annotations: None,
+            role: Default::default(),
+        }];
+
+        // Apply inheritance
+        group.apply_enum_stability_inheritance();
+
+        // Check that inheritance defaults to experimental when parent has no stability
+        if let AttributeSpec::Id {
+            r#type: AttributeType::Enum { members },
+            ..
+        } = &group.attributes[0]
+        {
+            assert_eq!(
+                members[0].stability,
+                Some(Stability::Development),
+                "Member should inherit development when parent has no stability"
+            );
+            assert_eq!(
+                members[0].deprecated,
+                Some(Deprecated::Obsoleted {
+                    note: "This entire attribute is deprecated".to_owned(),
+                }),
+                "Member should inherit parent deprecation"
+            );
+        } else {
+            panic!("Expected enum attribute");
+        }
+
+        // Test non-deprecated parent - no inheritance should occur
+        group.attributes = vec![AttributeSpec::Id {
+            id: "non_deprecated_enum".to_owned(),
+            r#type: AttributeType::Enum {
+                members: vec![EnumEntriesSpec {
+                    id: "member1".to_owned(),
+                    value: ValueSpec::String("value1".to_owned()),
+                    brief: None,
+                    note: None,
+                    stability: None,
+                    deprecated: None,
+                    annotations: None,
+                }],
+            },
+            brief: Some("Test non-deprecated enum attribute".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: None, // NOT deprecated
+            examples: Some(Examples::String("value1".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            annotations: None,
+            role: Default::default(),
+        }];
+
+        // Apply inheritance
+        group.apply_enum_stability_inheritance();
+
+        // Check that NO inheritance occurred
+        if let AttributeSpec::Id {
+            r#type: AttributeType::Enum { members },
+            ..
+        } = &group.attributes[0]
+        {
+            assert_eq!(
+                members[0].stability, None,
+                "Member should not inherit when parent is not deprecated"
+            );
+            assert_eq!(
+                members[0].deprecated, None,
+                "Member should not inherit when parent is not deprecated"
+            );
+        } else {
+            panic!("Expected enum attribute");
         }
     }
 }

@@ -204,6 +204,34 @@ impl AttributeSpec {
             AttributeSpec::Id { tag, .. } => tag.clone(),
         }
     }
+
+    /// Apply stability inheritance to enum members when parent attribute is deprecated.
+    /// This mutates the attribute in-place to propagate deprecation status.
+    pub fn apply_enum_stability_inheritance(&mut self) {
+        if let AttributeSpec::Id {
+            r#type: Enum { members },
+            deprecated,
+            stability,
+            ..
+        } = self
+        {
+            // Only apply inheritance if parent attribute is deprecated
+            if deprecated.is_some() {
+                for member in members {
+                    // Only inherit stability if member doesn't have explicit stability
+                    if member.stability.is_none() {
+                        // Inherit the parent's stability (if any), or default to experimental
+                        member.stability = stability.clone().or(Some(Stability::Development));
+                    }
+                    // Only inherit deprecation if member doesn't have explicit deprecation
+                    if member.deprecated.is_none() {
+                        // Inherit the parent's deprecation status
+                        member.deprecated = deprecated.clone();
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// The different types of attributes (specification).

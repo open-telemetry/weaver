@@ -184,7 +184,29 @@ impl SemConvRegistry {
     /// # Arguments
     ///
     /// * `spec` - The semantic convention spec with provenance to add.
-    fn add_semconv_spec(&mut self, spec: SemConvSpecWithProvenance) {
+    fn add_semconv_spec(&mut self, mut spec: SemConvSpecWithProvenance) {
+        // Apply stability inheritance before adding to registry
+        match &mut spec.spec {
+            crate::semconv::SemConvSpec::WithVersion(versioned) => {
+                match versioned {
+                    crate::semconv::Versioned::V1(v1_spec) => {
+                        for group in &mut v1_spec.groups {
+                            group.apply_enum_stability_inheritance();
+                        }
+                    }
+                    crate::semconv::Versioned::V2(_v2_spec) => {
+                        // V2 spec has a different structure - enum inheritance not applicable
+                        // as it doesn't use the same group-based model
+                    }
+                }
+            }
+            crate::semconv::SemConvSpec::NoVersion(v1_spec) => {
+                for group in &mut v1_spec.groups {
+                    group.apply_enum_stability_inheritance();
+                }
+            }
+        }
+
         self.specs.push(spec.into_v1());
         self.semconv_spec_count += 1;
     }
