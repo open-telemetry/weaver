@@ -1033,9 +1033,9 @@ mod tests {
                     annotations: None,
                 }],
             },
-            brief: Some("Test attribute brief".to_owned()),  // Add brief to avoid other validation errors
+            brief: Some("Test attribute brief".to_owned()), // Add brief to avoid other validation errors
             stability: Some(Stability::Stable),
-            deprecated: None,  // Parent is NOT deprecated
+            deprecated: None, // Parent is NOT deprecated
             examples: Some(Examples::String("test".to_owned())),
             tag: None,
             requirement_level: Default::default(),
@@ -2041,17 +2041,15 @@ mod tests {
         group.attributes = vec![AttributeSpec::Id {
             id: "test_non_deprecated_enum".to_owned(),
             r#type: AttributeType::Enum {
-                members: vec![
-                    EnumEntriesSpec {
-                        id: "member_without_stability".to_owned(),
-                        value: ValueSpec::String("value1".to_owned()),
-                        brief: None,
-                        note: None,
-                        stability: None, // No stability field - should cause error because parent is not deprecated
-                        deprecated: None,
-                        annotations: None,
-                    },
-                ],
+                members: vec![EnumEntriesSpec {
+                    id: "member_without_stability".to_owned(),
+                    value: ValueSpec::String("value1".to_owned()),
+                    brief: None,
+                    note: None,
+                    stability: None, // No stability field - should cause error because parent is not deprecated
+                    deprecated: None,
+                    annotations: None,
+                }],
             },
             brief: Some("Test non-deprecated enum attribute".to_owned()),
             stability: Some(Stability::Stable),
@@ -2067,12 +2065,17 @@ mod tests {
 
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert!(result.is_err(), "Validation should fail when parent attribute is not deprecated and enum member lacks stability");
-        
+
         if let Err(error) = result {
             match error {
                 InvalidAttributeWarning { error, .. } => {
-                    assert!(error.contains("Missing stability field on enum member member_without_stability"), 
-                           "Error should mention missing stability field, got: {}", error);
+                    assert!(
+                        error.contains(
+                            "Missing stability field on enum member member_without_stability"
+                        ),
+                        "Error should mention missing stability field, got: {}",
+                        error
+                    );
                 }
                 _ => panic!("Expected InvalidAttributeWarning error, got: {:?}", error),
             }
@@ -2115,8 +2118,11 @@ mod tests {
             }];
 
             let result = group.validate("<test>").into_result_failing_non_fatal();
-            assert!(result.is_ok(), 
-                   "Validation should pass for deprecation type: {:?}", deprecated_type);
+            assert!(
+                result.is_ok(),
+                "Validation should pass for deprecation type: {:?}",
+                deprecated_type
+            );
         }
     }
 }
