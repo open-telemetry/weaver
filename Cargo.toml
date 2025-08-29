@@ -41,7 +41,7 @@ serde_json = { version = "1.0.142" }
 thiserror = "2.0.12"
 url = "2.5.4"
 ureq = "2.12.1"
-regex = "1.11.1"
+regex = "1.11.2"
 rayon = "1.10.0"
 ordered-float = { version = "5.0.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
