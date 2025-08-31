@@ -12,8 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // - Comment the following lines.
     // - Commit the changes.
 
-    // tonic_build::configure()
-    //     // .build_client(false)
+    // tonic_prost_build::configure()
     //     .out_dir("src/registry/otlp/grpc_stubs")
     //     .compile_protos(
     //         &[

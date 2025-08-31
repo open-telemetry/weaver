@@ -506,7 +506,7 @@ pub struct ExponentialHistogramDataPoint {
 pub mod exponential_histogram_data_point {
     /// Buckets are a set of bucket counts, encoded in a contiguous array
     /// of counts.
-    #[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
     pub struct Buckets {
         /// Offset is the bucket index of the first entry in the bucket_counts array.
         ///
