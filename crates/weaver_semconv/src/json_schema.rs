@@ -411,7 +411,9 @@ impl YamlDoc {
             });
         }
 
-        let char_offsets: Vec<usize> = yaml.char_indices().map(|(i, _)| i).collect();
+        let mut char_offsets: Vec<usize> = yaml.char_indices().map(|(i, _)| i).collect();
+        // Spans may reference the position after the last character
+        char_offsets.push(yaml.len());
 
         Ok(YamlDoc {
             raw_yaml,
@@ -540,15 +542,15 @@ mod tests {
 
         let block_pos = yaml.xpath_to_block_position("/").unwrap();
         assert_eq!(block_pos.start.line, 1);
-        assert_eq!(block_pos.end.line, 1);
+        assert_eq!(block_pos.end.line, 10);
 
         let block_pos = yaml.xpath_to_block_position("/groups").unwrap();
         assert_eq!(block_pos.start.line, 2);
-        assert_eq!(block_pos.end.line, 2);
+        assert_eq!(block_pos.end.line, 10);
 
         let block_pos = yaml.xpath_to_block_position("/groups/0").unwrap();
         assert_eq!(block_pos.start.line, 2);
-        assert_eq!(block_pos.end.line, 2);
+        assert_eq!(block_pos.end.line, 9);
 
         let block_pos = yaml.xpath_to_block_position("/groups/0/name").unwrap();
         assert_eq!(block_pos.start.line, 2);
@@ -562,7 +564,7 @@ mod tests {
             .xpath_to_block_position("/groups/0/attributes")
             .unwrap();
         assert_eq!(block_pos.start.line, 5);
-        assert_eq!(block_pos.end.line, 5);
+        assert_eq!(block_pos.end.line, 9);
 
         let block_pos = yaml
             .xpath_to_block_position("/groups/0/attributes/0")
