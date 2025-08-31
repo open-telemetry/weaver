@@ -7,9 +7,11 @@ pub struct ExportTraceServiceRequest {
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
     #[prost(message, repeated, tag = "1")]
-    pub resource_spans: ::prost::alloc::vec::Vec<super::super::super::trace::v1::ResourceSpans>,
+    pub resource_spans: ::prost::alloc::vec::Vec<
+        super::super::super::trace::v1::ResourceSpans,
+    >,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportTraceServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -29,7 +31,7 @@ pub struct ExportTraceServiceResponse {
     #[prost(message, optional, tag = "1")]
     pub partial_success: ::core::option::Option<ExportTracePartialSuccess>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportTracePartialSuccess {
     /// The number of rejected spans.
     ///
@@ -54,10 +56,10 @@ pub mod trace_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// Service that can be used to push spans between one Application instrumented with
     /// OpenTelemetry and a collector, or between a collector and a central collector (in this
     /// case spans are sent/received to/from multiple Applications).
@@ -78,7 +80,7 @@ pub mod trace_service_client {
     }
     impl<T> TraceServiceClient<T>
     where
-        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T: tonic::client::GrpcService<tonic::body::Body>,
         T::Error: Into<StdError>,
         T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
@@ -99,13 +101,14 @@ pub mod trace_service_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
+                http::Request<tonic::body::Body>,
                 Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             TraceServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -145,20 +148,30 @@ pub mod trace_service_client {
         pub async fn export(
             &mut self,
             request: impl tonic::IntoRequest<super::ExportTraceServiceRequest>,
-        ) -> std::result::Result<tonic::Response<super::ExportTraceServiceResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
+        ) -> std::result::Result<
+            tonic::Response<super::ExportTraceServiceResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "opentelemetry.proto.collector.trace.v1.TraceService",
-                "Export",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "opentelemetry.proto.collector.trace.v1.TraceService",
+                        "Export",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
     }
@@ -170,7 +183,7 @@ pub mod trace_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with TraceServiceServer.
@@ -181,7 +194,10 @@ pub mod trace_service_server {
         async fn export(
             &self,
             request: tonic::Request<super::ExportTraceServiceRequest>,
-        ) -> std::result::Result<tonic::Response<super::ExportTraceServiceResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ExportTraceServiceResponse>,
+            tonic::Status,
+        >;
     }
     /// Service that can be used to push spans between one Application instrumented with
     /// OpenTelemetry and a collector, or between a collector and a central collector (in this
@@ -207,7 +223,10 @@ pub mod trace_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -248,7 +267,7 @@ pub mod trace_service_server {
         B: Body + std::marker::Send + 'static,
         B::Error: Into<StdError> + std::marker::Send + 'static,
     {
-        type Response = http::Response<tonic::body::BoxBody>;
+        type Response = http::Response<tonic::body::Body>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(
@@ -262,19 +281,23 @@ pub mod trace_service_server {
                 "/opentelemetry.proto.collector.trace.v1.TraceService/Export" => {
                     #[allow(non_camel_case_types)]
                     struct ExportSvc<T: TraceService>(pub Arc<T>);
-                    impl<T: TraceService>
-                        tonic::server::UnaryService<super::ExportTraceServiceRequest>
-                        for ExportSvc<T>
-                    {
+                    impl<
+                        T: TraceService,
+                    > tonic::server::UnaryService<super::ExportTraceServiceRequest>
+                    for ExportSvc<T> {
                         type Response = super::ExportTraceServiceResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ExportTraceServiceRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as TraceService>::export(&inner, request).await };
+                            let fut = async move {
+                                <T as TraceService>::export(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -285,7 +308,7 @@ pub mod trace_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = ExportSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
+                        let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
                                 accept_compression_encodings,
@@ -300,19 +323,25 @@ pub mod trace_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    let mut response = http::Response::new(empty_body());
-                    let headers = response.headers_mut();
-                    headers.insert(
-                        tonic::Status::GRPC_STATUS,
-                        (tonic::Code::Unimplemented as i32).into(),
-                    );
-                    headers.insert(
-                        http::header::CONTENT_TYPE,
-                        tonic::metadata::GRPC_CONTENT_TYPE,
-                    );
-                    Ok(response)
-                }),
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(
+                            tonic::body::Body::default(),
+                        );
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
             }
         }
     }
