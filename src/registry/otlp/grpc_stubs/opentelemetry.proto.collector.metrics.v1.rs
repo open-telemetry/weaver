@@ -7,9 +7,8 @@ pub struct ExportMetricsServiceRequest {
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
     #[prost(message, repeated, tag = "1")]
-    pub resource_metrics: ::prost::alloc::vec::Vec<
-        super::super::super::metrics::v1::ResourceMetrics,
-    >,
+    pub resource_metrics:
+        ::prost::alloc::vec::Vec<super::super::super::metrics::v1::ResourceMetrics>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportMetricsServiceResponse {
@@ -56,10 +55,10 @@ pub mod metrics_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service that can be used to push metrics between one Application
     /// instrumented with OpenTelemetry and a collector, or between a collector and a
     /// central collector.
@@ -106,9 +105,8 @@ pub mod metrics_service_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             MetricsServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -148,30 +146,20 @@ pub mod metrics_service_client {
         pub async fn export(
             &mut self,
             request: impl tonic::IntoRequest<super::ExportMetricsServiceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ExportMetricsServiceResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ExportMetricsServiceResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "opentelemetry.proto.collector.metrics.v1.MetricsService",
-                        "Export",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "opentelemetry.proto.collector.metrics.v1.MetricsService",
+                "Export",
+            ));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -183,7 +171,7 @@ pub mod metrics_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with MetricsServiceServer.
@@ -194,10 +182,7 @@ pub mod metrics_service_server {
         async fn export(
             &self,
             request: tonic::Request<super::ExportMetricsServiceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ExportMetricsServiceResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ExportMetricsServiceResponse>, tonic::Status>;
     }
     /// Service that can be used to push metrics between one Application
     /// instrumented with OpenTelemetry and a collector, or between a collector and a
@@ -223,10 +208,7 @@ pub mod metrics_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -281,23 +263,19 @@ pub mod metrics_service_server {
                 "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export" => {
                     #[allow(non_camel_case_types)]
                     struct ExportSvc<T: MetricsService>(pub Arc<T>);
-                    impl<
-                        T: MetricsService,
-                    > tonic::server::UnaryService<super::ExportMetricsServiceRequest>
-                    for ExportSvc<T> {
+                    impl<T: MetricsService>
+                        tonic::server::UnaryService<super::ExportMetricsServiceRequest>
+                        for ExportSvc<T>
+                    {
                         type Response = super::ExportMetricsServiceResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ExportMetricsServiceRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as MetricsService>::export(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as MetricsService>::export(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -323,25 +301,19 @@ pub mod metrics_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(
-                            tonic::body::Body::default(),
-                        );
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(tonic::body::Body::default());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(
+                        http::header::CONTENT_TYPE,
+                        tonic::metadata::GRPC_CONTENT_TYPE,
+                    );
+                    Ok(response)
+                }),
             }
         }
     }
