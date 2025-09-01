@@ -150,8 +150,6 @@ pub struct LogRecord {
     /// as an event.
     ///
     /// \[Optional\].
-    ///
-    /// Status: \[Development\]
     #[prost(string, tag = "12")]
     pub event_name: ::prost::alloc::string::String,
 }
