@@ -239,6 +239,7 @@ mod tests {
                     body: None,
                     entity_associations: vec![],
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.updowncounter".to_owned(),
@@ -261,6 +262,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.counter".to_owned(),
@@ -283,6 +285,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.gauge".to_owned(),
@@ -305,6 +308,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.histogram".to_owned(),
@@ -327,6 +331,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.updowncounter.double".to_owned(),
@@ -349,6 +354,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.counter.double".to_owned(),
@@ -371,6 +377,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.gauge.double".to_owned(),
@@ -393,6 +400,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
                 ResolvedGroup {
                     id: "test.histogram.double".to_owned(),
@@ -415,6 +423,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     annotations: None,
+                    migration: None,
                 },
             ],
         };
