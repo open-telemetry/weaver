@@ -37,12 +37,12 @@ rust-version = "1.81.0"
 [workspace.dependencies]
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
-serde_json = { version = "1.0.142" }
+serde_json = { version = "1.0.143" }
 thiserror = "2.0.16"
 url = "2.5.4"
 ureq = "2.12.1"
 regex = "1.11.2"
-rayon = "1.10.0"
+rayon = "1.11.0"
 ordered-float = { version = "5.0.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
 anyhow = "1.0.99"
