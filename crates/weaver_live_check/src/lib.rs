@@ -20,6 +20,18 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_semconv::group::GroupType;
 
+/// Helper function to serialize HashMap<string, usize> excluding zero values
+fn serialize_map_non_zero_values<S>(map: &HashMap<String, usize>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let filtered: HashMap<&String, &usize> = map
+        .iter()
+        .filter(|(_, &v)| v > 0)
+        .collect();
+    filtered.serialize(serializer)
+}
+
 /// Advisors for live checks
 pub mod advice;
 /// An ingester that reads samples from a JSON file.
@@ -236,10 +248,12 @@ pub struct LiveCheckStatistics {
     /// The number of entities with each advice type
     pub advice_type_counts: HashMap<String, usize>,
     /// The number of each attribute seen from the registry
+    #[serde(serialize_with = "serialize_map_non_zero_values")]
     pub seen_registry_attributes: HashMap<String, usize>,
     /// The number of each non-registry attribute seen
     pub seen_non_registry_attributes: HashMap<String, usize>,
     /// The number of each metric seen from the registry
+    #[serde(serialize_with = "serialize_map_non_zero_values")]
     pub seen_registry_metrics: HashMap<String, usize>,
     /// The number of each non-registry metric seen
     pub seen_non_registry_metrics: HashMap<String, usize>,
