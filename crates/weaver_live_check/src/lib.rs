@@ -186,7 +186,7 @@ impl LiveCheckResult {
         LiveCheckResult {
             all_advice: Vec::new(),
             highest_advice_level: None,
-            advice_level: advice_level,
+            advice_level,
         }
     }
 

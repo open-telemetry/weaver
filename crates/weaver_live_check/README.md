@@ -232,7 +232,7 @@ weaver registry live-check
 CI/CD - create a JSON report listing violations in the output
 
 ```sh
-weaver registry live-check --format json --min-level-advice violation --output ./outdir &
+weaver registry live-check --format json --min-advice-level violation --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
 # Run the code under test here.
