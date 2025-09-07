@@ -84,6 +84,17 @@ pub enum AdviceLevel {
     Violation,
 }
 
+impl From<String> for AdviceLevel {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "information" | "info" | "i" => AdviceLevel::Information,
+            "improvement" | "improve" | "m" => AdviceLevel::Improvement,
+            "violation" | "violate" | "v" => AdviceLevel::Violation,
+            _ => AdviceLevel::Information,
+        }
+    }
+}
+
 /// Represents a live check advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Advice {

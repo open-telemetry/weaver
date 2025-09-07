@@ -175,7 +175,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -663,7 +663,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -718,7 +718,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -754,7 +754,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -790,7 +790,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -838,7 +838,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
 
             assert!(result.is_ok());
         }
@@ -917,7 +917,7 @@ mod tests {
         for sample in &mut samples {
             // This should fail with: "error: use of undefined variable `attribu1te_name` is unsafe"
 
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_err());
             assert!(result
                 .unwrap_err()
@@ -960,7 +960,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -1020,7 +1020,7 @@ mod tests {
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
-        let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
 
         assert!(result.is_ok());
         stats.finalize();
@@ -1052,7 +1052,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result = sample.run_live_check(&mut live_checker, &mut stats, None, None);
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -1060,5 +1060,57 @@ mod tests {
             stats.advice_type_counts.get("unsupported_instrument"),
             Some(&2)
         );
+    }
+
+    #[test]
+    fn test_advice_level_filtering() {
+        let registry = make_registry();
+
+        // Create samples that will generate different advice levels
+        let mut samples = vec![
+            // This will generate Information level advice (deprecated)
+            Sample::Attribute(SampleAttribute::try_from("test.deprecated=value").unwrap()),
+            // This will generate Violation level advice (missing attribute)
+            Sample::Attribute(SampleAttribute::try_from("missing.attribute=value").unwrap()),
+            // This will generate no advice
+            Sample::Attribute(SampleAttribute::try_from("test.string=value").unwrap()),
+        ];
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(StabilityAdvisor),
+            Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
+        ];
+
+        let mut live_checker = LiveChecker::new(registry, advisors);
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        // Test 1: No filtering (include all advice levels)
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result = sample.run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                Some(AdviceLevel::Violation),
+            );
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+
+        // Should include all advice
+        assert!(!stats
+            .advice_level_counts
+            .contains_key(&AdviceLevel::Information));
+        assert!(!stats
+            .advice_level_counts
+            .contains_key(&AdviceLevel::Improvement));
+        assert!(stats
+            .advice_level_counts
+            .contains_key(&AdviceLevel::Violation));
+        assert_eq!(stats.total_advisories, 2); // One deprecated and one missing attribute
     }
 }

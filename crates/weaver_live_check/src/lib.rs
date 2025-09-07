@@ -143,22 +143,27 @@ impl LiveCheckRunner for Sample {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group)
+                attribute.run_live_check(live_checker, stats, parent_group, advice_level)
             }
-            Sample::Span(span) => span.run_live_check(live_checker, stats, parent_group),
+            Sample::Span(span) => {
+                span.run_live_check(live_checker, stats, parent_group, advice_level)
+            }
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group)
+                span_event.run_live_check(live_checker, stats, parent_group, advice_level)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group)
+                span_link.run_live_check(live_checker, stats, parent_group, advice_level)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group)
+                resource.run_live_check(live_checker, stats, parent_group, advice_level)
             }
-            Sample::Metric(metric) => metric.run_live_check(live_checker, stats, parent_group),
+            Sample::Metric(metric) => {
+                metric.run_live_check(live_checker, stats, parent_group, advice_level)
+            }
         }
     }
 }
@@ -170,21 +175,30 @@ pub struct LiveCheckResult {
     pub all_advice: Vec<Advice>,
     /// The highest advice level
     pub highest_advice_level: Option<AdviceLevel>,
+    /// The minimum advice level
+    pub advice_level: Option<AdviceLevel>,
 }
 
 impl LiveCheckResult {
     /// Create a new LiveCheckResult
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(advice_level: Option<AdviceLevel>) -> Self {
         LiveCheckResult {
             all_advice: Vec::new(),
             highest_advice_level: None,
+            advice_level: advice_level,
         }
     }
 
     /// Add an advice to the result and update the highest advice level
     pub fn add_advice(&mut self, advice: Advice) {
         let advice_level = advice.advice_level.clone();
+        // ignore advice if below the minimum advice level
+        if let Some(min_level) = &self.advice_level {
+            if &advice_level < min_level {
+                return;
+            }
+        }
         if let Some(previous_highest) = &self.highest_advice_level {
             if previous_highest < &advice_level {
                 self.highest_advice_level = Some(advice_level);
@@ -205,7 +219,7 @@ impl LiveCheckResult {
 
 impl Default for LiveCheckResult {
     fn default() -> Self {
-        LiveCheckResult::new()
+        LiveCheckResult::new(None)
     }
 }
 
@@ -410,6 +424,7 @@ pub trait LiveCheckRunner {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error>;
 }
 
@@ -420,9 +435,15 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone())?;
+            item.run_live_check(
+                live_checker,
+                stats,
+                parent_group.clone(),
+                advice_level.clone(),
+            )?;
         }
         Ok(())
     }
@@ -442,8 +463,9 @@ pub trait Advisable {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<LiveCheckResult, Error> {
-        let mut result = LiveCheckResult::new();
+        let mut result = LiveCheckResult::new(advice_level);
 
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group.clone())?;

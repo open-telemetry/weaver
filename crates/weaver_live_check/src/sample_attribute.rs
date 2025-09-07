@@ -171,8 +171,9 @@ impl LiveCheckRunner for SampleAttribute {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         _parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        let mut result = LiveCheckResult::new();
+        let mut result = LiveCheckResult::new(advice_level);
         // find the attribute in the registry
         let semconv_attribute = {
             if let Some(attribute) = live_checker.find_attribute(&self.name) {

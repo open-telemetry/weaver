@@ -72,13 +72,26 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
-        self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
-        self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+        self.live_check_result = Some(self.run_advisors(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?);
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
+        self.exemplars.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
         Ok(())
     }
 }
@@ -131,13 +144,26 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
-        self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
-        self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+        self.live_check_result = Some(self.run_advisors(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?);
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
+        self.exemplars.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
         Ok(())
     }
 }
@@ -205,13 +231,26 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
-        self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
-        self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+        self.live_check_result = Some(self.run_advisors(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?);
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
+        self.exemplars.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
         Ok(())
     }
 }
@@ -249,11 +288,20 @@ impl LiveCheckRunner for SampleExemplar {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
-        self.filtered_attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+        self.live_check_result = Some(self.run_advisors(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?);
+        self.filtered_attributes.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
         Ok(())
     }
 }
@@ -286,8 +334,9 @@ impl LiveCheckRunner for SampleMetric {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         _parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        let mut result = LiveCheckResult::new();
+        let mut result = LiveCheckResult::new(advice_level.clone());
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
@@ -306,13 +355,28 @@ impl LiveCheckRunner for SampleMetric {
         // Get advice for the data points
         match &mut self.data_points {
             Some(DataPoints::Number(points)) => {
-                points.run_live_check(live_checker, stats, semconv_metric.clone())?;
+                points.run_live_check(
+                    live_checker,
+                    stats,
+                    semconv_metric.clone(),
+                    advice_level.clone(),
+                )?;
             }
             Some(DataPoints::Histogram(points)) => {
-                points.run_live_check(live_checker, stats, semconv_metric.clone())?;
+                points.run_live_check(
+                    live_checker,
+                    stats,
+                    semconv_metric.clone(),
+                    advice_level.clone(),
+                )?;
             }
             Some(DataPoints::ExponentialHistogram(points)) => {
-                points.run_live_check(live_checker, stats, semconv_metric.clone())?;
+                points.run_live_check(
+                    live_checker,
+                    stats,
+                    semconv_metric.clone(),
+                    advice_level.clone(),
+                )?;
             }
             _ => (),
         }

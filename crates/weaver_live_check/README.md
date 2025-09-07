@@ -107,8 +107,12 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 }
 ```
 
-> **Note**  
+> **Note**
 > The `live_check_result` object augments the sample entity at the pertinent level in the structure. If the structure is `metric`->`[number_data_point]`->`[attribute]`, advice should be give at the `number_data_point` level for, say, required attributes that have not been supplied. Whereas, attribute advice, like `missing_attribute` in the JSON above, is given at the attribute level.
+
+#### Customize advise level
+
+By default, live-check shows `information`, `improvement` and `violation` advices. You can provide `--min-advice-level` argument to only show advices of this and higher levels.
 
 ### Custom advisors
 
@@ -225,10 +229,10 @@ Default operation. Receive OTLP requests and output advice as it arrives. Useful
 weaver registry live-check
 ```
 
-CI/CD - create a JSON report
+CI/CD - create a JSON report listing violations in the output
 
 ```sh
-weaver registry live-check --format json --output ./outdir &
+weaver registry live-check --format json --min-level-advice violation --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
 # Run the code under test here.

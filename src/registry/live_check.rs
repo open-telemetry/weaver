@@ -10,6 +10,7 @@ use clap::Args;
 use include_dir::{include_dir, Dir};
 
 use log::info;
+use weaver_checker::violation::AdviceLevel;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -139,6 +140,11 @@ pub struct RegistryLiveCheckArgs {
     /// versus processing the data for every sample.
     #[arg(long)]
     advice_preprocessor: Option<PathBuf>,
+
+    /// Minimum advice level to include in the live check results.
+    /// Valid values: information, improvement, violation
+    #[arg(long, default_value = "information")]
+    min_advice_level: AdviceLevel,
 }
 
 fn default_advisors() -> Vec<Box<dyn Advisor>> {
@@ -238,7 +244,12 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut stats = LiveCheckStatistics::new(&live_checker.registry);
     let mut samples = Vec::new();
     for mut sample in ingester {
-        sample.run_live_check(&mut live_checker, &mut stats, None)?;
+        sample.run_live_check(
+            &mut live_checker,
+            &mut stats,
+            None,
+            Some(args.min_advice_level.clone()),
+        )?;
         if report_mode {
             samples.push(sample);
         } else {

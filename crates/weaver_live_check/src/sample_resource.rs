@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_checker::violation::AdviceLevel;
 use weaver_forge::registry::ResolvedGroup;
 
 use crate::{
@@ -39,11 +40,20 @@ impl LiveCheckRunner for SampleResource {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        advice_level: Option<AdviceLevel>,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
-        self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+        self.live_check_result = Some(self.run_advisors(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?);
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            advice_level.clone(),
+        )?;
         Ok(())
     }
 }
