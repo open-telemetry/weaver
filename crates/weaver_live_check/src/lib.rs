@@ -21,14 +21,14 @@ use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_semconv::group::GroupType;
 
 /// Helper function to serialize HashMap<string, usize> excluding zero values
-fn serialize_map_non_zero_values<S>(map: &HashMap<String, usize>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_map_non_zero_values<S>(
+    map: &HashMap<String, usize>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let filtered: HashMap<&String, &usize> = map
-        .iter()
-        .filter(|(_, &v)| v > 0)
-        .collect();
+    let filtered: HashMap<&String, &usize> = map.iter().filter(|(_, &v)| v > 0).collect();
     filtered.serialize(serializer)
 }
 
