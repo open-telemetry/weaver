@@ -1089,9 +1089,6 @@ mod tests {
         let error = TemplateEngine::new(config, loader, Params::default())
             .expect_err("Expected an error due to a template pattern that does not match any file");
 
-        // validate that result is a compound error with single error with message matching
-        // "Template pattern 'does-not-exist.j2' did not match any files"
-
         let msg = format!("{error}");
         assert!(
             msg.contains("Template pattern 'does-not-exist.j2' did not match any files"),
