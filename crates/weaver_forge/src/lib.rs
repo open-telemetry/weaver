@@ -1082,7 +1082,7 @@ mod tests {
     fn test_wrong_config() {
         let loader = FileSystemFileLoader::try_new("templates".into(), "wrong_config")
             .expect("Failed to create file system loader");
-        let config = WeaverConfig::try_from_path(format!("templates/wrong_config")).unwrap();
+        let config = WeaverConfig::try_from_path("templates/wrong_config").unwrap();
         let result = TemplateEngine::new(config, loader, Params::default());
         assert!(result.is_err());
         let error = result.err().unwrap();
