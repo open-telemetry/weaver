@@ -235,12 +235,9 @@ impl TemplateEngine {
             for template in templates {
                 // Check if any files match the template glob pattern
                 let matcher = template.template.compile_matcher();
-                let matching_files: Vec<_> = all_files
-                    .iter()
-                    .filter(|file| matcher.is_match(file))
-                    .collect();
+                let has_matches = all_files.iter().any(|file| matcher.is_match(file));
 
-                if matching_files.is_empty() {
+                if !has_matches {
                     errors.push(InvalidTemplateFile {
                         template: PathBuf::from(template.template.glob()),
                         error: format!(
@@ -252,15 +249,15 @@ impl TemplateEngine {
             }
         }
 
-        if errors.is_empty() {
-            return Ok(Self {
-                file_loader: Arc::new(loader),
-                target_config: config,
-                snippet_params: params,
-            });
+        if !errors.is_empty() {
+            return Err(Error::CompoundError(errors));
         }
 
-        Err(Error::CompoundError(errors))
+        Ok(Self {
+            file_loader: Arc::new(loader),
+            target_config: config,
+            snippet_params: params,
+        })
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -1086,8 +1083,9 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), "wrong_config")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/wrong_config")).unwrap();
-        let error = TemplateEngine::new(config, loader, Params::default())
-            .expect_err("Expected an error due to a template pattern that does not match any file");
+        let result = TemplateEngine::new(config, loader, Params::default());
+        assert!(result.is_err());
+        let error = result.err().unwrap();
 
         let msg = format!("{error}");
         assert!(
