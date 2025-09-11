@@ -27,7 +27,6 @@ use weaver_semconv::YamlValue;
 #[serde(deny_unknown_fields)]
 pub struct Registry {
     /// The semantic convention registry url.
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
@@ -53,7 +52,6 @@ pub struct Group {
     /// The type of the group including the specific fields for each type.
     pub r#type: GroupType,
     /// A brief description of the semantic convention.
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
     /// A more elaborate description of the semantic convention.
     /// It defaults to an empty string.
