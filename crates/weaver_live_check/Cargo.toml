@@ -22,7 +22,7 @@ miette.workspace = true
 schemars.workspace = true
 
 [dev-dependencies]
-tempfile = "3.21.0"
+tempfile = "3.22.0"
 
 [lints]
 workspace = true
