@@ -152,3 +152,47 @@ impl AttributeDef {
         }
     }
 }
+
+/// A reference to an attribute group.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GroupRef {
+    /// Reference an existing attribute group by id.
+    pub ref_group: String,
+}
+
+/// A reference to either an attribute or an attribute group.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(untagged)]
+pub enum AttributeOrGroupRef {
+    /// Reference to an attribute.
+    Attribute(AttributeRef),
+    /// Reference to an attribute group.
+    Group(GroupRef),
+}
+
+
+/// Helper function to split a vector of AttributeOrGroupRef into separate vectors
+/// of AttributeSpec and group reference strings
+pub fn split_attributes_and_groups(
+    attributes_and_groups: Vec<AttributeOrGroupRef>,
+) -> (Vec<AttributeSpec>, Vec<String>) {
+    let (attr_refs, group_refs): (Vec<_>, Vec<_>) = attributes_and_groups
+        .into_iter()
+        .partition(|item| matches!(item, AttributeOrGroupRef::Attribute(_)));
+
+    let attributes = attr_refs
+        .into_iter()
+        .filter_map(|item| item.into_v1_attribute())
+        .collect();
+
+    let groups = group_refs
+        .into_iter()
+        .filter_map(|item| match item {
+            AttributeOrGroupRef::Group(group_ref) => Some(group_ref.ref_group),
+            _ => None,
+        })
+        .collect();
+
+    (attributes, groups)
+}

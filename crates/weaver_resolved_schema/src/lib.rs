@@ -136,6 +136,8 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
+            include_groups: vec![],
+            visibility: None,
         });
     }
 
@@ -178,6 +180,8 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
+            include_groups: vec![],
+            visibility: None,
         });
     }
 

@@ -11,6 +11,59 @@ use crate::{
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
 };
 
+/// A reference to an attribute group for spans.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpanGroupRef {
+    /// Reference an existing attribute group by id.
+    pub ref_group: String,
+}
+
+/// A reference to either a span attribute or an attribute group.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(untagged)]
+pub enum SpanAttributeOrGroupRef {
+    /// Reference to a span attribute.
+    Attribute(SpanAttributeRef),
+    /// Reference to an attribute group.
+    Group(SpanGroupRef),
+}
+
+impl SpanAttributeOrGroupRef {
+    /// Convert to v1 attribute if this is an attribute reference, otherwise return None
+    pub fn into_v1_attribute(self) -> Option<AttributeSpec> {
+        match self {
+            SpanAttributeOrGroupRef::Attribute(attr_ref) => Some(attr_ref.into_v1_attribute()),
+            SpanAttributeOrGroupRef::Group { .. } => None,
+        }
+    }
+}
+
+/// Helper function to split a vector of SpanAttributeOrGroupRef into separate vectors
+/// of AttributeSpec and group reference strings
+pub fn split_span_attributes_and_groups(
+    attributes: Vec<SpanAttributeOrGroupRef>,
+) -> (Vec<AttributeSpec>, Vec<String>) {
+    let (attr_refs, group_refs): (Vec<_>, Vec<_>) = attributes
+        .into_iter()
+        .partition(|item| matches!(item, SpanAttributeOrGroupRef::Attribute(_)));
+
+    let attributes = attr_refs
+        .into_iter()
+        .filter_map(|item| item.into_v1_attribute())
+        .collect();
+
+    let groups = group_refs
+        .into_iter()
+        .filter_map(|item| match item {
+            SpanAttributeOrGroupRef::Group(group_ref) => Some(group_ref.ref_group),
+            _ => None,
+        })
+        .collect();
+
+    (attributes, groups)
+}
+
 /// A group defines an attribute group, an entity, or a signal.
 /// Supported group types are: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`.
 /// Mandatory fields are: `id` and `brief`.
@@ -30,7 +83,7 @@ pub struct Span {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttributeRef>,
+    pub attributes: Vec<SpanAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -44,6 +97,7 @@ impl Span {
     /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
+        let (attribute_refs, include_groups) = split_span_attributes_and_groups(self.attributes);
         GroupSpec {
             id: format!("span.{}", &self.r#type),
             r#type: GroupType::Span,
@@ -51,19 +105,16 @@ impl Span {
             note: self.common.note,
             prefix: Default::default(),
             extends: None,
+            include_groups: include_groups,
             stability: Some(self.common.stability),
             deprecated: self.common.deprecated,
-            attributes: self
-                .attributes
-                .into_iter()
-                .map(|a| a.into_v1_attribute())
-                .collect(),
+            attributes: attribute_refs,
             span_kind: Some(self.kind),
             events: vec![],
             metric_name: None,
             instrument: None,
             unit: None,
-            name: Some(self.name.note),
+            name: Some(format!("{}", &self.r#type)),
             display_name: None,
             body: None,
             annotations: if self.common.annotations.is_empty() {
@@ -72,6 +123,7 @@ impl Span {
                 Some(self.common.annotations)
             },
             entity_associations: self.entity_associations,
+            visibility: None,
         }
     }
 }
@@ -151,7 +203,7 @@ brief: Test span
             r#"id: span.my_span
 type: span
 brief: Test span
-name: "{some} {name}"
+name: my_span
 span_kind: client
 stability: stable
 "#,

@@ -973,7 +973,7 @@
           "description": "List of attributes that belong to the semantic convention.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/SpanAttributeRef"
+            "$ref": "#/definitions/AttributeRef"
           }
         },
         "brief": {
@@ -1031,92 +1031,6 @@
           "allOf": [
             {
               "$ref": "#/definitions/SignalId"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "SpanAttributeRef": {
-      "description": "A refinement of an Attribute for a span.",
-      "type": "object",
-      "required": [
-        "ref"
-      ],
-      "properties": {
-        "annotations": {
-          "description": "Additional annotations for the attribute. These will be merged with annotations from the definition.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/YamlValue"
-          }
-        },
-        "brief": {
-          "description": "Refines the brief description of the attribute.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "deprecated": {
-          "description": "Specifies if the attribute is deprecated for this signal.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Deprecated"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "examples": {
-          "description": "Refined sequence of example values for the attribute or single example value. They are required only for string and string array attributes. Example values must be of the same type of the attribute. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Examples"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "note": {
-          "description": "Refines the more elaborate description of the attribute.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "ref": {
-          "description": "Reference an existing attribute by key.",
-          "type": "string"
-        },
-        "requirement_level": {
-          "description": "Refines the attribute requirement level. Can be \"required\", \"conditionally_required\", \"recommended\" or \"opt_in\". When omitted, the original attribute requirement level is used. When set to \"conditionally_required\", the string provided as `condition` MUST specify the conditions under which the attribute is required.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RequirementLevel"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sampling_relevant": {
-          "description": "Specifies if the attribute is (especially) relevant for sampling and thus should be set at span start. It defaults to false. Note: this field is experimental.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "stability": {
-          "description": "Refines the stability of the attribute. This denotes whether an attribute is stable for a specific signal.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Stability"
-            },
-            {
-              "type": "null"
             }
           ]
         }

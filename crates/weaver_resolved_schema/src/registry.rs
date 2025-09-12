@@ -5,6 +5,7 @@
 //! A semantic convention registry.
 
 use schemars::JsonSchema;
+use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
 
@@ -68,6 +69,11 @@ pub struct Group {
     /// convention.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extends: Option<String>,
+    /// Attribute groups to include - this parameter must not be provided
+    /// in yaml, it's only used to convert v2 schema into v1
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    pub include_groups: Vec<String>,
     /// Specifies the stability of the semantic convention.
     /// Note that, if stability is missing but deprecated is present, it will
     /// automatically set the stability to deprecated. If deprecated is
@@ -134,6 +140,11 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+
+    /// Visibility of the group.
+    /// Must not be serialized, it's only used during processing.
+    #[serde(skip_serializing)]
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
 }
 
 impl Group {
@@ -143,7 +154,7 @@ impl Group {
     #[must_use]
     pub fn signal_name(&self) -> Option<&str> {
         match self.r#type {
-            GroupType::AttributeGroup => None,
+            GroupType::AttributeGroup => Some(self.id.as_str()),
             // ToDo: Remove this comment way forward is agreed upon
             // https://github.com/open-telemetry/weaver/issues/785
             // For now we allow group.name to be a namespace for spans.

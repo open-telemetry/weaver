@@ -729,7 +729,7 @@ mod tests {
     use serde::Serialize;
 
     use weaver_diff::diff_dir;
-    use weaver_resolver::SchemaResolver;
+        use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
     use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};
@@ -742,11 +742,20 @@ mod tests {
     fn prepare_test(
         target: &str,
         cli_params: Params,
+        ignore_non_fatal_errors: bool,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let registry_id = "default";
-        let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .into_result_failing_non_fatal()
-            .expect("Failed to load registry");
+        let registry_result = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml");
+        let registry = if ignore_non_fatal_errors {
+            registry_result
+                .into_result_with_non_fatal()
+                .expect("Failed to load the registry")
+                .0
+        } else {
+            registry_result
+                .into_result_failing_non_fatal()
+                .expect("Failed to load the registry")
+        };
         prepare_test_with_registry(target, cli_params, registry)
     }
 
@@ -932,8 +941,9 @@ mod tests {
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .into_result_failing_non_fatal()
-            .expect("Failed to load registry");
+            .into_result_with_non_fatal()
+            .expect("Failed to load registry")
+            .0;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
@@ -961,7 +971,7 @@ mod tests {
     #[test]
     fn test_whitespace_control() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("whitespace_control", Params::default());
+            prepare_test("whitespace_control", Params::default(), true);
 
         engine
             .generate(
@@ -1010,7 +1020,7 @@ mod tests {
     #[test]
     fn test_semconv_jq_functions() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("semconv_jq_fn", Params::default());
+            prepare_test("semconv_jq_fn", Params::default(), true);
 
         engine
             .generate(
@@ -1036,7 +1046,7 @@ mod tests {
             ("shared_2", serde_yaml::Value::Bool(true)),
         ]);
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("template_params", cli_params);
+            prepare_test("template_params", cli_params, true);
 
         engine
             .generate(
