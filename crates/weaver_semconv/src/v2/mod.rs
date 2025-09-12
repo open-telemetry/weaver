@@ -80,10 +80,7 @@ pub struct SemConvSpecV2 {
 impl SemConvSpecV2 {
     /// Converts the version 2 schema into the version 1 group spec.
     pub(crate) fn into_v1_specification(self, file_name: &str) -> SemConvSpecV1 {
-        log::debug!(
-            "Translating v2 spec into v1 spec for {}",
-            file_name
-        );
+        log::debug!("Translating v2 spec into v1 spec for {}", file_name);
 
         let mut groups = Vec::new();
 

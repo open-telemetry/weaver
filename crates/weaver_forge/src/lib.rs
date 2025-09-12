@@ -729,7 +729,7 @@ mod tests {
     use serde::Serialize;
 
     use weaver_diff::diff_dir;
-        use weaver_resolver::SchemaResolver;
+    use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
     use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};

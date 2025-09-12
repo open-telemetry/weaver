@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     group::GroupSpec,
-    v2::{attribute::{split_attributes_and_groups, AttributeOrGroupRef}, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
+        signal_id::SignalId,
+        CommonFields,
+    },
 };
 
 /// Defines a new event.

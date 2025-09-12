@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     group::{GroupSpec, InstrumentSpec},
-    v2::{attribute::{split_attributes_and_groups, AttributeOrGroupRef, AttributeRef}, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
+        signal_id::SignalId,
+        CommonFields,
+    },
 };
 
 /// Defines a new metric.
@@ -51,7 +55,7 @@ impl Metric {
             note: self.common.note,
             prefix: Default::default(),
             extends: None,
-            include_groups: include_groups,
+            include_groups,
             stability: Some(self.common.stability),
             deprecated: self.common.deprecated,
             attributes: attribute_refs,

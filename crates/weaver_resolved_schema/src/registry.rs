@@ -5,9 +5,9 @@
 //! A semantic convention registry.
 
 use schemars::JsonSchema;
-use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;

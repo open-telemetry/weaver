@@ -8,7 +8,6 @@ use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use globset::GlobSet;
 use itertools::Itertools;
 use serde::Deserialize;
-use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
@@ -23,6 +22,7 @@ use weaver_semconv::group::{
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -155,8 +155,7 @@ pub fn resolve_semconv_registry(
     }
 
     // remove internal groups
-    ureg
-        .registry
+    ureg.registry
         .groups
         .retain(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal));
 
@@ -590,7 +589,11 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         vec![(extends, attrs)],
                         unresolved_group.group.lineage.as_mut(),
                     );
-                    add_resolved_group_to_index(&mut group_index, unresolved_group, &mut resolved_extends_count);
+                    add_resolved_group_to_index(
+                        &mut group_index,
+                        unresolved_group,
+                        &mut resolved_extends_count,
+                    );
                 } else {
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
@@ -645,7 +648,11 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                             .collect(),
                         unresolved_group.group.lineage.as_mut(),
                     );
-                    add_resolved_group_to_index(&mut group_index, unresolved_group, &mut resolved_extends_count);
+                    add_resolved_group_to_index(
+                        &mut group_index,
+                        unresolved_group,
+                        &mut resolved_extends_count,
+                    );
                 }
             }
         }
@@ -758,7 +765,6 @@ fn resolve_inheritance_attrs_unified(
             .collect()
     }
 }
-
 
 fn resolve_inheritance_attr(
     attr: &AttributeSpec,

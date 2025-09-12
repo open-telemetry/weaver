@@ -700,7 +700,7 @@ mod tests {
                     note: "".to_owned(),
                     stability: crate::stability::Stability::Stable,
                     deprecated: None,
-                    annotations: BTreeMap::new()
+                    annotations: BTreeMap::new(),
                 },
             }],
             entities: vec![],

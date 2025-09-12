@@ -6,9 +6,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute::AttributeSpec,
     group::{GroupSpec, GroupType},
-    v2::{attribute::{split_attributes_and_groups, AttributeOrGroupRef}, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
+        signal_id::SignalId,
+        CommonFields,
+    },
 };
 
 /// Internal attribute group implementation
@@ -22,16 +25,6 @@ pub struct InternalAttributeGroup {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
-}
-
-impl AttributeOrGroupRef {
-    /// Convert to v1 attribute if this is an attribute reference, otherwise return None
-    pub fn into_v1_attribute(self) -> Option<AttributeSpec> {
-        match self {
-            AttributeOrGroupRef::Attribute(attr_ref) => Some(attr_ref.into_v1_attribute()),
-            AttributeOrGroupRef::Group(_) => None,
-        }
-    }
 }
 
 /// A group defines an attribute group, an entity, or a signal.
@@ -100,7 +93,11 @@ impl AttributeGroup {
                     visibility: Some(AttributeGroupVisibilitySpec::Internal),
                 }
             }
-            AttributeGroup::Public { id, attributes, common } => {
+            AttributeGroup::Public {
+                id,
+                attributes,
+                common,
+            } => {
                 let (attributes, include_groups) = split_attributes_and_groups(attributes);
 
                 GroupSpec {

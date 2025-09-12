@@ -171,28 +171,23 @@ pub enum AttributeOrGroupRef {
     Group(GroupRef),
 }
 
-
 /// Helper function to split a vector of AttributeOrGroupRef into separate vectors
 /// of AttributeSpec and group reference strings
+#[must_use]
 pub fn split_attributes_and_groups(
     attributes_and_groups: Vec<AttributeOrGroupRef>,
 ) -> (Vec<AttributeSpec>, Vec<String>) {
-    let (attr_refs, group_refs): (Vec<_>, Vec<_>) = attributes_and_groups
-        .into_iter()
-        .partition(|item| matches!(item, AttributeOrGroupRef::Attribute(_)));
+    let mut attributes = Vec::new();
+    let mut groups = Vec::new();
 
-    let attributes = attr_refs
-        .into_iter()
-        .filter_map(|item| item.into_v1_attribute())
-        .collect();
-
-    let groups = group_refs
-        .into_iter()
-        .filter_map(|item| match item {
-            AttributeOrGroupRef::Group(group_ref) => Some(group_ref.ref_group),
-            _ => None,
-        })
-        .collect();
+    for item in attributes_and_groups {
+        match item {
+            AttributeOrGroupRef::Attribute(attr_ref) => {
+                attributes.push(attr_ref.into_v1_attribute());
+            }
+            AttributeOrGroupRef::Group(group_ref) => groups.push(group_ref.ref_group),
+        }
+    }
 
     (attributes, groups)
 }

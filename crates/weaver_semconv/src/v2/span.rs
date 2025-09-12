@@ -29,39 +29,27 @@ pub enum SpanAttributeOrGroupRef {
     Group(SpanGroupRef),
 }
 
-impl SpanAttributeOrGroupRef {
-    /// Convert to v1 attribute if this is an attribute reference, otherwise return None
-    pub fn into_v1_attribute(self) -> Option<AttributeSpec> {
-        match self {
-            SpanAttributeOrGroupRef::Attribute(attr_ref) => Some(attr_ref.into_v1_attribute()),
-            SpanAttributeOrGroupRef::Group { .. } => None,
-        }
-    }
-}
-
 /// Helper function to split a vector of SpanAttributeOrGroupRef into separate vectors
 /// of AttributeSpec and group reference strings
+#[must_use]
 pub fn split_span_attributes_and_groups(
     attributes: Vec<SpanAttributeOrGroupRef>,
 ) -> (Vec<AttributeSpec>, Vec<String>) {
-    let (attr_refs, group_refs): (Vec<_>, Vec<_>) = attributes
-        .into_iter()
-        .partition(|item| matches!(item, SpanAttributeOrGroupRef::Attribute(_)));
+    let mut attribute_refs = Vec::new();
+    let mut groups = Vec::new();
 
-    let attributes = attr_refs
-        .into_iter()
-        .filter_map(|item| item.into_v1_attribute())
-        .collect();
+    for item in attributes {
+        match item {
+            SpanAttributeOrGroupRef::Attribute(attr_ref) => {
+                attribute_refs.push(attr_ref.into_v1_attribute());
+            }
+            SpanAttributeOrGroupRef::Group(group_ref) => {
+                groups.push(group_ref.ref_group);
+            }
+        }
+    }
 
-    let groups = group_refs
-        .into_iter()
-        .filter_map(|item| match item {
-            SpanAttributeOrGroupRef::Group(group_ref) => Some(group_ref.ref_group),
-            _ => None,
-        })
-        .collect();
-
-    (attributes, groups)
+    (attribute_refs, groups)
 }
 
 /// A group defines an attribute group, an entity, or a signal.
@@ -105,7 +93,7 @@ impl Span {
             note: self.common.note,
             prefix: Default::default(),
             extends: None,
-            include_groups: include_groups,
+            include_groups,
             stability: Some(self.common.stability),
             deprecated: self.common.deprecated,
             attributes: attribute_refs,
