@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     group::{GroupSpec, InstrumentSpec},
-    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
+        signal_id::SignalId,
+        CommonFields,
+    },
 };
 
 /// Defines a new metric.
@@ -29,7 +33,7 @@ pub struct Metric {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeRef>,
+    pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -43,6 +47,7 @@ impl Metric {
     /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
+        let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
         GroupSpec {
             id: format!("metric.{}", &self.name),
             r#type: crate::group::GroupType::Metric,
@@ -50,13 +55,10 @@ impl Metric {
             note: self.common.note,
             prefix: Default::default(),
             extends: None,
+            include_groups,
             stability: Some(self.common.stability),
             deprecated: self.common.deprecated,
-            attributes: self
-                .attributes
-                .into_iter()
-                .map(|a| a.into_v1_attribute())
-                .collect(),
+            attributes: attribute_refs,
             span_kind: None,
             events: Default::default(),
             metric_name: Some(self.name.into_v1()),
@@ -71,6 +73,7 @@ impl Metric {
                 Some(self.common.annotations)
             },
             entity_associations: self.entity_associations,
+            visibility: None,
         }
     }
 }
