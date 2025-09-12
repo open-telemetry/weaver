@@ -106,7 +106,7 @@ pub enum Error {
         /// The provenance of the violation (URL or path).
         provenance: String,
         /// The violation.
-        violation: Violation,
+        violation: Box<Violation>,
     },
 
     /// A container for multiple errors.

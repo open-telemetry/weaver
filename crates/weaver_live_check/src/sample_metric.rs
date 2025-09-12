@@ -293,9 +293,11 @@ impl LiveCheckRunner for SampleMetric {
         if semconv_metric.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_METRIC_ADVICE_TYPE.to_owned(),
-                value: Value::String(self.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
+                value: Value::Null,
+                message: format!("Metric `{}` does not exist in the registry.", self.name),
                 advice_level: AdviceLevel::Violation,
+                signal_type: Some("metric".to_owned()),
+                signal_name: Some(self.name.clone()),
             });
         };
         for advisor in live_checker.advisors.iter_mut() {
