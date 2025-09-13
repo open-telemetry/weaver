@@ -66,25 +66,30 @@ impl EmbeddedFileLoader {
         local_dir: PathBuf,
         target: &str,
     ) -> Result<Self, Error> {
-        let target_embedded_dir = embedded_dir.get_dir(target);
+        let target_embedded_dir = embedded_dir.get_dir(target).ok_or_else(|| TargetNotSupported {
+            root_path: embedded_dir.path().to_string_lossy().to_string(),
+            target: target.to_owned(),
+            error: "Target not found".to_owned(),
+        })?;
+
         let target_local_dir = local_dir.join(target);
-        if let Some(dir) = target_embedded_dir {
-            Ok(Self {
-                target: target.to_owned(),
-                embedded_dir: dir,
-                fs_loader: if target_local_dir.exists() {
-                    Some(FileSystemFileLoader::try_new(local_dir, target)?)
-                } else {
-                    None
-                },
-            })
+        let fs_loader = if target_local_dir.exists() {
+            Some(FileSystemFileLoader::try_new(local_dir, target)?)
         } else {
-            Err(TargetNotSupported {
-                root_path: embedded_dir.path().to_string_lossy().to_string(),
-                target: target.to_owned(),
-                error: "Target not found".to_owned(),
-            })
+            None
+        };
+
+        if fs_loader.is_some() {
+            log::debug!("Using local templates from `{}`", target_local_dir.display());
+        } else {
+            log::debug!("No local templates found at `{}`. Using embedded templates.", target_embedded_dir.path().display());
         }
+
+        Ok(Self {
+            target: target.to_owned(),
+            embedded_dir: target_embedded_dir,
+            fs_loader,
+        })
     }
 }
 
