@@ -485,7 +485,11 @@ impl WeaverConfig {
     pub fn try_from_loader(
         loader: &(impl FileLoader + Send + Sync + 'static),
     ) -> Result<Self, Error> {
-        log::debug!("Searching for Weaver configuration from {} at {:?}", WEAVER_YAML, loader.root().display());
+        log::debug!(
+            "Searching for Weaver configuration from {} at {:?}",
+            WEAVER_YAML,
+            loader.root().display()
+        );
         match loader.load_file(WEAVER_YAML)? {
             Some(config) => Self::resolve_from(&[config]),
             None => Ok(WeaverConfig::default()),
