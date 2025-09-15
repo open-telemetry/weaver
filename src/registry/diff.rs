@@ -124,7 +124,7 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     .expect("Failed to create the embedded file loader for the diff templates");
     let config = WeaverConfig::try_from_loader(&loader)
         .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
-    let engine = TemplateEngine::new(config, loader, Params::default())?;
+    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
 
     match engine.generate(&changes, output.as_path(), &output_directive) {
         Ok(_) => {}

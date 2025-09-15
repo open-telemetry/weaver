@@ -194,7 +194,7 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 
 impl TemplateEngine {
     /// Create a new template engine for the given Weaver config.
-    pub fn new(
+    pub fn try_new(
         mut config: WeaverConfig,
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
@@ -758,7 +758,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
-        let engine = TemplateEngine::new(config, loader, cli_params)
+        let engine = TemplateEngine::try_new(config, loader, cli_params)
             .expect("Failed to create template engine");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
@@ -914,7 +914,7 @@ mod tests {
             .expect("Failed to create file system loader");
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
-        let mut engine = TemplateEngine::new(config, loader, Params::default())
+        let mut engine = TemplateEngine::try_new(config, loader, Params::default())
             .expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
@@ -987,7 +987,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_loader(&loader).unwrap();
-        let engine = TemplateEngine::new(config, loader, Params::default())
+        let engine = TemplateEngine::try_new(config, loader, Params::default())
             .expect("Failed to create template engine");
         let context = Context {
             text: "Hello, World!".to_owned(),
@@ -1083,7 +1083,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), "wrong_config")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path("templates/wrong_config").unwrap();
-        let result = TemplateEngine::new(config, loader, Params::default());
+        let result = TemplateEngine::try_new(config, loader, Params::default());
         assert!(result.is_err());
         let error = result.err().unwrap();
 

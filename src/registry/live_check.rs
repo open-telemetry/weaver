@@ -203,7 +203,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
             error: format!("Failed to load `defaults/live_check_templates/weaver.yaml`: {e}"),
         })
     })?;
-    let engine = TemplateEngine::new(config, loader, Params::default())?;
+    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
 
     // Prepare the ingester
     let ingester = match (&args.input_source, &args.input_format) {

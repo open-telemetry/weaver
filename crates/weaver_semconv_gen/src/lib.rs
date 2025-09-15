@@ -398,7 +398,7 @@ mod tests {
                 .insert("test".to_owned(), Value::String("param".to_owned()));
             p
         };
-        let template = TemplateEngine::new(config, loader, params)?;
+        let template = TemplateEngine::try_new(config, loader, params)?;
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
