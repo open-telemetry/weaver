@@ -35,7 +35,7 @@ gix = { version = "0.70.0", default-features = false, features = [
 ] }
 flate2 = "1.1.2"
 tar = "0.4.43"
-zip = "5.0.0"
+zip = "5.1.1"
 
 [dev-dependencies]
 ureq.workspace = true
