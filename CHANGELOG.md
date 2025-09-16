@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+# [Next] - Next
+
+- Support for describing aggregation being done on metrics
+  ([#845](https://github.com/open-telemetry/weaver/pull/822) by @thompson-tomo)
+
 # [0.17.1] - 2025-08-15
 
 - Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)

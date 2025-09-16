@@ -413,6 +413,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             metric_name: group.spec.metric_name,
             instrument: group.spec.instrument,
             unit: group.spec.unit,
+            aggregation: group.spec.aggregation,
             name: group.spec.name,
             lineage: Some(GroupLineage::new(group.provenance.clone())),
             display_name: group.spec.display_name,
