@@ -485,6 +485,11 @@ impl WeaverConfig {
     pub fn try_from_loader(
         loader: &(impl FileLoader + Send + Sync + 'static),
     ) -> Result<Self, Error> {
+        log::debug!(
+            "Searching for Weaver configuration from {} at {:?}",
+            WEAVER_YAML,
+            loader.root().display()
+        );
         match loader.load_file(WEAVER_YAML)? {
             Some(config) => Self::resolve_from(&[config]),
             None => Ok(WeaverConfig::default()),
@@ -499,6 +504,7 @@ impl WeaverConfig {
     /// configuration content can't be deserialized into a `WeaverConfig` struct.
     fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
         if configs.is_empty() {
+            log::debug!("No configuration file found. Using default config.");
             return Ok(WeaverConfig::default());
         }
 
@@ -507,14 +513,16 @@ impl WeaverConfig {
 
         // Each configuration is loaded and merged into the current configuration.
         for conf in configs {
-            let conf: WeaverConfig =
+            let weaver_config: WeaverConfig =
                 serde_yaml::from_str(&conf.content).map_err(|e| InvalidConfigFile {
                     config_file: conf.path.clone(),
                     error: e.to_string(),
                 })?;
-            config.override_with(conf);
+            log::debug!("Loaded Weaver configuration from {}", conf.path.display());
+            config.override_with(weaver_config);
         }
 
+        log::trace!("Using the following Weaver configuration: {:#?}", config);
         Ok(config)
     }
 
