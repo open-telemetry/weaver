@@ -194,11 +194,11 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 
 impl TemplateEngine {
     /// Create a new template engine for the given Weaver config.
-    pub fn new(
+    pub fn try_new(
         mut config: WeaverConfig,
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         // Compute the params for each template based on:
         // - CLI-level params
         // - Top-level params in the `weaver.yaml` file
@@ -228,11 +228,36 @@ impl TemplateEngine {
             }
         }
 
-        Self {
+        // Validate template files exist
+        let mut errors = Vec::new();
+        if let Some(templates) = config.templates.as_ref() {
+            let all_files = loader.all_files();
+            for template in templates {
+                // Check if any files match the template glob pattern
+                let matcher = template.template.compile_matcher();
+                let has_matches = all_files.iter().any(|file| matcher.is_match(file));
+
+                if !has_matches {
+                    errors.push(InvalidTemplateFile {
+                        template: PathBuf::from(template.template.glob()),
+                        error: format!(
+                            "Template pattern '{}' did not match any files",
+                            template.template.glob()
+                        ),
+                    });
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::CompoundError(errors));
+        }
+
+        Ok(Self {
             file_loader: Arc::new(loader),
             target_config: config,
             snippet_params: params,
-        }
+        })
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -337,6 +362,10 @@ impl TemplateEngine {
         output_dir: &Path,
         output_directive: &OutputDirective,
     ) -> Result<(), Error> {
+        log::debug!(
+            "Processing template file: {template_file:#?}, output directory: {output_dir:#?}"
+        );
+
         let yaml_params = Self::init_params(template.params.clone())?;
         let params = Self::prepare_jq_context(&yaml_params)?;
         let filter = Filter::new(template.filter.as_str());
@@ -729,7 +758,8 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
-        let engine = TemplateEngine::new(config, loader, cli_params);
+        let engine = TemplateEngine::try_new(config, loader, cli_params)
+            .expect("Failed to create template engine");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
@@ -884,7 +914,8 @@ mod tests {
             .expect("Failed to create file system loader");
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
-        let mut engine = TemplateEngine::new(config, loader, Params::default());
+        let mut engine = TemplateEngine::try_new(config, loader, Params::default())
+            .expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
@@ -956,7 +987,8 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_loader(&loader).unwrap();
-        let engine = TemplateEngine::new(config, loader, Params::default());
+        let engine = TemplateEngine::try_new(config, loader, Params::default())
+            .expect("Failed to create template engine");
         let context = Context {
             text: "Hello, World!".to_owned(),
         };
@@ -1044,5 +1076,21 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_wrong_config() {
+        let loader = FileSystemFileLoader::try_new("templates".into(), "wrong_config")
+            .expect("Failed to create file system loader");
+        let config = WeaverConfig::try_from_path("templates/wrong_config").unwrap();
+        let result = TemplateEngine::try_new(config, loader, Params::default());
+        assert!(result.is_err());
+        let error = result.err().unwrap();
+
+        let msg = format!("{error}");
+        assert!(
+            msg.contains("Template pattern 'does-not-exist.j2' did not match any files"),
+            "Unexpected error message - {msg}"
+        );
     }
 }

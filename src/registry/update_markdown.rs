@@ -89,7 +89,7 @@ pub(crate) fn command(
         let loader =
             FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        TemplateEngine::new(config, loader, params)
+        TemplateEngine::try_new(config, loader, params)?
     };
 
     let registry_path = &args.registry.registry;

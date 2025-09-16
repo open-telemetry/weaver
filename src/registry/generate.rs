@@ -106,7 +106,7 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
     } else {
         WeaverConfig::try_from_path(loader.root())
     }?;
-    let engine = TemplateEngine::new(config, loader, params);
+    let engine = TemplateEngine::try_new(config, loader, params)?;
 
     engine.generate(
         &template_registry,
