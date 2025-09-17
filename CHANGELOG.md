@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+# [0.18.0] - 2025-09-17
+
+- Fail when JQ filters fail ([#894](https://github.com/open-telemetry/weaver/pull/894) by @lmolkova)
+- Update cargo-dist ([#905](https://github.com/open-telemetry/weaver/pull/905) by @jerbly)
+- Update OTLP support to 1.7 ([#907](https://github.com/open-telemetry/weaver/pull/907) by @jerbly)
+- Add debug logs for template config loading ([#934](https://github.com/open-telemetry/weaver/pull/934) by @lmolkova)
+- Always serialize brief and registry_url ([#929](https://github.com/open-telemetry/weaver/pull/929) by @jsuereth)
+- Fail when template doesn't match a file ([#928](https://github.com/open-telemetry/weaver/pull/928) by @lmolkova)
+
 # [0.17.1] - 2025-08-15
 
 - Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)
