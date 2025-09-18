@@ -534,9 +534,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.57"
+version = "4.5.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d9501bd3f5f09f7bbee01da9a511073ed30a80cd7a509f1214bb74eadea71ad"
+checksum = "75bf0b32ad2e152de789bb635ea4d3078f6b838ad7974143e99b99f45a04af4a"
 dependencies = [
  "clap",
 ]
@@ -3117,9 +3117,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.11.1"
+version = "2.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "206a8042aec68fa4a62e8d3f7aa4ceb508177d9324faf261e1959e495b7a1921"
+checksum = "92119844f513ffa41556430369ab02c295a3578af21cf945caa3e9e0c2481ac3"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.4",
@@ -4924,27 +4924,38 @@ checksum = "0f7d95a54511e0c7be3f51e8867aa8cf35148d7b9445d44de2f943e2b206e749"
 
 [[package]]
 name = "semver"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
 dependencies = [
  "serde",
+ "serde_core",
 ]
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.225"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "fd6c24dee235d0da097043389623fb913daddf92c76e9f5a1db88607a0bcbd1d"
+dependencies = [
+ "serde_core",
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_core"
+version = "1.0.225"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "659356f9a0cb1e529b24c01e43ad2bdf520ec4ceaf83047b83ddcc2251f96383"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.219"
+version = "1.0.225"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "0ea936adf78b1f766949a4977b91d2f5595825bd6ec079aa9543ad2685fc4516"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4964,23 +4975,24 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.143"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
+checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
  "itoa",
  "memchr",
  "ryu",
  "serde",
+ "serde_core",
 ]
 
 [[package]]
 name = "serde_spanned"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40734c41988f7306bb04f0ecf60ec0f3f1caa34290e4e8ea471dcd3346483b83"
+checksum = "2789234a13a53fc4be1b51ea1bab45a3c338bdb884862a257d10e5a74ae009e6"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -5498,12 +5510,12 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.5"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75129e1dc5000bfbaa9fee9d1b21f974f9fbad9daec557a521ee6e080825f6e8"
+checksum = "ae2a4cf385da23d1d53bc15cdfa5c2109e93d8d362393c801e87da2f72f0e201"
 dependencies = [
  "indexmap",
- "serde",
+ "serde_core",
  "serde_spanned",
  "toml_datetime",
  "toml_parser",
@@ -5513,11 +5525,11 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bade1c3e902f58d73d3f294cd7f20391c1cb2fbcb643b73566bc773971df91e3"
+checksum = "a197c0ec7d131bfc6f7e82c8442ba1595aeab35da7adbf05b6b73cd06a16b6be"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -6052,7 +6064,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -6096,7 +6108,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "globset",
  "miette",
@@ -6112,7 +6124,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "dirs",
  "log",
@@ -6127,7 +6139,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "dirs",
  "flate2",
@@ -6151,7 +6163,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -6160,7 +6172,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "futures-util",
  "miette",
@@ -6180,7 +6192,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -6217,7 +6229,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "miette",
  "schemars",
@@ -6246,7 +6258,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -6259,7 +6271,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "glob",
  "globset",
@@ -6278,7 +6290,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "glob",
  "globset",
@@ -6300,7 +6312,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "miette",
  "nom 8.0.0",
@@ -6317,7 +6329,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "schemars",
  "semver",
