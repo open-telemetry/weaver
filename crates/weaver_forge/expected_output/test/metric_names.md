@@ -1,4 +1,6 @@
 
+`http.client.request.duration`
+
 `jvm.class.count`
 
 `jvm.class.loaded`

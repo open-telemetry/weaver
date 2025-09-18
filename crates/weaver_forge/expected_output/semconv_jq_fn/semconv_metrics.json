@@ -2,6 +2,214 @@
   {
     "metrics": [
       {
+        "attributes": [
+          {
+            "brief": "HTTP request method.",
+            "examples": [
+              "GET",
+              "POST",
+              "HEAD"
+            ],
+            "name": "http.request.method",
+            "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": {
+              "members": [
+                {
+                  "brief": "CONNECT method.",
+                  "id": "connect",
+                  "stability": "stable",
+                  "value": "CONNECT"
+                },
+                {
+                  "brief": "DELETE method.",
+                  "id": "delete",
+                  "stability": "stable",
+                  "value": "DELETE"
+                },
+                {
+                  "brief": "GET method.",
+                  "id": "get",
+                  "stability": "stable",
+                  "value": "GET"
+                },
+                {
+                  "brief": "HEAD method.",
+                  "id": "head",
+                  "stability": "stable",
+                  "value": "HEAD"
+                },
+                {
+                  "brief": "OPTIONS method.",
+                  "id": "options",
+                  "stability": "stable",
+                  "value": "OPTIONS"
+                },
+                {
+                  "brief": "PATCH method.",
+                  "id": "patch",
+                  "stability": "stable",
+                  "value": "PATCH"
+                },
+                {
+                  "brief": "POST method.",
+                  "id": "post",
+                  "stability": "stable",
+                  "value": "POST"
+                },
+                {
+                  "brief": "PUT method.",
+                  "id": "put",
+                  "stability": "stable",
+                  "value": "PUT"
+                },
+                {
+                  "brief": "TRACE method.",
+                  "id": "trace",
+                  "stability": "stable",
+                  "value": "TRACE"
+                },
+                {
+                  "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
+                  "id": "other",
+                  "stability": "stable",
+                  "value": "_OTHER"
+                }
+              ]
+            }
+          },
+          {
+            "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
+            "examples": [
+              200
+            ],
+            "name": "http.response.status_code",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "int"
+          },
+          {
+            "brief": "Some HTTP specific description",
+            "examples": [
+              "example.com",
+              "10.1.2.80",
+              "/tmp/my.sock"
+            ],
+            "name": "server.address",
+            "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it\u0027s available.\n",
+            "requirement_level": "required",
+            "stability": "stable",
+            "type": "string"
+          },
+          {
+            "brief": "Some HTTP specific description",
+            "examples": [
+              80,
+              8080,
+              443
+            ],
+            "name": "server.port",
+            "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it\u0027s available.\n",
+            "requirement_level": "required",
+            "stability": "stable",
+            "type": "int"
+          },
+          {
+            "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+            "examples": [
+              "http",
+              "https"
+            ],
+            "name": "url.scheme",
+            "requirement_level": "opt_in",
+            "stability": "stable",
+            "type": "string"
+          }
+        ],
+        "brief": "Duration of HTTP client requests.",
+        "id": "metric.http.client.request.duration",
+        "instrument": "histogram",
+        "lineage": {
+          "attributes": {
+            "http.request.method": {
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ],
+              "source_group": "registry.data.registry-http"
+            },
+            "http.response.status_code": {
+              "inherited_fields": [
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "brief",
+                "examples",
+                "requirement_level"
+              ],
+              "source_group": "registry.data.registry-http"
+            },
+            "server.address": {
+              "inherited_fields": [
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "brief",
+                "requirement_level"
+              ],
+              "source_group": "server"
+            },
+            "server.port": {
+              "inherited_fields": [
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "brief",
+                "requirement_level"
+              ],
+              "source_group": "server"
+            },
+            "url.scheme": {
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "examples",
+                "requirement_level"
+              ],
+              "source_group": "registry.url"
+            }
+          },
+          "provenance": {
+            "path": "data/http.yaml",
+            "registry_id": "default"
+          }
+        },
+        "metric_name": "http.client.request.duration",
+        "root_namespace": "http",
+        "stability": "stable",
+        "type": "metric",
+        "unit": "s"
+      }
+    ],
+    "root_namespace": "http"
+  },
+  {
+    "metrics": [
+      {
         "attributes": null,
         "brief": "Number of classes currently loaded.",
         "id": "metric.jvm.class.count",

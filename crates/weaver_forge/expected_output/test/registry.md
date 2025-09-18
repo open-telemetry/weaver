@@ -7,7 +7,7 @@ Url:
 - [registry.exception](attribute_group/registry_exception.md)
 - [attributes.jvm.memory](attribute_group/attributes_jvm_memory.md)
 - [registry.db](attribute_group/registry_db.md)
-- [registry.http](attribute_group/registry_http.md)
+- [registry.data.registry-http](attribute_group/registry_data_registry_http.md)
 - [registry.network](attribute_group/registry_network.md)
 - [server](attribute_group/server.md)
 - [registry.url](attribute_group/registry_url.md)
@@ -20,6 +20,7 @@ Url:
 
 # Metrics
 
+- [metric.http.client.request.duration](metric/metric_http_client_request_duration.md)
 - [metric.jvm.memory.deprecated](metric/metric_jvm_memory_deprecated.md)
 - [metric.jvm.memory.dont_generate](metric/metric_jvm_memory_dont_generate.md)
 - [metric.jvm.memory.used](metric/metric_jvm_memory_used.md)
@@ -48,6 +49,7 @@ Url:
 
 # Span
 
+- [span.http.client](span/span_http_client.md)
 - [db](span/db.md)
 - [db.mssql](span/db_mssql.md)
 - [db.cassandra](span/db_cassandra.md)
