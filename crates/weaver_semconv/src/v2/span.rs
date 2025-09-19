@@ -11,11 +11,7 @@ use crate::{
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
 };
 
-/// A group defines an attribute group, an entity, or a signal.
-/// Supported group types are: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`.
-/// Mandatory fields are: `id` and `brief`.
-///
-/// Note: The `resource` type is no longer used and is an alias for `entity`.
+/// Defines a new Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Span {
@@ -77,7 +73,7 @@ impl Span {
 }
 
 /// Specification of the span name.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct SpanName {

@@ -7,7 +7,7 @@ use std::{fmt, ops::Deref};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Serialize, JsonSchema, Clone, Debug)]
+#[derive(Serialize, JsonSchema, Clone, Debug, PartialEq)]
 /// An identifier for a signal.  Should be `.` separated namespaces and names.
 pub struct SignalId(String);
 
@@ -16,6 +16,12 @@ impl SignalId {
     #[must_use]
     pub fn into_v1(self) -> String {
         self.0
+    }
+}
+
+impl From<String> for SignalId {
+    fn from(value: String) -> Self {
+        SignalId(value)
     }
 }
 
