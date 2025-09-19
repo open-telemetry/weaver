@@ -28,7 +28,7 @@ pub mod signal_id;
 pub mod span;
 
 /// Common fields we want on all major components of semantic conventions.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct CommonFields {
     /// A brief description of the attribute or signal.
