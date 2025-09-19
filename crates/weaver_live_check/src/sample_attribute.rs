@@ -170,7 +170,7 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
@@ -182,12 +182,16 @@ impl LiveCheckRunner for SampleAttribute {
             }
         };
 
+        let signal_type = parent_group.as_ref().map(|g| format!("{:?}", g.r#type));
+        let signal_name = parent_group.as_ref().map(|g| g.id.clone());
         if semconv_attribute.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: Value::String(self.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
+                value: json!({ "attribute_name": self.name.clone() }),
+                message: format!("Attribute `{}` does not exist in the registry.", self.name),
                 advice_level: AdviceLevel::Violation,
+                signal_type,
+                signal_name,
             });
         } else {
             // Provide an info advice if the attribute is a template
@@ -195,9 +199,11 @@ impl LiveCheckRunner for SampleAttribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: Value::String(attribute.name.clone()),
-                        message: "Is a template".to_owned(),
+                        value: json!({ "attribute_name": self.name.clone() }),
+                        message: format!("Attribute `{}` is a template", attribute.name),
                         advice_level: AdviceLevel::Information,
+                        signal_type,
+                        signal_name,
                     });
                 }
             }
@@ -205,8 +211,11 @@ impl LiveCheckRunner for SampleAttribute {
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.clone(), None)?;
+            let advice_list = advisor.advise(
+                SampleRef::Attribute(self),
+                semconv_attribute.clone(),
+                parent_group.clone(),
+            )?;
             result.add_advice_list(advice_list);
         }
         self.live_check_result = Some(result);

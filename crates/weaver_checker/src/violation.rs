@@ -46,10 +46,12 @@ impl Display for Violation {
                 value,
                 message,
                 advice_level,
+                signal_type,
+                signal_name,
             }) => {
                 write!(
                     f,
-                    "type={type}, value={value}, message={message}, advice_level={advice_level:?}"
+                    "type={type}, value={value}, message={message}, advice_level={advice_level:?}, signal_type={signal_type:?}, signal_name={signal_name:?}"
                 )
             }
         }
@@ -95,4 +97,9 @@ pub struct Advice {
     pub message: String,
     /// The level of the advice e.g. "violation"
     pub advice_level: AdviceLevel,
+
+    /// The signal type the advice applies to e.g. "span", "metric", "resource"
+    pub signal_type: Option<String>,
+    /// The signal name the advice applies to e.g. "http.server.duration"
+    pub signal_name: Option<String>,
 }
