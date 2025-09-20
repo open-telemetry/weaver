@@ -1,4 +1,5 @@
 {
+	"$id": "https://opentelemetry.io/schemas/v1/semconv.schema.json",
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"type": "object",
 	"description": "YAML schema for semantic convention generator, use for example with VS Code.",
