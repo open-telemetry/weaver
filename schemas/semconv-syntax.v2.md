@@ -14,11 +14,15 @@
         - [Enums](#enums)
         - [Template type](#template-type)
     - [Attribute reference](#attribute-reference)
+      - [Attribute group reference](#attribute-group-reference)
     - [`spans` definition](#spans-definition)
       - [Span name](#span-name)
     - [`entities` definition](#entities-definition)
     - [`events` definition](#events-definition)
     - [`metrics` definition](#metrics-definition)
+    - [`attribute_group` definition](#attribute_group-definition)
+      - [Internal Attribute Groups](#internal-attribute-groups)
+      - [Public Attribute Groups](#public-attribute-groups)
     - [`imports` definition](#imports-definition)
     - [Stability levels](#stability-levels)
     - [Deprecated structure](#deprecated-structure)
@@ -136,7 +140,7 @@ Here's an example of an enum attribute definition:
           value: "PUT"
           brief: 'PUT method.'
           stability: stable
-        # ...           
+        # ...
     brief: 'HTTP request method.'
 ```
 
@@ -158,7 +162,7 @@ and another example of int enum attribute
           brief: UNKNOWN
           stability: development
           value: 2
-        #... 
+        #...
     stability: development
     brief: "The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request."
 ```
@@ -214,7 +218,7 @@ Attributes cannot be defined on the signals themselves.
 So signal definitions contain references to attribute definitions and may refine original attribute definition - for example, to make original definition
 more specific and provide details on how and when to capture it in the scope of that signal or domain.
 
-Attributes are referenced by their key. Here's an example of how to reference attributes when defining spans:
+Attributes are referenced by their key. Here's an example of how to reference and refine attributes when defining spans:
 
 ```yaml
 spans:
@@ -226,7 +230,7 @@ spans:
         sampling_relevant: true
 ```
 
-When referencing spans, you can refine the following properties for the scope of signal being defined:
+You can refine the following properties of the attribute (for the scope of the signal being defined):
 
 - `brief`
 - `note`
@@ -235,11 +239,69 @@ When referencing spans, you can refine the following properties for the scope of
 - `stability` can be changed from stable to unstable, but not the other way around
 - `deprecated` can be changed from not-deprecated to deprecated, but not the other way around
 
-The following properties can be defined on the attribute reference only:
+The following properties can be defined on the attribute references only:
 
 - `requirement_level` - Optional - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for the details.
 - `sampling_relevant` - Optional - available on spans only - a boolean flag indicating if the attribute is (especially) relevant for sampling and
   thus should be set at span start. It defaults to `false`.
+
+#### Attribute group reference
+
+It's also possible to reference [attribute group](#attribute_group-definition) to share refinements across multuple conventions.
+
+For example, `server.address` and `server.port` could be refined in the group `attributes.http.client.authority`:
+
+```yaml
+  - id: attributes.http.client.authority
+    visibility: internal
+    attributes:
+      - ref: server.address
+        requirement_level: required
+        note: |
+          In HTTP/1.1, when the [request target](https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target)
+          is passed in its [absolute-form](https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.2),
+          the `server.address` SHOULD match the host component of the request target.
+      - ref: server.port
+        requirement_level: required
+        note: |
+          In the case of HTTP/1.1, when the [request target](https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target)
+          is passed in its [absolute-form](https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.2),
+          the `server.port` SHOULD match the port component of the request target.
+```
+
+And then this group could be included on all HTTP client conventions via `ref_group` qualifier:
+
+```yaml
+metrics:
+  - name: http.client.request.duration
+    ...
+    attributes:
+      - ref_group: attributes.http.client.authority
+      ...
+```
+
+The `ref_group` identifies attribute group be its `id` and does not have any properties.
+
+Attribute refinements can be applied along with group references:
+
+```yaml
+spans:
+  - type: http.client
+    ...
+    attributes:
+      - ref_group: attributes.http.client.authority
+      - ref: server.address
+        sampling_relevant: true
+```
+
+> [!IMPORTANT]
+> Collisions between attribute groups are not allowed: semantic
+> conventions cannot be resolved if two groups included on the
+> same signal (or group) reference the same attribute key.
+
+> [!NOTE]
+> It's NOT RECOMMENDED to use `ref_groups` on other attribute groups
+> due to redability concerns.
 
 ### `spans` definition
 
@@ -278,7 +340,7 @@ spans:
       - ref: url.full
         requirement_level: required
         sampling_relevant: true
-      # ...        
+      # ...
     entity_associations:
       - ref: service.instance
 ```
@@ -392,6 +454,65 @@ metrics:
       # ...
     entity_associations:
       - ref: service.instance
+```
+
+### `attribute_group` definition
+
+Attribute groups section contains a list of attribute group definitions. Attribute groups allow you to define reusable collections of attributes that can be referenced by multiple signals (spans, events, metrics, etc.). This promotes consistency and reduces duplication across semantic conventions.
+
+An attribute group can have two visibility levels:
+
+#### Internal Attribute Groups
+
+Internal attribute groups are used for organizational purposes within a semantic convention file and are not exposed in the final documentation or resolved schema.
+
+An internal attribute group definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the attribute group.
+- `visibility` - Required. Must be set to `"internal"`.
+- `attributes` - Required. List of [attribute references](#attribute-reference) that belong to this group.
+
+Example:
+
+```yaml
+attribute_groups:
+  - id: attributes.http.common
+    visibility: internal
+    attributes:
+      - ref: http.request.method
+      - ref: http.response.status_code
+```
+
+#### Public Attribute Groups
+
+Public attribute groups are included in generated documentation and resolved schema. Group of attributes is meaningful and
+describes some complex object (such as exception, thread, CloudEvent, etc) - these attributes may be included on
+different signals as a group.
+
+A public attribute group definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the attribute group.
+- `visibility` - Required. Must be set to `"public"`.
+- `brief` - Required. A short description of what this attribute group represents.
+- `note` - Optional. A more elaborate description of the attribute group.
+- `stability` - Required. Specifies the [stability](#stability-levels) of the attribute group definition.
+- `attributes` - List of [attribute references](#attribute-reference) that belong to this group.
+- `deprecated` - Optional. When present, marks the attribute group as deprecated. See [deprecated](#deprecated-structure) for details.
+- `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the attribute group. See [annotations](#annotations) for details.
+
+Example:
+
+```yaml
+attribute_groups:
+  - id: exception
+    visibility: public
+    brief: Attributes representing exception information
+    note: These attributes capture details about exceptions that occur during operation execution.
+    stability: stable
+    attributes:
+      - ref: exception.type
+      - ref: exception.message
+      - ref: exception.stacktrace
 ```
 
 ### `imports` definition

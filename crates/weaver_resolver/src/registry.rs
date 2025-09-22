@@ -51,6 +51,12 @@ pub struct UnresolvedGroup {
     /// and other signals, into the group field once they are resolved.
     pub attributes: Vec<UnresolvedAttribute>,
 
+    /// List of groups to include in the semantic convention group.
+    pub include_groups: Vec<String>,
+
+    /// Visibility of the group.
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
+
     /// The provenance of the group (URL or path).
     pub provenance: Provenance,
 }
@@ -100,6 +106,7 @@ pub fn resolve_semconv_registry(
     ureg.registry.groups = ureg
         .groups
         .into_iter()
+        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
         .map(|mut g| {
             g.group.attributes.sort();
             g.group
@@ -153,11 +160,6 @@ pub fn resolve_semconv_registry(
             return WResult::FatalErr(e);
         }
     }
-
-    // remove internal groups
-    ureg.registry
-        .groups
-        .retain(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal));
 
     WResult::OkWithNFEs(ureg.registry, errors)
 }
@@ -411,7 +413,6 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             note: group.spec.note,
             prefix: group.spec.prefix,
             extends: group.spec.extends,
-            include_groups: group.spec.include_groups,
             stability: group.spec.stability,
             deprecated: group.spec.deprecated,
             attributes: vec![],
@@ -426,10 +427,11 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             body: group.spec.body,
             annotations: group.spec.annotations,
             entity_associations: group.spec.entity_associations,
-            visibility: group.spec.visibility,
         },
         attributes: attrs,
         provenance: group.provenance,
+        include_groups: group.spec.include_groups,
+        visibility: group.spec.visibility,
     }
 }
 
@@ -531,10 +533,10 @@ fn resolve_attribute_references(
 fn add_resolved_group_to_index(
     group_index: &mut HashMap<String, Vec<UnresolvedAttribute>>,
     unresolved_group: &mut UnresolvedGroup,
-    resolved_extends_count: &mut usize,
+    resolved_group_count: &mut usize,
 ) {
     log::debug!(
-        "Adding group {} to index with attribute ids: [{:#?}]",
+        "Adding group {} to index with attribute ids: {:#?}",
         unresolved_group.group.id,
         unresolved_group
             .attributes
@@ -543,12 +545,12 @@ fn add_resolved_group_to_index(
             .collect::<Vec<_>>()
     );
     _ = unresolved_group.group.extends.take();
-    unresolved_group.group.include_groups = Vec::new();
+    unresolved_group.include_groups.clear();
     _ = group_index.insert(
         unresolved_group.group.id.clone(),
         unresolved_group.attributes.clone(),
     );
-    *resolved_extends_count += 1;
+    *resolved_group_count += 1;
 }
 /// The resolution process is iterative. The process stops when all the
 /// `extends` references are resolved or when no `extends` reference could
@@ -558,22 +560,21 @@ fn add_resolved_group_to_index(
 fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     loop {
         let mut errors = vec![];
-        let mut resolved_extends_count = 0;
+        let mut resolved_group_count = 0;
 
         // Create a map group_id -> attributes for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
         for group in ureg.groups.iter() {
-            if group.group.extends.is_none() && group.group.include_groups.is_empty() {
+            if group.group.extends.is_none() && group.include_groups.is_empty() {
                 log::debug!(
-                    "Adding group {} to index with attribute ids: [{:#?}], visibility: {:#?}",
+                    "Adding group {} to index with attribute ids: {:#?}",
                     group.group.id,
                     group
                         .attributes
                         .iter()
                         .map(|a| a.spec.id().clone())
-                        .collect::<Vec<_>>(),
-                    group.group.visibility
+                        .collect::<Vec<_>>()
                 );
                 _ = group_index.insert(group.group.id.clone(), group.attributes.clone());
             }
@@ -592,7 +593,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     add_resolved_group_to_index(
                         &mut group_index,
                         unresolved_group,
-                        &mut resolved_extends_count,
+                        &mut resolved_group_count,
                     );
                 } else {
                     errors.push(Error::UnresolvedExtendsRef {
@@ -601,28 +602,24 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         provenance: unresolved_group.provenance.clone(),
                     });
                 }
-            } else if !unresolved_group.group.include_groups.is_empty() {
+            } else if !unresolved_group.include_groups.is_empty() {
                 // Iterate over all groups and resolve the `include_groups` clauses.
                 let mut attr_ids = HashMap::new();
                 let mut attrs_by_group = HashMap::new();
                 let mut all_resolved = true;
 
-                for include_group in unresolved_group.group.include_groups.iter() {
+                for include_group in unresolved_group.include_groups.iter() {
                     if let Some(attrs) = group_index.get(include_group) {
-                        // check if any of the attr in attrs is already in the all_attrs
-                        // and fail, otherwise add them to all_attrs
+                        // check if any attribute in the attrs is already in the all_attrs
+                        // and fail - this is a diamond include problem and is not allowed.
+                        // Otherwise add all of them to all_attrs
                         for attr in attrs {
                             if attr_ids.contains_key(&attr.spec.id()) {
-                                log::debug!(
-                                    "Found duplicate attribute id {} in include_groups for group {}",
-                                    attr.spec.id(),
-                                    unresolved_group.group.id
-                                );
-                                // TODO: accumulate real errors and return all of them
-                                return Err(Error::DuplicateAttributeId {
-                                    group_ids: unresolved_group.group.include_groups.clone(),
+                                errors.push(Error::DuplicateAttributeId {
+                                    group_ids: unresolved_group.include_groups.clone(),
                                     attribute_id: attr.spec.id().clone(),
                                 });
+                                all_resolved = false;
                             } else {
                                 _ = attr_ids.insert(attr.spec.id().clone(), attr);
                             }
@@ -651,7 +648,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     add_resolved_group_to_index(
                         &mut group_index,
                         unresolved_group,
-                        &mut resolved_extends_count,
+                        &mut resolved_group_count,
                     );
                 }
             }
@@ -660,11 +657,17 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         if errors.is_empty() {
             break;
         }
+
+        log::info!(
+            "Resolved {} extends in this iteration, found errors {:#?}",
+            resolved_group_count,
+            errors
+        );
         // If we still have unresolved `extends` but we did not resolve any
         // `extends` in the last iteration, we are stuck in an infinite loop.
         // It means that we have an issue with the semantic convention
         // specifications.
-        if resolved_extends_count == 0 {
+        if resolved_group_count == 0 {
             return Err(Error::CompoundError(errors));
         }
     }
@@ -689,7 +692,7 @@ fn resolve_inheritance_attrs_unified(
     // ensure that the resolved registry is easy to compare.
     let mut inherited_attrs = BTreeMap::new();
 
-    // Inherit the attributes from all parent groups.
+    // Inherit the attributes from all included groups.
     for (parent_group_id, included_group) in include_groups {
         for parent_attr in included_group.iter() {
             let attr_id = parent_attr.spec.id();

@@ -123,13 +123,15 @@ pub struct GroupSpec {
     /// Attribute groups to include - this parameter must not be provided
     /// in yaml, it's only used to convert v2 schema into v1
     #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
     pub include_groups: Vec<String>,
 
     /// Visibility of the attribute group.
     /// This parameter must not be provided in yaml, it's only used to convert v2 schema into v1
     #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
     pub visibility: Option<AttributeGroupVisibilitySpec>,
 }
 

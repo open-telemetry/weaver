@@ -27,38 +27,33 @@ pub struct InternalAttributeGroup {
     pub attributes: Vec<AttributeOrGroupRef>,
 }
 
-/// A group defines an attribute group, an entity, or a signal.
-/// Mandatory fields is: `id`. Groups are expected to have `attributes`,
-/// `include_groups` or both
+/// Public attribute group implementation
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PublicAttributeGroup {
+    /// The name of the attribute group, must be unique.
+    pub id: SignalId,
+
+    /// List of attributes and group references that belong to this group
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<AttributeOrGroupRef>,
+
+    /// Common fields (like brief, note, annotations).
+    #[serde(flatten)]
+    pub common: CommonFields,
+}
+
+/// Attribute group definition.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "visibility")]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum AttributeGroup {
     /// An internal attribute group
-    Internal {
-        /// The name of the attribute group, must be unique.
-        id: SignalId,
-
-        /// List of attributes and group references that belong to this group
-        #[serde(default)]
-        #[serde(skip_serializing_if = "Vec::is_empty")]
-        attributes: Vec<AttributeOrGroupRef>,
-    },
+    Internal(InternalAttributeGroup),
     /// A public attribute group
-    Public {
-        /// The name of the attribute group, must be unique.
-        id: SignalId,
-
-        /// List of attributes and group references that belong to this group
-        #[serde(default)]
-        #[serde(skip_serializing_if = "Vec::is_empty")]
-        attributes: Vec<AttributeOrGroupRef>,
-
-        /// Common fields (like brief, note, annotations).
-        #[serde(flatten)]
-        common: CommonFields,
-    },
+    Public(PublicAttributeGroup),
 }
 
 impl AttributeGroup {
@@ -66,13 +61,14 @@ impl AttributeGroup {
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
         match self {
-            AttributeGroup::Internal { id, attributes } => {
-                let (attribute_refs, include_groups) = split_attributes_and_groups(attributes);
+            AttributeGroup::Internal(internal) => {
+                let (attribute_refs, include_groups) =
+                    split_attributes_and_groups(internal.attributes);
 
                 GroupSpec {
-                    id: format!("{}", &id),
+                    id: format!("{}", &internal.id),
                     r#type: GroupType::AttributeGroup,
-                    brief: format!("{}", &id),
+                    brief: format!("{}", &internal.id),
                     note: "".to_owned(),
                     prefix: Default::default(),
                     extends: None,
@@ -93,23 +89,19 @@ impl AttributeGroup {
                     visibility: Some(AttributeGroupVisibilitySpec::Internal),
                 }
             }
-            AttributeGroup::Public {
-                id,
-                attributes,
-                common,
-            } => {
-                let (attributes, include_groups) = split_attributes_and_groups(attributes);
+            AttributeGroup::Public(public) => {
+                let (attributes, include_groups) = split_attributes_and_groups(public.attributes);
 
                 GroupSpec {
-                    id: format!("{}", id),
+                    id: format!("{}", public.id),
                     r#type: GroupType::AttributeGroup,
-                    brief: common.brief,
-                    note: common.note,
+                    brief: public.common.brief,
+                    note: public.common.note,
                     prefix: Default::default(),
                     extends: None,
                     include_groups,
-                    stability: Some(common.stability),
-                    deprecated: common.deprecated,
+                    stability: Some(public.common.stability),
+                    deprecated: public.common.deprecated,
                     attributes,
                     span_kind: None,
                     events: vec![],
@@ -119,7 +111,11 @@ impl AttributeGroup {
                     name: None,
                     display_name: None,
                     body: None,
-                    annotations: Some(common.annotations),
+                    annotations: if public.common.annotations.is_empty() {
+                        None
+                    } else {
+                        Some(public.common.annotations)
+                    },
                     entity_associations: vec![],
                     visibility: Some(AttributeGroupVisibilitySpec::Public),
                 }
@@ -130,6 +126,7 @@ impl AttributeGroup {
 
 /// The group's visibility.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum AttributeGroupVisibilitySpec {
     /// An internal group.
     Internal,
@@ -159,8 +156,10 @@ mod tests {
     fn parse_and_translate(v2: &str, v1: &str) {
         let attr_group =
             serde_yaml::from_str::<AttributeGroup>(v2).expect("Failed to parse YAML string");
-        let expected =
+        let mut expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
+        // visibility is not serializeable on v1, so let's set it explicitly
+        expected.visibility = Some(AttributeGroupVisibilitySpec::Public);
         assert_eq!(expected, attr_group.into_v1_group());
     }
 
@@ -171,14 +170,12 @@ mod tests {
             r#"id: my_attr_group
 brief: Test group
 stability: development
-attributes:
-"#,
+visibility: public"#,
             // V1 - Group
             r#"id: my_attr_group
 type: attribute_group
 brief: Test group
-stability: development
-"#,
+stability: development"#,
         );
     }
 }

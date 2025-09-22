@@ -1,9 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SemConvSpecV2",
-  "description": "A semantic convention file as defined [here](/schemas/semconv-syntax.v2.md) A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).",
+  "description": "A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).",
   "type": "object",
   "properties": {
+    "attribute_groups": {
+      "description": "A collection of semantic conventions for AttributeGroups.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AttributeGroup"
+      }
+    },
     "attributes": {
       "description": "A collection of semantic conventions for attributes.",
       "type": "array",
@@ -64,7 +71,7 @@
       ],
       "properties": {
         "annotations": {
-          "description": "Annotations for the group.",
+          "description": "Annotations for the attribute or signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/YamlValue"
@@ -122,6 +129,132 @@
         }
       },
       "additionalProperties": false
+    },
+    "AttributeGroup": {
+      "description": "Attribute group definition.",
+      "oneOf": [
+        {
+          "description": "An internal attribute group",
+          "type": "object",
+          "required": [
+            "id",
+            "visibility"
+          ],
+          "properties": {
+            "attributes": {
+              "description": "List of attributes and group references that belong to this group",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AttributeOrGroupRef"
+              }
+            },
+            "id": {
+              "description": "The name of the attribute group, must be unique.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignalId"
+                }
+              ]
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "internal"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A public attribute group",
+          "type": "object",
+          "required": [
+            "brief",
+            "id",
+            "stability",
+            "visibility"
+          ],
+          "properties": {
+            "annotations": {
+              "description": "Annotations for the attribute or signal.",
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/YamlValue"
+              }
+            },
+            "attributes": {
+              "description": "List of attributes and group references that belong to this group",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AttributeOrGroupRef"
+              }
+            },
+            "brief": {
+              "description": "A brief description of the attribute or signal.",
+              "type": "string"
+            },
+            "deprecated": {
+              "description": "Specifies if the semantic convention is deprecated. The string provided as description MUST specify why it's deprecated and/or what to use instead. See also stability.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Deprecated"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "description": "The name of the attribute group, must be unique.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignalId"
+                }
+              ]
+            },
+            "note": {
+              "description": "A more elaborate description of the attribute or signal. It defaults to an empty string.",
+              "type": "string"
+            },
+            "stability": {
+              "description": "Specifies the stability of the attribute or signal.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Stability"
+                }
+              ]
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AttributeOrGroupRef": {
+      "description": "A reference to either an attribute or an attribute group.",
+      "anyOf": [
+        {
+          "description": "Reference to an attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AttributeRef"
+            }
+          ]
+        },
+        {
+          "description": "Reference to an attribute group.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/GroupRef"
+            }
+          ]
+        }
+      ]
     },
     "AttributeRef": {
       "description": "A refinement of an Attribute for a signal.",
@@ -366,7 +499,7 @@
       ],
       "properties": {
         "annotations": {
-          "description": "Annotations for the group.",
+          "description": "Annotations for the attribute or signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/YamlValue"
@@ -406,7 +539,7 @@
           "type": "string"
         },
         "stability": {
-          "description": "Specifies the stability of the span.",
+          "description": "Specifies the stability of the attribute or signal.",
           "allOf": [
             {
               "$ref": "#/definitions/Stability"
@@ -503,7 +636,7 @@
       ],
       "properties": {
         "annotations": {
-          "description": "Annotations for the group.",
+          "description": "Annotations for the attribute or signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/YamlValue"
@@ -513,7 +646,7 @@
           "description": "List of attributes that belong to the semantic convention.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AttributeRef"
+            "$ref": "#/definitions/AttributeOrGroupRef"
           }
         },
         "brief": {
@@ -671,6 +804,20 @@
         }
       ]
     },
+    "GroupRef": {
+      "description": "A reference to an attribute group.",
+      "type": "object",
+      "required": [
+        "ref_group"
+      ],
+      "properties": {
+        "ref_group": {
+          "description": "Reference an existing attribute group by id.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "GroupWildcard": {
       "description": "Represents a wildcard expression to import one or several groups defined in an imported registry.",
       "type": "string"
@@ -700,7 +847,7 @@
           }
         },
         "metrics": {
-          "description": "A list of metric group name wildcards.",
+          "description": "A list of metric group metric_name wildcards.",
           "type": [
             "array",
             "null"
@@ -757,7 +904,7 @@
       ],
       "properties": {
         "annotations": {
-          "description": "Annotations for the group.",
+          "description": "Annotations for the attribute or signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/YamlValue"
@@ -767,7 +914,7 @@
           "description": "List of attributes that belong to the semantic convention.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AttributeRef"
+            "$ref": "#/definitions/AttributeOrGroupRef"
           }
         },
         "brief": {
@@ -813,7 +960,7 @@
           "type": "string"
         },
         "stability": {
-          "description": "Specifies the stability of the span.",
+          "description": "Specifies the stability of the attribute or signal.",
           "allOf": [
             {
               "$ref": "#/definitions/Stability"
@@ -963,7 +1110,7 @@
       ],
       "properties": {
         "annotations": {
-          "description": "Annotations for the group.",
+          "description": "Annotations for the attribute or signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/YamlValue"
@@ -973,7 +1120,7 @@
           "description": "List of attributes that belong to the semantic convention.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AttributeRef"
+            "$ref": "#/definitions/SpanAttributeOrGroupRef"
           }
         },
         "brief": {
@@ -1019,7 +1166,7 @@
           "type": "string"
         },
         "stability": {
-          "description": "Specifies the stability of the span.",
+          "description": "Specifies the stability of the attribute or signal.",
           "allOf": [
             {
               "$ref": "#/definitions/Stability"
@@ -1033,6 +1180,127 @@
               "$ref": "#/definitions/SignalId"
             }
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SpanAttributeOrGroupRef": {
+      "description": "A reference to either a span attribute or an attribute group.",
+      "anyOf": [
+        {
+          "description": "Reference to a span attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SpanAttributeRef"
+            }
+          ]
+        },
+        {
+          "description": "Reference to an attribute group.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SpanGroupRef"
+            }
+          ]
+        }
+      ]
+    },
+    "SpanAttributeRef": {
+      "description": "A refinement of an Attribute for a span.",
+      "type": "object",
+      "required": [
+        "ref"
+      ],
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the attribute. These will be merged with annotations from the definition.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "description": "Specifies if the attribute is deprecated for this signal.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Refined sequence of example values for the attribute or single example value. They are required only for string and string array attributes. Example values must be of the same type of the attribute. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "Reference an existing attribute by key.",
+          "type": "string"
+        },
+        "requirement_level": {
+          "description": "Refines the attribute requirement level. Can be \"required\", \"conditionally_required\", \"recommended\" or \"opt_in\". When omitted, the original attribute requirement level is used. When set to \"conditionally_required\", the string provided as `condition` MUST specify the conditions under which the attribute is required.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sampling_relevant": {
+          "description": "Specifies if the attribute is (especially) relevant for sampling and thus should be set at span start. It defaults to false. Note: this field is experimental.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "stability": {
+          "description": "Refines the stability of the attribute. This denotes whether an attribute is stable for a specific signal.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SpanGroupRef": {
+      "description": "A reference to an attribute group for spans.",
+      "type": "object",
+      "required": [
+        "ref_group"
+      ],
+      "properties": {
+        "ref_group": {
+          "description": "Reference an existing attribute group by id.",
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -784,4 +784,16 @@ attributes:
         group_ids.sort();
         assert_eq!(vec!["registry.test", "span.group2"], group_ids);
     }
+
+    #[test]
+    fn test_print_semconv_spec_v2_json_schema() {
+        use schemars::schema_for;
+
+        let schema = schema_for!(SemConvSpecV2);
+        let schema_json = serde_json::to_string_pretty(&schema)
+            .expect("Failed to serialize schema to JSON");
+
+        println!("SemConvSpecV2 JSON Schema:");
+        println!("{}", schema_json);
+    }
 }
