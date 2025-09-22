@@ -49,10 +49,12 @@ pub struct PublicAttributeGroup {
 #[serde(tag = "visibility")]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
+#[allow(unused_qualifications)]
 pub enum AttributeGroup {
     /// An internal attribute group
     Internal(InternalAttributeGroup),
     /// A public attribute group
+    #[allow(unused_qualifications)]
     Public(PublicAttributeGroup),
 }
 

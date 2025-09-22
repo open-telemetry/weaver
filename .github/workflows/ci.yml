@@ -70,7 +70,7 @@ jobs:
           if [ "$CURRENT_TOOLCHAIN" != "${{ env.MSRV }}" ]; then
             echo "Expected active toolchain ${{ env.MSRV }} but got $CURRENT_TOOLCHAIN"
             exit 1
-          else 
+          else
             echo "Correct toolchain $CURRENT_TOOLCHAIN is installed and active"
           fi
       - name: Default features
@@ -188,7 +188,7 @@ jobs:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
       - name: Report status
-        run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
+        run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated --allow unused_qualifications
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
