@@ -54,7 +54,6 @@ pub enum AttributeGroup {
     /// An internal attribute group
     Internal(InternalAttributeGroup),
     /// A public attribute group
-    #[allow(unused_qualifications)]
     Public(PublicAttributeGroup),
 }
 

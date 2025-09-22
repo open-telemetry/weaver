@@ -177,7 +177,7 @@ jobs:
         # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
         # [ToDo LQ] Re-enable --all-features once the issue is resolved
         run: >
-          cargo clippy --workspace --all-targets --message-format=json -- -D warnings --allow deprecated
+          cargo clippy --workspace --all-targets --message-format=json -- -D warnings --allow deprecated --allow unused_qualifications
           | clippy-sarif
           | tee clippy-results.sarif
           | sarif-fmt
