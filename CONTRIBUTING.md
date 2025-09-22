@@ -16,6 +16,8 @@ Run `cargo xtask validate` to check the structure of the project.
 
 Run `cargo test --all` to run the tests.
 
+Run `cargo build` to build a local binary for any additional tests. The resulting binary will be placed in the `./output` directory.
+
 **Run `just` before any push to pre-validate all the steps performed by CI.**
 
 ### How to send Pull Request
