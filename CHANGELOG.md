@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Add support for attribute_group (public and internal) in schema v2 ([#933](https://github.com/open-telemetry/weaver/pull/933) by @lmolkova)
+
 # [0.18.0] - 2025-09-17
 
 - Fail when JQ filters fail ([#894](https://github.com/open-telemetry/weaver/pull/894) by @lmolkova)
