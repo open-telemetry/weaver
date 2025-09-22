@@ -72,18 +72,18 @@ impl Advisor for DeprecatedAdvisor {
         registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
-            SampleRef::Attribute(_sample_attribute) => {
+            SampleRef::Attribute(sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     if let Some(deprecated) = &attribute.deprecated {
                         advices.push(Advice {
                             advice_type: "deprecated".to_owned(),
                             value: json!({
-                                "attribute_name": _sample_attribute.name.clone(),
+                                "attribute_name": sample_attribute.name.clone(),
                             }),
                             message: format!(
                                 "Attribute `{}` is deprecated; reason = {}, note = {}",
-                                _sample_attribute.name.clone(),
+                                sample_attribute.name.clone(),
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
@@ -95,7 +95,7 @@ impl Advisor for DeprecatedAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Metric(_sample_metric) => {
+            SampleRef::Metric(sample_metric) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated {
@@ -103,14 +103,13 @@ impl Advisor for DeprecatedAdvisor {
                             advice_type: "deprecated".to_owned(),
                             value: Value::Null,
                             message: format!(
-                                "Metric `{}` is deprecated; reason = {}, note = {}",
-                                _sample_metric.name.clone(),
+                                "Metric is deprecated; reason = {}, note = {}",
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
                             advice_level: AdviceLevel::Violation,
                             signal_type: Some("metric".to_owned()),
-                            signal_name: Some(_sample_metric.name.clone()),
+                            signal_name: Some(sample_metric.name.clone()),
                         });
                     }
                 }
@@ -170,8 +169,7 @@ impl Advisor for StabilityAdvisor {
                                 advice_type: "not_stable".to_owned(),
                                 value: Value::Null,
                                 message: format!(
-                                    "Metric `{}` is not stable; stability = {}.",
-                                    sample_metric.name.clone(),
+                                    "Metric is not stable; stability = {}.",
                                     stability
                                 ),
                                 advice_level: AdviceLevel::Improvement,

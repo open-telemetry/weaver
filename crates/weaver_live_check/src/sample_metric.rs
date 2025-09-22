@@ -294,7 +294,7 @@ impl LiveCheckRunner for SampleMetric {
             result.add_advice(Advice {
                 advice_type: MISSING_METRIC_ADVICE_TYPE.to_owned(),
                 value: Value::Null,
-                message: format!("Metric `{}` does not exist in the registry.", self.name),
+                message: "Metric does not exist in the registry.".to_owned(),
                 advice_level: AdviceLevel::Violation,
                 signal_type: Some("metric".to_owned()),
                 signal_name: Some(self.name.clone()),
