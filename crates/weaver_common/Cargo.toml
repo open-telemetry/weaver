@@ -26,7 +26,7 @@ log.workspace = true
 
 tempdir = "0.3.7"
 dirs = "6.0.0"
-gix = { version = "0.71.0", default-features = false, features = [
+gix = { version = "0.73.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
