@@ -89,17 +89,26 @@ pub enum AdviceLevel {
 /// Represents a live check advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Advice {
-    /// The type of advice e.g. "is_deprecated"
+    /// The type of advice e.g. "is_deprecated". This should be a short,
+    /// machine-readable string that categorizes the advice.
     pub advice_type: String,
-    /// The value of the advice e.g. "true"
+
+    /// The context associated with the advice e.g. { "attribute_name": "foo.bar" }
+    /// Context values may be used with custom templates and filters to query, summarize, and format advice.
     pub value: Value,
-    /// The message of the advice e.g. "This attribute is deprecated"
+
+    /// The human-readable message of the advice e.g. "This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'"
+    /// The message, along with signal_name and signal_type, should contain enough information to understand the advice and
+    /// identify the issue and how to fix it.
+    /// Some of the values used in the message may be also present in the `value` field to support report customization.
     pub message: String,
+
     /// The level of the advice e.g. "violation"
     pub advice_level: AdviceLevel,
 
-    /// The signal type the advice applies to e.g. "span", "metric", "resource"
+    /// The signal type the advice applies to: "span", "metric", "entity", "log" (aka "event"), or "profile"
     pub signal_type: Option<String>,
-    /// The signal name the advice applies to e.g. "http.server.duration"
+
+    /// The signal name the advice applies to e.g. "http.server.request.duration".
     pub signal_name: Option<String>,
 }

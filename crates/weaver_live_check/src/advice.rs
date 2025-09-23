@@ -82,7 +82,7 @@ impl Advisor for DeprecatedAdvisor {
                                 "attribute_name": sample_attribute.name.clone(),
                             }),
                             message: format!(
-                                "Attribute `{}` is deprecated; reason = {}, note = {}",
+                                "Attribute '{}' is deprecated; reason = '{}', note = '{}'.",
                                 sample_attribute.name.clone(),
                                 deprecated_to_reason(deprecated),
                                 deprecated
@@ -144,7 +144,7 @@ impl Advisor for StabilityAdvisor {
                                     "attribute_name": sample_attribute.name.clone()
                                 }),
                                 message: format!(
-                                    "Attribute `{}` is not stable; stability = {}.",
+                                    "Attribute '{}' is not stable; stability = {}.",
                                     sample_attribute.name.clone(),
                                     stability
                                 ),
@@ -219,7 +219,7 @@ fn check_attributes(
                     "required_attribute_not_present".to_owned(),
                     AdviceLevel::Violation,
                     format!(
-                        "Required attribute `{}` is not present.",
+                        "Required attribute '{}' is not present.",
                         semconv_attribute.name
                     ),
                 ),
@@ -228,7 +228,7 @@ fn check_attributes(
                     "recommended_attribute_not_present".to_owned(),
                     AdviceLevel::Improvement,
                     format!(
-                        "Recommended attribute `{}` is not present.",
+                        "Recommended attribute '{}' is not present.",
                         semconv_attribute.name
                     ),
                 ),
@@ -237,7 +237,7 @@ fn check_attributes(
                     "opt_in_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
                     format!(
-                        "Opt-in attribute `{}` is not present.",
+                        "Opt-in attribute '{}' is not present.",
                         semconv_attribute.name
                     ),
                 ),
@@ -245,7 +245,7 @@ fn check_attributes(
                     "conditionally_required_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
                     format!(
-                        "Conditionally required attribute `{}` is not present.",
+                        "Conditionally required attribute '{}' is not present.",
                         semconv_attribute.name
                     ),
                 ),
@@ -306,7 +306,7 @@ impl Advisor for TypeAdvisor {
                                         value: json!({
                                             "attribute_name": sample_attribute.name.clone(),
                                         }),
-                                        message: format!("Enum attribute `{}` has type `{}`. Enum value type should be `string` or `int`.", sample_attribute.name, attribute_type),
+                                        message: format!("Enum attribute '{}' has type '{}'. Enum value type should be 'string' or 'int'.", sample_attribute.name, attribute_type),
                                         advice_level: AdviceLevel::Violation,
                                         signal_type: registry_group
                                             .as_ref()
@@ -328,7 +328,7 @@ impl Advisor for TypeAdvisor {
                                     "attribute_name": sample_attribute.name.clone()
                                 }),
                                 message: format!(
-                                    "Attribute `{}` has type `{}`. Type should be `{}`.",
+                                    "Attribute '{}' has type '{}'. Type should be '{}'.",
                                     sample_attribute.name, attribute_type, semconv_attribute_type
                                 ),
                                 advice_level: AdviceLevel::Violation,
@@ -356,7 +356,7 @@ impl Advisor for TypeAdvisor {
                                 value: json!({
                                     "instrument": name.clone()
                                 }),
-                                message: format!("Instrument `{name}` is not supported"),
+                                message: format!("Instrument '{name}' is not supported"),
                                 advice_level: AdviceLevel::Violation,
                                 signal_type: Some("metric".to_owned()),
                                 signal_name: Some(sample_metric.name.clone()),
@@ -369,7 +369,7 @@ impl Advisor for TypeAdvisor {
                                         advice_type: "instrument_mismatch".to_owned(),
                                         value: Value::Null,
                                         message: format!(
-                                            "Instrument should be `{semconv_instrument}`, but found `{sample_instrument}`."
+                                            "Instrument should be '{semconv_instrument}', but found '{sample_instrument}'."
                                         ),
                                         advice_level: AdviceLevel::Violation,
                                         signal_type: Some("metric".to_owned()),
@@ -389,7 +389,7 @@ impl Advisor for TypeAdvisor {
                                     "expected_unit": semconv_unit.clone(),
                                 }),
                                 message: format!(
-                                    "Unit should be `{semconv_unit}`, but found `{}`.",
+                                    "Unit should be '{semconv_unit}', but found '{}'.",
                                     sample_metric.unit
                                 ),
                                 advice_level: AdviceLevel::Violation,
@@ -486,7 +486,7 @@ impl Advisor for EnumAdvisor {
                                         "attribute_name": sample_attribute.name.clone(),
                                         "attribute_value": attribute_value,
                                     }),
-                                    message: format!("Enum attribute `{}` has value `{}` which is not documented.", sample_attribute.name, attribute_value.as_str().unwrap_or("")),
+                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.", sample_attribute.name, attribute_value.as_str().unwrap_or("")),
                                     advice_level: AdviceLevel::Information,
                                     signal_type: registry_group
                                         .as_ref()

@@ -188,7 +188,7 @@ impl LiveCheckRunner for SampleAttribute {
             result.add_advice(Advice {
                 advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                 value: json!({ "attribute_name": self.name.clone() }),
-                message: format!("Attribute `{}` does not exist in the registry.", self.name),
+                message: format!("Attribute '{}' does not exist in the registry.", self.name),
                 advice_level: AdviceLevel::Violation,
                 signal_type,
                 signal_name,
@@ -200,7 +200,7 @@ impl LiveCheckRunner for SampleAttribute {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                         value: json!({ "attribute_name": self.name.clone() }),
-                        message: format!("Attribute `{}` is a template", attribute.name),
+                        message: format!("Attribute '{}' is a template", attribute.name),
                         advice_level: AdviceLevel::Information,
                         signal_type,
                         signal_name,
