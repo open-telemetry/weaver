@@ -175,7 +175,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -731,7 +732,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -792,7 +794,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -828,7 +831,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -864,7 +868,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -912,7 +917,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
             assert!(result.is_ok());
         }
@@ -989,9 +995,10 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            // This should fail with: "error: use of undefined variable `attribu1te_name` is unsafe"
+            // This should fail with: "error: use of undefined variable `attribute_name` is unsafe"
 
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_err());
             assert!(result
                 .unwrap_err()
@@ -1034,7 +1041,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -1099,7 +1107,7 @@ mod tests {
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
-        let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
         stats.finalize();
@@ -1131,7 +1139,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();

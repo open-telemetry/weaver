@@ -27,7 +27,7 @@ use weaver_semconv::{
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, SampleRef,
+    Error, Sample, SampleRef,
 };
 
 /// Embedded default live check rego policies
@@ -47,6 +47,7 @@ pub trait Advisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
+        signal: &Sample,
         registry_attribute: Option<Rc<Attribute>>,
         registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error>;
@@ -68,6 +69,7 @@ impl Advisor for DeprecatedAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
+        signal: &Sample,
         registry_attribute: Option<Rc<Attribute>>,
         registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
@@ -88,8 +90,8 @@ impl Advisor for DeprecatedAdvisor {
                                 deprecated
                             ),
                             advice_level: AdviceLevel::Violation,
-                            signal_type: registry_group.as_ref().map(|g| format!("{:?}", g.r#type)),
-                            signal_name: registry_group.as_ref().map(|g| g.id.clone()),
+                            signal_type: signal.signal_type(),
+                            signal_name: signal.signal_name(),
                         });
                     }
                 }
@@ -129,6 +131,7 @@ impl Advisor for StabilityAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
+        parent_signal: &Sample,
         registry_attribute: Option<Rc<Attribute>>,
         registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
@@ -149,10 +152,8 @@ impl Advisor for StabilityAdvisor {
                                     stability
                                 ),
                                 advice_level: AdviceLevel::Improvement,
-                                signal_type: registry_group
-                                    .as_ref()
-                                    .map(|g| format!("{:?}", g.r#type)),
-                                signal_name: registry_group.as_ref().map(|g| g.id.clone()),
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
                             });
                         }
                         _ => {}
@@ -160,7 +161,7 @@ impl Advisor for StabilityAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Metric(sample_metric) => {
+            SampleRef::Metric(_sample_metric) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability {
@@ -173,8 +174,8 @@ impl Advisor for StabilityAdvisor {
                                     stability
                                 ),
                                 advice_level: AdviceLevel::Improvement,
-                                signal_type: Some("metric".to_owned()),
-                                signal_name: Some(sample_metric.name.clone()),
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
                             });
                         }
                         _ => {}
@@ -205,8 +206,7 @@ pub struct TypeAdvisor;
 fn check_attributes(
     semconv_attributes: &[Attribute],
     sample_attributes: &[SampleAttribute],
-    group_name: Option<&str>,
-    group_type: Option<&str>,
+    sample: &Sample,
 ) -> Vec<Advice> {
     // Create a HashSet of attribute names for O(1) lookups
     let attribute_set: HashSet<_> = sample_attributes.iter().map(|attr| &attr.name).collect();
@@ -257,8 +257,8 @@ fn check_attributes(
                 }),
                 message,
                 advice_level,
-                signal_type: group_type.map(|t| t.to_owned()),
-                signal_name: group_name.map(|name| name.to_owned()),
+                signal_type: sample.signal_type(),
+                signal_name: sample.signal_name(),
             });
         }
     }
@@ -269,6 +269,7 @@ impl Advisor for TypeAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
+        parent_signal: &Sample,
         registry_attribute: Option<Rc<Attribute>>,
         registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
@@ -308,12 +309,8 @@ impl Advisor for TypeAdvisor {
                                         }),
                                         message: format!("Enum attribute '{}' has type '{}'. Enum value type should be 'string' or 'int'.", sample_attribute.name, attribute_type),
                                         advice_level: AdviceLevel::Violation,
-                                        signal_type: registry_group
-                                            .as_ref()
-                                            .map(|g| format!("{:?}", g.r#type)),
-                                        signal_name: registry_group
-                                            .as_ref()
-                                            .map(|g| g.id.clone()),
+                                        signal_type: parent_signal.signal_type(),
+                                        signal_name: parent_signal.signal_name(),
                                     }]);
                                 } else {
                                     return Ok(Vec::new());
@@ -332,10 +329,8 @@ impl Advisor for TypeAdvisor {
                                     sample_attribute.name, attribute_type, semconv_attribute_type
                                 ),
                                 advice_level: AdviceLevel::Violation,
-                                signal_type: registry_group
-                                    .as_ref()
-                                    .map(|g| format!("{:?}", g.r#type)),
-                                signal_name: registry_group.as_ref().map(|g| g.id.clone()),
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
                             }])
                         } else {
                             Ok(Vec::new())
@@ -358,8 +353,8 @@ impl Advisor for TypeAdvisor {
                                 }),
                                 message: format!("Instrument '{name}' is not supported"),
                                 advice_level: AdviceLevel::Violation,
-                                signal_type: Some("metric".to_owned()),
-                                signal_name: Some(sample_metric.name.clone()),
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
                             });
                         }
                         SampleInstrument::Supported(sample_instrument) => {
@@ -372,8 +367,8 @@ impl Advisor for TypeAdvisor {
                                             "Instrument should be '{semconv_instrument}', but found '{sample_instrument}'."
                                         ),
                                         advice_level: AdviceLevel::Violation,
-                                        signal_type: Some("metric".to_owned()),
-                                        signal_name: Some(sample_metric.name.clone()),
+                                        signal_type: parent_signal.signal_type(),
+                                        signal_name: parent_signal.signal_name(),
                                     });
                                 }
                             }
@@ -393,8 +388,8 @@ impl Advisor for TypeAdvisor {
                                     sample_metric.unit
                                 ),
                                 advice_level: AdviceLevel::Violation,
-                                signal_type: Some("metric".to_owned()),
-                                signal_name: Some(sample_metric.name.clone()),
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
                             });
                         }
                     }
@@ -406,8 +401,7 @@ impl Advisor for TypeAdvisor {
                     let advice_list = check_attributes(
                         &semconv_metric.attributes,
                         &sample_number_data_point.attributes,
-                        Some(semconv_metric.id.as_str()),
-                        Some("metric"),
+                        parent_signal,
                     );
 
                     Ok(advice_list)
@@ -420,8 +414,7 @@ impl Advisor for TypeAdvisor {
                     Ok(check_attributes(
                         &semconv_metric.attributes,
                         &sample_histogram_data_point.attributes,
-                        Some(semconv_metric.id.as_str()),
-                        Some("metric"),
+                        parent_signal,
                     ))
                 } else {
                     Ok(Vec::new())
@@ -438,8 +431,9 @@ impl Advisor for EnumAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
+        signal: &Sample,
         registry_attribute: Option<Rc<Attribute>>,
-        registry_group: Option<Rc<ResolvedGroup>>,
+        _registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -488,12 +482,8 @@ impl Advisor for EnumAdvisor {
                                     }),
                                     message: format!("Enum attribute '{}' has value '{}' which is not documented.", sample_attribute.name, attribute_value.as_str().unwrap_or("")),
                                     advice_level: AdviceLevel::Information,
-                                    signal_type: registry_group
-                                        .as_ref()
-                                        .map(|g| format!("{:?}", g.r#type)),
-                                    signal_name: registry_group
-                                        .as_ref()
-                                        .map(|g| g.id.clone())
+                                    signal_type: signal.signal_type(),
+                                    signal_name: signal.signal_name(),
                                 }]);
                             }
                         }
@@ -604,6 +594,7 @@ impl Advisor for RegoAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
+        _signal: &Sample,
         registry_attribute: Option<Rc<Attribute>>,
         registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
@@ -618,6 +609,8 @@ impl Advisor for RegoAdvisor {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
+    use crate::sample_metric::SampleMetric;
 
     use super::*;
     use weaver_resolved_schema::attribute::Attribute;
@@ -692,7 +685,15 @@ mod tests {
         // Provide no attributes
         let sample_attributes = vec![];
 
-        let advice = check_attributes(&semconv_attributes, &sample_attributes, None, None);
+        // Use a dummy Sample for signal_type and signal_name
+        let sample = Sample::Metric(SampleMetric {
+            name: "test_metric".to_owned(),
+            unit: "".to_owned(),
+            data_points: None,
+            instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            live_check_result: None,
+        });
+        let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
         assert_eq!(advice.len(), 6);
 
         // Verify each advice type and level
@@ -754,7 +755,15 @@ mod tests {
             create_sample_attribute("attr2"),
         ];
 
-        let advice = check_attributes(&semconv_attributes, &sample_attributes, None, None);
+        // Use a dummy Sample for signal_type and signal_name
+        let sample = Sample::Metric(SampleMetric {
+            name: "test_metric".to_owned(),
+            unit: "".to_owned(),
+            data_points: None,
+            instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            live_check_result: None,
+        });
+        let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
         assert!(advice.is_empty());
     }
 }

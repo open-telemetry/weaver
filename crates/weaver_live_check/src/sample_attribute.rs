@@ -13,7 +13,7 @@ use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    SampleRef, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    Sample, SampleRef, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -171,6 +171,7 @@ impl LiveCheckRunner for SampleAttribute {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
@@ -181,9 +182,8 @@ impl LiveCheckRunner for SampleAttribute {
                 live_checker.find_template(&self.name)
             }
         };
-
-        let signal_type = parent_group.as_ref().map(|g| format!("{:?}", g.r#type));
-        let signal_name = parent_group.as_ref().map(|g| g.id.clone());
+        let signal_type: Option<String> = parent_signal.signal_type();
+        let signal_name: Option<String> = parent_signal.signal_name();
         if semconv_attribute.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
@@ -213,6 +213,7 @@ impl LiveCheckRunner for SampleAttribute {
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list = advisor.advise(
                 SampleRef::Attribute(self),
+                parent_signal,
                 semconv_attribute.clone(),
                 parent_group.clone(),
             )?;

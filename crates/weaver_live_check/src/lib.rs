@@ -134,6 +134,37 @@ pub enum SampleRef<'a> {
     ExponentialHistogramDataPoint(&'a SampleExponentialHistogramDataPoint),
     /// A sample exemplar
     Exemplar(&'a SampleExemplar),
+    // TODO: add logs
+}
+
+impl Sample {
+    /// Returns the signal type as a string or None if sample
+    /// does not capture a whole signal.
+    #[must_use]
+    pub fn signal_type(&self) -> Option<String> {
+        match self {
+            Sample::Attribute(_) => None, // not a signal
+            Sample::Span(_) => Some("span".to_owned()),
+            Sample::SpanEvent(_) => None,
+            Sample::SpanLink(_) => None,
+            Sample::Resource(_) => Some("resource".to_owned()),
+            Sample::Metric(_) => Some("metric".to_owned()),
+        }
+    }
+
+    /// Returns the signal name as a string or None if sample
+    /// does not capture a whole signal.
+    #[must_use]
+    pub fn signal_name(&self) -> Option<String> {
+        match self {
+            Sample::Attribute(_) => None,                  // not a signal
+            Sample::Span(span) => Some(span.name.clone()), // TODO: update to type once added
+            Sample::SpanEvent(_) => None,
+            Sample::SpanLink(_) => None,
+            Sample::Resource(_) => None,
+            Sample::Metric(metric) => Some(metric.name.clone()),
+        }
+    }
 }
 
 // Dispatch the live check to the sample type
@@ -143,22 +174,27 @@ impl LiveCheckRunner for Sample {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group)
+                attribute.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Span(span) => span.run_live_check(live_checker, stats, parent_group),
+            Sample::Span(span) => {
+                span.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group)
+                span_event.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group)
+                span_link.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group)
+                resource.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Metric(metric) => metric.run_live_check(live_checker, stats, parent_group),
+            Sample::Metric(metric) => {
+                metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
         }
     }
 }
@@ -410,6 +446,7 @@ pub trait LiveCheckRunner {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
 
@@ -420,9 +457,10 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone())?;
+            item.run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         }
         Ok(())
     }
@@ -442,11 +480,17 @@ pub trait Advisable {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
 
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group.clone())?;
+            let advice_list = advisor.advise(
+                self.as_sample_ref(),
+                parent_signal,
+                None,
+                parent_group.clone(),
+            )?;
             result.add_advice_list(advice_list);
         }
 
