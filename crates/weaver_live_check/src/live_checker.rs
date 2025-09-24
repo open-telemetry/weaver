@@ -218,7 +218,7 @@ mod tests {
         assert_eq!(all_advice[0].advice_type, "deprecated");
         assert_eq!(
             all_advice[0].value,
-            json!({"attribute_name": "test.deprecated"})
+            json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
         );
         assert_eq!(
             all_advice[0].message,
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(all_advice[1].advice_type, "not_stable");
         assert_eq!(
             all_advice[1].value,
-            json!({"attribute_name": "test.deprecated"})
+            json!({"attribute_name": "test.deprecated", "stability": "development"})
         );
         assert_eq!(
             all_advice[1].message,
@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(all_advice[2].advice_type, "type_mismatch");
         assert_eq!(
             all_advice[2].value,
-            json!({"attribute_name": "test.deprecated"})
+            json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected_type": "string"})
         );
         assert_eq!(
             all_advice[2].message,
@@ -272,7 +272,10 @@ mod tests {
         let all_advice = get_all_advice(&mut samples[6]);
         assert_eq!(all_advice.len(), 1);
         assert_eq!(all_advice[0].advice_type, "type_mismatch");
-        assert_eq!(all_advice[0].value, json!({"attribute_name": "test.enum"}));
+        assert_eq!(
+            all_advice[0].value,
+            json!({"attribute_name": "test.enum", "attribute_type": "double"})
+        );
         assert_eq!(all_advice[0].message, "Enum attribute 'test.enum' has type 'double'. Enum value type should be 'string' or 'int'.");
 
         let all_advice = get_all_advice(&mut samples[7]);
@@ -282,7 +285,7 @@ mod tests {
         assert_eq!(all_advice.len(), 3);
 
         assert_eq!(all_advice[0].advice_type, "extends_namespace");
-        assert_eq!(all_advice[0].value, json!({"attribute_name": "test"}));
+        assert_eq!(all_advice[0].value, json!({"attribute_name": "test", "namespace": "test"}));
         assert_eq!(
             all_advice[0].message,
             "Attribute name 'test.string.not.allowed' collides with existing namespace 'test'"
@@ -290,7 +293,7 @@ mod tests {
         assert_eq!(all_advice[1].advice_type, "illegal_namespace");
         assert_eq!(
             all_advice[1].value,
-            json!({"attribute_name": "test.string.not.allowed"})
+            json!({"attribute_name": "test.string.not.allowed", "namespace": "test.string"})
         );
         assert_eq!(
             all_advice[1].message,
@@ -320,7 +323,7 @@ mod tests {
             "Attribute 'test.extends' does not exist in the registry."
         );
         assert_eq!(all_advice[1].advice_type, "extends_namespace");
-        assert_eq!(all_advice[1].value, json!({"attribute_name": "test"}));
+        assert_eq!(all_advice[1].value, json!({"attribute_name": "test", "namespace": "test"}));
         assert_eq!(
             all_advice[1].message,
             "Attribute name 'test.extends' collides with existing namespace 'test'"
@@ -341,7 +344,7 @@ mod tests {
         assert_eq!(all_advice[1].advice_type, "type_mismatch");
         assert_eq!(
             all_advice[1].value,
-            json!({"attribute_name": "test.template.my.key"})
+            json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected_type": "string"})
         );
         assert_eq!(
             all_advice[1].message,
@@ -362,7 +365,7 @@ mod tests {
             "Attribute 'test.deprecated.allowed' does not exist in the registry."
         );
         assert_eq!(all_advice[1].advice_type, "extends_namespace");
-        assert_eq!(all_advice[1].value, json!({"attribute_name": "test"}));
+        assert_eq!(all_advice[1].value, json!({"attribute_name": "test", "namespace": "test"}));
         assert_eq!(
             all_advice[1].message,
             "Attribute name 'test.deprecated.allowed' collides with existing namespace 'test'"

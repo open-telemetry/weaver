@@ -9,7 +9,7 @@ use std::{
 };
 
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::json;
 use weaver_checker::{
     violation::{Advice, AdviceLevel, Violation},
     Engine,
@@ -82,6 +82,8 @@ impl Advisor for DeprecatedAdvisor {
                             advice_type: "deprecated".to_owned(),
                             value: json!({
                                 "attribute_name": sample_attribute.name.clone(),
+                                "deprecation_reason": deprecated_to_reason(deprecated),
+                                "deprecation_note": deprecated.to_string(),
                             }),
                             message: format!(
                                 "Attribute '{}' is deprecated; reason = '{}', note = '{}'.",
@@ -103,7 +105,10 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &group.deprecated {
                         advices.push(Advice {
                             advice_type: "deprecated".to_owned(),
-                            value: Value::Null,
+                            value: json!({
+                                "deprecation_reason": deprecated_to_reason(deprecated),
+                                "deprecation_note": deprecated,
+                            }),
                             message: format!(
                                 "Metric is deprecated; reason = {}, note = {}",
                                 deprecated_to_reason(deprecated),
@@ -144,7 +149,8 @@ impl Advisor for StabilityAdvisor {
                             advices.push(Advice {
                                 advice_type: "not_stable".to_owned(),
                                 value: json!({
-                                    "attribute_name": sample_attribute.name.clone()
+                                    "attribute_name": sample_attribute.name.clone(),
+                                    "stability": stability,
                                 }),
                                 message: format!(
                                     "Attribute '{}' is not stable; stability = {}.",
@@ -168,7 +174,9 @@ impl Advisor for StabilityAdvisor {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: "not_stable".to_owned(),
-                                value: Value::Null,
+                                value: json!({
+                                    "stability": stability,
+                                }),
                                 message: format!(
                                     "Metric is not stable; stability = {}.",
                                     stability
@@ -306,6 +314,7 @@ impl Advisor for TypeAdvisor {
                                         advice_type: "type_mismatch".to_owned(),
                                         value: json!({
                                             "attribute_name": sample_attribute.name.clone(),
+                                            "attribute_type": attribute_type,
                                         }),
                                         message: format!("Enum attribute '{}' has type '{}'. Enum value type should be 'string' or 'int'.", sample_attribute.name, attribute_type),
                                         advice_level: AdviceLevel::Violation,
@@ -322,7 +331,9 @@ impl Advisor for TypeAdvisor {
                             Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
                                 value: json!({
-                                    "attribute_name": sample_attribute.name.clone()
+                                    "attribute_name": sample_attribute.name.clone(),
+                                    "attribute_type": attribute_type,
+                                    "expected_type": semconv_attribute_type,
                                 }),
                                 message: format!(
                                     "Attribute '{}' has type '{}'. Type should be '{}'.",
@@ -362,7 +373,10 @@ impl Advisor for TypeAdvisor {
                                 if semconv_instrument != sample_instrument {
                                     advice_list.push(Advice {
                                         advice_type: "instrument_mismatch".to_owned(),
-                                        value: Value::Null,
+                                        value: json!({
+                                            "instrument": sample_instrument,
+                                            "expected_instrument": semconv_instrument,
+                                        }),
                                         message: format!(
                                             "Instrument should be '{semconv_instrument}', but found '{sample_instrument}'."
                                         ),

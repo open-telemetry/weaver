@@ -93,8 +93,9 @@ pub struct Advice {
     /// machine-readable string that categorizes the advice.
     pub advice_type: String,
 
-    /// The context associated with the advice e.g. { "attribute_name": "foo.bar" }
-    /// Context values may be used with custom templates and filters to query, summarize, and format advice.
+    /// The context associated with the advice e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
+    /// The value should contain all dynamic parts of the message in a structured way.
+    /// Context values may be used with custom templates and filters to customize reports.
     pub value: Value,
 
     /// The human-readable message of the advice e.g. "This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'"

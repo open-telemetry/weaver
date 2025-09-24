@@ -71,7 +71,7 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 
 	advice_type := "illegal_namespace"
 	advice_level := "violation"
-	value := {"attribute_name": input.sample.attribute.name }
+	value := {"attribute_name": input.sample.attribute.name, "namespace": ns}
 	message := sprintf("Namespace '%s' collides with existing attribute '%s'", [ns, input.sample.attribute.name])
 }
 
@@ -96,7 +96,7 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 
 	advice_type := "extends_namespace"
 	advice_level := "information"
-	value := {"attribute_name": namespace}
+	value := {"attribute_name": namespace, "namespace": namespace}
 	message := sprintf("Attribute name '%s' collides with existing namespace '%s'", [input.sample.attribute.name, namespace])
 }
 
