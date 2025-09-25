@@ -88,7 +88,7 @@ pub enum AdviceLevel {
 
 /// Represents a live check advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct         Advice {
+pub struct Advice {
     /// The type of advice e.g. "is_deprecated". This should be a short,
     /// machine-readable string that categorizes the advice.
     pub advice_type: String,

@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(all_advice[2].advice_type, "type_mismatch");
         assert_eq!(
             all_advice[2].advice_context,
-            json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected_type": "string"})
+            json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"})
         );
         assert_eq!(
             all_advice[2].message,
@@ -285,7 +285,10 @@ mod tests {
         assert_eq!(all_advice.len(), 3);
 
         assert_eq!(all_advice[0].advice_type, "extends_namespace");
-        assert_eq!(all_advice[0].advice_context, json!({"attribute_name": "test", "namespace": "test"}));
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test", "namespace": "test"})
+        );
         assert_eq!(
             all_advice[0].message,
             "Attribute name 'test.string.not.allowed' collides with existing namespace 'test'"
@@ -323,7 +326,10 @@ mod tests {
             "Attribute 'test.extends' does not exist in the registry."
         );
         assert_eq!(all_advice[1].advice_type, "extends_namespace");
-        assert_eq!(all_advice[1].advice_context, json!({"attribute_name": "test", "namespace": "test"}));
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test", "namespace": "test"})
+        );
         assert_eq!(
             all_advice[1].message,
             "Attribute name 'test.extends' collides with existing namespace 'test'"
@@ -344,7 +350,7 @@ mod tests {
         assert_eq!(all_advice[1].advice_type, "type_mismatch");
         assert_eq!(
             all_advice[1].advice_context,
-            json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected_type": "string"})
+            json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"})
         );
         assert_eq!(
             all_advice[1].message,
@@ -365,7 +371,10 @@ mod tests {
             "Attribute 'test.deprecated.allowed' does not exist in the registry."
         );
         assert_eq!(all_advice[1].advice_type, "extends_namespace");
-        assert_eq!(all_advice[1].advice_context, json!({"attribute_name": "test", "namespace": "test"}));
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test", "namespace": "test"})
+        );
         assert_eq!(
             all_advice[1].message,
             "Attribute name 'test.deprecated.allowed' collides with existing namespace 'test'"
@@ -757,8 +766,14 @@ mod tests {
             "Attribute 'test.string' does not exist in the registry."
         );
         assert_eq!(all_advice[1].advice_type, "contains_test");
-        assert_eq!(all_advice[1].advice_context, json!({"attribute_name": "test.string"}));
-        assert_eq!(all_advice[1].message, "Attribute name must not contain 'test', but was 'test.string'");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test.string"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute name must not contain 'test', but was 'test.string'"
+        );
 
         // Check statistics
         assert_eq!(stats.total_entities, 2);
@@ -1050,7 +1065,7 @@ mod tests {
         }
         stats.finalize();
         assert_eq!(
-            stats.advice_type_counts.get("instrument_mismatch"),
+            stats.advice_type_counts.get("unexpected_instrument"),
             Some(&1)
         );
         // Check the live check result for the sample has the correct instrument mismatch message
@@ -1063,8 +1078,8 @@ mod tests {
         let advice = live_check_result
             .all_advice
             .iter()
-            .find(|a| a.advice_type == "instrument_mismatch")
-            .expect("Expected instrument_mismatch advice");
+            .find(|a| a.advice_type == "unexpected_instrument")
+            .expect("Expected unexpected_instrument advice");
         assert_eq!(
             advice.message,
             "Instrument should be 'updowncounter', but found 'histogram'."
@@ -1148,7 +1163,7 @@ mod tests {
         }
         stats.finalize();
         assert_eq!(
-            stats.advice_type_counts.get("unsupported_instrument"),
+            stats.advice_type_counts.get("unexpected_instrument"),
             Some(&2)
         );
     }

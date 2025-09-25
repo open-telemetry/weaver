@@ -47,6 +47,37 @@ pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
 pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
 /// Missing Metric advice type
 pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
+/// Deprecated advice type
+pub const DEPRECATED_ADVICE_TYPE: &str = "deprecated";
+/// Type Mismatch advice type
+pub const TYPE_MISMATCH_ADVICE_TYPE: &str = "type_mismatch";
+/// Unstable advice type
+pub const NOT_STABLE_ADVICE_TYPE: &str = "not_stable";
+/// Unit mismatch advice type
+pub const UNIT_MISMATCH_ADVICE_TYPE: &str = "unit_mismatch";
+/// Instrument mismatch advice type
+pub const UNEXPECTED_INSTRUMENT_ADVICE_TYPE: &str = "unexpected_instrument";
+/// Undefined enum variant advice type
+pub const UNDEFINED_ENUM_VARIANT_ADVICE_TYPE: &str = "undefined_enum_variant";
+
+/// Attribute name key in advice context
+pub const ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &str = "attribute_name";
+/// Attribute value key in advice context
+pub const ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: &str = "attribute_value";
+///Attribute type key in advice context
+pub const ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: &str = "attribute_type";
+/// Deprecation reason key in advice context
+pub const DEPRECATION_REASON_ADVICE_CONTEXT_KEY: &str = "deprecation_reason";
+/// Deprecation note key in advice context
+pub const DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: &str = "deprecation_note";
+/// Stability key in advice context
+pub const STABILITY_ADVICE_CONTEXT_KEY: &str = "stability";
+/// Unit key in advice context
+pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
+/// Instrument key in advice context
+pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
+/// Expected value key in advice context
+pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
 
 /// Weaver live check errors
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]

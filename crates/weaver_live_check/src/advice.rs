@@ -27,7 +27,12 @@ use weaver_semconv::{
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, Sample, SampleRef,
+    Error, Sample, SampleRef, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
+    ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
+    DEPRECATION_NOTE_ADVICE_CONTEXT_KEY, DEPRECATION_REASON_ADVICE_CONTEXT_KEY,
+    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE,
+    STABILITY_ADVICE_CONTEXT_KEY, TYPE_MISMATCH_ADVICE_TYPE, UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
+    UNEXPECTED_INSTRUMENT_ADVICE_TYPE, UNIT_ADVICE_CONTEXT_KEY, UNIT_MISMATCH_ADVICE_TYPE,
 };
 
 /// Embedded default live check rego policies
@@ -79,11 +84,11 @@ impl Advisor for DeprecatedAdvisor {
                 if let Some(attribute) = registry_attribute {
                     if let Some(deprecated) = &attribute.deprecated {
                         advices.push(Advice {
-                            advice_type: "deprecated".to_owned(),
+                            advice_type: DEPRECATED_ADVICE_TYPE.to_owned(),
                             advice_context: json!({
-                                "attribute_name": sample_attribute.name.clone(),
-                                "deprecation_reason": deprecated_to_reason(deprecated),
-                                "deprecation_note": deprecated.to_string(),
+                                ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
+                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
+                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated.to_string(),
                             }),
                             message: format!(
                                 "Attribute '{}' is deprecated; reason = '{}', note = '{}'.",
@@ -104,10 +109,10 @@ impl Advisor for DeprecatedAdvisor {
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated {
                         advices.push(Advice {
-                            advice_type: "deprecated".to_owned(),
+                            advice_type: DEPRECATED_ADVICE_TYPE.to_owned(),
                             advice_context: json!({
-                                "deprecation_reason": deprecated_to_reason(deprecated),
-                                "deprecation_note": deprecated,
+                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
+                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
                             }),
                             message: format!(
                                 "Metric is deprecated; reason = {}, note = {}",
@@ -147,10 +152,10 @@ impl Advisor for StabilityAdvisor {
                     match attribute.stability {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
-                                advice_type: "not_stable".to_owned(),
+                                advice_type: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
-                                    "attribute_name": sample_attribute.name.clone(),
-                                    "stability": stability,
+                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
+                                    STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
                                 message: format!(
                                     "Attribute '{}' is not stable; stability = {}.",
@@ -173,9 +178,9 @@ impl Advisor for StabilityAdvisor {
                     match group.stability {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
-                                advice_type: "not_stable".to_owned(),
+                                advice_type: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
-                                    "stability": stability,
+                                    STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
                                 message: format!(
                                     "Metric is not stable; stability = {}.",
@@ -261,7 +266,7 @@ fn check_attributes(
             advice_list.push(Advice {
                 advice_type,
                 advice_context: json!({
-                    "attribute_name": semconv_attribute.name.clone()
+                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: semconv_attribute.name.clone()
                 }),
                 message,
                 advice_level,
@@ -311,10 +316,10 @@ impl Advisor for TypeAdvisor {
                                     && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                                 {
                                     return Ok(vec![Advice {
-                                        advice_type: "type_mismatch".to_owned(),
+                                        advice_type: TYPE_MISMATCH_ADVICE_TYPE.to_owned(),
                                         advice_context: json!({
-                                            "attribute_name": sample_attribute.name.clone(),
-                                            "attribute_type": attribute_type,
+                                            ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
+                                            ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
                                         }),
                                         message: format!("Enum attribute '{}' has type '{}'. Enum value type should be 'string' or 'int'.", sample_attribute.name, attribute_type),
                                         advice_level: AdviceLevel::Violation,
@@ -329,11 +334,11 @@ impl Advisor for TypeAdvisor {
 
                         if !attribute_type.is_compatible(semconv_attribute_type) {
                             Ok(vec![Advice {
-                                advice_type: "type_mismatch".to_owned(),
+                                advice_type: TYPE_MISMATCH_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
-                                    "attribute_name": sample_attribute.name.clone(),
-                                    "attribute_type": attribute_type,
-                                    "expected_type": semconv_attribute_type,
+                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
+                                    ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
+                                    EXPECTED_VALUE_ADVICE_CONTEXT_KEY: semconv_attribute_type,
                                 }),
                                 message: format!(
                                     "Attribute '{}' has type '{}'. Type should be '{}'.",
@@ -358,9 +363,9 @@ impl Advisor for TypeAdvisor {
                     match &sample_metric.instrument {
                         SampleInstrument::Unsupported(name) => {
                             advice_list.push(Advice {
-                                advice_type: "unsupported_instrument".to_owned(),
+                                advice_type: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
-                                    "instrument": name.clone()
+                                    INSTRUMENT_ADVICE_CONTEXT_KEY: name.clone()
                                 }),
                                 message: format!("Instrument '{name}' is not supported"),
                                 advice_level: AdviceLevel::Violation,
@@ -372,10 +377,10 @@ impl Advisor for TypeAdvisor {
                             if let Some(semconv_instrument) = &semconv_metric.instrument {
                                 if semconv_instrument != sample_instrument {
                                     advice_list.push(Advice {
-                                        advice_type: "instrument_mismatch".to_owned(),
+                                        advice_type: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
                                         advice_context: json!({
-                                            "instrument": sample_instrument,
-                                            "expected_instrument": semconv_instrument,
+                                            INSTRUMENT_ADVICE_CONTEXT_KEY: sample_instrument,
+                                            EXPECTED_VALUE_ADVICE_CONTEXT_KEY: semconv_instrument,
                                         }),
                                         message: format!(
                                             "Instrument should be '{semconv_instrument}', but found '{sample_instrument}'."
@@ -392,10 +397,10 @@ impl Advisor for TypeAdvisor {
                     if let Some(semconv_unit) = &semconv_metric.unit {
                         if semconv_unit != &sample_metric.unit {
                             advice_list.push(Advice {
-                                advice_type: "unit_mismatch".to_owned(),
+                                advice_type: UNIT_MISMATCH_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
-                                    "unit": sample_metric.unit.clone(),
-                                    "expected_unit": semconv_unit.clone(),
+                                    UNIT_ADVICE_CONTEXT_KEY: sample_metric.unit.clone(),
+                                    EXPECTED_VALUE_ADVICE_CONTEXT_KEY: semconv_unit.clone(),
                                 }),
                                 message: format!(
                                     "Unit should be '{semconv_unit}', but found '{}'.",
@@ -489,10 +494,10 @@ impl Advisor for EnumAdvisor {
 
                             if !is_found {
                                 return Ok(vec![Advice {
-                                    advice_type: "undefined_enum_variant".to_owned(),
+                                    advice_type: UNDEFINED_ENUM_VARIANT_ADVICE_TYPE.to_owned(),
                                     advice_context: json!({
-                                        "attribute_name": sample_attribute.name.clone(),
-                                        "attribute_value": attribute_value,
+                                        ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
+                                        ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
                                     }),
                                     message: format!("Enum attribute '{}' has value '{}' which is not documented.", sample_attribute.name, attribute_value.as_str().unwrap_or("")),
                                     advice_level: AdviceLevel::Information,

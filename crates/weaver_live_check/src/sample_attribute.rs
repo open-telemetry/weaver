@@ -13,7 +13,8 @@ use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    Sample, SampleRef, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    Sample, SampleRef, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, MISSING_ATTRIBUTE_ADVICE_TYPE,
+    TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -187,7 +188,7 @@ impl LiveCheckRunner for SampleAttribute {
         if semconv_attribute.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                advice_context: json!({ "attribute_name": self.name.clone() }),
+                advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
                 message: format!("Attribute '{}' does not exist in the registry.", self.name),
                 advice_level: AdviceLevel::Violation,
                 signal_type,
@@ -199,7 +200,7 @@ impl LiveCheckRunner for SampleAttribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        advice_context: json!({ "attribute_name": self.name.clone(), "template_name": attribute.name.clone() }),
+                        advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name.clone() }),
                         message: format!("Attribute '{}' is a template", self.name),
                         advice_level: AdviceLevel::Information,
                         signal_type,
