@@ -83,7 +83,7 @@ fn test_emit_with_live_check() {
     assert_eq!(no_advice_count, 37);
     assert_eq!(total_advisories, 13);
     assert_eq!(total_entities, 50);
-    assert!(registry_coverage > 0.5);
+    assert!(registry_coverage > 0.7);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope
 }

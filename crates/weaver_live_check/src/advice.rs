@@ -80,7 +80,7 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &attribute.deprecated {
                         advices.push(Advice {
                             advice_type: "deprecated".to_owned(),
-                            value: json!({
+                            advice_context: json!({
                                 "attribute_name": sample_attribute.name.clone(),
                                 "deprecation_reason": deprecated_to_reason(deprecated),
                                 "deprecation_note": deprecated.to_string(),
@@ -105,7 +105,7 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &group.deprecated {
                         advices.push(Advice {
                             advice_type: "deprecated".to_owned(),
-                            value: json!({
+                            advice_context: json!({
                                 "deprecation_reason": deprecated_to_reason(deprecated),
                                 "deprecation_note": deprecated,
                             }),
@@ -148,7 +148,7 @@ impl Advisor for StabilityAdvisor {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: "not_stable".to_owned(),
-                                value: json!({
+                                advice_context: json!({
                                     "attribute_name": sample_attribute.name.clone(),
                                     "stability": stability,
                                 }),
@@ -174,7 +174,7 @@ impl Advisor for StabilityAdvisor {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: "not_stable".to_owned(),
-                                value: json!({
+                                advice_context: json!({
                                     "stability": stability,
                                 }),
                                 message: format!(
@@ -260,7 +260,7 @@ fn check_attributes(
             };
             advice_list.push(Advice {
                 advice_type,
-                value: json!({
+                advice_context: json!({
                     "attribute_name": semconv_attribute.name.clone()
                 }),
                 message,
@@ -312,7 +312,7 @@ impl Advisor for TypeAdvisor {
                                 {
                                     return Ok(vec![Advice {
                                         advice_type: "type_mismatch".to_owned(),
-                                        value: json!({
+                                        advice_context: json!({
                                             "attribute_name": sample_attribute.name.clone(),
                                             "attribute_type": attribute_type,
                                         }),
@@ -330,7 +330,7 @@ impl Advisor for TypeAdvisor {
                         if !attribute_type.is_compatible(semconv_attribute_type) {
                             Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
-                                value: json!({
+                                advice_context: json!({
                                     "attribute_name": sample_attribute.name.clone(),
                                     "attribute_type": attribute_type,
                                     "expected_type": semconv_attribute_type,
@@ -359,7 +359,7 @@ impl Advisor for TypeAdvisor {
                         SampleInstrument::Unsupported(name) => {
                             advice_list.push(Advice {
                                 advice_type: "unsupported_instrument".to_owned(),
-                                value: json!({
+                                advice_context: json!({
                                     "instrument": name.clone()
                                 }),
                                 message: format!("Instrument '{name}' is not supported"),
@@ -373,7 +373,7 @@ impl Advisor for TypeAdvisor {
                                 if semconv_instrument != sample_instrument {
                                     advice_list.push(Advice {
                                         advice_type: "instrument_mismatch".to_owned(),
-                                        value: json!({
+                                        advice_context: json!({
                                             "instrument": sample_instrument,
                                             "expected_instrument": semconv_instrument,
                                         }),
@@ -393,7 +393,7 @@ impl Advisor for TypeAdvisor {
                         if semconv_unit != &sample_metric.unit {
                             advice_list.push(Advice {
                                 advice_type: "unit_mismatch".to_owned(),
-                                value: json!({
+                                advice_context: json!({
                                     "unit": sample_metric.unit.clone(),
                                     "expected_unit": semconv_unit.clone(),
                                 }),
@@ -490,7 +490,7 @@ impl Advisor for EnumAdvisor {
                             if !is_found {
                                 return Ok(vec![Advice {
                                     advice_type: "undefined_enum_variant".to_owned(),
-                                    value: json!({
+                                    advice_context: json!({
                                         "attribute_name": sample_attribute.name.clone(),
                                         "attribute_value": attribute_value,
                                     }),

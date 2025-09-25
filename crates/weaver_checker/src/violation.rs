@@ -43,7 +43,7 @@ impl Display for Violation {
             }
             Violation::Advice(Advice {
                 advice_type: r#type,
-                value,
+                advice_context,
                 message,
                 advice_level,
                 signal_type,
@@ -51,7 +51,7 @@ impl Display for Violation {
             }) => {
                 write!(
                     f,
-                    "type={type}, value={value}, message={message}, advice_level={advice_level:?}, signal_type={signal_type:?}, signal_name={signal_name:?}"
+                    "type={type}, context={advice_context}, message={message}, advice_level={advice_level:?}, signal_type={signal_type:?}, signal_name={signal_name:?}"
                 )
             }
         }
@@ -88,20 +88,20 @@ pub enum AdviceLevel {
 
 /// Represents a live check advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct Advice {
+pub struct         Advice {
     /// The type of advice e.g. "is_deprecated". This should be a short,
     /// machine-readable string that categorizes the advice.
     pub advice_type: String,
 
     /// The context associated with the advice e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
-    /// The value should contain all dynamic parts of the message in a structured way.
+    /// The context should contain all dynamic parts of the message
     /// Context values may be used with custom templates and filters to customize reports.
-    pub value: Value,
+    pub advice_context: Value,
 
     /// The human-readable message of the advice e.g. "This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'"
     /// The message, along with signal_name and signal_type, should contain enough information to understand the advice and
     /// identify the issue and how to fix it.
-    /// Some of the values used in the message may be also present in the `value` field to support report customization.
+    /// Some of the values used in the message may be also present in the `advice_context` field to support report customization.
     pub message: String,
 
     /// The level of the advice e.g. "violation"

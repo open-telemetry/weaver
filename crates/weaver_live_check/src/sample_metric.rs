@@ -303,7 +303,7 @@ impl LiveCheckRunner for SampleMetric {
         if semconv_metric.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_METRIC_ADVICE_TYPE.to_owned(),
-                value: Value::Null,
+                advice_context: Value::Null,
                 message: "Metric does not exist in the registry.".to_owned(),
                 advice_level: AdviceLevel::Violation,
                 signal_type: Some("metric".to_owned()),

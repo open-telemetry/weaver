@@ -155,7 +155,7 @@ impl SampleAttribute {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
                 if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
-                    if let Some(template_name) = advice.value.as_str() {
+                    if let Some(template_name) = advice.advice_context.as_str() {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }
@@ -187,7 +187,7 @@ impl LiveCheckRunner for SampleAttribute {
         if semconv_attribute.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: json!({ "attribute_name": self.name.clone() }),
+                advice_context: json!({ "attribute_name": self.name.clone() }),
                 message: format!("Attribute '{}' does not exist in the registry.", self.name),
                 advice_level: AdviceLevel::Violation,
                 signal_type,
@@ -199,7 +199,7 @@ impl LiveCheckRunner for SampleAttribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: json!({ "attribute_name": self.name.clone() }),
+                        advice_context: json!({ "attribute_name": self.name.clone() }),
                         message: format!("Attribute '{}' is a template", attribute.name),
                         advice_level: AdviceLevel::Information,
                         signal_type,
