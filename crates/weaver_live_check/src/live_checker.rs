@@ -335,11 +335,11 @@ mod tests {
         assert_eq!(all_advice[0].advice_type, "template_attribute");
         assert_eq!(
             all_advice[0].advice_context,
-            json!({"attribute_name": "test.template.my.key"})
+            json!({"attribute_name": "test.template.my.key", "template_name": "test.template"})
         );
         assert_eq!(
             all_advice[0].message,
-            "Attribute 'test.template' is a template"
+            "Attribute 'test.template.my.key' is a template"
         );
         assert_eq!(all_advice[1].advice_type, "type_mismatch");
         assert_eq!(
@@ -390,8 +390,8 @@ mod tests {
         assert_eq!(stats.no_advice_count, 2);
         assert_eq!(stats.seen_registry_attributes.len(), 3);
         assert_eq!(stats.seen_registry_attributes["test.enum"], 3);
-        assert_eq!(stats.seen_non_registry_attributes.len(), 7);
-        // TODO assert_eq!(stats.registry_coverage, 1.0);
+        assert_eq!(stats.seen_non_registry_attributes.len(), 6);
+        assert_eq!(stats.registry_coverage, 1.0);
     }
 
     fn make_registry() -> ResolvedRegistry {

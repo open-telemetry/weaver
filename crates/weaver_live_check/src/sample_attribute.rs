@@ -155,7 +155,7 @@ impl SampleAttribute {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
                 if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
-                    if let Some(template_name) = advice.advice_context.as_str() {
+                    if let Some(template_name) = advice.advice_context["template_name"].as_str() {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }
@@ -199,8 +199,8 @@ impl LiveCheckRunner for SampleAttribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        advice_context: json!({ "attribute_name": self.name.clone() }),
-                        message: format!("Attribute '{}' is a template", attribute.name),
+                        advice_context: json!({ "attribute_name": self.name.clone(), "template_name": attribute.name.clone() }),
+                        message: format!("Attribute '{}' is a template", self.name),
                         advice_level: AdviceLevel::Information,
                         signal_type,
                         signal_name,
