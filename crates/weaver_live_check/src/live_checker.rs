@@ -1013,7 +1013,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            // This should fail with: "error: use of undefined variable `attribute_name` is unsafe"
+            // This should fail with: "error: use of undefined variable `attribu1te_name` is unsafe"
 
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
