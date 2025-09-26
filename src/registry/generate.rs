@@ -24,6 +24,7 @@ use weaver_common::vdir::VirtualDirectoryPath;
 #[derive(Debug, Args)]
 pub struct RegistryGenerateArgs {
     /// Target to generate the artifacts for.
+    #[arg(default_value = "")]
     pub target: String,
 
     /// Path to the directory where the generated artifacts will be saved.
