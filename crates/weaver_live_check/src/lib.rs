@@ -47,6 +47,37 @@ pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
 pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
 /// Missing Metric advice type
 pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
+/// Deprecated advice type
+pub const DEPRECATED_ADVICE_TYPE: &str = "deprecated";
+/// Type Mismatch advice type
+pub const TYPE_MISMATCH_ADVICE_TYPE: &str = "type_mismatch";
+/// Unstable advice type
+pub const NOT_STABLE_ADVICE_TYPE: &str = "not_stable";
+/// Unit mismatch advice type
+pub const UNIT_MISMATCH_ADVICE_TYPE: &str = "unit_mismatch";
+/// Instrument mismatch advice type
+pub const UNEXPECTED_INSTRUMENT_ADVICE_TYPE: &str = "unexpected_instrument";
+/// Undefined enum variant advice type
+pub const UNDEFINED_ENUM_VARIANT_ADVICE_TYPE: &str = "undefined_enum_variant";
+
+/// Attribute name key in advice context
+pub const ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &str = "attribute_name";
+/// Attribute value key in advice context
+pub const ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: &str = "attribute_value";
+///Attribute type key in advice context
+pub const ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: &str = "attribute_type";
+/// Deprecation reason key in advice context
+pub const DEPRECATION_REASON_ADVICE_CONTEXT_KEY: &str = "deprecation_reason";
+/// Deprecation note key in advice context
+pub const DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: &str = "deprecation_note";
+/// Stability key in advice context
+pub const STABILITY_ADVICE_CONTEXT_KEY: &str = "stability";
+/// Unit key in advice context
+pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
+/// Instrument key in advice context
+pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
+/// Expected value key in advice context
+pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
 
 /// Weaver live check errors
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -134,6 +165,37 @@ pub enum SampleRef<'a> {
     ExponentialHistogramDataPoint(&'a SampleExponentialHistogramDataPoint),
     /// A sample exemplar
     Exemplar(&'a SampleExemplar),
+    // TODO: add logs
+}
+
+impl Sample {
+    /// Returns the signal type as a string or None if sample
+    /// does not capture a whole signal.
+    #[must_use]
+    pub fn signal_type(&self) -> Option<String> {
+        match self {
+            Sample::Attribute(_) => None, // not a signal
+            Sample::Span(_) => Some("span".to_owned()),
+            Sample::SpanEvent(_) => None,
+            Sample::SpanLink(_) => None,
+            Sample::Resource(_) => Some("resource".to_owned()),
+            Sample::Metric(_) => Some("metric".to_owned()),
+        }
+    }
+
+    /// Returns the signal name as a string or None if sample
+    /// does not capture a whole signal.
+    #[must_use]
+    pub fn signal_name(&self) -> Option<String> {
+        match self {
+            Sample::Attribute(_) => None,                  // not a signal
+            Sample::Span(span) => Some(span.name.clone()), // TODO: update to type once added
+            Sample::SpanEvent(_) => None,
+            Sample::SpanLink(_) => None,
+            Sample::Resource(_) => None,
+            Sample::Metric(metric) => Some(metric.name.clone()),
+        }
+    }
 }
 
 // Dispatch the live check to the sample type
@@ -143,22 +205,27 @@ impl LiveCheckRunner for Sample {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group)
+                attribute.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Span(span) => span.run_live_check(live_checker, stats, parent_group),
+            Sample::Span(span) => {
+                span.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group)
+                span_event.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group)
+                span_link.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group)
+                resource.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Metric(metric) => metric.run_live_check(live_checker, stats, parent_group),
+            Sample::Metric(metric) => {
+                metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
         }
     }
 }
@@ -410,6 +477,7 @@ pub trait LiveCheckRunner {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
 
@@ -420,9 +488,10 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone())?;
+            item.run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         }
         Ok(())
     }
@@ -442,11 +511,17 @@ pub trait Advisable {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
 
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group.clone())?;
+            let advice_list = advisor.advise(
+                self.as_sample_ref(),
+                parent_signal,
+                None,
+                parent_group.clone(),
+            )?;
             result.add_advice_list(advice_list);
         }
 

@@ -1,7 +1,7 @@
 {% macro display_statistics(statistics) %}
 {{ ("Samples") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_entities }}
-{%- if statistics.total_entities > 0 %}  
+{% if statistics.total_entities > 0 %}
   - by type:
 {% for key, value in statistics.total_entities_by_type.items() %}
     - {{ key }}: {{ value }}
@@ -15,7 +15,7 @@
 
 {{ ("Advisories given") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_advisories }}
-{%- if statistics.total_advisories > 0 %}  
+{% if statistics.total_advisories > 0 %}
   - advice level:
 {% for key, value in statistics.advice_level_counts.items() %}
     - {{ key }}: {{ value }}
@@ -33,11 +33,11 @@
 {% macro display_advice(all_advice, indent=0) %}
   {% for advice in all_advice %}
     {% if advice.advice_level == "information" %}
-{{ " " * indent }}    - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
+{{ " " * indent }}    - [{{ advice.advice_level | ansi_green }}] {{ advice.message }}
     {% elif advice.advice_level == "improvement" %}
-{{ " " * indent }}    - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
+{{ " " * indent }}    - [{{ advice.advice_level | ansi_yellow }}] {{ advice.message }}
     {% else %}
-{{ " " * indent }}    - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
+{{ " " * indent }}    - [{{ advice.advice_level | ansi_red }}] {{ advice.message }}
     {% endif %}
   {% endfor %}
 {% endmacro %}
@@ -76,9 +76,9 @@
 {%- if data_point.value is defined -%}
 {{ data_point.value }}
 {%- else -%}
-count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}, max={{ data_point.max }} 
+count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}, max={{ data_point.max }}
 {%- endif -%}
-{% endmacro %} 
+{% endmacro %}
 
 {% macro display_data_point(data_point, indent=0) %}
 {{ " " * indent }}{{ ("Data point") | ansi_bright_cyan | ansi_bold }} {{ summarize_data_point_value(data_point) }}
