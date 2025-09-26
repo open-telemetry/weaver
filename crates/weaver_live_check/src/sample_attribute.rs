@@ -13,7 +13,8 @@ use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    SampleRef, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    Sample, SampleRef, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, MISSING_ATTRIBUTE_ADVICE_TYPE,
+    TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -155,7 +156,7 @@ impl SampleAttribute {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
                 if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
-                    if let Some(template_name) = advice.value.as_str() {
+                    if let Some(template_name) = advice.advice_context["template_name"].as_str() {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }
@@ -170,7 +171,8 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
@@ -181,13 +183,16 @@ impl LiveCheckRunner for SampleAttribute {
                 live_checker.find_template(&self.name)
             }
         };
-
+        let signal_type: Option<String> = parent_signal.signal_type();
+        let signal_name: Option<String> = parent_signal.signal_name();
         if semconv_attribute.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: Value::String(self.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
+                advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
+                message: format!("Attribute '{}' does not exist in the registry.", self.name),
                 advice_level: AdviceLevel::Violation,
+                signal_type,
+                signal_name,
             });
         } else {
             // Provide an info advice if the attribute is a template
@@ -195,9 +200,11 @@ impl LiveCheckRunner for SampleAttribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: Value::String(attribute.name.clone()),
-                        message: "Is a template".to_owned(),
+                        advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name.clone() }),
+                        message: format!("Attribute '{}' is a template", self.name),
                         advice_level: AdviceLevel::Information,
+                        signal_type,
+                        signal_name,
                     });
                 }
             }
@@ -205,8 +212,12 @@ impl LiveCheckRunner for SampleAttribute {
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.clone(), None)?;
+            let advice_list = advisor.advise(
+                SampleRef::Attribute(self),
+                parent_signal,
+                semconv_attribute.clone(),
+                parent_group.clone(),
+            )?;
             result.add_advice_list(advice_list);
         }
         self.live_check_result = Some(result);

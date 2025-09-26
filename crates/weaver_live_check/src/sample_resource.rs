@@ -10,7 +10,7 @@ use weaver_forge::registry::ResolvedGroup;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
 };
 
 /// Represents a resource
@@ -39,11 +39,12 @@ impl LiveCheckRunner for SampleResource {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }

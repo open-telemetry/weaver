@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Live-check report changes ([#943](https://github.com/open-telemetry/weaver/pull/943) by @lmolkova)
+  - 💥 BREAKING CHANGE 💥 `value` property in `Advice` is renamed to `advice_context`
+  - Advice now contains `signal_type` and `signal_name` properties to simplify post-processing
+  - Message format is changed to include all dynamic details about the advice
+
 # [0.18.0] - 2025-09-17
 
 - Fail when JQ filters fail ([#894](https://github.com/open-telemetry/weaver/pull/894) by @lmolkova)

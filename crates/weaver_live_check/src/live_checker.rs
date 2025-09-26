@@ -117,7 +117,7 @@ mod tests {
     };
 
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::json;
     use weaver_checker::violation::{Advice, AdviceLevel};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
@@ -175,7 +175,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -188,55 +189,94 @@ mod tests {
         // make a sort of the advice
         all_advice.sort_by(|a, b| a.advice_type.cmp(&b.advice_type));
         assert_eq!(all_advice[0].advice_type, "invalid_format");
-        assert_eq!(all_advice[0].value, Value::String("testString2".to_owned()));
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "testString2" })
+        );
         assert_eq!(
             all_advice[0].message,
-            "Does not match name formatting rules"
+            "Attribute 'testString2' does not match name formatting rules."
         );
         assert_eq!(all_advice[1].advice_type, "missing_attribute");
-        assert_eq!(all_advice[1].value, Value::String("testString2".to_owned()));
-        assert_eq!(all_advice[1].message, "Does not exist in the registry");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "testString2"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute 'testString2' does not exist in the registry."
+        );
         assert_eq!(all_advice[2].advice_type, "missing_namespace");
-        assert_eq!(all_advice[2].value, Value::String("testString2".to_owned()));
-        assert_eq!(all_advice[2].message, "Does not have a namespace");
+        assert_eq!(
+            all_advice[2].advice_context,
+            json!({"attribute_name": "testString2"})
+        );
+        assert_eq!(all_advice[2].message, "Attribute name 'testString2' must include a namespace (e.g. '{namespace}.{attribute_key}')");
 
         let all_advice = get_all_advice(&mut samples[2]);
         assert_eq!(all_advice.len(), 3);
         assert_eq!(all_advice[0].advice_type, "deprecated");
         assert_eq!(
-            all_advice[0].value,
-            Value::String("uncategorized".to_owned())
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
         );
-        assert_eq!(all_advice[0].message, "note");
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute 'test.deprecated' is deprecated; reason = 'uncategorized', note = 'note'."
+        );
 
-        assert_eq!(all_advice[1].advice_type, "stability");
-        assert_eq!(all_advice[1].value, Value::String("development".to_owned()));
-        assert_eq!(all_advice[1].message, "Is not stable");
+        assert_eq!(all_advice[1].advice_type, "not_stable");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test.deprecated", "stability": "development"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute 'test.deprecated' is not stable; stability = development."
+        );
 
         assert_eq!(all_advice[2].advice_type, "type_mismatch");
-        assert_eq!(all_advice[2].value, Value::String("int".to_owned()));
-        assert_eq!(all_advice[2].message, "Type should be `string`");
+        assert_eq!(
+            all_advice[2].advice_context,
+            json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"})
+        );
+        assert_eq!(
+            all_advice[2].message,
+            "Attribute 'test.deprecated' has type 'int'. Type should be 'string'."
+        );
 
         let all_advice = get_all_advice(&mut samples[3]);
         assert_eq!(all_advice.len(), 1);
         assert_eq!(all_advice[0].advice_type, "missing_attribute");
         assert_eq!(
-            all_advice[0].value,
-            Value::String("aws.s3.bucket.name".to_owned())
+            all_advice[0].advice_context,
+            json!({"attribute_name": "aws.s3.bucket.name"})
         );
-        assert_eq!(all_advice[0].message, "Does not exist in the registry");
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute 'aws.s3.bucket.name' does not exist in the registry."
+        );
 
         let all_advice = get_all_advice(&mut samples[4]);
         assert_eq!(all_advice.len(), 1);
         assert_eq!(all_advice[0].advice_type, "undefined_enum_variant");
-        assert_eq!(all_advice[0].value, Value::String("foo".to_owned()));
-        assert_eq!(all_advice[0].message, "Is not a defined variant");
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.enum", "attribute_value": "foo"})
+        );
+        assert_eq!(
+            all_advice[0].message,
+            "Enum attribute 'test.enum' has value 'foo' which is not documented."
+        );
 
         let all_advice = get_all_advice(&mut samples[6]);
         assert_eq!(all_advice.len(), 1);
         assert_eq!(all_advice[0].advice_type, "type_mismatch");
-        assert_eq!(all_advice[0].value, Value::String("double".to_owned()));
-        assert_eq!(all_advice[0].message, "Type should be `string` or `int`");
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.enum", "attribute_type": "double"})
+        );
+        assert_eq!(all_advice[0].message, "Enum attribute 'test.enum' has type 'double'. Enum value type should be 'string' or 'int'.");
 
         let all_advice = get_all_advice(&mut samples[7]);
 
@@ -245,45 +285,77 @@ mod tests {
         assert_eq!(all_advice.len(), 3);
 
         assert_eq!(all_advice[0].advice_type, "extends_namespace");
-        assert_eq!(all_advice[0].value, Value::String("test".to_owned()));
-        assert_eq!(all_advice[0].message, "Extends existing namespace");
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test", "namespace": "test"})
+        );
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute name 'test.string.not.allowed' collides with existing namespace 'test'"
+        );
         assert_eq!(all_advice[1].advice_type, "illegal_namespace");
-        assert_eq!(all_advice[1].value, Value::String("test.string".to_owned()));
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test.string.not.allowed", "namespace": "test.string"})
+        );
         assert_eq!(
             all_advice[1].message,
-            "Namespace matches existing attribute"
+            "Namespace 'test.string' collides with existing attribute 'test.string.not.allowed'"
         );
         assert_eq!(all_advice[2].advice_type, "missing_attribute");
         assert_eq!(
-            all_advice[2].value,
-            Value::String("test.string.not.allowed".to_owned())
+            all_advice[2].advice_context,
+            json!({
+                "attribute_name": "test.string.not.allowed"
+            })
         );
-        assert_eq!(all_advice[2].message, "Does not exist in the registry");
+        assert_eq!(
+            all_advice[2].message,
+            "Attribute 'test.string.not.allowed' does not exist in the registry."
+        );
 
         let all_advice = get_all_advice(&mut samples[8]);
         assert_eq!(all_advice.len(), 2);
         assert_eq!(all_advice[0].advice_type, "missing_attribute");
         assert_eq!(
-            all_advice[0].value,
-            Value::String("test.extends".to_owned())
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.extends"})
         );
-        assert_eq!(all_advice[0].message, "Does not exist in the registry");
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute 'test.extends' does not exist in the registry."
+        );
         assert_eq!(all_advice[1].advice_type, "extends_namespace");
-        assert_eq!(all_advice[1].value, Value::String("test".to_owned()));
-        assert_eq!(all_advice[1].message, "Extends existing namespace");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test", "namespace": "test"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute name 'test.extends' collides with existing namespace 'test'"
+        );
 
         // test.template
         let all_advice = get_all_advice(&mut samples[9]);
         assert_eq!(all_advice.len(), 2);
         assert_eq!(all_advice[0].advice_type, "template_attribute");
         assert_eq!(
-            all_advice[0].value,
-            Value::String("test.template".to_owned())
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.template.my.key", "template_name": "test.template"})
         );
-        assert_eq!(all_advice[0].message, "Is a template");
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute 'test.template.my.key' is a template"
+        );
         assert_eq!(all_advice[1].advice_type, "type_mismatch");
-        assert_eq!(all_advice[1].value, Value::String("int".to_owned()));
-        assert_eq!(all_advice[1].message, "Type should be `string`");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute 'test.template.my.key' has type 'int'. Type should be 'string'."
+        );
 
         // test.deprecated.allowed
         // Should not get illegal_namespace for extending a deprecated attribute
@@ -291,13 +363,22 @@ mod tests {
         assert_eq!(all_advice.len(), 2);
         assert_eq!(all_advice[0].advice_type, "missing_attribute");
         assert_eq!(
-            all_advice[0].value,
-            Value::String("test.deprecated.allowed".to_owned())
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.deprecated.allowed"})
         );
-        assert_eq!(all_advice[0].message, "Does not exist in the registry");
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute 'test.deprecated.allowed' does not exist in the registry."
+        );
         assert_eq!(all_advice[1].advice_type, "extends_namespace");
-        assert_eq!(all_advice[1].value, Value::String("test".to_owned()));
-        assert_eq!(all_advice[1].message, "Extends existing namespace");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test", "namespace": "test"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute name 'test.deprecated.allowed' collides with existing namespace 'test'"
+        );
 
         // Check statistics
         assert_eq!(stats.total_entities, 11);
@@ -663,7 +744,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -675,11 +757,23 @@ mod tests {
         assert_eq!(all_advice.len(), 2);
 
         assert_eq!(all_advice[0].advice_type, "missing_attribute");
-        assert_eq!(all_advice[0].value, Value::String("test.string".to_owned()));
-        assert_eq!(all_advice[0].message, "Does not exist in the registry");
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.string"})
+        );
+        assert_eq!(
+            all_advice[0].message,
+            "Attribute 'test.string' does not exist in the registry."
+        );
         assert_eq!(all_advice[1].advice_type, "contains_test");
-        assert_eq!(all_advice[1].value, Value::String("test.string".to_owned()));
-        assert_eq!(all_advice[1].message, "Name must not contain 'test'");
+        assert_eq!(
+            all_advice[1].advice_context,
+            json!({"attribute_name": "test.string"})
+        );
+        assert_eq!(
+            all_advice[1].message,
+            "Attribute name must not contain 'test', but was 'test.string'"
+        );
 
         // Check statistics
         assert_eq!(stats.total_entities, 2);
@@ -718,7 +812,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -754,7 +849,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -790,7 +886,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -807,7 +904,7 @@ mod tests {
             Some(&2)
         );
         assert_eq!(stats.advice_type_counts.get("missing_attribute"), Some(&2));
-        assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
+        assert_eq!(stats.advice_type_counts.get("not_stable"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
         assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
         assert_eq!(
@@ -838,7 +935,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
             assert!(result.is_ok());
         }
@@ -917,7 +1015,8 @@ mod tests {
         for sample in &mut samples {
             // This should fail with: "error: use of undefined variable `attribu1te_name` is unsafe"
 
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_err());
             assert!(result
                 .unwrap_err()
@@ -960,12 +1059,13 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
         assert_eq!(
-            stats.advice_type_counts.get("instrument_mismatch"),
+            stats.advice_type_counts.get("unexpected_instrument"),
             Some(&1)
         );
         // Check the live check result for the sample has the correct instrument mismatch message
@@ -978,9 +1078,14 @@ mod tests {
         let advice = live_check_result
             .all_advice
             .iter()
-            .find(|a| a.advice_type == "instrument_mismatch")
-            .expect("Expected instrument_mismatch advice");
-        assert_eq!(advice.message, "Instrument should be `updowncounter`");
+            .find(|a| a.advice_type == "unexpected_instrument")
+            .expect("Expected unexpected_instrument advice");
+        assert_eq!(
+            advice.message,
+            "Instrument should be 'updowncounter', but found 'histogram'."
+        );
+        assert_eq!(advice.signal_name, Some("system.memory.usage".to_owned()));
+        assert_eq!(advice.signal_type, Some("metric".to_owned()));
     }
 
     #[test]
@@ -1020,7 +1125,7 @@ mod tests {
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
-        let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
         stats.finalize();
@@ -1052,12 +1157,13 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
         assert_eq!(
-            stats.advice_type_counts.get("unsupported_instrument"),
+            stats.advice_type_counts.get("unexpected_instrument"),
             Some(&2)
         );
     }

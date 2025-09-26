@@ -8,10 +8,10 @@ deny contains make_advice("foo", "violation", attribute_name, "bar") if {
 	not attribu1te_name
 }
 
-make_advice(advice_type, advice_level, value, message) := {
+make_advice(advice_type, advice_level, advice_context, message) := {
 	"type": "advice",
 	"advice_type": advice_type,
 	"advice_level": advice_level,
-	"value": value,
+	"advice_context": advice_context,
 	"message": message,
 }
