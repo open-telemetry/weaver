@@ -1,7 +1,7 @@
 {% macro display_statistics(statistics) %}
 {{ ("Samples") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_entities }}
-{%- if statistics.total_entities > 0 %}
+{% if statistics.total_entities > 0 %}
   - by type:
 {% for key, value in statistics.total_entities_by_type.items() %}
     - {{ key }}: {{ value }}
@@ -15,7 +15,7 @@
 
 {{ ("Advisories given") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_advisories }}
-{%- if statistics.total_advisories > 0 %}
+{% if statistics.total_advisories > 0 %}
   - advice level:
 {% for key, value in statistics.advice_level_counts.items() %}
     - {{ key }}: {{ value }}
