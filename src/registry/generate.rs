@@ -24,6 +24,7 @@ use weaver_common::vdir::VirtualDirectoryPath;
 #[derive(Debug, Args)]
 pub struct RegistryGenerateArgs {
     /// Target to generate the artifacts for.
+    #[arg(default_value = "")]
     pub target: String,
 
     /// Path to the directory where the generated artifacts will be saved.
@@ -100,7 +101,7 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
             error: e.to_string(),
         })?;
     let loader =
-        FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
+        FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &args.target)?;
     let config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)
     } else {
@@ -123,6 +124,19 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
         exit_code: 0,
         warnings: None,
     })
+}
+
+/// Resolve the effective templates root.
+/// If a `registry` subdirectory exists under the provided templates directory,
+/// that subdirectory is returned, otherwise the original directory path is returned.
+fn resolve_templates_root(templates_dir: &VirtualDirectory) -> PathBuf {
+    let base = templates_dir.path();
+    let candidate = base.join("registry");
+    if candidate.is_dir() {
+        candidate
+    } else {
+        base.to_path_buf()
+    }
 }
 
 /// Generate the parameters to pass to the templates.
