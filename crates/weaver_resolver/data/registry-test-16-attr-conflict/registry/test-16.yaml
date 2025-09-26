@@ -1,0 +1,33 @@
+version: "2"
+attributes:
+  - key: test.attr.one
+    stability: stable
+    type: string
+    brief: 'attribute one'
+    examples: ["1"]
+  - key: test.attr.two
+    stability: stable
+    type: int
+    brief: 'attribute two'
+    examples: [2]
+attribute_groups:
+  - id: test.attr.group.one.internal
+    visibility: internal
+    attributes:
+      - ref: test.attr.one
+  - id: test.attr.group.one_and_two
+    visibility: internal
+    attributes:
+      - ref: test.attr.one
+      - ref_group: test.attr.group.one.internal  # this is ok, no collision within groups
+spans:
+  - type: test.span
+    brief: 'A span for testing attribute conflict across groups'
+    kind: client
+    name:
+      note: "{test.attr.one}"
+    stability: stable
+    attributes:
+      - ref: test.attr.one
+      - ref_group: test.attr.group.one.internal
+      - ref_group: test.attr.group.one_and_two   # this is not ok, collision on test.attr.one

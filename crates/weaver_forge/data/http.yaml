@@ -1,0 +1,50 @@
+version: "2"
+attribute_groups:
+  - id: http.client.server_and_port
+    visibility: internal
+    attributes:
+      - ref: server.address
+        brief: "Some HTTP specific description"
+        requirement_level: required
+      - ref: server.port
+        requirement_level: required
+        brief: "Some HTTP specific description"
+      - ref: http.request.method
+spans:
+  - type: http.client
+    brief: HTTP client span
+    stability: stable
+    name:
+      note: "{http.request.method} {server.address}:{server.port}"
+    kind: client
+    attributes:
+      - ref_group: http.client.server_and_port
+      - ref: http.request.method
+        requirement_level: required
+        sampling_relevant: true
+      - ref: url.full
+        requirement_level: required
+        sampling_relevant: true
+      - ref: server.address
+        sampling_relevant: true
+      - ref: server.port
+        sampling_relevant: true
+      - ref: http.response.status_code
+
+metrics:
+  - name: http.client.request.duration
+    brief: "Duration of HTTP client requests."
+    instrument: histogram
+    unit: "s"
+    stability: stable
+    attributes:
+      - ref_group: http.client.server_and_port
+      - ref: http.request.method
+        requirement_level: recommended
+      - ref: url.scheme
+        requirement_level: opt_in
+        examples: ["http", "https"]
+      - ref: http.response.status_code
+        requirement_level: recommended
+        brief: "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6)."
+        examples: [200]

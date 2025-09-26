@@ -70,7 +70,7 @@ jobs:
           if [ "$CURRENT_TOOLCHAIN" != "${{ env.MSRV }}" ]; then
             echo "Expected active toolchain ${{ env.MSRV }} but got $CURRENT_TOOLCHAIN"
             exit 1
-          else 
+          else
             echo "Correct toolchain $CURRENT_TOOLCHAIN is installed and active"
           fi
       - name: Default features

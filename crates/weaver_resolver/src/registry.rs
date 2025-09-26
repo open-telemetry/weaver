@@ -22,6 +22,7 @@ use weaver_semconv::group::{
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -49,6 +50,12 @@ pub struct UnresolvedGroup {
     /// The resolution process will progressively move the unresolved attributes,
     /// and other signals, into the group field once they are resolved.
     pub attributes: Vec<UnresolvedAttribute>,
+
+    /// List of groups to include in the semantic convention group.
+    pub include_groups: Vec<String>,
+
+    /// Visibility of the group.
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
 
     /// The provenance of the group (URL or path).
     pub provenance: Provenance,
@@ -99,6 +106,7 @@ pub fn resolve_semconv_registry(
     ureg.registry.groups = ureg
         .groups
         .into_iter()
+        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
         .map(|mut g| {
             g.group.attributes.sort();
             g.group
@@ -422,6 +430,8 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
         },
         attributes: attrs,
         provenance: group.provenance,
+        include_groups: group.spec.include_groups,
+        visibility: group.spec.visibility,
     }
 }
 
@@ -519,7 +529,29 @@ fn resolve_attribute_references(
     Ok(())
 }
 
-/// Resolves the `extends` references in the given registry.
+/// Helper function to add a resolved group to the index and update its state
+fn add_resolved_group_to_index(
+    group_index: &mut HashMap<String, Vec<UnresolvedAttribute>>,
+    unresolved_group: &mut UnresolvedGroup,
+    resolved_group_count: &mut usize,
+) {
+    log::debug!(
+        "Adding group {} to index with attribute ids: {:#?}",
+        unresolved_group.group.id,
+        unresolved_group
+            .attributes
+            .iter()
+            .map(|a| a.spec.id().clone())
+            .collect::<Vec<_>>()
+    );
+    _ = unresolved_group.group.extends.take();
+    unresolved_group.include_groups.clear();
+    _ = group_index.insert(
+        unresolved_group.group.id.clone(),
+        unresolved_group.attributes.clone(),
+    );
+    *resolved_group_count += 1;
+}
 /// The resolution process is iterative. The process stops when all the
 /// `extends` references are resolved or when no `extends` reference could
 /// be resolved in an iteration.
@@ -528,13 +560,22 @@ fn resolve_attribute_references(
 fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     loop {
         let mut errors = vec![];
-        let mut resolved_extends_count = 0;
+        let mut resolved_group_count = 0;
 
         // Create a map group_id -> attributes for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
         for group in ureg.groups.iter() {
-            if group.group.extends.is_none() {
+            if group.group.extends.is_none() && group.include_groups.is_empty() {
+                log::debug!(
+                    "Adding group {} to index with attribute ids: {:#?}",
+                    group.group.id,
+                    group
+                        .attributes
+                        .iter()
+                        .map(|a| a.spec.id().clone())
+                        .collect::<Vec<_>>()
+                );
                 _ = group_index.insert(group.group.id.clone(), group.attributes.clone());
             }
         }
@@ -543,29 +584,72 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         for unresolved_group in ureg.groups.iter_mut() {
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
                 if let Some(attrs) = group_index.get(extends) {
-                    unresolved_group.attributes = resolve_inheritance_attrs(
+                    unresolved_group.attributes = resolve_inheritance_attrs_unified(
                         &unresolved_group.group.id,
                         &unresolved_group.attributes,
-                        extends,
-                        attrs,
+                        vec![(extends, attrs)],
                         unresolved_group.group.lineage.as_mut(),
                     );
-                    _ = unresolved_group.group.extends.take();
-                    _ = group_index.insert(
-                        unresolved_group.group.id.clone(),
-                        unresolved_group.attributes.clone(),
+                    add_resolved_group_to_index(
+                        &mut group_index,
+                        unresolved_group,
+                        &mut resolved_group_count,
                     );
-                    resolved_extends_count += 1;
                 } else {
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
-                        extends_ref: unresolved_group
-                            .group
-                            .extends
-                            .clone()
-                            .unwrap_or("".to_owned()),
+                        extends_ref: extends.clone(),
                         provenance: unresolved_group.provenance.clone(),
                     });
+                }
+            } else if !unresolved_group.include_groups.is_empty() {
+                // Iterate over all groups and resolve the `include_groups` clauses.
+                let mut attr_ids = HashMap::new();
+                let mut attrs_by_group = HashMap::new();
+                let mut all_resolved = true;
+
+                for include_group in unresolved_group.include_groups.iter() {
+                    if let Some(attrs) = group_index.get(include_group) {
+                        // check if any attribute in the attrs is already in the all_attrs
+                        // and fail - this is a diamond include problem and is not allowed.
+                        // Otherwise add all of them to all_attrs
+                        for attr in attrs {
+                            if attr_ids.contains_key(&attr.spec.id()) {
+                                errors.push(Error::DuplicateAttributeId {
+                                    group_ids: unresolved_group.include_groups.clone(),
+                                    attribute_id: attr.spec.id().clone(),
+                                });
+                                all_resolved = false;
+                            } else {
+                                _ = attr_ids.insert(attr.spec.id().clone(), attr);
+                            }
+                        }
+                        _ = attrs_by_group.insert(include_group.clone(), attrs);
+                    } else {
+                        errors.push(Error::UnresolvedExtendsRef {
+                            group_id: unresolved_group.group.id.clone(),
+                            extends_ref: include_group.clone(),
+                            provenance: unresolved_group.provenance.clone(),
+                        });
+                        all_resolved = false;
+                    }
+                }
+
+                if all_resolved {
+                    unresolved_group.attributes = resolve_inheritance_attrs_unified(
+                        &unresolved_group.group.id,
+                        &unresolved_group.attributes,
+                        attrs_by_group
+                            .iter()
+                            .map(|(id, attrs)| (id.as_str(), attrs.as_slice()))
+                            .collect(),
+                        unresolved_group.group.lineage.as_mut(),
+                    );
+                    add_resolved_group_to_index(
+                        &mut group_index,
+                        unresolved_group,
+                        &mut resolved_group_count,
+                    );
                 }
             }
         }
@@ -573,22 +657,27 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         if errors.is_empty() {
             break;
         }
+
+        log::info!(
+            "Resolved {} extends in this iteration, found errors {:#?}",
+            resolved_group_count,
+            errors
+        );
         // If we still have unresolved `extends` but we did not resolve any
         // `extends` in the last iteration, we are stuck in an infinite loop.
         // It means that we have an issue with the semantic convention
         // specifications.
-        if resolved_extends_count == 0 {
+        if resolved_group_count == 0 {
             return Err(Error::CompoundError(errors));
         }
     }
     Ok(())
 }
 
-fn resolve_inheritance_attrs(
+fn resolve_inheritance_attrs_unified(
     group_id: &str,
     attrs_group: &[UnresolvedAttribute],
-    parent_group_id: &str,
-    attrs_parent_group: &[UnresolvedAttribute],
+    include_groups: Vec<(&str, &[UnresolvedAttribute])>,
     group_lineage: Option<&mut GroupLineage>,
 ) -> Vec<UnresolvedAttribute> {
     struct AttrWithLineage {
@@ -603,16 +692,25 @@ fn resolve_inheritance_attrs(
     // ensure that the resolved registry is easy to compare.
     let mut inherited_attrs = BTreeMap::new();
 
-    // Inherit the attributes from the parent group.
-    for parent_attr in attrs_parent_group.iter() {
-        let attr_id = parent_attr.spec.id();
-        _ = inherited_attrs.insert(
-            attr_id.clone(),
-            AttrWithLineage {
-                spec: parent_attr.spec.clone(),
-                lineage: AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec),
-            },
-        );
+    // Inherit the attributes from all included groups.
+    for (parent_group_id, included_group) in include_groups {
+        for parent_attr in included_group.iter() {
+            let attr_id = parent_attr.spec.id();
+            let lineage = AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
+            log::debug!(
+                "Inheriting attribute {} from group {}, resolved to {:#?}",
+                attr_id,
+                parent_group_id,
+                lineage.source_group
+            );
+            _ = inherited_attrs.insert(
+                attr_id.clone(),
+                AttrWithLineage {
+                    spec: parent_attr.spec.clone(),
+                    lineage,
+                },
+            );
+        }
     }
 
     // Override the inherited attributes with the attributes from the group.
