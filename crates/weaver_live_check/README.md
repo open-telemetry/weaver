@@ -126,16 +126,18 @@ package live_check_advice
 import rego.v1
 
 # checks attribute name contains the word "test"
-deny contains make_advice(advice_type, advice_level, value, message) if {
-  input.sample.attribute
-  value := input.sample.attribute.name
-  contains(value, "test")
-  advice_type := "contains_test"
-  advice_level := "violation"
-  message := "Name must not contain 'test'"
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+	input.sample.attribute
+	contains(input.sample.attribute.name, "test")
+	advice_type := "contains_test"
+	advice_level := "violation"
+	advice_context := {
+		"attribute_name": input.sample.attribute.name
+	}
+	message := sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
 }
 
-make_advice(advice_type, advice_level, value, message) := {
+make_advice(advice_type, advice_level, advice_context, message) := {
   "type": "advice",
   "advice_type": advice_type,
   "advice_level": advice_level,

@@ -5,48 +5,48 @@ import rego.v1
 # checks attribute name contains the word "test"
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
-	advice_context := {
-		"attribute_name": input.sample.attribute.name
-	}
 	contains(input.sample.attribute.name, "test")
 	advice_type := "contains_test"
 	advice_level := "violation"
-	message :=  sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
+	advice_context := {
+		"attribute_name": input.sample.attribute.name
+	}
+	message := sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
 }
 
 # checks span name contains the word "test"
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.span
-	advice_context := {
-		"span_name": input.sample.span.name
-	}
 	contains(input.sample.span.name, "test")
 	advice_type := "contains_test"
 	advice_level := "violation"
+	advice_context := {
+		"span_name": input.sample.span.name
+	}
 	message :=  sprintf("Span name must not contain 'test', but was '%s'", [input.sample.span.name])
 }
 
 # checks span status message contains the word "test"
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.span
-	advice_context := {
-		"span_status_message": input.sample.span.status.message
-	}
 	contains(input.sample.span.status.message, "test")
 	advice_type := "contains_test_in_status"
 	advice_level := "violation"
+	advice_context := {
+		"span_status_message": input.sample.span.status.message
+	}
 	message :=  sprintf("Span status message must not contain 'test', but was '%s'", [input.sample.span.status.message])
 }
 
 # checks span_event name contains the word "test"
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.span_event
-	advice_context := {
-		"span_event_name": input.sample.span_event.name
-	}
 	contains(input.sample.span_event.name, "test")
 	advice_type := "contains_test"
 	advice_level := "violation"
+	advice_context := {
+		"span_event_name": input.sample.span_event.name
+	}
 	message :=  sprintf("Span event name must not contain 'test', but was '%s'", [input.sample.span_event.name])
 }
 
@@ -67,13 +67,13 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 # As above, but for exemplars which are nested two levels deep.
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.exemplar
-	advice_context := {
-		"exemplar_value": input.sample.exemplar.value
-	}
 	input.registry_group.unit == "s"
 	input.sample.exemplar.value < 1.0
 	advice_type := "low_value"
 	advice_level := "information"
+	advice_context := {
+		"exemplar_value": input.sample.exemplar.value
+	}
 	message := sprintf("This is a low number of seconds: %v", [input.sample.exemplar.value])
 }
 
