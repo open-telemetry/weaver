@@ -89,7 +89,6 @@ impl SemConvSpecV2 {
             groups.push(GroupSpec {
                 id: format!("registry.{file_name}"),
                 r#type: crate::group::GroupType::AttributeGroup,
-                //visibility: Some(attribute_group::AttributeGroupVisibilitySpec::Public), // registry groups are public for now
                 attributes: self
                     .attributes
                     .into_iter()
