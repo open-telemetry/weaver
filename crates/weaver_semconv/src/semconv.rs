@@ -27,7 +27,6 @@ pub enum SemConvSpec {
 /// A versioned semantic convention file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "version")]
-#[allow(unused_qualifications)]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "1")]

@@ -18,8 +18,8 @@ pre-push-check:
     cargo fmt --all
     # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
     # [ToDo LQ] Re-enable --all-features once the issue is resolved
-    # cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated --allow unused_qualifications
-    cargo clippy --workspace --all-targets -- -D warnings --allow deprecated --allow unused_qualifications
+    # cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated
+    cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
     rm -rf crates/weaver_forge/observed_output/*
     cargo nextest run --all
     cargo xtask history

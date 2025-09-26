@@ -45,17 +45,64 @@ pub struct PublicAttributeGroup {
 }
 
 /// Attribute group definition.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "visibility")]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
-#[allow(unused_qualifications)]
 pub enum AttributeGroup {
     /// An internal attribute group
     Internal(InternalAttributeGroup),
     /// A public attribute group
     Public(PublicAttributeGroup),
 }
+
+// Note: We automatically create the Schemars code and provide `allow(unused_qualifications)` to work around schemars limitations.
+// You can use `cargo expand -p weaver_semconv` to find this code and generate it in the future.
+const _: () = {
+    #[automatically_derived]
+    #[allow(unused_braces)]
+    impl JsonSchema for AttributeGroup {
+        fn schema_name() -> String {
+            "AttributeGroup".to_owned()
+        }
+        fn schema_id() -> std::borrow::Cow<'static, str> {
+            std::borrow::Cow::Borrowed("weaver_semconv::v2::attribute_group::AttributeGroup")
+        }
+        fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+            schemars::_private::metadata::add_description(
+                schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+                    subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
+                        one_of: Some(<[_]>::into_vec(Box::new([
+                            schemars::_private::metadata::add_description(
+                                schemars::_private::new_internally_tagged_enum(
+                                    "visibility",
+                                    "internal",
+                                    true,
+                                ),
+                                "An internal attribute group",
+                            )
+                            .flatten(
+                                <InternalAttributeGroup as JsonSchema>::json_schema(generator),
+                            ),
+                            schemars::_private::metadata::add_description(
+                                schemars::_private::new_internally_tagged_enum(
+                                    "visibility",
+                                    "public",
+                                    true,
+                                ),
+                                "A public attribute group",
+                            )
+                            .flatten(<PublicAttributeGroup as JsonSchema>::json_schema(generator)),
+                        ]))),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }),
+                "Attribute group definition.",
+            )
+        }
+    }
+};
 
 impl AttributeGroup {
     /// Converts a v2 attribute group into a v1 GroupSpec.

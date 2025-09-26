@@ -177,7 +177,7 @@ jobs:
         # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
         # [ToDo LQ] Re-enable --all-features once the issue is resolved
         run: >
-          cargo clippy --workspace --all-targets --message-format=json -- -D warnings --allow deprecated --allow unused_qualifications
+          cargo clippy --workspace --all-targets --message-format=json -- -D warnings --allow deprecated
           | clippy-sarif
           | tee clippy-results.sarif
           | sarif-fmt
@@ -188,7 +188,7 @@ jobs:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
       - name: Report status
-        run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated --allow unused_qualifications
+        run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
