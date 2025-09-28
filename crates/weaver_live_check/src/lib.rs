@@ -302,6 +302,8 @@ pub struct LiveCheckStatistics {
     pub no_advice_count: usize,
     /// The number of entities with each advice type
     pub advice_type_counts: HashMap<String, usize>,
+    /// The number of entities with each advice message
+    pub advice_message_counts: HashMap<String, usize>,
     /// The number of each attribute seen from the registry
     pub seen_registry_attributes: HashMap<String, usize>,
     /// The number of each non-registry attribute seen
@@ -340,6 +342,7 @@ impl LiveCheckStatistics {
             highest_advice_level_counts: HashMap::new(),
             no_advice_count: 0,
             advice_type_counts: HashMap::new(),
+            advice_message_counts: HashMap::new(),
             seen_registry_attributes: seen_attributes,
             seen_non_registry_attributes: HashMap::new(),
             seen_registry_metrics: seen_metrics,
@@ -388,6 +391,10 @@ impl LiveCheckStatistics {
         *self
             .advice_type_counts
             .entry(advice.advice_type.clone())
+            .or_insert(0) += 1;
+        *self
+            .advice_message_counts
+            .entry(advice.message.clone())
             .or_insert(0) += 1;
         self.total_advisories += 1;
     }
