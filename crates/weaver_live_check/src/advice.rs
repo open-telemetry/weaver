@@ -68,6 +68,16 @@ fn deprecated_to_reason(deprecated: &Deprecated) -> String {
     }
 }
 
+/// Formats a JSON value for display without JSON quotes
+fn format_json_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        _ => value.to_string(),
+    }
+}
+
 /// An advisor that checks if an attribute is deprecated
 pub struct DeprecatedAdvisor;
 impl Advisor for DeprecatedAdvisor {
@@ -499,7 +509,10 @@ impl Advisor for EnumAdvisor {
                                         ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
                                         ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
                                     }),
-                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.", sample_attribute.name, attribute_value),
+                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.", 
+                                        sample_attribute.name, 
+                                        format_json_value(attribute_value)
+                                    ),
                                     advice_level: AdviceLevel::Information,
                                     signal_type: signal.signal_type(),
                                     signal_name: signal.signal_name(),
