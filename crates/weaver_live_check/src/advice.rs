@@ -499,7 +499,7 @@ impl Advisor for EnumAdvisor {
                                         ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
                                         ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
                                     }),
-                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.", sample_attribute.name, attribute_value.as_str().unwrap_or("")),
+                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.", sample_attribute.name, attribute_value),
                                     advice_level: AdviceLevel::Information,
                                     signal_type: signal.signal_type(),
                                     signal_name: signal.signal_name(),
