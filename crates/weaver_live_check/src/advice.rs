@@ -510,7 +510,7 @@ impl Advisor for EnumAdvisor {
                                         ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
                                     }),
                                     message: format!("Enum attribute '{}' has value '{}' which is not documented.", 
-                                        sample_attribute.name, 
+                                        sample_attribute.name,
                                         format_json_value(attribute_value)
                                     ),
                                     advice_level: AdviceLevel::Information,
