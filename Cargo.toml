@@ -43,7 +43,7 @@ url = "2.5.4"
 ureq = "2.12.1"
 regex = "1.11.3"
 rayon = "1.11.0"
-ordered-float = { version = "5.0.0", features = ["serde", "schemars"] }
+ordered-float = { version = "5.1.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
 anyhow = "1.0.100"
 itertools = "0.14.0"
