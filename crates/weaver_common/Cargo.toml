@@ -33,7 +33,7 @@ gix = { version = "0.73.0", default-features = false, features = [
     "worktree-mutation",
     "blocking-http-transport-reqwest-rust-tls",
 ] }
-flate2 = "1.1.2"
+flate2 = "1.1.4"
 tar = "0.4.43"
 zip = "5.1.1"
 
