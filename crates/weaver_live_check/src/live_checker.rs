@@ -159,6 +159,7 @@ mod tests {
             Sample::Attribute(SampleAttribute::try_from("test.extends=new_value").unwrap()),
             Sample::Attribute(SampleAttribute::try_from("test.template.my.key=42").unwrap()),
             Sample::Attribute(SampleAttribute::try_from("test.deprecated.allowed=42").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.enum=17").unwrap()),
         ];
 
         let advisors: Vec<Box<dyn Advisor>> = vec![
@@ -380,12 +381,24 @@ mod tests {
             "Attribute name 'test.deprecated.allowed' collides with existing namespace 'test'"
         );
 
+        let all_advice = get_all_advice(&mut samples[11]);
+        assert_eq!(all_advice.len(), 1);
+        assert_eq!(all_advice[0].advice_type, "undefined_enum_variant");
+        assert_eq!(
+            all_advice[0].advice_context,
+            json!({"attribute_name": "test.enum", "attribute_value": 17})
+        );
+        assert_eq!(
+            all_advice[0].message,
+            "Enum attribute 'test.enum' has value '17' which is not documented."
+        );
+
         // Check statistics
-        assert_eq!(stats.total_entities, 11);
-        assert_eq!(stats.total_advisories, 18);
+        assert_eq!(stats.total_entities, 12);
+        assert_eq!(stats.total_advisories, 19);
         assert_eq!(stats.advice_level_counts.len(), 3);
         assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 11);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 5);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 6);
         assert_eq!(stats.advice_level_counts[&AdviceLevel::Improvement], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 2);
         assert_eq!(
@@ -394,11 +407,11 @@ mod tests {
         );
         assert_eq!(
             stats.highest_advice_level_counts[&AdviceLevel::Information],
-            1
+            2
         );
         assert_eq!(stats.no_advice_count, 2);
         assert_eq!(stats.seen_registry_attributes.len(), 3);
-        assert_eq!(stats.seen_registry_attributes["test.enum"], 3);
+        assert_eq!(stats.seen_registry_attributes["test.enum"], 4);
         assert_eq!(stats.seen_non_registry_attributes.len(), 6);
         assert_eq!(stats.registry_coverage, 1.0);
     }
