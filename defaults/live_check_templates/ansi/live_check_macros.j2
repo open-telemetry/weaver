@@ -24,6 +24,10 @@
 {% for key, value in statistics.advice_type_counts.items() %}
     - {{ key }}: {{ value }}
 {% endfor %}
+  - advice message:
+{% for key, value in statistics.advice_message_counts.items() %}
+    - {{ key }}: {{ value }}
+{% endfor %}
 {% endif %}
 
 {{ ("Registry coverage") | ansi_blue | ansi_bold }}
