@@ -123,6 +123,8 @@ Usage: weaver registry generate [OPTIONS] <TARGET> [OUTPUT]
 Arguments:
   <TARGET>
           Target to generate the artifacts for
+          
+          [default: ]
 
   [OUTPUT]
           Path to the directory where the generated artifacts will be saved. Default is the `output` directory
