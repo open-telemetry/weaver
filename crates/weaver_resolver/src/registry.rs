@@ -590,6 +590,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         vec![(extends, attrs)],
                         unresolved_group.group.lineage.as_mut(),
                     );
+                    if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                        lineage.extends(extends);
+                    }
                     add_resolved_group_to_index(
                         &mut group_index,
                         unresolved_group,

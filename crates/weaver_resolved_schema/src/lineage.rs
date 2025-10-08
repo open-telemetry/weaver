@@ -38,6 +38,11 @@ pub struct GroupLineage {
     /// The provenance of the source file where the group is defined.
     provenance: Provenance,
 
+    /// The group that this group extended, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub extends_group: Option<String>,
+
     /// The lineage per attribute.
     ///
     /// Note: Use a BTreeMap to ensure a deterministic order of attributes.
@@ -470,8 +475,14 @@ impl GroupLineage {
     pub fn new(provenance: Provenance) -> Self {
         Self {
             provenance,
+            extends_group: None,
             attributes: Default::default(),
         }
+    }
+
+    /// Declares this group extended another group.
+    pub fn extends(&mut self, extends_group: &str) {
+        self.extends_group = Some(extends_group.to_owned());
     }
 
     /// Adds an attribute lineage.

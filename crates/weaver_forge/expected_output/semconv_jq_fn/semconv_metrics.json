@@ -438,6 +438,7 @@
               "source_group": "attributes.jvm.memory"
             }
           },
+          "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/jvm-metrics.yaml",
             "registry_id": "default"
@@ -557,6 +558,7 @@
               "source_group": "attributes.jvm.memory"
             }
           },
+          "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/jvm-metrics.yaml",
             "registry_id": "default"
@@ -680,6 +682,7 @@
               "source_group": "attributes.jvm.memory"
             }
           },
+          "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/jvm-metrics.yaml",
             "registry_id": "default"
@@ -775,6 +778,7 @@
               "source_group": "attributes.jvm.memory"
             }
           },
+          "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/jvm-metrics.yaml",
             "registry_id": "default"
