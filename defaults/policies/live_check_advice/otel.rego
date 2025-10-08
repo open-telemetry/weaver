@@ -23,37 +23,39 @@ concat(".", array.slice(parts, 0, i)) |
 ]
 
 # checks attribute has a namespace
-deny contains make_advice(advice_type, advice_level, value, message) if {
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 	not contains(input.sample.attribute.name, ".")
 	advice_type := "missing_namespace"
 	advice_level := "improvement"
-	value := input.sample.attribute.name
-	message := "Does not have a namespace"
+	advice_context := {"attribute_name": input.sample.attribute.name}
+	message := sprintf("Attribute name '%s' must include a namespace (e.g. '{namespace}.{attribute_key}')", [input.sample.attribute.name])
 }
 
 # checks attribute name format
-deny contains make_advice(advice_type, advice_level, value, message) if {
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 	not regex.match(name_regex, input.sample.attribute.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
-	value := input.sample.attribute.name
-	message := "Does not match name formatting rules"
+	advice_context := {"attribute_name": input.sample.attribute.name}
+	message := sprintf("Attribute '%s' does not match name formatting rules.", [input.sample.attribute.name])
 }
 
 # checks metric name format
-deny contains make_advice(advice_type, advice_level, value, message) if {
+deny contains make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_name, signal_type, message) if {
 	input.sample.metric
 	not regex.match(name_regex, input.sample.metric.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
-	value := input.sample.metric.name
-	message := "Does not match name formatting rules"
+	advice_context := null
+	signal_name := input.sample.metric.name
+	signal_type := "metric"
+	message := sprintf("Metric name '%s' does not match name formatting rules.", [input.sample.metric.name])
 }
 
 # checks attribute namespace doesn't collide with existing attributes
-deny contains make_advice(advice_type, advice_level, value, message) if {
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 
 	# Skip if no namespace
@@ -63,17 +65,18 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 	namespaces := derive_namespaces(input.sample.attribute.name)
 
 	# Find collision
-	some value in namespaces
-	attributes_set[value]
-	not deprecated_attributes_set[value]
+	some ns in namespaces
+	attributes_set[ns]
+	not deprecated_attributes_set[ns]
 
 	advice_type := "illegal_namespace"
 	advice_level := "violation"
-	message := "Namespace matches existing attribute"
+	advice_context := {"attribute_name": input.sample.attribute.name, "namespace": ns}
+	message := sprintf("Namespace '%s' collides with existing attribute '%s'", [ns, input.sample.attribute.name])
 }
 
 # provides advice if the attribute extends an existing namespace
-deny contains make_advice(advice_type, advice_level, value, message) if {
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 
 	# Skip checks first (fail fast)
@@ -89,18 +92,29 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 	count(matches) > 0
 
 	# Get the last match (most specific namespace)
-	value := matches[count(matches) - 1]
+	namespace := matches[count(matches) - 1]
 
 	advice_type := "extends_namespace"
 	advice_level := "information"
-	message := "Extends existing namespace"
+	advice_context := {"attribute_name": namespace, "namespace": namespace}
+	message := sprintf("Attribute name '%s' collides with existing namespace '%s'", [input.sample.attribute.name, namespace])
 }
 
-make_advice(advice_type, advice_level, value, message) := {
+make_advice(advice_type, advice_level, advice_context, message) := {
 	"type": "advice",
 	"advice_type": advice_type,
 	"advice_level": advice_level,
-	"value": value,
+	"advice_context": advice_context,
+	"message": message,
+}
+
+make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_name, signal_type, message) := {
+	"type": "advice",
+	"advice_type": advice_type,
+	"advice_level": advice_level,
+	"advice_context": advice_context,
+	"signal_name": signal_name,
+	"signal_type": signal_type,
 	"message": message,
 }
 

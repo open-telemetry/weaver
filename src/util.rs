@@ -121,7 +121,7 @@ pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
                 for violation in violations {
                     errors.push(PolicyViolation {
                         provenance: policy_file.to_owned(),
-                        violation,
+                        violation: Box::new(violation),
                     });
                 }
             }
