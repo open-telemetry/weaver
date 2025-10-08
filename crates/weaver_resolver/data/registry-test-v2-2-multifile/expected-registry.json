@@ -2,17 +2,6 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.data.registry-test-v2-2-multifile.registry.http",
-      "type": "attribute_group",
-      "brief": "<synthetic v2>",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-v2-2-multifile/registry/http.yaml"
-        }
-      }
-    },
-    {
       "id": "metric.http.server.request.duration",
       "type": "metric",
       "brief": "Duration of HTTP server requests.",

@@ -143,7 +143,7 @@ impl Group {
     #[must_use]
     pub fn signal_name(&self) -> Option<&str> {
         match self.r#type {
-            GroupType::AttributeGroup => None,
+            GroupType::AttributeGroup => Some(self.id.as_str()),
             // ToDo: Remove this comment way forward is agreed upon
             // https://github.com/open-telemetry/weaver/issues/785
             // For now we allow group.name to be a namespace for spans.

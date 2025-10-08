@@ -27,7 +27,6 @@ pub enum SemConvSpec {
 /// A versioned semantic convention file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "version")]
-#[allow(unused_qualifications)]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "1")]
@@ -165,11 +164,11 @@ impl SemConvSpec {
     ///
     /// name: A unique identifier to use for synthetic group ids in this semconv, if needed.
     #[must_use]
-    pub fn into_v1(self, name: &str) -> SemConvSpecV1 {
+    pub fn into_v1(self, file_name: &str) -> SemConvSpecV1 {
         match self {
             SemConvSpec::NoVersion(v1) => v1,
             SemConvSpec::WithVersion(Versioned::V1(v1)) => v1,
-            SemConvSpec::WithVersion(Versioned::V2(v2)) => v2.into_v1_specification(name),
+            SemConvSpec::WithVersion(Versioned::V2(v2)) => v2.into_v1_specification(file_name),
         }
     }
 
@@ -230,9 +229,14 @@ impl SemConvSpecWithProvenance {
     #[must_use]
     pub fn into_v1(self) -> SemConvSpecV1WithProvenance {
         // TODO - better name
-        let name = provenance_path_to_name(&self.provenance.path);
+        let file_name = provenance_path_to_name(&self.provenance.path);
+        log::debug!(
+            "Translating v2 spec into v1 spec for {}, {}",
+            file_name,
+            self.provenance.path
+        );
         SemConvSpecV1WithProvenance {
-            spec: self.spec.into_v1(&name),
+            spec: self.spec.into_v1(&file_name),
             provenance: self.provenance,
         }
     }
@@ -703,6 +707,7 @@ mod tests {
             metrics: vec![],
             spans: vec![],
             imports: None,
+            attribute_groups: vec![],
         }));
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
@@ -753,7 +758,7 @@ attributes:
           stability: "stable"
           brief: "description2"
           kind: "server"
-          name: 
+          name:
            note: "{myspan}"
           attributes:
             - ref: "attr1"

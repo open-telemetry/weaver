@@ -17,6 +17,7 @@ use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::provenance::Provenance;
 use crate::semconv::Imports;
 use crate::stability::Stability;
+use crate::v2::attribute_group::AttributeGroupVisibilitySpec;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 
@@ -118,6 +119,20 @@ pub struct GroupSpec {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+
+    /// Attribute groups to include - this parameter must not be provided
+    /// in yaml, it's only used to convert v2 schema into v1
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub include_groups: Vec<String>,
+
+    /// Visibility of the attribute group.
+    /// This parameter must not be provided in yaml, it's only used to convert v2 schema into v1
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
 }
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
@@ -669,6 +684,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -699,6 +715,7 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
         assert!(group
             .validate("<test>")
@@ -834,6 +851,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -864,6 +882,7 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
         assert!(group
             .validate("<test>")
@@ -1136,6 +1155,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -1161,6 +1181,7 @@ mod tests {
             }),
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
         assert!(group
             .validate("<test>")
@@ -1353,6 +1374,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             span_kind: None,
@@ -1376,6 +1398,7 @@ mod tests {
             }),
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
         assert!(group
             .validate("<test>")
@@ -1492,6 +1515,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: None,
             deprecated: None,
             attributes: vec![AttributeSpec::Id {
@@ -1520,6 +1544,7 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
         assert!(group
             .validate("<test>")
@@ -1677,6 +1702,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
@@ -1690,6 +1716,7 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1829,6 +1856,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
@@ -1842,6 +1870,7 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
         };
 
         // Check group with duplicate attributes.
@@ -1874,6 +1903,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![AttributeSpec::Id {
@@ -1902,6 +1932,7 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: vec!["test".to_owned()],
+            visibility: None,
         };
         assert!(group
             .validate("<test>")
