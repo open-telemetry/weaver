@@ -1,6 +1,6 @@
 //! Version 2 of semantic convention schema.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use weaver_semconv::{
     group::GroupType,
@@ -46,10 +46,31 @@ pub fn convert_v1_to_v2(
 
     let v2_catalog = catalog::Catalog::from_attributes(attributes.into_iter().collect());
 
-    // TODO - pull spans.
+    // Create a lookup so we can check inheritance.
+    let mut group_type_lookup = HashMap::new();
+    for g in r.groups.iter() {
+        println!("Group {} is type: {:?}", &g.id, g.r#type);
+        let _ = group_type_lookup.insert(g.id.clone(), g.r#type.clone());
+    }
+    // Pull spans from the registry and create a new span-focused registry.
     let mut spans = Vec::new();
     for g in r.groups.iter() {
         if g.r#type == GroupType::Span {
+            // TODO - Check if we extend another span.
+            let extend_type = g.extends.as_ref().and_then(|id| group_type_lookup.get(id));
+
+            let is_refinement = g
+                .lineage
+                .as_ref()
+                .and_then(|l| l.extends_group.as_ref())
+                .and_then(|parent| group_type_lookup.get(parent))
+                .map(|t| *t == GroupType::Span)
+                .unwrap_or(false);
+            println!(
+                "Group {} is_refinement: {}, extends: {:?}",
+                &g.id, is_refinement, extend_type
+            );
+            // If so, we need to be a refinement, not a new span.
             let mut span_attributes = Vec::new();
             for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                 if let Some(a) = v2_catalog.convert_ref(attr) {
@@ -62,30 +83,33 @@ pub fn convert_v1_to_v2(
                     // TODO logic error!
                 }
             }
-            spans.push(Span {
-                // TODO - Strip the `span.` from the name if it exists.
-                r#type: g.id.clone().into(),
-                kind: g
-                    .span_kind
-                    .clone()
-                    .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                // TODO - Pass advanced name controls through V1 groups.
-                name: SpanName {
-                    note: g.name.clone().unwrap_or_default(),
-                },
-                entity_associations: g.entity_associations.clone(),
-                common: CommonFields {
-                    brief: g.brief.clone(),
-                    note: g.note.clone(),
-                    stability: g
-                        .stability
+            if !is_refinement {
+                spans.push(Span {
+                    // TODO - Strip the `span.` from the name if it exists.
+                    // TODO - Understand 'extends' and 'refinement' here.
+                    r#type: g.id.clone().into(),
+                    kind: g
+                        .span_kind
                         .clone()
-                        .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                    deprecated: g.deprecated.clone(),
-                    annotations: g.annotations.clone().unwrap_or_default(),
-                },
-                attributes: span_attributes,
-            });
+                        .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
+                    // TODO - Pass advanced name controls through V1 groups.
+                    name: SpanName {
+                        note: g.name.clone().unwrap_or_default(),
+                    },
+                    entity_associations: g.entity_associations.clone(),
+                    common: CommonFields {
+                        brief: g.brief.clone(),
+                        note: g.note.clone(),
+                        stability: g
+                            .stability
+                            .clone()
+                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                        deprecated: g.deprecated.clone(),
+                        annotations: g.annotations.clone().unwrap_or_default(),
+                    },
+                    attributes: span_attributes,
+                });
+            }
         }
     }
 
@@ -111,11 +135,15 @@ mod tests {
         let test_refs = v1_catalog.add_attributes([
             Attribute {
                 name: "test.key".to_owned(),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
                 brief: "".to_owned(),
                 examples: None,
                 tag: None,
-                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(weaver_semconv::attribute::BasicRequirementLevelSpec::Required),
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
                 sampling_relevant: None,
                 note: "".to_string(),
                 stability: Some(Stability::Stable),
@@ -128,11 +156,15 @@ mod tests {
             },
             Attribute {
                 name: "test.key".to_owned(),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
                 brief: "".to_owned(),
                 examples: None,
                 tag: None,
-                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended),
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                ),
                 sampling_relevant: Some(true),
                 note: "".to_string(),
                 stability: Some(Stability::Stable),
@@ -146,30 +178,28 @@ mod tests {
         ]);
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
-            groups: vec![
-                Group { 
-                    id: "span.my-span".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    attributes: vec![test_refs[1].clone()],
-                    span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: Some("my span name".to_owned()),
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                    annotations: None,
-                    entity_associations: vec![],
-                },
-            ],
+            groups: vec![Group {
+                id: "span.my-span".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![test_refs[1].clone()],
+                span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some("my span name".to_owned()),
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+            }],
         };
 
         let (v2_catalog, v2_registry) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();

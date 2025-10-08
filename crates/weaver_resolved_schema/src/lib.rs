@@ -10,6 +10,7 @@ use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::{Group, Registry};
 use crate::resource::Resource;
+use crate::v2::convert_v1_to_v2;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -105,6 +106,15 @@ impl ResolvedTelemetrySchema {
             versions: None,
             registry_manifest: None,
         }
+    }
+
+    // For testing for now.
+    /// Convert this schema into V2
+    #[must_use]
+    pub fn create_v2_registry(
+        self,
+    ) -> Result<(v2::catalog::Catalog, v2::registry::Registry), error::Error> {
+        convert_v1_to_v2(self.catalog, self.registry)
     }
 
     #[cfg(test)]

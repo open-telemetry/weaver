@@ -550,6 +550,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         attrs,
                         unresolved_group.group.lineage.as_mut(),
                     );
+                    if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                        lineage.extends(extends);
+                    }
                     _ = unresolved_group.group.extends.take();
                     _ = group_index.insert(
                         unresolved_group.group.id.clone(),
