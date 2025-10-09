@@ -3,7 +3,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::v2::span::Span;
+use crate::v2::span::{Span, SpanRefinement};
 
 /// A semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -14,5 +14,8 @@ pub struct Registry {
 
     /// A  list of span definitions.
     pub spans: Vec<Span>,
+
+    /// A  list of span refinements.
+    pub span_refinements: Vec<SpanRefinement>,
     // TODO - Signal types.
 }

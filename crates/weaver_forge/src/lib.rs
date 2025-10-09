@@ -968,7 +968,7 @@ mod tests {
         assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
 
         // TODO - Remove this.
-        let (rv2, cv2) = schema.create_v2_registry().unwrap();
+        let (cv2, rv2) = schema.create_v2_registry().unwrap();
         fs::write(
             "observed_output/test/v2_registry.yaml",
             serde_yaml::to_string(&rv2).unwrap(),
