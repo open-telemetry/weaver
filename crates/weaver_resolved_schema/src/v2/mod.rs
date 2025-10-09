@@ -7,10 +7,14 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::span::{Span, SpanRefinement};
+use crate::v2::{
+    metric::Metric,
+    span::{Span, SpanRefinement},
+};
 
 pub mod attribute;
 pub mod catalog;
+pub mod metric;
 pub mod registry;
 pub mod span;
 
@@ -64,78 +68,40 @@ pub fn convert_v1_to_v2(
         println!("Group {} is type: {:?}", &g.id, g.r#type);
         let _ = group_type_lookup.insert(g.id.clone(), g.r#type.clone());
     }
-    // Pull spans from the registry and create a new span-focused registry.
+    // Pull signals from the registry and create a new span-focused registry.
     let mut spans = Vec::new();
     let mut span_refinements = Vec::new();
+    let mut metrics = Vec::new();
+    let mut metric_refinements = Vec::new();
+
     for g in r.groups.iter() {
-        if g.r#type == GroupType::Span {
-            // TODO - Check if we extend another span.
-            let extend_type = g.extends.as_ref().and_then(|id| group_type_lookup.get(id));
-            let is_refinement = g
-                .lineage
-                .as_ref()
-                .and_then(|l| l.extends_group.as_ref())
-                .and_then(|parent| group_type_lookup.get(parent))
-                .map(|t| *t == GroupType::Span)
-                .unwrap_or(false);
-            println!(
-                "Group {} is_refinement: {}, extends: {:?}",
-                &g.id, is_refinement, extend_type
-            );
-            // If so, we need to be a refinement, not a new span.
-            let mut span_attributes = Vec::new();
-            for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-                if let Some(a) = v2_catalog.convert_ref(attr) {
-                    span_attributes.push(span::SpanAttributeRef {
-                        base: a,
-                        requirement_level: attr.requirement_level.clone(),
-                        sampling_relevant: attr.sampling_relevant.clone(),
-                    });
-                } else {
-                    // TODO logic error!
-                }
-            }
-            if !is_refinement {
-                let span = Span {
-                    r#type: fix_span_group_id(&g.id),
-                    kind: g
-                        .span_kind
-                        .clone()
-                        .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                    // TODO - Pass advanced name controls through V1 groups.
-                    name: SpanName {
-                        note: g.name.clone().unwrap_or_default(),
-                    },
-                    entity_associations: g.entity_associations.clone(),
-                    common: CommonFields {
-                        brief: g.brief.clone(),
-                        note: g.note.clone(),
-                        stability: g
-                            .stability
-                            .clone()
-                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                        deprecated: g.deprecated.clone(),
-                        annotations: g.annotations.clone().unwrap_or_default(),
-                    },
-                    attributes: span_attributes,
-                };
-                spans.push(span.clone());
-                span_refinements.push(SpanRefinement {
-                    id: span.r#type.clone(),
-                    span,
-                });
-            } else {
-                // unwrap should be safe becasue we verified this is a refinement earlier.
-                let span_type = g
+        let extend_type = g.extends.as_ref().and_then(|id| group_type_lookup.get(id));
+        match g.r#type {
+            GroupType::Span => {
+                // Check if we extend another span.
+                let is_refinement = g
                     .lineage
                     .as_ref()
                     .and_then(|l| l.extends_group.as_ref())
-                    .map(|id| fix_span_group_id(id))
-                    .unwrap();
-                span_refinements.push(SpanRefinement {
-                    id: fix_span_group_id(&g.id),
-                    span: Span {
-                        r#type: span_type,
+                    .and_then(|parent| group_type_lookup.get(parent))
+                    .map(|t| *t == GroupType::Span)
+                    .unwrap_or(false);
+                // Pull all the attribute references.
+                let mut span_attributes = Vec::new();
+                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
+                    if let Some(a) = v2_catalog.convert_ref(attr) {
+                        span_attributes.push(span::SpanAttributeRef {
+                            base: a,
+                            requirement_level: attr.requirement_level.clone(),
+                            sampling_relevant: attr.sampling_relevant.clone(),
+                        });
+                    } else {
+                        // TODO logic error!
+                    }
+                }
+                if !is_refinement {
+                    let span = Span {
+                        r#type: fix_span_group_id(&g.id),
                         kind: g
                             .span_kind
                             .clone()
@@ -156,8 +122,114 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
+                    };
+                    spans.push(span.clone());
+                    span_refinements.push(SpanRefinement {
+                        id: span.r#type.clone(),
+                        span,
+                    });
+                } else {
+                    // unwrap should be safe becasue we verified this is a refinement earlier.
+                    let span_type = g
+                        .lineage
+                        .as_ref()
+                        .and_then(|l| l.extends_group.as_ref())
+                        .map(|id| fix_span_group_id(id))
+                        .unwrap();
+                    span_refinements.push(SpanRefinement {
+                        id: fix_span_group_id(&g.id),
+                        span: Span {
+                            r#type: span_type,
+                            kind: g
+                                .span_kind
+                                .clone()
+                                .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
+                            // TODO - Pass advanced name controls through V1 groups.
+                            name: SpanName {
+                                note: g.name.clone().unwrap_or_default(),
+                            },
+                            entity_associations: g.entity_associations.clone(),
+                            common: CommonFields {
+                                brief: g.brief.clone(),
+                                note: g.note.clone(),
+                                stability: g
+                                    .stability
+                                    .clone()
+                                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                                deprecated: g.deprecated.clone(),
+                                annotations: g.annotations.clone().unwrap_or_default(),
+                            },
+                            attributes: span_attributes,
+                        },
+                    })
+                }
+            }
+            GroupType::Event => {
+                // todo!()
+            }
+            GroupType::Metric => {
+                // Check if we extend another metric.
+                let is_refinement = g
+                    .lineage
+                    .as_ref()
+                    .and_then(|l| l.extends_group.as_ref())
+                    .and_then(|parent| group_type_lookup.get(parent))
+                    .map(|t| *t == GroupType::Metric)
+                    .unwrap_or(false);
+                println!(
+                    "Group {} is_refinement: {}, extends: {:?}",
+                    &g.id, is_refinement, extend_type
+                );
+                let mut metric_attributes = Vec::new();
+                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
+                    if let Some(a) = v2_catalog.convert_ref(attr) {
+                        metric_attributes.push(metric::MetricAttributeRef {
+                            base: a,
+                            requirement_level: attr.requirement_level.clone(),
+                        });
+                    } else {
+                        // TODO logic error!
+                    }
+                }
+                // TODO - deal with unwrap errors.
+                let metric = Metric {
+                    name: g.metric_name.clone().unwrap().into(),
+                    instrument: g.instrument.clone().unwrap(),
+                    unit: g.unit.clone().unwrap(),
+                    attributes: metric_attributes,
+                    entity_associations: g.entity_associations.clone(),
+                    common: CommonFields {
+                        brief: g.brief.clone(),
+                        note: g.note.clone(),
+                        stability: g
+                            .stability
+                            .clone()
+                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                        deprecated: g.deprecated.clone(),
+                        annotations: g.annotations.clone().unwrap_or_default(),
                     },
-                })
+                };
+                if is_refinement {
+                    metric_refinements.push(metric::MetricRefinement {
+                        id: fix_group_id("metric.", &g.id),
+                        metric,
+                    });
+                } else {
+                    metrics.push(metric.clone());
+                    metric_refinements.push(metric::MetricRefinement {
+                        id: metric.name.clone(),
+                        metric,
+                    });
+                }
+            }
+            GroupType::Entity => {
+                // todo!()
+            }
+            GroupType::AttributeGroup
+            | GroupType::MetricGroup
+            | GroupType::Scope
+            | GroupType::Undefined => {
+                // Ignored for now, we should probably issue warnings.
             }
         }
     }
@@ -166,6 +238,8 @@ pub fn convert_v1_to_v2(
         registry_url: r.registry_url,
         spans,
         span_refinements,
+        metrics,
+        metric_refinements,
     };
     Ok((v2_catalog, v2_registry))
 }
