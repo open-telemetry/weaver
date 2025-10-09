@@ -57,3 +57,18 @@ pub struct SpanAttributeRef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling_relevant: Option<bool>,
 }
+
+/// A refinement of a span, for use in code-gen or specific library application.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+pub struct SpanRefinement {
+    /// The identity of the refinement
+    pub id: SignalId,
+
+    // TODO - This is a lazy way of doing this.  We use `type` to refer
+    // to the underlying span defintiion, but override all fields here.
+    // We probably should copy-paste all the "span" attributes here
+    // including the `ty`
+    /// The definition of the span refinement.
+    #[serde(flatten)]
+    pub span: Span,
+}

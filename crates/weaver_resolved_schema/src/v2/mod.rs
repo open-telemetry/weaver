@@ -4,15 +4,27 @@ use std::collections::{HashMap, HashSet};
 
 use weaver_semconv::{
     group::GroupType,
-    v2::{span::SpanName, CommonFields},
+    v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::span::Span;
+use crate::v2::span::{Span, SpanRefinement};
 
 pub mod attribute;
 pub mod catalog;
 pub mod registry;
 pub mod span;
+
+fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
+    if group_id.starts_with(prefix) {
+        group_id.trim_start_matches(prefix).to_owned().into()
+    } else {
+        group_id.to_owned().into()
+    }
+}
+
+fn fix_span_group_id(group_id: &str) -> SignalId {
+    fix_group_id("span.", group_id)
+}
 
 /// Converts a V1 registry + catalog to V2.
 pub fn convert_v1_to_v2(
@@ -54,11 +66,11 @@ pub fn convert_v1_to_v2(
     }
     // Pull spans from the registry and create a new span-focused registry.
     let mut spans = Vec::new();
+    let mut span_refinements = Vec::new();
     for g in r.groups.iter() {
         if g.r#type == GroupType::Span {
             // TODO - Check if we extend another span.
             let extend_type = g.extends.as_ref().and_then(|id| group_type_lookup.get(id));
-
             let is_refinement = g
                 .lineage
                 .as_ref()
@@ -84,10 +96,8 @@ pub fn convert_v1_to_v2(
                 }
             }
             if !is_refinement {
-                spans.push(Span {
-                    // TODO - Strip the `span.` from the name if it exists.
-                    // TODO - Understand 'extends' and 'refinement' here.
-                    r#type: g.id.clone().into(),
+                let span = Span {
+                    r#type: fix_span_group_id(&g.id),
                     kind: g
                         .span_kind
                         .clone()
@@ -108,7 +118,46 @@ pub fn convert_v1_to_v2(
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
                     attributes: span_attributes,
+                };
+                spans.push(span.clone());
+                span_refinements.push(SpanRefinement {
+                    id: span.r#type.clone(),
+                    span,
                 });
+            } else {
+                // unwrap should be safe becasue we verified this is a refinement earlier.
+                let span_type = g
+                    .lineage
+                    .as_ref()
+                    .and_then(|l| l.extends_group.as_ref())
+                    .map(|id| fix_span_group_id(id))
+                    .unwrap();
+                span_refinements.push(SpanRefinement {
+                    id: fix_span_group_id(&g.id),
+                    span: Span {
+                        r#type: span_type,
+                        kind: g
+                            .span_kind
+                            .clone()
+                            .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
+                        // TODO - Pass advanced name controls through V1 groups.
+                        name: SpanName {
+                            note: g.name.clone().unwrap_or_default(),
+                        },
+                        entity_associations: g.entity_associations.clone(),
+                        common: CommonFields {
+                            brief: g.brief.clone(),
+                            note: g.note.clone(),
+                            stability: g
+                                .stability
+                                .clone()
+                                .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                            deprecated: g.deprecated.clone(),
+                            annotations: g.annotations.clone().unwrap_or_default(),
+                        },
+                        attributes: span_attributes,
+                    },
+                })
             }
         }
     }
@@ -116,6 +165,7 @@ pub fn convert_v1_to_v2(
     let v2_registry = registry::Registry {
         registry_url: r.registry_url,
         spans,
+        span_refinements,
     };
     Ok((v2_catalog, v2_registry))
 }
@@ -123,14 +173,14 @@ pub fn convert_v1_to_v2(
 #[cfg(test)]
 mod tests {
 
-    use weaver_semconv::{stability::Stability, v2};
+    use weaver_semconv::{provenance::Provenance, stability::Stability, v2};
 
-    use crate::{attribute::Attribute, registry::Group};
+    use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
 
     use super::*;
 
     #[test]
-    fn test_convert_v1_to_v2() {
+    fn test_convert_span_v1_to_v2() {
         let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
         let test_refs = v1_catalog.add_attributes([
             Attribute {
@@ -176,36 +226,77 @@ mod tests {
                 role: None,
             },
         ]);
+        let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        refinement_span_lineage.extends("span.my-span");
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
-            groups: vec![Group {
-                id: "span.my-span".to_owned(),
-                r#type: GroupType::Span,
-                brief: "".to_owned(),
-                note: "".to_owned(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(Stability::Stable),
-                deprecated: None,
-                attributes: vec![test_refs[1].clone()],
-                span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: Some("my span name".to_owned()),
-                lineage: None,
-                display_name: None,
-                body: None,
-                annotations: None,
-                entity_associations: vec![],
-            }],
+            groups: vec![
+                Group {
+                    id: "span.my-span".to_owned(),
+                    r#type: GroupType::Span,
+                    brief: "".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    attributes: vec![test_refs[1].clone()],
+                    span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some("my span name".to_owned()),
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                },
+                Group {
+                    id: "span.custom".to_owned(),
+                    r#type: GroupType::Span,
+                    brief: "".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    attributes: vec![test_refs[1].clone()],
+                    span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some("my span name".to_owned()),
+                    lineage: Some(refinement_span_lineage),
+                    display_name: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                },
+            ],
         };
 
         let (v2_catalog, v2_registry) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
-        println!("Catalog: {v2_catalog:?}");
-        // TODO - assert only ONE attribute due to sharing.
-        println!("Registry: {v2_registry:?}");
-        // TODO - assert attribute fields not shared show up on ref in span.
+        // assert only ONE attribute due to sharing.
+        assert_eq!(v2_catalog.attributes().len(), 1);
+        // assert attribute fields not shared show up on ref in span.
+        assert_eq!(v2_registry.spans.len(), 1);
+        if let Some(span) = v2_registry.spans.iter().next() {
+            assert_eq!(span.r#type, "my-span".to_owned().into());
+            // Make sure attribute ref carries sampling relevant.
+        }
+        // Assert we have two refinements (e.g. one real span, one refinement).
+        assert_eq!(v2_registry.span_refinements.len(), 2);
+        let span_ref_ids: Vec<String> = v2_registry
+            .span_refinements
+            .iter()
+            .map(|s| s.id.to_string())
+            .collect();
+        assert_eq!(
+            span_ref_ids,
+            vec!["my-span".to_owned(), "custom".to_owned()]
+        );
     }
 }

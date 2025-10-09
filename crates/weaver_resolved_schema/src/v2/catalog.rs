@@ -25,6 +25,11 @@ impl Catalog {
         Self { attributes }
     }
 
+    #[cfg(test)]
+    pub(crate) fn attributes(&self) -> &Vec<Attribute> {
+        &self.attributes
+    }
+
     /// Returns the attribute name from an attribute ref if it exists
     /// in the catalog or None if it does not exist.
     #[must_use]
