@@ -373,4 +373,125 @@ mod tests {
             vec!["my-span".to_owned(), "custom".to_owned()]
         );
     }
+
+    #[test]
+    fn test_convert_metric_v1_to_v2() {
+        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
+        let test_refs = v1_catalog.add_attributes([
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_string(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                ),
+                sampling_relevant: Some(true),
+                note: "".to_string(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+        ]);
+        let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        refinement_metric_lineage.extends("metric.http");
+        let v1_registry = crate::registry::Registry {
+            registry_url: "my.schema.url".to_owned(),
+            groups: vec![
+                Group {
+                    id: "metric.http".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    attributes: vec![test_refs[0].clone()],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("http".to_owned()),
+                    instrument: Some(weaver_semconv::group::InstrumentSpec::UpDownCounter),
+                    unit: Some("s".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                },
+                Group {
+                    id: "metric.http.custom".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    attributes: vec![test_refs[1].clone()],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("http".to_owned()),
+                    instrument: Some(weaver_semconv::group::InstrumentSpec::UpDownCounter),
+                    unit: Some("s".to_owned()),
+                    name: None,
+                    lineage: Some(refinement_metric_lineage),
+                    display_name: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                },
+            ],
+        };
+
+        let (v2_catalog, v2_registry) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
+        // assert only ONE attribute due to sharing.
+        assert_eq!(v2_catalog.attributes().len(), 1);
+        // assert attribute fields not shared show up on ref in span.
+        assert_eq!(v2_registry.metrics.len(), 1);
+        if let Some(metric) = v2_registry.metrics.iter().next() {
+            assert_eq!(metric.name, "http".to_owned().into());
+            // Make sure attribute ref carries sampling relevant.
+        }
+        // Assert we have two refinements (e.g. one real span, one refinement).
+        assert_eq!(v2_registry.metric_refinements.len(), 2);
+        let metric_ref_ids: Vec<String> = v2_registry
+            .metric_refinements
+            .iter()
+            .map(|s| s.id.to_string())
+            .collect();
+        assert_eq!(
+            metric_ref_ids,
+            vec!["http".to_owned(), "http.custom".to_owned()]
+        );
+    }
 }

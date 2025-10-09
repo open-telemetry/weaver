@@ -20,17 +20,19 @@ pub struct Metric {
     /// synchronous instrument types (counter, gauge, updowncounter and
     /// histogram).
     /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
-    /// Note: This field is required if type is metric.
     pub instrument: InstrumentSpec,
     /// The unit in which the metric is measured, which should adhere to the
     /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
     pub unit: String,
-    /// List of attributes that belong to the semantic convention.
+    /// List of attributes that should be included on this metric.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<MetricAttributeRef>,
     // TODO - Should Entity Associations be "strong" links?
     /// Which resources this span should be associated with.
+    ///
+    /// This list is an "any of" list, where a metric may be associated with one or more entities, but should
+    /// be associated with at least one in this list.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
@@ -44,20 +46,28 @@ pub struct Metric {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MetricAttributeRef {
-    /// Underlying attribute.
+    /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,
     /// Specifies if the attribute is mandatory. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
     /// the attribute is "recommended". When set to
     /// "conditionally_required", the string provided as <condition> MUST
     /// specify the conditions under which the attribute is required.
+    ///
+    /// Note: For attributes that are "recommended" or "opt-in" - not all metric source will
+    /// create timeseries with these attributes, but for any given timeseries instance, the attributes that *were* present
+    /// should *remain* present. That is - a metric timeseries cannot drop attributes during its lifetime.
     pub requirement_level: RequirementLevel,
 }
 
 /// A refinement of a metric signal, for use in code-gen or specific library application.
+///
+/// A refinement represents a "view" of a Metric that is highly optimised for a particular implementation.
+/// e.g. for HTTP metrics, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
+/// client library, and drops optional or extraneous information from the underlying http metric.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct MetricRefinement {
-    /// The identity of the refinement
+    /// The identity of the refinement.
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `type` to refer
