@@ -8,12 +8,15 @@ use weaver_semconv::{
 };
 
 use crate::v2::{
+    entity::Entity,
     metric::Metric,
     span::{Span, SpanRefinement},
 };
 
 pub mod attribute;
 pub mod catalog;
+pub mod entity;
+pub mod event;
 pub mod metric;
 pub mod registry;
 pub mod span;
@@ -73,7 +76,9 @@ pub fn convert_v1_to_v2(
     let mut span_refinements = Vec::new();
     let mut metrics = Vec::new();
     let mut metric_refinements = Vec::new();
-
+    let mut events = Vec::new();
+    let mut event_refinements = Vec::new();
+    let mut entities = Vec::new();
     for g in r.groups.iter() {
         let extend_type = g.extends.as_ref().and_then(|id| group_type_lookup.get(id));
         match g.r#type {
@@ -165,7 +170,51 @@ pub fn convert_v1_to_v2(
                 }
             }
             GroupType::Event => {
-                // todo!()
+                let is_refinement = g
+                    .lineage
+                    .as_ref()
+                    .and_then(|l| l.extends_group.as_ref())
+                    .and_then(|parent| group_type_lookup.get(parent))
+                    .map(|t| *t == GroupType::Event)
+                    .unwrap_or(false);
+                let mut event_attributes = Vec::new();
+                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
+                    if let Some(a) = v2_catalog.convert_ref(attr) {
+                        event_attributes.push(event::EventAttributeRef {
+                            base: a,
+                            requirement_level: attr.requirement_level.clone(),
+                        });
+                    } else {
+                        // TODO logic error!
+                    }
+                }
+                let event = event::Event {
+                    name: g.name.clone().unwrap().into(),
+                    attributes: event_attributes,
+                    entity_associations: g.entity_associations.clone(),
+                    common: CommonFields {
+                        brief: g.brief.clone(),
+                        note: g.note.clone(),
+                        stability: g
+                            .stability
+                            .clone()
+                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                        deprecated: g.deprecated.clone(),
+                        annotations: g.annotations.clone().unwrap_or_default(),
+                    },
+                };
+                if !is_refinement {
+                    events.push(event.clone());
+                    event_refinements.push(event::EventRefinement {
+                        id: event.name.clone(),
+                        event,
+                    });
+                } else {
+                    event_refinements.push(event::EventRefinement {
+                        id: fix_group_id("event.", &g.id),
+                        event,
+                    });
+                }
             }
             GroupType::Metric => {
                 // Check if we extend another metric.
@@ -223,7 +272,43 @@ pub fn convert_v1_to_v2(
                 }
             }
             GroupType::Entity => {
-                // todo!()
+                let mut id_attrs = Vec::new();
+                let mut desc_attrs = Vec::new();
+                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
+                    if let Some(a) = v2_catalog.convert_ref(attr) {
+                        match attr.role {
+                            Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
+                                id_attrs.push(entity::EntityAttributeRef {
+                                    base: a,
+                                    requirement_level: attr.requirement_level.clone(),
+                                });
+                            }
+                            _ => {
+                                desc_attrs.push(entity::EntityAttributeRef {
+                                    base: a,
+                                    requirement_level: attr.requirement_level.clone(),
+                                });
+                            }
+                        }
+                    } else {
+                        // TODO logic error!
+                    }
+                }
+                entities.push(Entity {
+                    r#type: fix_group_id("entity.", &g.id),
+                    identity: id_attrs,
+                    description: desc_attrs,
+                    common: CommonFields {
+                        brief: g.brief.clone(),
+                        note: g.note.clone(),
+                        stability: g
+                            .stability
+                            .clone()
+                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                        deprecated: g.deprecated.clone(),
+                        annotations: g.annotations.clone().unwrap_or_default(),
+                    },
+                });
             }
             GroupType::AttributeGroup
             | GroupType::MetricGroup
@@ -240,6 +325,9 @@ pub fn convert_v1_to_v2(
         span_refinements,
         metrics,
         metric_refinements,
+        events,
+        event_refinements,
+        entities,
     };
     Ok((v2_catalog, v2_registry))
 }
