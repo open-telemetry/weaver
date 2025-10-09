@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::v2::{
+    entity::Entity,
+    event::{Event, EventRefinement},
     metric::{Metric, MetricRefinement},
     span::{Span, SpanRefinement},
 };
@@ -38,10 +40,18 @@ pub struct Registry {
     /// A  list of metric signal definitions.
     pub metrics: Vec<Metric>,
 
+    /// A  list of event signal definitions.
+    pub events: Vec<Event>,
+
+    /// A  list of entity signal definitions.
+    pub entities: Vec<Entity>,
+
     /// A  list of span refinements.
     pub span_refinements: Vec<SpanRefinement>,
 
     /// A  list of metric refinements.
     pub metric_refinements: Vec<MetricRefinement>,
-    // TODO - Signal types.
+
+    /// A  list of event refinements.
+    pub event_refinements: Vec<EventRefinement>,
 }
