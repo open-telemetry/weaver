@@ -18,7 +18,6 @@ pub struct Span {
     /// of the "shape" of this span, and must be unique.
     pub r#type: SignalId,
     /// Specifies the kind of the span.
-    /// Note: only valid if type is span
     pub kind: SpanKindSpec,
     /// The name pattern for the span.
     pub name: SpanName,
@@ -29,6 +28,9 @@ pub struct Span {
     pub attributes: Vec<SpanAttributeRef>,
     // TODO - Should Entity Associations be "strong" links?
     /// Which resources this span should be associated with.
+    ///
+    /// This list is an "any of" list, where a span may be associated with one or more entities, but should
+    /// be associated with at least one in this list.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
@@ -38,12 +40,11 @@ pub struct Span {
     pub common: CommonFields,
 }
 
-/// A special type of attribute reference that remembers if something
-/// is sampling relevant.
+/// A special type of reference to attributes that remembers span-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpanAttributeRef {
-    /// Underlying attribute.
+    /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,
     /// Specifies if the attribute is mandatory. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
@@ -53,12 +54,15 @@ pub struct SpanAttributeRef {
     pub requirement_level: RequirementLevel,
     /// Specifies if the attribute is (especially) relevant for sampling
     /// and thus should be set at span start. It defaults to false.
-    /// Note: this field is experimental.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling_relevant: Option<bool>,
 }
 
 /// A refinement of a span, for use in code-gen or specific library application.
+///
+/// A refinement represents a "view" of a Span that is highly optimised for a particular implementation.
+/// e.g. for HTTP spans, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
+/// client library, and drops optional or extraneous information from the underlying http span.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct SpanRefinement {
     /// The identity of the refinement
