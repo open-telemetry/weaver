@@ -276,7 +276,10 @@ impl VirtualDirectory {
     /// - Extracting local archives.
     ///
     /// Returns an [`Error`] if any operation fails (e.g. network issues, invalid paths, extraction failures).    
-    pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
+    pub fn try_new(
+        vdir_path: &VirtualDirectoryPath,
+        auth_token: Option<&String>,
+    ) -> Result<Self, Error> {
         let vdir_path_repr = vdir_path.to_string();
         let vdir = match vdir_path {
             LocalFolder { path } => Ok(Self {
@@ -297,7 +300,13 @@ impl VirtualDirectory {
                 // Create a temporary directory for the virtual directory that will be deleted
                 // when the `VirtualDirectory` goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_remote_archive(url, sub_folder.as_ref(), tmp_dir, vdir_path_repr)
+                Self::try_from_remote_archive(
+                    url,
+                    sub_folder.as_ref(),
+                    tmp_dir,
+                    vdir_path_repr,
+                    auth_token,
+                )
             }
         };
         vdir
@@ -593,6 +602,7 @@ impl VirtualDirectory {
     /// The sub_folder is used to filter the entries inside the archive to unpack.
     /// The temporary directory is created in the `.weaver/vdir_cache`.
     /// The temporary directory is deleted when the [`VirtualDirectory`] goes out of scope.
+    /// The auth_token is used to authenticate with the remote using Bearer schema.
     ///
     /// Arguments:
     /// - `id`: The unique identifier for the registry.
@@ -605,11 +615,18 @@ impl VirtualDirectory {
         sub_folder: Option<&String>,
         target_dir: TempDir,
         vdir_path: String,
+        auth_token: Option<&String>,
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
 
+        let mut req = ureq::get(url);
+
+        if let Some(auth_token) = auth_token {
+            req = req.set("Authorization", format!("Bearer {}", auth_token).as_str());
+        };
+
         // Download the archive from the URL
-        let response = ureq::get(url).call().map_err(|e| InvalidRegistryArchive {
+        let response = req.call().map_err(|e| InvalidRegistryArchive {
             archive: url.to_owned(),
             error: e.to_string(),
         })?;
@@ -845,7 +862,7 @@ mod tests {
         let vdir_path = VirtualDirectoryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = VirtualDirectory::try_new(&vdir_path).unwrap();
+        let repo = VirtualDirectory::try_new(&vdir_path, None).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(
@@ -859,7 +876,7 @@ mod tests {
     }
 
     fn check_archive(vdir_path: VirtualDirectoryPath, file_to_check: Option<&str>) {
-        let repo = VirtualDirectory::try_new(&vdir_path).unwrap();
+        let repo = VirtualDirectory::try_new(&vdir_path, None).unwrap();
         let repo_path = repo.path().to_path_buf();
         // At this point, the repo should be cloned into a temporary directory.
         assert!(repo_path.exists());

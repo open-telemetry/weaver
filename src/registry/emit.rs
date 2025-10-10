@@ -98,6 +98,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
