@@ -3,3 +3,4 @@
 pub mod attribute;
 pub mod metric;
 pub mod registry;
+pub mod span;

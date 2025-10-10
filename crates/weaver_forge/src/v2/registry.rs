@@ -8,7 +8,7 @@ use crate::{
     error::Error,
     v2::{
         attribute::Attribute,
-        metric::{Metric, MetricAttribute, MetricRefinement},
+        metric::{Metric, MetricAttribute, MetricRefinement}, span::{Span, SpanAttribute, SpanRefinement},
     },
 };
 
@@ -35,6 +35,8 @@ pub struct ResolvedRegistry {
 pub struct Signals {
     /// The metric signals defined.
     pub metrics: Vec<Metric>,
+    /// The span signals defined.
+    pub spans: Vec<Span>,
 }
 
 /// The set of all refinements for a semantic convention registry.
@@ -47,6 +49,8 @@ pub struct Signals {
 pub struct Refinements {
     /// The metric refinements defined.
     pub metrics: Vec<MetricRefinement>,
+    /// The span refinements defined.
+    pub spans: Vec<SpanRefinement>,
 }
 
 impl ResolvedRegistry {
@@ -127,15 +131,89 @@ impl ResolvedRegistry {
             });
         }
 
+        let mut spans = Vec::new();
+        for span in schema.registry.spans {
+            let attributes = span
+                .attributes
+                .iter()
+                .filter_map(|ar| {
+                    let attr = schema.catalog.attribute(&ar.base).map(|a| SpanAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                        sampling_relevant: ar.sampling_relevant.clone(),
+                    });
+                    if attr.is_none() {
+                        errors.push(Error::AttributeNotFound {
+                            group_id: format!("span.{}", &span.r#type),
+                            attr_ref: AttributeRef(ar.base.0),
+                        });
+                    }
+                    attr
+                })
+                .collect();
+            spans.push(Span {
+                r#type: span.r#type,
+                kind: span.kind,
+                name: span.name,
+                attributes,
+                entity_associations: span.entity_associations,
+                common: span.common,
+            });
+        }
+        let mut span_refinements = Vec::new();
+        for span in schema.registry.span_refinements {
+            let attributes = span
+                .span
+                .attributes
+                .iter()
+                .filter_map(|ar| {
+                    let attr = schema.catalog.attribute(&ar.base).map(|a| SpanAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                        sampling_relevant: ar.sampling_relevant.clone(),
+                    });
+                    if attr.is_none() {
+                        errors.push(Error::AttributeNotFound {
+                            group_id: format!("span.{}", &span.id),
+                            attr_ref: AttributeRef(ar.base.0),
+                        });
+                    }
+                    attr
+                })
+                .collect();
+            span_refinements.push(
+                SpanRefinement { 
+                    id: span.id, 
+                    span: Span {
+                r#type: span.span.r#type,
+                kind: span.span.kind,
+                name: span.span.name,
+                attributes,
+                entity_associations: span.span.entity_associations,
+                common: span.span.common,
+            }
+                });
+        }
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
         }
 
         Ok(Self {
             registry_url: schema.schema_url.clone(),
-            signals: Signals { metrics },
+            signals: Signals { metrics, spans },
             refinements: Refinements {
                 metrics: metric_refinements,
+                spans: span_refinements,
             },
         })
     }
