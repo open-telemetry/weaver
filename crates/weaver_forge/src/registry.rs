@@ -239,12 +239,12 @@ impl ResolvedRegistry {
             })
             .collect();
 
-        // Sort groups by id for deterministic output
-        groups.sort_by(|a, b| a.id.cmp(&b.id));
-
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
         }
+
+        // Sort groups by id for deterministic output
+        groups.sort_by(|a, b| a.id.cmp(&b.id));
 
         Ok(Self {
             registry_url: registry.registry_url.clone(),
