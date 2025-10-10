@@ -111,10 +111,17 @@ impl ResolvedTelemetrySchema {
     // For testing for now.
     /// Convert this schema into V2
     #[must_use]
-    pub fn create_v2_registry(
-        self,
-    ) -> Result<(v2::catalog::Catalog, v2::registry::Registry), error::Error> {
-        convert_v1_to_v2(self.catalog, self.registry)
+    pub fn create_v2_schema(self) -> Result<v2::ResolvedTelemetrySchema, error::Error> {
+        convert_v1_to_v2(self.catalog, self.registry).map(|(c, r)| {
+            v2::ResolvedTelemetrySchema {
+                // TODO - bump file format version.
+                file_format: self.file_format,
+                schema_url: self.schema_url,
+                registry_id: self.registry_id,
+                catalog: c,
+                registry: r,
+            }
+        })
     }
 
     #[cfg(test)]

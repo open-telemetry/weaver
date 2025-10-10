@@ -314,6 +314,7 @@ pub(crate) fn prepare_main_registry(
         resolve_semconv_specs(&mut main_registry, registry_args.include_unreferenced)
             .capture_non_fatal_errors(diag_msgs)?;
 
+    // This creates the template/json friendly registry.
     let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
         &main_resolved_schema.registry,
         main_resolved_schema.catalog(),
@@ -343,4 +344,127 @@ pub(crate) fn prepare_main_registry(
     }
 
     Ok((main_resolved_registry, policy_engine))
+}
+
+
+
+/// Resolves the main registry and optionally checks policies.
+/// This is a common starting point for some `registry` commands.
+/// e.g., `check`, `generate`, `resolve`
+///
+/// # Arguments
+///
+/// * `registry_args` - The common CLI args for the main registry.
+/// * `policy_args` - The common CLI args for policies.
+/// * `diag_msgs` - The DiagnosticMessages to append to.
+///
+/// # Returns
+///
+/// A `Result` containing the `ResolvedRegistry` and `PolicyEngine` on success, or
+/// `DiagnosticMessages` on failure.
+pub(crate) fn prepare_main_registry_v2(
+    registry_args: &RegistryArgs,
+    policy_args: &PolicyArgs,
+    diag_msgs: &mut DiagnosticMessages,
+) -> Result<(weaver_forge::v2::registry::ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
+    let registry_path = &registry_args.registry;
+
+    let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+
+    // Load the semantic convention specs
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, registry_args.follow_symlinks)
+        .capture_non_fatal_errors(diag_msgs)?;
+
+    // Optionally init policy engine
+    let mut policy_engine = if !policy_args.skip_policies {
+        // Create and hold all VirtualDirectory instances to keep them from being dropped
+        let policy_vdirs: Vec<VirtualDirectory> = policy_args
+            .policies
+            .iter()
+            .map(|path| {
+                VirtualDirectory::try_new(path).map_err(|e| {
+                    DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
+                        path: path.to_string(),
+                        error: e.to_string(),
+                    })
+                })
+            })
+            .collect::<Result<_, _>>()?;
+
+        // Extract paths from VirtualDirectory instances
+        let policy_paths: Vec<PathBuf> = policy_vdirs
+            .iter()
+            .map(|vdir| vdir.path().to_owned())
+            .collect();
+
+        Some(init_policy_engine(
+            &main_registry_repo,
+            &policy_paths,
+            policy_args.display_policy_coverage,
+        )?)
+    } else {
+        None
+    };
+
+    // Check pre-resolution policies
+    if let Some(engine) = policy_engine.as_ref() {
+        check_policy(engine, &main_semconv_specs)
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    log_success(format!(
+                        "All `before_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    log_success("No `before_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+    }
+
+    // Resolve the main registry
+    let mut main_registry =
+        SemConvRegistry::from_semconv_specs(&main_registry_repo, main_semconv_specs)?;
+    // Resolve the semantic convention specifications.
+    // If there are any resolution errors, they should be captured into the ongoing list of
+    // diagnostic messages and returned immediately because there is no point in continuing
+    // as the resolution is a prerequisite for the next stages.
+    let main_resolved_schema =
+        resolve_semconv_specs(&mut main_registry, registry_args.include_unreferenced)
+            .capture_non_fatal_errors(diag_msgs)?;
+
+    // This creates the template/json friendly registry.
+    let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+        &main_resolved_schema.registry,
+        main_resolved_schema.catalog(),
+    )
+    .combine_diag_msgs_with(diag_msgs)?;
+
+    // Check post-resolution policies
+    if let Some(engine) = policy_engine.as_mut() {
+        check_policy_stage::<ResolvedRegistry, ()>(
+            engine,
+            PolicyStage::AfterResolution,
+            main_registry_repo.registry_path_repr(),
+            &main_resolved_registry,
+            &[],
+        )
+        .inspect(|_, violations| {
+            if let Some(violations) = violations {
+                log_success(format!(
+                    "All `after_resolution` policies checked ({} violations found)",
+                    violations.len()
+                ));
+            } else {
+                log_success("No `after_resolution` policy violation");
+            }
+        })
+        .capture_non_fatal_errors(diag_msgs)?;
+    }
+
+    // TODO - fix error passing here.
+    let v2_schema = main_resolved_schema.create_v2_schema().unwrap();
+    let v2_resolved_registry = 
+      weaver_forge::v2::registry::ResolvedRegistry::try_from_resolved_schema(v2_schema)?;
+    Ok((v2_resolved_registry, policy_engine))
 }
