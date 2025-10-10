@@ -25,8 +25,8 @@ impl Catalog {
         Self { attributes }
     }
 
-    #[cfg(test)]
-    pub(crate) fn attributes(&self) -> &Vec<Attribute> {
+    /// Lists all the attributes in the registry.
+    pub fn attributes(&self) -> &Vec<Attribute> {
         &self.attributes
     }
 
