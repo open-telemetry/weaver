@@ -1,32 +1,29 @@
-//! Span related definitions structs.
+//! Event related definitions structs.
 
-use crate::v2::attribute::Attribute;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
-    group::SpanKindSpec,
-    v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    v2::{signal_id::SignalId, CommonFields},
 };
 
-/// The definition of a span signal.
+use crate::v2::attribute::Attribute;
+
+/// The definition of an event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct Span {
-    /// The type of the Span. This denotes the identity
-    /// of the "shape" of this span, and must be unique.
-    pub r#type: SignalId,
-    /// Specifies the kind of the span.
-    pub kind: SpanKindSpec,
-    /// The name pattern for the span.
-    pub name: SpanName,
-    /// List of attributes that should be included on this span.
+pub struct Event {
+    /// The name of the event.
+    pub name: SignalId,
+
+    /// List of attributes that belong to this event.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttribute>,
+    pub attributes: Vec<EventAttribute>,
+
     /// Which resources this span should be associated with.
     ///
-    /// This list is an "any of" list, where a span may be associated with one or more entities, but should
+    /// This list is an "any of" list, where a metric may be associated with one or more entities, but should
     /// be associated with at least one in this list.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -37,10 +34,10 @@ pub struct Span {
     pub common: CommonFields,
 }
 
-/// A special type of reference to attributes that remembers span-specicific information.
+/// A special type of reference to attributes that remembers event-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct SpanAttribute {
+pub struct EventAttribute {
     /// Base attribute definitions.
     #[serde(flatten)]
     pub base: Attribute,
@@ -54,20 +51,15 @@ pub struct SpanAttribute {
     /// create timeseries with these attributes, but for any given timeseries instance, the attributes that *were* present
     /// should *remain* present. That is - a metric timeseries cannot drop attributes during its lifetime.
     pub requirement_level: RequirementLevel,
-
-    /// Specifies if the attribute is (especially) relevant for sampling
-    /// and thus should be set at span start. It defaults to false.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sampling_relevant: Option<bool>,
 }
 
-/// A refinement of a span signal, for use in code-gen or specific library application.
+/// A refinement of an event signal, for use in code-gen or specific library application.
 ///
-/// A refinement represents a "view" of a Span that is highly optimised for a particular implementation.
-/// e.g. for HTTP spans, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
-/// client library, and drops optional or extraneous information from the underlying http span.
+/// A refinement represents a "view" of an Event that is highly optimised for a particular implementation.
+/// e.g. for HTTP events, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
+/// client library, and drops optional or extraneous information from the underlying http event.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-pub struct SpanRefinement {
+pub struct EventRefinement {
     /// The identity of the refinement.
     pub id: SignalId,
 
@@ -77,5 +69,5 @@ pub struct SpanRefinement {
     // including the `ty`
     /// The definition of the metric refinement.
     #[serde(flatten)]
-    pub span: Span,
+    pub event: Event,
 }

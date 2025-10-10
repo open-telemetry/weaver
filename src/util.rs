@@ -346,8 +346,6 @@ pub(crate) fn prepare_main_registry(
     Ok((main_resolved_registry, policy_engine))
 }
 
-
-
 /// Resolves the main registry and optionally checks policies.
 /// This is a common starting point for some `registry` commands.
 /// e.g., `check`, `generate`, `resolve`
@@ -464,7 +462,7 @@ pub(crate) fn prepare_main_registry_v2(
 
     // TODO - fix error passing here.
     let v2_schema = main_resolved_schema.create_v2_schema().unwrap();
-    let v2_resolved_registry = 
-      weaver_forge::v2::registry::ResolvedRegistry::try_from_resolved_schema(v2_schema)?;
+    let v2_resolved_registry =
+        weaver_forge::v2::registry::ResolvedRegistry::try_from_resolved_schema(v2_schema)?;
     Ok((v2_resolved_registry, policy_engine))
 }
