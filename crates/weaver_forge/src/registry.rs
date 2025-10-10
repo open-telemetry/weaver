@@ -186,7 +186,7 @@ impl ResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
-        let groups = registry
+        let mut groups: Vec<ResolvedGroup> = registry
             .groups
             .iter()
             .map(|group| {
@@ -238,6 +238,9 @@ impl ResolvedRegistry {
                 }
             })
             .collect();
+
+        // Sort groups by id for deterministic output
+        groups.sort_by(|a, b| a.id.cmp(&b.id));
 
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
