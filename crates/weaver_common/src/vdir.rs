@@ -875,8 +875,12 @@ mod tests {
         assert!(repo_path.exists());
     }
 
-    fn check_archive(vdir_path: VirtualDirectoryPath, file_to_check: Option<&str>) {
-        let repo = VirtualDirectory::try_new(&vdir_path, None).unwrap();
+    fn check_archive(
+        vdir_path: VirtualDirectoryPath,
+        file_to_check: Option<&str>,
+        auth_token: Option<&String>,
+    ) {
+        let repo = VirtualDirectory::try_new(&vdir_path, auth_token).unwrap();
         let repo_path = repo.path().to_path_buf();
         // At this point, the repo should be cloned into a temporary directory.
         assert!(repo_path.exists());
@@ -902,7 +906,7 @@ mod tests {
             sub_folder: Some("model".to_owned()),
             refspec: None,
         };
-        check_archive(registry_path, None);
+        check_archive(registry_path, None, None);
     }
 
     #[test]
@@ -910,7 +914,7 @@ mod tests {
         let registry_path = "../../test_data/semantic-conventions-1.26.0.tar.gz[model]"
             .parse::<VirtualDirectoryPath>()
             .unwrap();
-        check_archive(registry_path, Some("general.yaml"));
+        check_archive(registry_path, Some("general.yaml"), None);
     }
 
     #[test]
@@ -918,7 +922,7 @@ mod tests {
         let registry_path = "../../test_data/semantic-conventions-1.26.0.zip[model]"
             .parse::<VirtualDirectoryPath>()
             .unwrap();
-        check_archive(registry_path, Some("general.yaml"));
+        check_archive(registry_path, Some("general.yaml"), None);
     }
 
     #[test]
@@ -930,7 +934,7 @@ mod tests {
         )
         .parse::<VirtualDirectoryPath>()
         .unwrap();
-        check_archive(registry_path, Some("general.yaml"));
+        check_archive(registry_path, Some("general.yaml"), None);
     }
 
     #[test]
@@ -942,6 +946,23 @@ mod tests {
         )
         .parse::<VirtualDirectoryPath>()
         .unwrap();
-        check_archive(registry_path, Some("general.yaml"));
+        check_archive(registry_path, Some("general.yaml"), None);
+    }
+
+    #[test]
+    fn test_semconv_registry_authentication() {
+        let token = "token";
+        let server = ServeStaticFiles::from_with_bearer("tests/test_data", token).unwrap();
+        let registry_path = format!(
+            "{}[model]",
+            server.relative_path_to_url("semconv_registry_v1.26.0.zip")
+        )
+        .parse::<VirtualDirectoryPath>()
+        .unwrap();
+        check_archive(
+            registry_path,
+            Some("general.yaml"),
+            Some(&token.to_string()),
+        );
     }
 }
