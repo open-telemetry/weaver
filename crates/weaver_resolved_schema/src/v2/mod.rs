@@ -2,14 +2,18 @@
 
 use std::collections::{HashMap, HashSet};
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     group::GroupType,
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
 use crate::v2::{
+    catalog::Catalog,
     entity::Entity,
     metric::Metric,
+    registry::Registry,
     span::{Span, SpanRefinement},
 };
 
@@ -20,6 +24,26 @@ pub mod event;
 pub mod metric;
 pub mod registry;
 pub mod span;
+
+/// A Resolved Telemetry Schema.
+/// A Resolved Telemetry Schema is self-contained and doesn't contain any
+/// external references to other schemas or semantic conventions.
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolvedTelemetrySchema {
+    /// Version of the file structure.
+    pub file_format: String,
+    /// Schema URL that this file is published at.
+    pub schema_url: String,
+    /// The ID of the registry that this schema belongs to.
+    pub registry_id: String,
+    /// The registry that this schema belongs to.
+    pub registry: Registry,
+    /// Catalog of unique items that are shared across multiple registries
+    /// and signals.
+    pub catalog: Catalog,
+    // TODO - versions, dependencies and other options.
+}
 
 fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
     if group_id.starts_with(prefix) {
@@ -37,7 +61,7 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
-) -> Result<(catalog::Catalog, registry::Registry), crate::error::Error> {
+) -> Result<(Catalog, Registry), crate::error::Error> {
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<attribute::Attribute> = c
@@ -63,12 +87,11 @@ pub fn convert_v1_to_v2(
         })
         .collect();
 
-    let v2_catalog = catalog::Catalog::from_attributes(attributes.into_iter().collect());
+    let v2_catalog = Catalog::from_attributes(attributes.into_iter().collect());
 
     // Create a lookup so we can check inheritance.
     let mut group_type_lookup = HashMap::new();
     for g in r.groups.iter() {
-        println!("Group {} is type: {:?}", &g.id, g.r#type);
         let _ = group_type_lookup.insert(g.id.clone(), g.r#type.clone());
     }
     // Pull signals from the registry and create a new span-focused registry.
@@ -225,10 +248,6 @@ pub fn convert_v1_to_v2(
                     .and_then(|parent| group_type_lookup.get(parent))
                     .map(|t| *t == GroupType::Metric)
                     .unwrap_or(false);
-                println!(
-                    "Group {} is_refinement: {}, extends: {:?}",
-                    &g.id, is_refinement, extend_type
-                );
                 let mut metric_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
@@ -319,7 +338,7 @@ pub fn convert_v1_to_v2(
         }
     }
 
-    let v2_registry = registry::Registry {
+    let v2_registry = Registry {
         registry_url: r.registry_url,
         spans,
         span_refinements,
