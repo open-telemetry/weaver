@@ -187,7 +187,7 @@ impl ResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
-        let groups: Vec<ResolvedGroup> = registry
+        let groups = registry
             .groups
             .iter()
             .map(|group| {
