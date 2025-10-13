@@ -148,7 +148,7 @@ pub fn emit(
                 })?
             }
         };
-        let _ = global::set_tracer_provider(tracer_provider.clone());
+        global::set_tracer_provider(tracer_provider.clone());
 
         emit_trace_for_registry(registry, registry_path);
 

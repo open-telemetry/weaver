@@ -4,10 +4,13 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add support for attribute_group (public and internal) in schema v2 ([#933](https://github.com/open-telemetry/weaver/pull/933) by @lmolkova)
 - Live-check report changes ([#943](https://github.com/open-telemetry/weaver/pull/943) by @lmolkova)
   - 💥 BREAKING CHANGE 💥 `value` property in `Advice` is renamed to `advice_context`
   - Advice now contains `signal_type` and `signal_name` properties to simplify post-processing
   - Message format is changed to include all dynamic details about the advice
+- The target and the `registry` sub-directory are now optional for the
+  `weaver registry generate` command. ([#962](https://github.com/open-telemetry/weaver/pull/962) by @lquerel)
 
 # [0.18.0] - 2025-09-17
 

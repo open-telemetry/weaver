@@ -47,6 +47,7 @@ impl Entity {
             note: self.common.note,
             prefix: Default::default(),
             extends: None,
+            include_groups: vec![],
             stability: Some(self.common.stability),
             deprecated: self.common.deprecated,
             attributes,
@@ -64,6 +65,7 @@ impl Entity {
                 Some(self.common.annotations)
             },
             entity_associations: Default::default(),
+            visibility: None,
         }
     }
 }
