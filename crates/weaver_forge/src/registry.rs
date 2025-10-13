@@ -258,6 +258,9 @@ mod tests {
     use crate::ResolvedRegistry;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
+    use weaver_resolved_schema::catalog::Catalog;
+    use weaver_resolved_schema::registry::{Group, Registry};
+    use weaver_semconv::group::GroupType;
 
     #[test]
     fn test_json_schema_gen() {
@@ -266,5 +269,98 @@ mod tests {
 
         // Ensure the schema can be serialized to a string
         assert!(to_string_pretty(&schema).is_ok());
+    }
+
+    #[test]
+    fn test_groups_sorted_deterministically() {
+        // Create a registry with groups in non-alphabetical order
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            groups: vec![
+                Group {
+                    id: "zebra.group".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Zebra group".to_owned(),
+                    note: String::new(),
+                    prefix: String::new(),
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                    annotations: None,
+                },
+                Group {
+                    id: "apple.group".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Apple group".to_owned(),
+                    note: String::new(),
+                    prefix: String::new(),
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                    annotations: None,
+                },
+                Group {
+                    id: "middle.group".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Middle group".to_owned(),
+                    note: String::new(),
+                    prefix: String::new(),
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                    annotations: None,
+                },
+            ],
+        };
+
+        let catalog = Catalog::from_attributes(vec![]);
+
+        // Convert to resolved registry
+        let resolved = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect("Failed to create resolved registry");
+
+        // Verify groups are sorted alphabetically by id
+        assert_eq!(resolved.groups.len(), 3);
+        assert_eq!(resolved.groups[0].id, "apple.group");
+        assert_eq!(resolved.groups[1].id, "middle.group");
+        assert_eq!(resolved.groups[2].id, "zebra.group");
+
+        // Verify the sorting is stable across multiple conversions
+        let resolved2 = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect("Failed to create resolved registry");
+        assert_eq!(resolved.groups, resolved2.groups);
     }
 }
