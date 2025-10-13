@@ -5,6 +5,7 @@
 //! evaluation.
 
 use crate::error::Error;
+use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -186,7 +187,7 @@ impl ResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
-        let mut groups: Vec<ResolvedGroup> = registry
+        let groups: Vec<ResolvedGroup> = registry
             .groups
             .iter()
             .map(|group| {
@@ -237,14 +238,12 @@ impl ResolvedRegistry {
                     annotations: group.annotations.clone(),
                 }
             })
+            .sorted_by(|a, b| a.id.cmp(&b.id))
             .collect();
 
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
         }
-
-        // Sort groups by id for deterministic output
-        groups.sort_by(|a, b| a.id.cmp(&b.id));
 
         Ok(Self {
             registry_url: registry.registry_url.clone(),
