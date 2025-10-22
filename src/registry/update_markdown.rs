@@ -135,7 +135,10 @@ pub(crate) fn command(
         }
     }
     if has_error {
-        panic!("weaver registry update-markdown failed.");
+        return Ok(ExitDirectives {
+            exit_code: 1,
+            warnings: Some("weaver registry update-markdown failed.".to_string()),
+        });
     }
 
     if !diag_msgs.is_empty() {
