@@ -5,7 +5,7 @@
 use paris::error;
 use std::path::PathBuf;
 
-use rouille::{match_assets, Server};
+use rouille::{match_assets, Response, Server};
 use std::sync::mpsc::Sender;
 
 /// An error that can occur while starting the HTTP server.
@@ -33,13 +33,40 @@ impl ServeStaticFiles {
     /// Creates a new HTTP server that serves static files from a directory.
     /// Note: This server is only available for testing purposes.
     pub fn from(static_path: impl Into<PathBuf>) -> Result<Self, HttpServerError> {
+        Self::from_impl(static_path, None)
+    }
+
+    /// Same as [`Self::from`], but requires `Authorization: Bearer <token>` on every request.
+    /// Note: This server is only available for testing purposes.
+    pub fn from_with_bearer(
+        static_path: impl Into<PathBuf>,
+        token: impl Into<String>,
+    ) -> Result<Self, HttpServerError> {
+        Self::from_impl(static_path, Some(token.into()))
+    }
+
+    fn from_impl(
+        static_path: impl Into<PathBuf>,
+        token: Option<String>,
+    ) -> Result<Self, HttpServerError> {
         let static_path = static_path.into();
+
         let server = Server::new("127.0.0.1:0", move |request| {
+            if let Some(token) = token.as_ref() {
+                if !request
+                    .header("Authorization")
+                    .map(|h| h == format!("Bearer {}", token))
+                    .unwrap_or(false)
+                {
+                    return Response::text("Unauthorized").with_status_code(401);
+                }
+            }
             match_assets(request, &static_path)
         })
         .map_err(|e| HttpServerError {
             error: e.to_string(),
         })?;
+
         let port = server.server_addr().port();
         let (_, kill_switch) = server.stoppable();
         Ok(Self { kill_switch, port })
@@ -92,5 +119,28 @@ mod tests {
         let result = ureq::get(&server.relative_path_to_url("unknown_file.yaml")).call();
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ureq::Error::Status(404, _)));
+    }
+
+    #[test]
+    fn test_http_server_with_bearer_auth() {
+        let token = "token";
+        let server = ServeStaticFiles::from_with_bearer("tests/test_data", token).unwrap();
+
+        let resp = ureq::get(&server.relative_path_to_url("file_a.yaml")).call();
+        assert!(resp.is_err());
+        assert!(matches!(resp.unwrap_err(), ureq::Error::Status(401, _)));
+
+        let resp = ureq::get(&server.relative_path_to_url("file_a.yaml"))
+            .set("Authorization", "wrong_token")
+            .call();
+        assert!(resp.is_err());
+        assert!(matches!(resp.unwrap_err(), ureq::Error::Status(401, _)));
+
+        let content = ureq::get(&server.relative_path_to_url("file_a.yaml"))
+            .set("Authorization", &format!("Bearer {}", token))
+            .call()
+            .unwrap();
+        assert_eq!(content.status(), 200);
+        assert_eq!(content.into_string().unwrap(), "file: A");
     }
 }
