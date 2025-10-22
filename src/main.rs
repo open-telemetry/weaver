@@ -90,10 +90,19 @@ fn main() {
 
     if !cli.quiet {
         // Initialize the logger
+        let level = if cli.debug == 1 {
+            log::LevelFilter::Debug
+        } else if cli.debug >= 2 {
+            log::LevelFilter::Trace
+        } else {
+            log::LevelFilter::Info
+        };
         env_logger::builder()
-            .filter(None, log::LevelFilter::Info)
+            .filter(None, level)
             .format(|buf, record| writeln!(buf, "{}", record.args()))
             .init();
+
+        log::debug!("Debug is set to {}", cli.debug);
     }
 
     // Force the `miette` context to 5 lines.
@@ -161,7 +170,7 @@ fn print_diagnostics(
     .expect("Failed to create the embedded file loader for the diagnostic templates");
     let config = WeaverConfig::try_from_loader(&loader)
         .expect("Failed to load `defaults/diagnostic_templates/weaver.yaml`");
-    let engine = TemplateEngine::new(config, loader, Params::default());
+    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
     let output_directive = if diagnostic_args.diagnostic_stdout {
         OutputDirective::Stdout
     } else {

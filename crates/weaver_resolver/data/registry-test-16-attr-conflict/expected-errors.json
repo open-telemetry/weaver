@@ -1,0 +1,1 @@
+{"Err":{"CompoundError":[{"DuplicateAttributeId":{"group_ids":["test.attr.group.one.internal","test.attr.group.one_and_two"],"attribute_id":"test.attr.one"}}]}}

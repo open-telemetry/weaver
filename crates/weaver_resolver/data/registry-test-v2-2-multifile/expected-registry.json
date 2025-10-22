@@ -1,0 +1,78 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "metric.http.server.request.duration",
+      "type": "metric",
+      "brief": "Duration of HTTP server requests.",
+      "stability": "stable",
+      "attributes": [
+        2,
+        3
+      ],
+      "metric_name": "http.server.request.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-2-multifile/registry/http.yaml"
+        },
+        "attributes": {
+          "network.protocol.name": {
+            "source_group": "registry.data.registry-test-v2-2-multifile.registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
+            "source_group": "registry.data.registry-test-v2-2-multifile.registry.server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.data.registry-test-v2-2-multifile.registry.network",
+      "type": "attribute_group",
+      "brief": "<synthetic v2>",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-2-multifile/registry/network.yaml"
+        }
+      }
+    },
+    {
+      "id": "registry.data.registry-test-v2-2-multifile.registry.server",
+      "type": "attribute_group",
+      "brief": "<synthetic v2>",
+      "attributes": [
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-2-multifile/registry/server.yaml"
+        }
+      }
+    }
+  ]
+}

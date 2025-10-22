@@ -27,7 +27,6 @@ use weaver_semconv::YamlValue;
 #[serde(deny_unknown_fields)]
 pub struct Registry {
     /// The semantic convention registry url.
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
@@ -53,7 +52,6 @@ pub struct Group {
     /// The type of the group including the specific fields for each type.
     pub r#type: GroupType,
     /// A brief description of the semantic convention.
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
     /// A more elaborate description of the semantic convention.
     /// It defaults to an empty string.
@@ -130,7 +128,7 @@ pub struct Group {
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<HashMap<String, YamlValue>>,
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
     #[serde(default)]
@@ -145,7 +143,7 @@ impl Group {
     #[must_use]
     pub fn signal_name(&self) -> Option<&str> {
         match self.r#type {
-            GroupType::AttributeGroup => None,
+            GroupType::AttributeGroup => Some(self.id.as_str()),
             // ToDo: Remove this comment way forward is agreed upon
             // https://github.com/open-telemetry/weaver/issues/785
             // For now we allow group.name to be a namespace for spans.

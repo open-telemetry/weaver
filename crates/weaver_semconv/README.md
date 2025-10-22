@@ -7,10 +7,13 @@ deserialization support for YAML files adhering to the semantic convention regis
 serialization and deserialization of the data model making it easy to read and write YAML, JSON, and other formats
 supported by the Serde ecosystem.
 
-For more details on the syntax and semantics, see the [semantic convention YAML language](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
+For more details on the syntax and semantics, see the [semantic convention YAML language](/schemas/semconv-syntax.md)
 documentation.
 
-For a formal definition of the allowed syntax, see the [build-tools JSON schema](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/semconv.schema.json).
+For a formal definition of the allowed syntax, see the [JSON schema](/schemas/semconv.schema.json).
+
+> **Note**:
+> Semantic conventions YAML language v2 is in active development, check out [JSON schema v2](/schemas/semconv.schema.v2.json) and [syntax v2](/schemas/semconv-syntax.v2.md) documents.
 
 ## Design Principles
 

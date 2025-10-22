@@ -11,7 +11,7 @@ use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
 };
 
 /// The status code of the span
@@ -73,15 +73,20 @@ impl LiveCheckRunner for SampleSpan {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
-        self.span_events
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+        self.span_events.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            parent_signal,
+        )?;
         self.span_links
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -114,11 +119,12 @@ impl LiveCheckRunner for SampleSpanEvent {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -149,11 +155,12 @@ impl LiveCheckRunner for SampleSpanLink {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
         parent_group: Option<Rc<ResolvedGroup>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }

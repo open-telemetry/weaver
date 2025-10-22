@@ -22,12 +22,6 @@ comment_formats:
 default_comment_format: rust
 
 templates:
-  - template: README.md
-    filter: .
-    application_mode: single
-  - template: lib.rs
-    filter: .
-    application_mode: single
   - template: attributes/mod.rs.j2
     filter: >
       if $attributes then
@@ -55,7 +49,7 @@ templates:
   - template: metrics/metrics.rs.j2
     filter: >
       if $metrics then
-        semconv_grouped_metrics 
+        semconv_grouped_metrics
       else
         empty
       end

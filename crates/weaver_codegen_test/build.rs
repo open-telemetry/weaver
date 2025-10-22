@@ -59,7 +59,8 @@ fn main() {
         .unwrap_or_else(|e| process_error(&logger, e));
     let config = WeaverConfig::try_from_path("./templates/registry/rust")
         .unwrap_or_else(|e| process_error(&logger, e));
-    let engine = TemplateEngine::new(config, loader, Params::default());
+    let engine = TemplateEngine::try_new(config, loader, Params::default())
+        .unwrap_or_else(|e| process_error(&logger, e));
     let template_registry =
         ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
             .unwrap_or_else(|e| process_error(&logger, e));

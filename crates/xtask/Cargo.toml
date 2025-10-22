@@ -11,15 +11,15 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 assert_cmd = "2.0.17"
-gix = { version = "0.71.0", default-features = false, features = [
+gix = { version = "0.73.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
     "worktree-mutation",
     "blocking-http-transport-reqwest-rust-tls",
 ] }
-semver = "1.0.26"
-toml = "0.8.23"
+semver = "1.0.27"
+toml = "0.9.7"
 
 #[lints]
 #workspace = true

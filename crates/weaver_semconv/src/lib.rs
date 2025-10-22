@@ -26,6 +26,7 @@ pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -297,6 +298,16 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates the file version used is not yet stable.
+    #[error("Version `{version}` schema file format is not yet stable: {provenance}")]
+    #[diagnostic(severity(Warning))]
+    UnstableFileVersion {
+        /// The version specified.
+        version: String,
+        /// The source using that version.
+        provenance: String,
+    },
+
     /// This indicates that deprecated property is invalid
     #[error(
         "The `deprecated` property in `{id}` is invalid. {error}\nProvenance: {path_or_url:?}"
@@ -536,7 +547,12 @@ mod tests {
             if let Err(err) = result {
                 let output = format!("{err}");
                 let diag_msgs: DiagnosticMessages = err.into();
-                assert_eq!(diag_msgs.len(), 1);
+                assert_eq!(
+                    diag_msgs.len(),
+                    1,
+                    "Unexpected diagnostics: {:#?}",
+                    diag_msgs
+                );
                 assert!(!output.is_empty());
             }
         }

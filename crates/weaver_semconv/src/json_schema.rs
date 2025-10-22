@@ -2,13 +2,15 @@
 
 //! JSON Schema validator for semantic convention files.
 
-use crate::semconv::SemConvSpec;
+use crate::semconv::{SemConvSpec, SemConvSpecV1, Versioned};
 use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
 use crate::{Error, InvalidSemConvSpecError};
+use itertools::Itertools;
 use jsonschema::error::{TypeKind, ValidationErrorKind};
 use jsonschema::{JsonType, JsonTypeSet};
 use miette::{NamedSource, SourceSpan};
 use saphyr::{LoadableYamlNode, MarkedYaml};
+use schemars::JsonSchema;
 use std::borrow::Cow;
 
 /// Parsed simple XPath components
@@ -27,25 +29,36 @@ pub struct JsonSchemaValidator {
     validator: jsonschema::Validator,
 }
 
-impl Default for JsonSchemaValidator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl JsonSchemaValidator {
     /// Creates a new JSON schema validator.
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new_all_versions() -> Self {
+        Self::new_for::<SemConvSpec>()
+    }
+
+    /// Creates a new JSON schema validator that ONLY works when `version` is not specified.
+    #[must_use]
+    pub fn new_unversioned() -> Self {
+        Self::new_for::<SemConvSpecV1>()
+    }
+
+    /// Creates a new JSON schema validator that ONLY works when `version` is specified.
+    #[must_use]
+    pub fn new_versioned() -> Self {
+        Self::new_for::<Versioned>()
+    }
+
+    /// Creates a new JSON schema validator that works for any type T.
+    #[must_use]
+    fn new_for<T: JsonSchema>() -> Self {
         // Generate the JSON schema for the SemConvSpec struct using Schemars
-        let root_schema = schemars::schema_for!(SemConvSpec);
+        let root_schema = schemars::schema_for!(T);
         let json_schema = serde_json::to_value(&root_schema)
             // Should never happen as we expert Schemars to work
             .expect("Failed to convert schema to JSON value");
         let validator = jsonschema::Validator::new(&json_schema)
             // Should never happen as we expert Schemars to work
             .expect("Failed to create JSON schema validator");
-
         JsonSchemaValidator {
             json_schema,
             validator,
@@ -79,7 +92,7 @@ impl JsonSchemaValidator {
             let description = self
                 .build_description_from_xpath(error.schema_path.as_str())
                 .ok();
-            let error_msg = self.build_error_message(&error);
+            let error_msg = self.build_error_message(&error, "".to_owned());
             errors.push(InvalidSemConvSpec(Box::new(InvalidSemConvSpecError {
                 src: NamedSource::new(provenance, yaml_doc.raw_yaml()),
                 err_span: yaml_doc.source_span(error.instance_path.as_str()).ok(),
@@ -101,8 +114,38 @@ impl JsonSchemaValidator {
         }
     }
 
+    // When an anyof or oneof fails, we return all the sub-failures.
+    fn build_variant_error_message(
+        &self,
+        context: &[Vec<jsonschema::ValidationError<'_>>],
+        indent: String,
+    ) -> String {
+        context
+            .iter()
+            .enumerate()
+            .map(|(idx, errors)| {
+                format!(
+                    "{}(Variant {}):\n{}",
+                    indent,
+                    idx + 1,
+                    errors
+                        .iter()
+                        .map(|e| format!(
+                            "{indent}- {}",
+                            self.build_error_message(e, format!("{indent}  "))
+                        ))
+                        .join("\n")
+                )
+            })
+            .join("\n")
+    }
+
     /// Builds a nice error message from the validation error.
-    fn build_error_message(&self, error: &jsonschema::ValidationError<'_>) -> String {
+    fn build_error_message(
+        &self,
+        error: &jsonschema::ValidationError<'_>,
+        indent: String,
+    ) -> String {
         match &error.kind {
             ValidationErrorKind::AdditionalItems { limit } =>
                 format!("Array has more items ({}) than allowed (maximum: {}).", error.instance, limit),
@@ -113,8 +156,8 @@ impl JsonSchemaValidator {
                     unexpected.join(", ")
                 ),
 
-            ValidationErrorKind::AnyOf =>
-                "The following YAML snippet does not match any of the allowed schemas (anyOf, see help section).".to_owned(),
+            ValidationErrorKind::AnyOf { context} =>
+                format!("The following YAML snippet does not match any of the allowed schemas.\n{}", self.build_variant_error_message(context, indent)),
 
             ValidationErrorKind::BacktrackLimitExceeded { error: e } =>
                 format!("Regex match failed: backtrack limit exceeded ({e})"),
@@ -186,11 +229,11 @@ impl JsonSchemaValidator {
             ValidationErrorKind::Not { schema } =>
                 format!("Value {} matches a schema that is explicitly forbidden (not). Schema: {}", error.instance, schema),
 
-            ValidationErrorKind::OneOfMultipleValid =>
-                format!("Value {} matches more than one schema in a 'oneOf' group; it must match exactly one.", error.instance),
+            ValidationErrorKind::OneOfMultipleValid { context } =>
+                format!("Value {} matches more than one schema in a 'oneOf' group; it must match exactly one.\n{}", error.instance, self.build_variant_error_message(context, indent)),
 
-            ValidationErrorKind::OneOfNotValid =>
-                format!("Value {} does not match any schema in a 'oneOf' group; it must match exactly one.", error.instance),
+            ValidationErrorKind::OneOfNotValid { context} =>
+                format!("Value {} does not match any schema in a 'oneOf' group; it must match exactly one.\n{}", error.instance, self.build_variant_error_message(context, indent)),
 
             ValidationErrorKind::Pattern { pattern } =>
                 format!("String {} does not match the required pattern: '{}'.", error.instance, pattern),
@@ -368,7 +411,9 @@ impl YamlDoc {
             });
         }
 
-        let char_offsets: Vec<usize> = yaml.char_indices().map(|(i, _)| i).collect();
+        let mut char_offsets: Vec<usize> = yaml.char_indices().map(|(i, _)| i).collect();
+        // Spans may reference the position after the last character
+        char_offsets.push(yaml.len());
 
         Ok(YamlDoc {
             raw_yaml,
@@ -497,15 +542,15 @@ mod tests {
 
         let block_pos = yaml.xpath_to_block_position("/").unwrap();
         assert_eq!(block_pos.start.line, 1);
-        assert_eq!(block_pos.end.line, 1);
+        assert_eq!(block_pos.end.line, 10);
 
         let block_pos = yaml.xpath_to_block_position("/groups").unwrap();
         assert_eq!(block_pos.start.line, 2);
-        assert_eq!(block_pos.end.line, 2);
+        assert_eq!(block_pos.end.line, 10);
 
         let block_pos = yaml.xpath_to_block_position("/groups/0").unwrap();
         assert_eq!(block_pos.start.line, 2);
-        assert_eq!(block_pos.end.line, 2);
+        assert_eq!(block_pos.end.line, 9);
 
         let block_pos = yaml.xpath_to_block_position("/groups/0/name").unwrap();
         assert_eq!(block_pos.start.line, 2);
@@ -519,7 +564,7 @@ mod tests {
             .xpath_to_block_position("/groups/0/attributes")
             .unwrap();
         assert_eq!(block_pos.start.line, 5);
-        assert_eq!(block_pos.end.line, 5);
+        assert_eq!(block_pos.end.line, 9);
 
         let block_pos = yaml
             .xpath_to_block_position("/groups/0/attributes/0")

@@ -203,7 +203,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
             error: format!("Failed to load `defaults/live_check_templates/weaver.yaml`: {e}"),
         })
     })?;
-    let engine = TemplateEngine::new(config, loader, Params::default());
+    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
 
     // Prepare the ingester
     let ingester = match (&args.input_source, &args.input_format) {
@@ -238,7 +238,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut stats = LiveCheckStatistics::new(&live_checker.registry);
     let mut samples = Vec::new();
     for mut sample in ingester {
-        sample.run_live_check(&mut live_checker, &mut stats, None)?;
+        sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
         if report_mode {
             samples.push(sample);
         } else {

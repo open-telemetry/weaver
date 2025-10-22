@@ -2,14 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
-# [Next] - Next
+# Unreleased
 
+- Add support for attribute_group (public and internal) in schema v2 ([#933](https://github.com/open-telemetry/weaver/pull/933) by @lmolkova)
+- Live-check report changes ([#943](https://github.com/open-telemetry/weaver/pull/943) by @lmolkova)
+  - 💥 BREAKING CHANGE 💥 `value` property in `Advice` is renamed to `advice_context`
+  - Advice now contains `signal_type` and `signal_name` properties to simplify post-processing
+  - Message format is changed to include all dynamic details about the advice
+- The target and the `registry` sub-directory are now optional for the
+  `weaver registry generate` command. ([#962](https://github.com/open-telemetry/weaver/pull/962) by @lquerel)
+
+# [0.18.0] - 2025-09-17
+
+- Fail when JQ filters fail ([#894](https://github.com/open-telemetry/weaver/pull/894) by @lmolkova)
+- Update cargo-dist ([#905](https://github.com/open-telemetry/weaver/pull/905) by @jerbly)
+- Update OTLP support to 1.7 ([#907](https://github.com/open-telemetry/weaver/pull/907) by @jerbly)
+- Add debug logs for template config loading ([#934](https://github.com/open-telemetry/weaver/pull/934) by @lmolkova)
+- Always serialize brief and registry_url ([#929](https://github.com/open-telemetry/weaver/pull/929) by @jsuereth)
+- Fail when template doesn't match a file ([#928](https://github.com/open-telemetry/weaver/pull/928) by @lmolkova)
+
+# [0.17.1] - 2025-08-15
+
+- Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)
+
+# [0.17.0] - 2025-08-08
+
+- Filter based on deprecation, stability, and annotations in signal JQ helpers
+  ([#870](https://github.com/open-telemetry/weaver/pull/870) by @lmolkova)
+- Documentation and Repo cleanup ([#873](https://github.com/open-telemetry/weaver/pull/873) by @lquerel))
 - Support structured deprecation info on enum members.
   ([#823](https://github.com/open-telemetry/weaver/pull/823) by @lmolkova)
 - Don't serialize default values and empty arrays when resolving semantic conventions.
   ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
 - Add support for registry dependency chain, a->b->c. This pattern is useful when making narrow application registries that depend on a corporate registry based on the OpenTelemetry semantic conventions. Max depth is 10.
   ([#856](https://github.com/open-telemetry/weaver/pull/856) by @jerbly)
+- Improve doc usage section ([#851](https://github.com/open-telemetry/weaver/pull/851) by @tombrk)
 
 # [0.16.1] - 2025-07-04
 

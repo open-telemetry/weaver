@@ -27,7 +27,11 @@ templates:
     filter: >
       semconv_grouped_metrics({ "stable_only": false })
     application_mode: single
-  - pattern: semconv_events.json
+  - template: semconv_metrics_not_deprecated.json
+    filter: >
+      semconv_grouped_metrics({ "exclude_deprecated": true })
+    application_mode: single    
+  - template: semconv_events.json
     filter: >
       .groups
       | map(select(.type == "event"))

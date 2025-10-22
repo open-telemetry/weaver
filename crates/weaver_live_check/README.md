@@ -85,8 +85,12 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 
 - `advice_level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `advice_type`: _string_ - a simple machine readable string to represent the advice type
-- `message`: _string_ - a verbose string describing the advice
-- `value`: _any_ - a pertinent entity associated with the advice
+- `signal_type`: _string_ - a type of the signal advice is reported for: `metric`, `span`, or `resource`
+- `signal_name`: _string_ - a name of the signal advice is reported for: metric name or span name
+- `advice_context`: _any_ - a map that describes details about the advice in a structured way,
+  for example `{ "attribute_name": "foo.bar", "attribute_value": "bar" }`.
+- `message`: _string_ - verbose string describing the advice. It contains the same details as `advice_context` but
+  is formatted and human-readable.
 
 ```json
 {
@@ -95,8 +99,10 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
       {
         "advice_level": "violation",
         "advice_type": "missing_attribute",
-        "message": "Does not exist in the registry",
-        "value": "hello"
+        "message": "Attribute `hello` does not exist in the registry.",
+        "advice_context": {"attribute_name": "hello"},
+        "signal_name": "http.client.request.duration",
+        "signal_type": "metric"
       }
     ],
     "highest_advice_level": "violation"
@@ -107,7 +113,7 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 }
 ```
 
-> **Note**  
+> **Note**
 > The `live_check_result` object augments the sample entity at the pertinent level in the structure. If the structure is `metric`->`[number_data_point]`->`[attribute]`, advice should be give at the `number_data_point` level for, say, required attributes that have not been supplied. Whereas, attribute advice, like `missing_attribute` in the JSON above, is given at the attribute level.
 
 ### Custom advisors
@@ -120,16 +126,18 @@ package live_check_advice
 import rego.v1
 
 # checks attribute name contains the word "test"
-deny contains make_advice(advice_type, advice_level, value, message) if {
-  input.sample.attribute
-  value := input.sample.attribute.name
-  contains(value, "test")
-  advice_type := "contains_test"
-  advice_level := "violation"
-  message := "Name must not contain 'test'"
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+	input.sample.attribute
+	contains(input.sample.attribute.name, "test")
+	advice_type := "contains_test"
+	advice_level := "violation"
+	advice_context := {
+		"attribute_name": input.sample.attribute.name
+	}
+	message := sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
 }
 
-make_advice(advice_type, advice_level, value, message) := {
+make_advice(advice_type, advice_level, advice_context, message) := {
   "type": "advice",
   "advice_type": advice_type,
   "advice_level": advice_level,
