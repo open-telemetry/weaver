@@ -100,6 +100,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
+        "extends_group": "attributes.http.common",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -220,6 +221,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
+        "extends_group": "attributes.http.common",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -443,6 +445,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "messaging.attributes.common",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -565,6 +568,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "metric.messaging.attributes",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -687,6 +691,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "metric.messaging.attributes",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -809,6 +814,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "metric.messaging.attributes",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -931,6 +937,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "metric.messaging.attributes",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -1053,6 +1060,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "metric.messaging.attributes",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
@@ -1175,6 +1183,7 @@
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
+        "extends_group": "metric.messaging.attributes",
         "attributes": {
           "error.type": {
             "source_group": "registry.error",

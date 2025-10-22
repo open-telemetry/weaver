@@ -10,6 +10,7 @@ use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::{Group, Registry};
 use crate::resource::Resource;
+use crate::v2::convert_v1_to_v2;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -29,6 +30,7 @@ pub mod registry;
 pub mod resource;
 pub mod signal;
 pub mod tags;
+pub mod v2;
 pub mod value;
 
 /// The registry ID for the OpenTelemetry semantic conventions.
@@ -106,6 +108,22 @@ impl ResolvedTelemetrySchema {
         }
     }
 
+    // For testing for now.
+    /// Convert this schema into V2
+    #[must_use]
+    pub fn create_v2_schema(self) -> Result<v2::ResolvedTelemetrySchema, error::Error> {
+        convert_v1_to_v2(self.catalog, self.registry).map(|(c, r)| {
+            v2::ResolvedTelemetrySchema {
+                // TODO - bump file format version.
+                file_format: self.file_format,
+                schema_url: self.schema_url,
+                registry_id: self.registry_id,
+                catalog: c,
+                registry: r,
+            }
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn add_metric_group<const N: usize>(
         &mut self,
@@ -156,7 +174,7 @@ impl ResolvedTelemetrySchema {
             let al = AttributeLineage::new(group_id);
             lineage.add_attribute_lineage(attr.name.clone(), al);
         }
-        let attr_refs = self.catalog.add_attributes(attrs);
+        let attr_refs: Vec<attribute::AttributeRef> = self.catalog.add_attributes(attrs);
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::AttributeGroup,

@@ -11,7 +11,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 
 use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::util::{prepare_main_registry, prepare_main_registry_v2};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry resolve` sub-command
@@ -39,6 +39,11 @@ pub struct RegistryResolveArgs {
     #[arg(short, long, default_value = "yaml")]
     format: Format,
 
+    // TODO - Figure out long term plan for verisons here.
+    /// Whether or not to output version 2 of the schema.
+    #[arg(long, default_value = "false")]
+    v2: bool,
+
     /// Policy parameters
     #[command(flatten)]
     policy: PolicyArgs,
@@ -54,25 +59,49 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
-    apply_format(&args.format, &registry)
-        .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
-        .and_then(|s| {
-            if let Some(ref path) = args.output {
-                // Write the resolved registry to a file.
-                std::fs::write(path, s)
-                    .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
-            } else {
-                // Print the resolved registry to stdout.
-                println!("{s}");
-                Ok(())
-            }
-        })
-        .unwrap_or_else(|e| {
-            // Capture all the errors
-            panic!("{}", e);
-        });
+    if args.v2 {
+        // TODO
+        let (registry, _) = prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+        apply_format(&args.format, &registry)
+            .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
+            .and_then(|s| {
+                if let Some(ref path) = args.output {
+                    // Write the resolved registry to a file.
+                    std::fs::write(path, s).map_err(|e| {
+                        format!("Failed to write the resolved registry to file: {e:?}")
+                    })
+                } else {
+                    // Print the resolved registry to stdout.
+                    println!("{s}");
+                    Ok(())
+                }
+            })
+            .unwrap_or_else(|e| {
+                // Capture all the errors
+                panic!("{}", e);
+            });
+    } else {
+        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+        apply_format(&args.format, &registry)
+            .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
+            .and_then(|s| {
+                if let Some(ref path) = args.output {
+                    // Write the resolved registry to a file.
+                    std::fs::write(path, s).map_err(|e| {
+                        format!("Failed to write the resolved registry to file: {e:?}")
+                    })
+                } else {
+                    // Print the resolved registry to stdout.
+                    println!("{s}");
+                    Ok(())
+                }
+            })
+            .unwrap_or_else(|e| {
+                // Capture all the errors
+                panic!("{}", e);
+            });
+    }
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -111,6 +140,7 @@ mod tests {
                     lineage: true,
                     output: None,
                     format: Format::Yaml,
+                    v2: false,
                     policy: PolicyArgs {
                         policies: vec![],
                         skip_policies: true,
@@ -142,6 +172,7 @@ mod tests {
                     lineage: true,
                     output: None,
                     format: Format::Json,
+                    v2: false,
                     policy: PolicyArgs {
                         policies: vec![],
                         skip_policies: false,

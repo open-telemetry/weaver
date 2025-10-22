@@ -21,7 +21,7 @@ use weaver_semconv::stability::Stability;
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    attributes: Vec<Attribute>,
+    pub(crate) attributes: Vec<Attribute>,
 }
 
 /// Statistics on a catalog.

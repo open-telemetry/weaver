@@ -42,6 +42,7 @@ mod filter;
 mod formats;
 pub mod jq;
 pub mod registry;
+pub mod v2;
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
@@ -966,6 +967,19 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
+
+        // TODO - Remove this.
+        let schema = schema.create_v2_schema().unwrap();
+        fs::write(
+            "observed_output/test/v2_registry.yaml",
+            serde_yaml::to_string(&schema.registry).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            "observed_output/test/v2_catalog.yaml",
+            serde_yaml::to_string(&schema.catalog).unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]
