@@ -374,12 +374,11 @@ entities:
     stability: stable
     identity:
       - ref: service.name
-        requirement_level: required
       - ref: service.namespace
       - ref: service.instance.id
     description:
       - ref: service.version
-        role: descriptive
+        requirement_level: required
 ```
 
 ### `events` definition
