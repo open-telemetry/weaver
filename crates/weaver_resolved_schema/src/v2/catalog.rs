@@ -21,9 +21,16 @@ pub(crate) struct Catalog {
     lookup: BTreeMap<String, Vec<usize>>,
 }
 
+/// Collapses this catalog into the attribute list, preserving order.
+impl Into<Vec<Attribute>> for Catalog {
+    fn into(self) -> Vec<Attribute> {
+        self.attributes
+    }
+}
+
 impl Catalog {
     /// Creates a catalog from a list of attributes.
-    pub fn from_attributes(attributes: Vec<Attribute>) -> Self {
+    pub(crate) fn from_attributes(attributes: Vec<Attribute>) -> Self {
         let mut lookup: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         for (idx, attr) in attributes.iter().enumerate() {
             lookup.entry(attr.key.clone()).or_default().push(idx);
@@ -31,11 +38,8 @@ impl Catalog {
         Self { attributes, lookup }
     }
 
-    /// Lists all the attributes in the registry.
-    pub fn attributes(&self) -> &Vec<Attribute> {
-        &self.attributes
-    }
-
+    /// Converts an attribute from V1 into an AttributeRef
+    /// on the current list of attributes in the order of this catalog.
     #[must_use]
     pub(crate) fn convert_ref(
         &self,
@@ -50,14 +54,21 @@ impl Catalog {
                     .get(*idx)
                     .filter(|a| {
                         a.key == attribute.name
-                    // TODO check everything
-                    && a.r#type == attribute.r#type
-                    && a.examples == attribute.examples
-                    && a.common.brief == attribute.brief
-                    && a.common.note == attribute.note
-                    && a.common.deprecated == attribute.deprecated
-                        // && a.common.stability == attribute.stability
-                        // && a.common.annotations == attribute.annotations
+                            && a.r#type == attribute.r#type
+                            && a.examples == attribute.examples
+                            && a.common.brief == attribute.brief
+                            && a.common.note == attribute.note
+                            && a.common.deprecated == attribute.deprecated
+                            && attribute
+                                .stability
+                                .as_ref()
+                                .map(|s| a.common.stability == *s)
+                                .unwrap_or(false)
+                            && attribute
+                                .annotations
+                                .as_ref()
+                                .map(|ans| a.common.annotations == *ans)
+                                .unwrap_or(false)
                     })
                     .map(|_| AttributeRef(*idx as u32))
             })

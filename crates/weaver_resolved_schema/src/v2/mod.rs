@@ -356,7 +356,7 @@ pub fn convert_v1_to_v2(
 
     let v2_registry = Registry {
         registry_url: r.registry_url,
-        attributes: v2_catalog.attributes().clone(),
+        attributes: v2_catalog.into(),
         spans,
         metrics,
         events,
