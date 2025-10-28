@@ -69,6 +69,8 @@ impl ResolvedRegistry {
         schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
+
+        // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
             .attributes
@@ -80,26 +82,23 @@ impl ResolvedRegistry {
                 common: a.common.clone(),
             })
             .collect();
-        attributes.sort_by(|l, r| l.key.cmp(&r.key));
-
+        let attribute_lookup =
+            |r: &weaver_resolved_schema::v2::attribute::AttributeRef| attributes.get(r.0 as usize);
         let mut metrics = Vec::new();
         for metric in schema.registry.metrics {
             let attributes = metric
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema
-                        .registry
-                        .attribute(&ar.base)
-                        .map(|a| MetricAttribute {
-                            base: Attribute {
-                                key: a.key.clone(),
-                                r#type: a.r#type.clone(),
-                                examples: a.examples.clone(),
-                                common: a.common.clone(),
-                            },
-                            requirement_level: ar.requirement_level.clone(),
-                        });
+                    let attr = attribute_lookup(&ar.base).map(|a| MetricAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                    });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("metric.{}", &metric.name),
@@ -127,18 +126,15 @@ impl ResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema
-                        .registry
-                        .attribute(&ar.base)
-                        .map(|a| MetricAttribute {
-                            base: Attribute {
-                                key: a.key.clone(),
-                                r#type: a.r#type.clone(),
-                                examples: a.examples.clone(),
-                                common: a.common.clone(),
-                            },
-                            requirement_level: ar.requirement_level.clone(),
-                        });
+                    let attr = attribute_lookup(&ar.base).map(|a| MetricAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                    });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("metric.{}", &metric.metric.name),
@@ -168,7 +164,7 @@ impl ResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema.registry.attribute(&ar.base).map(|a| SpanAttribute {
+                    let attr = attribute_lookup(&ar.base).map(|a| SpanAttribute {
                         base: Attribute {
                             key: a.key.clone(),
                             r#type: a.r#type.clone(),
@@ -204,7 +200,7 @@ impl ResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema.registry.attribute(&ar.base).map(|a| SpanAttribute {
+                    let attr = attribute_lookup(&ar.base).map(|a| SpanAttribute {
                         base: Attribute {
                             key: a.key.clone(),
                             r#type: a.r#type.clone(),
@@ -243,7 +239,7 @@ impl ResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema.registry.attribute(&ar.base).map(|a| EventAttribute {
+                    let attr = attribute_lookup(&ar.base).map(|a| EventAttribute {
                         base: Attribute {
                             key: a.key.clone(),
                             r#type: a.r#type.clone(),
@@ -278,7 +274,7 @@ impl ResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema.registry.attribute(&ar.base).map(|a| EventAttribute {
+                    let attr = attribute_lookup(&ar.base).map(|a| EventAttribute {
                         base: Attribute {
                             key: a.key.clone(),
                             r#type: a.r#type.clone(),
@@ -314,18 +310,15 @@ impl ResolvedRegistry {
                 .identity
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema
-                        .registry
-                        .attribute(&ar.base)
-                        .map(|a| EntityAttribute {
-                            base: Attribute {
-                                key: a.key.clone(),
-                                r#type: a.r#type.clone(),
-                                examples: a.examples.clone(),
-                                common: a.common.clone(),
-                            },
-                            requirement_level: ar.requirement_level.clone(),
-                        });
+                    let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                    });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("entity.{}", &e.r#type),
@@ -340,18 +333,15 @@ impl ResolvedRegistry {
                 .description
                 .iter()
                 .filter_map(|ar| {
-                    let attr = schema
-                        .registry
-                        .attribute(&ar.base)
-                        .map(|a| EntityAttribute {
-                            base: Attribute {
-                                key: a.key.clone(),
-                                r#type: a.r#type.clone(),
-                                examples: a.examples.clone(),
-                                common: a.common.clone(),
-                            },
-                            requirement_level: ar.requirement_level.clone(),
-                        });
+                    let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                    });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("entity.{}", &e.r#type),
@@ -369,6 +359,9 @@ impl ResolvedRegistry {
             });
         }
         entities.sort_by(|l, r| l.r#type.cmp(&r.r#type));
+
+        // Now we sort the attributes, since we aren't looking them up anymore.
+        attributes.sort_by(|l, r| l.key.cmp(&r.key));
 
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
