@@ -11,7 +11,7 @@ use weaver_semconv::attribute::{AttributeRole, AttributeSpec, Examples, Requirem
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
-use weaver_semconv::{group, YamlValue};
+use weaver_semconv::YamlValue;
 
 /// Attribute lineage (at the field level).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
