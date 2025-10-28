@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 
 /// A catalog of indexed attributes shared across semconv groups, or signals.
 /// Attribute references are used to refer to attributes in the catalog.
-///
-/// Note : In the future, this catalog could be extended with other entities.
+/// 
+/// Note: This is meant to be a temporary datastructure used for creating
+/// the registry.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default)]
 #[serde(deny_unknown_fields)]
 #[must_use]

@@ -8,11 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute::{AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel},
-    deprecated::Deprecated,
-    stability::Stability,
-    v2::CommonFields,
-    YamlValue,
+    YamlValue, attribute::{AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel}, deprecated::Deprecated, stability::Stability, v2::{CommonFields, signal_id::SignalId}
 };
 
 /// A refinement of an Attribute for a signal.
@@ -158,7 +154,7 @@ impl AttributeDef {
 #[serde(deny_unknown_fields)]
 pub struct GroupRef {
     /// Reference an existing attribute group by id.
-    pub ref_group: String,
+    pub ref_group: SignalId,
 }
 
 /// A reference to either an attribute or an attribute group.
@@ -185,7 +181,7 @@ pub fn split_attributes_and_groups(
             AttributeOrGroupRef::Attribute(attr_ref) => {
                 attributes.push(attr_ref.into_v1_attribute());
             }
-            AttributeOrGroupRef::Group(group_ref) => groups.push(group_ref.ref_group),
+            AttributeOrGroupRef::Group(group_ref) => groups.push(group_ref.ref_group.into_v1()),
         }
     }
 

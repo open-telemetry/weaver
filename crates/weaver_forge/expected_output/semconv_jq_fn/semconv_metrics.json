@@ -193,6 +193,9 @@
               "source_group": "registry.url"
             }
           },
+          "includes_group": [
+            "http.client.server_and_port"
+          ],
           "provenance": {
             "path": "data/http.yaml",
             "registry_id": "default"

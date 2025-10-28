@@ -11,7 +11,7 @@ use weaver_semconv::attribute::{AttributeRole, AttributeSpec, Examples, Requirem
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
-use weaver_semconv::YamlValue;
+use weaver_semconv::{YamlValue, group};
 
 /// Attribute lineage (at the field level).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -50,6 +50,11 @@ pub struct GroupLineage {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(default)]
     attributes: BTreeMap<String, AttributeLineage>,
+
+    /// (V2 Only) Attribute groups included in this group.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub includes_group: Vec<String>,
 }
 
 impl AttributeLineage {
@@ -477,12 +482,18 @@ impl GroupLineage {
             provenance,
             extends_group: None,
             attributes: Default::default(),
+            includes_group: Default::default(),
         }
     }
 
     /// Declares this group extended another group.
     pub fn extends(&mut self, extends_group: &str) {
         self.extends_group = Some(extends_group.to_owned());
+    }
+
+    /// Records what attribute groups were included (v2 only).
+    pub fn includes_group(&mut self, group_id: &str) {
+        self.includes_group.push(group_id.to_owned());
     }
 
     /// Adds an attribute lineage.

@@ -19,6 +19,7 @@ use crate::v2::{
 };
 
 pub mod attribute;
+pub mod attribute_group;
 pub mod catalog;
 pub mod entity;
 pub mod event;
@@ -26,6 +27,7 @@ pub mod metric;
 pub mod refinements;
 pub mod registry;
 pub mod span;
+
 
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
