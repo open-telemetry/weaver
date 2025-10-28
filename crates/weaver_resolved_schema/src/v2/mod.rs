@@ -13,6 +13,7 @@ use crate::v2::{
     catalog::Catalog,
     entity::Entity,
     metric::Metric,
+    refinements::Refinements,
     registry::Registry,
     span::{Span, SpanRefinement},
 };
@@ -22,6 +23,7 @@ pub mod catalog;
 pub mod entity;
 pub mod event;
 pub mod metric;
+pub mod refinements;
 pub mod registry;
 pub mod span;
 
@@ -39,10 +41,25 @@ pub struct ResolvedTelemetrySchema {
     pub registry_id: String,
     /// The registry that this schema belongs to.
     pub registry: Registry,
-    /// Catalog of unique items that are shared across multiple registries
-    /// and signals.
-    pub catalog: Catalog,
+    /// Refinements for the registry
+    pub refinements: Refinements,
     // TODO - versions, dependencies and other options.
+}
+
+/// Easy conversion from v1 to v2.
+impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
+    type Error = crate::error::Error;
+    fn try_from(value: crate::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
+        let (registry, refinements) = convert_v1_to_v2(value.catalog, value.registry)?;
+        Ok(ResolvedTelemetrySchema {
+            // TODO - bump file format?
+            file_format: value.file_format,
+            schema_url: value.schema_url,
+            registry_id: value.registry_id,
+            registry,
+            refinements,
+        })
+    }
 }
 
 fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
@@ -61,7 +78,7 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
-) -> Result<(Catalog, Registry), crate::error::Error> {
+) -> Result<(Registry, Refinements), crate::error::Error> {
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<attribute::Attribute> = c
@@ -103,7 +120,6 @@ pub fn convert_v1_to_v2(
     let mut event_refinements = Vec::new();
     let mut entities = Vec::new();
     for g in r.groups.iter() {
-        let extend_type = g.extends.as_ref().and_then(|id| group_type_lookup.get(id));
         match g.r#type {
             GroupType::Span => {
                 // Check if we extend another span.
@@ -340,15 +356,18 @@ pub fn convert_v1_to_v2(
 
     let v2_registry = Registry {
         registry_url: r.registry_url,
+        attributes: v2_catalog.attributes().clone(),
         spans,
-        span_refinements,
         metrics,
-        metric_refinements,
         events,
-        event_refinements,
         entities,
     };
-    Ok((v2_catalog, v2_registry))
+    let v2_refinements = Refinements {
+        spans: span_refinements,
+        metrics: metric_refinements,
+        events: event_refinements,
+    };
+    Ok((v2_registry, v2_refinements))
 }
 
 #[cfg(test)]
@@ -459,9 +478,9 @@ mod tests {
             ],
         };
 
-        let (v2_catalog, v2_registry) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
+        let (v2_registry, v2_refinements) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
         // assert only ONE attribute due to sharing.
-        assert_eq!(v2_catalog.attributes().len(), 1);
+        assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
         assert_eq!(v2_registry.spans.len(), 1);
         if let Some(span) = v2_registry.spans.iter().next() {
@@ -469,9 +488,9 @@ mod tests {
             // Make sure attribute ref carries sampling relevant.
         }
         // Assert we have two refinements (e.g. one real span, one refinement).
-        assert_eq!(v2_registry.span_refinements.len(), 2);
-        let span_ref_ids: Vec<String> = v2_registry
-            .span_refinements
+        assert_eq!(v2_refinements.spans.len(), 2);
+        let span_ref_ids: Vec<String> = v2_refinements
+            .spans
             .iter()
             .map(|s| s.id.to_string())
             .collect();
@@ -580,9 +599,9 @@ mod tests {
             ],
         };
 
-        let (v2_catalog, v2_registry) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
+        let (v2_registry, v2_refinements) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
         // assert only ONE attribute due to sharing.
-        assert_eq!(v2_catalog.attributes().len(), 1);
+        assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
         assert_eq!(v2_registry.metrics.len(), 1);
         if let Some(metric) = v2_registry.metrics.iter().next() {
@@ -590,9 +609,9 @@ mod tests {
             // Make sure attribute ref carries sampling relevant.
         }
         // Assert we have two refinements (e.g. one real span, one refinement).
-        assert_eq!(v2_registry.metric_refinements.len(), 2);
-        let metric_ref_ids: Vec<String> = v2_registry
-            .metric_refinements
+        assert_eq!(v2_refinements.metrics.len(), 2);
+        let metric_ref_ids: Vec<String> = v2_refinements
+            .metrics
             .iter()
             .map(|s| s.id.to_string())
             .collect();

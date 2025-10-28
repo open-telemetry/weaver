@@ -1,11 +1,11 @@
 //! Attribute definitions for resolved schema.
 
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::{AttributeType, Examples},
+    attribute::{self, AttributeType, Examples},
     v2::CommonFields,
 };
 

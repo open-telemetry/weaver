@@ -461,7 +461,8 @@ pub(crate) fn prepare_main_registry_v2(
     }
 
     // TODO - fix error passing here.
-    let v2_schema = main_resolved_schema.create_v2_schema().unwrap();
+    let v2_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+        main_resolved_schema.try_into().unwrap();
     let v2_resolved_registry =
         weaver_forge::v2::registry::ResolvedRegistry::try_from_resolved_schema(v2_schema)?;
     Ok((v2_resolved_registry, policy_engine))

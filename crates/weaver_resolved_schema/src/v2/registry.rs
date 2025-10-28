@@ -4,31 +4,25 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::v2::{
+    attribute::{Attribute, AttributeRef},
     entity::Entity,
-    event::{Event, EventRefinement},
-    metric::{Metric, MetricRefinement},
-    span::{Span, SpanRefinement},
+    event::Event,
+    metric::Metric,
+    span::Span,
 };
 
 /// A semantic convention registry.
 ///
-/// The semantic convention is composed of two major components:
+/// The semantic convention is composed of definitions of
+/// attributes, metrics, logs, etc. that will be sent over the wire (e.g. OTLP).
 ///
-/// - Signals: Definitions of metrics, logs, etc. that will be sent over the wire (e.g. OTLP).
-/// - Refinements: Specialization of a signal that can be used to optimise documentation,
-///   or code generation. A refinement will *always* match the conventions defined by the
-///   signal it refines. Refinements cannot be inferred from signals over the wire (e.g. OTLP).
-///   This is because any identifying feature of a refinement is used purely for codgen but has
-///   no storage location in OTLP.
-///
-/// Note: Refinements will always include a "base" refinement for every signal definition.
-///       For example, if a Metric signal named `my_metric` is defined, there will be
-///       a metric refinement named `my_metric` as well.
-///       This allows codegen to *only* interact with refinements, if desired, to
-///       provide optimised methods for generating telemetry signals.
+/// Note: The registry does not include signal refinements.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Registry {
+    /// Catalog of attributes used in the schema.
+    pub attributes: Vec<Attribute>,
+
     /// The semantic convention registry url.
     ///
     /// This is the base URL, under which this registry can be found.
@@ -45,13 +39,20 @@ pub struct Registry {
 
     /// A  list of entity signal definitions.
     pub entities: Vec<Entity>,
+}
 
-    /// A  list of span refinements.
-    pub span_refinements: Vec<SpanRefinement>,
-
-    /// A  list of metric refinements.
-    pub metric_refinements: Vec<MetricRefinement>,
-
-    /// A  list of event refinements.
-    pub event_refinements: Vec<EventRefinement>,
+impl Registry {
+    /// Returns the attribute from an attribute ref if it exists.
+    #[must_use]
+    pub fn attribute(&self, attribute_ref: &AttributeRef) -> Option<&Attribute> {
+        self.attributes.get(attribute_ref.0 as usize)
+    }
+    /// Returns the attribute name from an attribute ref if it exists
+    /// in the catalog or None if it does not exist.
+    #[must_use]
+    pub fn attribute_key(&self, attribute_ref: &AttributeRef) -> Option<&str> {
+        self.attributes
+            .get(attribute_ref.0 as usize)
+            .map(|attr| attr.key.as_ref())
+    }
 }
