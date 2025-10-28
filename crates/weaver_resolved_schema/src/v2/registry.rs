@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::v2::{
     attribute::{Attribute, AttributeRef},
+    attribute_group::AttributeGroup,
     entity::Entity,
     event::Event,
     metric::Metric,
@@ -22,6 +23,9 @@ use crate::v2::{
 pub struct Registry {
     /// Catalog of attributes used in the schema.
     pub attributes: Vec<Attribute>,
+
+    /// Catalog of (public) attribute groups.
+    pub attribute_groups: Vec<AttributeGroup>,
 
     /// The semantic convention registry url.
     ///

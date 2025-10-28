@@ -427,6 +427,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             body: group.spec.body,
             annotations: group.spec.annotations,
             entity_associations: group.spec.entity_associations,
+            visibility: group.spec.visibility.clone(),
         },
         attributes: attrs,
         provenance: group.provenance,
@@ -628,13 +629,12 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                             }
                         }
                         _ = attrs_by_group.insert(include_group.clone(), attrs);
-                        
+
                         // We'll need to reverse engineer if it was a private group later in V2 mapping.
                         if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
                             // update lineage so we know a group was included.
                             lineage.includes_group(include_group);
                         }
-                        
                     } else {
                         errors.push(Error::UnresolvedExtendsRef {
                             group_id: unresolved_group.group.id.clone(),

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// A catalog of indexed attributes shared across semconv groups, or signals.
 /// Attribute references are used to refer to attributes in the catalog.
-/// 
+///
 /// Note: This is meant to be a temporary datastructure used for creating
 /// the registry.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default)]
@@ -49,8 +49,7 @@ impl Catalog {
         // Note - we do a fast lookup to contentious attributes,
         // then linear scan of attributes with same key but different
         // other aspects.
-        self
-            .lookup
+        self.lookup
             .get(&attribute.name)?
             .iter()
             .filter_map(|idx| {

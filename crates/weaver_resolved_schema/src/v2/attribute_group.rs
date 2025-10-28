@@ -4,12 +4,12 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::v2::{CommonFields, signal_id::SignalId};
+use weaver_semconv::v2::{signal_id::SignalId, CommonFields};
 
 use crate::v2::attribute::AttributeRef;
 
 /// Public attribute group.
-/// 
+///
 /// An attribute group is a grouping of attributes that can be leveraged
 /// in codegen. For example, rather than passing attributes on at a time,
 /// a temporary structure could be made to contain all of them and report
@@ -24,7 +24,7 @@ pub struct AttributeGroup {
     /// List of attributes and group references that belong to this group
     pub attributes: Vec<AttributeOrGroupRef>,
 
-     /// Common fields (like brief, note, annotations).
+    /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
 }

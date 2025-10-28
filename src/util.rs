@@ -461,10 +461,10 @@ pub(crate) fn prepare_main_registry_v2(
     }
 
     // TODO - fix error passing here so original error is diagnostic.
-    let v2_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-        main_resolved_schema.try_into()
+    let v2_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema = main_resolved_schema
+        .try_into()
         .map_err(|e: weaver_resolved_schema::error::Error| {
-            weaver_forge::error::Error::TemplateEngineError {  
+            weaver_forge::error::Error::TemplateEngineError {
                 error: e.to_string(),
             }
         })?;

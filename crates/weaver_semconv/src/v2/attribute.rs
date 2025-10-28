@@ -8,7 +8,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    YamlValue, attribute::{AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel}, deprecated::Deprecated, stability::Stability, v2::{CommonFields, signal_id::SignalId}
+    attribute::{AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel},
+    deprecated::Deprecated,
+    stability::Stability,
+    v2::{signal_id::SignalId, CommonFields},
+    YamlValue,
 };
 
 /// A refinement of an Attribute for a signal.

@@ -182,9 +182,7 @@ impl Advisor for StabilityAdvisor {
                                 advice_context: json!({
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
-                                message: format!(
-                                    "Metric is not stable; stability = {stability}."
-                                ),
+                                message: format!("Metric is not stable; stability = {stability}."),
                                 advice_level: AdviceLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),

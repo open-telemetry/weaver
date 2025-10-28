@@ -547,11 +547,7 @@ mod tests {
             if let Err(err) = result {
                 let output = format!("{err}");
                 let diag_msgs: DiagnosticMessages = err.into();
-                assert_eq!(
-                    diag_msgs.len(),
-                    1,
-                    "Unexpected diagnostics: {diag_msgs:#?}"
-                );
+                assert_eq!(diag_msgs.len(), 1, "Unexpected diagnostics: {diag_msgs:#?}");
                 assert!(!output.is_empty());
             }
         }

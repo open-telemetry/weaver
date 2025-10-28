@@ -6,10 +6,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     group::GroupType,
-    v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    v2::{
+        attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
+        CommonFields,
+    },
 };
 
 use crate::v2::{
+    attribute_group::{AttributeGroup, AttributeOrGroupRef},
     catalog::Catalog,
     entity::Entity,
     metric::Metric,
@@ -27,7 +31,6 @@ pub mod metric;
 pub mod refinements;
 pub mod registry;
 pub mod span;
-
 
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
@@ -121,6 +124,7 @@ pub fn convert_v1_to_v2(
     let mut events = Vec::new();
     let mut event_refinements = Vec::new();
     let mut entities = Vec::new();
+    let mut attribute_groups = Vec::new();
     for g in r.groups.iter() {
         match g.r#type {
             GroupType::Span => {
@@ -347,10 +351,38 @@ pub fn convert_v1_to_v2(
                     },
                 });
             }
-            GroupType::AttributeGroup
-            | GroupType::MetricGroup
-            | GroupType::Scope
-            | GroupType::Undefined => {
+            GroupType::AttributeGroup => {
+                if g.visibility
+                    .as_ref()
+                    .is_some_and(|v| AttributeGroupVisibilitySpec::Public == *v)
+                {
+                    // Now we need to convert the group.
+                    let mut attributes = Vec::new();
+                    // TODO - we need to check lineage and remove parent groups.
+                    for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
+                        if let Some(a) = v2_catalog.convert_ref(attr) {
+                            attributes.push(AttributeOrGroupRef::Attribute(a));
+                        } else {
+                            // TODO logic error!
+                        }
+                    }
+                    attribute_groups.push(AttributeGroup {
+                        id: fix_group_id("attribute_group.", &g.id),
+                        attributes,
+                        common: CommonFields {
+                            brief: g.brief.clone(),
+                            note: g.note.clone(),
+                            stability: g
+                                .stability
+                                .clone()
+                                .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                            deprecated: g.deprecated.clone(),
+                            annotations: g.annotations.clone().unwrap_or_default(),
+                        },
+                    });
+                }
+            }
+            GroupType::MetricGroup | GroupType::Scope | GroupType::Undefined => {
                 // Ignored for now, we should probably issue warnings.
             }
         }
@@ -363,6 +395,7 @@ pub fn convert_v1_to_v2(
         metrics,
         events,
         entities,
+        attribute_groups,
     };
     let v2_refinements = Refinements {
         spans: span_refinements,
@@ -454,6 +487,7 @@ mod tests {
                     body: None,
                     annotations: None,
                     entity_associations: vec![],
+                    visibility: None,
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -476,6 +510,7 @@ mod tests {
                     body: None,
                     annotations: None,
                     entity_associations: vec![],
+                    visibility: None,
                 },
             ],
         };
@@ -575,6 +610,7 @@ mod tests {
                     body: None,
                     annotations: None,
                     entity_associations: vec![],
+                    visibility: None,
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -597,6 +633,7 @@ mod tests {
                     body: None,
                     annotations: None,
                     entity_associations: vec![],
+                    visibility: None,
                 },
             ],
         };
