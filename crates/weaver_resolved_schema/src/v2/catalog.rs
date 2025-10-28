@@ -45,6 +45,9 @@ impl Catalog {
         &self,
         attribute: &crate::attribute::Attribute,
     ) -> Option<AttributeRef> {
+        // Note - we do a fast lookup to contentious attributes,
+        // then linear scan of attributes with same key but different
+        // other aspects.
         return self
             .lookup
             .get(&attribute.name)?
