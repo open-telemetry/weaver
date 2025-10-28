@@ -22,9 +22,9 @@ pub(crate) struct Catalog {
 }
 
 /// Collapses this catalog into the attribute list, preserving order.
-impl Into<Vec<Attribute>> for Catalog {
-    fn into(self) -> Vec<Attribute> {
-        self.attributes
+impl From<Catalog> for Vec<Attribute> {
+    fn from(val: Catalog) -> Self {
+        val.attributes
     }
 }
 
@@ -48,7 +48,7 @@ impl Catalog {
         // Note - we do a fast lookup to contentious attributes,
         // then linear scan of attributes with same key but different
         // other aspects.
-        return self
+        self
             .lookup
             .get(&attribute.name)?
             .iter()
@@ -75,6 +75,6 @@ impl Catalog {
                     })
                     .map(|_| AttributeRef(*idx as u32))
             })
-            .next();
+            .next()
     }
 }

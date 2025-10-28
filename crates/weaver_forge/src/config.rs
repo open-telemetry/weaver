@@ -522,7 +522,7 @@ impl WeaverConfig {
             config.override_with(weaver_config);
         }
 
-        log::trace!("Using the following Weaver configuration: {:#?}", config);
+        log::trace!("Using the following Weaver configuration: {config:#?}");
         Ok(config)
     }
 

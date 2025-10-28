@@ -10,7 +10,6 @@ use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::{Group, Registry};
 use crate::resource::Resource;
-use crate::v2::convert_v1_to_v2;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -137,7 +137,7 @@ pub fn convert_v1_to_v2(
                         span_attributes.push(span::SpanAttributeRef {
                             base: a,
                             requirement_level: attr.requirement_level.clone(),
-                            sampling_relevant: attr.sampling_relevant.clone(),
+                            sampling_relevant: attr.sampling_relevant,
                         });
                     } else {
                         // TODO logic error!
@@ -205,7 +205,7 @@ pub fn convert_v1_to_v2(
                             },
                             attributes: span_attributes,
                         },
-                    })
+                    });
                 }
             }
             GroupType::Event => {
@@ -373,7 +373,7 @@ pub fn convert_v1_to_v2(
 #[cfg(test)]
 mod tests {
 
-    use weaver_semconv::{provenance::Provenance, stability::Stability, v2};
+    use weaver_semconv::{provenance::Provenance, stability::Stability};
 
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
 
@@ -395,7 +395,7 @@ mod tests {
                     weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
                 ),
                 sampling_relevant: None,
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: Some(Stability::Stable),
                 deprecated: None,
                 prefix: false,
@@ -416,7 +416,7 @@ mod tests {
                     weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
                 ),
                 sampling_relevant: Some(true),
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: Some(Stability::Stable),
                 deprecated: None,
                 prefix: false,
@@ -440,7 +440,7 @@ mod tests {
                     extends: None,
                     stability: Some(Stability::Stable),
                     deprecated: None,
-                    attributes: vec![test_refs[1].clone()],
+                    attributes: vec![test_refs[1]],
                     span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
                     events: vec![],
                     metric_name: None,
@@ -462,7 +462,7 @@ mod tests {
                     extends: None,
                     stability: Some(Stability::Stable),
                     deprecated: None,
-                    attributes: vec![test_refs[1].clone()],
+                    attributes: vec![test_refs[1]],
                     span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
                     events: vec![],
                     metric_name: None,
@@ -483,7 +483,7 @@ mod tests {
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
         assert_eq!(v2_registry.spans.len(), 1);
-        if let Some(span) = v2_registry.spans.iter().next() {
+        if let Some(span) = v2_registry.spans.first() {
             assert_eq!(span.r#type, "my-span".to_owned().into());
             // Make sure attribute ref carries sampling relevant.
         }
@@ -516,7 +516,7 @@ mod tests {
                     weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
                 ),
                 sampling_relevant: None,
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: Some(Stability::Stable),
                 deprecated: None,
                 prefix: false,
@@ -537,7 +537,7 @@ mod tests {
                     weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
                 ),
                 sampling_relevant: Some(true),
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: Some(Stability::Stable),
                 deprecated: None,
                 prefix: false,
@@ -561,7 +561,7 @@ mod tests {
                     extends: None,
                     stability: Some(Stability::Stable),
                     deprecated: None,
-                    attributes: vec![test_refs[0].clone()],
+                    attributes: vec![test_refs[0]],
                     span_kind: None,
                     events: vec![],
                     metric_name: Some("http".to_owned()),
@@ -583,7 +583,7 @@ mod tests {
                     extends: None,
                     stability: Some(Stability::Stable),
                     deprecated: None,
-                    attributes: vec![test_refs[1].clone()],
+                    attributes: vec![test_refs[1]],
                     span_kind: None,
                     events: vec![],
                     metric_name: Some("http".to_owned()),
@@ -604,7 +604,7 @@ mod tests {
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
         assert_eq!(v2_registry.metrics.len(), 1);
-        if let Some(metric) = v2_registry.metrics.iter().next() {
+        if let Some(metric) = v2_registry.metrics.first() {
             assert_eq!(metric.name, "http".to_owned().into());
             // Make sure attribute ref carries sampling relevant.
         }

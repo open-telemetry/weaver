@@ -172,7 +172,7 @@ impl ResolvedRegistry {
                             common: a.common.clone(),
                         },
                         requirement_level: ar.requirement_level.clone(),
-                        sampling_relevant: ar.sampling_relevant.clone(),
+                        sampling_relevant: ar.sampling_relevant,
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
@@ -208,7 +208,7 @@ impl ResolvedRegistry {
                             common: a.common.clone(),
                         },
                         requirement_level: ar.requirement_level.clone(),
-                        sampling_relevant: ar.sampling_relevant.clone(),
+                        sampling_relevant: ar.sampling_relevant,
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
@@ -259,7 +259,7 @@ impl ResolvedRegistry {
                 .collect();
             events.push(Event {
                 name: event.name,
-                attributes: attributes,
+                attributes,
                 entity_associations: event.entity_associations,
                 common: event.common,
             });
@@ -296,7 +296,7 @@ impl ResolvedRegistry {
                 id: event.id,
                 event: Event {
                     name: event.event.name,
-                    attributes: attributes,
+                    attributes,
                     entity_associations: event.event.entity_associations,
                     common: event.event.common,
                 },
