@@ -21,12 +21,13 @@ use crate::{
 /// This includes all registrys fully fleshed out and ready for codegen.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ResolvedRegistry {
+pub struct ForgeResolvedRegistry {
     /// The semantic convention registry url.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
     /// The raw attributes in this registry.
     pub attributes: Vec<Attribute>,
+    // TODO - Attribute Groups
     /// The signals defined in this registry.
     pub signals: Signals,
     /// The set of refinments defined in this registry.
@@ -63,7 +64,15 @@ pub struct Refinements {
     pub events: Vec<EventRefinement>,
 }
 
-impl ResolvedRegistry {
+/// Conversion from Resolved schema to the "template schema".
+impl TryFrom<weaver_resolved_schema::v2::ResolvedTelemetrySchema> for ForgeResolvedRegistry {
+    type Error = Error;
+    fn try_from(value: weaver_resolved_schema::v2::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
+        ForgeResolvedRegistry::try_from_resolved_schema(value)
+    }
+}
+
+impl ForgeResolvedRegistry {
     /// Create a new template registry from a resolved schema registry.
     pub fn try_from_resolved_schema(
         schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,

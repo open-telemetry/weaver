@@ -26,12 +26,6 @@ pub struct Span {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<SpanAttributeRef>,
-    // TODO - How do we reference attribute groups?
-    /// List of public attribute groups that this signal uses. These are by-name references,
-    /// all atributes will already be flattened into the `attributes` field.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub include_groups: Vec<SignalId>,
 
     // TODO - Should Entity Associations be "strong" links?
     /// Which resources this span should be associated with.

@@ -82,34 +82,11 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
     fix_group_id("span.", group_id)
 }
 
-/// Helper to find all include groups (transitiviely) given a lookup.
-fn lookup_group_includes(
-    lineage: &crate::lineage::GroupLineage,
-    lookup: &HashMap<&str, &Group>,
-) -> Vec<SignalId> {
-    // We need to sort through ALL the groups in our lineage.
-    let mut groups = lineage
-        .extends_group
-        .as_ref()
-        .and_then(|id| {
-            lookup
-                .get(id.as_str())
-                .and_then(|g| g.lineage.as_ref())
-                .map(|l| lookup_group_includes(l, lookup))
-        })
-        .unwrap_or_default();
-    for ig in &lineage.includes_group {
-        groups.push(ig.to_owned().into());
-    }
-    groups
-}
-
 /// Converts a V1 registry + catalog to V2.
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
 ) -> Result<(Registry, Refinements), crate::error::Error> {
-    let lookup: HashMap<&str, &Group> = r.groups.iter().map(|g| (g.id.as_str(), g)).collect();
 
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
@@ -199,11 +176,6 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
-                        include_groups: g
-                            .lineage
-                            .as_ref()
-                            .map(|l| lookup_group_includes(l, &lookup))
-                            .unwrap_or_default(),
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
@@ -242,11 +214,6 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
-                            include_groups: g
-                                .lineage
-                                .as_ref()
-                                .map(|l| lookup_group_includes(l, &lookup))
-                                .unwrap_or_default(),
                         },
                     });
                 }
@@ -274,11 +241,6 @@ pub fn convert_v1_to_v2(
                     name: g.name.clone().unwrap().into(),
                     attributes: event_attributes,
                     entity_associations: g.entity_associations.clone(),
-                    include_groups: g
-                        .lineage
-                        .as_ref()
-                        .map(|l| lookup_group_includes(l, &lookup))
-                        .unwrap_or_default(),
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
@@ -330,11 +292,6 @@ pub fn convert_v1_to_v2(
                     unit: g.unit.clone().unwrap(),
                     attributes: metric_attributes,
                     entity_associations: g.entity_associations.clone(),
-                    include_groups: g
-                        .lineage
-                        .as_ref()
-                        .map(|l| lookup_group_includes(l, &lookup))
-                        .unwrap_or_default(),
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
