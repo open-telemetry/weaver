@@ -7,9 +7,10 @@ use crate::registry::generate::generate_params_shared;
 use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use miette::Diagnostic;
 use serde_yaml::Value;
 use std::path::PathBuf;
-use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, is_future_mode_enabled};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
@@ -18,6 +19,17 @@ use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
+
+#[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
+enum UpdateMarkdownError {
+/// The update-markdown command found differences in dry-run.
+    #[error("The update-markdown command found differences in dry-run.")]
+    MarkdownNotUpToDate,
+
+    /// The update-markdown command found differences in dry-run.
+    #[error("weaver registry update-markdown failed.")]
+    MarkdownUpdateFailed,
+}
 
 /// Parameters for the `registry update-markdown` sub-command
 #[derive(Debug, Args)]
@@ -135,7 +147,12 @@ pub(crate) fn command(
         }
     }
     if has_error {
-        panic!("weaver registry update-markdown failed.");
+        let error = if args.dry_run {
+            UpdateMarkdownError::MarkdownNotUpToDate
+        } else {
+            UpdateMarkdownError::MarkdownUpdateFailed
+        };
+        return Err(error.into());
     }
 
     if !diag_msgs.is_empty() {
@@ -146,6 +163,14 @@ pub(crate) fn command(
         exit_code: 0,
         warnings: None,
     })
+}
+
+
+/// Converts from our local error to a diagnostic message response.
+impl From<UpdateMarkdownError> for DiagnosticMessages {
+    fn from(error: UpdateMarkdownError) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }
 
 #[cfg(test)]
