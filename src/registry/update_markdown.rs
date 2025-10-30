@@ -10,7 +10,7 @@ use clap::Args;
 use miette::Diagnostic;
 use serde_yaml::Value;
 use std::path::PathBuf;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, is_future_mode_enabled};
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
@@ -22,7 +22,7 @@ use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum UpdateMarkdownError {
-/// The update-markdown command found differences in dry-run.
+    /// The update-markdown command found differences in dry-run.
     #[error("The update-markdown command found differences in dry-run.")]
     MarkdownNotUpToDate,
 
@@ -164,7 +164,6 @@ pub(crate) fn command(
         warnings: None,
     })
 }
-
 
 /// Converts from our local error to a diagnostic message response.
 impl From<UpdateMarkdownError> for DiagnosticMessages {
