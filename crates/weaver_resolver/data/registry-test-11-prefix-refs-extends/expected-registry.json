@@ -129,6 +129,7 @@
           "registry_id": "default",
           "path": "data/registry-test-11-prefix-refs-extends/registry/usage2.yaml"
         },
+        "extends_group": "usage",
         "attributes": {
           "client.geo.lat": {
             "source_group": "registry.client",

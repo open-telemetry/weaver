@@ -42,6 +42,7 @@
           "registry_id": "default",
           "path": "data/registry-test-8-http/registry/http-common.yaml"
         },
+        "extends_group": "attributes.http.common",
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -83,6 +84,7 @@
           "registry_id": "default",
           "path": "data/registry-test-8-http/registry/http.yaml"
         },
+        "extends_group": "attributes.http.server",
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -128,6 +130,7 @@
           "registry_id": "default",
           "path": "data/registry-test-8-http/registry/http.yaml"
         },
+        "extends_group": "metric_attributes.http.server",
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
