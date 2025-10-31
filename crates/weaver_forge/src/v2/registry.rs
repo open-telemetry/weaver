@@ -8,6 +8,7 @@ use crate::{
     error::Error,
     v2::{
         attribute::Attribute,
+        attribute_group::AttributeGroup,
         entity::{Entity, EntityAttribute},
         event::{Event, EventAttribute, EventRefinement},
         metric::{Metric, MetricAttribute, MetricRefinement},
@@ -27,6 +28,8 @@ pub struct ForgeResolvedRegistry {
     pub registry_url: String,
     /// The raw attributes in this registry.
     pub attributes: Vec<Attribute>,
+    /// The public attribute groups in this registry.
+    pub attribute_groups: Vec<AttributeGroup>,
     // TODO - Attribute Groups
     /// The signals defined in this registry.
     pub signals: Signals,
@@ -67,7 +70,9 @@ pub struct Refinements {
 /// Conversion from Resolved schema to the "template schema".
 impl TryFrom<weaver_resolved_schema::v2::ResolvedTelemetrySchema> for ForgeResolvedRegistry {
     type Error = Error;
-    fn try_from(value: weaver_resolved_schema::v2::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+    ) -> Result<Self, Self::Error> {
         ForgeResolvedRegistry::try_from_resolved_schema(value)
     }
 }
@@ -369,6 +374,34 @@ impl ForgeResolvedRegistry {
         }
         entities.sort_by(|l, r| l.r#type.cmp(&r.r#type));
 
+        let mut attribute_groups = Vec::new();
+        for ag in schema.registry.attribute_groups {
+            let attributes = ag
+                .attributes
+                .iter()
+                .filter_map(|ar| {
+                    let attr = attribute_lookup(&ar).map(|a| Attribute {
+                        key: a.key.clone(),
+                        r#type: a.r#type.clone(),
+                        examples: a.examples.clone(),
+                        common: a.common.clone(),
+                    });
+                    if attr.is_none() {
+                        errors.push(Error::AttributeNotFound {
+                            group_id: format!("attribute_group.{}", &ag.id),
+                            attr_ref: AttributeRef(ar.0),
+                        });
+                    }
+                    attr
+                })
+                .collect();
+            attribute_groups.push(AttributeGroup {
+                id: ag.id,
+                attributes,
+                common: ag.common.clone(),
+            });
+        }
+
         // Now we sort the attributes, since we aren't looking them up anymore.
         attributes.sort_by(|l, r| l.key.cmp(&r.key));
 
@@ -379,6 +412,7 @@ impl ForgeResolvedRegistry {
         Ok(Self {
             registry_url: schema.schema_url.clone(),
             attributes,
+            attribute_groups,
             signals: Signals {
                 metrics,
                 spans,

@@ -22,26 +22,9 @@ pub struct AttributeGroup {
     pub id: SignalId,
 
     /// List of attributes and group references that belong to this group
-    pub attributes: Vec<AttributeOrGroupRef>,
+    pub attributes: Vec<AttributeRef>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
-}
-
-/// A reference to either an attribute or an attribute group.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
-#[serde(untagged)]
-pub enum AttributeOrGroupRef {
-    /// Reference to an attribute.
-    Attribute(AttributeRef),
-    /// Reference to an attribute group.
-    Group(GroupRef),
-}
-
-/// A reference to an attribute group.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
-pub struct GroupRef {
-    /// Reference an existing attribute group by id.
-    pub ref_group: SignalId,
 }

@@ -15,7 +15,7 @@ use weaver_semconv::{
 use crate::{
     registry::Group,
     v2::{
-        attribute_group::{AttributeGroup, AttributeOrGroupRef},
+        attribute_group::AttributeGroup,
         catalog::Catalog,
         entity::Entity,
         metric::Metric,
@@ -87,7 +87,6 @@ pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
 ) -> Result<(Registry, Refinements), crate::error::Error> {
-
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<attribute::Attribute> = c
@@ -365,7 +364,7 @@ pub fn convert_v1_to_v2(
                     // TODO - we need to check lineage and remove parent groups.
                     for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                         if let Some(a) = v2_catalog.convert_ref(attr) {
-                            attributes.push(AttributeOrGroupRef::Attribute(a));
+                            attributes.push(a);
                         } else {
                             // TODO logic error!
                         }
