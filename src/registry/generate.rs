@@ -514,14 +514,12 @@ mod tests {
     }
 
     #[test]
-     fn test_registry_generate_v2() {
+    fn test_registry_generate_v2() {
         let temp_output = Path::new("tests/v2_forge/observed_output");
-        
+
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
         std::fs::remove_dir_all(&temp_output).unwrap_or_default();
-
-
 
         let cli = Cli {
             debug: 0,
@@ -563,6 +561,5 @@ mod tests {
         // validate expected = observed.
         let expected_output = Path::new("tests/v2_forge/expected_output");
         assert!(diff_dir(expected_output, temp_output).unwrap());
-        
     }
 }
