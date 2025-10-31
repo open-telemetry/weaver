@@ -62,7 +62,8 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 
     if args.v2 {
         // TODO
-        let (registry, _) = prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+        let (_, registry, _) =
+            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
         apply_format(&args.format, &registry)
             .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
             .and_then(|s| {

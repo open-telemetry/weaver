@@ -364,7 +364,14 @@ pub(crate) fn prepare_main_registry_v2(
     registry_args: &RegistryArgs,
     policy_args: &PolicyArgs,
     diag_msgs: &mut DiagnosticMessages,
-) -> Result<(weaver_forge::v2::registry::ForgeResolvedRegistry, Option<Engine>), DiagnosticMessages> {
+) -> Result<
+    (
+        ResolvedRegistry,
+        weaver_forge::v2::registry::ForgeResolvedRegistry,
+        Option<Engine>,
+    ),
+    DiagnosticMessages,
+> {
     let registry_path = &registry_args.registry;
 
     let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
@@ -470,5 +477,5 @@ pub(crate) fn prepare_main_registry_v2(
         })?;
     let v2_resolved_registry =
         weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(v2_schema)?;
-    Ok((v2_resolved_registry, policy_engine))
+    Ok((main_resolved_registry, v2_resolved_registry, policy_engine))
 }
