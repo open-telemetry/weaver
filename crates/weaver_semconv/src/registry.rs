@@ -389,7 +389,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("test", &registry_path).unwrap();
+        let registry_repo = RegistryRepo::try_new("test", &registry_path, None).unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);
