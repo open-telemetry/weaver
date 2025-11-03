@@ -70,7 +70,7 @@ pub struct SpanRefinement {
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `type` to refer
-    // to the underlying span defintiion, but override all fields here.
+    // to the underlying span definition, but override all fields here.
     // We probably should copy-paste all the "span" attributes here
     // including the `ty`
     /// The definition of the span refinement.

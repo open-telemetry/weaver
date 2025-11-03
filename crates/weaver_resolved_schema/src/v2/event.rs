@@ -60,7 +60,7 @@ pub struct EventRefinement {
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `name` to refer
-    // to the underlying event defintiion, but override all fields here.
+    // to the underlying event definition, but override all fields here.
     // We probably should copy-paste all the "event" attributes here
     // including the `ty`
     /// The definition of the event refinement.

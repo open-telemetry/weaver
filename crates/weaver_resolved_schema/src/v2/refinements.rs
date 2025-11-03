@@ -10,7 +10,7 @@ use crate::v2::{event::EventRefinement, metric::MetricRefinement, span::SpanRefi
 /// Refinements are a specialization of a signal that can be used to optimise documentation,
 /// or code generation. A refinement will *always* match the conventions defined by the
 /// signal it refines. Refinements cannot be inferred from signals over the wire (e.g. OTLP).
-/// This is because any identifying feature of a refinement is used purely for codgen but has
+/// This is because any identifying feature of a refinement is used purely for codegen but has
 /// no storage location in OTLP.
 ///
 /// Note: Refinements will always include a "base" refinement for every signal definition.
