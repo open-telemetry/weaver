@@ -29,7 +29,7 @@ pub struct Metric {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<MetricAttributeRef>,
     // TODO - Should Entity Associations be "strong" links?
-    /// Which resources this metric should be associated with.
+    /// Which entities this metric should be associated with.
     ///
     /// This list is an "any of" list, where a metric may be associated with one or more entities, but should
     /// be associated with at least one in this list.

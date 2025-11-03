@@ -28,7 +28,7 @@ pub struct Span {
     pub attributes: Vec<SpanAttributeRef>,
 
     // TODO - Should Entity Associations be "strong" links?
-    /// Which resources this span should be associated with.
+    /// Which entities this span should be associated with.
     ///
     /// This list is an "any of" list, where a span may be associated with one or more entities, but should
     /// be associated with at least one in this list.

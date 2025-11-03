@@ -22,7 +22,7 @@ pub struct Event {
     pub attributes: Vec<EventAttributeRef>,
 
     // TODO - Should Entity Associations be "strong" links?
-    /// Which resources this event should be associated with.
+    /// Which entities this event should be associated with.
     ///
     /// This list is an "any of" list, where a event may be associated with one or more entities, but should
     /// be associated with at least one in this list.
