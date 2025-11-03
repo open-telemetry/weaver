@@ -124,7 +124,7 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
 
     match v2 {
         Some(registry) => {
-            engine.generate(&registry, args.output.as_path(), &OutputDirective::File)?
+            engine.generate(&registry, args.output.as_path(), &OutputDirective::File)?;
         }
         None => engine.generate(&v1, args.output.as_path(), &OutputDirective::File)?,
     }
@@ -519,7 +519,7 @@ mod tests {
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
-        std::fs::remove_dir_all(&temp_output).unwrap_or_default();
+        std::fs::remove_dir_all(temp_output).unwrap_or_default();
 
         let cli = Cli {
             debug: 0,

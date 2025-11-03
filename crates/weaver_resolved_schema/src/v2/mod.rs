@@ -185,7 +185,7 @@ pub fn convert_v1_to_v2(
                         .as_ref()
                         .and_then(|l| l.extends_group.as_ref())
                         .map(|id| fix_span_group_id(id))
-                        .unwrap();
+                        .expect("Refinement extraction issue - this is a logic bug");
                     span_refinements.push(SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: Span {
@@ -234,7 +234,11 @@ pub fn convert_v1_to_v2(
                     }
                 }
                 let event = event::Event {
-                    name: g.name.clone().unwrap().into(),
+                    name: g
+                        .name
+                        .clone()
+                        .expect("Name must exist on events prior to translation to v2")
+                        .into(),
                     attributes: event_attributes,
                     entity_associations: g.entity_associations.clone(),
                     common: CommonFields {
@@ -283,9 +287,19 @@ pub fn convert_v1_to_v2(
                 }
                 // TODO - deal with unwrap errors.
                 let metric = Metric {
-                    name: g.metric_name.clone().unwrap().into(),
-                    instrument: g.instrument.clone().unwrap(),
-                    unit: g.unit.clone().unwrap(),
+                    name: g
+                        .metric_name
+                        .clone()
+                        .expect("metric_name must exist on metrics prior to translation to v2")
+                        .into(),
+                    instrument: g
+                        .instrument
+                        .clone()
+                        .expect("instrument must exist on metrics prior to translation to v2"),
+                    unit: g
+                        .unit
+                        .clone()
+                        .expect("unit must exist on metrics prior to translation to v2"),
                     attributes: metric_attributes,
                     entity_associations: g.entity_associations.clone(),
                     common: CommonFields {
@@ -515,7 +529,8 @@ mod tests {
             ],
         };
 
-        let (v2_registry, v2_refinements) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
+        let (v2_registry, v2_refinements) =
+            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
@@ -638,7 +653,8 @@ mod tests {
             ],
         };
 
-        let (v2_registry, v2_refinements) = convert_v1_to_v2(v1_catalog, v1_registry).unwrap();
+        let (v2_registry, v2_refinements) =
+            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.

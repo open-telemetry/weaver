@@ -380,7 +380,7 @@ impl ForgeResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = attribute_lookup(&ar).map(|a| Attribute {
+                    let attr = attribute_lookup(ar).map(|a| Attribute {
                         key: a.key.clone(),
                         r#type: a.r#type.clone(),
                         examples: a.examples.clone(),
