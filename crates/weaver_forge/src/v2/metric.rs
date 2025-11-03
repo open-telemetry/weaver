@@ -46,7 +46,7 @@ pub struct Metric {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MetricAttribute {
-    /// Base metric definitions.
+    /// Base attribute definitions.
     #[serde(flatten)]
     pub base: Attribute,
     /// Specifies if the attribute is mandatory. Can be "required",
