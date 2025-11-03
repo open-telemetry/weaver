@@ -39,7 +39,7 @@ pub struct RegistryResolveArgs {
     #[arg(short, long, default_value = "yaml")]
     format: Format,
 
-    // TODO - Figure out long term plan for verisons here.
+    // TODO - Figure out long term plan for versions here.
     /// Whether or not to output version 2 of the schema.
     #[arg(long, default_value = "false")]
     v2: bool,

@@ -72,7 +72,7 @@ pub struct MetricRefinement {
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `type` to refer
-    // to the underlying metric defintiion, but override all fields here.
+    // to the underlying metric definition, but override all fields here.
     // We probably should copy-paste all the "metric" attributes here
     // including the `ty`
     /// The definition of the metric refinement.

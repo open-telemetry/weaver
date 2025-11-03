@@ -49,7 +49,7 @@ pub struct EventAttribute {
     pub requirement_level: RequirementLevel,
 }
 
-/// A refinement of an event signal, for use in code-gen or specific library application.
+/// A refinement of an event signal, for use in code generation or specific library application.
 ///
 /// A refinement represents a "view" of an Event that is highly optimised for a particular implementation.
 /// e.g. for HTTP events, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
@@ -60,7 +60,7 @@ pub struct EventRefinement {
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `type` to refer
-    // to the underlying event defintiion, but override all fields here.
+    // to the underlying event definition, but override all fields here.
     // We probably should copy-paste all the "event" attributes here
     // including the `name`.
     /// The definition of the event refinement.

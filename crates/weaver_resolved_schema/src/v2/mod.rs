@@ -13,7 +13,6 @@ use weaver_semconv::{
 };
 
 use crate::{
-    registry::Group,
     v2::{
         attribute_group::AttributeGroup,
         catalog::Catalog,
@@ -182,7 +181,7 @@ pub fn convert_v1_to_v2(
                         span,
                     });
                 } else {
-                    // unwrap should be safe becasue we verified this is a refinement earlier.
+                    // unwrap should be safe because we verified this is a refinement earlier.
                     let span_type = g
                         .lineage
                         .as_ref()

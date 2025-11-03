@@ -16,7 +16,7 @@ use crate::v2::{event::EventRefinement, metric::MetricRefinement, span::SpanRefi
 /// Note: Refinements will always include a "base" refinement for every signal definition.
 ///       For example, if a Metric signal named `my_metric` is defined, there will be
 ///       a metric refinement named `my_metric` as well.
-///       This allows codegen to *only* interact with refinements, if desired, to
+///       This allows code generation to *only* interact with refinements, if desired, to
 ///       provide optimised methods for generating telemetry signals.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
