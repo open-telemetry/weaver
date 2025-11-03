@@ -21,9 +21,9 @@ pub struct Event {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<EventAttribute>,
 
-    /// Which resources this span should be associated with.
+    /// Which resources this event should be associated with.
     ///
-    /// This list is an "any of" list, where a metric may be associated with one or more entities, but should
+    /// This list is an "any of" list, where a event may be associated with one or more entities, but should
     /// be associated with at least one in this list.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -46,10 +46,6 @@ pub struct EventAttribute {
     /// the attribute is "recommended". When set to
     /// "conditionally_required", the string provided as <condition> MUST
     /// specify the conditions under which the attribute is required.
-    ///
-    /// Note: For attributes that are "recommended" or "opt-in" - not all metric source will
-    /// create timeseries with these attributes, but for any given timeseries instance, the attributes that *were* present
-    /// should *remain* present. That is - a metric timeseries cannot drop attributes during its lifetime.
     pub requirement_level: RequirementLevel,
 }
 
@@ -64,10 +60,10 @@ pub struct EventRefinement {
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `type` to refer
-    // to the underlying span defintiion, but override all fields here.
-    // We probably should copy-paste all the "span" attributes here
-    // including the `ty`
-    /// The definition of the metric refinement.
+    // to the underlying event defintiion, but override all fields here.
+    // We probably should copy-paste all the "event" attributes here
+    // including the `name`.
+    /// The definition of the event refinement.
     #[serde(flatten)]
     pub event: Event,
 }

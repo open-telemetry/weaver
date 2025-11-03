@@ -1,4 +1,4 @@
-//! Event related definition structs.
+//! Entity related definition structs.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

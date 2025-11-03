@@ -49,10 +49,6 @@ pub struct SpanAttribute {
     /// the attribute is "recommended". When set to
     /// "conditionally_required", the string provided as <condition> MUST
     /// specify the conditions under which the attribute is required.
-    ///
-    /// Note: For attributes that are "recommended" or "opt-in" - not all metric source will
-    /// create timeseries with these attributes, but for any given timeseries instance, the attributes that *were* present
-    /// should *remain* present. That is - a metric timeseries cannot drop attributes during its lifetime.
     pub requirement_level: RequirementLevel,
 
     /// Specifies if the attribute is (especially) relevant for sampling

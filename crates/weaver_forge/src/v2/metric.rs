@@ -29,7 +29,7 @@ pub struct Metric {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<MetricAttribute>,
     // TODO - Should Entity Associations be "strong" links?
-    /// Which resources this span should be associated with.
+    /// Which resources this metric should be associated with.
     ///
     /// This list is an "any of" list, where a metric may be associated with one or more entities, but should
     /// be associated with at least one in this list.
@@ -42,7 +42,7 @@ pub struct Metric {
     pub common: CommonFields,
 }
 
-/// A special type of reference to attributes that remembers metric-specicific information.
+/// A special type of reference to attributes that remembers metric-specific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MetricAttribute {
@@ -72,8 +72,8 @@ pub struct MetricRefinement {
     pub id: SignalId,
 
     // TODO - This is a lazy way of doing this.  We use `type` to refer
-    // to the underlying span defintiion, but override all fields here.
-    // We probably should copy-paste all the "span" attributes here
+    // to the underlying metric defintiion, but override all fields here.
+    // We probably should copy-paste all the "metric" attributes here
     // including the `ty`
     /// The definition of the metric refinement.
     #[serde(flatten)]

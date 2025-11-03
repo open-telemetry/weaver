@@ -967,20 +967,6 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
-
-        // TODO - Remove this.
-        let schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-            schema.try_into().unwrap();
-        fs::write(
-            "observed_output/test/v2_registry.yaml",
-            serde_yaml::to_string(&schema.registry).unwrap(),
-        )
-        .unwrap();
-        fs::write(
-            "observed_output/test/v2_refinements.yaml",
-            serde_yaml::to_string(&schema.refinements).unwrap(),
-        )
-        .unwrap();
     }
 
     #[test]
