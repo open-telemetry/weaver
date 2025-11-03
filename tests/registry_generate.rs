@@ -48,3 +48,22 @@ fn test_cli_interface() {
     // We expect 31 policy violations.
     assert_eq!(json_value.len(), 31);
 }
+
+/// Test for issue #958: Registry paths beginning with '.' should work
+#[test]
+fn test_hidden_directory() {
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let output = cmd
+        .arg("registry")
+        .arg("resolve")
+        .arg("-r")
+        .arg("test_data/.hidden_reg")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(output.status.success());
+
+    let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
+    assert!(stderr.contains("loaded (1 files)"));
+}
