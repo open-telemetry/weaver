@@ -52,7 +52,7 @@ impl Catalog {
         self.lookup
             .get(&attribute.name)?
             .iter()
-            .filter_map(|idx| {
+            .find_map(|idx| {
                 self.attributes
                     .get(*idx)
                     .filter(|a| {
@@ -75,6 +75,5 @@ impl Catalog {
                     })
                     .map(|_| AttributeRef(*idx as u32))
             })
-            .next()
     }
 }
