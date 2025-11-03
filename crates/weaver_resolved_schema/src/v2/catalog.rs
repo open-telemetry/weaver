@@ -49,31 +49,28 @@ impl Catalog {
         // Note - we do a fast lookup to contentious attributes,
         // then linear scan of attributes with same key but different
         // other aspects.
-        self.lookup
-            .get(&attribute.name)?
-            .iter()
-            .find_map(|idx| {
-                self.attributes
-                    .get(*idx)
-                    .filter(|a| {
-                        a.key == attribute.name
-                            && a.r#type == attribute.r#type
-                            && a.examples == attribute.examples
-                            && a.common.brief == attribute.brief
-                            && a.common.note == attribute.note
-                            && a.common.deprecated == attribute.deprecated
-                            && attribute
-                                .stability
-                                .as_ref()
-                                .map(|s| a.common.stability == *s)
-                                .unwrap_or(false)
-                            && attribute
-                                .annotations
-                                .as_ref()
-                                .map(|ans| a.common.annotations == *ans)
-                                .unwrap_or(false)
-                    })
-                    .map(|_| AttributeRef(*idx as u32))
-            })
+        self.lookup.get(&attribute.name)?.iter().find_map(|idx| {
+            self.attributes
+                .get(*idx)
+                .filter(|a| {
+                    a.key == attribute.name
+                        && a.r#type == attribute.r#type
+                        && a.examples == attribute.examples
+                        && a.common.brief == attribute.brief
+                        && a.common.note == attribute.note
+                        && a.common.deprecated == attribute.deprecated
+                        && attribute
+                            .stability
+                            .as_ref()
+                            .map(|s| a.common.stability == *s)
+                            .unwrap_or(false)
+                        && attribute
+                            .annotations
+                            .as_ref()
+                            .map(|ans| a.common.annotations == *ans)
+                            .unwrap_or(false)
+                })
+                .map(|_| AttributeRef(*idx as u32))
+        })
     }
 }
