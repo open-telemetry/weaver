@@ -550,8 +550,7 @@ mod tests {
                 assert_eq!(
                     diag_msgs.len(),
                     1,
-                    "Unexpected diagnostics: {:#?}",
-                    diag_msgs
+                    "Unexpected diagnostics: {diag_msgs:#?}"
                 );
                 assert!(!output.is_empty());
             }
