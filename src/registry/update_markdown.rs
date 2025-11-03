@@ -26,7 +26,7 @@ enum UpdateMarkdownError {
     #[error("The update-markdown command found differences in dry-run.")]
     MarkdownNotUpToDate,
 
-    /// The update-markdown command found differences in dry-run.
+    /// The update-markdown command ran into a fatal error.
     #[error("weaver registry update-markdown failed.")]
     MarkdownUpdateFailed,
 }
