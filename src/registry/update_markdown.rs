@@ -213,4 +213,41 @@ mod tests {
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
     }
+
+    #[test]
+    fn test_registry_update_markdown_dryrun() {
+        let markdown_dir = "tests/markdown_update_dryrun/current_output";
+        let template_dir = "tests/markdown_update_dryrun/templates";
+        let schema_dir = "tests/markdown_update_dryrun/model";
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: markdown_dir.to_owned(),
+                    registry: RegistryArgs {
+                        registry: VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        },
+                        follow_symlinks: false,
+                        include_unreferenced: false,
+                    },
+                    dry_run: true,
+                    attribute_registry_base_url: None,
+                    templates: VirtualDirectoryPath::LocalFolder {
+                        path: template_dir.to_owned(),
+                    },
+                    diagnostic: Default::default(),
+                    target: "markdown".to_owned(),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive = run_command(&cli);
+        // The command should not fail
+        assert_ne!(exit_directive.exit_code, 0);
+    }
 }
