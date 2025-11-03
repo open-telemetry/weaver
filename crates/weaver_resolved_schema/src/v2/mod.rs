@@ -12,16 +12,14 @@ use weaver_semconv::{
     },
 };
 
-use crate::{
-    v2::{
-        attribute_group::AttributeGroup,
-        catalog::Catalog,
-        entity::Entity,
-        metric::Metric,
-        refinements::Refinements,
-        registry::Registry,
-        span::{Span, SpanRefinement},
-    },
+use crate::v2::{
+    attribute_group::AttributeGroup,
+    catalog::Catalog,
+    entity::Entity,
+    metric::Metric,
+    refinements::Refinements,
+    registry::Registry,
+    span::{Span, SpanRefinement},
 };
 
 pub mod attribute;
