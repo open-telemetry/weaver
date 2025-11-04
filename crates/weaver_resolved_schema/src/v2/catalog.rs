@@ -68,9 +68,85 @@ impl Catalog {
                             .annotations
                             .as_ref()
                             .map(|ans| a.common.annotations == *ans)
-                            .unwrap_or(false)
+                            .unwrap_or(a.common.annotations.is_empty())
                 })
                 .map(|_| AttributeRef(*idx as u32))
         })
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+    use weaver_semconv::{attribute::AttributeType, stability::Stability};
+
+    use crate::v2::attribute::Attribute;
+    use crate::v2::CommonFields;
+    use super::Catalog;
+
+    #[test]
+    fn test_lookup_works() {
+        let key = "test.key".to_owned();
+        let atype = AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String);
+        let brief = "brief".to_owned();
+        let note = "note".to_owned();
+        let stability = Stability::Stable;
+        let annotations = BTreeMap::new();
+        let catalog = Catalog::from_attributes(vec![
+            Attribute { 
+                key: key.clone(), 
+                r#type: atype.clone(), 
+                examples: None, 
+                common: CommonFields {
+                    brief: brief.clone(),
+                    note: note.clone(),
+                    stability: stability.clone(),
+                    deprecated: None,
+                    annotations: annotations.clone(),
+                },
+            },
+        ]);
+
+        let result = catalog.convert_ref(&crate::attribute::Attribute {
+            name: key.clone(),
+            r#type: atype.clone(),
+            brief: brief.clone(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note: note.clone(),
+            stability: Some(stability.clone()),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: Some(annotations.clone()),
+            value: None,
+            role: None,
+        });
+        assert_eq!(result.is_some(), true);
+
+        // Make sure "none" annotations is the same as empty annotations.
+        let result2 = catalog.convert_ref(&crate::attribute::Attribute {
+            name: key.clone(),
+            r#type: atype.clone(),
+            brief: brief.clone(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note: note.clone(),
+            stability: Some(stability.clone()),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        });
+        assert_eq!(result2.is_some(), true);
     }
 }

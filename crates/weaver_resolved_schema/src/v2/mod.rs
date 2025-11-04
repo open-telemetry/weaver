@@ -147,6 +147,7 @@ pub fn convert_v1_to_v2(
                         });
                     } else {
                         // TODO logic error!
+                        log::info!("Logic failue - unable to convert attribute {attr:?}");
                     }
                 }
                 if !is_refinement {
@@ -231,6 +232,7 @@ pub fn convert_v1_to_v2(
                         });
                     } else {
                         // TODO logic error!
+                        log::info!("Logic failue - unable to convert attribute {attr:?}");
                     }
                 }
                 let event = event::Event {
@@ -283,6 +285,7 @@ pub fn convert_v1_to_v2(
                         });
                     } else {
                         // TODO logic error!
+                        log::info!("Logic failue - unable to convert attribute {attr:?}");
                     }
                 }
                 // TODO - deal with unwrap errors.
