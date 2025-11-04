@@ -173,19 +173,14 @@ impl AttributeGroup {
 }
 
 /// The group's visibility.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributeGroupVisibilitySpec {
     /// An internal group.
+    #[default]
     Internal,
     /// A public group.
     Public,
-}
-
-impl Default for AttributeGroupVisibilitySpec {
-    fn default() -> Self {
-        Self::Internal
-    }
 }
 
 impl std::fmt::Display for AttributeGroupVisibilitySpec {
