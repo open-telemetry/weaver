@@ -182,9 +182,7 @@ impl Advisor for StabilityAdvisor {
                                 advice_context: json!({
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
-                                message: format!(
-                                    "Metric is not stable; stability = {stability}."
-                                ),
+                                message: format!("Metric is not stable; stability = {stability}."),
                                 advice_level: AdviceLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
@@ -498,7 +496,7 @@ impl Advisor for EnumAdvisor {
                                         ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
                                         ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
                                     }),
-                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.", 
+                                    message: format!("Enum attribute '{}' has value '{}' which is not documented.",
                                         sample_attribute.name,
                                         attribute_value.as_str().unwrap_or(&attribute_value.to_string())
                                     ),
