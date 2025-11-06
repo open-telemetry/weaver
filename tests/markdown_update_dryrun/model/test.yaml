@@ -1,0 +1,14 @@
+groups:
+  - id: trace.test
+    type: span
+    span_kind: client
+    brief: 'Test span'
+    attributes:
+    - id: my.name
+      brief: "Test."
+      type: string
+      stability: stable
+    - id: my.other.name
+      brief: "Test."
+      type: string
+      stability: stable

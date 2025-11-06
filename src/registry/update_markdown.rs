@@ -7,9 +7,10 @@ use crate::registry::generate::generate_params_shared;
 use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use miette::Diagnostic;
 use serde_yaml::Value;
 use std::path::PathBuf;
-use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
@@ -18,6 +19,17 @@ use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
+
+#[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
+enum UpdateMarkdownError {
+    /// The update-markdown command found differences in dry-run.
+    #[error("The update-markdown command found differences in dry-run.")]
+    MarkdownNotUpToDate,
+
+    /// The update-markdown command ran into a fatal error.
+    #[error("weaver registry update-markdown failed.")]
+    MarkdownUpdateFailed,
+}
 
 /// Parameters for the `registry update-markdown` sub-command
 #[derive(Debug, Args)]
@@ -135,7 +147,12 @@ pub(crate) fn command(
         }
     }
     if has_error {
-        panic!("weaver registry update-markdown failed.");
+        let error = if args.dry_run {
+            UpdateMarkdownError::MarkdownNotUpToDate
+        } else {
+            UpdateMarkdownError::MarkdownUpdateFailed
+        };
+        return Err(error.into());
     }
 
     if !diag_msgs.is_empty() {
@@ -146,6 +163,13 @@ pub(crate) fn command(
         exit_code: 0,
         warnings: None,
     })
+}
+
+/// Converts from our local error to a diagnostic message response.
+impl From<UpdateMarkdownError> for DiagnosticMessages {
+    fn from(error: UpdateMarkdownError) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }
 
 #[cfg(test)]
@@ -188,5 +212,42 @@ mod tests {
         let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_update_markdown_dryrun() {
+        let markdown_dir = "tests/markdown_update_dryrun/current_output";
+        let template_dir = "tests/markdown_update_dryrun/templates";
+        let schema_dir = "tests/markdown_update_dryrun/model";
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: markdown_dir.to_owned(),
+                    registry: RegistryArgs {
+                        registry: VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        },
+                        follow_symlinks: false,
+                        include_unreferenced: false,
+                    },
+                    dry_run: true,
+                    attribute_registry_base_url: None,
+                    templates: VirtualDirectoryPath::LocalFolder {
+                        path: template_dir.to_owned(),
+                    },
+                    diagnostic: Default::default(),
+                    target: "markdown".to_owned(),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive = run_command(&cli);
+        // The command should not fail
+        assert_ne!(exit_directive.exit_code, 0);
     }
 }

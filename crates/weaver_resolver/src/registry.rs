@@ -668,7 +668,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
             break;
         }
 
-        log::info!(
+        log::debug!(
             "Resolved {resolved_group_count} extends in this iteration, found errors {errors:#?}"
         );
         // If we still have unresolved `extends` but we did not resolve any
