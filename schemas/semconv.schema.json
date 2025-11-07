@@ -840,11 +840,8 @@
 			]
 		},
 		"EntityAssociation": {
-			"type": "array",
-			"items": {
-				"type": "string"
-			},
-			"description": "list of entity associations."
+			"type": "string",
+			"description": "The name of the associated entity."
 		}
 	}
 }
