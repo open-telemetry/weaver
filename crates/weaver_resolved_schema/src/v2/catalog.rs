@@ -126,7 +126,7 @@ mod test {
             value: None,
             role: None,
         });
-        assert_eq!(result.is_some(), true);
+        assert!(result.is_some());
 
         // Make sure "none" annotations is the same as empty annotations.
         let result2 = catalog.convert_ref(&crate::attribute::Attribute {
@@ -146,6 +146,6 @@ mod test {
             value: None,
             role: None,
         });
-        assert_eq!(result2.is_some(), true);
+        assert!(result2.is_some());
     }
 }
