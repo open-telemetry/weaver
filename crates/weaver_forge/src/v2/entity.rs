@@ -41,7 +41,7 @@ pub struct EntityAttribute {
     /// Specifies if the attribute is mandatory. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
     /// the attribute is "recommended". When set to
-    /// "conditionally_required", the string provided as <condition> MUST
+    /// "conditionally_required", the string provided as `condition`` MUST
     /// specify the conditions under which the attribute is required.
     pub requirement_level: RequirementLevel,
 }

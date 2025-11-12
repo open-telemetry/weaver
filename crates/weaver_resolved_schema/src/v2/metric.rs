@@ -51,7 +51,7 @@ pub struct MetricAttributeRef {
     /// Specifies if the attribute is mandatory. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
     /// the attribute is "recommended". When set to
-    /// "conditionally_required", the string provided as <condition> MUST
+    /// "conditionally_required", the string provided as `condition` MUST
     /// specify the conditions under which the attribute is required.
     ///
     /// Note: For attributes that are "recommended" or "opt-in" - not all metric source will
