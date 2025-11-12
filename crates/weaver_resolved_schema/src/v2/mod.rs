@@ -678,4 +678,149 @@ mod tests {
             vec!["http".to_owned(), "http.custom".to_owned()]
         );
     }
+
+    #[test]
+    fn test_convert_event_v1_to_v2() {
+        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
+        let test_refs = v1_catalog.add_attributes([Attribute {
+            name: "test.key".to_owned(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            brief: "".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+            ),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        }]);
+        let v1_registry = crate::registry::Registry {
+            registry_url: "my.schema.url".to_owned(),
+            groups: vec![Group {
+                id: "event.my-event".to_owned(),
+                r#type: GroupType::Event,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![test_refs[0]],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some("my-event".to_owned()),
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+            }],
+        };
+
+        let (v2_registry, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        assert_eq!(v2_registry.events.len(), 1);
+        if let Some(event) = v2_registry.events.first() {
+            assert_eq!(event.name, "my-event".to_owned().into());
+        }
+    }
+
+    #[test]
+    fn test_convert_entity_v1_to_v2() {
+        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
+        let test_refs = v1_catalog.add_attributes([Attribute {
+            name: "test.key".to_owned(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            brief: "".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+            ),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
+        }]);
+        let v1_registry = crate::registry::Registry {
+            registry_url: "my.schema.url".to_owned(),
+            groups: vec![Group {
+                id: "entity.my-entity".to_owned(),
+                r#type: GroupType::Entity,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![test_refs[0]],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some("my-entity".to_owned()),
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+            }],
+        };
+
+        let (v2_registry, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        assert_eq!(v2_registry.entities.len(), 1);
+        if let Some(entity) = v2_registry.entities.first() {
+            assert_eq!(entity.r#type, "my-entity".to_owned().into());
+            assert_eq!(entity.identity.len(), 1);
+        }
+    }
+
+    #[test]
+    fn test_try_from_v1_to_v2() {
+        let v1_schema = crate::ResolvedTelemetrySchema {
+            file_format: "1.0.0".to_owned(),
+            schema_url: "my.schema.url".to_owned(),
+            registry_id: "my-registry".to_owned(),
+            catalog: crate::catalog::Catalog::from_attributes(vec![]),
+            registry: crate::registry::Registry {
+                registry_url: "my.schema.url".to_owned(),
+                groups: vec![],
+            },
+            instrumentation_library: None,
+            resource: None,
+            dependencies: vec![],
+            versions: None,
+            registry_manifest: None,
+        };
+
+        let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();
+        assert!(v2_schema.is_ok());
+        let v2_schema = v2_schema.unwrap();
+        assert_eq!(v2_schema.file_format, "1.0.0");
+        assert_eq!(v2_schema.schema_url, "my.schema.url");
+        assert_eq!(v2_schema.registry_id, "my-registry");
+    }
 }
