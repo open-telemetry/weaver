@@ -75,7 +75,6 @@ impl Catalog {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
@@ -83,32 +82,32 @@ mod test {
     use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
     use weaver_semconv::{attribute::AttributeType, stability::Stability};
 
+    use super::Catalog;
     use crate::v2::attribute::Attribute;
     use crate::v2::CommonFields;
-    use super::Catalog;
 
     #[test]
     fn test_lookup_works() {
         let key = "test.key".to_owned();
-        let atype = AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String);
+        let atype = AttributeType::PrimitiveOrArray(
+            weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+        );
         let brief = "brief".to_owned();
         let note = "note".to_owned();
         let stability = Stability::Stable;
         let annotations = BTreeMap::new();
-        let catalog = Catalog::from_attributes(vec![
-            Attribute { 
-                key: key.clone(), 
-                r#type: atype.clone(), 
-                examples: None, 
-                common: CommonFields {
-                    brief: brief.clone(),
-                    note: note.clone(),
-                    stability: stability.clone(),
-                    deprecated: None,
-                    annotations: annotations.clone(),
-                },
+        let catalog = Catalog::from_attributes(vec![Attribute {
+            key: key.clone(),
+            r#type: atype.clone(),
+            examples: None,
+            common: CommonFields {
+                brief: brief.clone(),
+                note: note.clone(),
+                stability: stability.clone(),
+                deprecated: None,
+                annotations: annotations.clone(),
             },
-        ]);
+        }]);
 
         let result = catalog.convert_ref(&crate::attribute::Attribute {
             name: key.clone(),
