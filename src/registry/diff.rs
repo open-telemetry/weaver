@@ -88,8 +88,8 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     info!("Checking registry `{}`", args.registry.registry);
 
     let registry_path = args.registry.registry.clone();
-    let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
+    let main_registry_repo = RegistryRepo::try_new("main", &registry_path, None)?;
+    let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry, None)?;
     let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.registry.follow_symlinks)
         .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs =
@@ -167,6 +167,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
@@ -196,6 +197,7 @@ mod tests {
                     },
                     follow_symlinks: false,
                     include_unreferenced: false,
+                    auth_token: None,
                 },
                 baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),

@@ -36,10 +36,11 @@ impl RegistryRepo {
     pub fn try_new(
         registry_id_if_no_manifest: &str,
         registry_path: &VirtualDirectoryPath,
+        auth_token: Option<&String>,
     ) -> Result<Self, Error> {
         let mut registry_repo = Self {
             id: Arc::from(registry_id_if_no_manifest),
-            registry: VirtualDirectory::try_new(registry_path)
+            registry: VirtualDirectory::try_new(registry_path, auth_token)
                 .map_err(Error::VirtualDirectoryError)?,
             manifest: None,
         };
@@ -115,7 +116,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = RegistryRepo::try_new("main", &registry_path).unwrap();
+        let repo = RegistryRepo::try_new("main", &registry_path, None).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(

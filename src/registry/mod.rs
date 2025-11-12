@@ -154,6 +154,11 @@ pub struct RegistryArgs {
     /// even if they are not explicitly referenced in the current (custom) registry.
     #[arg(long)]
     pub(crate) include_unreferenced: bool,
+
+    /// Authorization token to use when resolving semantic convention registry
+    /// from a Git repo URL or Git archive URL.
+    #[arg(long)]
+    pub(crate) auth_token: Option<String>,
 }
 
 /// Set of common parameters used for policy checks.

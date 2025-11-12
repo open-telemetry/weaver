@@ -36,7 +36,7 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = &args.registry.registry;
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    let registry_repo = RegistryRepo::try_new("main", registry_path, None)?;
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
