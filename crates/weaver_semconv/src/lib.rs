@@ -17,6 +17,7 @@ pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
 pub mod group;
+pub mod migration;
 pub mod json_schema;
 pub mod manifest;
 pub mod metric;

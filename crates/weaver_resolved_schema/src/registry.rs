@@ -13,10 +13,11 @@ use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
-    AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
+    AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined, NameSpace
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::migration::MigrationSpec;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
@@ -125,6 +126,9 @@ pub struct Group {
     /// This fields is only used for event groups.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// Migration details for the namespace.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub migration: Option<MigrationSpec>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -153,6 +157,7 @@ impl Group {
             GroupType::MetricGroup => None,
             GroupType::Entity => self.name.as_deref(),
             GroupType::Scope => None,
+            GroupType::NameSpace => self.name.as_deref(),
             GroupType::Undefined => None,
         }
     }
@@ -213,6 +218,11 @@ pub enum GroupStats {
     },
     /// Statistics for a scope.
     Scope {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a namespace.
+    NameSpace {
         /// Common statistics for this type of group.
         common_stats: CommonGroupStats,
     },
@@ -305,6 +315,9 @@ impl Registry {
                         GroupType::Scope => Scope {
                             common_stats: CommonGroupStats::default(),
                         },
+                        GroupType::NameSpace => NameSpace {
+                            common_stats: CommonGroupStats::default(),
+                        },
                         GroupType::Span => Span {
                             common_stats: CommonGroupStats::default(),
                             span_kind_breakdown: HashMap::new(),
@@ -355,6 +368,9 @@ impl Registry {
                         common_stats.update_stats(group);
                     }
                     Scope { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    NameSpace { common_stats } => {
                         common_stats.update_stats(group);
                     }
                     Span {
