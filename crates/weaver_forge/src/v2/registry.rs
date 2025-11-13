@@ -430,11 +430,8 @@ impl ForgeResolvedRegistry {
 
 #[cfg(test)]
 mod tests {
-    use weaver_resolved_schema::{
-        v2::{
-            attribute, event, metric, span, ResolvedTelemetrySchema,
-            {self},
-        },
+    use weaver_resolved_schema::v2::{
+        attribute, event, metric, span, ResolvedTelemetrySchema, {self},
     };
     use weaver_semconv::{
         attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
@@ -466,10 +463,9 @@ mod tests {
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: attribute::AttributeRef(0),
-                        requirement_level:
-                            weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                            ),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
                         sampling_relevant: Some(true),
                     }],
                     entity_associations: vec![],
@@ -481,10 +477,9 @@ mod tests {
                     unit: "1".to_owned(),
                     attributes: vec![metric::MetricAttributeRef {
                         base: attribute::AttributeRef(0),
-                        requirement_level:
-                            weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                            ),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
@@ -493,10 +488,9 @@ mod tests {
                     name: SignalId::from("my-event".to_owned()),
                     attributes: vec![event::EventAttributeRef {
                         base: attribute::AttributeRef(0),
-                        requirement_level:
-                            weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                            ),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
@@ -544,10 +538,9 @@ mod tests {
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: attribute::AttributeRef(0), // Refers to bad attribute.
-                        requirement_level:
-                            weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                            ),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
                         sampling_relevant: Some(true),
                     }],
                     entity_associations: vec![],
