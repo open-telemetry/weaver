@@ -1,0 +1,26 @@
+# Registry
+
+## Attributes
+{% for attr in ctx.attributes %}
+- `{{attr.key}}`: {{attr.brief}}
+{% endfor %}
+## Attribute Groups
+{% for g in ctx.attribute_groups %}
+- `{{g.id}}`: {{g.brief}}
+{% endfor %}
+## Events
+{% for e in ctx.signals.events %}
+- `{{e.name}}`: {{e.brief}}
+{% endfor %}
+## Entities
+{% for e in ctx.signals.entities %}
+- `{{e.type}}`: {{e.brief}}
+{% endfor %}
+## Metrics
+{% for m in ctx.signals.metrics %}
+- `{{m.name}}`: {{m.brief}}
+{% endfor %}
+## Spans
+{% for s in ctx.signals.spans %}
+- `{{s.type}}`: {{s.brief}}
+{% endfor %}

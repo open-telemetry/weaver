@@ -29,6 +29,7 @@ pub mod registry;
 pub mod resource;
 pub mod signal;
 pub mod tags;
+pub mod v2;
 pub mod value;
 
 /// The registry ID for the OpenTelemetry semantic conventions.
@@ -136,6 +137,7 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
+            visibility: None,
         });
     }
 
@@ -156,7 +158,7 @@ impl ResolvedTelemetrySchema {
             let al = AttributeLineage::new(group_id);
             lineage.add_attribute_lineage(attr.name.clone(), al);
         }
-        let attr_refs = self.catalog.add_attributes(attrs);
+        let attr_refs: Vec<attribute::AttributeRef> = self.catalog.add_attributes(attrs);
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::AttributeGroup,
@@ -178,6 +180,7 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
+            visibility: None,
         });
     }
 

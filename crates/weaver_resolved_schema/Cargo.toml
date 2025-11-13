@@ -19,6 +19,7 @@ thiserror.workspace = true
 serde.workspace = true
 ordered-float.workspace = true
 schemars.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

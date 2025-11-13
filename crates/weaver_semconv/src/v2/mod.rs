@@ -28,7 +28,7 @@ pub mod signal_id;
 pub mod span;
 
 /// Common fields we want on all major components of semantic conventions.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct CommonFields {
     /// A brief description of the attribute or signal.
@@ -124,6 +124,18 @@ impl SemConvSpecV2 {
             && self.metrics.is_empty()
             && self.spans.is_empty()
             && self.attribute_groups.is_empty()
+    }
+}
+
+impl Default for CommonFields {
+    fn default() -> Self {
+        Self {
+            brief: Default::default(),
+            note: Default::default(),
+            stability: Stability::Alpha,
+            deprecated: Default::default(),
+            annotations: Default::default(),
+        }
     }
 }
 

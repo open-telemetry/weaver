@@ -20,6 +20,7 @@ use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use weaver_semconv::YamlValue;
 
 /// A semantic convention registry.
@@ -134,6 +135,12 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+    /// Visibility of the attribute group.
+    /// This is only used for v2 conversion.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
 }
 
 impl Group {

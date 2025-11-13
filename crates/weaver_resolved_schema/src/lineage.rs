@@ -38,6 +38,11 @@ pub struct GroupLineage {
     /// The provenance of the source file where the group is defined.
     provenance: Provenance,
 
+    /// The group that this group extended, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub extends_group: Option<String>,
+
     /// The lineage per attribute.
     ///
     /// Note: Use a BTreeMap to ensure a deterministic order of attributes.
@@ -45,6 +50,11 @@ pub struct GroupLineage {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(default)]
     attributes: BTreeMap<String, AttributeLineage>,
+
+    /// (V2 Only) Attribute groups included in this group.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub includes_group: Vec<String>,
 }
 
 impl AttributeLineage {
@@ -470,8 +480,20 @@ impl GroupLineage {
     pub fn new(provenance: Provenance) -> Self {
         Self {
             provenance,
+            extends_group: None,
             attributes: Default::default(),
+            includes_group: Default::default(),
         }
+    }
+
+    /// Declares this group extended another group.
+    pub fn extends(&mut self, extends_group: &str) {
+        self.extends_group = Some(extends_group.to_owned());
+    }
+
+    /// Records what attribute groups were included (v2 only).
+    pub fn includes_group(&mut self, group_id: &str) {
+        self.includes_group.push(group_id.to_owned());
     }
 
     /// Adds an attribute lineage.
