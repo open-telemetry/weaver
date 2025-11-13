@@ -563,7 +563,7 @@ mod tests {
 
         if let Err(Error::CompoundError(errors)) = result {
             assert_eq!(errors.len(), 1);
-            if let Some(Error::AttributeNotFound { group_id, attr_ref }) = errors.get(0) {
+            if let Some(Error::AttributeNotFound { group_id, attr_ref }) = errors.first() {
                 assert_eq!(group_id, "span.my-span");
                 assert_eq!(*attr_ref, AttributeRef(0));
             } else {
