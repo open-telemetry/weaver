@@ -127,6 +127,18 @@ impl SemConvSpecV2 {
     }
 }
 
+impl Default for CommonFields {
+    fn default() -> Self {
+        Self { 
+          brief: Default::default(),
+          note: Default::default(),
+          stability: Stability::Alpha,
+          deprecated: Default::default(),
+          annotations: Default::default() 
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

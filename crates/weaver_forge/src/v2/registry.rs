@@ -427,3 +427,157 @@ impl ForgeResolvedRegistry {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use weaver_resolved_schema::{
+        v2::{
+            attribute, event, metric, span, ResolvedTelemetrySchema,
+            {self},
+        },
+    };
+    use weaver_semconv::{
+        attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
+        group::{InstrumentSpec, SpanKindSpec},
+        v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_try_from_resolved_schema() {
+        let resolved_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: "https://example.com/schema".to_owned(),
+            registry_id: "my-registry".to_owned(),
+            registry: v2::registry::Registry {
+                registry_url: "https://example.com/registry".to_owned(),
+                attributes: vec![attribute::Attribute {
+                    key: "test.attr".to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    examples: None,
+                    common: CommonFields::default(),
+                }],
+                spans: vec![span::Span {
+                    r#type: SignalId::from("my-span".to_owned()),
+                    kind: SpanKindSpec::Internal,
+                    name: SpanName {
+                        note: "My Span".to_owned(),
+                    },
+                    attributes: vec![span::SpanAttributeRef {
+                        base: attribute::AttributeRef(0),
+                        requirement_level:
+                            weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                        sampling_relevant: Some(true),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                metrics: vec![metric::Metric {
+                    name: SignalId::from("my-metric".to_owned()),
+                    instrument: InstrumentSpec::Counter,
+                    unit: "1".to_owned(),
+                    attributes: vec![metric::MetricAttributeRef {
+                        base: attribute::AttributeRef(0),
+                        requirement_level:
+                            weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                events: vec![event::Event {
+                    name: SignalId::from("my-event".to_owned()),
+                    attributes: vec![event::EventAttributeRef {
+                        base: attribute::AttributeRef(0),
+                        requirement_level:
+                            weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+        };
+
+        let forge_registry =
+            ForgeResolvedRegistry::try_from(resolved_schema).expect("Conversion failed");
+
+        assert_eq!(forge_registry.attributes.len(), 1);
+        assert_eq!(forge_registry.signals.spans.len(), 1);
+        assert_eq!(forge_registry.signals.metrics.len(), 1);
+        assert_eq!(forge_registry.signals.events.len(), 1);
+
+        let span = &forge_registry.signals.spans[0];
+        assert_eq!(span.r#type, "my-span".to_owned().into());
+        assert_eq!(span.attributes.len(), 1);
+        assert_eq!(span.attributes[0].base.key, "test.attr");
+    }
+
+    // This should never happen, but we want a test where "try_from" fails, so we
+    // purposely construct a bad registry in case of a logic bug further up in the stack.
+    #[test]
+    fn test_try_from_resolved_schema_with_missing_attribute() {
+        let resolved_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: "https://example.com/schema".to_owned(),
+            registry_id: "my-registry".to_owned(),
+            registry: v2::registry::Registry {
+                registry_url: "https://example.com/registry".to_owned(),
+                attributes: vec![], // No attributes - This is the logic bug.
+                spans: vec![span::Span {
+                    r#type: SignalId::from("my-span".to_owned()),
+                    kind: SpanKindSpec::Internal,
+                    name: SpanName {
+                        note: "My Span".to_owned(),
+                    },
+                    attributes: vec![span::SpanAttributeRef {
+                        base: attribute::AttributeRef(0), // Refers to bad attribute.
+                        requirement_level:
+                            weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                        sampling_relevant: Some(true),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+        };
+
+        let result = ForgeResolvedRegistry::try_from(resolved_schema);
+        assert!(result.is_err());
+
+        if let Err(Error::CompoundError(errors)) = result {
+            assert_eq!(errors.len(), 1);
+            if let Some(Error::AttributeNotFound { group_id, attr_ref }) = errors.get(0) {
+                assert_eq!(group_id, "span.my-span");
+                assert_eq!(*attr_ref, AttributeRef(0));
+            } else {
+                panic!("Expected AttributeNotFound error");
+            }
+        } else {
+            panic!("Expected CompoundError");
+        }
+    }
+}
