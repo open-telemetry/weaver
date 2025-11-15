@@ -71,8 +71,8 @@ Further reading:
 
 ## Examples and How-Tos
 
+- [Weaver Examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) - Official OTel project showcasing weaver use cases through runnable examples.
 - [O11y by design](https://github.com/jsuereth/o11y-by-design/) - from the CNCF 2025 presentation
-- [Weaver Example](https://github.com/jerbly/weaver-example) - doc-gen, code-gen, emit, live-check in CI/CD
 - [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md) - A guide on how to define your own
   telemetry schema using semantic conventions.
 
