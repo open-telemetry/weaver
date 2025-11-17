@@ -31,7 +31,7 @@ pub struct Entity {
     pub common: CommonFields,
 }
 
-/// A special type of reference to attributes that remembers entity-specicific information.
+/// A special type of reference to attributes that remembers entity-specific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EntityAttribute {
