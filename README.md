@@ -67,7 +67,7 @@ Weaver provides a _set of tools_ for working with **schematized telemetry**.
 
 Further reading:
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
-- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
+- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
 
 ## Examples and How-Tos
 
