@@ -590,28 +590,16 @@ mod tests {
         assert_eq!(refined_span.span.attributes[0].base.key, "test.attr");
 
         let refined_metric = &forge_registry.refinements.metrics[0];
-        assert_eq!(
-            refined_metric.id,
-            "my-refined-metric".to_owned().into()
-        );
-        assert_eq!(
-            refined_metric.metric.name,
-            "my-metric".to_owned().into()
-        );
+        assert_eq!(refined_metric.id, "my-refined-metric".to_owned().into());
+        assert_eq!(refined_metric.metric.name, "my-metric".to_owned().into());
         assert_eq!(refined_metric.metric.attributes.len(), 1);
-        assert_eq!(
-            refined_metric.metric.attributes[0].base.key,
-            "test.attr"
-        );
+        assert_eq!(refined_metric.metric.attributes[0].base.key, "test.attr");
 
         let refined_event = &forge_registry.refinements.events[0];
         assert_eq!(refined_event.id, "my-refined-event".to_owned().into());
         assert_eq!(refined_event.event.name, "my-event".to_owned().into());
         assert_eq!(refined_event.event.attributes.len(), 1);
-        assert_eq!(
-            refined_event.event.attributes[0].base.key,
-            "test.attr"
-        );
+        assert_eq!(refined_event.event.attributes[0].base.key, "test.attr");
     }
 
     // This should never happen, but we want a test where "try_from" fails, so we
