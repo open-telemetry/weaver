@@ -495,13 +495,69 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields::default(),
                 }],
-                entities: vec![],
+                entities: vec![v2::entity::Entity {
+                    r#type: SignalId::from("my-entity".to_owned()),
+                    identity: vec![v2::entity::EntityAttributeRef {
+                        base: attribute::AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                    description: vec![],
+                    common: CommonFields::default(),
+                }],
                 attribute_groups: vec![],
             },
             refinements: v2::refinements::Refinements {
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
+                spans: vec![span::SpanRefinement {
+                    id: SignalId::from("my-refined-span".to_owned()),
+                    span: span::Span {
+                        r#type: SignalId::from("my-span".to_owned()),
+                        kind: SpanKindSpec::Client,
+                        name: SpanName {
+                            note: "My Refined Span".to_owned(),
+                        },
+                        attributes: vec![span::SpanAttributeRef {
+                            base: attribute::AttributeRef(0),
+                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                            sampling_relevant: Some(false),
+                        }],
+                        entity_associations: vec![],
+                        common: CommonFields::default(),
+                    },
+                }],
+                metrics: vec![metric::MetricRefinement {
+                    id: SignalId::from("my-refined-metric".to_owned()),
+                    metric: metric::Metric {
+                        name: SignalId::from("my-metric".to_owned()),
+                        instrument: InstrumentSpec::Histogram,
+                        unit: "ms".to_owned(),
+                        attributes: vec![metric::MetricAttributeRef {
+                            base: attribute::AttributeRef(0),
+                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                            ),
+                        }],
+                        entity_associations: vec![],
+                        common: CommonFields::default(),
+                    },
+                }],
+                events: vec![event::EventRefinement {
+                    id: SignalId::from("my-refined-event".to_owned()),
+                    event: event::Event {
+                        name: SignalId::from("my-event".to_owned()),
+                        attributes: vec![event::EventAttributeRef {
+                            base: attribute::AttributeRef(0),
+                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::OptIn,
+                            ),
+                        }],
+                        entity_associations: vec![],
+                        common: CommonFields::default(),
+                    },
+                }],
             },
         };
 
@@ -512,11 +568,50 @@ mod tests {
         assert_eq!(forge_registry.signals.spans.len(), 1);
         assert_eq!(forge_registry.signals.metrics.len(), 1);
         assert_eq!(forge_registry.signals.events.len(), 1);
+        assert_eq!(forge_registry.signals.entities.len(), 1);
+        assert_eq!(forge_registry.refinements.spans.len(), 1);
+        assert_eq!(forge_registry.refinements.metrics.len(), 1);
+        assert_eq!(forge_registry.refinements.events.len(), 1);
 
         let span = &forge_registry.signals.spans[0];
         assert_eq!(span.r#type, "my-span".to_owned().into());
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.attributes[0].base.key, "test.attr");
+
+        let entity = &forge_registry.signals.entities[0];
+        assert_eq!(entity.r#type, "my-entity".to_owned().into());
+        assert_eq!(entity.identity.len(), 1);
+        assert_eq!(entity.identity[0].base.key, "test.attr");
+
+        let refined_span = &forge_registry.refinements.spans[0];
+        assert_eq!(refined_span.id, "my-refined-span".to_owned().into());
+        assert_eq!(refined_span.span.r#type, "my-span".to_owned().into());
+        assert_eq!(refined_span.span.attributes.len(), 1);
+        assert_eq!(refined_span.span.attributes[0].base.key, "test.attr");
+
+        let refined_metric = &forge_registry.refinements.metrics[0];
+        assert_eq!(
+            refined_metric.id,
+            "my-refined-metric".to_owned().into()
+        );
+        assert_eq!(
+            refined_metric.metric.name,
+            "my-metric".to_owned().into()
+        );
+        assert_eq!(refined_metric.metric.attributes.len(), 1);
+        assert_eq!(
+            refined_metric.metric.attributes[0].base.key,
+            "test.attr"
+        );
+
+        let refined_event = &forge_registry.refinements.events[0];
+        assert_eq!(refined_event.id, "my-refined-event".to_owned().into());
+        assert_eq!(refined_event.event.name, "my-event".to_owned().into());
+        assert_eq!(refined_event.event.attributes.len(), 1);
+        assert_eq!(
+            refined_event.event.attributes[0].base.key,
+            "test.attr"
+        );
     }
 
     // This should never happen, but we want a test where "try_from" fails, so we
