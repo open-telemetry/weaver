@@ -172,6 +172,10 @@ pub struct PolicyArgs {
     /// Display the policy coverage report (useful for debugging).
     #[arg(long, default_value = "false")]
     pub display_policy_coverage: bool,
+
+    /// Whether or not the policy engine should use the V2 schema.
+    #[arg(long, default_value = "false")]
+    pub policy_use_v2: bool,
 }
 
 /// Manage a semantic convention registry and return the exit code.

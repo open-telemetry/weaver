@@ -10,9 +10,9 @@ use std::path::PathBuf;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
-use weaver_common::log_success;
 use weaver_common::result::WResult;
 use weaver_common::vdir::VirtualDirectory;
+use weaver_common::{log_success, log_warn};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -70,6 +70,8 @@ pub(crate) fn init_policy_engine(
     if policy_coverage {
         engine.enable_coverage();
     }
+
+    // TODO - Only include standard policies in legacy mode.
 
     // Add the standard semconv policies
     // Note: `add_policy` the package name, we ignore it here as we don't need it
@@ -229,6 +231,42 @@ pub(crate) fn resolve_telemetry_schema(
     resolve_semconv_specs(&mut registry, include_unreferenced)
 }
 
+/// Prepares the Rego policy engine given the command line argument input.
+pub(crate) fn prepare_policy_engine(
+    policy_args: &PolicyArgs,
+    registry_repo: &RegistryRepo,
+) -> Result<Option<Engine>, DiagnosticMessages> {
+    if !policy_args.skip_policies {
+        // Create and hold all VirtualDirectory instances to keep them from being dropped
+        let policy_vdirs: Vec<VirtualDirectory> = policy_args
+            .policies
+            .iter()
+            .map(|path| {
+                VirtualDirectory::try_new(path).map_err(|e| {
+                    DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
+                        path: path.to_string(),
+                        error: e.to_string(),
+                    })
+                })
+            })
+            .collect::<Result<_, _>>()?;
+
+        // Extract paths from VirtualDirectory instances
+        let policy_paths: Vec<PathBuf> = policy_vdirs
+            .iter()
+            .map(|vdir| vdir.path().to_owned())
+            .collect();
+
+        Ok(Some(init_policy_engine(
+            &registry_repo,
+            &policy_paths,
+            policy_args.display_policy_coverage,
+        )?))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Resolves the main registry and optionally checks policies.
 /// This is a common starting point for some `registry` commands.
 /// e.g., `check`, `generate`, `resolve`
@@ -257,35 +295,7 @@ pub(crate) fn prepare_main_registry(
         .capture_non_fatal_errors(diag_msgs)?;
 
     // Optionally init policy engine
-    let mut policy_engine = if !policy_args.skip_policies {
-        // Create and hold all VirtualDirectory instances to keep them from being dropped
-        let policy_vdirs: Vec<VirtualDirectory> = policy_args
-            .policies
-            .iter()
-            .map(|path| {
-                VirtualDirectory::try_new(path).map_err(|e| {
-                    DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
-                        path: path.to_string(),
-                        error: e.to_string(),
-                    })
-                })
-            })
-            .collect::<Result<_, _>>()?;
-
-        // Extract paths from VirtualDirectory instances
-        let policy_paths: Vec<PathBuf> = policy_vdirs
-            .iter()
-            .map(|vdir| vdir.path().to_owned())
-            .collect();
-
-        Some(init_policy_engine(
-            &main_registry_repo,
-            &policy_paths,
-            policy_args.display_policy_coverage,
-        )?)
-    } else {
-        None
-    };
+    let mut policy_engine = prepare_policy_engine(policy_args, &main_registry_repo)?;
 
     // Check pre-resolution policies
     if let Some(engine) = policy_engine.as_ref() {
@@ -381,50 +391,26 @@ pub(crate) fn prepare_main_registry_v2(
         .capture_non_fatal_errors(diag_msgs)?;
 
     // Optionally init policy engine
-    let mut policy_engine = if !policy_args.skip_policies {
-        // Create and hold all VirtualDirectory instances to keep them from being dropped
-        let policy_vdirs: Vec<VirtualDirectory> = policy_args
-            .policies
-            .iter()
-            .map(|path| {
-                VirtualDirectory::try_new(path).map_err(|e| {
-                    DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
-                        path: path.to_string(),
-                        error: e.to_string(),
-                    })
-                })
-            })
-            .collect::<Result<_, _>>()?;
-
-        // Extract paths from VirtualDirectory instances
-        let policy_paths: Vec<PathBuf> = policy_vdirs
-            .iter()
-            .map(|vdir| vdir.path().to_owned())
-            .collect();
-
-        Some(init_policy_engine(
-            &main_registry_repo,
-            &policy_paths,
-            policy_args.display_policy_coverage,
-        )?)
-    } else {
-        None
-    };
+    let mut policy_engine = prepare_policy_engine(policy_args, &main_registry_repo)?;
 
     // Check pre-resolution policies
     if let Some(engine) = policy_engine.as_ref() {
-        check_policy(engine, &main_semconv_specs)
-            .inspect(|_, violations| {
-                if let Some(violations) = violations {
-                    log_success(format!(
-                        "All `before_resolution` policies checked ({} violations found)",
-                        violations.len()
-                    ));
-                } else {
-                    log_success("No `before_resolution` policy violation");
-                }
-            })
-            .capture_non_fatal_errors(diag_msgs)?;
+        if policy_args.policy_use_v2 {
+            log_warn("V2 syntax does not support before resolution policies");
+        } else {
+            check_policy(engine, &main_semconv_specs)
+                .inspect(|_, violations| {
+                    if let Some(violations) = violations {
+                        log_success(format!(
+                            "All `before_resolution` policies checked ({} violations found)",
+                            violations.len()
+                        ));
+                    } else {
+                        log_success("No `before_resolution` policy violation");
+                    }
+                })
+                .capture_non_fatal_errors(diag_msgs)?;
+        }
     }
 
     // Resolve the main registry
@@ -445,26 +431,28 @@ pub(crate) fn prepare_main_registry_v2(
     )
     .combine_diag_msgs_with(diag_msgs)?;
 
-    // Check post-resolution policies
-    if let Some(engine) = policy_engine.as_mut() {
-        check_policy_stage::<ResolvedRegistry, ()>(
-            engine,
-            PolicyStage::AfterResolution,
-            main_registry_repo.registry_path_repr(),
-            &main_resolved_registry,
-            &[],
-        )
-        .inspect(|_, violations| {
-            if let Some(violations) = violations {
-                log_success(format!(
-                    "All `after_resolution` policies checked ({} violations found)",
-                    violations.len()
-                ));
-            } else {
-                log_success("No `after_resolution` policy violation");
-            }
-        })
-        .capture_non_fatal_errors(diag_msgs)?;
+    // Check post-resolution policies for v1
+    if !policy_args.policy_use_v2 {
+        if let Some(engine) = policy_engine.as_mut() {
+            check_policy_stage::<ResolvedRegistry, ()>(
+                engine,
+                PolicyStage::AfterResolution,
+                main_registry_repo.registry_path_repr(),
+                &main_resolved_registry,
+                &[],
+            )
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    log_success(format!(
+                        "All `after_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    log_success("No `after_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+        }
     }
 
     // TODO - fix error passing here so original error is diagnostic.
@@ -477,5 +465,28 @@ pub(crate) fn prepare_main_registry_v2(
         })?;
     let v2_resolved_registry =
         weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(v2_schema)?;
+    // Check post-resolution policies for v2
+    if policy_args.policy_use_v2 {
+        if let Some(engine) = policy_engine.as_mut() {
+            check_policy_stage::<weaver_forge::v2::registry::ForgeResolvedRegistry, ()>(
+                engine,
+                PolicyStage::AfterResolution,
+                main_registry_repo.registry_path_repr(),
+                &v2_resolved_registry,
+                &[],
+            )
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    log_success(format!(
+                        "All `after_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    log_success("No `after_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+        }
+    }
     Ok((main_resolved_registry, v2_resolved_registry, policy_engine))
 }

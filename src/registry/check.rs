@@ -4,7 +4,8 @@
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
-    check_policy_stage, load_semconv_specs, prepare_main_registry, resolve_semconv_specs,
+    check_policy_stage, load_semconv_specs, prepare_main_registry, prepare_main_registry_v2,
+    resolve_semconv_specs,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -47,8 +48,8 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
     // Initialize the main registry.
     let registry_path = &args.registry.registry;
 
-    let (main_resolved_registry, mut policy_engine) =
-        prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+    let (main_resolved_registry, v2_registry, mut policy_engine) =
+        prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
@@ -86,25 +87,59 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
             )
             .combine_diag_msgs_with(&diag_msgs)?;
 
-            // Check the policies against the resolved registry (`PolicyState::ComparisonAfterResolution`).
-            check_policy_stage(
-                policy_engine,
-                PolicyStage::ComparisonAfterResolution,
-                &registry_path.to_string(),
-                &main_resolved_registry,
-                &[baseline_resolved_registry],
-            )
-            .inspect(|_, violations| {
-                if let Some(violations) = violations {
-                    log_success(format!(
-                        "All `comparison_after_resolution` policies checked ({} violations found)",
-                        violations.len()
-                    ));
-                } else {
-                    log_success("No `comparison_after_resolution` policy violation");
-                }
-            })
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+            // TODO - This is quite an ugly way to handle v2 vs. v1, see if we can refactor.
+            if args.policy.policy_use_v2 {
+                // TODO - Fix error passing here so original error is a diagnostic or we can convert to something reasonable.
+                let v2_baseline_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                    baseline_resolved_schema.try_into().map_err(|e: weaver_resolved_schema::error::Error| {
+                        weaver_forge::error::Error::TemplateEngineError {
+                            error: e.to_string(),
+                        }
+                    })?;
+                let v2_baseline_resolved_registry =
+                    weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                        v2_baseline_schema,
+                    )?;
+                check_policy_stage(
+                    policy_engine,
+                    PolicyStage::ComparisonAfterResolution,
+                    &registry_path.to_string(),
+                    &v2_registry,
+                    &[v2_baseline_resolved_registry],
+                )
+                .inspect(|_, violations| {
+                    if let Some(violations) = violations {
+                        log_success(format!(
+                            "All `comparison_after_resolution` policies checked ({} violations found)",
+                            violations.len()
+                        ));
+                    } else {
+                        log_success("No `comparison_after_resolution` policy violation");
+                    }
+                })
+                .capture_non_fatal_errors(&mut diag_msgs)?;
+                todo!("Implement after-resolution policy checks")
+            } else {
+                // Check the policies against the resolved registry (`PolicyState::ComparisonAfterResolution`).
+                check_policy_stage(
+                    policy_engine,
+                    PolicyStage::ComparisonAfterResolution,
+                    &registry_path.to_string(),
+                    &main_resolved_registry,
+                    &[baseline_resolved_registry],
+                )
+                .inspect(|_, violations| {
+                    if let Some(violations) = violations {
+                        log_success(format!(
+                            "All `comparison_after_resolution` policies checked ({} violations found)",
+                            violations.len()
+                        ));
+                    } else {
+                        log_success("No `comparison_after_resolution` policy violation");
+                    }
+                })
+                .capture_non_fatal_errors(&mut diag_msgs)?;
+            }
         }
     }
 
@@ -148,6 +183,7 @@ mod tests {
                         policies: vec![],
                         skip_policies: true,
                         display_policy_coverage: false,
+                        policy_use_v2: false,
                     },
                     diagnostic: Default::default(),
                 }),
@@ -177,6 +213,7 @@ mod tests {
                         policies: vec![],
                         skip_policies: false,
                         display_policy_coverage: false,
+                        policy_use_v2: false,
                     },
                     diagnostic: Default::default(),
                 }),
@@ -204,6 +241,7 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
+                    policy_use_v2: false,
                 },
                 diagnostic: Default::default(),
             }),
@@ -222,6 +260,45 @@ mod tests {
                 + 3 /* metric after resolution */
                 + 9 /* http after resolution */
                 + 1 /* deprecated string note */
+            );
+        }
+    }
+
+    // TODO - Test v2 with baseline registry.
+    #[test]
+    fn test_v2_policies() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: VirtualDirectoryPath::LocalFolder {
+                        path: "tests/v2_check/".to_owned(),
+                    },
+                    follow_symlinks: false,
+                    include_unreferenced: false,
+                },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    policies: vec![],
+                    skip_policies: false,
+                    display_policy_coverage: true,
+                    policy_use_v2: true,
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd);
+        // V2 Violations should be observed.
+        assert!(cmd_result.command_result.is_err());
+        // TODO - Check the violations
+        if let Err(diag_msgs) = cmd_result.command_result {
+            assert!(!diag_msgs.is_empty());
+            for msg in diag_msgs.clone().into_inner().iter() {
+                println!("- {msg:?}");
+            }
+            assert_eq!(
+                diag_msgs.len(),
+                1 /* Unstable file version */
+                + 1 /* post-resoluton metric error */
             );
         }
     }
