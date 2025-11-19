@@ -465,6 +465,7 @@ impl Engine {
 mod tests {
     use std::collections::HashMap;
 
+    use serde_json::json;
     use serde_yaml::Value;
 
     use weaver_common::error::format_errors;
@@ -584,12 +585,14 @@ mod tests {
                 group: "registry.network1".to_owned(),
                 attr: "protocol.name.3".to_owned(),
             },
-            Violation::SemconvAttribute {
+            Violation::Custom(crate::violation::Custom {
                 id: "registry_with_ref_attr".to_owned(),
-                category: "attribute_registry".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.port".to_owned(),
-            },
+                message: "Registry cannot contain ref attribute. Found group: registry.network1, attr: protocol.port".to_owned(),
+                context: json!({
+                    "attr": "protocol.port",
+                    "group": "registry.network1",
+                }),
+            }),
         ]
         .into_iter()
         .map(|v| (v.id().to_owned(), v))

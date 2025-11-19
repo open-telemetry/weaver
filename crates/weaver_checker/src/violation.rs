@@ -25,6 +25,8 @@ pub enum Violation {
     },
     /// Advice related to a policy violation.
     Advice(Advice),
+    /// A violation that is completely custom provided.
+    Custom(Custom),
 }
 
 impl Display for Violation {
@@ -54,6 +56,14 @@ impl Display for Violation {
                     "type={type}, context={advice_context}, message={message}, advice_level={advice_level:?}, signal_type={signal_type:?}, signal_name={signal_name:?}"
                 )
             }
+            Violation::Custom(Custom {
+                id,
+                message,
+                context,
+            }) => write!(
+                    f,
+                    "id={id}, context={context}, message={message}"
+                ),
         }
     }
 }
@@ -68,6 +78,7 @@ impl Violation {
                 advice_type: r#type,
                 ..
             }) => r#type,
+            Violation::Custom(Custom { id, .. }) => id,
         }
     }
 }
@@ -112,4 +123,21 @@ pub struct Advice {
 
     /// The signal name the advice applies to e.g. "http.server.request.duration".
     pub signal_name: Option<String>,
+}
+
+/// Represents custom rego policy violations.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Custom {
+    /// A unique id denoting the policy violation.
+    ///
+    /// Violations will be grouped by this value.
+    pub id: String,
+    /// The human readable message of the policy violation, e.g. "You may not use 'z' in metric names".
+    /// 
+    /// This will be used to display the violation when no templates have been provided.
+    pub message: String,
+    /// Additional context about the violation.
+    /// 
+    /// This will be used when rendering the violation via custom templates.
+    pub context: Value,
 }

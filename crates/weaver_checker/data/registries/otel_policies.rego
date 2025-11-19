@@ -12,11 +12,16 @@ import rego.v1
 
 # A registry `attribute_group` containing at least one `ref` attribute is
 # considered invalid.
-deny contains attr_registry_violation("registry_with_ref_attr", group.id, attr.ref) if {
+deny contains custom_violation("registry_with_ref_attr", message, ctx) if {
 	group := input.groups[_]
 	startswith(group.id, "registry.")
 	attr := group.attributes[_]
 	attr.ref != null
+	message := sprintf("Registry cannot contain ref attribute. Found group: %s, attr: %s", [group.id, attr.ref])
+	ctx := {
+		"group": group.id,
+		"attr": attr.ref,
+	}
 }
 
 # An attribute whose stability is not `deprecated` but has the deprecated field
@@ -76,5 +81,14 @@ schema_evolution_violation(violation_id, group_id, attr_id) := violation if {
 		"category": "schema_evolution",
 		"group": group_id,
 		"attr": attr_id,
+	}
+}
+
+custom_violation(id, message, ctx) := violation if {
+	violation := {
+		"id": id,
+		"type": "custom",
+		"message": message,
+		"context": ctx,
 	}
 }
