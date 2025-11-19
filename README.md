@@ -67,12 +67,12 @@ Weaver provides a _set of tools_ for working with **schematized telemetry**.
 
 Further reading:
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
-- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
+- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
 
 ## Examples and How-Tos
 
+- [Weaver Examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) - Official OTel project showcasing weaver use cases through runnable examples.
 - [O11y by design](https://github.com/jsuereth/o11y-by-design/) - from the CNCF 2025 presentation
-- [Weaver Example](https://github.com/jerbly/weaver-example) - doc-gen, code-gen, emit, live-check in CI/CD
 - [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md) - A guide on how to define your own
   telemetry schema using semantic conventions.
 
