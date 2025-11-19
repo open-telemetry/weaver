@@ -119,7 +119,6 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
                     }
                 })
                 .capture_non_fatal_errors(&mut diag_msgs)?;
-                todo!("Implement after-resolution policy checks")
             } else {
                 // Check the policies against the resolved registry (`PolicyState::ComparisonAfterResolution`).
                 check_policy_stage(
@@ -162,6 +161,7 @@ mod tests {
         semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand,
     };
     use crate::run_command;
+    use assert_cmd::assert;
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
@@ -265,7 +265,6 @@ mod tests {
         }
     }
 
-    // TODO - Test v2 with baseline registry.
     #[test]
     fn test_v2_policies() {
         let registry_cmd = RegistryCommand {
@@ -290,16 +289,64 @@ mod tests {
         let cmd_result = semconv_registry(&registry_cmd);
         // V2 Violations should be observed.
         assert!(cmd_result.command_result.is_err());
-        // TODO - Check the violations
         if let Err(diag_msgs) = cmd_result.command_result {
             assert!(!diag_msgs.is_empty());
-            for msg in diag_msgs.clone().into_inner().iter() {
-                println!("- {msg:?}");
-            }
+            assert!(diag_msgs
+                .clone()
+                .into_inner()
+                .iter()
+                .find(|msg| format!(
+                    "{msg:?}").contains("invalid_metric_attr")
+                )
+                .is_some());
             assert_eq!(
                 diag_msgs.len(),
                 1 /* Unstable file version */
                 + 1 /* post-resoluton metric error */
+            );
+        }
+    }
+
+    #[test]
+    fn test_v2_baseline_policies() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: VirtualDirectoryPath::LocalFolder {
+                        path: "tests/v2_check_baseline/next/".to_owned(),
+                    },
+                    follow_symlinks: false,
+                    include_unreferenced: false,
+                },
+                baseline_registry: Some(VirtualDirectoryPath::LocalFolder {
+                    path: "tests/v2_check_baseline/base".to_owned(),
+                }),
+                policy: PolicyArgs {
+                    policies: vec![],
+                    skip_policies: false,
+                    display_policy_coverage: false,
+                    policy_use_v2: true,
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd);
+        // V2 Violations should be observed.
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            assert!(!diag_msgs.is_empty());
+            assert!(diag_msgs
+                .clone()
+                .into_inner()
+                .iter()
+                .find(|msg| format!(
+                    "{msg:?}").contains("cannot change required/recommended attributes")
+                )
+                .is_some());
+            assert_eq!(
+                diag_msgs.len(),
+                1 /* Unstable file version */
+                + 1 /* baseline error checking */
             );
         }
     }
