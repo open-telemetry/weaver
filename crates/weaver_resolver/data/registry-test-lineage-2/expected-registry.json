@@ -44,6 +44,7 @@
           "registry_id": "default",
           "path": "data/registry-test-lineage-2/registry/groups.yaml"
         },
+        "extends_group": "base.level",
         "attributes": {
           "server.port": {
             "source_group": "base.level",
@@ -76,6 +77,7 @@
           "registry_id": "default",
           "path": "data/registry-test-lineage-2/registry/groups.yaml"
         },
+        "extends_group": "intermediate.level",
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.xyz",
