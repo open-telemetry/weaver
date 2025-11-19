@@ -4,8 +4,7 @@
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
-    check_policy_stage, load_semconv_specs, prepare_main_registry, prepare_main_registry_v2,
-    resolve_semconv_specs,
+    check_policy_stage, load_semconv_specs, prepare_main_registry_v2, resolve_semconv_specs,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -91,11 +90,13 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
             if args.policy.policy_use_v2 {
                 // TODO - Fix error passing here so original error is a diagnostic or we can convert to something reasonable.
                 let v2_baseline_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-                    baseline_resolved_schema.try_into().map_err(|e: weaver_resolved_schema::error::Error| {
-                        weaver_forge::error::Error::TemplateEngineError {
-                            error: e.to_string(),
-                        }
-                    })?;
+                    baseline_resolved_schema.try_into().map_err(
+                        |e: weaver_resolved_schema::error::Error| {
+                            weaver_forge::error::Error::TemplateEngineError {
+                                error: e.to_string(),
+                            }
+                        },
+                    )?;
                 let v2_baseline_resolved_registry =
                     weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                         v2_baseline_schema,

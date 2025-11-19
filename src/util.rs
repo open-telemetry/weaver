@@ -258,7 +258,7 @@ pub(crate) fn prepare_policy_engine(
             .collect();
 
         Ok(Some(init_policy_engine(
-            &registry_repo,
+            registry_repo,
             &policy_paths,
             policy_args.display_policy_coverage,
         )?))
