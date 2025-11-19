@@ -295,9 +295,7 @@ mod tests {
                 .clone()
                 .into_inner()
                 .iter()
-                .find(|msg| format!(
-                    "{msg:?}").contains("invalid_metric_attr")
-                )
+                .find(|msg| format!("{msg:?}").contains("invalid_metric_attr"))
                 .is_some());
             assert_eq!(
                 diag_msgs.len(),
@@ -339,9 +337,8 @@ mod tests {
                 .clone()
                 .into_inner()
                 .iter()
-                .find(|msg| format!(
-                    "{msg:?}").contains("cannot change required/recommended attributes")
-                )
+                .find(|msg| format!("{msg:?}")
+                    .contains("cannot change required/recommended attributes"))
                 .is_some());
             assert_eq!(
                 diag_msgs.len(),
