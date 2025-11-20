@@ -4,6 +4,7 @@
 //! This module supports the `schema` and `registry` commands.
 
 use crate::registry::{PolicyArgs, RegistryArgs};
+use miette::Diagnostic;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -20,6 +21,16 @@ use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpec;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
+
+/// Errors that could occur in these utilities.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
+#[non_exhaustive]
+pub enum PolicyError {
+    /// The usage of "before-resolution" rego policies is unsupported.
+    #[error("The usage of \"before-resolution\" rego policies is unsupported with V2 schema.")]
+    #[diagnostic(severity(Warning))]
+    BeforeResolutionUnsupported,
+}
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -71,7 +82,7 @@ pub(crate) fn init_policy_engine(
         engine.enable_coverage();
     }
 
-    // TODO - Only include standard policies in legacy mode.
+    // TODO(jsuereth) - Only include standard policies in legacy mode.
 
     // Add the standard semconv policies
     // Note: `add_policy` the package name, we ignore it here as we don't need it
@@ -396,7 +407,10 @@ pub(crate) fn prepare_main_registry_v2(
     // Check pre-resolution policies
     if let Some(engine) = policy_engine.as_ref() {
         if policy_args.policy_use_v2 {
-            log_warn("V2 syntax does not support before resolution policies");
+            // Issue a warning so we fail --future.
+            if engine.has_stage(PolicyStage::BeforeResolution) {
+                diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
+            }
         } else {
             check_policy(engine, &main_semconv_specs)
                 .inspect(|_, violations| {
@@ -489,4 +503,10 @@ pub(crate) fn prepare_main_registry_v2(
         }
     }
     Ok((main_resolved_registry, v2_resolved_registry, policy_engine))
+}
+
+impl From<PolicyError> for DiagnosticMessages {
+    fn from(error: PolicyError) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }

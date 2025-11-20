@@ -347,4 +347,44 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_v2_before_resolution_policies() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: VirtualDirectoryPath::LocalFolder {
+                        path: "tests/v2_check_before_resolution/".to_owned(),
+                    },
+                    follow_symlinks: false,
+                    include_unreferenced: false,
+                },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    policies: vec![],
+                    skip_policies: false,
+                    display_policy_coverage: false,
+                    policy_use_v2: true,
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd);
+        // V2 should warn about before_resolution.
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            assert!(!diag_msgs.is_empty());
+            assert!(diag_msgs
+                .clone()
+                .into_inner()
+                .iter()
+                .find(|msg| format!("{msg:?}").contains("is unsupported with V2"))
+                .is_some());
+            assert_eq!(
+                diag_msgs.len(),
+                1 /* Unstable file version */
+                + 1 /* baseline error checking */
+            );
+        }
+    }
 }

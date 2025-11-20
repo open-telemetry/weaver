@@ -411,6 +411,11 @@ impl Engine {
         Ok(())
     }
 
+    /// Returns true if there are any policy packages for a given stage.
+    pub fn has_stage(&self, stage: PolicyStage) -> bool {
+        self.policy_packages.contains(&format!("data.{stage}"))
+    }
+
     /// Returns a list of violations based on the policies, the data, the
     /// input, and the given policy stage.
     #[allow(clippy::print_stdout)] // Used to display the coverage (debugging purposes only)
