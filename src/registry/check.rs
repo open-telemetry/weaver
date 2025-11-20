@@ -295,12 +295,11 @@ mod tests {
                 .clone()
                 .into_inner()
                 .iter()
-                .find(|msg| format!("{msg:?}").contains("invalid_metric_attr"))
-                .is_some());
+                .any(|msg| format!("{msg:?}").contains("invalid_metric_attr")));
             assert_eq!(
                 diag_msgs.len(),
                 1 /* Unstable file version */
-                + 1 /* post-resoluton metric error */
+                + 1 /* post-resolution metric error */
             );
         }
     }
@@ -337,9 +336,8 @@ mod tests {
                 .clone()
                 .into_inner()
                 .iter()
-                .find(|msg| format!("{msg:?}")
-                    .contains("cannot change required/recommended attributes"))
-                .is_some());
+                .any(|msg| format!("{msg:?}")
+                    .contains("cannot change required/recommended attributes")));
             assert_eq!(
                 diag_msgs.len(),
                 1 /* Unstable file version */
@@ -378,12 +376,11 @@ mod tests {
                 .clone()
                 .into_inner()
                 .iter()
-                .find(|msg| format!("{msg:?}").contains("is unsupported with V2"))
-                .is_some());
+                .any(|msg| format!("{msg:?}").contains("is unsupported with V2")));
             assert_eq!(
                 diag_msgs.len(),
                 1 /* Unstable file version */
-                + 1 /* baseline error checking */
+                + 1 /* before_resolution warning */
             );
         }
     }
