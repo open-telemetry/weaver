@@ -161,7 +161,7 @@ mod tests {
         semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand,
     };
     use crate::run_command;
-    
+
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]

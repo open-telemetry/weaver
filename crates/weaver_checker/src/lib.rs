@@ -412,7 +412,7 @@ impl Engine {
     }
 
     /// Returns true if there are any policy packages for a given stage.
-    #[must_use] 
+    #[must_use]
     pub fn has_stage(&self, stage: PolicyStage) -> bool {
         self.policy_packages.contains(&format!("data.{stage}"))
     }
