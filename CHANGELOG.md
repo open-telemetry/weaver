@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add support for V2 schema in weaver_forge ([#980](https://github.com/open-telemetry/weaver/pull/980) by @jsuereth)
+- Add support for V2 schema in `weaver check` ([#1016](https://github.com/open-telemetry/weaver/pull/1016) by @jsuereth)
+
 # [0.19.0] - 2025-11-04
 
 - Add support for attribute_group (public and internal) in schema v2 ([#933](https://github.com/open-telemetry/weaver/pull/933) by @lmolkova)
