@@ -13,7 +13,7 @@ use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
 use weaver_common::vdir::VirtualDirectory;
-use weaver_common::{log_success, log_warn};
+use weaver_common::log_success;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
