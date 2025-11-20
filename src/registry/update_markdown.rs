@@ -92,7 +92,7 @@ pub(crate) fn command(
 
     // Construct a generator if we were given a `--target` argument.
     let generator = {
-        let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
+        let templates_dir = VirtualDirectory::try_new(&args.templates, None).map_err(|e| {
             Error::InvalidVirtualDirectory {
                 path: args.templates.to_string(),
                 error: e.to_string(),
@@ -106,7 +106,7 @@ pub(crate) fn command(
 
     let registry_path = &args.registry.registry;
 
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    let registry_repo = RegistryRepo::try_new("main", registry_path, None)?;
     let generator = SnippetGenerator::try_from_registry_repo(
         &registry_repo,
         generator,
@@ -195,6 +195,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),

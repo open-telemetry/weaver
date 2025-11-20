@@ -109,7 +109,7 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
 
     let params = generate_params(args)?;
     let templates_dir =
-        VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidParams {
+        VirtualDirectory::try_new(&args.templates, None).map_err(|e| Error::InvalidParams {
             params_file: PathBuf::from(args.templates.to_string()),
             error: e.to_string(),
         })?;
@@ -226,6 +226,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -305,6 +306,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -355,6 +357,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -464,6 +467,7 @@ mod tests {
                             },
                             follow_symlinks,
                             include_unreferenced: false,
+                            auth_token: None,
                         },
                         policy: PolicyArgs {
                             policies: vec![],

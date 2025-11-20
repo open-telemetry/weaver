@@ -449,7 +449,11 @@ impl SchemaResolver {
                         }))
                     } else {
                         let dependency = &dependencies[0];
-                        match RegistryRepo::try_new(&dependency.name, &dependency.registry_path) {
+                        match RegistryRepo::try_new(
+                            &dependency.name,
+                            &dependency.registry_path,
+                            None,
+                        ) {
                             Ok(registry_repo_dep) => Some(Self::load_semconv_specs_with_depth(
                                 &registry_repo_dep,
                                 true,
@@ -660,7 +664,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new("main", &registry_path, None)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
         match result {
             WResult::Ok(semconv_specs) => {
@@ -692,7 +696,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new("app", &registry_path, None)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
 
         match result {
@@ -814,7 +818,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new("app", &registry_path, None)?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
         let mut visited_registries = HashSet::new();
@@ -850,7 +854,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/circular-registry-test/registry_a".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("registry_a", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new("registry_a", &registry_path, None)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
 
         match result {

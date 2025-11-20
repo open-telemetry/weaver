@@ -52,7 +52,7 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
-        Some(RegistryRepo::try_new("baseline", baseline_registry)?)
+        Some(RegistryRepo::try_new("baseline", baseline_registry, None)?)
     } else {
         None
     };
@@ -142,6 +142,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     baseline_registry: None,
                     policy: PolicyArgs {
@@ -171,6 +172,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        auth_token: None,
                     },
                     baseline_registry: None,
                     policy: PolicyArgs {
@@ -198,6 +200,7 @@ mod tests {
                     },
                     follow_symlinks: false,
                     include_unreferenced: false,
+                    auth_token: None,
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {

@@ -250,7 +250,8 @@ pub(crate) fn prepare_main_registry(
 ) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
     let registry_path = &registry_args.registry;
 
-    let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    let main_registry_repo =
+        RegistryRepo::try_new("main", registry_path, registry_args.auth_token.as_ref())?;
 
     // Load the semantic convention specs
     let main_semconv_specs = load_semconv_specs(&main_registry_repo, registry_args.follow_symlinks)
@@ -263,7 +264,7 @@ pub(crate) fn prepare_main_registry(
             .policies
             .iter()
             .map(|path| {
-                VirtualDirectory::try_new(path).map_err(|e| {
+                VirtualDirectory::try_new(path, registry_args.auth_token.as_ref()).map_err(|e| {
                     DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
                         path: path.to_string(),
                         error: e.to_string(),
