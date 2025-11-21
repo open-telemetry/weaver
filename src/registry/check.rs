@@ -87,7 +87,7 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
             .combine_diag_msgs_with(&diag_msgs)?;
 
             // TODO - This is quite an ugly way to handle v2 vs. v1, see if we can refactor.
-            if args.policy.policy_use_v2 {
+            if args.registry.v2 {
                 // TODO - Fix error passing here so original error is a diagnostic or we can convert to something reasonable.
                 let v2_baseline_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
                     baseline_resolved_schema.try_into().map_err(
@@ -186,7 +186,6 @@ mod tests {
                         policies: vec![],
                         skip_policies: true,
                         display_policy_coverage: false,
-                        policy_use_v2: false,
                     },
                     diagnostic: Default::default(),
                 }),
@@ -217,7 +216,6 @@ mod tests {
                         policies: vec![],
                         skip_policies: false,
                         display_policy_coverage: false,
-                        policy_use_v2: false,
                     },
                     diagnostic: Default::default(),
                 }),
@@ -246,7 +244,6 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
-                    policy_use_v2: false,
                 },
                 diagnostic: Default::default(),
             }),
@@ -279,13 +276,13 @@ mod tests {
                     },
                     follow_symlinks: false,
                     include_unreferenced: false,
+                    v2: true,
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: true,
-                    policy_use_v2: true,
                 },
                 diagnostic: Default::default(),
             }),
@@ -318,6 +315,7 @@ mod tests {
                     },
                     follow_symlinks: false,
                     include_unreferenced: false,
+                    v2: true,
                 },
                 baseline_registry: Some(VirtualDirectoryPath::LocalFolder {
                     path: "tests/v2_check_baseline/base".to_owned(),
@@ -326,7 +324,6 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
-                    policy_use_v2: true,
                 },
                 diagnostic: Default::default(),
             }),
@@ -360,13 +357,13 @@ mod tests {
                     },
                     follow_symlinks: false,
                     include_unreferenced: false,
+                    v2: true,
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
-                    policy_use_v2: true,
                 },
                 diagnostic: Default::default(),
             }),

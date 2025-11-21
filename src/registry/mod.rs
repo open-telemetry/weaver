@@ -158,7 +158,7 @@ pub struct RegistryArgs {
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
     #[arg(long, default_value = "false")]
-    v2: bool,
+    pub v2: bool,
 }
 
 /// Set of common parameters used for policy checks.
@@ -177,10 +177,6 @@ pub struct PolicyArgs {
     /// Display the policy coverage report (useful for debugging).
     #[arg(long, default_value = "false")]
     pub display_policy_coverage: bool,
-
-    /// Whether or not the policy engine should use the V2 schema.
-    #[arg(long, default_value = "false")]
-    pub policy_use_v2: bool,
 }
 
 /// Manage a semantic convention registry and return the exit code.

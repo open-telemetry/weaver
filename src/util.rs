@@ -443,7 +443,7 @@ pub(crate) fn prepare_main_registry_opt_v2(
 
     // Check pre-resolution policies
     if let Some(engine) = policy_engine.as_ref() {
-        if policy_args.policy_use_v2 {
+        if registry_args.v2 {
             // Issue a warning so we fail --future.
             if engine.has_stage(PolicyStage::BeforeResolution) {
                 diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
@@ -483,7 +483,7 @@ pub(crate) fn prepare_main_registry_opt_v2(
     .combine_diag_msgs_with(diag_msgs)?;
 
     // Check post-resolution policies for v1
-    if !policy_args.policy_use_v2 {
+    if !registry_args.v2 {
         if let Some(engine) = policy_engine.as_mut() {
             check_policy_stage::<ResolvedRegistry, ()>(
                 engine,
@@ -525,7 +525,7 @@ pub(crate) fn prepare_main_registry_opt_v2(
     });
 
     // Check post-resolution policies for v2
-    if policy_args.policy_use_v2 {
+    if registry_args.v2 {
         let v2_resolved_registry = match opt_v2_resolved_registry.as_ref() {
             Ok(v2_resolved_registry) => v2_resolved_registry,
             Err(e) => {

@@ -104,7 +104,6 @@ mod tests {
                         policies: vec![],
                         skip_policies: true,
                         display_policy_coverage: false,
-                        policy_use_v2: false,
                     },
                     diagnostic: Default::default(),
                     stdout: true,
