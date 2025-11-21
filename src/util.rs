@@ -526,13 +526,14 @@ pub(crate) fn prepare_main_registry_opt_v2(
 
     // Check post-resolution policies for v2
     if policy_args.policy_use_v2 {
-        let Ok(v2_resolved_registry) = opt_v2_resolved_registry.as_ref() else {
-            // TODO - error around needing v2 and not having it.
-            // diag_msgs.extend();
-            return Err(PolicyError::InvalidV2RepositoryNeedingV2Policies {
-                error: opt_v2_resolved_registry.as_ref().err().unwrap().to_string(),
+        let v2_resolved_registry = match opt_v2_resolved_registry.as_ref() {
+            Ok(v2_resolved_registry) => v2_resolved_registry,
+            Err(e) => {
+                return Err(PolicyError::InvalidV2RepositoryNeedingV2Policies {
+                    error: e.to_string(),
+                }
+                .into());
             }
-            .into());
         };
         if let Some(engine) = policy_engine.as_mut() {
             check_policy_stage::<weaver_forge::v2::registry::ForgeResolvedRegistry, ()>(
