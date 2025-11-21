@@ -154,6 +154,11 @@ pub struct RegistryArgs {
     /// even if they are not explicitly referenced in the current (custom) registry.
     #[arg(long)]
     pub(crate) include_unreferenced: bool,
+
+    // TODO - Figure out long term plan for versions here.
+    /// Whether or not to output version 2 of the schema.
+    #[arg(long, default_value = "false")]
+    v2: bool,
 }
 
 /// Set of common parameters used for policy checks.

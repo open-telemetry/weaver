@@ -226,6 +226,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -305,6 +306,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -355,6 +357,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -464,6 +467,7 @@ mod tests {
                             },
                             follow_symlinks,
                             include_unreferenced: false,
+                            v2: false,
                         },
                         policy: PolicyArgs {
                             policies: vec![],
@@ -541,6 +545,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],

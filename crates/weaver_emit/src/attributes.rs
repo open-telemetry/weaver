@@ -173,6 +173,170 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
     }
 }
 
+/// For the given attribute, return a name/value pair.
+/// Values are generated based on the attribute type and examples where possible.
+#[must_use]
+pub fn get_attribute_name_value_v2(attribute: &weaver_forge::v2::attribute::Attribute) -> KeyValue {
+    let name = attribute.key.clone();
+    match &attribute.r#type {
+        AttributeType::PrimitiveOrArray(primitive_or_array) => {
+            let value = match primitive_or_array {
+                PrimitiveOrArrayTypeSpec::Boolean => Value::Bool(true),
+                PrimitiveOrArrayTypeSpec::Int => match &attribute.examples {
+                    Some(Examples::Int(i)) => Value::I64(*i),
+                    Some(Examples::Ints(ints)) => Value::I64(*ints.first().unwrap_or(&42)),
+                    _ => Value::I64(42),
+                },
+                PrimitiveOrArrayTypeSpec::Double => match &attribute.examples {
+                    Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
+                    Some(Examples::Doubles(doubles)) => {
+                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                    }
+                    _ => Value::F64(3.13),
+                },
+                PrimitiveOrArrayTypeSpec::String => match &attribute.examples {
+                    Some(Examples::String(s)) => Value::String(s.clone().into()),
+                    Some(Examples::Strings(strings)) => Value::String(
+                        strings
+                            .first()
+                            .unwrap_or(&"value".to_owned())
+                            .clone()
+                            .into(),
+                    ),
+                    _ => Value::String("value".into()),
+                },
+                PrimitiveOrArrayTypeSpec::Any => match &attribute.examples {
+                    // Boolean-based examples
+                    Some(Examples::Bool(b)) => Value::Bool(*b),
+                    Some(Examples::Bools(booleans)) => {
+                        Value::Bool(*booleans.first().unwrap_or(&true))
+                    }
+                    Some(Examples::ListOfBools(list_of_bools)) => Value::Array(Array::Bool(
+                        list_of_bools.first().unwrap_or(&vec![true, false]).to_vec(),
+                    )),
+                    // Integer-based examples
+                    Some(Examples::Int(i)) => Value::I64(*i),
+                    Some(Examples::Ints(ints)) => Value::I64(*ints.first().unwrap_or(&42)),
+                    Some(Examples::ListOfInts(list_of_ints)) => Value::Array(Array::I64(
+                        list_of_ints.first().unwrap_or(&vec![42, 43]).to_vec(),
+                    )),
+                    // Double-based examples
+                    Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
+                    Some(Examples::Doubles(doubles)) => {
+                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                    }
+                    Some(Examples::ListOfDoubles(list_of_doubles)) => Value::Array(Array::F64(
+                        list_of_doubles
+                            .first()
+                            .unwrap_or(&vec![(3.13).into(), (3.15).into()])
+                            .iter()
+                            .map(|d| f64::from(*d))
+                            .collect(),
+                    )),
+                    // String-based examples
+                    Some(Examples::String(s)) => Value::String(s.clone().into()),
+                    Some(Examples::Strings(strings)) => Value::String(
+                        strings
+                            .first()
+                            .unwrap_or(&"value".to_owned())
+                            .clone()
+                            .into(),
+                    ),
+                    Some(Examples::ListOfStrings(list_of_strings)) => Value::Array(Array::String(
+                        list_of_strings
+                            .first()
+                            .unwrap_or(&vec!["value1".to_owned(), "value2".to_owned()])
+                            .iter()
+                            .map(|s| s.clone().into())
+                            .collect(),
+                    )),
+                    Some(Examples::Any(any)) => match any {
+                        ValueSpec::Int(v) => Value::I64(*v),
+                        ValueSpec::Double(v) => Value::F64(f64::from(*v)),
+                        ValueSpec::String(v) => Value::String(v.clone().into()),
+                        ValueSpec::Bool(v) => Value::Bool(*v),
+                    },
+                    Some(Examples::Anys(anys)) => anys
+                        .first()
+                        .map(|v| match v {
+                            ValueSpec::Int(v) => Value::I64(*v),
+                            ValueSpec::Double(v) => Value::F64(f64::from(*v)),
+                            ValueSpec::String(v) => Value::String(v.clone().into()),
+                            ValueSpec::Bool(v) => Value::Bool(*v),
+                        })
+                        .unwrap_or(Value::String("value".into())),
+                    // Fallback to a default value
+                    _ => Value::String("value".into()),
+                },
+                PrimitiveOrArrayTypeSpec::Booleans => Value::Array(Array::Bool(vec![true, false])),
+                PrimitiveOrArrayTypeSpec::Ints => match &attribute.examples {
+                    Some(Examples::Ints(ints)) => Value::Array(Array::I64(ints.to_vec())),
+                    Some(Examples::ListOfInts(list_of_ints)) => Value::Array(Array::I64(
+                        list_of_ints.first().unwrap_or(&vec![42, 43]).to_vec(),
+                    )),
+                    _ => Value::Array(Array::I64(vec![42, 43])),
+                },
+                PrimitiveOrArrayTypeSpec::Doubles => match &attribute.examples {
+                    Some(Examples::Doubles(doubles)) => {
+                        Value::Array(Array::F64(doubles.iter().map(|d| f64::from(*d)).collect()))
+                    }
+                    Some(Examples::ListOfDoubles(list_of_doubles)) => Value::Array(Array::F64(
+                        list_of_doubles
+                            .first()
+                            .unwrap_or(&vec![(3.13).into(), (3.15).into()])
+                            .iter()
+                            .map(|d| f64::from(*d))
+                            .collect(),
+                    )),
+                    _ => Value::Array(Array::F64(vec![3.13, 3.15])),
+                },
+                PrimitiveOrArrayTypeSpec::Strings => match &attribute.examples {
+                    Some(Examples::Strings(strings)) => Value::Array(Array::String(
+                        strings.iter().map(|s| s.clone().into()).collect(),
+                    )),
+                    Some(Examples::ListOfStrings(list_of_strings)) => Value::Array(Array::String(
+                        list_of_strings
+                            .first()
+                            .unwrap_or(&vec!["value1".to_owned(), "value2".to_owned()])
+                            .iter()
+                            .map(|s| s.clone().into())
+                            .collect(),
+                    )),
+                    _ => Value::Array(Array::String(vec!["value1".into(), "value2".into()])),
+                },
+            };
+            KeyValue::new(name, value)
+        }
+        AttributeType::Enum { members, .. } => {
+            let value = match &members[0].value {
+                ValueSpec::String(s) => Value::String(s.clone().into()),
+                ValueSpec::Int(i) => Value::I64(*i),
+                ValueSpec::Double(d) => Value::F64(f64::from(*d)),
+                ValueSpec::Bool(b) => Value::Bool(*b),
+            };
+            KeyValue::new(name, value)
+        }
+        AttributeType::Template(template_type_spec) => {
+            // TODO Support examples when https://github.com/open-telemetry/semantic-conventions/issues/1740 is complete
+            let value = match template_type_spec {
+                TemplateTypeSpec::String => Value::String("template_value".into()),
+                TemplateTypeSpec::Int => Value::I64(42),
+                TemplateTypeSpec::Double => Value::F64(3.13),
+                TemplateTypeSpec::Boolean => Value::Bool(true),
+                TemplateTypeSpec::Any => Value::String("template_any_value".into()),
+                TemplateTypeSpec::Strings => Value::Array(Array::String(vec![
+                    "template_value1".into(),
+                    "template_value2".into(),
+                ])),
+                TemplateTypeSpec::Ints => Value::Array(Array::I64(vec![42, 43])),
+                TemplateTypeSpec::Doubles => Value::Array(Array::F64(vec![3.13, 3.15])),
+                TemplateTypeSpec::Booleans => Value::Array(Array::Bool(vec![true, false])),
+            };
+            KeyValue::new(format!("{name}.key"), value)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

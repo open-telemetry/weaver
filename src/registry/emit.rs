@@ -7,10 +7,10 @@ use clap::Args;
 use log::info;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::log_success;
-use weaver_emit::{emit, ExporterConfig};
+use weaver_emit::{emit, ExporterConfig, RegistryVersion};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::util::{prepare_main_registry, prepare_main_registry_v2};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry emit` sub-command
@@ -44,10 +44,6 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
-
-    info!("Emitting registry `{}`", args.registry.registry);
-
     let exporter_config = if args.stdout {
         ExporterConfig::Stdout
     } else {
@@ -56,14 +52,26 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
         }
     };
 
-    // Emit the resolved registry - exit early if there are any errors.
-    emit(
-        &registry,
-        &args.registry.registry.to_string(),
-        &exporter_config,
-    )
-    .combine_diag_msgs_with(&diag_msgs)?;
-
+    if args.registry.v2 {
+        let (_, forge_registry, _) =
+            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+        info!("Emitting v2 registry `{}`", args.registry.registry);
+        emit(
+            RegistryVersion::V2(&forge_registry),
+            &args.registry.registry.to_string(),
+            &exporter_config,
+        )
+        .combine_diag_msgs_with(&diag_msgs)?;
+    } else {
+        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+        info!("Emitting v1 registry `{}`", args.registry.registry);
+        emit(
+            RegistryVersion::V1(&registry),
+            &args.registry.registry.to_string(),
+            &exporter_config,
+        )
+        .combine_diag_msgs_with(&diag_msgs)?;
+    }
     log_success(format!("Emitted registry `{}`", args.registry.registry));
 
     if diag_msgs.has_error() {
@@ -98,6 +106,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],

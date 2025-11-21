@@ -13,6 +13,10 @@ use serde::Serialize;
 use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+
+use crate::metrics::emit_metrics_for_registry_v2;
+use crate::spans::emit_trace_for_registry_v2;
 
 pub mod attributes;
 pub mod metrics;
@@ -129,9 +133,18 @@ pub enum ExporterConfig {
     },
 }
 
+/// Enum for the registry: ResolvedRegistry or ForgeResolvedRegistry
+#[derive(Debug)]
+pub enum RegistryVersion<'a> {
+    /// Weaver v1 ResolvedRegistry
+    V1(&'a ResolvedRegistry),
+    /// Weaver v2 ForgeResolvedRegistry
+    V2(&'a ForgeResolvedRegistry),
+}
+
 /// Emit the signals from the registry to the configured exporter.
 pub fn emit(
-    registry: &ResolvedRegistry,
+    registry: RegistryVersion<'_>,
     registry_path: &str,
     exporter_config: &ExporterConfig,
 ) -> Result<(), Error> {
@@ -150,7 +163,10 @@ pub fn emit(
         };
         global::set_tracer_provider(tracer_provider.clone());
 
-        emit_trace_for_registry(registry, registry_path);
+        match registry {
+            RegistryVersion::V1(reg) => emit_trace_for_registry(reg, registry_path),
+            RegistryVersion::V2(reg) => emit_trace_for_registry_v2(reg, registry_path),
+        }
 
         tracer_provider
             .force_flush()
@@ -169,7 +185,10 @@ pub fn emit(
         };
         global::set_meter_provider(meter_provider.clone());
 
-        emit_metrics_for_registry(registry);
+        match registry {
+            RegistryVersion::V1(reg) => emit_metrics_for_registry(reg),
+            RegistryVersion::V2(reg) => emit_metrics_for_registry_v2(reg),
+        }
 
         meter_provider
             .shutdown()
@@ -419,7 +438,11 @@ mod tests {
             ],
         };
 
-        let result = emit(&registry, "TEST", &ExporterConfig::Stdout);
+        let result = emit(
+            RegistryVersion::V1(&registry),
+            "TEST",
+            &ExporterConfig::Stdout,
+        );
         assert!(result.is_ok());
     }
 
@@ -430,7 +453,7 @@ mod tests {
             groups: vec![],
         };
         let result = emit(
-            &registry,
+            RegistryVersion::V1(&registry),
             "TEST_OTLP_INVALID",
             &ExporterConfig::Otlp {
                 endpoint: "http:/invalid-endpoint:4317".to_owned(),

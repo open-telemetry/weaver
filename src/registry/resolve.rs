@@ -39,11 +39,6 @@ pub struct RegistryResolveArgs {
     #[arg(short, long, default_value = "yaml")]
     format: Format,
 
-    // TODO - Figure out long term plan for versions here.
-    /// Whether or not to output version 2 of the schema.
-    #[arg(long, default_value = "false")]
-    v2: bool,
-
     /// Policy parameters
     #[command(flatten)]
     policy: PolicyArgs,
@@ -60,7 +55,7 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    if args.v2 {
+    if args.registry.v2 {
         // TODO
         let (_, registry, _) =
             prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
@@ -137,11 +132,11 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     lineage: true,
                     output: None,
                     format: Format::Yaml,
-                    v2: false,
                     policy: PolicyArgs {
                         policies: vec![],
                         skip_policies: true,
@@ -169,11 +164,11 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     lineage: true,
                     output: None,
                     format: Format::Json,
-                    v2: false,
                     policy: PolicyArgs {
                         policies: vec![],
                         skip_policies: false,

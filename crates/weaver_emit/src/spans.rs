@@ -2,13 +2,16 @@
 
 //! Translations from Weaver to Otel for spans.
 
-use crate::attributes::get_attribute_name_value;
+use crate::attributes::{get_attribute_name_value, get_attribute_name_value_v2};
 use opentelemetry::{
     global,
     trace::{SpanKind, TraceContextExt, Tracer},
     KeyValue,
 };
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::{
+    registry::ResolvedRegistry,
+    v2::{registry::ForgeResolvedRegistry, span::SpanAttribute},
+};
 use weaver_semconv::group::{GroupType, SpanKindSpec};
 
 // TODO These constants should be replaced with official semconvs when available.
@@ -49,6 +52,30 @@ pub(crate) fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path
                     .with_attributes(group.attributes.iter().map(get_attribute_name_value))
                     .start_with_context(&tracer, &cx);
             }
+        }
+    });
+}
+
+pub(crate) fn emit_trace_for_registry_v2(registry: &ForgeResolvedRegistry, registry_path: &str) {
+    let tracer = global::tracer("weaver");
+    // Start a parent span here and use this context to create child spans
+    tracer.in_span(WEAVER_EMIT_SPAN, |cx| {
+        let span = cx.span();
+        span.set_attribute(KeyValue::new(
+            WEAVER_REGISTRY_PATH,
+            registry_path.to_owned(),
+        ));
+
+        // Emit each span to the OTLP receiver.
+        for span in registry.signals.spans.iter() {
+            let _span =
+                tracer
+                    .span_builder(span.r#type.to_string())
+                    .with_kind(otel_span_kind(Some(&span.kind)))
+                    .with_attributes(span.attributes.iter().map(|span_attr: &SpanAttribute| {
+                        get_attribute_name_value_v2(&span_attr.base)
+                    }))
+                    .start_with_context(&tracer, &cx);
         }
     });
 }
