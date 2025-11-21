@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_can_determine_before_resolution_policy() -> Result<(), Box<dyn std::error::Error>> {
-        let mut  engine = Engine::new();
+        let mut engine = Engine::new();
         assert!(!engine.has_stage(PolicyStage::BeforeResolution));
         engine.add_policy_from_file_or_dir("data/multi-policies")?;
         assert!(engine.has_stage(PolicyStage::BeforeResolution));
