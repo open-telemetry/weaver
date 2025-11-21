@@ -4,7 +4,8 @@
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
-    check_policy_stage, load_semconv_specs, prepare_main_registry_opt_v2, prepare_main_registry_v2, resolve_semconv_specs
+    check_policy_stage, load_semconv_specs, prepare_main_registry_opt_v2, prepare_main_registry_v2,
+    resolve_semconv_specs,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
