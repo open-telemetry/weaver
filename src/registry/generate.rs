@@ -64,10 +64,6 @@ pub struct RegistryGenerateArgs {
     #[arg(long, default_value = "false")]
     pub future: bool,
 
-    /// Enable the V2 output for generating templates.
-    #[arg(long, default_value = "false")]
-    pub v2: bool,
-
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -97,7 +93,7 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
 
     // Resolve v1 and v2 schema, based on user request.
     let (v1, v2) = {
-        if args.v2 {
+        if args.registry.v2 {
             let (v1, v2, _) =
                 prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
             (v1, Some(v2))
@@ -226,6 +222,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -233,7 +230,6 @@ mod tests {
                         display_policy_coverage: false,
                     },
                     future: false,
-                    v2: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -305,6 +301,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -312,7 +309,6 @@ mod tests {
                         display_policy_coverage: false,
                     },
                     future: false,
-                    v2: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -355,6 +351,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -362,7 +359,6 @@ mod tests {
                         display_policy_coverage: false,
                     },
                     future: false,
-                    v2: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -464,6 +460,7 @@ mod tests {
                             },
                             follow_symlinks,
                             include_unreferenced: false,
+                            v2: false,
                         },
                         policy: PolicyArgs {
                             policies: vec![],
@@ -471,7 +468,6 @@ mod tests {
                             display_policy_coverage: false,
                         },
                         future: false,
-                        v2: false,
                         diagnostic: Default::default(),
                     }),
                 })),
@@ -541,6 +537,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: true,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -548,7 +545,6 @@ mod tests {
                         display_policy_coverage: false,
                     },
                     future: false,
-                    v2: true,
                     diagnostic: Default::default(),
                 }),
             })),
