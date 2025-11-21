@@ -4,7 +4,7 @@
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
-    check_policy_stage, load_semconv_specs, prepare_main_registry_v2, resolve_semconv_specs,
+    check_policy_stage, load_semconv_specs, prepare_main_registry_opt_v2, prepare_main_registry_v2, resolve_semconv_specs
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -47,8 +47,8 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
     // Initialize the main registry.
     let registry_path = &args.registry.registry;
 
-    let (main_resolved_registry, v2_registry, mut policy_engine) =
-        prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+    let (main_resolved_registry, opt_v2_registry, mut policy_engine) =
+        prepare_main_registry_opt_v2(&args.registry, &args.policy, &mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
@@ -101,6 +101,7 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
                     weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                         v2_baseline_schema,
                     )?;
+                let v2_registry = opt_v2_registry?;
                 check_policy_stage(
                     policy_engine,
                     PolicyStage::ComparisonAfterResolution,

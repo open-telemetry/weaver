@@ -30,6 +30,12 @@ pub enum PolicyError {
     #[error("The usage of \"before-resolution\" rego policies is unsupported with V2 schema.")]
     #[diagnostic(severity(Warning))]
     BeforeResolutionUnsupported,
+
+    /// Issue running V2 policy enforcement due to underlying error.
+    #[error(
+        "V2 Policy enforcement requests, but repository cannot be converted in to v2: {error}"
+    )]
+    InvalidV2RepositoryNeedingV2Policies { error: String },
 }
 
 /// Loads the semantic convention specifications from a registry path.
@@ -393,6 +399,37 @@ pub(crate) fn prepare_main_registry_v2(
     ),
     DiagnosticMessages,
 > {
+    let (v1, opt_v2, opt_engine) =
+        prepare_main_registry_opt_v2(registry_args, policy_args, diag_msgs)?;
+    Ok((v1, opt_v2?, opt_engine))
+}
+
+/// Resolves the main registry and optionally checks policies.
+/// This is a common starting point for some `registry` commands.
+/// e.g., `check`, `generate`, `resolve`
+///
+/// # Arguments
+///
+/// * `registry_args` - The common CLI args for the main registry.
+/// * `policy_args` - The common CLI args for policies.
+/// * `diag_msgs` - The DiagnosticMessages to append to.
+///
+/// # Returns
+///
+/// A `Result` containing the `ResolvedRegistry` and `PolicyEngine` on success, or
+/// `DiagnosticMessages` on failure.
+pub(crate) fn prepare_main_registry_opt_v2(
+    registry_args: &RegistryArgs,
+    policy_args: &PolicyArgs,
+    diag_msgs: &mut DiagnosticMessages,
+) -> Result<
+    (
+        ResolvedRegistry,
+        Result<weaver_forge::v2::registry::ForgeResolvedRegistry, DiagnosticMessages>,
+        Option<Engine>,
+    ),
+    DiagnosticMessages,
+> {
     let registry_path = &registry_args.registry;
 
     let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
@@ -470,17 +507,33 @@ pub(crate) fn prepare_main_registry_v2(
     }
 
     // TODO - fix error passing here so original error is diagnostic.
-    let v2_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema = main_resolved_schema
+    let opt_v2_schema: Result<
+        weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+        weaver_forge::error::Error,
+    > = main_resolved_schema
         .try_into()
         .map_err(|e: weaver_resolved_schema::error::Error| {
             weaver_forge::error::Error::TemplateEngineError {
                 error: e.to_string(),
             }
-        })?;
-    let v2_resolved_registry =
-        weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(v2_schema)?;
+        });
+    let opt_v2_resolved_registry: Result<
+        weaver_forge::v2::registry::ForgeResolvedRegistry,
+        weaver_forge::error::Error,
+    > = opt_v2_schema.and_then(|v2_schema| {
+        weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(v2_schema)
+    });
+
     // Check post-resolution policies for v2
     if policy_args.policy_use_v2 {
+        let Ok(v2_resolved_registry) = opt_v2_resolved_registry.as_ref() else {
+            // TODO - error around needing v2 and not having it.
+            // diag_msgs.extend();
+            return Err(PolicyError::InvalidV2RepositoryNeedingV2Policies {
+                error: opt_v2_resolved_registry.as_ref().err().unwrap().to_string(),
+            }
+            .into());
+        };
         if let Some(engine) = policy_engine.as_mut() {
             check_policy_stage::<weaver_forge::v2::registry::ForgeResolvedRegistry, ()>(
                 engine,
@@ -502,7 +555,11 @@ pub(crate) fn prepare_main_registry_v2(
             .capture_non_fatal_errors(diag_msgs)?;
         }
     }
-    Ok((main_resolved_registry, v2_resolved_registry, policy_engine))
+    Ok((
+        main_resolved_registry,
+        opt_v2_resolved_registry.map_err(|e| e.into()),
+        policy_engine,
+    ))
 }
 
 impl From<PolicyError> for DiagnosticMessages {
