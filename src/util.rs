@@ -539,7 +539,7 @@ pub(crate) fn prepare_main_registry_opt_v2(
                 engine,
                 PolicyStage::AfterResolution,
                 main_registry_repo.registry_path_repr(),
-                &v2_resolved_registry,
+                v2_resolved_registry,
                 &[],
             )
             .inspect(|_, violations| {
