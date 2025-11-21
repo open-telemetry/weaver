@@ -312,14 +312,6 @@ impl Engine {
         policy_dir: P,
         policy_glob_pattern: &str,
     ) -> Result<usize, Error> {
-        fn is_hidden(entry: &DirEntry) -> bool {
-            entry
-                .file_name()
-                .to_str()
-                .map(|s| s.starts_with('.'))
-                .unwrap_or(false)
-        }
-
         let mut errors = Vec::new();
         let mut added_policy_count = 0;
 
@@ -335,11 +327,8 @@ impl Engine {
             policy_glob.is_match(path.as_ref())
         };
 
-        // Visit recursively all the files in the policy directory
+        // Visit recursively all the files in the policy directory.
         for entry in walkdir::WalkDir::new(policy_dir).into_iter().flatten() {
-            if is_hidden(&entry) {
-                continue;
-            }
             if is_policy_file(&entry) {
                 if let Err(err) = self.add_policy_from_file(entry.path()) {
                     errors.push(err);
