@@ -269,7 +269,7 @@ pub fn convert_v1_to_v2(
                     log::warn!(
                         "Events without a name are ignored in v2 schema, found: {}",
                         g.id
-                    )
+                    );
                 }
             }
             GroupType::Metric => {
