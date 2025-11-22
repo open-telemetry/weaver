@@ -136,9 +136,9 @@ pub enum ExporterConfig {
 /// Enum for the registry: ResolvedRegistry or ForgeResolvedRegistry
 #[derive(Debug)]
 pub enum RegistryVersion<'a> {
-    /// Weaver v1 ResolvedRegistry
+    /// v1 ResolvedRegistry
     V1(&'a ResolvedRegistry),
-    /// Weaver v2 ForgeResolvedRegistry
+    /// v2 ForgeResolvedRegistry
     V2(&'a ForgeResolvedRegistry),
 }
 
