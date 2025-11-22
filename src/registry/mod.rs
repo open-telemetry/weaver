@@ -158,7 +158,7 @@ pub struct RegistryArgs {
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
     #[arg(long, default_value = "false")]
-    v2: bool,
+    pub v2: bool,
 }
 
 /// Set of common parameters used for policy checks.

@@ -12,6 +12,8 @@ use std::time::Duration;
 const REPO_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
 const ARCHIVE_URL: &str =
     "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/";
+/// TODO - Figure out how to have hard failures for V2 here, and bump to v1.27.0 as that's the first when
+/// events had names.
 const START_TAG: &str = "v1.26.0";
 const TEMP_REPO_DIR: &str = "history-temp-repo";
 

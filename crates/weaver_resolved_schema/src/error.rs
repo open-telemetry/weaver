@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError};
+use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -17,6 +17,13 @@ pub enum Error {
         group_id: String,
         /// Attribute reference.
         attr_ref: AttributeRef,
+    },
+
+    /// Event name does not exist on an event group in V1 schema.
+    #[error("Event name not found on group: {group_id}.  This is not supported in V2 schema!")]
+    EventNameNotFound {
+        /// Group id.
+        group_id: String,
     },
 
     /// A generic container for multiple errors.
@@ -45,6 +52,7 @@ impl Error {
                 .flat_map(|e| match e {
                     CompoundError(errors) => errors,
                     e @ AttributeNotFound { .. } => vec![e],
+                    e @ EventNameNotFound { .. } => vec![e],
                 })
                 .collect(),
         )

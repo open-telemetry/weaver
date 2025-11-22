@@ -1,0 +1,46 @@
+version: "2"
+attributes:
+  - key: my.attr
+    type: string
+    brief: A test attribute
+    stability: stable
+  - key: attr2
+    type: int
+    brief: Another attribute
+    stability: stable
+attribute_groups:
+  - id: my
+    brief: test group
+    stability: stable
+    attributes:
+      - ref: my.attr
+    visibility: public
+events:
+  - name: my.event
+    brief: A test event
+    stability: stable
+    attributes:
+      - ref: my.attr
+entities:
+  - type: my.entity
+    identity:
+      - ref: my.attr
+    description:
+      - ref: attr2
+    brief: A test entity
+    stability: stable
+metrics:
+  - name: my.metric
+    brief: A count of something.
+    instrument: counter
+    unit: "{1}"
+    stability: stable
+spans:
+  - type: my.span
+    name: 
+      note: Some name pattern
+    kind: client
+    attributes:
+      - ref: my.attr
+    brief: A test span
+    stability: stable
