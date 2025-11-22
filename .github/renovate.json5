@@ -13,6 +13,19 @@
     {
       "matchUpdateTypes": ["minor", "major"],
       "schedule": ["before 8am on Monday"]
+    },
+    {
+      "matchPackagePatterns": ["^rust$"],
+      "groupName": "rust"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker"
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": ["cargo", "dockerfile"],
+      "automerge": true
     }
   ],
   "labels": [
