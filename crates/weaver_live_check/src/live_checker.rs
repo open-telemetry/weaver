@@ -40,7 +40,7 @@ impl LiveChecker {
                 for group in &registry.groups {
                     if group.r#type == GroupType::Metric {
                         if let Some(metric_name) = &group.metric_name {
-                            let group_rc = Rc::new(VersionedSignal::Group(group.clone()));
+                            let group_rc = Rc::new(VersionedSignal::Group(Box::new(group.clone())));
                             let _ = semconv_metrics.insert(metric_name.clone(), group_rc);
                         }
                     }

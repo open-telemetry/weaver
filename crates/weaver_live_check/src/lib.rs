@@ -148,10 +148,9 @@ impl VersionedAttribute {
 /// Versioned enum for the signal
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
-#[allow(clippy::large_enum_variant)]
 pub enum VersionedSignal {
     /// v1 ResolvedGroup
-    Group(ResolvedGroup),
+    Group(Box<ResolvedGroup>),
     /// v2 Signal Metric
     Metric(weaver_forge::v2::metric::Metric),
     /// v2 Signal Span
@@ -165,7 +164,7 @@ impl VersionedSignal {
     #[must_use]
     pub fn deprecated(&self) -> &Option<Deprecated> {
         match self {
-            VersionedSignal::Group(group) => &group.deprecated,
+            VersionedSignal::Group(group) => &group.as_ref().deprecated,
             VersionedSignal::Metric(metric) => &metric.common.deprecated,
             VersionedSignal::Span(span) => &span.common.deprecated,
             VersionedSignal::Event(event) => &event.common.deprecated,
@@ -176,7 +175,7 @@ impl VersionedSignal {
     #[must_use]
     pub fn stability(&self) -> Option<&Stability> {
         match self {
-            VersionedSignal::Group(group) => group.stability.as_ref(),
+            VersionedSignal::Group(group) => group.as_ref().stability.as_ref(),
             VersionedSignal::Metric(metric) => Some(&metric.common.stability),
             VersionedSignal::Span(span) => Some(&span.common.stability),
             VersionedSignal::Event(event) => Some(&event.common.stability),
@@ -187,7 +186,7 @@ impl VersionedSignal {
     #[must_use]
     pub fn instrument(&self) -> Option<&InstrumentSpec> {
         match self {
-            VersionedSignal::Group(group) => group.instrument.as_ref(),
+            VersionedSignal::Group(group) => group.as_ref().instrument.as_ref(),
             VersionedSignal::Metric(metric) => Some(&metric.instrument),
             VersionedSignal::Span(_) => None,
             VersionedSignal::Event(_) => None,
@@ -198,7 +197,7 @@ impl VersionedSignal {
     #[must_use]
     pub fn unit(&self) -> Option<&String> {
         match self {
-            VersionedSignal::Group(group) => group.unit.as_ref(),
+            VersionedSignal::Group(group) => group.as_ref().unit.as_ref(),
             VersionedSignal::Metric(metric) => Some(&metric.unit),
             VersionedSignal::Span(_) => None,
             VersionedSignal::Event(_) => None,
