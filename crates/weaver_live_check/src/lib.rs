@@ -17,8 +17,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
-use weaver_semconv::group::GroupType;
+use weaver_forge::{
+    registry::{ResolvedGroup, ResolvedRegistry},
+    v2::registry::ForgeResolvedRegistry,
+};
+use weaver_semconv::{
+    attribute::AttributeType,
+    deprecated::Deprecated,
+    group::{GroupType, InstrumentSpec},
+    stability::Stability,
+};
 
 /// Advisors for live checks
 pub mod advice;
@@ -78,6 +86,125 @@ pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
 pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
 /// Expected value key in advice context
 pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
+
+/// Versioned enum for the registry
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum VersionedRegistry {
+    /// v1 ResolvedRegistry
+    V1(ResolvedRegistry),
+    /// v2 ForgeResolvedRegistry
+    V2(ForgeResolvedRegistry),
+}
+
+/// Versioned enum for the attribute
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum VersionedAttribute {
+    /// v1 Attribute
+    V1(weaver_resolved_schema::attribute::Attribute),
+    /// v2 Attribute
+    V2(weaver_forge::v2::attribute::Attribute),
+}
+
+impl VersionedAttribute {
+    /// Get the name/key of the attribute
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            VersionedAttribute::V1(attr) => &attr.name,
+            VersionedAttribute::V2(attr) => &attr.key,
+        }
+    }
+
+    /// Get the type of the attribute
+    #[must_use]
+    pub fn r#type(&self) -> &AttributeType {
+        match self {
+            VersionedAttribute::V1(attr) => &attr.r#type,
+            VersionedAttribute::V2(attr) => &attr.r#type,
+        }
+    }
+
+    /// Get the deprecated field of the attribute
+    #[must_use]
+    pub fn deprecated(&self) -> &Option<Deprecated> {
+        match self {
+            VersionedAttribute::V1(attr) => &attr.deprecated,
+            VersionedAttribute::V2(attr) => &attr.common.deprecated,
+        }
+    }
+
+    /// Get the stability field of the attribute
+    #[must_use]
+    pub fn stability(&self) -> Option<&Stability> {
+        match self {
+            VersionedAttribute::V1(attr) => attr.stability.as_ref(),
+            VersionedAttribute::V2(attr) => Some(&attr.common.stability),
+        }
+    }
+}
+
+/// Versioned enum for the signal
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
+pub enum VersionedSignal {
+    /// v1 ResolvedGroup
+    Group(ResolvedGroup),
+    /// v2 Signal Metric
+    Metric(weaver_forge::v2::metric::Metric),
+    /// v2 Signal Span
+    Span(weaver_forge::v2::span::Span),
+    /// v2 Signal Event
+    Event(weaver_forge::v2::event::Event),
+}
+
+impl VersionedSignal {
+    /// Get the deprecated field of the signal
+    #[must_use]
+    pub fn deprecated(&self) -> &Option<Deprecated> {
+        match self {
+            VersionedSignal::Group(group) => &group.deprecated,
+            VersionedSignal::Metric(metric) => &metric.common.deprecated,
+            VersionedSignal::Span(span) => &span.common.deprecated,
+            VersionedSignal::Event(event) => &event.common.deprecated,
+        }
+    }
+
+    /// Get the stability field of the signal
+    #[must_use]
+    pub fn stability(&self) -> Option<&Stability> {
+        match self {
+            VersionedSignal::Group(group) => group.stability.as_ref(),
+            VersionedSignal::Metric(metric) => Some(&metric.common.stability),
+            VersionedSignal::Span(span) => Some(&span.common.stability),
+            VersionedSignal::Event(event) => Some(&event.common.stability),
+        }
+    }
+
+    /// Get the instrument field of the signal, if applicable
+    #[must_use]
+    pub fn instrument(&self) -> Option<&InstrumentSpec> {
+        match self {
+            VersionedSignal::Group(group) => group.instrument.as_ref(),
+            VersionedSignal::Metric(metric) => Some(&metric.instrument),
+            VersionedSignal::Span(_) => None,
+            VersionedSignal::Event(_) => None,
+        }
+    }
+
+    /// Get the unit field of the signal, if applicable
+    #[must_use]
+    pub fn unit(&self) -> Option<&String> {
+        match self {
+            VersionedSignal::Group(group) => group.unit.as_ref(),
+            VersionedSignal::Metric(metric) => Some(&metric.unit),
+            VersionedSignal::Span(_) => None,
+            VersionedSignal::Event(_) => None,
+        }
+    }
+}
 
 /// Weaver live check errors
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -204,7 +331,7 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
@@ -319,18 +446,34 @@ pub struct LiveCheckStatistics {
 impl LiveCheckStatistics {
     /// Create a new empty LiveCheckStatistics
     #[must_use]
-    pub fn new(registry: &ResolvedRegistry) -> Self {
+    pub fn new(registry: &VersionedRegistry) -> Self {
         let mut seen_attributes = HashMap::new();
         let mut seen_metrics = HashMap::new();
-        for group in &registry.groups {
-            for attribute in &group.attributes {
-                if attribute.deprecated.is_none() {
-                    let _ = seen_attributes.insert(attribute.name.clone(), 0);
+        match registry {
+            VersionedRegistry::V1(reg) => {
+                for group in &reg.groups {
+                    for attribute in &group.attributes {
+                        if attribute.deprecated.is_none() {
+                            let _ = seen_attributes.insert(attribute.name.clone(), 0);
+                        }
+                    }
+                    if group.r#type == GroupType::Metric && group.deprecated.is_none() {
+                        if let Some(metric_name) = &group.metric_name {
+                            let _ = seen_metrics.insert(metric_name.clone(), 0);
+                        }
+                    }
                 }
             }
-            if group.r#type == GroupType::Metric && group.deprecated.is_none() {
-                if let Some(metric_name) = &group.metric_name {
-                    let _ = seen_metrics.insert(metric_name.clone(), 0);
+            VersionedRegistry::V2(reg) => {
+                for attribute in &reg.attributes {
+                    if attribute.common.deprecated.is_none() {
+                        let _ = seen_attributes.insert(attribute.key.clone(), 0);
+                    }
+                }
+                for metric in &reg.signals.metrics {
+                    if metric.common.deprecated.is_none() {
+                        let _ = seen_metrics.insert(metric.name.to_string(), 0);
+                    }
                 }
             }
         }
@@ -483,7 +626,7 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
@@ -494,7 +637,7 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
@@ -517,7 +660,7 @@ pub trait Advisable {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();

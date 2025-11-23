@@ -7,30 +7,27 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
-use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
-use weaver_resolved_schema::attribute::Attribute;
-
-use crate::advice::Advisor;
+use crate::{advice::Advisor, VersionedAttribute, VersionedRegistry, VersionedSignal};
 
 /// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
 pub struct LiveChecker {
     /// The resolved registry
-    pub registry: ResolvedRegistry,
-    semconv_attributes: HashMap<String, Rc<Attribute>>,
-    semconv_templates: HashMap<String, Rc<Attribute>>,
-    semconv_metrics: HashMap<String, Rc<ResolvedGroup>>,
+    pub registry: VersionedRegistry,
+    semconv_attributes: HashMap<String, Rc<VersionedAttribute>>,
+    semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
+    semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
     #[serde(skip)]
-    templates_by_length: Vec<(String, Rc<Attribute>)>,
+    templates_by_length: Vec<(String, Rc<VersionedAttribute>)>,
 }
 
 impl LiveChecker {
     #[must_use]
     /// Create a new LiveChecker
-    pub fn new(registry: ResolvedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
+    pub fn new(registry: VersionedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
@@ -38,22 +35,48 @@ impl LiveChecker {
         // Hashmap of metrics by name
         let mut semconv_metrics = HashMap::new();
 
-        for group in &registry.groups {
-            if group.r#type == GroupType::Metric {
-                if let Some(metric_name) = &group.metric_name {
-                    let group_rc = Rc::new(group.clone());
-                    let _ = semconv_metrics.insert(metric_name.clone(), group_rc);
+        match &registry {
+            VersionedRegistry::V1(registry) => {
+                for group in &registry.groups {
+                    if group.r#type == GroupType::Metric {
+                        if let Some(metric_name) = &group.metric_name {
+                            let group_rc = Rc::new(VersionedSignal::Group(group.clone()));
+                            let _ = semconv_metrics.insert(metric_name.clone(), group_rc);
+                        }
+                    }
+                    for attribute in &group.attributes {
+                        let attribute_rc = Rc::new(VersionedAttribute::V1(attribute.clone()));
+                        match attribute.r#type {
+                            AttributeType::Template(_) => {
+                                templates_by_length
+                                    .push((attribute.name.clone(), attribute_rc.clone()));
+                                let _ =
+                                    semconv_templates.insert(attribute.name.clone(), attribute_rc);
+                            }
+                            _ => {
+                                let _ =
+                                    semconv_attributes.insert(attribute.name.clone(), attribute_rc);
+                            }
+                        }
+                    }
                 }
             }
-            for attribute in &group.attributes {
-                let attribute_rc = Rc::new(attribute.clone());
-                match attribute.r#type {
-                    AttributeType::Template(_) => {
-                        templates_by_length.push((attribute.name.clone(), attribute_rc.clone()));
-                        let _ = semconv_templates.insert(attribute.name.clone(), attribute_rc);
-                    }
-                    _ => {
-                        let _ = semconv_attributes.insert(attribute.name.clone(), attribute_rc);
+            VersionedRegistry::V2(registry) => {
+                for metric in &registry.signals.metrics {
+                    let metric_name = metric.name.to_string();
+                    let metric_rc = Rc::new(VersionedSignal::Metric(metric.clone()));
+                    let _ = semconv_metrics.insert(metric_name, metric_rc);
+                }
+                for attribute in &registry.attributes {
+                    let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
+                    match &attribute.r#type {
+                        AttributeType::Template(_) => {
+                            templates_by_length.push((attribute.key.clone(), attribute_rc.clone()));
+                            let _ = semconv_templates.insert(attribute.key.clone(), attribute_rc);
+                        }
+                        _ => {
+                            let _ = semconv_attributes.insert(attribute.key.clone(), attribute_rc);
+                        }
                     }
                 }
             }
@@ -79,19 +102,19 @@ impl LiveChecker {
 
     /// Find an attribute in the registry
     #[must_use]
-    pub fn find_attribute(&self, name: &str) -> Option<Rc<Attribute>> {
+    pub fn find_attribute(&self, name: &str) -> Option<Rc<VersionedAttribute>> {
         self.semconv_attributes.get(name).map(Rc::clone)
     }
 
     /// Find a metric in the registry
     #[must_use]
-    pub fn find_metric(&self, name: &str) -> Option<Rc<ResolvedGroup>> {
+    pub fn find_metric(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_metrics.get(name).map(Rc::clone)
     }
 
     /// Find a template in the registry
     #[must_use]
-    pub fn find_template(&self, attribute_name: &str) -> Option<Rc<Attribute>> {
+    pub fn find_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
         // Use the pre-sorted list to find the first (longest) matching template
         for (template_name, attribute) in &self.templates_by_length {
             if attribute_name.starts_with(template_name) {
@@ -416,8 +439,8 @@ mod tests {
         assert_eq!(stats.registry_coverage, 1.0);
     }
 
-    fn make_registry() -> ResolvedRegistry {
-        ResolvedRegistry {
+    fn make_registry() -> VersionedRegistry {
+        VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
                 id: "test.comprehensive.internal".to_owned(),
@@ -550,11 +573,11 @@ mod tests {
                 body: None,
                 annotations: None,
             }],
-        }
+        })
     }
 
-    fn make_metrics_registry() -> ResolvedRegistry {
-        ResolvedRegistry {
+    fn make_metrics_registry() -> VersionedRegistry {
+        VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST_METRICS".to_owned(),
             groups: vec![
                 // Attribute group for system memory
@@ -687,12 +710,12 @@ mod tests {
                     annotations: None,
                 },
             ],
-        }
+        })
     }
 
     #[test]
     fn test_custom_rego() {
-        let registry = ResolvedRegistry {
+        let registry = VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
                 id: "custom.comprehensive.internal".to_owned(),
@@ -737,7 +760,7 @@ mod tests {
                 body: None,
                 annotations: None,
             }],
-        };
+        });
 
         let mut samples = vec![
             Sample::Attribute(SampleAttribute::try_from("custom.string=hello").unwrap()),
@@ -962,7 +985,7 @@ mod tests {
 
     #[test]
     fn test_bad_custom_rego() {
-        let registry = ResolvedRegistry {
+        let registry = VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
                 id: "custom.comprehensive.internal".to_owned(),
@@ -1007,7 +1030,7 @@ mod tests {
                 body: None,
                 annotations: None,
             }],
-        };
+        });
 
         let mut samples = vec![Sample::Attribute(
             SampleAttribute::try_from("custom.string=hello").unwrap(),
