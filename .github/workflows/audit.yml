@@ -42,10 +42,10 @@ jobs:
         checks:
           - bans licenses sources
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@3f4a782664881cf5725d0ffd23969fcce89fd868 # v1
         with:
           command: check ${{ matrix.checks }}
           rust-version: stable
