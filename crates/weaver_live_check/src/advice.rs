@@ -14,7 +14,7 @@ use weaver_checker::{
     violation::{Advice, AdviceLevel, Violation},
     Engine,
 };
-use weaver_forge::{jq, registry::ResolvedGroup};
+use weaver_forge::{jq, v2::metric::MetricAttribute};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{
@@ -27,7 +27,8 @@ use weaver_semconv::{
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, Sample, SampleRef, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
+    Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
+    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
     DEPRECATION_NOTE_ADVICE_CONTEXT_KEY, DEPRECATION_REASON_ADVICE_CONTEXT_KEY,
     EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE,
@@ -53,8 +54,8 @@ pub trait Advisor {
         &mut self,
         sample: SampleRef<'_>,
         signal: &Sample,
-        registry_attribute: Option<Rc<Attribute>>,
-        registry_group: Option<Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<VersionedAttribute>>,
+        registry_group: Option<Rc<VersionedSignal>>,
     ) -> Result<Vec<Advice>, Error>;
 }
 
@@ -75,14 +76,14 @@ impl Advisor for DeprecatedAdvisor {
         &mut self,
         sample: SampleRef<'_>,
         signal: &Sample,
-        registry_attribute: Option<Rc<Attribute>>,
-        registry_group: Option<Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<VersionedAttribute>>,
+        registry_group: Option<Rc<VersionedSignal>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
-                    if let Some(deprecated) = &attribute.deprecated {
+                    if let Some(deprecated) = &attribute.deprecated() {
                         advices.push(Advice {
                             advice_type: DEPRECATED_ADVICE_TYPE.to_owned(),
                             advice_context: json!({
@@ -107,7 +108,7 @@ impl Advisor for DeprecatedAdvisor {
             SampleRef::Metric(sample_metric) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
-                    if let Some(deprecated) = &group.deprecated {
+                    if let Some(deprecated) = &group.deprecated() {
                         advices.push(Advice {
                             advice_type: DEPRECATED_ADVICE_TYPE.to_owned(),
                             advice_context: json!({
@@ -142,15 +143,15 @@ impl Advisor for StabilityAdvisor {
         &mut self,
         sample: SampleRef<'_>,
         parent_signal: &Sample,
-        registry_attribute: Option<Rc<Attribute>>,
-        registry_group: Option<Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<VersionedAttribute>>,
+        registry_group: Option<Rc<VersionedSignal>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
-                    match attribute.stability {
-                        Some(ref stability) if *stability != Stability::Stable => {
+                    match attribute.stability() {
+                        Some(ref stability) if *stability != &Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
@@ -175,8 +176,8 @@ impl Advisor for StabilityAdvisor {
             SampleRef::Metric(_sample_metric) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
-                    match group.stability {
-                        Some(ref stability) if *stability != Stability::Stable => {
+                    match group.stability() {
+                        Some(ref stability) if *stability != &Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 advice_context: json!({
@@ -201,6 +202,32 @@ impl Advisor for StabilityAdvisor {
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
 
+/// Trait to abstract over different attribute types for checking
+trait CheckableAttribute {
+    fn key(&self) -> &str;
+    fn requirement_level(&self) -> &RequirementLevel;
+}
+
+impl CheckableAttribute for Attribute {
+    fn key(&self) -> &str {
+        &self.name
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+}
+
+impl CheckableAttribute for MetricAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+}
+
 /// Checks if attributes from a resolved group are present in a list of sample attributes
 ///
 /// Returns a list of advice for the attributes based on their RequirementLevel.
@@ -213,57 +240,49 @@ pub struct TypeAdvisor;
 /// | Recommended            | Improvement             |
 /// | Opt-In                 | Information             |
 /// | Conditionally Required | Information             |
-fn check_attributes(
-    semconv_attributes: &[Attribute],
+fn check_attributes<T: CheckableAttribute>(
+    semconv_attributes: &[T],
     sample_attributes: &[SampleAttribute],
     sample: &Sample,
 ) -> Vec<Advice> {
     // Create a HashSet of attribute names for O(1) lookups
-    let attribute_set: HashSet<_> = sample_attributes.iter().map(|attr| &attr.name).collect();
+    let attribute_set: HashSet<_> = sample_attributes
+        .iter()
+        .map(|attr| attr.name.as_str())
+        .collect();
 
     let mut advice_list = Vec::new();
     for semconv_attribute in semconv_attributes {
-        if !attribute_set.contains(&semconv_attribute.name) {
-            let (advice_type, advice_level, message) = match &semconv_attribute.requirement_level {
+        let key = semconv_attribute.key();
+        if !attribute_set.contains(key) {
+            let (advice_type, advice_level, message) = match semconv_attribute.requirement_level() {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
                     "required_attribute_not_present".to_owned(),
                     AdviceLevel::Violation,
-                    format!(
-                        "Required attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Required attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
                 | RequirementLevel::Recommended { .. } => (
                     "recommended_attribute_not_present".to_owned(),
                     AdviceLevel::Improvement,
-                    format!(
-                        "Recommended attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Recommended attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
                     "opt_in_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
-                    format!(
-                        "Opt-in attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Opt-in attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::ConditionallyRequired { .. } => (
                     "conditionally_required_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
-                    format!(
-                        "Conditionally required attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Conditionally required attribute '{}' is not present.", key),
                 ),
             };
             advice_list.push(Advice {
                 advice_type,
                 advice_context: json!({
-                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: semconv_attribute.name.clone()
+                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: key.to_owned()
                 }),
                 message,
                 advice_level,
@@ -280,15 +299,15 @@ impl Advisor for TypeAdvisor {
         &mut self,
         sample: SampleRef<'_>,
         parent_signal: &Sample,
-        registry_attribute: Option<Rc<Attribute>>,
-        registry_group: Option<Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<VersionedAttribute>>,
+        registry_group: Option<Rc<VersionedSignal>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the attribute is a match and the type is present
                 match (registry_attribute, sample_attribute.r#type.as_ref()) {
                     (Some(semconv_attribute), Some(attribute_type)) => {
-                        let semconv_attribute_type = match &semconv_attribute.r#type {
+                        let semconv_attribute_type = match &semconv_attribute.r#type() {
                             AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
                                 primitive_or_array_type_spec
                             }
@@ -371,7 +390,7 @@ impl Advisor for TypeAdvisor {
                             });
                         }
                         SampleInstrument::Supported(sample_instrument) => {
-                            if let Some(semconv_instrument) = &semconv_metric.instrument {
+                            if let Some(semconv_instrument) = semconv_metric.instrument() {
                                 if semconv_instrument != sample_instrument {
                                     advice_list.push(Advice {
                                         advice_type: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
@@ -391,7 +410,7 @@ impl Advisor for TypeAdvisor {
                         }
                     }
 
-                    if let Some(semconv_unit) = &semconv_metric.unit {
+                    if let Some(semconv_unit) = semconv_metric.unit() {
                         if semconv_unit != &sample_metric.unit {
                             advice_list.push(Advice {
                                 advice_type: UNIT_MISMATCH_ADVICE_TYPE.to_owned(),
@@ -414,11 +433,20 @@ impl Advisor for TypeAdvisor {
             }
             SampleRef::NumberDataPoint(sample_number_data_point) => {
                 if let Some(semconv_metric) = registry_group {
-                    let advice_list = check_attributes(
-                        &semconv_metric.attributes,
-                        &sample_number_data_point.attributes,
-                        parent_signal,
-                    );
+                    let advice_list = match &*semconv_metric {
+                        VersionedSignal::Group(group) => check_attributes(
+                            &group.attributes,
+                            &sample_number_data_point.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Metric(metric) => check_attributes(
+                            &metric.attributes,
+                            &sample_number_data_point.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Span(_span) => vec![],
+                        VersionedSignal::Event(_event) => vec![],
+                    };
 
                     Ok(advice_list)
                 } else {
@@ -427,11 +455,22 @@ impl Advisor for TypeAdvisor {
             }
             SampleRef::HistogramDataPoint(sample_histogram_data_point) => {
                 if let Some(semconv_metric) = registry_group {
-                    Ok(check_attributes(
-                        &semconv_metric.attributes,
-                        &sample_histogram_data_point.attributes,
-                        parent_signal,
-                    ))
+                    let advice_list = match &*semconv_metric {
+                        VersionedSignal::Group(group) => check_attributes(
+                            &group.attributes,
+                            &sample_histogram_data_point.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Metric(metric) => check_attributes(
+                            &metric.attributes,
+                            &sample_histogram_data_point.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Span(_span) => vec![],
+                        VersionedSignal::Event(_event) => vec![],
+                    };
+
+                    Ok(advice_list)
                 } else {
                     Ok(Vec::new())
                 }
@@ -448,8 +487,8 @@ impl Advisor for EnumAdvisor {
         &mut self,
         sample: SampleRef<'_>,
         signal: &Sample,
-        registry_attribute: Option<Rc<Attribute>>,
-        _registry_group: Option<Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<VersionedAttribute>>,
+        _registry_group: Option<Rc<VersionedSignal>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -460,7 +499,7 @@ impl Advisor for EnumAdvisor {
                     sample_attribute.r#type.as_ref(),
                 ) {
                     (Some(semconv_attribute), Some(attribute_value), Some(attribute_type)) => {
-                        if let AttributeType::Enum { members, .. } = &semconv_attribute.r#type {
+                        if let AttributeType::Enum { members, .. } = semconv_attribute.r#type() {
                             let mut is_found = false;
                             for member in members {
                                 if match attribute_type {
@@ -605,8 +644,8 @@ impl RegoAdvisor {
 #[derive(Serialize)]
 struct RegoInput<'a> {
     sample: SampleRef<'a>,
-    registry_attribute: Option<Rc<Attribute>>,
-    registry_group: Option<Rc<ResolvedGroup>>,
+    registry_attribute: Option<Rc<VersionedAttribute>>,
+    registry_group: Option<Rc<VersionedSignal>>,
 }
 
 impl Advisor for RegoAdvisor {
@@ -614,8 +653,8 @@ impl Advisor for RegoAdvisor {
         &mut self,
         sample: SampleRef<'_>,
         _signal: &Sample,
-        registry_attribute: Option<Rc<Attribute>>,
-        registry_group: Option<Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<VersionedAttribute>>,
+        registry_group: Option<Rc<VersionedSignal>>,
     ) -> Result<Vec<Advice>, Error> {
         self.check(RegoInput {
             sample,

@@ -8,13 +8,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_checker::violation::{Advice, AdviceLevel};
-use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    Sample, SampleRef, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, MISSING_ATTRIBUTE_ADVICE_TYPE,
-    TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    Sample, SampleRef, VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY,
+    MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -171,7 +170,7 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
@@ -197,10 +196,10 @@ impl LiveCheckRunner for SampleAttribute {
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type {
+                if let AttributeType::Template(_) = attribute.r#type() {
                     result.add_advice(Advice {
                         advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name.clone() }),
+                        advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }),
                         message: format!("Attribute '{}' is a template", self.name),
                         advice_level: AdviceLevel::Information,
                         signal_type,

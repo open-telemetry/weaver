@@ -6,12 +6,11 @@ use std::rc::Rc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
 };
 
 /// The status code of the span
@@ -72,7 +71,7 @@ impl LiveCheckRunner for SampleSpan {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
@@ -118,7 +117,7 @@ impl LiveCheckRunner for SampleSpanEvent {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
@@ -154,7 +153,7 @@ impl LiveCheckRunner for SampleSpanLink {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
