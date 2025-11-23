@@ -202,6 +202,32 @@ impl Advisor for StabilityAdvisor {
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
 
+/// Trait to abstract over different attribute types for checking
+trait CheckableAttribute {
+    fn key(&self) -> &str;
+    fn requirement_level(&self) -> &RequirementLevel;
+}
+
+impl CheckableAttribute for Attribute {
+    fn key(&self) -> &str {
+        &self.name
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+}
+
+impl CheckableAttribute for MetricAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+}
+
 /// Checks if attributes from a resolved group are present in a list of sample attributes
 ///
 /// Returns a list of advice for the attributes based on their RequirementLevel.
@@ -214,119 +240,49 @@ pub struct TypeAdvisor;
 /// | Recommended            | Improvement             |
 /// | Opt-In                 | Information             |
 /// | Conditionally Required | Information             |
-fn check_attributes(
-    semconv_attributes: &[Attribute],
+fn check_attributes<T: CheckableAttribute>(
+    semconv_attributes: &[T],
     sample_attributes: &[SampleAttribute],
     sample: &Sample,
 ) -> Vec<Advice> {
     // Create a HashSet of attribute names for O(1) lookups
-    let attribute_set: HashSet<_> = sample_attributes.iter().map(|attr| &attr.name).collect();
+    let attribute_set: HashSet<_> = sample_attributes
+        .iter()
+        .map(|attr| attr.name.as_str())
+        .collect();
 
     let mut advice_list = Vec::new();
     for semconv_attribute in semconv_attributes {
-        if !attribute_set.contains(&semconv_attribute.name) {
-            let (advice_type, advice_level, message) = match &semconv_attribute.requirement_level {
+        let key = semconv_attribute.key();
+        if !attribute_set.contains(key) {
+            let (advice_type, advice_level, message) = match semconv_attribute.requirement_level() {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
                     "required_attribute_not_present".to_owned(),
                     AdviceLevel::Violation,
-                    format!(
-                        "Required attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Required attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
                 | RequirementLevel::Recommended { .. } => (
                     "recommended_attribute_not_present".to_owned(),
                     AdviceLevel::Improvement,
-                    format!(
-                        "Recommended attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Recommended attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
                     "opt_in_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
-                    format!(
-                        "Opt-in attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Opt-in attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::ConditionallyRequired { .. } => (
                     "conditionally_required_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
-                    format!(
-                        "Conditionally required attribute '{}' is not present.",
-                        semconv_attribute.name
-                    ),
+                    format!("Conditionally required attribute '{}' is not present.", key),
                 ),
             };
             advice_list.push(Advice {
                 advice_type,
                 advice_context: json!({
-                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: semconv_attribute.name.clone()
-                }),
-                message,
-                advice_level,
-                signal_type: sample.signal_type(),
-                signal_name: sample.signal_name(),
-            });
-        }
-    }
-    advice_list
-}
-
-fn check_metric_attributes(
-    semconv_attributes: &[MetricAttribute],
-    sample_attributes: &[SampleAttribute],
-    sample: &Sample,
-) -> Vec<Advice> {
-    // Create a HashSet of attribute names for O(1) lookups
-    let attribute_set: HashSet<_> = sample_attributes.iter().map(|attr| &attr.name).collect();
-
-    let mut advice_list = Vec::new();
-    for semconv_attribute in semconv_attributes {
-        if !attribute_set.contains(&semconv_attribute.base.key) {
-            let (advice_type, advice_level, message) = match &semconv_attribute.requirement_level {
-                RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
-                    "required_attribute_not_present".to_owned(),
-                    AdviceLevel::Violation,
-                    format!(
-                        "Required attribute '{}' is not present.",
-                        semconv_attribute.base.key
-                    ),
-                ),
-                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
-                | RequirementLevel::Recommended { .. } => (
-                    "recommended_attribute_not_present".to_owned(),
-                    AdviceLevel::Improvement,
-                    format!(
-                        "Recommended attribute '{}' is not present.",
-                        semconv_attribute.base.key
-                    ),
-                ),
-                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
-                | RequirementLevel::OptIn { .. } => (
-                    "opt_in_attribute_not_present".to_owned(),
-                    AdviceLevel::Information,
-                    format!(
-                        "Opt-in attribute '{}' is not present.",
-                        semconv_attribute.base.key
-                    ),
-                ),
-                RequirementLevel::ConditionallyRequired { .. } => (
-                    "conditionally_required_attribute_not_present".to_owned(),
-                    AdviceLevel::Information,
-                    format!(
-                        "Conditionally required attribute '{}' is not present.",
-                        semconv_attribute.base.key
-                    ),
-                ),
-            };
-            advice_list.push(Advice {
-                advice_type,
-                advice_context: json!({
-                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: semconv_attribute.base.key.clone()
+                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: key.to_owned()
                 }),
                 message,
                 advice_level,
@@ -483,7 +439,7 @@ impl Advisor for TypeAdvisor {
                             &sample_number_data_point.attributes,
                             parent_signal,
                         ),
-                        VersionedSignal::Metric(metric) => check_metric_attributes(
+                        VersionedSignal::Metric(metric) => check_attributes(
                             &metric.attributes,
                             &sample_number_data_point.attributes,
                             parent_signal,
@@ -505,7 +461,7 @@ impl Advisor for TypeAdvisor {
                             &sample_histogram_data_point.attributes,
                             parent_signal,
                         ),
-                        VersionedSignal::Metric(metric) => check_metric_attributes(
+                        VersionedSignal::Metric(metric) => check_attributes(
                             &metric.attributes,
                             &sample_histogram_data_point.attributes,
                             parent_signal,
