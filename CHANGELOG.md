@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add support for V2 schema in `live-check` ([#1022](https://github.com/open-telemetry/weaver/pull/1022) by @jerbly)
+
 # [0.19.0] - 2025-11-04
 
 - Add support for attribute_group (public and internal) in schema v2 ([#933](https://github.com/open-telemetry/weaver/pull/933) by @lmolkova)
