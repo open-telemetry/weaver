@@ -15,7 +15,7 @@ use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputDirective, TemplateEngine};
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::util::{prepare_main_registry, prepare_main_registry_v2};
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
@@ -91,8 +91,17 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    let (template_registry, _) =
-        prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+    // Resolve v1 and v2 schema, based on user request.
+    let (v1, v2) = {
+        if args.registry.v2 {
+            let (v1, v2, _) =
+                prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+            (v1, Some(v2))
+        } else {
+            let (v1, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+            (v1, None)
+        }
+    };
 
     let params = generate_params(args)?;
     let templates_dir =
@@ -109,11 +118,12 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
     }?;
     let engine = TemplateEngine::try_new(config, loader, params)?;
 
-    engine.generate(
-        &template_registry,
-        args.output.as_path(),
-        &OutputDirective::File,
-    )?;
+    match v2 {
+        Some(registry) => {
+            engine.generate(&registry, args.output.as_path(), &OutputDirective::File)?;
+        }
+        None => engine.generate(&v1, args.output.as_path(), &OutputDirective::File)?,
+    }
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -176,9 +186,10 @@ pub(crate) fn generate_params_shared(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use tempdir::TempDir;
+    use weaver_diff::diff_dir;
 
     use crate::cli::{Cli, Commands};
     use crate::registry::generate::RegistryGenerateArgs;
@@ -211,6 +222,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -289,6 +301,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -338,6 +351,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -446,6 +460,7 @@ mod tests {
                             },
                             follow_symlinks,
                             include_unreferenced: false,
+                            v2: false,
                         },
                         policy: PolicyArgs {
                             policies: vec![],
@@ -492,5 +507,55 @@ mod tests {
                 "File sets don't match for follow_symlinks = {follow_symlinks}"
             );
         }
+    }
+
+    #[test]
+    fn test_registry_generate_v2() {
+        let temp_output = Path::new("tests/v2_forge/observed_output");
+
+        // Delete all the files in the observed_output/target directory
+        // before generating the new files.
+        std::fs::remove_dir_all(temp_output).unwrap_or_default();
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::Generate(RegistryGenerateArgs {
+                    target: "markdown".to_owned(),
+                    output: temp_output.to_path_buf(),
+                    templates: VirtualDirectoryPath::LocalFolder {
+                        path: "tests/v2_forge/templates/".to_owned(),
+                    },
+                    config: None,
+                    param: None,
+                    params: None,
+                    registry: RegistryArgs {
+                        registry: VirtualDirectoryPath::LocalFolder {
+                            path: "tests/v2_forge/model/".to_owned(),
+                        },
+                        follow_symlinks: false,
+                        include_unreferenced: false,
+                        v2: true,
+                    },
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: true,
+                        display_policy_coverage: false,
+                    },
+                    future: false,
+                    diagnostic: Default::default(),
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli);
+        // The command should succeed.
+        assert_eq!(exit_directive.exit_code, 0);
+
+        // validate expected = observed.
+        let expected_output = Path::new("tests/v2_forge/expected_output");
+        assert!(diff_dir(expected_output, temp_output).unwrap());
     }
 }

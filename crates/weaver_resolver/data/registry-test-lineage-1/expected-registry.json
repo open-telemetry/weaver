@@ -13,6 +13,7 @@
           "registry_id": "default",
           "path": "data/registry-test-lineage-1/registry/groups.yaml"
         },
+        "extends_group": "intermediate.level",
         "attributes": {
           "server.port": {
             "source_group": "intermediate.level",
@@ -39,6 +40,7 @@
           "registry_id": "default",
           "path": "data/registry-test-lineage-1/registry/groups.yaml"
         },
+        "extends_group": "base.level",
         "attributes": {
           "server.port": {
             "source_group": "base.level",

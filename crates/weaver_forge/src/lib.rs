@@ -42,6 +42,7 @@ mod filter;
 mod formats;
 pub mod jq;
 pub mod registry;
+pub mod v2;
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";

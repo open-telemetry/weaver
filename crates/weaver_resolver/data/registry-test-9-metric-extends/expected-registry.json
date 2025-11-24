@@ -33,6 +33,7 @@
           "registry_id": "default",
           "path": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml"
         },
+        "extends_group": "attributes.jvm.memory",
         "attributes": {
           "jvm.memory.pool.name": {
             "source_group": "attributes.jvm.memory",

@@ -11,7 +11,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 
 use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::util::{prepare_main_registry, prepare_main_registry_v2};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry resolve` sub-command
@@ -54,25 +54,50 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
-    apply_format(&args.format, &registry)
-        .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
-        .and_then(|s| {
-            if let Some(ref path) = args.output {
-                // Write the resolved registry to a file.
-                std::fs::write(path, s)
-                    .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
-            } else {
-                // Print the resolved registry to stdout.
-                println!("{s}");
-                Ok(())
-            }
-        })
-        .unwrap_or_else(|e| {
-            // Capture all the errors
-            panic!("{}", e);
-        });
+    if args.registry.v2 {
+        // TODO
+        let (_, registry, _) =
+            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+        apply_format(&args.format, &registry)
+            .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
+            .and_then(|s| {
+                if let Some(ref path) = args.output {
+                    // Write the resolved registry to a file.
+                    std::fs::write(path, s).map_err(|e| {
+                        format!("Failed to write the resolved registry to file: {e:?}")
+                    })
+                } else {
+                    // Print the resolved registry to stdout.
+                    println!("{s}");
+                    Ok(())
+                }
+            })
+            .unwrap_or_else(|e| {
+                // Capture all the errors
+                panic!("{}", e);
+            });
+    } else {
+        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+        apply_format(&args.format, &registry)
+            .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
+            .and_then(|s| {
+                if let Some(ref path) = args.output {
+                    // Write the resolved registry to a file.
+                    std::fs::write(path, s).map_err(|e| {
+                        format!("Failed to write the resolved registry to file: {e:?}")
+                    })
+                } else {
+                    // Print the resolved registry to stdout.
+                    println!("{s}");
+                    Ok(())
+                }
+            })
+            .unwrap_or_else(|e| {
+                // Capture all the errors
+                panic!("{}", e);
+            });
+    }
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -107,6 +132,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     lineage: true,
                     output: None,
@@ -138,6 +164,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     lineage: true,
                     output: None,

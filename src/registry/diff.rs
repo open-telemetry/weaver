@@ -167,6 +167,7 @@ mod tests {
                         },
                         follow_symlinks: false,
                         include_unreferenced: false,
+                        v2: false,
                     },
                     baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
@@ -196,6 +197,7 @@ mod tests {
                     },
                     follow_symlinks: false,
                     include_unreferenced: false,
+                    v2: false,
                 },
                 baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),

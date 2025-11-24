@@ -13,6 +13,10 @@ use serde::Serialize;
 use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+
+use crate::metrics::emit_metrics_for_registry_v2;
+use crate::spans::emit_trace_for_registry_v2;
 
 pub mod attributes;
 pub mod metrics;
@@ -129,9 +133,18 @@ pub enum ExporterConfig {
     },
 }
 
+/// Enum for the registry: ResolvedRegistry or ForgeResolvedRegistry
+#[derive(Debug)]
+pub enum RegistryVersion<'a> {
+    /// v1 ResolvedRegistry
+    V1(&'a ResolvedRegistry),
+    /// v2 ForgeResolvedRegistry
+    V2(&'a ForgeResolvedRegistry),
+}
+
 /// Emit the signals from the registry to the configured exporter.
 pub fn emit(
-    registry: &ResolvedRegistry,
+    registry: RegistryVersion<'_>,
     registry_path: &str,
     exporter_config: &ExporterConfig,
 ) -> Result<(), Error> {
@@ -150,7 +163,10 @@ pub fn emit(
         };
         global::set_tracer_provider(tracer_provider.clone());
 
-        emit_trace_for_registry(registry, registry_path);
+        match registry {
+            RegistryVersion::V1(reg) => emit_trace_for_registry(reg, registry_path),
+            RegistryVersion::V2(reg) => emit_trace_for_registry_v2(reg, registry_path),
+        }
 
         tracer_provider
             .force_flush()
@@ -169,7 +185,10 @@ pub fn emit(
         };
         global::set_meter_provider(meter_provider.clone());
 
-        emit_metrics_for_registry(registry);
+        match registry {
+            RegistryVersion::V1(reg) => emit_metrics_for_registry(reg),
+            RegistryVersion::V2(reg) => emit_metrics_for_registry_v2(reg),
+        }
 
         meter_provider
             .shutdown()
@@ -419,7 +438,11 @@ mod tests {
             ],
         };
 
-        let result = emit(&registry, "TEST", &ExporterConfig::Stdout);
+        let result = emit(
+            RegistryVersion::V1(&registry),
+            "TEST",
+            &ExporterConfig::Stdout,
+        );
         assert!(result.is_ok());
     }
 
@@ -430,7 +453,7 @@ mod tests {
             groups: vec![],
         };
         let result = emit(
-            &registry,
+            RegistryVersion::V1(&registry),
             "TEST_OTLP_INVALID",
             &ExporterConfig::Otlp {
                 endpoint: "http:/invalid-endpoint:4317".to_owned(),
@@ -441,5 +464,143 @@ mod tests {
         // Check the error converts to a diagnostic message
         let diagnostic_messages = DiagnosticMessages::from(result.unwrap_err());
         assert_eq!(diagnostic_messages.len(), 1);
+    }
+
+    #[test]
+    fn test_emit_stdout_v2() {
+        use std::collections::BTreeMap;
+        use weaver_forge::v2::{
+            attribute::Attribute as V2Attribute,
+            metric::Metric,
+            registry::{ForgeResolvedRegistry, Refinements, Signals},
+            span::{Span, SpanAttribute},
+        };
+        use weaver_semconv::{
+            attribute::{
+                AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
+                RequirementLevel,
+            },
+            group::{InstrumentSpec, SpanKindSpec},
+            stability::Stability,
+            v2::{signal_id::SignalId, span::SpanName, CommonFields},
+        };
+
+        let registry = ForgeResolvedRegistry {
+            registry_url: "TEST_V2".to_owned(),
+            attributes: vec![],
+            attribute_groups: vec![],
+            signals: Signals {
+                spans: vec![Span {
+                    r#type: SignalId::from("test.comprehensive.internal".to_owned()),
+                    kind: SpanKindSpec::Internal,
+                    name: SpanName {
+                        note: "test span".to_owned(),
+                    },
+                    attributes: vec![SpanAttribute {
+                        base: V2Attribute {
+                            key: "test.string".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: Some(Examples::Strings(vec![
+                                "value1".to_owned(),
+                                "value2".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "Test attribute".to_owned(),
+                                note: String::new(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
+                        ),
+                        sampling_relevant: None,
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "Test span".to_owned(),
+                        note: String::new(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                metrics: vec![
+                    Metric {
+                        name: SignalId::from("test.updowncounter".to_owned()),
+                        instrument: InstrumentSpec::UpDownCounter,
+                        unit: "1".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.updowncounter".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                    Metric {
+                        name: SignalId::from("test.counter".to_owned()),
+                        instrument: InstrumentSpec::Counter,
+                        unit: "1".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.counter".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                    Metric {
+                        name: SignalId::from("test.gauge".to_owned()),
+                        instrument: InstrumentSpec::Gauge,
+                        unit: "1".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.gauge".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                    Metric {
+                        name: SignalId::from("test.histogram".to_owned()),
+                        instrument: InstrumentSpec::Histogram,
+                        unit: "1".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.histogram".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                ],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        };
+
+        let result = emit(
+            RegistryVersion::V2(&registry),
+            "TEST_V2",
+            &ExporterConfig::Stdout,
+        );
+        assert!(result.is_ok());
     }
 }
