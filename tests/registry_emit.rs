@@ -23,7 +23,10 @@ fn test_emit_with_live_check_v2() {
 fn run_emit_with_live_check_test(use_v2: bool) {
     // Create a temporary directory
     let temp_dir = tempdir().expect("Failed to create temporary directory");
-    let temp_dir_path = temp_dir.path().to_str().unwrap();
+    let temp_dir_path = temp_dir
+        .path()
+        .to_str()
+        .expect("Failed to convert temp directory path to string");
 
     // Build the arguments for live check command
     let mut live_check_args = vec![
@@ -108,11 +111,21 @@ fn run_emit_with_live_check_test(use_v2: bool) {
     let live_check_json: serde_json::Value =
         serde_json::from_str(&live_check_report).expect("Failed to parse live check report JSON");
     // println!("{live_check_json:#?}");
-    let statistics = live_check_json["statistics"].as_object().unwrap();
-    let no_advice_count = statistics["no_advice_count"].as_u64().unwrap();
-    let total_advisories = statistics["total_advisories"].as_u64().unwrap();
-    let total_entities = statistics["total_entities"].as_u64().unwrap();
-    let registry_coverage = statistics["registry_coverage"].as_f64().unwrap();
+    let statistics = live_check_json["statistics"]
+        .as_object()
+        .expect("Failed to get statistics object from live check report");
+    let no_advice_count = statistics["no_advice_count"]
+        .as_u64()
+        .expect("Failed to get no_advice_count as u64");
+    let total_advisories = statistics["total_advisories"]
+        .as_u64()
+        .expect("Failed to get total_advisories as u64");
+    let total_entities = statistics["total_entities"]
+        .as_u64()
+        .expect("Failed to get total_entities as u64");
+    let registry_coverage = statistics["registry_coverage"]
+        .as_f64()
+        .expect("Failed to get registry_coverage as f64");
 
     assert_eq!(no_advice_count, 37);
     assert_eq!(total_advisories, 13);
