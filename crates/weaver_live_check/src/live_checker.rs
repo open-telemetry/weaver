@@ -148,9 +148,10 @@ mod tests {
         attribute::Attribute as V2Attribute,
         metric::{Metric as V2Metric, MetricAttribute},
         registry::{ForgeResolvedRegistry, Refinements, Signals},
+        span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::v2::CommonFields;
+    use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
             AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -929,54 +930,123 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_custom_rego() {
-        let registry = VersionedRegistry::V1(ResolvedRegistry {
-            registry_url: "TEST".to_owned(),
-            groups: vec![ResolvedGroup {
-                id: "custom.comprehensive.internal".to_owned(),
-                r#type: GroupType::Span,
-                brief: "".to_owned(),
-                note: "".to_owned(),
-                prefix: "".to_owned(),
-                entity_associations: vec![],
-                extends: None,
-                stability: Some(Stability::Stable),
-                deprecated: None,
-                attributes: vec![Attribute {
-                    name: "custom.string".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                    examples: Some(Examples::Strings(vec![
-                        "value1".to_owned(),
-                        "value2".to_owned(),
-                    ])),
+    fn make_custom_rego_registry(use_v2: bool) -> VersionedRegistry {
+        if use_v2 {
+            let custom_string_attr = V2Attribute {
+                key: "custom.string".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: Some(Examples::Strings(vec![
+                    "value1".to_owned(),
+                    "value2".to_owned(),
+                ])),
+                common: CommonFields {
                     brief: "".to_owned(),
-                    tag: None,
-                    requirement_level: RequirementLevel::Recommended {
-                        text: "".to_owned(),
-                    },
-                    sampling_relevant: None,
                     note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+            };
+
+            VersionedRegistry::V2(ForgeResolvedRegistry {
+                registry_url: "TEST".to_owned(),
+                attributes: vec![custom_string_attr.clone()],
+                attribute_groups: vec![],
+                signals: Signals {
+                    metrics: vec![],
+                    spans: vec![V2Span {
+                        r#type: "custom.comprehensive.internal".to_owned().into(),
+                        kind: SpanKindSpec::Internal,
+                        name: SpanName {
+                            note: "custom.comprehensive.internal".to_owned(),
+                        },
+                        attributes: vec![SpanAttribute {
+                            base: custom_string_attr.clone(),
+                            requirement_level: RequirementLevel::Recommended {
+                                text: "".to_owned(),
+                            },
+                            sampling_relevant: None,
+                        }],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    }],
+                    events: vec![],
+                    entities: vec![],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            })
+        } else {
+            VersionedRegistry::V1(ResolvedRegistry {
+                registry_url: "TEST".to_owned(),
+                groups: vec![ResolvedGroup {
+                    id: "custom.comprehensive.internal".to_owned(),
+                    r#type: GroupType::Span,
+                    brief: "".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
                     stability: Some(Stability::Stable),
                     deprecated: None,
-                    prefix: false,
-                    tags: None,
-                    value: None,
+                    attributes: vec![Attribute {
+                        name: "custom.string".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                        role: Default::default(),
+                    }],
+                    span_kind: Some(SpanKindSpec::Internal),
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
                     annotations: None,
-                    role: Default::default(),
                 }],
-                span_kind: Some(SpanKindSpec::Internal),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-                annotations: None,
-            }],
-        });
+            })
+        }
+    }
+
+    #[test]
+    fn test_custom_rego() {
+        run_custom_rego_test(false);
+    }
+
+    #[test]
+    fn test_custom_rego_v2() {
+        run_custom_rego_test(true);
+    }
+
+    fn run_custom_rego_test(use_v2: bool) {
+        let registry = make_custom_rego_registry(use_v2);
 
         let mut samples = vec![
             Sample::Attribute(SampleAttribute::try_from("custom.string=hello").unwrap()),
@@ -1237,52 +1307,16 @@ mod tests {
 
     #[test]
     fn test_bad_custom_rego() {
-        let registry = VersionedRegistry::V1(ResolvedRegistry {
-            registry_url: "TEST".to_owned(),
-            groups: vec![ResolvedGroup {
-                id: "custom.comprehensive.internal".to_owned(),
-                r#type: GroupType::Span,
-                brief: "".to_owned(),
-                note: "".to_owned(),
-                prefix: "".to_owned(),
-                entity_associations: vec![],
-                extends: None,
-                stability: Some(Stability::Stable),
-                deprecated: None,
-                attributes: vec![Attribute {
-                    name: "custom.string".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                    examples: Some(Examples::Strings(vec![
-                        "value1".to_owned(),
-                        "value2".to_owned(),
-                    ])),
-                    brief: "".to_owned(),
-                    tag: None,
-                    requirement_level: RequirementLevel::Recommended {
-                        text: "".to_owned(),
-                    },
-                    sampling_relevant: None,
-                    note: "".to_owned(),
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    prefix: false,
-                    tags: None,
-                    value: None,
-                    annotations: None,
-                    role: Default::default(),
-                }],
-                span_kind: Some(SpanKindSpec::Internal),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-                annotations: None,
-            }],
-        });
+        run_bad_custom_rego_test(false);
+    }
+
+    #[test]
+    fn test_bad_custom_rego_v2() {
+        run_bad_custom_rego_test(true);
+    }
+
+    fn run_bad_custom_rego_test(use_v2: bool) {
+        let registry = make_custom_rego_registry(use_v2);
 
         let mut samples = vec![Sample::Attribute(
             SampleAttribute::try_from("custom.string=hello").unwrap(),
