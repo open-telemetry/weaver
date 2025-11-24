@@ -141,8 +141,14 @@ mod tests {
 
     use super::*;
     use serde_json::json;
+    use std::collections::BTreeMap;
     use weaver_checker::violation::{Advice, AdviceLevel};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
+    use weaver_forge::v2::{
+        attribute::Attribute as V2Attribute,
+        metric::{Metric as V2Metric, MetricAttribute},
+        registry::{ForgeResolvedRegistry, Refinements, Signals},
+    };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
         attribute::{
@@ -152,6 +158,7 @@ mod tests {
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
     };
+    use weaver_semconv::v2::CommonFields;
 
     fn get_all_advice(sample: &mut Sample) -> &mut [Advice] {
         match sample {
@@ -450,9 +457,105 @@ mod tests {
 
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
-            todo!("V2 registry not yet implemented")
-        }
-        VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V2(ForgeResolvedRegistry {
+                registry_url: "TEST".to_owned(),
+                attributes: vec![
+                    V2Attribute {
+                        key: "test.string".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        common: CommonFields {
+                            brief: "".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                    V2Attribute {
+                        key: "test.enum".to_owned(),
+                        r#type: AttributeType::Enum {
+                            members: vec![
+                                EnumEntriesSpec {
+                                    id: "test_enum_member".to_owned(),
+                                    value: ValueSpec::String("example_variant1".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Stable),
+                                    deprecated: None,
+                                    annotations: None,
+                                },
+                                EnumEntriesSpec {
+                                    id: "test_enum_member2".to_owned(),
+                                    value: ValueSpec::String("example_variant2".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Stable),
+                                    deprecated: None,
+                                    annotations: None,
+                                },
+                            ],
+                        },
+                        examples: None,
+                        common: CommonFields {
+                            brief: "".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                    V2Attribute {
+                        key: "test.deprecated".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        common: CommonFields {
+                            brief: "".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Development,
+                            deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
+                                note: "note".to_owned(),
+                            }),
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                    V2Attribute {
+                        key: "test.template".to_owned(),
+                        r#type: AttributeType::Template(TemplateTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        common: CommonFields {
+                            brief: "".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                    },
+                ],
+                attribute_groups: vec![],
+                signals: Signals {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                    entities: vec![],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            })
+        } else {
+            VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
                 id: "test.comprehensive.internal".to_owned(),
@@ -586,13 +689,102 @@ mod tests {
                 annotations: None,
             }],
         })
+        }
     }
 
     fn make_metrics_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
-            todo!("V2 metrics registry not yet implemented")
-        }
-        VersionedRegistry::V1(ResolvedRegistry {
+            let memory_state_attr = V2Attribute {
+                key: "system.memory.state".to_owned(),
+                r#type: AttributeType::Enum {
+                    members: vec![
+                        EnumEntriesSpec {
+                            id: "used".to_owned(),
+                            value: ValueSpec::String("used".to_owned()),
+                            brief: None,
+                            note: None,
+                            stability: Some(Stability::Development),
+                            deprecated: None,
+                            annotations: None,
+                        },
+                        EnumEntriesSpec {
+                            id: "free".to_owned(),
+                            value: ValueSpec::String("free".to_owned()),
+                            brief: None,
+                            note: None,
+                            stability: Some(Stability::Development),
+                            deprecated: None,
+                            annotations: None,
+                        },
+                    ],
+                },
+                examples: Some(Examples::Strings(vec![
+                    "free".to_owned(),
+                    "cached".to_owned(),
+                ])),
+                common: CommonFields {
+                    brief: "The memory state".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Development,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+            };
+
+            VersionedRegistry::V2(ForgeResolvedRegistry {
+                registry_url: "TEST_METRICS".to_owned(),
+                attributes: vec![memory_state_attr.clone()],
+                attribute_groups: vec![],
+                signals: Signals {
+                    metrics: vec![
+                        V2Metric {
+                            name: "system.uptime".to_owned().into(),
+                            instrument: InstrumentSpec::Gauge,
+                            unit: "s".to_owned(),
+                            attributes: vec![],
+                            entity_associations: vec![],
+                            common: CommonFields {
+                                brief: "The time the system has been running".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Development,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                        V2Metric {
+                            name: "system.memory.usage".to_owned().into(),
+                            instrument: InstrumentSpec::UpDownCounter,
+                            unit: "By".to_owned(),
+                            attributes: vec![
+                                MetricAttribute {
+                                    base: memory_state_attr.clone(),
+                                    requirement_level: RequirementLevel::Recommended {
+                                        text: "".to_owned(),
+                                    },
+                                },
+                            ],
+                            entity_associations: vec![],
+                            common: CommonFields {
+                                brief: "Reports memory in use by state.".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Development,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                    ],
+                    spans: vec![],
+                    events: vec![],
+                    entities: vec![],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            })
+        } else {
+            VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST_METRICS".to_owned(),
             groups: vec![
                 // Attribute group for system memory
@@ -726,6 +918,7 @@ mod tests {
                 },
             ],
         })
+        }
     }
 
     #[test]
@@ -841,7 +1034,16 @@ mod tests {
 
     #[test]
     fn test_json_input_output() {
-        let registry = make_registry(false);
+        run_json_input_output_test(false);
+    }
+
+    #[test]
+    fn test_json_input_output_v2() {
+        run_json_input_output_test(true);
+    }
+
+    fn run_json_input_output_test(use_v2: bool) {
+        let registry = make_registry(use_v2);
 
         // Load samples from JSON file
         let path = "data/span.json";
@@ -881,7 +1083,16 @@ mod tests {
 
     #[test]
     fn test_json_span_rego() {
-        let registry = make_registry(false);
+        run_json_span_rego_test(false);
+    }
+
+    #[test]
+    fn test_json_span_rego_v2() {
+        run_json_span_rego_test(true);
+    }
+
+    fn run_json_span_rego_test(use_v2: bool) {
+        let registry = make_registry(use_v2);
 
         // Load samples from JSON file
         let path = "data/span.json";
@@ -915,7 +1126,16 @@ mod tests {
 
     #[test]
     fn test_json_metric() {
-        let registry = make_metrics_registry(false);
+        run_json_metric_test(false);
+    }
+
+    #[test]
+    fn test_json_metric_v2() {
+        run_json_metric_test(true);
+    }
+
+    fn run_json_metric_test(use_v2: bool) {
+        let registry = make_metrics_registry(use_v2);
 
         // Load samples from JSON file
         let path = "data/metrics.json";
@@ -967,7 +1187,16 @@ mod tests {
 
     #[test]
     fn test_json_metric_custom_rego() {
-        let registry = make_metrics_registry(false);
+        run_json_metric_custom_rego_test(false);
+    }
+
+    #[test]
+    fn test_json_metric_custom_rego_v2() {
+        run_json_metric_custom_rego_test(true);
+    }
+
+    fn run_json_metric_custom_rego_test(use_v2: bool) {
+        let registry = make_metrics_registry(use_v2);
 
         // Load samples from JSON file
         let path = "data/metrics.json";
@@ -1078,7 +1307,16 @@ mod tests {
 
     #[test]
     fn test_exponential_histogram() {
-        let registry = make_metrics_registry(false);
+        run_exponential_histogram_test(false);
+    }
+
+    #[test]
+    fn test_exponential_histogram_v2() {
+        run_exponential_histogram_test(true);
+    }
+
+    fn run_exponential_histogram_test(use_v2: bool) {
+        let registry = make_metrics_registry(use_v2);
 
         // A sample with exponential histogram data points
         let sample = Sample::Metric(SampleMetric {
@@ -1141,7 +1379,16 @@ mod tests {
 
     #[test]
     fn test_gauge_exemplar_rego() {
-        let registry = make_metrics_registry(false);
+        run_gauge_exemplar_rego_test(false);
+    }
+
+    #[test]
+    fn test_gauge_exemplar_rego_v2() {
+        run_gauge_exemplar_rego_test(true);
+    }
+
+    fn run_gauge_exemplar_rego_test(use_v2: bool) {
+        let registry = make_metrics_registry(use_v2);
 
         // A gauge sample with an exemplar
         let mut sample = Sample::Metric(SampleMetric {
@@ -1185,7 +1432,16 @@ mod tests {
 
     #[test]
     fn test_summary_unspecified() {
-        let registry = make_metrics_registry(false);
+        run_summary_unspecified_test(false);
+    }
+
+    #[test]
+    fn test_summary_unspecified_v2() {
+        run_summary_unspecified_test(true);
+    }
+
+    fn run_summary_unspecified_test(use_v2: bool) {
+        let registry = make_metrics_registry(use_v2);
 
         let mut samples = vec![
             Sample::Metric(SampleMetric {
