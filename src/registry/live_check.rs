@@ -23,10 +23,12 @@ use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
-use weaver_live_check::{Error, Ingester, LiveCheckReport, LiveCheckRunner, LiveCheckStatistics};
+use weaver_live_check::{
+    Error, Ingester, LiveCheckReport, LiveCheckRunner, LiveCheckStatistics, VersionedRegistry,
+};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::util::{prepare_main_registry, prepare_main_registry_v2};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 use super::otlp::otlp_ingester::OtlpIngester;
@@ -168,12 +170,22 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
-
-    info!(
-        "Performing live check with registry `{}`",
-        args.registry.registry
-    );
+    let registry = if args.registry.v2 {
+        let (_, forge_registry, _) =
+            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+        info!(
+            "Performing live check with v2 registry `{}`",
+            args.registry.registry
+        );
+        VersionedRegistry::V2(forge_registry)
+    } else {
+        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+        info!(
+            "Performing live check with v1 registry `{}`",
+            args.registry.registry
+        );
+        VersionedRegistry::V1(registry)
+    };
 
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(registry, default_advisors());
