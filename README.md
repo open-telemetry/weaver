@@ -51,6 +51,10 @@ cd weaver
 cargo build --release
 ```
 
+**GitHub Actions:**
+
+Use Weaver in your CI/CD workflows with the `setup-weaver` action. See the [setup-weaver documentation](.github/actions/setup-weaver/README.md) or check out [opentelemetry-weaver-examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) for practical CI workflow examples.
+
 ## Usage
 
 Weaver provides a _set of tools_ for working with **schematized telemetry**.
