@@ -172,7 +172,7 @@ jobs:
       - name: Install SARIF tools
         run: cargo install sarif-fmt --locked
       - name: Install protoc
-        uses: arduino/setup-protoc@v2
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       - name: Check
         # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
         # [ToDo LQ] Re-enable --all-features once the issue is resolved
