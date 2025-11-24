@@ -235,35 +235,39 @@ pub fn convert_v1_to_v2(
                         log::info!("Logic failure - unable to convert attribute {attr:?}");
                     }
                 }
-                let event = event::Event {
-                    name: g
-                        .name
-                        .clone()
-                        .expect("Name must exist on events prior to translation to v2")
-                        .into(),
-                    attributes: event_attributes,
-                    entity_associations: g.entity_associations.clone(),
-                    common: CommonFields {
-                        brief: g.brief.clone(),
-                        note: g.note.clone(),
-                        stability: g
-                            .stability
-                            .clone()
-                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                        deprecated: g.deprecated.clone(),
-                        annotations: g.annotations.clone().unwrap_or_default(),
-                    },
-                };
-                if !is_refinement {
-                    events.push(event.clone());
-                    event_refinements.push(event::EventRefinement {
-                        id: event.name.clone(),
-                        event,
-                    });
+                // We cannot convert older repositories before event name was required.
+                if let Some(name) = g.name.clone() {
+                    let event = event::Event {
+                        name: name.into(),
+                        attributes: event_attributes,
+                        entity_associations: g.entity_associations.clone(),
+                        common: CommonFields {
+                            brief: g.brief.clone(),
+                            note: g.note.clone(),
+                            stability: g
+                                .stability
+                                .clone()
+                                .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                            deprecated: g.deprecated.clone(),
+                            annotations: g.annotations.clone().unwrap_or_default(),
+                        },
+                    };
+                    if !is_refinement {
+                        events.push(event.clone());
+                        event_refinements.push(event::EventRefinement {
+                            id: event.name.clone(),
+                            event,
+                        });
+                    } else {
+                        event_refinements.push(event::EventRefinement {
+                            id: fix_group_id("event.", &g.id),
+                            event,
+                        });
+                    }
                 } else {
-                    event_refinements.push(event::EventRefinement {
-                        id: fix_group_id("event.", &g.id),
-                        event,
+                    // We have no event name
+                    return Err(crate::error::Error::EventNameNotFound {
+                        group_id: g.id.clone(),
                     });
                 }
             }

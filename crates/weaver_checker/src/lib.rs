@@ -411,6 +411,12 @@ impl Engine {
         Ok(())
     }
 
+    /// Returns true if there are any policy packages for a given stage.
+    #[must_use]
+    pub fn has_stage(&self, stage: PolicyStage) -> bool {
+        self.policy_packages.contains(&format!("data.{stage}"))
+    }
+
     /// Returns a list of violations based on the policies, the data, the
     /// input, and the given policy stage.
     #[allow(clippy::print_stdout)] // Used to display the coverage (debugging purposes only)
@@ -627,6 +633,15 @@ mod tests {
 
         engine.add_policy_from_file_or_dir("data/multi-policies")?;
         assert_eq!(3, engine.policy_package_count);
+        Ok(())
+    }
+
+    #[test]
+    fn test_can_determine_before_resolution_policy() -> Result<(), Box<dyn std::error::Error>> {
+        let mut engine = Engine::new();
+        assert!(!engine.has_stage(PolicyStage::BeforeResolution));
+        engine.add_policy_from_file_or_dir("data/multi-policies")?;
+        assert!(engine.has_stage(PolicyStage::BeforeResolution));
         Ok(())
     }
 }
