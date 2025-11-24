@@ -166,7 +166,16 @@ mod tests {
 
     #[test]
     fn test_attribute_live_checker() {
-        let registry = make_registry();
+        run_attribute_live_checker_test(false);
+    }
+
+    #[test]
+    fn test_attribute_live_checker_v2() {
+        run_attribute_live_checker_test(true);
+    }
+
+    fn run_attribute_live_checker_test(use_v2: bool) {
+        let registry = make_registry(use_v2);
 
         let mut samples = vec![
             Sample::Attribute(SampleAttribute::try_from("test.string=value").unwrap()),
@@ -439,7 +448,10 @@ mod tests {
         assert_eq!(stats.registry_coverage, 1.0);
     }
 
-    fn make_registry() -> VersionedRegistry {
+    fn make_registry(use_v2: bool) -> VersionedRegistry {
+        if use_v2 {
+            todo!("V2 registry not yet implemented")
+        }
         VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
@@ -576,7 +588,10 @@ mod tests {
         })
     }
 
-    fn make_metrics_registry() -> VersionedRegistry {
+    fn make_metrics_registry(use_v2: bool) -> VersionedRegistry {
+        if use_v2 {
+            todo!("V2 metrics registry not yet implemented")
+        }
         VersionedRegistry::V1(ResolvedRegistry {
             registry_url: "TEST_METRICS".to_owned(),
             groups: vec![
@@ -826,7 +841,7 @@ mod tests {
 
     #[test]
     fn test_json_input_output() {
-        let registry = make_registry();
+        let registry = make_registry(false);
 
         // Load samples from JSON file
         let path = "data/span.json";
@@ -866,7 +881,7 @@ mod tests {
 
     #[test]
     fn test_json_span_rego() {
-        let registry = make_registry();
+        let registry = make_registry(false);
 
         // Load samples from JSON file
         let path = "data/span.json";
@@ -900,7 +915,7 @@ mod tests {
 
     #[test]
     fn test_json_metric() {
-        let registry = make_metrics_registry();
+        let registry = make_metrics_registry(false);
 
         // Load samples from JSON file
         let path = "data/metrics.json";
@@ -952,7 +967,7 @@ mod tests {
 
     #[test]
     fn test_json_metric_custom_rego() {
-        let registry = make_metrics_registry();
+        let registry = make_metrics_registry(false);
 
         // Load samples from JSON file
         let path = "data/metrics.json";
@@ -1063,7 +1078,7 @@ mod tests {
 
     #[test]
     fn test_exponential_histogram() {
-        let registry = make_metrics_registry();
+        let registry = make_metrics_registry(false);
 
         // A sample with exponential histogram data points
         let sample = Sample::Metric(SampleMetric {
@@ -1126,7 +1141,7 @@ mod tests {
 
     #[test]
     fn test_gauge_exemplar_rego() {
-        let registry = make_metrics_registry();
+        let registry = make_metrics_registry(false);
 
         // A gauge sample with an exemplar
         let mut sample = Sample::Metric(SampleMetric {
@@ -1170,7 +1185,7 @@ mod tests {
 
     #[test]
     fn test_summary_unspecified() {
-        let registry = make_metrics_registry();
+        let registry = make_metrics_registry(false);
 
         let mut samples = vec![
             Sample::Metric(SampleMetric {
