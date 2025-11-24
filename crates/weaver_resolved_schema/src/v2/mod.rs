@@ -31,6 +31,7 @@ pub mod metric;
 pub mod refinements;
 pub mod registry;
 pub mod span;
+pub mod stats;
 
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
