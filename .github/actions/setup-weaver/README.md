@@ -31,8 +31,6 @@ For complete workflow examples, see [opentelemetry-weaver-examples](https://gith
 | Output | Description |
 |--------|-------------|
 | `version` | Installed Weaver version (e.g., `v0.18.0`) |
-| `cache-hit` | Whether the binary was restored from cache (`'true'` or `'false'`) |
-| `weaver-path` | Full path to the Weaver binary |
 
 ## Caching
 

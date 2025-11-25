@@ -22,14 +22,6 @@ outputs:
     description: 'Installed Weaver version (e.g., "v0.18.0")'
     value: ${{ steps.resolve-version.outputs.version }}
 
-  cache-hit:
-    description: 'Whether the binary was restored from cache'
-    value: ${{ steps.cache-weaver.outputs.cache-hit }}
-
-  weaver-path:
-    description: 'Path to Weaver binary'
-    value: ${{ steps.verify.outputs.weaver-path }}
-
 runs:
   using: 'composite'
   steps:
@@ -92,19 +84,9 @@ runs:
         fi
 
     - name: Verify installation
-      id: verify
       shell: bash
       run: |
         weaver --version
-
-        if [ "$RUNNER_OS" = "Windows" ]; then
-          WEAVER_PATH=$(where weaver)
-        else
-          WEAVER_PATH=$(which weaver)
-        fi
-
-        echo "weaver-path=$WEAVER_PATH" >> $GITHUB_OUTPUT
-        echo "Weaver installed at: $WEAVER_PATH"
 
     - name: Save Weaver to cache
       if: inputs.cache == 'true' && steps.cache-weaver.outputs.cache-hit != 'true'
