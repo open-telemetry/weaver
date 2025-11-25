@@ -19,7 +19,8 @@ use crate::v2::{
     metric::Metric,
     refinements::Refinements,
     registry::Registry,
-    span::{Span, SpanRefinement}, stats::Stats,
+    span::{Span, SpanRefinement},
+    stats::Stats,
 };
 
 pub mod attribute;
