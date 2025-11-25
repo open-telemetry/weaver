@@ -10,7 +10,7 @@ use std::fmt::{Display, Formatter};
 const SEMCONV_ATTRIBUTE: &'static str = "semconv_attribute";
 
 /// Enum representing the different types of violations.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct Violation {
@@ -219,32 +219,4 @@ pub enum AdviceLevel {
     Improvement,
     /// Something that breaks compliance rules
     Violation,
-}
-
-/// Represents a live check advice
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct Advice {
-    /// The type of advice e.g. "is_deprecated". This should be a short,
-    /// machine-readable string that categorizes the advice.
-    pub advice_type: String,
-
-    /// The context associated with the advice e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
-    /// The context should contain all dynamic parts of the message
-    /// Context values may be used with custom templates and filters to customize reports.
-    pub advice_context: Value,
-
-    /// The human-readable message of the advice e.g. "This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'"
-    /// The message, along with signal_name and signal_type, should contain enough information to understand the advice and
-    /// identify the issue and how to fix it.
-    /// Some of the values used in the message may be also present in the `advice_context` field to support report customization.
-    pub message: String,
-
-    /// The level of the advice e.g. "violation"
-    pub advice_level: AdviceLevel,
-
-    /// The signal type the advice applies to: "span", "metric", "entity", "log" (aka "event"), or "profile"
-    pub signal_type: Option<String>,
-
-    /// The signal name the advice applies to e.g. "http.server.request.duration".
-    pub signal_name: Option<String>,
 }

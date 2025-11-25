@@ -15,7 +15,7 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_checker::violation::{AdviceLevel, Violation};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_semconv::group::GroupType;
@@ -234,7 +234,7 @@ impl LiveCheckRunner for Sample {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct LiveCheckResult {
     /// Advice on the entity
-    pub all_advice: Vec<Advice>,
+    pub all_advice: Vec<Violation>,
     /// The highest advice level
     pub highest_advice_level: Option<AdviceLevel>,
 }
@@ -250,7 +250,7 @@ impl LiveCheckResult {
     }
 
     /// Add an advice to the result and update the highest advice level
-    pub fn add_advice(&mut self, advice: Advice) {
+    pub fn add_advice(&mut self, advice: Violation) {
         let advice_level = advice.advice_level.clone();
         if let Some(previous_highest) = &self.highest_advice_level {
             if previous_highest < &advice_level {
@@ -263,7 +263,7 @@ impl LiveCheckResult {
     }
 
     /// Add a list of advice to the result and update the highest advice level
-    pub fn add_advice_list(&mut self, advice: Vec<Advice>) {
+    pub fn add_advice_list(&mut self, advice: Vec<Violation>) {
         for advice in advice {
             self.add_advice(advice);
         }
@@ -383,14 +383,14 @@ impl LiveCheckStatistics {
     }
 
     /// Add an advice to the statistics
-    fn add_advice(&mut self, advice: &Advice) {
+    fn add_advice(&mut self, advice: &Violation) {
         *self
             .advice_level_counts
             .entry(advice.advice_level.clone())
             .or_insert(0) += 1;
         *self
             .advice_type_counts
-            .entry(advice.advice_type.clone())
+            .entry(advice.id.clone())
             .or_insert(0) += 1;
         *self
             .advice_message_counts
