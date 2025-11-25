@@ -5,7 +5,8 @@
 Violation: {{ item.error.violation.id | ansi_bold | ansi_green }}
   - Message   : {{ item.error.violation.message | ansi_cyan }}
   - Level     : {{ item.error.violation.level | ansi_cyan }}
-  - Context   : {{ item.error.violation.context | tojson | ansi_cyan }}
+  - Context   : {% for key in item.error.violation.context %}
+    - {{ key }} : {{ item.error.violation.context[key] | ansi_cyan }}{% endfor%}
   - Provenance: {{ item.error.provenance | ansi_cyan }}
 {% else %}
 {{ item.diagnostic.ansi_message }}
