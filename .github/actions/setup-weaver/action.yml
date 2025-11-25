@@ -33,8 +33,8 @@ runs:
 
         if [ -z "$VERSION" ]; then
           echo "Fetching latest Weaver version from GitHub API..."
-          API_RESPONSE=$(curl -sS https://api.github.com/repos/open-telemetry/weaver/releases/latest 2>&1) || {
-            echo "Error: Failed to fetch latest version from GitHub API"
+          API_RESPONSE=$(curl -L https://api.github.com/repos/open-telemetry/weaver/releases/latest 2>&1) || {
+            echo "Error: Failed to fetch latest version from GitHub API (curl exit code: $?)"
             echo "Response: $API_RESPONSE"
             exit 1
           }
