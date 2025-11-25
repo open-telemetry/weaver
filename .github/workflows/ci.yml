@@ -35,7 +35,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Build
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
         run: cargo test --no-run --workspace
@@ -60,7 +60,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.MSRV }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       # The intended toolchain is being overridden here by the version defined in rust-toolchain.toml so we need to manually set it back
       - name: Override default toolchain
         run: rustup override set "${{ env.MSRV }}"
@@ -89,7 +89,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: "Is lockfile updated?"
         run: cargo fetch --locked
   docs:
@@ -102,7 +102,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -D warnings
@@ -122,7 +122,7 @@ jobs:
           # more likely to have stable
           toolchain: stable
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Check formatting
         run: cargo fmt --all -- --check
   check-external-types:
@@ -166,13 +166,13 @@ jobs:
         with:
           toolchain: "stable"
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Install SARIF tools
         run: cargo install clippy-sarif --locked
       - name: Install SARIF tools
         run: cargo install sarif-fmt --locked
       - name: Install protoc
-        uses: arduino/setup-protoc@v2
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       - name: Check
         # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
         # [ToDo LQ] Re-enable --all-features once the issue is resolved
@@ -183,7 +183,7 @@ jobs:
           | sarif-fmt
         continue-on-error: true
       - name: Upload
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@fdbfb4d2750291e159f0156def62b853c2798ca2 # v4.31.5
         with:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
@@ -199,13 +199,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Gather coverage
         run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*'
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: open-telemetry/weaver

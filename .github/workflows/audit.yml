@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@f2ba7abc2abebaf185c833c3961145a3c275caad # v2.0.13
         with:
           command: check ${{ matrix.checks }}
           rust-version: stable
