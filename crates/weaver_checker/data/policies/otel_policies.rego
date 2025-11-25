@@ -48,6 +48,7 @@ attr_exists_in_new_group(group_id, attr_id) if {
 
 # Build an attribute registry violation
 attr_registry_violation(violation_id, group_id, attr_id) := violation if {
+	# Uses legacy semconv attirbute type.
 	violation := {
 		"id": violation_id,
 		"type": "semconv_attribute",
@@ -59,6 +60,7 @@ attr_registry_violation(violation_id, group_id, attr_id) := violation if {
 
 # Build an attribute violation
 attr_violation(violation_id, group_id, attr_id) := violation if {
+	# Uses legacy semconv attirbute type.
 	violation := {
 		"id": violation_id,
 		"type": "semconv_attribute",
@@ -70,11 +72,15 @@ attr_violation(violation_id, group_id, attr_id) := violation if {
 
 # Build a schema evolution violation
 schema_evolution_violation(violation_id, group_id, attr_id) := violation if {
+	# Uses New policy violations
 	violation := {
 		"id": violation_id,
-		"type": "semconv_attribute",
-		"category": "schema_evolution",
-		"group": group_id,
-		"attr": attr_id,
+		"context": {
+			"id": "schema_evolution",
+			"group": group_id,
+			"attr": attr_id,
+		},
+		"message": "Schema evolution violation",
+		"level": "violation",
 	}
 }

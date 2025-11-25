@@ -493,34 +493,43 @@ mod tests {
         engine.set_input(&new_semconv)?;
 
         let expected_violations: HashMap<String, Violation> = vec![
-            Violation::SemconvAttribute {
-                id: "attr_stability_deprecated".to_owned(),
-                category: "attribute".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.name".to_owned(),
-            },
-            Violation::SemconvAttribute {
+            Violation::new_semconv_attribute(
+                "attr_stability_deprecated".to_owned(),
+                "attribute".to_owned(),
+                "registry.network1".to_owned(),
+                "protocol.name".to_owned(),
+            ),
+            Violation {
                 id: "attr_removed".to_owned(),
-                category: "schema_evolution".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.name.3".to_owned(),
+                context: serde_json::json!({
+                    "id": "schema_evolution",
+                    "group": "registry.network1".to_owned(),
+                    "attr": "protocol.name.3".to_owned(),
+                }),
+                message: "Schema evolution violation".to_owned(),
+                advice_level: crate::violation::AdviceLevel::Violation,
+                signal_type: None,
+                signal_name: None,
             },
-            Violation::SemconvAttribute {
-                id: "registry_with_ref_attr".to_owned(),
-                category: "attribute_registry".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.port".to_owned(),
-            },
+            Violation::new_semconv_attribute(
+                "registry_with_ref_attr".to_owned(),
+                "attribute_registry".to_owned(),
+                "registry.network1".to_owned(),
+                "protocol.port".to_owned(),
+            ),
         ]
         .into_iter()
-        .map(|v| (v.id().to_owned(), v))
+        .map(|v| (make_id_for_semconv_attribute(&v), v))
         .collect();
 
         let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
 
         for violation in violations {
-            assert_eq!(expected_violations.get(violation.id()), Some(&violation));
+            assert_eq!(
+                expected_violations.get(&make_id_for_semconv_attribute(&violation)),
+                Some(&violation)
+            );
         }
 
         Ok(())
@@ -558,10 +567,17 @@ mod tests {
         let observed_errors = format_errors(&[result.unwrap_err()]);
         assert_eq!(
             observed_errors,
-            "Violation evaluation error: missing field `type`"
+            "Violation evaluation error: missing field `level`"
         );
     }
 
+    fn make_id_for_semconv_attribute(v: &Violation) -> String {
+        format!(
+            "{}-{}",
+            v.id,
+            v.context.as_object().unwrap().get("id").unwrap()
+        )
+    }
     #[test]
     fn test_add_policies() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine = Engine::new();
@@ -578,34 +594,37 @@ mod tests {
         engine.set_input(&new_semconv)?;
 
         let expected_violations: HashMap<String, Violation> = vec![
-            Violation::SemconvAttribute {
-                id: "attr_stability_deprecated".to_owned(),
-                category: "attribute".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.name".to_owned(),
-            },
-            Violation::SemconvAttribute {
-                id: "attr_removed".to_owned(),
-                category: "schema_evolution".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.name.3".to_owned(),
-            },
-            Violation::SemconvAttribute {
-                id: "registry_with_ref_attr".to_owned(),
-                category: "attribute_registry".to_owned(),
-                group: "registry.network1".to_owned(),
-                attr: "protocol.port".to_owned(),
-            },
+            Violation::new_semconv_attribute(
+                "attr_stability_deprecated".to_owned(),
+                "attribute".to_owned(),
+                "registry.network1".to_owned(),
+                "protocol.name".to_owned(),
+            ),
+            Violation::new_semconv_attribute(
+                "attr_removed".to_owned(),
+                "schema_evolution".to_owned(),
+                "registry.network1".to_owned(),
+                "protocol.name.3".to_owned(),
+            ),
+            Violation::new_semconv_attribute(
+                "registry_with_ref_attr".to_owned(),
+                "attribute_registry".to_owned(),
+                "registry.network1".to_owned(),
+                "protocol.port".to_owned(),
+            ),
         ]
         .into_iter()
-        .map(|v| (v.id().to_owned(), v))
+        .map(|v| (make_id_for_semconv_attribute(&v), v))
         .collect();
 
         let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
 
         for violation in violations {
-            assert_eq!(expected_violations.get(violation.id()), Some(&violation));
+            assert_eq!(
+                expected_violations.get(&make_id_for_semconv_attribute(&violation)),
+                Some(&violation)
+            );
         }
 
         Ok(())
@@ -619,7 +638,7 @@ mod tests {
         // We have 2 invalid Rego files in data/policies
         assert!(result.is_err());
         if let Error::CompoundError(errors) = result.err().unwrap() {
-            assert_eq!(errors.len(), 2);
+            assert_eq!(errors.len(), 2, "Found errors: {errors:?}");
         } else {
             panic!("Expected a CompoundError");
         }

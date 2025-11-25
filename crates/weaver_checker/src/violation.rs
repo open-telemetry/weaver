@@ -7,53 +7,194 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Display, Formatter};
 
+const SEMCONV_ATTRIBUTE: &'static str = "semconv_attribute";
+
 /// Enum representing the different types of violations.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
-pub enum Violation {
-    /// A violation related to semantic convention attributes.
-    SemconvAttribute {
-        /// The ID of the policy violation.
+pub struct Violation {
+    /// The id of violation e.g. "is_deprecated". This should be a short,
+    /// machine-readable string that categorizes the advice.
+    pub id: String,
+
+    /// The context associated with the violation e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
+    /// The context should contain all dynamic parts of the message
+    /// Context values may be used with custom templates and filters to customize reports.
+    pub context: Value,
+
+    /// The human-readable message of the violation e.g. "This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'"
+    /// The message, along with signal_name and signal_type, should contain enough information to understand the advice and
+    /// identify the issue and how to fix it.
+    /// Some of the values used in the message may be also present in the `context` field to support report customization.
+    pub message: String,
+
+    /// The level of the advice e.g. "violation"
+    pub advice_level: AdviceLevel,
+
+    /// The signal type the advice applies to: "span", "metric", "entity", "log" (aka "event"), or "profile"
+    pub signal_type: Option<String>,
+
+    /// The signal name the advice applies to e.g. "http.server.request.duration".
+    pub signal_name: Option<String>,
+}
+
+impl Violation {
+    pub(crate) fn new_semconv_attribute(
         id: String,
-        /// The category of the policy violation.
         category: String,
-        /// The semconv group where the violation occurred.
         group: String,
-        /// The semconv attribute where the violation occurred.
         attr: String,
-    },
-    /// Advice related to a policy violation.
-    Advice(Advice),
+    ) -> Violation {
+        let ctx = serde_json::json!({
+            "id": id,
+            "category": category,
+            "group": group,
+            "attr": attr,
+        });
+        let message = format!("id={id}, category={category}, group={group}, attr={attr}");
+        // TODO - Remove Advice completely here.
+        Violation {
+            id: SEMCONV_ATTRIBUTE.to_owned(),
+            context: ctx,
+            message,
+            advice_level: AdviceLevel::Violation,
+            signal_type: None,
+            signal_name: None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Violation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_map(ViolationBuilder::new())
+    }
+}
+
+#[derive(Debug, Default)]
+struct ViolationBuilder {}
+impl ViolationBuilder {
+    fn new() -> Self {
+        Default::default()
+    }
+}
+impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
+    type Value = Violation;
+
+    fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "A policy violation")
+    }
+
+    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+    where
+        M: serde::de::MapAccess<'de>,
+    {
+        // We have a custom deserializer that allows *any of* the following:
+        // - Oldschool semconv_attribute
+        // - Oldschool Advice
+        // - New "unified violation" structure.
+        let mut opt_id: Option<String> = None;
+        let mut opt_category: Option<String> = None;
+        let mut opt_group: Option<String> = None;
+        let mut opt_attr: Option<String> = None;
+        let mut opt_advice_type: Option<String> = None;
+        let mut opt_message: Option<String> = None;
+        let mut opt_level: Option<AdviceLevel> = None;
+        let mut opt_signal_type: Option<String> = None;
+        let mut opt_signal_name: Option<String> = None;
+        let mut opt_context: Option<Value> = None;
+        let mut r#type: Option<String> = None;
+
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "type" => r#type = Some(map.next_value()?),
+                "id" => opt_id = Some(map.next_value()?),
+                "category" => opt_category = Some(map.next_value()?),
+                "group" => opt_group = Some(map.next_value()?),
+                "attr" => opt_attr = Some(map.next_value()?),
+                // Note: we'll allow this to replace 'type' going forward.
+                "advice_type" => opt_advice_type = Some(map.next_value()?),
+                "message" => opt_message = Some(map.next_value()?),
+                "advice_level" => opt_level = Some(map.next_value()?),
+                "level" => opt_level = Some(map.next_value()?),
+                // TODO - ensure only one of advice_context or context are provided.
+                "advice_context" => opt_context = Some(map.next_value()?),
+                "context" => opt_context = Some(map.next_value()?),
+                "signal_type" => opt_signal_type = Some(map.next_value()?),
+                "signal_name" => opt_signal_name = Some(map.next_value()?),
+                _ => (),
+            }
+        }
+        return match r#type.as_ref().map(|s| s.as_str()) {
+            Some(SEMCONV_ATTRIBUTE) => {
+                let id = opt_id.ok_or(serde::de::Error::missing_field("id"))?;
+                let category = opt_category.ok_or(serde::de::Error::missing_field("category"))?;
+                let group = opt_group.ok_or(serde::de::Error::missing_field("group"))?;
+                let attr = opt_attr.ok_or(serde::de::Error::missing_field("attr"))?;
+                // TODO - do we want a warning that this type is going away?
+                Ok(Violation::new_semconv_attribute(id, category, group, attr))
+            }
+            Some("advice") => {
+                // TODO - Should we warn that `type: advice` is no longer needed?
+                let advice_level =
+                    opt_level.ok_or(serde::de::Error::missing_field("advice_level"))?;
+                let id = opt_advice_type.ok_or(serde::de::Error::missing_field("advice_type"))?;
+                let message = opt_message.ok_or(serde::de::Error::missing_field("message"))?;
+                let signal_type = opt_signal_type;
+                let signal_name = opt_signal_name;
+                let advice_context =
+                    opt_context.ok_or(serde::de::Error::missing_field("advice_context"))?;
+                Ok(Violation {
+                    id,
+                    context: advice_context,
+                    message,
+                    advice_level,
+                    signal_type,
+                    signal_name,
+                })
+            }
+            None => {
+                // This is the one unified way to report errors going forward.
+                let id = opt_id.ok_or(serde::de::Error::missing_field("id"))?;
+                let advice_level = opt_level.ok_or(serde::de::Error::missing_field("level"))?;
+                let message = opt_message.ok_or(serde::de::Error::missing_field("message"))?;
+                let signal_type = opt_signal_type;
+                let signal_name = opt_signal_name;
+                let context = opt_context.ok_or(serde::de::Error::missing_field("context"))?;
+                Ok(Violation {
+                    id,
+                    context,
+                    message,
+                    advice_level,
+                    signal_type,
+                    signal_name,
+                })
+            }
+            _ => Err(serde::de::Error::invalid_type(
+                serde::de::Unexpected::Map,
+                &self,
+            )),
+        };
+    }
 }
 
 impl Display for Violation {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Violation::SemconvAttribute {
-                id,
-                category,
-                group,
-                attr,
-            } => {
-                write!(
-                    f,
-                    "id={id}, category={category}, group={group}, attr={attr}"
-                )
-            }
-            Violation::Advice(Advice {
-                advice_type: r#type,
-                advice_context,
-                message,
-                advice_level,
-                signal_type,
-                signal_name,
-            }) => {
-                write!(
-                    f,
-                    "type={type}, context={advice_context}, message={message}, advice_level={advice_level:?}, signal_type={signal_type:?}, signal_name={signal_name:?}"
-                )
-            }
+        match self.id.as_str() {
+            SEMCONV_ATTRIBUTE => write!(f, "{}", self.message),
+            _ => write!(
+                f,
+                "id={}, context={}, message={}, level={:?}, signal_type={:?}, signal_name={:?}",
+                self.id,
+                self.context,
+                self.message,
+                self.advice_level,
+                self.signal_type,
+                self.signal_name,
+            ),
         }
     }
 }
@@ -62,13 +203,7 @@ impl Violation {
     /// Returns the violation id.
     #[must_use]
     pub fn id(&self) -> &str {
-        match self {
-            Violation::SemconvAttribute { id, .. } => id,
-            Violation::Advice(Advice {
-                advice_type: r#type,
-                ..
-            }) => r#type,
-        }
+        &self.id
     }
 }
 
