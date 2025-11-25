@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Display, Formatter};
 
-const SEMCONV_ATTRIBUTE: &'static str = "semconv_attribute";
+const SEMCONV_ATTRIBUTE: &str = "semconv_attribute";
 
 /// Enum representing the different types of violations.
 #[derive(Debug, Clone, Serialize, PartialEq, JsonSchema)]
@@ -127,7 +127,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                 _ => (),
             }
         }
-        return match r#type.as_ref().map(|s| s.as_str()) {
+        match r#type.as_deref() {
             Some(SEMCONV_ATTRIBUTE) => {
                 let id = opt_id.ok_or(serde::de::Error::missing_field("id"))?;
                 let category = opt_category.ok_or(serde::de::Error::missing_field("category"))?;
@@ -175,7 +175,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                 serde::de::Unexpected::Map,
                 &self,
             )),
-        };
+        }
     }
 }
 
