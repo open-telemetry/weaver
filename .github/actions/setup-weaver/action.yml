@@ -46,10 +46,20 @@ runs:
 
           echo "API call successful, parsing response..."
           echo "Response length: ${#API_RESPONSE} characters"
+          echo "First 200 chars of response: ${API_RESPONSE:0:200}"
+
+          set +e
           VERSION=$(echo "$API_RESPONSE" | grep '"tag_name":' | cut -d'"' -f4)
+          GREP_EXIT=$?
+          set -e
+
+          echo "Grep exit code: $GREP_EXIT"
+          echo "Extracted VERSION: '$VERSION'"
 
           if [ -z "$VERSION" ]; then
             echo "Error: Could not parse version from API response"
+            echo "Full response:"
+            echo "$API_RESPONSE"
             exit 1
           fi
 
