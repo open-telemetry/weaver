@@ -146,7 +146,6 @@ fn display_schema_stats_v2(schema: &weaver_resolved_schema::v2::ResolvedTelemetr
         println!("    - {stability}: {count}");
     }
     println!("  - total with note: {}", stats.registry.events.common.total_with_note);
-    println!("  - event names count: {}", stats.registry.events.event_names.len());
     // Metric stats
     println!("- Metrics");
     println!("  - count: {}", stats.registry.metrics.common.count);
@@ -156,7 +155,6 @@ fn display_schema_stats_v2(schema: &weaver_resolved_schema::v2::ResolvedTelemetr
         println!("    - {stability}: {count}");
     }
     println!("  - total with note: {}", stats.registry.metrics.common.total_with_note);
-    println!("  - metric names count: {}", stats.registry.metrics.metric_names.len());
     println!("  - instrument breakdown: ");
     // TODO - sort by count
     for (instrument, count) in stats.registry.metrics.instrument_breakdown.iter() {
