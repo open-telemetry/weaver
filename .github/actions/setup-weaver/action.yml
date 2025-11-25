@@ -33,11 +33,19 @@ runs:
 
         if [ -z "$VERSION" ]; then
           echo "Fetching latest Weaver version from GitHub API..."
-          API_RESPONSE=$(curl -L https://api.github.com/repos/open-telemetry/weaver/releases/latest 2>&1) || {
-            echo "Error: Failed to fetch latest version from GitHub API (curl exit code: $?)"
+          set +e
+          API_RESPONSE=$(curl -L https://api.github.com/repos/open-telemetry/weaver/releases/latest 2>&1)
+          CURL_EXIT=$?
+          set -e
+
+          if [ $CURL_EXIT -ne 0 ]; then
+            echo "Error: curl failed with exit code $CURL_EXIT"
             echo "Response: $API_RESPONSE"
             exit 1
-          }
+          fi
+
+          echo "API call successful, parsing response..."
+          echo "Response length: ${#API_RESPONSE} characters"
           VERSION=$(echo "$API_RESPONSE" | grep '"tag_name":' | cut -d'"' -f4)
 
           if [ -z "$VERSION" ]; then
