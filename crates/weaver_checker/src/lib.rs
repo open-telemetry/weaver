@@ -507,7 +507,7 @@ mod tests {
                     "attr": "protocol.name.3".to_owned(),
                 }),
                 message: "Schema evolution violation".to_owned(),
-                advice_level: crate::violation::AdviceLevel::Violation,
+                level: crate::violation::ViolationLevel::Violation,
                 signal_type: None,
                 signal_name: None,
             },

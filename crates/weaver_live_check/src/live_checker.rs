@@ -118,7 +118,7 @@ mod tests {
 
     use super::*;
     use serde_json::json;
-    use weaver_checker::violation::{AdviceLevel, Violation};
+    use weaver_checker::violation::{Violation, ViolationLevel};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
@@ -397,16 +397,16 @@ mod tests {
         assert_eq!(stats.total_entities, 12);
         assert_eq!(stats.total_advisories, 19);
         assert_eq!(stats.advice_level_counts.len(), 3);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 11);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 6);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Improvement], 2);
+        assert_eq!(stats.advice_level_counts[&ViolationLevel::Violation], 11);
+        assert_eq!(stats.advice_level_counts[&ViolationLevel::Information], 6);
+        assert_eq!(stats.advice_level_counts[&ViolationLevel::Improvement], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 2);
         assert_eq!(
-            stats.highest_advice_level_counts[&AdviceLevel::Violation],
+            stats.highest_advice_level_counts[&ViolationLevel::Violation],
             8
         );
         assert_eq!(
-            stats.highest_advice_level_counts[&AdviceLevel::Information],
+            stats.highest_advice_level_counts[&ViolationLevel::Information],
             2
         );
         assert_eq!(stats.no_advice_count, 2);
@@ -792,10 +792,10 @@ mod tests {
         assert_eq!(stats.total_entities, 2);
         assert_eq!(stats.total_advisories, 2);
         assert_eq!(stats.advice_level_counts.len(), 1);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 2);
+        assert_eq!(stats.advice_level_counts[&ViolationLevel::Violation], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 1);
         assert_eq!(
-            stats.highest_advice_level_counts[&AdviceLevel::Violation],
+            stats.highest_advice_level_counts[&ViolationLevel::Violation],
             1
         );
         assert_eq!(stats.no_advice_count, 1);

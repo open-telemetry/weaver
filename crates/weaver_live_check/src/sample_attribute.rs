@@ -7,7 +7,7 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_checker::violation::{AdviceLevel, Violation};
+use weaver_checker::violation::{Violation, ViolationLevel};
 use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
@@ -190,7 +190,7 @@ impl LiveCheckRunner for SampleAttribute {
                 id: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                 context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
                 message: format!("Attribute '{}' does not exist in the registry.", self.name),
-                advice_level: AdviceLevel::Violation,
+                level: ViolationLevel::Violation,
                 signal_type,
                 signal_name,
             });
@@ -202,7 +202,7 @@ impl LiveCheckRunner for SampleAttribute {
                         id: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                         context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name.clone() }),
                         message: format!("Attribute '{}' is a template", self.name),
-                        advice_level: AdviceLevel::Information,
+                        level: ViolationLevel::Information,
                         signal_type,
                         signal_name,
                     });

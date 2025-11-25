@@ -15,7 +15,7 @@ const SEMCONV_ATTRIBUTE: &'static str = "semconv_attribute";
 #[serde(deny_unknown_fields)]
 pub struct Violation {
     /// The id of violation e.g. "is_deprecated". This should be a short,
-    /// machine-readable string that categorizes the advice.
+    /// machine-readable string that categorizes the violation.
     pub id: String,
 
     /// The context associated with the violation e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
@@ -29,13 +29,13 @@ pub struct Violation {
     /// Some of the values used in the message may be also present in the `context` field to support report customization.
     pub message: String,
 
-    /// The level of the advice e.g. "violation"
-    pub advice_level: AdviceLevel,
+    /// The level of the violation e.g. "violation", "informational"
+    pub level: ViolationLevel,
 
-    /// The signal type the advice applies to: "span", "metric", "entity", "log" (aka "event"), or "profile"
+    /// The signal type the violation applies to: "span", "metric", "entity", "log" (aka "event"), or "profile"
     pub signal_type: Option<String>,
 
-    /// The signal name the advice applies to e.g. "http.server.request.duration".
+    /// The signal name the violation applies to e.g. "http.server.request.duration".
     pub signal_name: Option<String>,
 }
 
@@ -58,7 +58,7 @@ impl Violation {
             id: SEMCONV_ATTRIBUTE.to_owned(),
             context: ctx,
             message,
-            advice_level: AdviceLevel::Violation,
+            level: ViolationLevel::Violation,
             signal_type: None,
             signal_name: None,
         }
@@ -102,7 +102,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
         let mut opt_attr: Option<String> = None;
         let mut opt_advice_type: Option<String> = None;
         let mut opt_message: Option<String> = None;
-        let mut opt_level: Option<AdviceLevel> = None;
+        let mut opt_level: Option<ViolationLevel> = None;
         let mut opt_signal_type: Option<String> = None;
         let mut opt_signal_name: Option<String> = None;
         let mut opt_context: Option<Value> = None;
@@ -115,7 +115,6 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                 "category" => opt_category = Some(map.next_value()?),
                 "group" => opt_group = Some(map.next_value()?),
                 "attr" => opt_attr = Some(map.next_value()?),
-                // Note: we'll allow this to replace 'type' going forward.
                 "advice_type" => opt_advice_type = Some(map.next_value()?),
                 "message" => opt_message = Some(map.next_value()?),
                 "advice_level" => opt_level = Some(map.next_value()?),
@@ -139,8 +138,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
             }
             Some("advice") => {
                 // TODO - Should we warn that `type: advice` is no longer needed?
-                let advice_level =
-                    opt_level.ok_or(serde::de::Error::missing_field("advice_level"))?;
+                let level = opt_level.ok_or(serde::de::Error::missing_field("advice_level"))?;
                 let id = opt_advice_type.ok_or(serde::de::Error::missing_field("advice_type"))?;
                 let message = opt_message.ok_or(serde::de::Error::missing_field("message"))?;
                 let signal_type = opt_signal_type;
@@ -151,7 +149,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                     id,
                     context: advice_context,
                     message,
-                    advice_level,
+                    level,
                     signal_type,
                     signal_name,
                 })
@@ -159,7 +157,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
             None => {
                 // This is the one unified way to report errors going forward.
                 let id = opt_id.ok_or(serde::de::Error::missing_field("id"))?;
-                let advice_level = opt_level.ok_or(serde::de::Error::missing_field("level"))?;
+                let level = opt_level.ok_or(serde::de::Error::missing_field("level"))?;
                 let message = opt_message.ok_or(serde::de::Error::missing_field("message"))?;
                 let signal_type = opt_signal_type;
                 let signal_name = opt_signal_name;
@@ -168,7 +166,7 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                     id,
                     context,
                     message,
-                    advice_level,
+                    level,
                     signal_type,
                     signal_name,
                 })
@@ -188,12 +186,7 @@ impl Display for Violation {
             _ => write!(
                 f,
                 "id={}, context={}, message={}, level={:?}, signal_type={:?}, signal_name={:?}",
-                self.id,
-                self.context,
-                self.message,
-                self.advice_level,
-                self.signal_type,
-                self.signal_name,
+                self.id, self.context, self.message, self.level, self.signal_type, self.signal_name,
             ),
         }
     }
@@ -212,7 +205,7 @@ impl Violation {
     Debug, Clone, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
-pub enum AdviceLevel {
+pub enum ViolationLevel {
     /// Useful context without action needed
     Information,
     /// Suggested change that would improve things

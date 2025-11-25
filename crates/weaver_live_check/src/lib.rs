@@ -15,7 +15,7 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_checker::violation::{AdviceLevel, Violation};
+use weaver_checker::violation::{Violation, ViolationLevel};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_semconv::group::GroupType;
@@ -236,7 +236,7 @@ pub struct LiveCheckResult {
     /// Advice on the entity
     pub all_advice: Vec<Violation>,
     /// The highest advice level
-    pub highest_advice_level: Option<AdviceLevel>,
+    pub highest_advice_level: Option<ViolationLevel>,
 }
 
 impl LiveCheckResult {
@@ -251,7 +251,7 @@ impl LiveCheckResult {
 
     /// Add an advice to the result and update the highest advice level
     pub fn add_advice(&mut self, advice: Violation) {
-        let advice_level = advice.advice_level.clone();
+        let advice_level = advice.level.clone();
         if let Some(previous_highest) = &self.highest_advice_level {
             if previous_highest < &advice_level {
                 self.highest_advice_level = Some(advice_level);
@@ -295,9 +295,9 @@ pub struct LiveCheckStatistics {
     /// The total number of advisories
     pub total_advisories: usize,
     /// The number of each advice level
-    pub advice_level_counts: HashMap<AdviceLevel, usize>,
+    pub advice_level_counts: HashMap<ViolationLevel, usize>,
     /// The number of entities with each highest advice level
-    pub highest_advice_level_counts: HashMap<AdviceLevel, usize>,
+    pub highest_advice_level_counts: HashMap<ViolationLevel, usize>,
     /// The number of entities with no advice
     pub no_advice_count: usize,
     /// The number of entities with each advice type
@@ -386,7 +386,7 @@ impl LiveCheckStatistics {
     fn add_advice(&mut self, advice: &Violation) {
         *self
             .advice_level_counts
-            .entry(advice.advice_level.clone())
+            .entry(advice.level.clone())
             .or_insert(0) += 1;
         *self
             .advice_type_counts
@@ -400,7 +400,7 @@ impl LiveCheckStatistics {
     }
 
     /// Add a highest advice level to the statistics
-    fn add_highest_advice_level(&mut self, advice: &AdviceLevel) {
+    fn add_highest_advice_level(&mut self, advice: &ViolationLevel) {
         *self
             .highest_advice_level_counts
             .entry(advice.clone())
@@ -444,7 +444,7 @@ impl LiveCheckStatistics {
     #[must_use]
     pub fn has_violations(&self) -> bool {
         self.highest_advice_level_counts
-            .contains_key(&AdviceLevel::Violation)
+            .contains_key(&ViolationLevel::Violation)
     }
 
     /// Finalize the statistics

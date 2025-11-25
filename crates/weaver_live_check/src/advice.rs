@@ -11,7 +11,7 @@ use std::{
 use serde::Serialize;
 use serde_json::json;
 use weaver_checker::{
-    violation::{AdviceLevel, Violation},
+    violation::{Violation, ViolationLevel},
     Engine,
 };
 use weaver_forge::{jq, registry::ResolvedGroup};
@@ -96,7 +96,7 @@ impl Advisor for DeprecatedAdvisor {
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
-                            advice_level: AdviceLevel::Violation,
+                            level: ViolationLevel::Violation,
                             signal_type: signal.signal_type(),
                             signal_name: signal.signal_name(),
                         });
@@ -119,7 +119,7 @@ impl Advisor for DeprecatedAdvisor {
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
-                            advice_level: AdviceLevel::Violation,
+                            level: ViolationLevel::Violation,
                             signal_type: Some("metric".to_owned()),
                             signal_name: Some(sample_metric.name.clone()),
                         });
@@ -162,7 +162,7 @@ impl Advisor for StabilityAdvisor {
                                     sample_attribute.name.clone(),
                                     stability
                                 ),
-                                advice_level: AdviceLevel::Improvement,
+                                level: ViolationLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -183,7 +183,7 @@ impl Advisor for StabilityAdvisor {
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
                                 message: format!("Metric is not stable; stability = {stability}."),
-                                advice_level: AdviceLevel::Improvement,
+                                level: ViolationLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -227,7 +227,7 @@ fn check_attributes(
             let (advice_type, advice_level, message) = match &semconv_attribute.requirement_level {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
                     "required_attribute_not_present".to_owned(),
-                    AdviceLevel::Violation,
+                    ViolationLevel::Violation,
                     format!(
                         "Required attribute '{}' is not present.",
                         semconv_attribute.name
@@ -236,7 +236,7 @@ fn check_attributes(
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
                 | RequirementLevel::Recommended { .. } => (
                     "recommended_attribute_not_present".to_owned(),
-                    AdviceLevel::Improvement,
+                    ViolationLevel::Improvement,
                     format!(
                         "Recommended attribute '{}' is not present.",
                         semconv_attribute.name
@@ -245,7 +245,7 @@ fn check_attributes(
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
                     "opt_in_attribute_not_present".to_owned(),
-                    AdviceLevel::Information,
+                    ViolationLevel::Information,
                     format!(
                         "Opt-in attribute '{}' is not present.",
                         semconv_attribute.name
@@ -253,7 +253,7 @@ fn check_attributes(
                 ),
                 RequirementLevel::ConditionallyRequired { .. } => (
                     "conditionally_required_attribute_not_present".to_owned(),
-                    AdviceLevel::Information,
+                    ViolationLevel::Information,
                     format!(
                         "Conditionally required attribute '{}' is not present.",
                         semconv_attribute.name
@@ -266,7 +266,7 @@ fn check_attributes(
                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: semconv_attribute.name.clone()
                 }),
                 message,
-                advice_level,
+                level: advice_level,
                 signal_type: sample.signal_type(),
                 signal_name: sample.signal_name(),
             });
@@ -319,7 +319,7 @@ impl Advisor for TypeAdvisor {
                                             ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
                                         }),
                                         message: format!("Enum attribute '{}' has type '{}'. Enum value type should be 'string' or 'int'.", sample_attribute.name, attribute_type),
-                                        advice_level: AdviceLevel::Violation,
+                                        level: ViolationLevel::Violation,
                                         signal_type: parent_signal.signal_type(),
                                         signal_name: parent_signal.signal_name(),
                                     }]);
@@ -341,7 +341,7 @@ impl Advisor for TypeAdvisor {
                                     "Attribute '{}' has type '{}'. Type should be '{}'.",
                                     sample_attribute.name, attribute_type, semconv_attribute_type
                                 ),
-                                advice_level: AdviceLevel::Violation,
+                                level: ViolationLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             }])
@@ -365,7 +365,7 @@ impl Advisor for TypeAdvisor {
                                     INSTRUMENT_ADVICE_CONTEXT_KEY: name.clone()
                                 }),
                                 message: format!("Instrument '{name}' is not supported"),
-                                advice_level: AdviceLevel::Violation,
+                                level: ViolationLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -382,7 +382,7 @@ impl Advisor for TypeAdvisor {
                                         message: format!(
                                             "Instrument should be '{semconv_instrument}', but found '{sample_instrument}'."
                                         ),
-                                        advice_level: AdviceLevel::Violation,
+                                        level: ViolationLevel::Violation,
                                         signal_type: parent_signal.signal_type(),
                                         signal_name: parent_signal.signal_name(),
                                     });
@@ -403,7 +403,7 @@ impl Advisor for TypeAdvisor {
                                     "Unit should be '{semconv_unit}', but found '{}'.",
                                     sample_metric.unit
                                 ),
-                                advice_level: AdviceLevel::Violation,
+                                level: ViolationLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -500,7 +500,7 @@ impl Advisor for EnumAdvisor {
                                         sample_attribute.name,
                                         attribute_value.as_str().unwrap_or(&attribute_value.to_string())
                                     ),
-                                    advice_level: AdviceLevel::Information,
+                                    level: ViolationLevel::Information,
                                     signal_type: signal.signal_type(),
                                     signal_name: signal.signal_name(),
                                 }]);
@@ -709,38 +709,38 @@ mod tests {
         // Verify each advice type and level
         let advice_map: HashMap<_, _> = advice
             .iter()
-            .map(|a| (a.id.clone(), a.advice_level.clone()))
+            .map(|a| (a.id.clone(), a.level.clone()))
             .collect();
 
         assert_eq!(
             advice_map.get("recommended_attribute_not_present"),
-            Some(&AdviceLevel::Improvement)
+            Some(&ViolationLevel::Improvement)
         );
         assert_eq!(
             advice_map.get("opt_in_attribute_not_present"),
-            Some(&AdviceLevel::Information)
+            Some(&ViolationLevel::Information)
         );
         assert_eq!(
             advice_map.get("conditionally_required_attribute_not_present"),
-            Some(&AdviceLevel::Information)
+            Some(&ViolationLevel::Information)
         );
         assert_eq!(
             advice_map.get("required_attribute_not_present"),
-            Some(&AdviceLevel::Violation)
+            Some(&ViolationLevel::Violation)
         );
 
         // Count advice levels
         let violations = advice
             .iter()
-            .filter(|a| a.advice_level == AdviceLevel::Violation)
+            .filter(|a| a.level == ViolationLevel::Violation)
             .count();
         let improvements = advice
             .iter()
-            .filter(|a| a.advice_level == AdviceLevel::Improvement)
+            .filter(|a| a.level == ViolationLevel::Improvement)
             .count();
         let information = advice
             .iter()
-            .filter(|a| a.advice_level == AdviceLevel::Information)
+            .filter(|a| a.level == ViolationLevel::Information)
             .count();
 
         assert_eq!(violations, 1);
