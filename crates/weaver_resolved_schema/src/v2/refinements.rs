@@ -3,7 +3,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::v2::{event::EventRefinement, metric::MetricRefinement, span::SpanRefinement};
+use crate::v2::{event::EventRefinement, metric::MetricRefinement, span::SpanRefinement, stats::RefinementStats};
 
 /// Semantic convention refinements.
 ///
@@ -29,4 +29,12 @@ pub struct Refinements {
 
     /// A  list of event refinements.
     pub events: Vec<EventRefinement>,
+}
+
+impl Refinements {
+    /// Refinement statistics.
+    pub fn stats(&self) -> RefinementStats {
+        // TODO - implement.
+        RefinementStats {  }
+    }
 }
