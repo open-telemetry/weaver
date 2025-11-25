@@ -33,7 +33,18 @@ runs:
 
         if [ -z "$VERSION" ]; then
           echo "Fetching latest Weaver version from GitHub API..."
-          VERSION=$(curl -s https://api.github.com/repos/open-telemetry/weaver/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+          API_RESPONSE=$(curl -sS https://api.github.com/repos/open-telemetry/weaver/releases/latest 2>&1) || {
+            echo "Error: Failed to fetch latest version from GitHub API"
+            echo "Response: $API_RESPONSE"
+            exit 1
+          }
+          VERSION=$(echo "$API_RESPONSE" | grep '"tag_name":' | cut -d'"' -f4)
+
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not parse version from API response"
+            exit 1
+          fi
+
           echo "Latest version: $VERSION"
         else
           if [[ ! "$VERSION" =~ ^v ]]; then
