@@ -9,7 +9,7 @@ steps:
   - uses: actions/checkout@v4
 
   - name: Setup Weaver
-    uses: open-telemetry/weaver/.github/actions/setup-weaver@v1
+    uses: open-telemetry/weaver/.github/actions/setup-weaver@main
     # with:
     #   version: '0.18.0'  # Optional: pin to specific version
 
@@ -42,7 +42,7 @@ By default, this action caches the Weaver binary to speed up subsequent runs.
 
 To disable caching:
 ```yaml
-- uses: open-telemetry/weaver/.github/actions/setup-weaver@v1
+- uses: open-telemetry/weaver/.github/actions/setup-weaver@main
   with:
     cache: 'false'
 ```
