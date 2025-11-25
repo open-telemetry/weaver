@@ -109,6 +109,30 @@ Further reading:
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+Here is a list of community roles with current and previous members:
+
+### Maintainers
+
+- [Josh Suereth](https://github.com/jsuereth), Google
+- [Laurent Quérel](https://github.com/lquerel), F5
+- [Jeremy Blythe](https://github.com/jerbly), Evertz
+
+For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
+
+### Approvers
+
+- [Josh Suereth](https://github.com/jsuereth), Google
+- [Laurent Quérel](https://github.com/lquerel), F5
+- [Jeremy Blythe](https://github.com/jerbly), Evertz
+
+For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
+
+### Triagers
+
+- Actively seeking contributors to triage issues
+
+For more information about the triager role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#triager).
+
 ## License
 
 Apache License 2.0 - see [LICENSE](LICENSE) for details.
