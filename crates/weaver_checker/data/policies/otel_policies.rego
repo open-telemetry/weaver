@@ -60,7 +60,7 @@ attr_registry_violation(violation_id, group_id, attr_id) := violation if {
 
 # Build an attribute violation
 attr_violation(violation_id, group_id, attr_id) := violation if {
-	# Uses legacy semconv attirbute type.
+	# Uses legacy semconv attribute type.
 	violation := {
 		"id": violation_id,
 		"type": "semconv_attribute",
