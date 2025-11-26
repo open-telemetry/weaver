@@ -54,7 +54,7 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 /// The extension for a tar gz archive.
 const TAR_GZ_EXT: &str = ".tar.gz";
@@ -647,7 +647,7 @@ impl VirtualDirectory {
         // Write the response body to the file.
         // The number of bytes written is ignored as the `try_from_local_archive` function
         // will handle the archive extraction and return an error if the archive is invalid.
-        _ = io::copy(&mut response.into_reader(), &mut file).map_err(|e| {
+        _ = io::copy(&mut response.into_body().into_reader(), &mut file).map_err(|e| {
             InvalidRegistryArchive {
                 archive: url.to_owned(),
                 error: e.to_string(),
@@ -690,11 +690,12 @@ impl VirtualDirectory {
             message: e.to_string(),
         })?;
 
-        let tmp_dir = TempDir::new_in(cache_path.as_path(), "repo").map_err(|e| {
-            Error::CacheDirNotCreated {
+        let tmp_dir = tempfile::Builder::new()
+            .prefix("repo")
+            .tempdir_in(cache_path.as_path())
+            .map_err(|e| Error::CacheDirNotCreated {
                 message: e.to_string(),
-            }
-        })?;
+            })?;
         Ok(tmp_dir)
     }
 }
