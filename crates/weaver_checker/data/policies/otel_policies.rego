@@ -48,7 +48,7 @@ attr_exists_in_new_group(group_id, attr_id) if {
 
 # Build an attribute registry violation
 attr_registry_violation(violation_id, group_id, attr_id) := violation if {
-	# Uses legacy semconv attirbute type.
+	# Uses legacy semconv attribute type.
 	violation := {
 		"id": violation_id,
 		"type": "semconv_attribute",

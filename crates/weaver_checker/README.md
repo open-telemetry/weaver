@@ -312,7 +312,7 @@ of the finding.
   involving multiple components of the semantic conventions or telemetry schemas.
 - **Finding Message**: Upon detecting a finding, the rule should generate a
   message or an object that provides detailed information about the finding,
-  including an id, the severite level, a human readable description, and
+  including an id, the severity level, a human readable description, and
   any other relevant context you would like to attach.
 
 ### Step-by-Step Guide to Creating a New Rule
