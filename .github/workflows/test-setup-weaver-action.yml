@@ -1,0 +1,24 @@
+name: Test setup-weaver Action
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/setup-weaver/**'
+      - '.github/workflows/test-setup-weaver-action.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test setup-weaver action
+        uses: ./.github/actions/setup-weaver
+
+      - name: Verify installation
+        run: weaver --version

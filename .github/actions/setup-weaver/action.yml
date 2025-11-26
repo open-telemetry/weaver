@@ -1,0 +1,104 @@
+name: 'Setup Weaver'
+description: 'Install and cache OpenTelemetry Weaver CLI'
+author: 'OpenTelemetry'
+
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'Weaver version to install (e.g., "0.18.0" or omit for latest)'
+    required: false
+    default: ''
+
+  cache:
+    description: 'Enable caching of Weaver binary'
+    required: false
+    default: 'true'
+
+outputs:
+  version:
+    description: 'Installed Weaver version (e.g., "v0.18.0")'
+    value: ${{ steps.resolve-version.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve Weaver version
+      id: resolve-version
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+
+        if [ -z "$VERSION" ]; then
+          echo "Fetching latest Weaver version..."
+          VERSION=$(git ls-remote --tags --sort=-version:refname https://github.com/open-telemetry/weaver.git | grep -v '\^{}' | head -1 | cut -f2 | sed 's|refs/tags/||')
+
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not determine latest Weaver version"
+            exit 1
+          fi
+
+          echo "Latest version: $VERSION"
+        else
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v${VERSION}"
+          fi
+          echo "Using specified version: $VERSION"
+        fi
+
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Restore Weaver from cache
+      if: inputs.cache == 'true'
+      id: cache-weaver
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.cargo/bin/weaver
+          ~/.cargo/bin/weaver.exe
+        key: setup-weaver-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve-version.outputs.version }}
+
+    - name: Install Weaver (Unix)
+      if: runner.os != 'Windows' && steps.cache-weaver.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        VERSION="${{ steps.resolve-version.outputs.version }}"
+        INSTALLER_URL="https://github.com/open-telemetry/weaver/releases/download/${VERSION}/weaver-installer.sh"
+
+        echo "Installing Weaver ${VERSION} from ${INSTALLER_URL}..."
+        curl --proto '=https' --tlsv1.2 -LsSf "$INSTALLER_URL" | sh
+
+    - name: Install Weaver (Windows)
+      if: runner.os == 'Windows' && steps.cache-weaver.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        $VERSION = "${{ steps.resolve-version.outputs.version }}"
+        $INSTALLER_URL = "https://github.com/open-telemetry/weaver/releases/download/${VERSION}/weaver-installer.ps1"
+
+        Write-Host "Installing Weaver ${VERSION} from ${INSTALLER_URL}..."
+        irm $INSTALLER_URL | iex
+
+    - name: Add Weaver to PATH
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          echo "$USERPROFILE/.cargo/bin" >> $GITHUB_PATH
+        else
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Verify installation
+      shell: bash
+      run: |
+        weaver --version
+
+    - name: Save Weaver to cache
+      if: inputs.cache == 'true' && steps.cache-weaver.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.cargo/bin/weaver
+          ~/.cargo/bin/weaver.exe
+        key: setup-weaver-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve-version.outputs.version }}
