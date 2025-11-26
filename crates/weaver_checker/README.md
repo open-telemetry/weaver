@@ -261,24 +261,36 @@ groups:
 [
   {
     "type": "semconv_attribute",
-    "id": "attr_stability_deprecated",
-    "category": "attribute",
-    "group": "registry.network1",
-    "attr": "protocol.name"
+    "context": {
+      "id": "attr_stability_deprecated",
+      "category": "attribute",
+      "group": "registry.network1",
+      "attr": "protocol.name",
+    },
+    "message": "...",
+    "level": "violation",
   },
   {
-    "type": "semconv_attribute",
-    "id": "attr_removed",
-    "category": "schema_evolution",
-    "group": "registry.network1",
-    "attr": "protocol.name.3"
+    "id": "semconv_attribute",
+    "context": {
+      "id": "attr_stability_deprecated",
+      "category": "attribute",
+      "group": "registry.network1",
+      "attr": "protocol.name",
+    },
+    "message": "...",
+    "level": "violation",
   },
   {
-    "type": "semconv_attribute",
-    "id": "registry_with_ref_attr",
-    "category": "attribute_registry",
-    "group": "registry.network1",
-    "attr": "protocol.port"
+    "id": "semconv_attribute",
+    "context": {
+      "id": "attr_stability_deprecated",
+      "category": "attribute",
+      "group": "registry.network1",
+      "attr": "protocol.name",
+    },
+    "message": "...",
+    "level": "violation",
   }
 ]
 ```
