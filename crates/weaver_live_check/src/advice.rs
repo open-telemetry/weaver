@@ -11,7 +11,8 @@ use std::{
 use serde::Serialize;
 use serde_json::json;
 use weaver_checker::{
-    violation::{Violation, ViolationLevel},
+    PolicyFinding, 
+    FindingLevel,
     Engine,
 };
 use weaver_forge::{jq, v2::metric::MetricAttribute};
@@ -56,7 +57,7 @@ pub trait Advisor {
         signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
-    ) -> Result<Vec<Violation>, Error>;
+    ) -> Result<Vec<PolicyFinding>, Error>;
 }
 
 fn deprecated_to_reason(deprecated: &Deprecated) -> String {
@@ -78,13 +79,13 @@ impl Advisor for DeprecatedAdvisor {
         signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
-    ) -> Result<Vec<Violation>, Error> {
+    ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     if let Some(deprecated) = &attribute.deprecated() {
-                        advices.push(Violation {
+                        advices.push(PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
                                 ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -97,7 +98,7 @@ impl Advisor for DeprecatedAdvisor {
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
-                            level: ViolationLevel::Violation,
+                            level: FindingLevel::Violation,
                             signal_type: signal.signal_type(),
                             signal_name: signal.signal_name(),
                         });
@@ -109,7 +110,7 @@ impl Advisor for DeprecatedAdvisor {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
-                        advices.push(Violation {
+                        advices.push(PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
@@ -120,7 +121,7 @@ impl Advisor for DeprecatedAdvisor {
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
-                            level: ViolationLevel::Violation,
+                            level: FindingLevel::Violation,
                             signal_type: Some("metric".to_owned()),
                             signal_name: Some(sample_metric.name.clone()),
                         });
@@ -145,14 +146,14 @@ impl Advisor for StabilityAdvisor {
         parent_signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
-    ) -> Result<Vec<Violation>, Error> {
+    ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     match attribute.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
-                            advices.push(Violation {
+                            advices.push(PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -163,7 +164,7 @@ impl Advisor for StabilityAdvisor {
                                     sample_attribute.name.clone(),
                                     stability
                                 ),
-                                level: ViolationLevel::Improvement,
+                                level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -178,13 +179,13 @@ impl Advisor for StabilityAdvisor {
                 if let Some(group) = registry_group {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
-                            advices.push(Violation {
+                            advices.push(PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
                                 message: format!("Metric is not stable; stability = {stability}."),
-                                level: ViolationLevel::Improvement,
+                                level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -244,7 +245,7 @@ fn check_attributes<T: CheckableAttribute>(
     semconv_attributes: &[T],
     sample_attributes: &[SampleAttribute],
     sample: &Sample,
-) -> Vec<Violation> {
+) -> Vec<PolicyFinding> {
     // Create a HashSet of attribute names for O(1) lookups
     let attribute_set: HashSet<_> = sample_attributes
         .iter()
@@ -258,28 +259,28 @@ fn check_attributes<T: CheckableAttribute>(
             let (advice_type, advice_level, message) = match semconv_attribute.requirement_level() {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
                     "required_attribute_not_present".to_owned(),
-                    ViolationLevel::Violation,
+                    FindingLevel::Violation,
                     format!("Required attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
                 | RequirementLevel::Recommended { .. } => (
                     "recommended_attribute_not_present".to_owned(),
-                    ViolationLevel::Improvement,
+                    FindingLevel::Improvement,
                     format!("Recommended attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
                     "opt_in_attribute_not_present".to_owned(),
-                    ViolationLevel::Information,
+                    FindingLevel::Information,
                     format!("Opt-in attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::ConditionallyRequired { .. } => (
                     "conditionally_required_attribute_not_present".to_owned(),
-                    ViolationLevel::Information,
+                    FindingLevel::Information,
                     format!("Conditionally required attribute '{}' is not present.", key),
                 ),
             };
-            advice_list.push(Violation {
+            advice_list.push(PolicyFinding {
                 id: advice_type,
                 context: json!({
                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: key.to_owned()
@@ -301,7 +302,7 @@ impl Advisor for TypeAdvisor {
         parent_signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
-    ) -> Result<Vec<Violation>, Error> {
+    ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the attribute is a match and the type is present
@@ -331,14 +332,14 @@ impl Advisor for TypeAdvisor {
                                 if attribute_type != &PrimitiveOrArrayTypeSpec::String
                                     && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                                 {
-                                    return Ok(vec![Violation {
+                                    return Ok(vec![PolicyFinding {
                                         id: TYPE_MISMATCH_ADVICE_TYPE.to_owned(),
                                         context: json!({
                                             ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
                                             ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
                                         }),
                                         message: format!("Enum attribute '{}' has type '{}'. Enum value type should be 'string' or 'int'.", sample_attribute.name, attribute_type),
-                                        level: ViolationLevel::Violation,
+                                        level: FindingLevel::Violation,
                                         signal_type: parent_signal.signal_type(),
                                         signal_name: parent_signal.signal_name(),
                                     }]);
@@ -349,7 +350,7 @@ impl Advisor for TypeAdvisor {
                         };
 
                         if !attribute_type.is_compatible(semconv_attribute_type) {
-                            Ok(vec![Violation {
+                            Ok(vec![PolicyFinding {
                                 id: TYPE_MISMATCH_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -360,7 +361,7 @@ impl Advisor for TypeAdvisor {
                                     "Attribute '{}' has type '{}'. Type should be '{}'.",
                                     sample_attribute.name, attribute_type, semconv_attribute_type
                                 ),
-                                level: ViolationLevel::Violation,
+                                level: FindingLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             }])
@@ -378,13 +379,13 @@ impl Advisor for TypeAdvisor {
                 if let Some(semconv_metric) = registry_group {
                     match &sample_metric.instrument {
                         SampleInstrument::Unsupported(name) => {
-                            advice_list.push(Violation {
+                            advice_list.push(PolicyFinding {
                                 id: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     INSTRUMENT_ADVICE_CONTEXT_KEY: name.clone()
                                 }),
                                 message: format!("Instrument '{name}' is not supported"),
-                                level: ViolationLevel::Violation,
+                                level: FindingLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -392,7 +393,7 @@ impl Advisor for TypeAdvisor {
                         SampleInstrument::Supported(sample_instrument) => {
                             if let Some(semconv_instrument) = semconv_metric.instrument() {
                                 if semconv_instrument != sample_instrument {
-                                    advice_list.push(Violation {
+                                    advice_list.push(PolicyFinding {
                                         id: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
                                         context: json!({
                                             INSTRUMENT_ADVICE_CONTEXT_KEY: sample_instrument,
@@ -401,7 +402,7 @@ impl Advisor for TypeAdvisor {
                                         message: format!(
                                             "Instrument should be '{semconv_instrument}', but found '{sample_instrument}'."
                                         ),
-                                        level: ViolationLevel::Violation,
+                                        level: FindingLevel::Violation,
                                         signal_type: parent_signal.signal_type(),
                                         signal_name: parent_signal.signal_name(),
                                     });
@@ -412,7 +413,7 @@ impl Advisor for TypeAdvisor {
 
                     if let Some(semconv_unit) = semconv_metric.unit() {
                         if semconv_unit != &sample_metric.unit {
-                            advice_list.push(Violation {
+                            advice_list.push(PolicyFinding {
                                 id: UNIT_MISMATCH_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     UNIT_ADVICE_CONTEXT_KEY: sample_metric.unit.clone(),
@@ -422,7 +423,7 @@ impl Advisor for TypeAdvisor {
                                     "Unit should be '{semconv_unit}', but found '{}'.",
                                     sample_metric.unit
                                 ),
-                                level: ViolationLevel::Violation,
+                                level: FindingLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
                             });
@@ -489,7 +490,7 @@ impl Advisor for EnumAdvisor {
         signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         _registry_group: Option<Rc<VersionedSignal>>,
-    ) -> Result<Vec<Violation>, Error> {
+    ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the registry_attribute is an enum and the attribute has a value and type
@@ -529,7 +530,7 @@ impl Advisor for EnumAdvisor {
                             }
 
                             if !is_found {
-                                return Ok(vec![Violation {
+                                return Ok(vec![PolicyFinding {
                                     id: UNDEFINED_ENUM_VARIANT_ADVICE_TYPE.to_owned(),
                                     context: json!({
                                         ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -539,7 +540,7 @@ impl Advisor for EnumAdvisor {
                                         sample_attribute.name,
                                         attribute_value.as_str().unwrap_or(&attribute_value.to_string())
                                     ),
-                                    level: ViolationLevel::Information,
+                                    level: FindingLevel::Information,
                                     signal_type: signal.signal_type(),
                                     signal_name: signal.signal_name(),
                                 }]);
@@ -611,7 +612,7 @@ impl RegoAdvisor {
         Ok(RegoAdvisor { engine })
     }
 
-    fn check<T>(&mut self, input: T) -> Result<Vec<Violation>, Error>
+    fn check<T>(&mut self, input: T) -> Result<Vec<PolicyFinding>, Error>
     where
         T: Serialize,
     {
@@ -646,7 +647,7 @@ impl Advisor for RegoAdvisor {
         _signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
-    ) -> Result<Vec<Violation>, Error> {
+    ) -> Result<Vec<PolicyFinding>, Error> {
         self.check(RegoInput {
             sample,
             registry_attribute,
@@ -753,33 +754,33 @@ mod tests {
 
         assert_eq!(
             advice_map.get("recommended_attribute_not_present"),
-            Some(&ViolationLevel::Improvement)
+            Some(&FindingLevel::Improvement)
         );
         assert_eq!(
             advice_map.get("opt_in_attribute_not_present"),
-            Some(&ViolationLevel::Information)
+            Some(&FindingLevel::Information)
         );
         assert_eq!(
             advice_map.get("conditionally_required_attribute_not_present"),
-            Some(&ViolationLevel::Information)
+            Some(&FindingLevel::Information)
         );
         assert_eq!(
             advice_map.get("required_attribute_not_present"),
-            Some(&ViolationLevel::Violation)
+            Some(&FindingLevel::Violation)
         );
 
         // Count advice levels
         let violations = advice
             .iter()
-            .filter(|a| a.level == ViolationLevel::Violation)
+            .filter(|a| a.level == FindingLevel::Violation)
             .count();
         let improvements = advice
             .iter()
-            .filter(|a| a.level == ViolationLevel::Improvement)
+            .filter(|a| a.level == FindingLevel::Improvement)
             .count();
         let information = advice
             .iter()
-            .filter(|a| a.level == ViolationLevel::Information)
+            .filter(|a| a.level == FindingLevel::Information)
             .count();
 
         assert_eq!(violations, 1);

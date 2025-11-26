@@ -7,7 +7,7 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use weaver_checker::violation::{Violation, ViolationLevel};
+use weaver_checker::{PolicyFinding, FindingLevel};
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
@@ -300,11 +300,11 @@ impl LiveCheckRunner for SampleMetric {
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            result.add_advice(Violation {
+            result.add_advice(PolicyFinding {
                 id: MISSING_METRIC_ADVICE_TYPE.to_owned(),
                 context: Value::Null,
                 message: "Metric does not exist in the registry.".to_owned(),
-                level: ViolationLevel::Violation,
+                level: FindingLevel::Violation,
                 signal_type: Some("metric".to_owned()),
                 signal_name: Some(self.name.clone()),
             });

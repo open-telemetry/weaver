@@ -7,7 +7,7 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_checker::violation::{Violation, ViolationLevel};
+use weaver_checker::{PolicyFinding, FindingLevel};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
@@ -185,11 +185,11 @@ impl LiveCheckRunner for SampleAttribute {
         let signal_type: Option<String> = parent_signal.signal_type();
         let signal_name: Option<String> = parent_signal.signal_name();
         if semconv_attribute.is_none() {
-            result.add_advice(Violation {
+            result.add_advice(PolicyFinding {
                 id: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                 context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
                 message: format!("Attribute '{}' does not exist in the registry.", self.name),
-                level: ViolationLevel::Violation,
+                level: FindingLevel::Violation,
                 signal_type,
                 signal_name,
             });
@@ -197,11 +197,11 @@ impl LiveCheckRunner for SampleAttribute {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type() {
-                    result.add_advice(Violation {
+                    result.add_advice(PolicyFinding {
                         id: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                         context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }),
                         message: format!("Attribute '{}' is a template", self.name),
-                        level: ViolationLevel::Information,
+                        level: FindingLevel::Information,
                         signal_type,
                         signal_name,
                     });

@@ -17,10 +17,14 @@ use walkdir::DirEntry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
-use crate::violation::Violation;
 use crate::Error::CompoundError;
 
-pub mod violation;
+
+mod finding;
+
+// Import finding so we don't need to expose deeper into the crate.
+pub use crate::finding::PolicyFinding;
+pub use crate::finding::FindingLevel;
 
 /// Default semconv rules/functions for the semantic convention registry.
 pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego");
@@ -106,7 +110,7 @@ pub enum Error {
         /// The provenance of the violation (URL or path).
         provenance: String,
         /// The violation.
-        violation: Box<Violation>,
+        violation: Box<PolicyFinding>,
     },
 
     /// A container for multiple errors.
@@ -420,7 +424,7 @@ impl Engine {
     /// Returns a list of violations based on the policies, the data, the
     /// input, and the given policy stage.
     #[allow(clippy::print_stdout)] // Used to display the coverage (debugging purposes only)
-    pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<Violation>, Error> {
+    pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<PolicyFinding>, Error> {
         // If we don't have any policy package that matches the stage,
         // return an empty list of violations.
         if !self.policy_packages.contains(&format!("data.{stage}")) {
@@ -458,7 +462,7 @@ impl Engine {
         })?;
 
         // convert json value into a vector of violations
-        let violations: Vec<Violation> =
+        let violations: Vec<PolicyFinding> =
             serde_json::from_value(json_value).map_err(|e| Error::ViolationEvaluationError {
                 error: e.to_string(),
             })?;
@@ -475,7 +479,7 @@ mod tests {
 
     use weaver_common::error::format_errors;
 
-    use crate::violation::Violation;
+    use crate::finding::PolicyFinding;
     use crate::{Engine, Error, PolicyStage};
 
     #[test]
@@ -492,14 +496,14 @@ mod tests {
         let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
-        let expected_violations: HashMap<String, Violation> = vec![
-            Violation::new_semconv_attribute(
+        let expected_violations: HashMap<String, PolicyFinding> = vec![
+            PolicyFinding::new_semconv_attribute(
                 "attr_stability_deprecated".to_owned(),
                 "attribute".to_owned(),
                 "registry.network1".to_owned(),
                 "protocol.name".to_owned(),
             ),
-            Violation {
+            PolicyFinding {
                 id: "attr_removed".to_owned(),
                 context: serde_json::json!({
                     "id": "schema_evolution",
@@ -507,11 +511,11 @@ mod tests {
                     "attr": "protocol.name.3".to_owned(),
                 }),
                 message: "Schema evolution violation".to_owned(),
-                level: crate::violation::ViolationLevel::Violation,
+                level: crate::finding::FindingLevel::Violation,
                 signal_type: None,
                 signal_name: None,
             },
-            Violation::new_semconv_attribute(
+            PolicyFinding::new_semconv_attribute(
                 "registry_with_ref_attr".to_owned(),
                 "attribute_registry".to_owned(),
                 "registry.network1".to_owned(),
@@ -571,7 +575,7 @@ mod tests {
         );
     }
 
-    fn make_id_for_semconv_attribute(v: &Violation) -> String {
+    fn make_id_for_semconv_attribute(v: &PolicyFinding) -> String {
         format!(
             "{}-{}",
             v.id,
@@ -593,20 +597,20 @@ mod tests {
         let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
-        let expected_violations: HashMap<String, Violation> = vec![
-            Violation::new_semconv_attribute(
+        let expected_violations: HashMap<String, PolicyFinding> = vec![
+            PolicyFinding::new_semconv_attribute(
                 "attr_stability_deprecated".to_owned(),
                 "attribute".to_owned(),
                 "registry.network1".to_owned(),
                 "protocol.name".to_owned(),
             ),
-            Violation::new_semconv_attribute(
+            PolicyFinding::new_semconv_attribute(
                 "attr_removed".to_owned(),
                 "schema_evolution".to_owned(),
                 "registry.network1".to_owned(),
                 "protocol.name.3".to_owned(),
             ),
-            Violation::new_semconv_attribute(
+            PolicyFinding::new_semconv_attribute(
                 "registry_with_ref_attr".to_owned(),
                 "attribute_registry".to_owned(),
                 "registry.network1".to_owned(),

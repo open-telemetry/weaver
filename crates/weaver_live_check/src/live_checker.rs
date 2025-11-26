@@ -142,7 +142,7 @@ mod tests {
     use super::*;
     use serde_json::json;
     use std::collections::BTreeMap;
-    use weaver_checker::violation::{Violation, ViolationLevel};
+    use weaver_checker::{PolicyFinding, FindingLevel};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
@@ -161,7 +161,7 @@ mod tests {
         stability::Stability,
     };
 
-    fn get_all_advice(sample: &mut Sample) -> &mut [Violation] {
+    fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
         match sample {
             Sample::Attribute(sample_attribute) => sample_attribute
                 .live_check_result
@@ -437,16 +437,16 @@ mod tests {
         assert_eq!(stats.total_entities, 12);
         assert_eq!(stats.total_advisories, 19);
         assert_eq!(stats.advice_level_counts.len(), 3);
-        assert_eq!(stats.advice_level_counts[&ViolationLevel::Violation], 11);
-        assert_eq!(stats.advice_level_counts[&ViolationLevel::Information], 6);
-        assert_eq!(stats.advice_level_counts[&ViolationLevel::Improvement], 2);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Violation], 11);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Information], 6);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Improvement], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 2);
         assert_eq!(
-            stats.highest_advice_level_counts[&ViolationLevel::Violation],
+            stats.highest_advice_level_counts[&FindingLevel::Violation],
             8
         );
         assert_eq!(
-            stats.highest_advice_level_counts[&ViolationLevel::Information],
+            stats.highest_advice_level_counts[&FindingLevel::Information],
             2
         );
         assert_eq!(stats.no_advice_count, 2);
@@ -1101,10 +1101,10 @@ mod tests {
         assert_eq!(stats.total_entities, 2);
         assert_eq!(stats.total_advisories, 2);
         assert_eq!(stats.advice_level_counts.len(), 1);
-        assert_eq!(stats.advice_level_counts[&ViolationLevel::Violation], 2);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Violation], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 1);
         assert_eq!(
-            stats.highest_advice_level_counts[&ViolationLevel::Violation],
+            stats.highest_advice_level_counts[&FindingLevel::Violation],
             1
         );
         assert_eq!(stats.no_advice_count, 1);
