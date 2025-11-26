@@ -7,7 +7,7 @@
   - [Policy Definition and Verification](#policy-definition-and-verification)
   - [Usage](#usage)
   - [Policy Examples](#policy-examples)
-- [Creating Rules for Violation Detection](#creating-rules-for-violation-detection)
+- [Creating Rules for Findings](#creating-rules-for-findings)
   - [Understanding the `deny` Rule](#understanding-the-deny-rule)
   - [Key Concepts for Rule Development](#key-concepts-for-rule-development)
   - [Step-by-Step Guide to Creating a New Rule](#step-by-step-guide-to-creating-a-new-rule)
@@ -61,8 +61,8 @@ by the Weaver tool during various phases of the development process.
 
 The policy verification process involves:
 - Reading the semconv files of both the new and previous versions.
-- Applying Rego policies to these files to identify violations.
-- Displaying any detected policy violations, aiding in the resolution before
+- Applying Rego policies to these files to identify findings (can be `violation`, `informational` or `warning`).
+- Displaying any detected policy findings, aiding in the resolution before
   publication.
 
 The following diagram illustrates the policy verification process:
@@ -255,7 +255,7 @@ groups:
         deprecated: true
 ```
 
-... will generate the following violations.
+... will generate the following findings.
 
 ```json
 [
@@ -283,60 +283,58 @@ groups:
 ]
 ```
 
-## Creating Rules for Violation Detection
+## Creating Rules for Findings
 
 The Weaver Policy Engine allows for the dynamic creation and enforcement of
 rules to maintain the integrity and consistency of semantic conventions and
 telemetry schemas. By leveraging the Rego language, developers can specify
-policies that define what constitutes a violation within these domains. This
-section explains how to craft rules for detecting new violations, enhancing the
+policies that define what constitutes a finding within these domains. This
+section explains how to craft rules for detecting new finding, enhancing the
 engine's capability to safeguard the quality and coherence of semantic
 conventions and application telemetry schemas.
 
 ### Understanding the `deny` Rule
 
-The `deny` rule serves as the cornerstone for defining policy violations. When
+The `deny` rule serves as the cornerstone for defining policy finding. When
 the conditions specified within a `deny` rule are met, it indicates a policy
-violation. Each `deny` rule must uniquely identify the violation it detects by
+finding. Each `deny` rule must uniquely identify the finding it detects by
 producing a descriptive message or a structured object that outlines the nature
-of the violation.
+of the finding.
 
 ### Key Concepts for Rule Development
 
-- **Rule Name**: Rules detecting violations must be named `deny`. This is a
-  convention chosen by the Weaver project to facilitate the use and management of
-  these policy files.
-- **Violation Conditions**: The body of a `deny` rule contains one or more
-  conditions that, when true, signal a violation. These conditions can range from
+- **Rule Name**: Rules detecting a finding (e.g. detecting issues or violations)
+  must be named `deny`. This is a convention chosen by the Weaver project to
+  facilitate the use and management of these policy files.
+- **Finding Conditions**: The body of a `deny` rule contains one or more
+  conditions that, when true, signal a finding. These conditions can range from
   simple checks, like the presence of a deprecated attribute, to complex validations
   involving multiple components of the semantic conventions or telemetry schemas.
-- **Violation Message**: Upon detecting a violation, the rule should generate a
-  message or an object that provides detailed information about the violation,
-  including the type of violation, relevant identifiers (e.g., attribute or group
-  ID), and a brief description of the issue.
+- **Finding Message**: Upon detecting a finding, the rule should generate a
+  message or an object that provides detailed information about the finding,
+  including an id, the severite level, a human readable description, and
+  any other relevant context you would like to attach.
 
 ### Step-by-Step Guide to Creating a New Rule
 
-1. **Identify the Violation**: Determine the specific condition or practice that
-   should be flagged as a violation. This could be a new policy requirement, a best
+1. **Identify the Finding**: Determine the specific condition or practice that
+   should be flagged as a finding. This could be a new policy requirement, a best
    practice, or an identified gap in the current policy enforcement.
 
 2. **Define the Rule Conditions**: Craft a set of conditions that accurately
-   capture the criteria for the violation. Utilize the Rego language to express
+   capture the criteria for the finding. Utilize the Rego language to express
    these conditions, making use of variables, functions, and operators as necessary.
 
-3. **Construct the Violation Output**: For defining the structure of the violation
-   object, you can either reuse one of the already defined categories (i.e.,
-   attr_registry_violation, attr_violation, schema_evolution_violation), or define
-   a new one if the category of this violation has not already been defined.
+3. **Construct the Finding Output**: For defining the structure of the finding
+   object.
 
 4. **Implement the Rule in Rego**: Write the `deny` rule in Rego, encapsulating
-   the conditions and violation output you've defined. Ensure the rule is clearly
+   the conditions and finding output you've defined. Ensure the rule is clearly
    commented and documented to facilitate understanding and maintenance.
 
 5. **Test the Rule**: Before integrating the new rule into the Weaver Policy
    Engine, test it with various input scenarios to ensure it accurately detects
-   violations without producing false positives or negatives. A unit test
+   finding without producing false positives or negatives. A unit test
    framework will be provided to facilitate this process in a future PR.
 
 ## Links
