@@ -54,7 +54,7 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 /// The extension for a tar gz archive.
 const TAR_GZ_EXT: &str = ".tar.gz";
@@ -690,11 +690,12 @@ impl VirtualDirectory {
             message: e.to_string(),
         })?;
 
-        let tmp_dir = TempDir::new_in(cache_path.as_path(), "repo").map_err(|e| {
-            Error::CacheDirNotCreated {
+        let tmp_dir = tempfile::Builder::new()
+            .prefix("repo")
+            .tempdir_in(cache_path.as_path())
+            .map_err(|e| Error::CacheDirNotCreated {
                 message: e.to_string(),
-            }
-        })?;
+            })?;
         Ok(tmp_dir)
     }
 }
