@@ -9,9 +9,9 @@ steps:
   - uses: actions/checkout@v4
 
   - name: Setup Weaver
-    uses: open-telemetry/weaver/.github/actions/setup-weaver@main
+    uses: open-telemetry/weaver/.github/actions/setup-weaver@main  # You can use any git ref: @main, @v0.20.0, or @commit-sha
     # with:
-    #   version: '0.18.0'  # Optional: pin to specific version
+    #   version: '0.18.0'  # Optional: pin Weaver CLI version
 
   - name: Validate semantic conventions
     run: weaver registry check -r ./model --diagnostic-format gh_workflow_command
