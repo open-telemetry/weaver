@@ -16,7 +16,7 @@ jobs:
     name: Docker Image
     runs-on: ubuntu-latest
     steps:      
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
