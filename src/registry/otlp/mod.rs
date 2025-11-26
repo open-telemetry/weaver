@@ -615,7 +615,9 @@ mod tests {
 
         // Send a POST request to /stop on the admin port to stop the server.
         let url = format!("http://127.0.0.1:{admin_port}/stop");
-        let response = ureq::post(&url).call().expect("HTTP POST to /stop failed");
+        let response = ureq::post(&url)
+            .send("")
+            .expect("HTTP POST to /stop failed");
         assert_eq!(
             response.status(),
             200,

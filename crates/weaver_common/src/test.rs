@@ -62,6 +62,7 @@ impl ServeStaticFiles {
 #[cfg(test)]
 mod tests {
     use crate::test::ServeStaticFiles;
+    use std::io::Read;
 
     #[test]
     fn test_http_server() {
@@ -69,28 +70,38 @@ mod tests {
 
         assert!(server.port() > 0);
 
-        let content = ureq::get(&server.relative_path_to_url("file_a.yaml"))
+        let mut content = ureq::get(&server.relative_path_to_url("file_a.yaml"))
             .call()
             .unwrap();
         assert_eq!(content.status(), 200);
         assert_eq!(
-            content.header("Content-Type").unwrap(),
+            content.headers().get("Content-Type").unwrap(),
             "application/octet-stream"
         );
-        assert_eq!(content.into_string().unwrap(), "file: A");
+        let mut body = String::new();
+        _ = content.into_body().into_reader().read_to_string(&mut body).unwrap();
+        assert_eq!(body, "file: A");
 
-        let content = ureq::get(&server.relative_path_to_url("file_b.yaml"))
+        let mut content = ureq::get(&server.relative_path_to_url("file_b.yaml"))
             .call()
             .unwrap();
         assert_eq!(content.status(), 200);
         assert_eq!(
-            content.header("Content-Type").unwrap(),
+            content.headers().get("Content-Type").unwrap(),
             "application/octet-stream"
         );
-        assert_eq!(content.into_string().unwrap(), "file: B");
+        let mut body = String::new();
+        _ = content.into_body().into_reader().read_to_string(&mut body).unwrap();
+        assert_eq!(body, "file: B");
 
         let result = ureq::get(&server.relative_path_to_url("unknown_file.yaml")).call();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ureq::Error::Status(404, _)));
+        let err = result.unwrap_err();
+        // In ureq v3, check if it's a status error with code 404
+        if let ureq::Error::StatusCode(code) = err {
+            assert_eq!(code, 404);
+        } else {
+            panic!("Expected StatusCode error");
+        }
     }
 }

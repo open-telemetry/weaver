@@ -647,7 +647,7 @@ impl VirtualDirectory {
         // Write the response body to the file.
         // The number of bytes written is ignored as the `try_from_local_archive` function
         // will handle the archive extraction and return an error if the archive is invalid.
-        _ = io::copy(&mut response.into_reader(), &mut file).map_err(|e| {
+        _ = io::copy(&mut response.into_body().into_reader(), &mut file).map_err(|e| {
             InvalidRegistryArchive {
                 archive: url.to_owned(),
                 error: e.to_string(),
