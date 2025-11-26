@@ -79,7 +79,11 @@ mod tests {
             "application/octet-stream"
         );
         let mut body = String::new();
-        _ = content.into_body().into_reader().read_to_string(&mut body).unwrap();
+        _ = content
+            .into_body()
+            .into_reader()
+            .read_to_string(&mut body)
+            .unwrap();
         assert_eq!(body, "file: A");
 
         let mut content = ureq::get(&server.relative_path_to_url("file_b.yaml"))
@@ -91,7 +95,11 @@ mod tests {
             "application/octet-stream"
         );
         let mut body = String::new();
-        _ = content.into_body().into_reader().read_to_string(&mut body).unwrap();
+        _ = content
+            .into_body()
+            .into_reader()
+            .read_to_string(&mut body)
+            .unwrap();
         assert_eq!(body, "file: B");
 
         let result = ureq::get(&server.relative_path_to_url("unknown_file.yaml")).call();
