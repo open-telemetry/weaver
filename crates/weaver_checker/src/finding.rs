@@ -133,7 +133,9 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                 let group = opt_group.ok_or(serde::de::Error::missing_field("group"))?;
                 let attr = opt_attr.ok_or(serde::de::Error::missing_field("attr"))?;
                 // TODO - do we want a warning that this type is going away?
-                Ok(PolicyFinding::new_semconv_attribute(id, category, group, attr))
+                Ok(PolicyFinding::new_semconv_attribute(
+                    id, category, group, attr,
+                ))
             }
             Some("advice") => {
                 // TODO - Should we warn that `type: advice` is no longer needed?

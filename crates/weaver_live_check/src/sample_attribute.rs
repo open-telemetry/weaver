@@ -7,7 +7,7 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_checker::{PolicyFinding, FindingLevel};
+use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{

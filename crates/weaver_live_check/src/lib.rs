@@ -15,7 +15,7 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_checker::{PolicyFinding, FindingLevel};
+use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
     registry::{ResolvedGroup, ResolvedRegistry},

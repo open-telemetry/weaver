@@ -19,12 +19,11 @@ use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
 use crate::Error::CompoundError;
 
-
 mod finding;
 
 // Import finding so we don't need to expose deeper into the crate.
-pub use crate::finding::PolicyFinding;
 pub use crate::finding::FindingLevel;
+pub use crate::finding::PolicyFinding;
 
 /// Default semconv rules/functions for the semantic convention registry.
 pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego");

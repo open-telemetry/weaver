@@ -10,11 +10,7 @@ use std::{
 
 use serde::Serialize;
 use serde_json::json;
-use weaver_checker::{
-    PolicyFinding, 
-    FindingLevel,
-    Engine,
-};
+use weaver_checker::{Engine, FindingLevel, PolicyFinding};
 use weaver_forge::{jq, v2::metric::MetricAttribute};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{

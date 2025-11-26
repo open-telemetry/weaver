@@ -142,7 +142,7 @@ mod tests {
     use super::*;
     use serde_json::json;
     use std::collections::BTreeMap;
-    use weaver_checker::{PolicyFinding, FindingLevel};
+    use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
