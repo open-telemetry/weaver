@@ -70,7 +70,7 @@ mod tests {
 
         assert!(server.port() > 0);
 
-        let mut content = ureq::get(&server.relative_path_to_url("file_a.yaml"))
+        let content = ureq::get(&server.relative_path_to_url("file_a.yaml"))
             .call()
             .unwrap();
         assert_eq!(content.status(), 200);
@@ -86,7 +86,7 @@ mod tests {
             .unwrap();
         assert_eq!(body, "file: A");
 
-        let mut content = ureq::get(&server.relative_path_to_url("file_b.yaml"))
+        let content = ureq::get(&server.relative_path_to_url("file_b.yaml"))
             .call()
             .unwrap();
         assert_eq!(content.status(), 200);
