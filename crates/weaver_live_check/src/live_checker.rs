@@ -142,7 +142,7 @@ mod tests {
     use super::*;
     use serde_json::json;
     use std::collections::BTreeMap;
-    use weaver_checker::violation::{Advice, AdviceLevel};
+    use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
@@ -161,7 +161,7 @@ mod tests {
         stability::Stability,
     };
 
-    fn get_all_advice(sample: &mut Sample) -> &mut [Advice] {
+    fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
         match sample {
             Sample::Attribute(sample_attribute) => sample_attribute
                 .live_check_result
@@ -228,37 +228,37 @@ mod tests {
         let all_advice = get_all_advice(&mut samples[1]);
         assert_eq!(all_advice.len(), 3);
         // make a sort of the advice
-        all_advice.sort_by(|a, b| a.advice_type.cmp(&b.advice_type));
-        assert_eq!(all_advice[0].advice_type, "invalid_format");
+        all_advice.sort_by(|a, b| a.id.cmp(&b.id));
+        assert_eq!(all_advice[0].id, "invalid_format");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "testString2" })
         );
         assert_eq!(
             all_advice[0].message,
             "Attribute 'testString2' does not match name formatting rules."
         );
-        assert_eq!(all_advice[1].advice_type, "missing_attribute");
+        assert_eq!(all_advice[1].id, "missing_attribute");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "testString2"})
         );
         assert_eq!(
             all_advice[1].message,
             "Attribute 'testString2' does not exist in the registry."
         );
-        assert_eq!(all_advice[2].advice_type, "missing_namespace");
+        assert_eq!(all_advice[2].id, "missing_namespace");
         assert_eq!(
-            all_advice[2].advice_context,
+            all_advice[2].context,
             json!({"attribute_name": "testString2"})
         );
         assert_eq!(all_advice[2].message, "Attribute name 'testString2' must include a namespace (e.g. '{namespace}.{attribute_key}')");
 
         let all_advice = get_all_advice(&mut samples[2]);
         assert_eq!(all_advice.len(), 3);
-        assert_eq!(all_advice[0].advice_type, "deprecated");
+        assert_eq!(all_advice[0].id, "deprecated");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
         );
         assert_eq!(
@@ -266,9 +266,9 @@ mod tests {
             "Attribute 'test.deprecated' is deprecated; reason = 'uncategorized', note = 'note'."
         );
 
-        assert_eq!(all_advice[1].advice_type, "not_stable");
+        assert_eq!(all_advice[1].id, "not_stable");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "test.deprecated", "stability": "development"})
         );
         assert_eq!(
@@ -276,9 +276,9 @@ mod tests {
             "Attribute 'test.deprecated' is not stable; stability = development."
         );
 
-        assert_eq!(all_advice[2].advice_type, "type_mismatch");
+        assert_eq!(all_advice[2].id, "type_mismatch");
         assert_eq!(
-            all_advice[2].advice_context,
+            all_advice[2].context,
             json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"})
         );
         assert_eq!(
@@ -288,9 +288,9 @@ mod tests {
 
         let all_advice = get_all_advice(&mut samples[3]);
         assert_eq!(all_advice.len(), 1);
-        assert_eq!(all_advice[0].advice_type, "missing_attribute");
+        assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "aws.s3.bucket.name"})
         );
         assert_eq!(
@@ -300,9 +300,9 @@ mod tests {
 
         let all_advice = get_all_advice(&mut samples[4]);
         assert_eq!(all_advice.len(), 1);
-        assert_eq!(all_advice[0].advice_type, "undefined_enum_variant");
+        assert_eq!(all_advice[0].id, "undefined_enum_variant");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.enum", "attribute_value": "foo"})
         );
         assert_eq!(
@@ -312,9 +312,9 @@ mod tests {
 
         let all_advice = get_all_advice(&mut samples[6]);
         assert_eq!(all_advice.len(), 1);
-        assert_eq!(all_advice[0].advice_type, "type_mismatch");
+        assert_eq!(all_advice[0].id, "type_mismatch");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.enum", "attribute_type": "double"})
         );
         assert_eq!(all_advice[0].message, "Enum attribute 'test.enum' has type 'double'. Enum value type should be 'string' or 'int'.");
@@ -322,30 +322,30 @@ mod tests {
         let all_advice = get_all_advice(&mut samples[7]);
 
         // Make a sort of the advice
-        all_advice.sort_by(|a, b| a.advice_type.cmp(&b.advice_type));
+        all_advice.sort_by(|a, b| a.id.cmp(&b.id));
         assert_eq!(all_advice.len(), 3);
 
-        assert_eq!(all_advice[0].advice_type, "extends_namespace");
+        assert_eq!(all_advice[0].id, "extends_namespace");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test", "namespace": "test"})
         );
         assert_eq!(
             all_advice[0].message,
             "Attribute name 'test.string.not.allowed' collides with existing namespace 'test'"
         );
-        assert_eq!(all_advice[1].advice_type, "illegal_namespace");
+        assert_eq!(all_advice[1].id, "illegal_namespace");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "test.string.not.allowed", "namespace": "test.string"})
         );
         assert_eq!(
             all_advice[1].message,
             "Namespace 'test.string' collides with existing attribute 'test.string.not.allowed'"
         );
-        assert_eq!(all_advice[2].advice_type, "missing_attribute");
+        assert_eq!(all_advice[2].id, "missing_attribute");
         assert_eq!(
-            all_advice[2].advice_context,
+            all_advice[2].context,
             json!({
                 "attribute_name": "test.string.not.allowed"
             })
@@ -357,18 +357,18 @@ mod tests {
 
         let all_advice = get_all_advice(&mut samples[8]);
         assert_eq!(all_advice.len(), 2);
-        assert_eq!(all_advice[0].advice_type, "missing_attribute");
+        assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.extends"})
         );
         assert_eq!(
             all_advice[0].message,
             "Attribute 'test.extends' does not exist in the registry."
         );
-        assert_eq!(all_advice[1].advice_type, "extends_namespace");
+        assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "test", "namespace": "test"})
         );
         assert_eq!(
@@ -379,18 +379,18 @@ mod tests {
         // test.template
         let all_advice = get_all_advice(&mut samples[9]);
         assert_eq!(all_advice.len(), 2);
-        assert_eq!(all_advice[0].advice_type, "template_attribute");
+        assert_eq!(all_advice[0].id, "template_attribute");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.template.my.key", "template_name": "test.template"})
         );
         assert_eq!(
             all_advice[0].message,
             "Attribute 'test.template.my.key' is a template"
         );
-        assert_eq!(all_advice[1].advice_type, "type_mismatch");
+        assert_eq!(all_advice[1].id, "type_mismatch");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"})
         );
         assert_eq!(
@@ -402,18 +402,18 @@ mod tests {
         // Should not get illegal_namespace for extending a deprecated attribute
         let all_advice = get_all_advice(&mut samples[10]);
         assert_eq!(all_advice.len(), 2);
-        assert_eq!(all_advice[0].advice_type, "missing_attribute");
+        assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.deprecated.allowed"})
         );
         assert_eq!(
             all_advice[0].message,
             "Attribute 'test.deprecated.allowed' does not exist in the registry."
         );
-        assert_eq!(all_advice[1].advice_type, "extends_namespace");
+        assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "test", "namespace": "test"})
         );
         assert_eq!(
@@ -423,9 +423,9 @@ mod tests {
 
         let all_advice = get_all_advice(&mut samples[11]);
         assert_eq!(all_advice.len(), 1);
-        assert_eq!(all_advice[0].advice_type, "undefined_enum_variant");
+        assert_eq!(all_advice[0].id, "undefined_enum_variant");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.enum", "attribute_value": 17})
         );
         assert_eq!(
@@ -437,16 +437,16 @@ mod tests {
         assert_eq!(stats.total_entities, 12);
         assert_eq!(stats.total_advisories, 19);
         assert_eq!(stats.advice_level_counts.len(), 3);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 11);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 6);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Improvement], 2);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Violation], 11);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Information], 6);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Improvement], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 2);
         assert_eq!(
-            stats.highest_advice_level_counts[&AdviceLevel::Violation],
+            stats.highest_advice_level_counts[&FindingLevel::Violation],
             8
         );
         assert_eq!(
-            stats.highest_advice_level_counts[&AdviceLevel::Information],
+            stats.highest_advice_level_counts[&FindingLevel::Information],
             2
         );
         assert_eq!(stats.no_advice_count, 2);
@@ -1078,18 +1078,18 @@ mod tests {
         let all_advice = get_all_advice(&mut samples[1]);
         assert_eq!(all_advice.len(), 2);
 
-        assert_eq!(all_advice[0].advice_type, "missing_attribute");
+        assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
-            all_advice[0].advice_context,
+            all_advice[0].context,
             json!({"attribute_name": "test.string"})
         );
         assert_eq!(
             all_advice[0].message,
             "Attribute 'test.string' does not exist in the registry."
         );
-        assert_eq!(all_advice[1].advice_type, "contains_test");
+        assert_eq!(all_advice[1].id, "contains_test");
         assert_eq!(
-            all_advice[1].advice_context,
+            all_advice[1].context,
             json!({"attribute_name": "test.string"})
         );
         assert_eq!(
@@ -1101,10 +1101,10 @@ mod tests {
         assert_eq!(stats.total_entities, 2);
         assert_eq!(stats.total_advisories, 2);
         assert_eq!(stats.advice_level_counts.len(), 1);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 2);
+        assert_eq!(stats.advice_level_counts[&FindingLevel::Violation], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 1);
         assert_eq!(
-            stats.highest_advice_level_counts[&AdviceLevel::Violation],
+            stats.highest_advice_level_counts[&FindingLevel::Violation],
             1
         );
         assert_eq!(stats.no_advice_count, 1);
@@ -1409,7 +1409,7 @@ mod tests {
         let advice = live_check_result
             .all_advice
             .iter()
-            .find(|a| a.advice_type == "unexpected_instrument")
+            .find(|a| a.id == "unexpected_instrument")
             .expect("Expected unexpected_instrument advice");
         assert_eq!(
             advice.message,
