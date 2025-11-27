@@ -20,6 +20,7 @@ use crate::v2::{
     refinements::Refinements,
     registry::Registry,
     span::{Span, SpanRefinement},
+    stats::Stats,
 };
 
 pub mod attribute;
@@ -31,6 +32,7 @@ pub mod metric;
 pub mod refinements;
 pub mod registry;
 pub mod span;
+pub mod stats;
 
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
@@ -49,6 +51,16 @@ pub struct ResolvedTelemetrySchema {
     /// Refinements for the registry
     pub refinements: Refinements,
     // TODO - versions, dependencies and other options.
+}
+
+impl ResolvedTelemetrySchema {
+    /// Statistics about this schema.
+    pub fn stats(&self) -> Stats {
+        Stats {
+            registry: self.registry.stats(),
+            refinements: self.refinements.stats(),
+        }
+    }
 }
 
 /// Easy conversion from v1 to v2.
