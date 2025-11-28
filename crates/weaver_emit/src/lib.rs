@@ -15,10 +15,12 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 
+use crate::logs::{emit_logs_for_registry, emit_logs_for_registry_v2};
 use crate::metrics::emit_metrics_for_registry_v2;
 use crate::spans::emit_trace_for_registry_v2;
 
 pub mod attributes;
+pub mod logs;
 pub mod metrics;
 pub mod spans;
 
@@ -46,6 +48,12 @@ pub enum Error {
     /// Metric provider error.
     #[error("Metric provider error. Check your Otel configuration. {error}")]
     MetricProviderError {
+        /// The error that occurred.
+        error: String,
+    },
+    /// Log provider error.
+    #[error("Log provider error. Check your Otel configuration. {error}")]
+    LogProviderError {
         /// The error that occurred.
         error: String,
     },
@@ -121,6 +129,38 @@ fn init_stdout_meter_provider() -> SdkMeterProvider {
         .build()
 }
 
+/// Initialise a grpc OTLP exporter for logs, sends to by default http://localhost:4317
+/// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
+fn init_logger_provider(
+    endpoint: &String,
+) -> Result<opentelemetry_sdk::logs::SdkLoggerProvider, ExporterBuildError> {
+    let resource = Resource::builder()
+        .with_service_name(WEAVER_SERVICE_NAME)
+        .build();
+
+    let exporter = opentelemetry_otlp::LogExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .build()?;
+
+    Ok(opentelemetry_sdk::logs::SdkLoggerProvider::builder()
+        .with_resource(resource)
+        .with_batch_exporter(exporter)
+        .build())
+}
+
+/// Initialise a stdout exporter for debug
+fn init_stdout_logger_provider() -> opentelemetry_sdk::logs::SdkLoggerProvider {
+    let resource = Resource::builder()
+        .with_service_name(WEAVER_SERVICE_NAME)
+        .build();
+
+    opentelemetry_sdk::logs::SdkLoggerProvider::builder()
+        .with_resource(resource)
+        .with_simple_exporter(opentelemetry_stdout::LogExporter::default())
+        .build()
+}
+
 /// The configuration for the tracer provider.
 #[derive(Debug)]
 pub enum ExporterConfig {
@@ -193,6 +233,27 @@ pub fn emit(
         meter_provider
             .shutdown()
             .map_err(|e| Error::MetricProviderError {
+                error: e.to_string(),
+            })?;
+
+        // Emit logs
+        let logger_provider = match exporter_config {
+            ExporterConfig::Stdout => init_stdout_logger_provider(),
+            ExporterConfig::Otlp { endpoint } => {
+                init_logger_provider(endpoint).map_err(|e| Error::LogProviderError {
+                    error: e.to_string(),
+                })?
+            }
+        };
+
+        match registry {
+            RegistryVersion::V1(reg) => emit_logs_for_registry(reg, &logger_provider),
+            RegistryVersion::V2(reg) => emit_logs_for_registry_v2(reg, &logger_provider),
+        }
+
+        logger_provider
+            .shutdown()
+            .map_err(|e| Error::LogProviderError {
                 error: e.to_string(),
             })?;
         Ok(())

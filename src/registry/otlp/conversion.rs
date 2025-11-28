@@ -6,6 +6,7 @@ use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
+    sample_event::SampleEvent,
     sample_metric::{DataPoints, SampleInstrument, SampleMetric},
     sample_span::{Status, StatusCode},
 };
@@ -14,6 +15,7 @@ use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 use super::grpc_stubs::proto::trace::v1::status::StatusCode as OtlpStatusCode;
 use super::grpc_stubs::proto::{
     common::v1::{AnyValue, KeyValue},
+    logs::v1::LogRecord,
     metrics::v1::{metric::Data, HistogramDataPoint, Metric, NumberDataPoint},
     trace::v1::span::SpanKind,
 };
@@ -320,4 +322,39 @@ fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
         data_points.push(live_check_point);
     }
     DataPoints::Number(data_points)
+}
+
+/// Converts an OTLP LogRecord to a SampleEvent
+pub fn otlp_log_record_to_sample_event(log_record: &LogRecord) -> SampleEvent {
+    SampleEvent {
+        event_name: log_record.event_name.clone(),
+        severity_number: Some(log_record.severity_number),
+        severity_text: Some(log_record.severity_text.clone()),
+        body: log_record
+            .body
+            .as_ref()
+            .and_then(|v| v.value.as_ref().map(|val| format!("{:?}", val))),
+        attributes: log_record
+            .attributes
+            .iter()
+            .map(sample_attribute_from_key_value)
+            .collect(),
+        trace_id: {
+            let trace_id = trace_id_hex(&log_record.trace_id);
+            if trace_id.is_empty() {
+                None
+            } else {
+                Some(trace_id)
+            }
+        },
+        span_id: {
+            let span_id = span_id_hex(&log_record.span_id);
+            if span_id.is_empty() {
+                None
+            } else {
+                Some(span_id)
+            }
+        },
+        live_check_result: None,
+    }
 }

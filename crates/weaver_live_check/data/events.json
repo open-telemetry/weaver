@@ -1,0 +1,24 @@
+[
+    {
+        "event": {
+            "attributes": [
+                {
+                    "name": "session.id",
+                    "type": "string",
+                    "value": "00112233-4455-6677-8899-aabbccddeeff"
+                },
+                {
+                    "name": "session.previous_id",
+                    "type": "string",
+                    "value": "00112233-4455-6677-8899-aabbccddeeff"
+                }
+            ],
+            "body": "",
+            "event_name": "session.start",
+            "severity_number": 9,
+            "severity_text": "",
+            "span_id": null,
+            "trace_id": null
+        }
+    }
+]

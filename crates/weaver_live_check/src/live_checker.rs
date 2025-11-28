@@ -17,6 +17,7 @@ pub struct LiveChecker {
     semconv_attributes: HashMap<String, Rc<VersionedAttribute>>,
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
+    semconv_events: HashMap<String, Rc<VersionedSignal>>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
@@ -34,6 +35,8 @@ impl LiveChecker {
         let mut templates_by_length = Vec::new();
         // Hashmap of metrics by name
         let mut semconv_metrics = HashMap::new();
+        // Hashmap of events by name
+        let mut semconv_events = HashMap::new();
 
         match &registry {
             VersionedRegistry::V1(registry) => {
@@ -42,6 +45,12 @@ impl LiveChecker {
                         if let Some(metric_name) = &group.metric_name {
                             let group_rc = Rc::new(VersionedSignal::Group(Box::new(group.clone())));
                             let _ = semconv_metrics.insert(metric_name.clone(), group_rc);
+                        }
+                    }
+                    if group.r#type == GroupType::Event {
+                        if let Some(event_name) = &group.name {
+                            let group_rc = Rc::new(VersionedSignal::Group(Box::new(group.clone())));
+                            let _ = semconv_events.insert(event_name.clone(), group_rc);
                         }
                     }
                     for attribute in &group.attributes {
@@ -67,6 +76,11 @@ impl LiveChecker {
                     let metric_rc = Rc::new(VersionedSignal::Metric(metric.clone()));
                     let _ = semconv_metrics.insert(metric_name, metric_rc);
                 }
+                for event in &registry.signals.events {
+                    let event_name = event.name.to_string();
+                    let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
+                    let _ = semconv_events.insert(event_name, event_rc);
+                }
                 for attribute in &registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
@@ -90,6 +104,7 @@ impl LiveChecker {
             semconv_attributes,
             semconv_templates,
             semconv_metrics,
+            semconv_events,
             advisors,
             templates_by_length,
         }
@@ -110,6 +125,12 @@ impl LiveChecker {
     #[must_use]
     pub fn find_metric(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_metrics.get(name).map(Rc::clone)
+    }
+
+    /// Find an event in the registry
+    #[must_use]
+    pub fn find_event(&self, name: &str) -> Option<Rc<VersionedSignal>> {
+        self.semconv_events.get(name).map(Rc::clone)
     }
 
     /// Find a template in the registry

@@ -14,7 +14,10 @@ use weaver_checker::{
     violation::{Advice, AdviceLevel, Violation},
     Engine,
 };
-use weaver_forge::{jq, v2::metric::MetricAttribute};
+use weaver_forge::{
+    jq,
+    v2::{event::EventAttribute, metric::MetricAttribute},
+};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{
@@ -128,6 +131,29 @@ impl Advisor for DeprecatedAdvisor {
                 }
                 Ok(advices)
             }
+            SampleRef::Event(sample_event) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    if let Some(deprecated) = &group.deprecated() {
+                        advices.push(Advice {
+                            advice_type: DEPRECATED_ADVICE_TYPE.to_owned(),
+                            advice_context: json!({
+                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
+                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
+                            }),
+                            message: format!(
+                                "Event is deprecated; reason = {}, note = {}",
+                                deprecated_to_reason(deprecated),
+                                deprecated
+                            ),
+                            advice_level: AdviceLevel::Violation,
+                            signal_type: Some("event".to_owned()),
+                            signal_name: Some(sample_event.event_name.clone()),
+                        });
+                    }
+                }
+                Ok(advices)
+            }
             _ => Ok(Vec::new()),
         }
     }
@@ -194,6 +220,27 @@ impl Advisor for StabilityAdvisor {
                 }
                 Ok(advices)
             }
+            SampleRef::Event(_sample_event) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    match group.stability() {
+                        Some(ref stability) if *stability != &Stability::Stable => {
+                            advices.push(Advice {
+                                advice_type: NOT_STABLE_ADVICE_TYPE.to_owned(),
+                                advice_context: json!({
+                                    STABILITY_ADVICE_CONTEXT_KEY: stability,
+                                }),
+                                message: format!("Event is not stable; stability = {stability}."),
+                                advice_level: AdviceLevel::Improvement,
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(advices)
+            }
             _ => Ok(Vec::new()),
         }
     }
@@ -219,6 +266,16 @@ impl CheckableAttribute for Attribute {
 }
 
 impl CheckableAttribute for MetricAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+}
+
+impl CheckableAttribute for EventAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
@@ -468,6 +525,28 @@ impl Advisor for TypeAdvisor {
                         ),
                         VersionedSignal::Span(_span) => vec![],
                         VersionedSignal::Event(_event) => vec![],
+                    };
+
+                    Ok(advice_list)
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            SampleRef::Event(sample_event) => {
+                if let Some(semconv_event) = registry_group {
+                    let advice_list = match &*semconv_event {
+                        VersionedSignal::Group(group) => check_attributes(
+                            &group.attributes,
+                            &sample_event.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Event(event) => check_attributes(
+                            &event.attributes,
+                            &sample_event.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Span(_span) => vec![],
+                        VersionedSignal::Metric(_metric) => vec![],
                     };
 
                     Ok(advice_list)
