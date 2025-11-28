@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 - Add support for V2 schema in `weaver check` ([#1016](https://github.com/open-telemetry/weaver/pull/1016) by @jsuereth)
 - Add support for V2 schema in `emit` ([#1019](https://github.com/open-telemetry/weaver/pull/1019) by @jerbly)
 - Add support for V2 schema in `live-check` ([#1022](https://github.com/open-telemetry/weaver/pull/1022) by @jerbly)
+- 💥 BREAKING CHANGE 💥 `Violation` and `Advice` have been renamed
+  to `PolicyFinding`. We now use the same structure between all
+  rego policies in weaver. ([#1038](https://github.com/open-telemetry/weaver/pull/1038) by @jsuereth)
 
 # [0.19.0] - 2025-11-04
 
