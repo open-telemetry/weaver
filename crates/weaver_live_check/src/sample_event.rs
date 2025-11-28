@@ -7,7 +7,7 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_checker::{FindingLevel, PolicyFinding};
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
@@ -49,11 +49,11 @@ impl LiveCheckRunner for SampleEvent {
         // find the event in the registry
         let semconv_event = live_checker.find_event(&self.event_name);
         if semconv_event.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_EVENT_ADVICE_TYPE.to_owned(),
-                advice_context: Value::Null,
+            result.add_advice(PolicyFinding {
+                id: MISSING_EVENT_ADVICE_TYPE.to_owned(),
+                context: Value::Null,
                 message: "Event does not exist in the registry.".to_owned(),
-                advice_level: AdviceLevel::Violation,
+                level: FindingLevel::Violation,
                 signal_type: Some("event".to_owned()),
                 signal_name: Some(self.event_name.clone()),
             });

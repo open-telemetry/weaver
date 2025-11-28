@@ -3,7 +3,7 @@
         "event": {
             "attributes": [
                 {
-                    "name": "session.id",
+                    "name": "session.idd",
                     "type": "string",
                     "value": "00112233-4455-6677-8899-aabbccddeeff"
                 },
