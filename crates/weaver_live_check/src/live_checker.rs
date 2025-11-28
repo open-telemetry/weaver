@@ -1366,35 +1366,49 @@ mod tests {
                 signals: Signals {
                     metrics: vec![],
                     spans: vec![],
-                    events: vec![V2Event {
-                        name: "session.start".to_owned().into(),
-                        attributes: vec![
-                            EventAttribute {
-                                base: session_id_attr.clone(),
-                                requirement_level: RequirementLevel::Basic(
-                                    BasicRequirementLevelSpec::Required,
+                    events: vec![
+                        V2Event {
+                            name: "session.start".to_owned().into(),
+                            attributes: vec![
+                                EventAttribute {
+                                    base: session_id_attr.clone(),
+                                    requirement_level: RequirementLevel::Basic(
+                                        BasicRequirementLevelSpec::Required,
+                                    ),
+                                },
+                                EventAttribute {
+                                    base: session_previous_id_attr.clone(),
+                                    requirement_level: RequirementLevel::Recommended {
+                                        text: "".to_owned(),
+                                    },
+                                },
+                            ],
+                            entity_associations: vec![],
+                            common: CommonFields {
+                                brief: "This event represents a session start".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Development,
+                                deprecated: Some(
+                                    weaver_semconv::deprecated::Deprecated::Uncategorized {
+                                        note: "Use session.initialized event instead".to_owned(),
+                                    },
                                 ),
+                                annotations: BTreeMap::new(),
                             },
-                            EventAttribute {
-                                base: session_previous_id_attr.clone(),
-                                requirement_level: RequirementLevel::Recommended {
-                                    text: "".to_owned(),
-                                },
-                            },
-                        ],
-                        entity_associations: vec![],
-                        common: CommonFields {
-                            brief: "This event represents a session start".to_owned(),
-                            note: "".to_owned(),
-                            stability: Stability::Development,
-                            deprecated: Some(
-                                weaver_semconv::deprecated::Deprecated::Uncategorized {
-                                    note: "Use session.initialized event instead".to_owned(),
-                                },
-                            ),
-                            annotations: BTreeMap::new(),
                         },
-                    }],
+                        V2Event {
+                            name: "example.event".to_owned().into(),
+                            attributes: vec![],
+                            entity_associations: vec![],
+                            common: CommonFields {
+                                brief: "An example event".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                    ],
                     entities: vec![],
                 },
                 refinements: Refinements {
@@ -1406,77 +1420,101 @@ mod tests {
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),
-                groups: vec![ResolvedGroup {
-                    id: "event.session.start".to_owned(),
-                    r#type: GroupType::Event,
-                    brief: "This event represents a session start".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    entity_associations: vec![],
-                    extends: None,
-                    stability: Some(Stability::Development),
-                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
-                        note: "Use session.initialized event instead".to_owned(),
-                    }),
-                    attributes: vec![
-                        Attribute {
-                            name: "session.id".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::String,
-                            ),
-                            examples: Some(Examples::Strings(vec![
-                                "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
-                            ])),
-                            brief: "A unique session identifier".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Development),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                            annotations: None,
-                            role: Default::default(),
-                        },
-                        Attribute {
-                            name: "session.previous_id".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::String,
-                            ),
-                            examples: Some(Examples::Strings(vec![
-                                "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
-                            ])),
-                            brief: "The previous session identifier".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
+                groups: vec![
+                    ResolvedGroup {
+                        id: "event.session.start".to_owned(),
+                        r#type: GroupType::Event,
+                        brief: "This event represents a session start".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Development),
+                        deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
+                            note: "Use session.initialized event instead".to_owned(),
+                        }),
+                        attributes: vec![
+                            Attribute {
+                                name: "session.id".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: Some(Examples::Strings(vec![
+                                    "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                                ])),
+                                brief: "A unique session identifier".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Required,
+                                ),
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Development),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
                             },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Development),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                            annotations: None,
-                            role: Default::default(),
-                        },
-                    ],
-                    span_kind: None,
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: Some("session.start".to_owned()),
-                    lineage: None,
-                    display_name: Some("Session Start Event".to_owned()),
-                    body: None,
-                    annotations: None,
-                }],
+                            Attribute {
+                                name: "session.previous_id".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: Some(Examples::Strings(vec![
+                                    "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                                ])),
+                                brief: "The previous session identifier".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Recommended {
+                                    text: "".to_owned(),
+                                },
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Development),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                        ],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some("session.start".to_owned()),
+                        lineage: None,
+                        display_name: Some("Session Start Event".to_owned()),
+                        body: None,
+                        annotations: None,
+                    },
+                    ResolvedGroup {
+                        id: "event.example.event".to_owned(),
+                        r#type: GroupType::Event,
+                        brief: "An example event".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some("example.event".to_owned()),
+                        lineage: None,
+                        display_name: Some("Example Event".to_owned()),
+                        body: None,
+                        annotations: None,
+                    },
+                ],
             })
         }
     }
@@ -1521,9 +1559,9 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(stats.total_entities, 3);
-        assert_eq!(stats.total_entities_by_type.get("event"), Some(&1));
-        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&2));
+        assert_eq!(stats.total_entities, 6);
+        assert_eq!(stats.total_entities_by_type.get("event"), Some(&3));
+        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
 
         // Check advisor advice types
         // Expected advice:
@@ -1531,6 +1569,7 @@ mod tests {
         // - required_attribute_not_present: 1 (session.id is required but not present)
         // - not_stable: 2 (1 for session.start event, 1 for session.previous_id attribute)
         // - deprecated: 1 (session.start event is deprecated)
+        // - missing_event: 1 (session.test event does not exist in registry)
         assert_eq!(
             stats.advice_type_counts.get("missing_attribute"),
             Some(&1),
@@ -1545,13 +1584,18 @@ mod tests {
         );
         assert_eq!(
             stats.advice_type_counts.get("not_stable"),
-            Some(&2),
-            "Expected 2 not_stable advice (1 for session.start event, 1 for session.previous_id attribute)"
+            Some(&3),
+            "Expected 3 not_stable advice (for session.start event, session.previous_id attribute, and session.id attribute)"
         );
         assert_eq!(
             stats.advice_type_counts.get("deprecated"),
             Some(&1),
             "Expected 1 deprecated advice for session.start event"
+        );
+        assert_eq!(
+            stats.advice_type_counts.get("missing_event"),
+            Some(&1),
+            "Expected 1 missing_event advice for session.test"
         );
     }
 

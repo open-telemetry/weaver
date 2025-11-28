@@ -20,5 +20,29 @@
             "span_id": null,
             "trace_id": null
         }
+    },
+    {
+        "event": {
+            "attributes": [
+                {
+                    "name": "session.id",
+                    "type": "string",
+                    "value": "00112233-4455-6677-8899-aabbccddeeff"
+                }
+            ],
+            "body": "",
+            "event_name": "session.test",
+            "severity_number": 9,
+            "severity_text": "INFO"
+        }
+    },
+    {
+        "event": {
+            "attributes": [],
+            "body": "",
+            "event_name": "example.event",
+            "severity_number": 9,
+            "severity_text": "INFO"
+        }
     }
 ]
