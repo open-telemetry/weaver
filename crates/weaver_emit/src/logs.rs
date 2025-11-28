@@ -90,3 +90,150 @@ pub(crate) fn emit_logs_for_registry_v2(
         logger.emit(log_record);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opentelemetry::{Array, Value};
+
+    #[test]
+    fn test_value_to_any_value_bool() {
+        let result = value_to_any_value(Value::Bool(true));
+        assert_eq!(result, AnyValue::Boolean(true));
+
+        let result = value_to_any_value(Value::Bool(false));
+        assert_eq!(result, AnyValue::Boolean(false));
+    }
+
+    #[test]
+    fn test_value_to_any_value_i64() {
+        let result = value_to_any_value(Value::I64(42));
+        assert_eq!(result, AnyValue::Int(42));
+
+        let result = value_to_any_value(Value::I64(-100));
+        assert_eq!(result, AnyValue::Int(-100));
+
+        let result = value_to_any_value(Value::I64(0));
+        assert_eq!(result, AnyValue::Int(0));
+    }
+
+    #[test]
+    fn test_value_to_any_value_f64() {
+        let result = value_to_any_value(Value::F64(3.15));
+        assert_eq!(result, AnyValue::Double(3.15));
+
+        let result = value_to_any_value(Value::F64(-2.719));
+        assert_eq!(result, AnyValue::Double(-2.719));
+
+        let result = value_to_any_value(Value::F64(0.0));
+        assert_eq!(result, AnyValue::Double(0.0));
+    }
+
+    #[test]
+    fn test_value_to_any_value_string() {
+        let result = value_to_any_value(Value::String("hello".into()));
+        assert_eq!(result, AnyValue::String("hello".into()));
+
+        let result = value_to_any_value(Value::String("".into()));
+        assert_eq!(result, AnyValue::String("".into()));
+    }
+
+    #[test]
+    fn test_value_to_any_value_array_bool() {
+        let result = value_to_any_value(Value::Array(Array::Bool(vec![true, false, true])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 3);
+                assert_eq!(list[0], AnyValue::Boolean(true));
+                assert_eq!(list[1], AnyValue::Boolean(false));
+                assert_eq!(list[2], AnyValue::Boolean(true));
+            }
+            _ => panic!("Expected ListAny"),
+        }
+    }
+
+    #[test]
+    fn test_value_to_any_value_array_i64() {
+        let result = value_to_any_value(Value::Array(Array::I64(vec![1, 2, 3])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 3);
+                assert_eq!(list[0], AnyValue::Int(1));
+                assert_eq!(list[1], AnyValue::Int(2));
+                assert_eq!(list[2], AnyValue::Int(3));
+            }
+            _ => panic!("Expected ListAny"),
+        }
+    }
+
+    #[test]
+    fn test_value_to_any_value_array_f64() {
+        let result = value_to_any_value(Value::Array(Array::F64(vec![1.1, 2.2, 3.3])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 3);
+                assert_eq!(list[0], AnyValue::Double(1.1));
+                assert_eq!(list[1], AnyValue::Double(2.2));
+                assert_eq!(list[2], AnyValue::Double(3.3));
+            }
+            _ => panic!("Expected ListAny"),
+        }
+    }
+
+    #[test]
+    fn test_value_to_any_value_array_string() {
+        let result = value_to_any_value(Value::Array(Array::String(vec![
+            "foo".into(),
+            "bar".into(),
+            "baz".into(),
+        ])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 3);
+                assert_eq!(list[0], AnyValue::String("foo".into()));
+                assert_eq!(list[1], AnyValue::String("bar".into()));
+                assert_eq!(list[2], AnyValue::String("baz".into()));
+            }
+            _ => panic!("Expected ListAny"),
+        }
+    }
+
+    #[test]
+    fn test_value_to_any_value_empty_arrays() {
+        // Empty bool array
+        let result = value_to_any_value(Value::Array(Array::Bool(vec![])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 0);
+            }
+            _ => panic!("Expected ListAny"),
+        }
+
+        // Empty i64 array
+        let result = value_to_any_value(Value::Array(Array::I64(vec![])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 0);
+            }
+            _ => panic!("Expected ListAny"),
+        }
+
+        // Empty f64 array
+        let result = value_to_any_value(Value::Array(Array::F64(vec![])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 0);
+            }
+            _ => panic!("Expected ListAny"),
+        }
+
+        // Empty string array
+        let result = value_to_any_value(Value::Array(Array::String(vec![])));
+        match result {
+            AnyValue::ListAny(list) => {
+                assert_eq!(list.len(), 0);
+            }
+            _ => panic!("Expected ListAny"),
+        }
+    }
+}

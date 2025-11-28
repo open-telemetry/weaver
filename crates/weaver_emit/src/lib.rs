@@ -496,6 +496,48 @@ mod tests {
                     body: None,
                     annotations: None,
                 },
+                ResolvedGroup {
+                    id: "event.session.start".to_owned(),
+                    r#type: GroupType::Event,
+                    brief: "This event represents a session start".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    attributes: vec![Attribute {
+                        name: "session.id".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                        ])),
+                        brief: "A unique session identifier".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                        role: Default::default(),
+                    }],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some("session.start".to_owned()),
+                    lineage: None,
+                    display_name: Some("Session Start Event".to_owned()),
+                    body: None,
+                    annotations: None,
+                },
             ],
         };
 
@@ -532,6 +574,7 @@ mod tests {
         use std::collections::BTreeMap;
         use weaver_forge::v2::{
             attribute::Attribute as V2Attribute,
+            event::{Event, EventAttribute},
             metric::Metric,
             registry::{ForgeResolvedRegistry, Refinements, Signals},
             span::{Span, SpanAttribute},
@@ -647,7 +690,38 @@ mod tests {
                         },
                     },
                 ],
-                events: vec![],
+                events: vec![Event {
+                    name: SignalId::from("session.start".to_owned()),
+                    attributes: vec![EventAttribute {
+                        base: V2Attribute {
+                            key: "session.id".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: Some(Examples::Strings(vec![
+                                "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "A unique session identifier".to_owned(),
+                                note: String::new(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
+                        ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "This event represents a session start".to_owned(),
+                        note: String::new(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
                 entities: vec![],
             },
             refinements: Refinements {

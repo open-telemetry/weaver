@@ -31,7 +31,8 @@ use crate::{
     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
     DEPRECATION_NOTE_ADVICE_CONTEXT_KEY, DEPRECATION_REASON_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE,
+    EVENT_NAME_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
+    INSTRUMENT_ADVICE_CONTEXT_KEY, METRIC_NAME_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE,
     STABILITY_ADVICE_CONTEXT_KEY, TYPE_MISMATCH_ADVICE_TYPE, UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
     UNEXPECTED_INSTRUMENT_ADVICE_TYPE, UNIT_ADVICE_CONTEXT_KEY, UNIT_MISMATCH_ADVICE_TYPE,
 };
@@ -112,11 +113,13 @@ impl Advisor for DeprecatedAdvisor {
                         advices.push(PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
+                                METRIC_NAME_ADVICE_CONTEXT_KEY: sample_metric.name.clone(),
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
                                 DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
                             }),
                             message: format!(
-                                "Metric is deprecated; reason = {}, note = {}",
+                                "Metric '{}' is deprecated; reason = {}, note = {}",
+                                sample_metric.name.clone(),
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
@@ -135,11 +138,13 @@ impl Advisor for DeprecatedAdvisor {
                         advices.push(PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
+                                EVENT_NAME_ADVICE_CONTEXT_KEY: sample_event.event_name.clone(),
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
                                 DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
                             }),
                             message: format!(
-                                "Event is deprecated; reason = {}, note = {}",
+                                "Event '{}' is deprecated; reason = {}, note = {}",
+                                sample_event.event_name.clone(),
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
@@ -196,7 +201,7 @@ impl Advisor for StabilityAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Metric(_sample_metric) => {
+            SampleRef::Metric(sample_metric) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
@@ -204,9 +209,13 @@ impl Advisor for StabilityAdvisor {
                             advices.push(PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
+                                    METRIC_NAME_ADVICE_CONTEXT_KEY: sample_metric.name.clone(),
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
-                                message: format!("Metric is not stable; stability = {stability}."),
+                                message: format!(
+                                    "Metric '{}' is not stable; stability = {stability}.",
+                                    sample_metric.name.clone()
+                                ),
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
@@ -217,7 +226,7 @@ impl Advisor for StabilityAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Event(_sample_event) => {
+            SampleRef::Event(sample_event) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
@@ -225,9 +234,13 @@ impl Advisor for StabilityAdvisor {
                             advices.push(PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
+                                    EVENT_NAME_ADVICE_CONTEXT_KEY: sample_event.event_name.clone(),
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
-                                message: format!("Metric is not stable; stability = {stability}."),
+                                message: format!(
+                                    "Event '{}' is not stable; stability = {stability}.",
+                                    sample_event.event_name.clone()
+                                ),
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),

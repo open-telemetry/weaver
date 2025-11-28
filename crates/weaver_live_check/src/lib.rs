@@ -91,6 +91,10 @@ pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
 pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
 /// Expected value key in advice context
 pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
+/// Event name key in advice context
+pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
+/// Metric name key in advice context
+pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 
 /// Versioned enum for the registry
 #[derive(Debug, Clone, PartialEq, Serialize)]
