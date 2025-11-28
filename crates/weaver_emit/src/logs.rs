@@ -53,6 +53,7 @@ pub(crate) fn emit_logs_for_registry(
             let mut log_record = logger.create_log_record();
             log_record.set_event_name(Box::leak(event_name.clone().into_boxed_str()));
             log_record.set_severity_number(Severity::Info);
+            log_record.set_severity_text(Severity::Info.name());
             log_record.set_body(event_name.clone().into());
 
             // Add attributes from the group
@@ -79,6 +80,7 @@ pub(crate) fn emit_logs_for_registry_v2(
         let mut log_record = logger.create_log_record();
         log_record.set_event_name(Box::leak(event_name.clone().into_boxed_str()));
         log_record.set_severity_number(Severity::Info);
+        log_record.set_severity_text(Severity::Info.name());
         log_record.set_body(event_name.clone().into());
 
         // Add attributes from the event
