@@ -47,7 +47,7 @@ impl LiveCheckRunner for SampleEvent {
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         let semconv_event = if self.event_name.is_empty() {
-            // We allow Events wihout event_names to be checked, but they cannot be matched to the registry
+            // We allow Events without event_names to be checked, but they cannot be matched to the registry
             None
         } else {
             // find the event in the registry
