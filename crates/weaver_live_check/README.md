@@ -85,8 +85,8 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 - `level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `id`: _string_ - a simple machine readable string to group findings of a particular kind or type.
-- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, or `resource`
-- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name or span name
+- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `event` or `resource`
+- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name
 - `context`: _any_ - a map that describes details about the finding in a structured way,
   for example `{ "attribute_name": "foo.bar", "attribute_value": "bar" }`.
 - `message`: _string_ - verbose string describing the finding. It contains the same details as `context` but
@@ -220,6 +220,8 @@ These should be self-explanatory, but:
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
+- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
+- `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.

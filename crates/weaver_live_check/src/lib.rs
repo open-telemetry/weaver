@@ -618,6 +618,10 @@ impl LiveCheckStatistics {
 
     /// Add event name to coverage
     pub fn add_event_name_to_coverage(&mut self, seen_event_name: String) {
+        if seen_event_name.is_empty() {
+            // Empty event_names are not counted
+            return;
+        }
         if let Some(count) = self.seen_registry_events.get_mut(&seen_event_name) {
             // This is a registry event
             *count += 1;

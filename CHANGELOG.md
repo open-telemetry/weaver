@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - 💥 BREAKING CHANGE 💥 `Violation` and `Advice` have been renamed
   to `PolicyFinding`. We now use the same structure between all
   rego policies in weaver. ([#1038](https://github.com/open-telemetry/weaver/pull/1038) by @jsuereth)
+- Add Event support for emit and live-check ([#1042](https://github.com/open-telemetry/weaver/pull/1042) by @jerbly)
 
 # [0.19.0] - 2025-11-04
 

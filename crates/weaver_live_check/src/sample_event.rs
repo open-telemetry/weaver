@@ -46,17 +46,26 @@ impl LiveCheckRunner for SampleEvent {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // find the event in the registry
-        let semconv_event = live_checker.find_event(&self.event_name);
-        if semconv_event.is_none() {
-            result.add_advice(PolicyFinding {
-                id: MISSING_EVENT_ADVICE_TYPE.to_owned(),
-                context: Value::Null,
-                message: "Event does not exist in the registry.".to_owned(),
-                level: FindingLevel::Violation,
-                signal_type: Some("event".to_owned()),
-                signal_name: Some(self.event_name.clone()),
-            });
+        let semconv_event = if self.event_name.is_empty() {
+            // We allow Events wihout event_names to be checked, but they cannot be matched to the registry
+            None
+        } else {
+            // find the event in the registry
+            let semconv_event = live_checker.find_event(&self.event_name);
+            if semconv_event.is_none() {
+                result.add_advice(PolicyFinding {
+                    id: MISSING_EVENT_ADVICE_TYPE.to_owned(),
+                    context: Value::Null,
+                    message: format!(
+                        "Event '{}' does not exist in the registry.",
+                        self.event_name
+                    ),
+                    level: FindingLevel::Violation,
+                    signal_type: Some("event".to_owned()),
+                    signal_name: Some(self.event_name.clone()),
+                });
+            };
+            semconv_event
         };
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list = advisor.advise(

@@ -1559,9 +1559,9 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(stats.total_entities, 6);
-        assert_eq!(stats.total_entities_by_type.get("event"), Some(&3));
-        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
+        assert_eq!(stats.total_entities, 8);
+        assert_eq!(stats.total_entities_by_type.get("event"), Some(&4));
+        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&4));
 
         // Check advisor advice types
         // Expected advice:
@@ -1584,8 +1584,8 @@ mod tests {
         );
         assert_eq!(
             stats.advice_type_counts.get("not_stable"),
-            Some(&3),
-            "Expected 3 not_stable advice (for session.start event, session.previous_id attribute, and session.id attribute)"
+            Some(&4),
+            "Expected 4 not_stable advice (for session.start event, session.previous_id attribute, and 2 session.id attribute)"
         );
         assert_eq!(
             stats.advice_type_counts.get("deprecated"),

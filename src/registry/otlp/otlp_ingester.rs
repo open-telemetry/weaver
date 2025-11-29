@@ -72,12 +72,6 @@ impl OtlpIterator {
                         }
 
                         for log_record in scope_log.log_records {
-                            // Only process log records that have event_name set.
-                            // Per the OTLP spec: "Presence of event_name on the log record identifies this record as an event."
-                            if log_record.event_name.is_empty() {
-                                continue;
-                            }
-
                             let sample_event = otlp_log_record_to_sample_event(&log_record);
                             self.buffer.push(Sample::Event(sample_event));
                         }
