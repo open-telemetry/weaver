@@ -7,7 +7,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
-use crate::{advice::Advisor, otlp_logger::OtlpEmitter, VersionedAttribute, VersionedRegistry, VersionedSignal};
+use crate::{
+    advice::Advisor, otlp_logger::OtlpEmitter, VersionedAttribute, VersionedRegistry,
+    VersionedSignal,
+};
 
 /// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
@@ -107,6 +110,11 @@ impl LiveChecker {
     /// Set the OTLP emitter for emitting policy findings as log records
     pub fn set_otlp_emitter(&mut self, emitter: Rc<OtlpEmitter>) {
         self.otlp_emitter = Some(emitter);
+    }
+
+    /// Get the OTLP emitter for shutting down
+    pub fn otlp_emitter(&self) -> Option<Rc<OtlpEmitter>> {
+        self.otlp_emitter.as_ref().map(Rc::clone)
     }
 
     /// Find an attribute in the registry

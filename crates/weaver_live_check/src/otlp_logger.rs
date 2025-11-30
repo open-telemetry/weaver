@@ -108,6 +108,13 @@ impl OtlpEmitter {
 
         logger.emit(log_record);
     }
+
+    /// Shutdown the provider, flushing any pending log records
+    pub fn shutdown(&self) -> Result<(), Error> {
+        self.provider.shutdown().map_err(|e| Error::OutputError {
+            error: format!("Failed to shutdown OTLP log provider: {}", e),
+        })
+    }
 }
 
 /// Convert FindingLevel to OpenTelemetry Severity

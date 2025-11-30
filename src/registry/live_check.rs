@@ -248,85 +248,99 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         .ingest()?,
     };
 
-    // Initialize OTLP emitter if requested
-    if args.emit_otlp_logs {
-        let emitter = if args.otlp_logs_stdout {
-            weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
+    // Create a Tokio runtime for OTLP operations (required for gRPC exporter)
+    let rt = tokio::runtime::Runtime::new().map_err(|e| {
+        DiagnosticMessages::from(Error::OutputError {
+            error: format!("Failed to create Tokio runtime: {}", e),
+        })
+    })?;
+
+    rt.block_on(async {
+        // Initialize OTLP emitter if requested
+        if args.emit_otlp_logs {
+            let emitter = if args.otlp_logs_stdout {
+                weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
+            } else {
+                weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
+            };
+            live_checker.set_otlp_emitter(std::rc::Rc::new(emitter));
+        }
+
+        // Run the live check
+
+        let report_mode = if let OutputDirective::File = output_directive {
+            // File output forces report mode
+            true
         } else {
-            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
+            // This flag is not set by default. The user can set it to disable streaming output
+            // and force report mode.
+            args.no_stream
         };
-        live_checker.set_otlp_emitter(std::rc::Rc::new(emitter));
-    }
 
-    // Run the live check
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut samples = Vec::new();
+        for mut sample in ingester {
+            sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
 
-    let report_mode = if let OutputDirective::File = output_directive {
-        // File output forces report mode
-        true
-    } else {
-        // This flag is not set by default. The user can set it to disable streaming output
-        // and force report mode.
-        args.no_stream
-    };
-
-    let mut stats = LiveCheckStatistics::new(&live_checker.registry);
-    let mut samples = Vec::new();
-    for mut sample in ingester {
-        sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
+            if report_mode {
+                samples.push(sample);
+            } else {
+                engine
+                    .generate(&sample, output.as_path(), &output_directive)
+                    .map_err(|e| {
+                        DiagnosticMessages::from(Error::OutputError {
+                            error: e.to_string(),
+                        })
+                    })?;
+            }
+        }
+        stats.finalize();
+        // Set the exit_code to a non-zero code if there are any violations
+        if stats.has_violations() {
+            exit_code = 1;
+        }
 
         if report_mode {
-            samples.push(sample);
-        } else {
+            // Package into a report
+            let report = LiveCheckReport {
+                statistics: stats,
+                samples,
+            };
             engine
-                .generate(&sample, output.as_path(), &output_directive)
+                .generate(&report, output.as_path(), &output_directive)
+                .map_err(|e| {
+                    DiagnosticMessages::from(Error::OutputError {
+                        error: e.to_string(),
+                    })
+                })?;
+        } else {
+            // Output the stats
+            engine
+                .generate(&stats, output.as_path(), &output_directive)
                 .map_err(|e| {
                     DiagnosticMessages::from(Error::OutputError {
                         error: e.to_string(),
                     })
                 })?;
         }
-    }
-    stats.finalize();
-    // Set the exit_code to a non-zero code if there are any violations
-    if stats.has_violations() {
-        exit_code = 1;
-    }
 
-    if report_mode {
-        // Package into a report
-        let report = LiveCheckReport {
-            statistics: stats,
-            samples,
-        };
-        engine
-            .generate(&report, output.as_path(), &output_directive)
-            .map_err(|e| {
-                DiagnosticMessages::from(Error::OutputError {
-                    error: e.to_string(),
-                })
-            })?;
-    } else {
-        // Output the stats
-        engine
-            .generate(&stats, output.as_path(), &output_directive)
-            .map_err(|e| {
-                DiagnosticMessages::from(Error::OutputError {
-                    error: e.to_string(),
-                })
-            })?;
-    }
+        // Shutdown OTLP emitter to flush any pending log records
+        if let Some(emitter) = live_checker.otlp_emitter() {
+            emitter.shutdown()?;
+        }
 
-    log_success(format!(
-        "Performed live check for registry `{}`",
-        args.registry.registry
-    ));
+        log_success(format!(
+            "Performed live check for registry `{}`",
+            args.registry.registry
+        ));
 
-    if diag_msgs.has_error() {
-        return Err(diag_msgs);
-    }
+        if diag_msgs.has_error() {
+            return Err(diag_msgs);
+        }
 
-    Ok(ExitDirectives {
-        exit_code,
-        warnings: Some(diag_msgs),
+        Ok(ExitDirectives {
+            exit_code,
+            warnings: Some(diag_msgs),
+        })
     })
 }
