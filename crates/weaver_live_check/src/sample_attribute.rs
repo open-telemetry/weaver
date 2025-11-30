@@ -185,26 +185,40 @@ impl LiveCheckRunner for SampleAttribute {
         let signal_type: Option<String> = parent_signal.signal_type();
         let signal_name: Option<String> = parent_signal.signal_name();
         if semconv_attribute.is_none() {
-            result.add_advice(PolicyFinding {
+            let finding = PolicyFinding {
                 id: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                 context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
                 message: format!("Attribute '{}' does not exist in the registry.", self.name),
                 level: FindingLevel::Violation,
                 signal_type,
                 signal_name,
-            });
+            };
+
+            // Emit if OTLP emitter available
+            if let Some(emitter) = &live_checker.otlp_emitter {
+                emitter.emit_finding(&finding, &SampleRef::Attribute(self));
+            }
+
+            result.add_advice(finding);
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type() {
-                    result.add_advice(PolicyFinding {
+                    let finding = PolicyFinding {
                         id: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                         context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }),
                         message: format!("Attribute '{}' is a template", self.name),
                         level: FindingLevel::Information,
                         signal_type,
                         signal_name,
-                    });
+                    };
+
+                    // Emit if OTLP emitter available
+                    if let Some(emitter) = &live_checker.otlp_emitter {
+                        emitter.emit_finding(&finding, &SampleRef::Attribute(self));
+                    }
+
+                    result.add_advice(finding);
                 }
             }
         }
@@ -216,6 +230,7 @@ impl LiveCheckRunner for SampleAttribute {
                 parent_signal,
                 semconv_attribute.clone(),
                 parent_group.clone(),
+                live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(advice_list);
         }

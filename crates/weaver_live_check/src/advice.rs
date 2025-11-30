@@ -23,7 +23,7 @@ use weaver_semconv::{
 };
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
+    live_checker::LiveChecker, otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
     Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
@@ -53,6 +53,7 @@ pub trait Advisor {
         signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
+        otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error>;
 }
 
@@ -75,13 +76,14 @@ impl Advisor for DeprecatedAdvisor {
         signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
+        otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     if let Some(deprecated) = &attribute.deprecated() {
-                        advices.push(PolicyFinding {
+                        let finding = PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
                                 ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -97,7 +99,14 @@ impl Advisor for DeprecatedAdvisor {
                             level: FindingLevel::Violation,
                             signal_type: signal.signal_type(),
                             signal_name: signal.signal_name(),
-                        });
+                        };
+
+                        // Emit if logger available
+                        if let Some(ref emitter) = otlp_emitter {
+                            emitter.emit_finding(&finding, &sample);
+                        }
+
+                        advices.push(finding);
                     }
                 }
                 Ok(advices)
@@ -106,7 +115,7 @@ impl Advisor for DeprecatedAdvisor {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
-                        advices.push(PolicyFinding {
+                        let finding = PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
@@ -120,7 +129,14 @@ impl Advisor for DeprecatedAdvisor {
                             level: FindingLevel::Violation,
                             signal_type: Some("metric".to_owned()),
                             signal_name: Some(sample_metric.name.clone()),
-                        });
+                        };
+
+                        // Emit if logger available
+                        if let Some(ref emitter) = otlp_emitter {
+                            emitter.emit_finding(&finding, &sample);
+                        }
+
+                        advices.push(finding);
                     }
                 }
                 Ok(advices)
@@ -142,6 +158,7 @@ impl Advisor for StabilityAdvisor {
         parent_signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
+        otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -149,7 +166,7 @@ impl Advisor for StabilityAdvisor {
                 if let Some(attribute) = registry_attribute {
                     match attribute.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
-                            advices.push(PolicyFinding {
+                            let finding = PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -163,7 +180,14 @@ impl Advisor for StabilityAdvisor {
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
-                            });
+                            };
+
+                            // Emit if logger available
+                            if let Some(ref emitter) = otlp_emitter {
+                                emitter.emit_finding(&finding, &sample);
+                            }
+
+                            advices.push(finding);
                         }
                         _ => {}
                     }
@@ -175,7 +199,7 @@ impl Advisor for StabilityAdvisor {
                 if let Some(group) = registry_group {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
-                            advices.push(PolicyFinding {
+                            let finding = PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
@@ -184,7 +208,14 @@ impl Advisor for StabilityAdvisor {
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
-                            });
+                            };
+
+                            // Emit if logger available
+                            if let Some(ref emitter) = otlp_emitter {
+                                emitter.emit_finding(&finding, &sample);
+                            }
+
+                            advices.push(finding);
                         }
                         _ => {}
                     }
@@ -298,6 +329,7 @@ impl Advisor for TypeAdvisor {
         parent_signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
+        otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -328,7 +360,7 @@ impl Advisor for TypeAdvisor {
                                 if attribute_type != &PrimitiveOrArrayTypeSpec::String
                                     && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                                 {
-                                    return Ok(vec![PolicyFinding {
+                                    let finding = PolicyFinding {
                                         id: TYPE_MISMATCH_ADVICE_TYPE.to_owned(),
                                         context: json!({
                                             ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -338,7 +370,14 @@ impl Advisor for TypeAdvisor {
                                         level: FindingLevel::Violation,
                                         signal_type: parent_signal.signal_type(),
                                         signal_name: parent_signal.signal_name(),
-                                    }]);
+                                    };
+
+                                    // Emit if logger available
+                                    if let Some(ref emitter) = otlp_emitter {
+                                        emitter.emit_finding(&finding, &sample);
+                                    }
+
+                                    return Ok(vec![finding]);
                                 } else {
                                     return Ok(Vec::new());
                                 }
@@ -346,7 +385,7 @@ impl Advisor for TypeAdvisor {
                         };
 
                         if !attribute_type.is_compatible(semconv_attribute_type) {
-                            Ok(vec![PolicyFinding {
+                            let finding = PolicyFinding {
                                 id: TYPE_MISMATCH_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -360,7 +399,14 @@ impl Advisor for TypeAdvisor {
                                 level: FindingLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
-                            }])
+                            };
+
+                            // Emit if logger available
+                            if let Some(ref emitter) = otlp_emitter {
+                                emitter.emit_finding(&finding, &sample);
+                            }
+
+                            Ok(vec![finding])
                         } else {
                             Ok(Vec::new())
                         }
@@ -375,7 +421,7 @@ impl Advisor for TypeAdvisor {
                 if let Some(semconv_metric) = registry_group {
                     match &sample_metric.instrument {
                         SampleInstrument::Unsupported(name) => {
-                            advice_list.push(PolicyFinding {
+                            let finding = PolicyFinding {
                                 id: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     INSTRUMENT_ADVICE_CONTEXT_KEY: name.clone()
@@ -384,12 +430,19 @@ impl Advisor for TypeAdvisor {
                                 level: FindingLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
-                            });
+                            };
+
+                            // Emit if logger available
+                            if let Some(ref emitter) = otlp_emitter {
+                                emitter.emit_finding(&finding, &sample);
+                            }
+
+                            advice_list.push(finding);
                         }
                         SampleInstrument::Supported(sample_instrument) => {
                             if let Some(semconv_instrument) = semconv_metric.instrument() {
                                 if semconv_instrument != sample_instrument {
-                                    advice_list.push(PolicyFinding {
+                                    let finding = PolicyFinding {
                                         id: UNEXPECTED_INSTRUMENT_ADVICE_TYPE.to_owned(),
                                         context: json!({
                                             INSTRUMENT_ADVICE_CONTEXT_KEY: sample_instrument,
@@ -401,7 +454,14 @@ impl Advisor for TypeAdvisor {
                                         level: FindingLevel::Violation,
                                         signal_type: parent_signal.signal_type(),
                                         signal_name: parent_signal.signal_name(),
-                                    });
+                                    };
+
+                                    // Emit if logger available
+                                    if let Some(ref emitter) = otlp_emitter {
+                                        emitter.emit_finding(&finding, &sample);
+                                    }
+
+                                    advice_list.push(finding);
                                 }
                             }
                         }
@@ -409,7 +469,7 @@ impl Advisor for TypeAdvisor {
 
                     if let Some(semconv_unit) = semconv_metric.unit() {
                         if semconv_unit != &sample_metric.unit {
-                            advice_list.push(PolicyFinding {
+                            let finding = PolicyFinding {
                                 id: UNIT_MISMATCH_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     UNIT_ADVICE_CONTEXT_KEY: sample_metric.unit.clone(),
@@ -422,7 +482,14 @@ impl Advisor for TypeAdvisor {
                                 level: FindingLevel::Violation,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
-                            });
+                            };
+
+                            // Emit if logger available
+                            if let Some(ref emitter) = otlp_emitter {
+                                emitter.emit_finding(&finding, &sample);
+                            }
+
+                            advice_list.push(finding);
                         }
                     }
                 }
@@ -486,6 +553,7 @@ impl Advisor for EnumAdvisor {
         signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         _registry_group: Option<Rc<VersionedSignal>>,
+        otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -526,7 +594,7 @@ impl Advisor for EnumAdvisor {
                             }
 
                             if !is_found {
-                                return Ok(vec![PolicyFinding {
+                                let finding = PolicyFinding {
                                     id: UNDEFINED_ENUM_VARIANT_ADVICE_TYPE.to_owned(),
                                     context: json!({
                                         ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: sample_attribute.name.clone(),
@@ -539,7 +607,14 @@ impl Advisor for EnumAdvisor {
                                     level: FindingLevel::Information,
                                     signal_type: signal.signal_type(),
                                     signal_name: signal.signal_name(),
-                                }]);
+                                };
+
+                                // Emit if logger available
+                                if let Some(ref emitter) = otlp_emitter {
+                                    emitter.emit_finding(&finding, &sample);
+                                }
+
+                                return Ok(vec![finding]);
                             }
                         }
                         Ok(Vec::new())
@@ -643,12 +718,22 @@ impl Advisor for RegoAdvisor {
         _signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
+        otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
-        self.check(RegoInput {
-            sample,
+        let findings = self.check(RegoInput {
+            sample: sample.clone(),
             registry_attribute,
             registry_group,
-        })
+        })?;
+
+        // Emit each finding if emitter available
+        if let Some(ref emitter) = otlp_emitter {
+            for finding in &findings {
+                emitter.emit_finding(finding, &sample);
+            }
+        }
+
+        Ok(findings)
     }
 }
 

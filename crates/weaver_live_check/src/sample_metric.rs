@@ -315,6 +315,7 @@ impl LiveCheckRunner for SampleMetric {
                 parent_signal,
                 None,
                 semconv_metric.clone(),
+                live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(advice_list);
         }

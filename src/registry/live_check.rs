@@ -122,6 +122,18 @@ pub struct RegistryLiveCheckArgs {
     #[clap(long, default_value = "4317")]
     otlp_grpc_port: u16,
 
+    /// Enable OTLP log emission for live check policy findings
+    #[arg(long, default_value = "false")]
+    emit_otlp_logs: bool,
+
+    /// OTLP endpoint for log emission
+    #[arg(long, default_value = "http://localhost:4317")]
+    otlp_logs_endpoint: String,
+
+    /// Use stdout for OTLP log emission (debug mode)
+    #[arg(long, default_value = "false")]
+    otlp_logs_stdout: bool,
+
     /// Port used by the HTTP admin port (endpoints: /stop).
     #[clap(long, default_value = "4320")]
     admin_port: u16,
@@ -236,6 +248,16 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         .ingest()?,
     };
 
+    // Initialize OTLP emitter if requested
+    if args.emit_otlp_logs {
+        let emitter = if args.otlp_logs_stdout {
+            weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
+        } else {
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
+        };
+        live_checker.set_otlp_emitter(std::rc::Rc::new(emitter));
+    }
+
     // Run the live check
 
     let report_mode = if let OutputDirective::File = output_directive {
@@ -251,6 +273,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
+
         if report_mode {
             samples.push(sample);
         } else {

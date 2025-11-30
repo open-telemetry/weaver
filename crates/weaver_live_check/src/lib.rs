@@ -36,6 +36,8 @@ pub mod json_file_ingester;
 pub mod json_stdin_ingester;
 /// Live checker
 pub mod live_checker;
+/// OTLP logger for emitting policy findings as log records
+pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
 /// The intermediary format for metrics
@@ -294,6 +296,25 @@ pub enum SampleRef<'a> {
     // TODO: add logs
 }
 
+impl SampleRef<'_> {
+    /// Returns the sample type as a string.
+    #[must_use]
+    pub fn sample_type(&self) -> &str {
+        match self {
+            SampleRef::Attribute(_) => "attribute",
+            SampleRef::Span(_) => "span",
+            SampleRef::SpanEvent(_) => "span_event",
+            SampleRef::SpanLink(_) => "span_link",
+            SampleRef::Resource(_) => "resource",
+            SampleRef::Metric(_) => "metric",
+            SampleRef::NumberDataPoint(_) => "number_data_point",
+            SampleRef::HistogramDataPoint(_) => "histogram_data_point",
+            SampleRef::ExponentialHistogramDataPoint(_) => "exponential_histogram_data_point",
+            SampleRef::Exemplar(_) => "exemplar",
+        }
+    }
+}
+
 impl Sample {
     /// Returns the signal type as a string or None if sample
     /// does not capture a whole signal.
@@ -320,6 +341,32 @@ impl Sample {
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,
             Sample::Metric(metric) => Some(metric.name.clone()),
+        }
+    }
+
+    /// Returns the live check result for this sample, if any.
+    #[must_use]
+    pub fn live_check_result(&self) -> Option<&LiveCheckResult> {
+        match self {
+            Sample::Attribute(s) => s.live_check_result.as_ref(),
+            Sample::Span(s) => s.live_check_result.as_ref(),
+            Sample::SpanEvent(s) => s.live_check_result.as_ref(),
+            Sample::SpanLink(s) => s.live_check_result.as_ref(),
+            Sample::Resource(s) => s.live_check_result.as_ref(),
+            Sample::Metric(s) => s.live_check_result.as_ref(),
+        }
+    }
+
+    /// Converts this sample to a SampleRef.
+    #[must_use]
+    pub fn as_sample_ref(&self) -> SampleRef<'_> {
+        match self {
+            Sample::Attribute(s) => SampleRef::Attribute(s),
+            Sample::Span(s) => SampleRef::Span(s),
+            Sample::SpanEvent(s) => SampleRef::SpanEvent(s),
+            Sample::SpanLink(s) => SampleRef::SpanLink(s),
+            Sample::Resource(s) => SampleRef::Resource(s),
+            Sample::Metric(s) => SampleRef::Metric(s),
         }
     }
 }
@@ -670,6 +717,7 @@ pub trait Advisable {
                 parent_signal,
                 None,
                 parent_group.clone(),
+                live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(advice_list);
         }
