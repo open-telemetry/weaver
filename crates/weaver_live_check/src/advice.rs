@@ -715,16 +715,26 @@ impl Advisor for RegoAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        _signal: &Sample,
+        signal: &Sample,
         registry_attribute: Option<Rc<VersionedAttribute>>,
         registry_group: Option<Rc<VersionedSignal>>,
         otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
-        let findings = self.check(RegoInput {
+        let mut findings = self.check(RegoInput {
             sample: sample.clone(),
             registry_attribute,
             registry_group,
         })?;
+
+        // Populate signal_type and signal_name from the parent signal if not already set
+        for finding in &mut findings {
+            if finding.signal_type.is_none() {
+                finding.signal_type = signal.signal_type();
+            }
+            if finding.signal_name.is_none() {
+                finding.signal_name = signal.signal_name();
+            }
+        }
 
         // Emit each finding if emitter available
         if let Some(ref emitter) = otlp_emitter {

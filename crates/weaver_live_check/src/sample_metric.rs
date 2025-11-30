@@ -300,14 +300,21 @@ impl LiveCheckRunner for SampleMetric {
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            result.add_advice(PolicyFinding {
+            let finding = PolicyFinding {
                 id: MISSING_METRIC_ADVICE_TYPE.to_owned(),
                 context: Value::Null,
                 message: "Metric does not exist in the registry.".to_owned(),
                 level: FindingLevel::Violation,
                 signal_type: Some("metric".to_owned()),
                 signal_name: Some(self.name.clone()),
-            });
+            };
+
+            // Emit if OTLP emitter available
+            if let Some(emitter) = &live_checker.otlp_emitter {
+                emitter.emit_finding(&finding, &SampleRef::Metric(self));
+            }
+
+            result.add_advice(finding);
         };
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list = advisor.advise(
