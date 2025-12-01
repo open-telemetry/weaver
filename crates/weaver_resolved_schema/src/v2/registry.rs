@@ -68,6 +68,7 @@ impl Registry {
     }
 
     /// Returns the statistics for this registry.
+    #[must_use] 
     pub fn stats(&self) -> RegistryStats {
         let attributes = {
             let mut attribute_type_breakdown = BTreeMap::new();
@@ -85,7 +86,7 @@ impl Registry {
                 }
                 *attribute_type_breakdown
                     .entry(attribute_type)
-                    .or_insert(0 as usize) += 1;
+                    .or_insert(0_usize) += 1;
                 *stability_breakdown
                     .entry(attribute.common.stability.clone())
                     .or_default() += 1;
@@ -261,7 +262,7 @@ mod test {
     fn test_stats() {
         let registry = Registry {
             attribute_groups: vec![],
-            registry_url: "https://opentelemetry.io/schemas/1.23.0".to_string(),
+            registry_url: "https://opentelemetry.io/schemas/1.23.0".to_owned(),
             spans: vec![Span {
                 r#type: "test.span".to_owned().into(),
                 kind: SpanKindSpec::Client,
@@ -311,7 +312,7 @@ mod test {
                 },
             }],
             attributes: vec![Attribute {
-                key: "key".to_string(),
+                key: "key".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(
                     weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
                 ),

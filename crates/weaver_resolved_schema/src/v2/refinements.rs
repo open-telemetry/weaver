@@ -35,6 +35,7 @@ pub struct Refinements {
 
 impl Refinements {
     /// Refinement statistics.
+    #[must_use] 
     pub fn stats(&self) -> RefinementStats {
         // TODO - implement.
         RefinementStats {}
