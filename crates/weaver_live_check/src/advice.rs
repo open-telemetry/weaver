@@ -512,6 +512,13 @@ impl Advisor for TypeAdvisor {
                         VersionedSignal::Event(_event) => vec![],
                     };
 
+                    // Emit each finding if emitter available
+                    if let Some(ref emitter) = otlp_emitter {
+                        for finding in &advice_list {
+                            emitter.emit_finding(finding, &sample);
+                        }
+                    }
+
                     Ok(advice_list)
                 } else {
                     Ok(Vec::new())
@@ -533,6 +540,13 @@ impl Advisor for TypeAdvisor {
                         VersionedSignal::Span(_span) => vec![],
                         VersionedSignal::Event(_event) => vec![],
                     };
+
+                    // Emit each finding if emitter available
+                    if let Some(ref emitter) = otlp_emitter {
+                        for finding in &advice_list {
+                            emitter.emit_finding(finding, &sample);
+                        }
+                    }
 
                     Ok(advice_list)
                 } else {
