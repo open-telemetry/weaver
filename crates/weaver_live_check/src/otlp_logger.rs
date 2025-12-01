@@ -24,6 +24,9 @@ pub struct OtlpEmitter {
 
 impl OtlpEmitter {
     /// Create a new OTLP emitter with gRPC export
+    ///
+    /// NOTE: This must be called from within an active Tokio runtime context
+    /// because the batch exporter spawns background tasks.
     pub fn new_grpc(endpoint: &str) -> Result<Self, Error> {
         let exporter = opentelemetry_otlp::LogExporter::builder()
             .with_tonic()

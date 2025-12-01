@@ -248,26 +248,40 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         .ingest()?,
     };
 
-    // Create a Tokio runtime for OTLP operations (required for gRPC exporter)
-    let rt = tokio::runtime::Runtime::new().map_err(|e| {
-        DiagnosticMessages::from(Error::OutputError {
-            error: format!("Failed to create Tokio runtime: {}", e),
-        })
-    })?;
+    // Create Tokio runtime if OTLP log emission is enabled
+    // Use a multi-threaded runtime so we can use spawn_blocking
+    let rt = if args.emit_otlp_logs {
+        Some(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| {
+                    DiagnosticMessages::from(Error::OutputError {
+                        error: format!("Failed to create Tokio runtime: {}", e),
+                    })
+                })?,
+        )
+    } else {
+        None
+    };
 
-    rt.block_on(async {
-        // Initialize OTLP emitter if requested
-        if args.emit_otlp_logs {
-            let emitter = if args.otlp_logs_stdout {
-                weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
-            } else {
-                weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
-            };
-            live_checker.set_otlp_emitter(std::rc::Rc::new(emitter));
-        }
+    // Enter the runtime context if OTLP emission is enabled
+    // This is required for the batch exporter to spawn its background tasks
+    let _guard = rt.as_ref().map(|rt| rt.enter());
 
-        // Run the live check
+    // Initialize OTLP emitter if requested
+    // Must be done after entering the runtime
+    if args.emit_otlp_logs {
+        let emitter = if args.otlp_logs_stdout {
+            weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
+        } else {
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
+        };
+        live_checker.set_otlp_emitter(std::rc::Rc::new(emitter));
+    }
 
+    // Run the live check inside the runtime context if needed
+    let run_live_check = || -> Result<ExitDirectives, DiagnosticMessages> {
         let report_mode = if let OutputDirective::File = output_directive {
             // File output forces report mode
             true
@@ -329,18 +343,19 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
             emitter.shutdown()?;
         }
 
-        log_success(format!(
-            "Performed live check for registry `{}`",
-            args.registry.registry
-        ));
-
-        if diag_msgs.has_error() {
-            return Err(diag_msgs);
-        }
-
         Ok(ExitDirectives {
             exit_code,
-            warnings: Some(diag_msgs),
+            warnings: Some(diag_msgs.clone()),
         })
-    })
+    };
+
+    // Run the live check
+    let result = run_live_check();
+
+    log_success(format!(
+        "Performed live check for registry `{}`",
+        args.registry.registry
+    ));
+
+    result
 }

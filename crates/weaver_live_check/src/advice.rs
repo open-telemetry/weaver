@@ -23,8 +23,8 @@ use weaver_semconv::{
 };
 
 use crate::{
-    live_checker::LiveChecker, otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
+    live_checker::LiveChecker, otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute,
+    sample_metric::SampleInstrument, Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
     DEPRECATION_NOTE_ADVICE_CONTEXT_KEY, DEPRECATION_REASON_ADVICE_CONTEXT_KEY,
