@@ -36,12 +36,12 @@
 
 {% macro display_advice(all_advice, indent=0) %}
   {% for advice in all_advice %}
-    {% if advice.advice_level == "information" %}
-{{ " " * indent }}    - [{{ advice.advice_level | ansi_green }}] {{ advice.message }}
-    {% elif advice.advice_level == "improvement" %}
-{{ " " * indent }}    - [{{ advice.advice_level | ansi_yellow }}] {{ advice.message }}
+    {% if advice.level == "information" %}
+{{ " " * indent }}    - [{{ advice.level | ansi_green }}] {{ advice.message }}
+    {% elif advice.level == "improvement" %}
+{{ " " * indent }}    - [{{ advice.level | ansi_yellow }}] {{ advice.message }}
     {% else %}
-{{ " " * indent }}    - [{{ advice.advice_level | ansi_red }}] {{ advice.message }}
+{{ " " * indent }}    - [{{ advice.level | ansi_red }}] {{ advice.message }}
     {% endif %}
   {% endfor %}
 {% endmacro %}

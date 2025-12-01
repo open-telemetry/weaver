@@ -150,7 +150,6 @@ mod tests {
     };
     use crate::run_command;
     use std::fs::OpenOptions;
-    use tempdir::TempDir;
     use weaver_version::schema_changes::SchemaChanges;
 
     #[test]
@@ -187,7 +186,10 @@ mod tests {
 
     #[test]
     fn test_registry_diff_cmd() {
-        let temp_dir = TempDir::new("output").expect("Failed to create temp file");
+        let temp_dir = tempfile::Builder::new()
+            .prefix("output")
+            .tempdir()
+            .expect("Failed to create temp file");
 
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Diff(RegistryDiffArgs {

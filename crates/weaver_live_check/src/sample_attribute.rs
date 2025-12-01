@@ -7,14 +7,13 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_checker::violation::{Advice, AdviceLevel};
-use weaver_forge::registry::ResolvedGroup;
+use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    Sample, SampleRef, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, MISSING_ATTRIBUTE_ADVICE_TYPE,
-    TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    Sample, SampleRef, VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY,
+    MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -155,8 +154,8 @@ impl SampleAttribute {
         if let Some(result) = &mut self.live_check_result {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
-                if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
-                    if let Some(template_name) = advice.advice_context["template_name"].as_str() {
+                if advice.id == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
+                    if let Some(template_name) = advice.context["template_name"].as_str() {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }
@@ -171,7 +170,7 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
@@ -186,23 +185,23 @@ impl LiveCheckRunner for SampleAttribute {
         let signal_type: Option<String> = parent_signal.signal_type();
         let signal_name: Option<String> = parent_signal.signal_name();
         if semconv_attribute.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
+            result.add_advice(PolicyFinding {
+                id: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
                 message: format!("Attribute '{}' does not exist in the registry.", self.name),
-                advice_level: AdviceLevel::Violation,
+                level: FindingLevel::Violation,
                 signal_type,
                 signal_name,
             });
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type {
-                    result.add_advice(Advice {
-                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        advice_context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name.clone() }),
+                if let AttributeType::Template(_) = attribute.r#type() {
+                    result.add_advice(PolicyFinding {
+                        id: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                        context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }),
                         message: format!("Attribute '{}' is a template", self.name),
-                        advice_level: AdviceLevel::Information,
+                        level: FindingLevel::Information,
                         signal_type,
                         signal_name,
                     });

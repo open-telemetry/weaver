@@ -188,7 +188,7 @@ pub(crate) fn generate_params_shared(
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use tempdir::TempDir;
+    use tempfile::TempDir;
     use weaver_diff::diff_dir;
 
     use crate::cli::{Cli, Commands};
@@ -199,9 +199,11 @@ mod tests {
 
     #[test]
     fn test_registry_generate() {
-        let temp_output = TempDir::new("output")
+        let temp_output = tempfile::Builder::new()
+            .prefix("output")
+            .tempdir()
             .expect("Failed to create temporary directory")
-            .into_path();
+            .keep();
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -321,9 +323,9 @@ mod tests {
 
     #[test]
     fn test_registry_generate_with_config() {
-        let temp_output = TempDir::new("output")
+        let temp_output = TempDir::new()
             .expect("Failed to create temporary directory")
-            .into_path();
+            .keep();
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -436,9 +438,9 @@ mod tests {
         ];
 
         for (follow_symlinks, expected_files) in test_cases {
-            let temp_output = TempDir::new("output")
+            let temp_output = TempDir::new()
                 .expect("Failed to create temporary directory")
-                .into_path();
+                .keep();
 
             let cli = Cli {
                 debug: 1,

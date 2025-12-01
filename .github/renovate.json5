@@ -1,34 +1,53 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:best-practices",
-    "helpers:pinGitHubActionDigestsToSemver"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:best-practices',
+    'helpers:pinGitHubActionDigestsToSemver',
   ],
-  "packageRules": [
+  packageRules: [
     {
-      "groupName": "all patch versions",
-      "matchUpdateTypes": ["patch"],
-      "schedule": ["before 8am every weekday"]
+      groupName: 'all patch versions',
+      matchUpdateTypes: [
+        'patch',
+      ],
+      schedule: [
+        'before 8am every weekday',
+      ],
     },
     {
-      "matchUpdateTypes": ["minor", "major"],
-      "schedule": ["before 8am on Monday"]
+      matchUpdateTypes: [
+        'minor',
+        'major',
+      ],
+      schedule: [
+        'before 8am on Monday',
+      ],
     },
     {
-      "matchPackagePatterns": ["^rust$"],
-      "groupName": "rust"
+      groupName: 'rust',
+      matchPackageNames: [
+        '/^rust$/',
+      ],
     },
     {
-      "matchManagers": ["dockerfile"],
-      "groupName": "docker"
+      matchManagers: [
+        'dockerfile',
+      ],
+      groupName: 'docker',
     },
     {
-      "matchUpdateTypes": ["minor", "patch"],
-      "matchManagers": ["cargo", "dockerfile"],
-      "automerge": true
-    }
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
+      matchManagers: [
+        'cargo',
+        'dockerfile',
+      ],
+      automerge: true,
+    },
   ],
-  "labels": [
-    "dependencies"
-  ]
+  labels: [
+    'dependencies',
+  ],
 }

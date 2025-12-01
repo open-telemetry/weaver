@@ -7,13 +7,12 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use weaver_checker::violation::{Advice, AdviceLevel};
-use weaver_forge::registry::ResolvedGroup;
+use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
     MISSING_METRIC_ADVICE_TYPE,
 };
 
@@ -72,7 +71,7 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
@@ -132,7 +131,7 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
@@ -207,7 +206,7 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
@@ -252,7 +251,7 @@ impl LiveCheckRunner for SampleExemplar {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
@@ -294,18 +293,18 @@ impl LiveCheckRunner for SampleMetric {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<ResolvedGroup>>,
+        _parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_METRIC_ADVICE_TYPE.to_owned(),
-                advice_context: Value::Null,
+            result.add_advice(PolicyFinding {
+                id: MISSING_METRIC_ADVICE_TYPE.to_owned(),
+                context: Value::Null,
                 message: "Metric does not exist in the registry.".to_owned(),
-                advice_level: AdviceLevel::Violation,
+                level: FindingLevel::Violation,
                 signal_type: Some("metric".to_owned()),
                 signal_name: Some(self.name.clone()),
             });
