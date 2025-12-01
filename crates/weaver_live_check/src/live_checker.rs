@@ -162,6 +162,7 @@ mod tests {
 
     use super::*;
     use serde_json::json;
+    use serde_yaml;
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
@@ -181,6 +182,7 @@ mod tests {
         },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
+        YamlValue,
     };
 
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -1327,6 +1329,56 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_json_event_custom_rego() {
+        run_json_event_custom_rego_test(false);
+    }
+
+    #[test]
+    fn test_json_event_custom_rego_v2() {
+        run_json_event_custom_rego_test(true);
+    }
+
+    fn run_json_event_custom_rego_test(use_v2: bool) {
+        let registry = make_events_registry(use_v2);
+
+        // Load samples from JSON file
+        let path = "data/events.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/live_check_advice/".into()),
+            &Some("data/jq/test.jq".into()),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
+
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+
+        assert_eq!(
+            stats.advice_type_counts.get("empty_body"),
+            Some(&1),
+            "Expected 1 empty_body advice for event with empty name and empty body"
+        );
+
+        assert_eq!(
+            stats.advice_type_counts.get("required_phrase_missing"),
+            Some(&1),
+            "Expected 1 required_phrase_missing advice for session.start event missing 'hello world'"
+        );
+    }
+
     fn make_events_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
             let session_id_attr = V2Attribute {
@@ -1393,7 +1445,16 @@ mod tests {
                                         note: "Use session.initialized event instead".to_owned(),
                                     },
                                 ),
-                                annotations: BTreeMap::new(),
+                                annotations: {
+                                    let mut annotations = BTreeMap::new();
+                                    let _ = annotations.insert(
+                                        "required_phrase".to_owned(),
+                                        YamlValue(serde_yaml::Value::String(
+                                            "hello world".to_owned(),
+                                        )),
+                                    );
+                                    annotations
+                                },
                             },
                         },
                         V2Event {
@@ -1405,7 +1466,16 @@ mod tests {
                                 note: "".to_owned(),
                                 stability: Stability::Stable,
                                 deprecated: None,
-                                annotations: BTreeMap::new(),
+                                annotations: {
+                                    let mut annotations = BTreeMap::new();
+                                    let _ = annotations.insert(
+                                        "required_phrase".to_owned(),
+                                        YamlValue(serde_yaml::Value::String(
+                                            "hello world".to_owned(),
+                                        )),
+                                    );
+                                    annotations
+                                },
                             },
                         },
                     ],
@@ -1490,7 +1560,14 @@ mod tests {
                         lineage: None,
                         display_name: Some("Session Start Event".to_owned()),
                         body: None,
-                        annotations: None,
+                        annotations: Some({
+                            let mut annotations = BTreeMap::new();
+                            let _ = annotations.insert(
+                                "required_phrase".to_owned(),
+                                YamlValue(serde_yaml::Value::String("hello world".to_owned())),
+                            );
+                            annotations
+                        }),
                     },
                     ResolvedGroup {
                         id: "event.example.event".to_owned(),
@@ -1512,7 +1589,14 @@ mod tests {
                         lineage: None,
                         display_name: Some("Example Event".to_owned()),
                         body: None,
-                        annotations: None,
+                        annotations: Some({
+                            let mut annotations = BTreeMap::new();
+                            let _ = annotations.insert(
+                                "required_phrase".to_owned(),
+                                YamlValue(serde_yaml::Value::String("hello world".to_owned())),
+                            );
+                            annotations
+                        }),
                     },
                 ],
             })
