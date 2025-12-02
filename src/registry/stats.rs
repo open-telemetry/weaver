@@ -63,7 +63,7 @@ fn display_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
             Ok(schema) => schema,
             Err(e) => {
                 diag_msgs.extend(DiagnosticMessages::from_error(
-                    crate::registry::Error::SchemaError(e),
+                    crate::registry::Error::Schema(e),
                 ));
                 return Err(diag_msgs);
             }
@@ -147,7 +147,7 @@ fn display_schema_stats_v2(schema: &weaver_resolved_schema::v2::ResolvedTelemetr
         "  - total with note: {}",
         stats.registry.entities.common.total_with_note
     );
-    println!("   - entity identity length distribution: ");
+    println!("  - entity identity length distribution: ");
     for (length, count) in stats
         .registry
         .entities

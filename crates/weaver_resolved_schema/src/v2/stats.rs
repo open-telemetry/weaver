@@ -14,7 +14,7 @@ use weaver_semconv::{
 pub struct Stats {
     /// Registry statistics.
     pub registry: RegistryStats,
-    /// Refinment statistics.
+    /// Refinement statistics.
     pub refinements: RefinementStats,
 }
 
