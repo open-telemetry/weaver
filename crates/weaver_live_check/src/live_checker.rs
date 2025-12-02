@@ -20,6 +20,7 @@ pub struct LiveChecker {
     semconv_attributes: HashMap<String, Rc<VersionedAttribute>>,
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
+    semconv_events: HashMap<String, Rc<VersionedSignal>>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
@@ -40,6 +41,8 @@ impl LiveChecker {
         let mut templates_by_length = Vec::new();
         // Hashmap of metrics by name
         let mut semconv_metrics = HashMap::new();
+        // Hashmap of events by name
+        let mut semconv_events = HashMap::new();
 
         match &registry {
             VersionedRegistry::V1(registry) => {
@@ -48,6 +51,12 @@ impl LiveChecker {
                         if let Some(metric_name) = &group.metric_name {
                             let group_rc = Rc::new(VersionedSignal::Group(Box::new(group.clone())));
                             let _ = semconv_metrics.insert(metric_name.clone(), group_rc);
+                        }
+                    }
+                    if group.r#type == GroupType::Event {
+                        if let Some(event_name) = &group.name {
+                            let group_rc = Rc::new(VersionedSignal::Group(Box::new(group.clone())));
+                            let _ = semconv_events.insert(event_name.clone(), group_rc);
                         }
                     }
                     for attribute in &group.attributes {
@@ -73,6 +82,11 @@ impl LiveChecker {
                     let metric_rc = Rc::new(VersionedSignal::Metric(metric.clone()));
                     let _ = semconv_metrics.insert(metric_name, metric_rc);
                 }
+                for event in &registry.signals.events {
+                    let event_name = event.name.to_string();
+                    let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
+                    let _ = semconv_events.insert(event_name, event_rc);
+                }
                 for attribute in &registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
@@ -96,6 +110,7 @@ impl LiveChecker {
             semconv_attributes,
             semconv_templates,
             semconv_metrics,
+            semconv_events,
             advisors,
             templates_by_length,
             otlp_emitter: None,
@@ -117,6 +132,12 @@ impl LiveChecker {
     #[must_use]
     pub fn find_metric(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_metrics.get(name).map(Rc::clone)
+    }
+
+    /// Find an event in the registry
+    #[must_use]
+    pub fn find_event(&self, name: &str) -> Option<Rc<VersionedSignal>> {
+        self.semconv_events.get(name).map(Rc::clone)
     }
 
     /// Find a template in the registry
@@ -148,11 +169,13 @@ mod tests {
 
     use super::*;
     use serde_json::json;
+    use serde_yaml;
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
+        event::{Event as V2Event, EventAttribute},
         metric::{Metric as V2Metric, MetricAttribute},
         registry::{ForgeResolvedRegistry, Refinements, Signals},
         span::{Span as V2Span, SpanAttribute},
@@ -161,11 +184,12 @@ mod tests {
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
-            AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
-            TemplateTypeSpec, ValueSpec,
+            AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
+            PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec,
         },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
+        YamlValue,
     };
 
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -1309,6 +1333,360 @@ mod tests {
         assert_eq!(
             stats.advice_type_counts.get("invalid_data_point_value"),
             Some(&1)
+        );
+    }
+
+    #[test]
+    fn test_json_log_custom_rego() {
+        run_json_log_custom_rego_test(false);
+    }
+
+    #[test]
+    fn test_json_log_custom_rego_v2() {
+        run_json_log_custom_rego_test(true);
+    }
+
+    fn run_json_log_custom_rego_test(use_v2: bool) {
+        let registry = make_events_registry(use_v2);
+
+        // Load samples from JSON file
+        let path = "data/logs.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/live_check_advice/".into()),
+            &Some("data/jq/test.jq".into()),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
+
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+
+        assert_eq!(
+            stats.advice_type_counts.get("empty_body"),
+            Some(&1),
+            "Expected 1 empty_body advice for event with empty name and empty body"
+        );
+
+        assert_eq!(
+            stats.advice_type_counts.get("required_phrase_missing"),
+            Some(&1),
+            "Expected 1 required_phrase_missing advice for session.start event missing 'hello world'"
+        );
+    }
+
+    fn make_events_registry(use_v2: bool) -> VersionedRegistry {
+        if use_v2 {
+            let session_id_attr = V2Attribute {
+                key: "session.id".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: Some(Examples::Strings(vec![
+                    "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                ])),
+                common: CommonFields {
+                    brief: "A unique session identifier".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Development,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+            };
+
+            let session_previous_id_attr = V2Attribute {
+                key: "session.previous_id".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: Some(Examples::Strings(vec![
+                    "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                ])),
+                common: CommonFields {
+                    brief: "The previous session identifier".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Development,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+            };
+
+            VersionedRegistry::V2(ForgeResolvedRegistry {
+                registry_url: "TEST_EVENTS".to_owned(),
+                attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
+                attribute_groups: vec![],
+                signals: Signals {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![
+                        V2Event {
+                            name: "session.start".to_owned().into(),
+                            attributes: vec![
+                                EventAttribute {
+                                    base: session_id_attr.clone(),
+                                    requirement_level: RequirementLevel::Basic(
+                                        BasicRequirementLevelSpec::Required,
+                                    ),
+                                },
+                                EventAttribute {
+                                    base: session_previous_id_attr.clone(),
+                                    requirement_level: RequirementLevel::Recommended {
+                                        text: "".to_owned(),
+                                    },
+                                },
+                            ],
+                            entity_associations: vec![],
+                            common: CommonFields {
+                                brief: "This event represents a session start".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Development,
+                                deprecated: Some(
+                                    weaver_semconv::deprecated::Deprecated::Uncategorized {
+                                        note: "Use session.initialized event instead".to_owned(),
+                                    },
+                                ),
+                                annotations: {
+                                    let mut annotations = BTreeMap::new();
+                                    let _ = annotations.insert(
+                                        "required_phrase".to_owned(),
+                                        YamlValue(serde_yaml::Value::String(
+                                            "hello world".to_owned(),
+                                        )),
+                                    );
+                                    annotations
+                                },
+                            },
+                        },
+                        V2Event {
+                            name: "example.event".to_owned().into(),
+                            attributes: vec![],
+                            entity_associations: vec![],
+                            common: CommonFields {
+                                brief: "An example event".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: {
+                                    let mut annotations = BTreeMap::new();
+                                    let _ = annotations.insert(
+                                        "required_phrase".to_owned(),
+                                        YamlValue(serde_yaml::Value::String(
+                                            "hello world".to_owned(),
+                                        )),
+                                    );
+                                    annotations
+                                },
+                            },
+                        },
+                    ],
+                    entities: vec![],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            })
+        } else {
+            VersionedRegistry::V1(ResolvedRegistry {
+                registry_url: "TEST_EVENTS".to_owned(),
+                groups: vec![
+                    ResolvedGroup {
+                        id: "event.session.start".to_owned(),
+                        r#type: GroupType::Event,
+                        brief: "This event represents a session start".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Development),
+                        deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
+                            note: "Use session.initialized event instead".to_owned(),
+                        }),
+                        attributes: vec![
+                            Attribute {
+                                name: "session.id".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: Some(Examples::Strings(vec![
+                                    "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                                ])),
+                                brief: "A unique session identifier".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Required,
+                                ),
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Development),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                            Attribute {
+                                name: "session.previous_id".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: Some(Examples::Strings(vec![
+                                    "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                                ])),
+                                brief: "The previous session identifier".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Recommended {
+                                    text: "".to_owned(),
+                                },
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Development),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                        ],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some("session.start".to_owned()),
+                        lineage: None,
+                        display_name: Some("Session Start Event".to_owned()),
+                        body: None,
+                        annotations: Some({
+                            let mut annotations = BTreeMap::new();
+                            let _ = annotations.insert(
+                                "required_phrase".to_owned(),
+                                YamlValue(serde_yaml::Value::String("hello world".to_owned())),
+                            );
+                            annotations
+                        }),
+                    },
+                    ResolvedGroup {
+                        id: "event.example.event".to_owned(),
+                        r#type: GroupType::Event,
+                        brief: "An example event".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some("example.event".to_owned()),
+                        lineage: None,
+                        display_name: Some("Example Event".to_owned()),
+                        body: None,
+                        annotations: Some({
+                            let mut annotations = BTreeMap::new();
+                            let _ = annotations.insert(
+                                "required_phrase".to_owned(),
+                                YamlValue(serde_yaml::Value::String("hello world".to_owned())),
+                            );
+                            annotations
+                        }),
+                    },
+                ],
+            })
+        }
+    }
+
+    #[test]
+    fn test_json_log() {
+        run_json_log_test(false);
+    }
+
+    #[test]
+    fn test_json_log_v2() {
+        run_json_log_test(true);
+    }
+
+    fn run_json_log_test(use_v2: bool) {
+        let registry = make_events_registry(use_v2);
+
+        // Load samples from JSON file
+        let path = "data/logs.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(StabilityAdvisor),
+            Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
+        ];
+
+        let mut live_checker = LiveChecker::new(registry, advisors);
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+
+        // Check the statistics
+        assert_eq!(stats.total_entities, 8);
+        assert_eq!(stats.total_entities_by_type.get("log"), Some(&4));
+        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&4));
+
+        // Check advisor advice types
+        // Expected advice:
+        // - missing_attribute: 1 (session.idd does not exist in registry)
+        // - required_attribute_not_present: 1 (session.id is required but not present)
+        // - not_stable: 2 (1 for session.start event, 1 for session.previous_id attribute)
+        // - deprecated: 1 (session.start event is deprecated)
+        // - missing_event: 1 (session.test event does not exist in registry)
+        assert_eq!(
+            stats.advice_type_counts.get("missing_attribute"),
+            Some(&1),
+            "Expected 1 missing_attribute advice for session.idd"
+        );
+        assert_eq!(
+            stats
+                .advice_type_counts
+                .get("required_attribute_not_present"),
+            Some(&1),
+            "Expected 1 required_attribute_not_present advice for session.id"
+        );
+        assert_eq!(
+            stats.advice_type_counts.get("not_stable"),
+            Some(&4),
+            "Expected 4 not_stable advice (for session.start event, session.previous_id attribute, and 2 session.id attribute)"
+        );
+        assert_eq!(
+            stats.advice_type_counts.get("deprecated"),
+            Some(&1),
+            "Expected 1 deprecated advice for session.start event"
+        );
+        assert_eq!(
+            stats.advice_type_counts.get("missing_event"),
+            Some(&1),
+            "Expected 1 missing_event advice for session.test"
         );
     }
 

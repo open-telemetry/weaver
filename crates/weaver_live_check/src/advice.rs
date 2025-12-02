@@ -11,7 +11,10 @@ use std::{
 use serde::Serialize;
 use serde_json::json;
 use weaver_checker::{Engine, FindingLevel, PolicyFinding};
-use weaver_forge::{jq, v2::metric::MetricAttribute};
+use weaver_forge::{
+    jq,
+    v2::{event::EventAttribute, metric::MetricAttribute},
+};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{
@@ -28,7 +31,8 @@ use crate::{
     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
     DEPRECATION_NOTE_ADVICE_CONTEXT_KEY, DEPRECATION_REASON_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE,
+    EVENT_NAME_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
+    INSTRUMENT_ADVICE_CONTEXT_KEY, METRIC_NAME_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE,
     STABILITY_ADVICE_CONTEXT_KEY, TYPE_MISMATCH_ADVICE_TYPE, UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
     UNEXPECTED_INSTRUMENT_ADVICE_TYPE, UNIT_ADVICE_CONTEXT_KEY, UNIT_MISMATCH_ADVICE_TYPE,
 };
@@ -118,11 +122,13 @@ impl Advisor for DeprecatedAdvisor {
                         let finding = PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
+                                METRIC_NAME_ADVICE_CONTEXT_KEY: sample_metric.name.clone(),
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
                                 DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
                             }),
                             message: format!(
-                                "Metric is deprecated; reason = {}, note = {}",
+                                "Metric '{}' is deprecated; reason = {}, note = {}",
+                                sample_metric.name.clone(),
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
@@ -137,6 +143,31 @@ impl Advisor for DeprecatedAdvisor {
                         }
 
                         advices.push(finding);
+                    }
+                }
+                Ok(advices)
+            }
+            SampleRef::Log(sample_log) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    if let Some(deprecated) = &group.deprecated() {
+                        advices.push(PolicyFinding {
+                            id: DEPRECATED_ADVICE_TYPE.to_owned(),
+                            context: json!({
+                                EVENT_NAME_ADVICE_CONTEXT_KEY: sample_log.event_name.clone(),
+                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
+                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
+                            }),
+                            message: format!(
+                                "Event '{}' is deprecated; reason = {}, note = {}",
+                                sample_log.event_name.clone(),
+                                deprecated_to_reason(deprecated),
+                                deprecated
+                            ),
+                            level: FindingLevel::Violation,
+                            signal_type: Some("log".to_owned()),
+                            signal_name: Some(sample_log.event_name.clone()),
+                        });
                     }
                 }
                 Ok(advices)
@@ -194,7 +225,7 @@ impl Advisor for StabilityAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Metric(_sample_metric) => {
+            SampleRef::Metric(sample_metric) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
@@ -202,9 +233,38 @@ impl Advisor for StabilityAdvisor {
                             let finding = PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
+                                    METRIC_NAME_ADVICE_CONTEXT_KEY: sample_metric.name.clone(),
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
-                                message: format!("Metric is not stable; stability = {stability}."),
+                                message: format!(
+                                    "Metric '{}' is not stable; stability = {stability}.",
+                                    sample_metric.name.clone()
+                                ),
+                                level: FindingLevel::Improvement,
+                                signal_type: parent_signal.signal_type(),
+                                signal_name: parent_signal.signal_name(),
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(advices)
+            }
+            SampleRef::Log(sample_log) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    match group.stability() {
+                        Some(ref stability) if *stability != &Stability::Stable => {
+                            advices.push(PolicyFinding {
+                                id: NOT_STABLE_ADVICE_TYPE.to_owned(),
+                                context: json!({
+                                    EVENT_NAME_ADVICE_CONTEXT_KEY: sample_log.event_name.clone(),
+                                    STABILITY_ADVICE_CONTEXT_KEY: stability,
+                                }),
+                                message: format!(
+                                    "Event '{}' is not stable; stability = {stability}.",
+                                    sample_log.event_name.clone()
+                                ),
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
@@ -247,6 +307,16 @@ impl CheckableAttribute for Attribute {
 }
 
 impl CheckableAttribute for MetricAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+}
+
+impl CheckableAttribute for EventAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
@@ -547,6 +617,28 @@ impl Advisor for TypeAdvisor {
                             emitter.emit_finding(finding, &sample);
                         }
                     }
+
+                    Ok(advice_list)
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            SampleRef::Log(sample_log) => {
+                if let Some(semconv_event) = registry_group {
+                    let advice_list = match &*semconv_event {
+                        VersionedSignal::Group(group) => check_attributes(
+                            &group.attributes,
+                            &sample_log.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Event(event) => check_attributes(
+                            &event.attributes,
+                            &sample_log.attributes,
+                            parent_signal,
+                        ),
+                        VersionedSignal::Span(_span) => vec![],
+                        VersionedSignal::Metric(_metric) => vec![],
+                    };
 
                     Ok(advice_list)
                 } else {

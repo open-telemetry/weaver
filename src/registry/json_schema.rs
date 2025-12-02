@@ -60,6 +60,12 @@ pub enum JsonSchemaType {
     ResolvedRegistry,
     /// The JSON schema of a semantic convention group.
     SemconvGroup,
+    /// The JSON schema of the V2 definition.
+    SemconvDefinitionV2,
+    /// The JSON schema of the V2 resolved registry.
+    ResolvedRegistryV2,
+    /// The JSON schema we send to Rego / Jinja.
+    ForgeRegistryV2,
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -74,6 +80,13 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
         JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
+        JsonSchemaType::SemconvDefinitionV2 => {
+            schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
+        }
+        JsonSchemaType::ResolvedRegistryV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        JsonSchemaType::ForgeRegistryV2 => {
+            schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
+        }
     };
 
     let json_schema_str =
@@ -109,47 +122,51 @@ mod tests {
     use crate::registry::json_schema::{JsonSchemaType, RegistryJsonSchemaArgs};
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use clap::ValueEnum;
     use std::fs;
     use tempfile::NamedTempFile;
 
     #[test]
     fn test_registry_json_schema() {
-        // Create a temporary file for the output
-        let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
-        let output_path = temp_file.path().to_path_buf();
+        for json_schema_type in JsonSchemaType::value_variants() {
+            // Create a temporary file for the output
+            let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+            let output_path = temp_file.path().to_path_buf();
 
-        let cli = Cli {
-            debug: 0,
-            quiet: false,
-            future: false,
-            command: Some(Commands::Registry(RegistryCommand {
-                command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
-                    json_schema: JsonSchemaType::ResolvedRegistry,
-                    output: Some(output_path.clone()),
-                    diagnostic: Default::default(),
-                }),
-            })),
-        };
+            let cli = Cli {
+                debug: 0,
+                quiet: false,
+                future: false,
+                command: Some(Commands::Registry(RegistryCommand {
+                    command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
+                        json_schema: json_schema_type.clone(),
+                        output: Some(output_path.clone()),
+                        diagnostic: Default::default(),
+                    }),
+                })),
+            };
 
-        let exit_directive = run_command(&cli);
-        // The command should succeed.
-        assert_eq!(exit_directive.exit_code, 0);
+            let exit_directive = run_command(&cli);
+            // The command should succeed.
+            assert_eq!(exit_directive.exit_code, 0);
 
-        // Read the content of the temp file
-        let json_content = fs::read_to_string(output_path).expect("Failed to read temporary file");
+            // Read the content of the temp file
+            let json_content =
+                fs::read_to_string(output_path).expect("Failed to read temporary file");
 
-        // Parse and validate the JSON content
-        let value =
-            serde_json::from_str::<serde_json::Value>(&json_content).expect("Failed to parse JSON");
+            // Parse and validate the JSON content
+            let value = serde_json::from_str::<serde_json::Value>(&json_content)
+                .expect("Failed to parse JSON");
 
-        let definitions = value
-            .as_object()
-            .expect("Expected a JSON object")
-            .get("definitions");
+            let definitions = value
+                .as_object()
+                .expect("Expected a JSON object")
+                .get("definitions");
 
-        assert!(
-            definitions.is_some(),
-            "Expected a 'definitions' key in the JSON schema"
-        );
+            assert!(
+                definitions.is_some(),
+                "Expected a 'definitions' key in the JSON schema"
+            );
+        }
     }
 }
