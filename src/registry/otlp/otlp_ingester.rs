@@ -13,7 +13,7 @@ use weaver_live_check::{
 
 use super::{
     conversion::{
-        otlp_log_record_to_sample_event, otlp_metric_to_sample, sample_attribute_from_key_value,
+        otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
         span_kind_from_otlp_kind, status_from_otlp_status,
     },
     listen_otlp_requests, OtlpRequest,
@@ -72,8 +72,8 @@ impl OtlpIterator {
                         }
 
                         for log_record in scope_log.log_records {
-                            let sample_event = otlp_log_record_to_sample_event(&log_record);
-                            self.buffer.push(Sample::Event(sample_event));
+                            let sample_log = otlp_log_record_to_sample_log(&log_record);
+                            self.buffer.push(Sample::Log(sample_log));
                         }
                     }
                 }

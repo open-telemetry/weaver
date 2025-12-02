@@ -6,7 +6,7 @@ use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
-    sample_event::SampleEvent,
+    sample_log::SampleLog,
     sample_metric::{DataPoints, SampleInstrument, SampleMetric},
     sample_span::{Status, StatusCode},
 };
@@ -324,9 +324,9 @@ fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
     DataPoints::Number(data_points)
 }
 
-/// Converts an OTLP LogRecord to a SampleEvent
-pub fn otlp_log_record_to_sample_event(log_record: &LogRecord) -> SampleEvent {
-    SampleEvent {
+/// Converts an OTLP LogRecord to a SampleLog
+pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
+    SampleLog {
         event_name: log_record.event_name.clone(),
         severity_number: Some(log_record.severity_number),
         severity_text: Some(log_record.severity_text.clone()),

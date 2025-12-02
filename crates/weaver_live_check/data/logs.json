@@ -1,6 +1,6 @@
 [
     {
-        "event": {
+        "log": {
             "attributes": [
                 {
                     "name": "session.idd",
@@ -22,7 +22,7 @@
         }
     },
     {
-        "event": {
+        "log": {
             "attributes": [
                 {
                     "name": "session.id",
@@ -37,7 +37,7 @@
         }
     },
     {
-        "event": {
+        "log": {
             "attributes": [],
             "body": "hello world",
             "event_name": "example.event",
@@ -46,7 +46,7 @@
         }
     },
     {
-        "event": {
+        "log": {
             "attributes": [
                 {
                     "name": "session.id",

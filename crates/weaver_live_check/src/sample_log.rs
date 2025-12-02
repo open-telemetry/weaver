@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Intermediary format for telemetry sample events
+//! Intermediary format for telemetry sample logd
 
 use std::rc::Rc;
 
@@ -15,9 +15,9 @@ use crate::{
     MISSING_EVENT_ADVICE_TYPE,
 };
 
-/// Represents a sample telemetry event parsed from any source
+/// Represents a sample telemetry log parsed from any source
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct SampleEvent {
+pub struct SampleLog {
     /// The name of the event
     pub event_name: String,
     /// Severity number (1-24)
@@ -37,7 +37,7 @@ pub struct SampleEvent {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
-impl LiveCheckRunner for SampleEvent {
+impl LiveCheckRunner for SampleLog {
     fn run_live_check(
         &mut self,
         live_checker: &mut LiveChecker,
@@ -47,7 +47,7 @@ impl LiveCheckRunner for SampleEvent {
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         let semconv_event = if self.event_name.is_empty() {
-            // We allow Events without event_names to be checked, but they cannot be matched to the registry
+            // We allow Logd without event_names to be checked, but they cannot be matched to the registry
             None
         } else {
             // find the event in the registry
@@ -69,7 +69,7 @@ impl LiveCheckRunner for SampleEvent {
         };
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list = advisor.advise(
-                SampleRef::Event(self),
+                SampleRef::Log(self),
                 parent_signal,
                 None,
                 semconv_event.clone(),
@@ -85,7 +85,7 @@ impl LiveCheckRunner for SampleEvent {
         )?;
 
         self.live_check_result = Some(result);
-        stats.inc_entity_count("event");
+        stats.inc_entity_count("log");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         stats.add_event_name_to_coverage(self.event_name.clone());
         Ok(())

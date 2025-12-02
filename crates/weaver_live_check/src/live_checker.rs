@@ -1330,20 +1330,20 @@ mod tests {
     }
 
     #[test]
-    fn test_json_event_custom_rego() {
-        run_json_event_custom_rego_test(false);
+    fn test_json_log_custom_rego() {
+        run_json_log_custom_rego_test(false);
     }
 
     #[test]
-    fn test_json_event_custom_rego_v2() {
-        run_json_event_custom_rego_test(true);
+    fn test_json_log_custom_rego_v2() {
+        run_json_log_custom_rego_test(true);
     }
 
-    fn run_json_event_custom_rego_test(use_v2: bool) {
+    fn run_json_log_custom_rego_test(use_v2: bool) {
         let registry = make_events_registry(use_v2);
 
         // Load samples from JSON file
-        let path = "data/events.json";
+        let path = "data/logs.json";
         let mut samples: Vec<Sample> =
             serde_json::from_reader(File::open(path).expect("Unable to open file"))
                 .expect("Unable to parse JSON");
@@ -1604,20 +1604,20 @@ mod tests {
     }
 
     #[test]
-    fn test_json_event() {
-        run_json_event_test(false);
+    fn test_json_log() {
+        run_json_log_test(false);
     }
 
     #[test]
-    fn test_json_event_v2() {
-        run_json_event_test(true);
+    fn test_json_log_v2() {
+        run_json_log_test(true);
     }
 
-    fn run_json_event_test(use_v2: bool) {
+    fn run_json_log_test(use_v2: bool) {
         let registry = make_events_registry(use_v2);
 
         // Load samples from JSON file
-        let path = "data/events.json";
+        let path = "data/logs.json";
         let mut samples: Vec<Sample> =
             serde_json::from_reader(File::open(path).expect("Unable to open file"))
                 .expect("Unable to parse JSON");

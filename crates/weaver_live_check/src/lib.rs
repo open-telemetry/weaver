@@ -7,7 +7,7 @@ use std::{collections::HashMap, rc::Rc};
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
-use sample_event::SampleEvent;
+use sample_log::SampleLog;
 use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
     SampleNumberDataPoint,
@@ -39,8 +39,8 @@ pub mod json_stdin_ingester;
 pub mod live_checker;
 /// The intermediary format for attributes
 pub mod sample_attribute;
-/// The intermediary format for events
-pub mod sample_event;
+/// The intermediary format for logs
+pub mod sample_log;
 /// The intermediary format for metrics
 pub mod sample_metric;
 /// An intermediary format for resources
@@ -273,8 +273,8 @@ pub enum Sample {
     Resource(SampleResource),
     /// A sample metric
     Metric(SampleMetric),
-    /// A sample event
-    Event(SampleEvent),
+    /// A sample log
+    Log(SampleLog),
 }
 
 /// Represents a sample entity with a reference to the inner type.
@@ -302,8 +302,8 @@ pub enum SampleRef<'a> {
     ExponentialHistogramDataPoint(&'a SampleExponentialHistogramDataPoint),
     /// A sample exemplar
     Exemplar(&'a SampleExemplar),
-    /// A sample event
-    Event(&'a SampleEvent),
+    /// A sample log
+    Log(&'a SampleLog),
 }
 
 impl Sample {
@@ -318,7 +318,7 @@ impl Sample {
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => Some("resource".to_owned()),
             Sample::Metric(_) => Some("metric".to_owned()),
-            Sample::Event(_) => Some("event".to_owned()),
+            Sample::Log(_) => Some("log".to_owned()),
         }
     }
 
@@ -333,7 +333,7 @@ impl Sample {
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,
             Sample::Metric(metric) => Some(metric.name.clone()),
-            Sample::Event(event) => Some(event.event_name.clone()),
+            Sample::Log(log) => Some(log.event_name.clone()),
         }
     }
 }
@@ -366,8 +366,8 @@ impl LiveCheckRunner for Sample {
             Sample::Metric(metric) => {
                 metric.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Event(event) => {
-                event.run_live_check(live_checker, stats, parent_group, parent_signal)
+            Sample::Log(log) => {
+                log.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
         }
     }

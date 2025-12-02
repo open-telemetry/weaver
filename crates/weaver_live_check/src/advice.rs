@@ -131,26 +131,26 @@ impl Advisor for DeprecatedAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Event(sample_event) => {
+            SampleRef::Log(sample_log) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
                         advices.push(PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
-                                EVENT_NAME_ADVICE_CONTEXT_KEY: sample_event.event_name.clone(),
+                                EVENT_NAME_ADVICE_CONTEXT_KEY: sample_log.event_name.clone(),
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
                                 DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated,
                             }),
                             message: format!(
                                 "Event '{}' is deprecated; reason = {}, note = {}",
-                                sample_event.event_name.clone(),
+                                sample_log.event_name.clone(),
                                 deprecated_to_reason(deprecated),
                                 deprecated
                             ),
                             level: FindingLevel::Violation,
-                            signal_type: Some("event".to_owned()),
-                            signal_name: Some(sample_event.event_name.clone()),
+                            signal_type: Some("log".to_owned()),
+                            signal_name: Some(sample_log.event_name.clone()),
                         });
                     }
                 }
@@ -226,7 +226,7 @@ impl Advisor for StabilityAdvisor {
                 }
                 Ok(advices)
             }
-            SampleRef::Event(sample_event) => {
+            SampleRef::Log(sample_log) => {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
@@ -234,12 +234,12 @@ impl Advisor for StabilityAdvisor {
                             advices.push(PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
-                                    EVENT_NAME_ADVICE_CONTEXT_KEY: sample_event.event_name.clone(),
+                                    EVENT_NAME_ADVICE_CONTEXT_KEY: sample_log.event_name.clone(),
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }),
                                 message: format!(
                                     "Event '{}' is not stable; stability = {stability}.",
-                                    sample_event.event_name.clone()
+                                    sample_log.event_name.clone()
                                 ),
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
@@ -542,17 +542,17 @@ impl Advisor for TypeAdvisor {
                     Ok(Vec::new())
                 }
             }
-            SampleRef::Event(sample_event) => {
+            SampleRef::Log(sample_log) => {
                 if let Some(semconv_event) = registry_group {
                     let advice_list = match &*semconv_event {
                         VersionedSignal::Group(group) => check_attributes(
                             &group.attributes,
-                            &sample_event.attributes,
+                            &sample_log.attributes,
                             parent_signal,
                         ),
                         VersionedSignal::Event(event) => check_attributes(
                             &event.attributes,
-                            &sample_event.attributes,
+                            &sample_log.attributes,
                             parent_signal,
                         ),
                         VersionedSignal::Span(_span) => vec![],

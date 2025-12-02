@@ -85,7 +85,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 - `level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `id`: _string_ - a simple machine readable string to group findings of a particular kind or type.
-- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `event` or `resource`
+- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log` or `resource`
 - `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name
 - `context`: _any_ - a map that describes details about the finding in a structured way,
   for example `{ "attribute_name": "foo.bar", "attribute_value": "bar" }`.

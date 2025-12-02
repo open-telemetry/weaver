@@ -111,10 +111,10 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {%- endfor %}
 {%- endmacro %}
 
-{% macro display_event(event, indent=0) %}
-{{ " " * indent }}{{ ("Event") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(event.live_check_result.highest_advice_level, event.event_name) }}
-{{ display_advice(event.live_check_result.all_advice, indent) }}
-{%- for attribute in event.attributes %}
+{% macro display_log(log, indent=0) %}
+{{ " " * indent }}{% if log.event_name %}{{ ("Log Event") | ansi_bright_cyan | ansi_bold }}{% else %}{{ ("Log") | ansi_bright_cyan | ansi_bold }}{% endif %} {{ display_sample_header(log.live_check_result.highest_advice_level, log.event_name) }}
+{{ display_advice(log.live_check_result.all_advice, indent) }}
+{%- for attribute in log.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
 {%- endfor %}
 {%- endmacro %}
@@ -142,8 +142,8 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {{ display_resource(sample.resource, indent) }}
 {%- elif sample.metric is defined -%}
 {{ display_metric(sample.metric, indent) }}
-{%- elif sample.event is defined -%}
-{{ display_event(sample.event, indent) }}
+{%- elif sample.log is defined -%}
+{{ display_log(sample.log, indent) }}
 {%- endif -%}
 {%- endmacro -%}
 
