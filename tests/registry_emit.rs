@@ -127,9 +127,9 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .as_f64()
         .expect("Failed to get registry_coverage as f64");
 
-    assert_eq!(no_advice_count, 37);
-    assert_eq!(total_advisories, 13);
-    assert_eq!(total_entities, 50);
+    assert_eq!(no_advice_count, 59);
+    assert_eq!(total_advisories, 14);
+    assert_eq!(total_entities, 73);
     assert!(registry_coverage > 0.7);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope

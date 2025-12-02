@@ -13,8 +13,8 @@ use weaver_live_check::{
 
 use super::{
     conversion::{
-        otlp_metric_to_sample, sample_attribute_from_key_value, span_kind_from_otlp_kind,
-        status_from_otlp_status,
+        otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
+        span_kind_from_otlp_kind, status_from_otlp_status,
     },
     listen_otlp_requests, OtlpRequest,
 };
@@ -47,9 +47,37 @@ impl OtlpIterator {
 
     fn fill_buffer_from_request(&mut self, request: OtlpRequest) -> Option<usize> {
         match request {
-            OtlpRequest::Logs(_logs) => {
-                // TODO Implement the checking logic for logs
-                Some(0)
+            OtlpRequest::Logs(logs) => {
+                for resource_log in logs.resource_logs {
+                    if let Some(resource) = resource_log.resource {
+                        let mut sample_resource = SampleResource {
+                            attributes: Vec::new(),
+                            live_check_result: None,
+                        };
+                        for attribute in resource.attributes {
+                            sample_resource
+                                .attributes
+                                .push(sample_attribute_from_key_value(&attribute));
+                        }
+                        self.buffer.push(Sample::Resource(sample_resource));
+                    }
+
+                    for scope_log in resource_log.scope_logs {
+                        if let Some(scope) = scope_log.scope {
+                            for attribute in scope.attributes {
+                                self.buffer.push(Sample::Attribute(
+                                    sample_attribute_from_key_value(&attribute),
+                                ));
+                            }
+                        }
+
+                        for log_record in scope_log.log_records {
+                            let sample_log = otlp_log_record_to_sample_log(&log_record);
+                            self.buffer.push(Sample::Log(sample_log));
+                        }
+                    }
+                }
+                Some(self.buffer.len())
             }
             OtlpRequest::Metrics(metrics) => {
                 for resource_metric in metrics.resource_metrics {
