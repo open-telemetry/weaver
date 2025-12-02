@@ -49,6 +49,9 @@ pub enum Error {
     /// Failed to render the registry diff
     #[error("Failed to render the registry diff: {error}")]
     DiffRender { error: String },
+
+    #[error(transparent)]
+    Schema(#[from] weaver_resolved_schema::error::Error),
 }
 
 impl From<Error> for DiagnosticMessages {

@@ -6,6 +6,7 @@ use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use itertools::Itertools;
 use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -34,6 +35,45 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
         args.registry.registry
     );
 
+    if args.registry.v2 {
+        display_v2(args)?;
+    } else {
+        display_v1(args)?;
+    }
+
+    Ok(ExitDirectives {
+        exit_code: 0,
+        warnings: None,
+    })
+}
+
+fn display_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
+    let mut diag_msgs = DiagnosticMessages::empty();
+    let registry_path = &args.registry.registry;
+    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    // TODO - v2 way to load things
+    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
+    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
+    let resolved_schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
+        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let v2_resolved_schema =
+        match weaver_resolved_schema::v2::ResolvedTelemetrySchema::try_from(resolved_schema) {
+            Ok(schema) => schema,
+            Err(e) => {
+                diag_msgs.extend(DiagnosticMessages::from_error(
+                    crate::registry::Error::Schema(e),
+                ));
+                return Err(diag_msgs);
+            }
+        };
+    display_schema_stats_v2(&v2_resolved_schema);
+
+    Ok(())
+}
+
+fn display_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = &args.registry.registry;
     let registry_repo = RegistryRepo::try_new("main", registry_path)?;
@@ -55,16 +95,140 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
     }
 
     display_schema_stats(&resolved_schema);
-    Ok(ExitDirectives {
-        exit_code: 0,
-        warnings: None,
-    })
+    Ok(())
 }
 
 fn display_semconv_registry_stats(semconv_registry: &SemConvRegistry) {
     let stats = semconv_registry.stats();
     println!("Semantic Convention Registry Stats:");
     println!("  - Total number of files: {}", stats.file_count);
+}
+
+fn display_schema_stats_v2(schema: &weaver_resolved_schema::v2::ResolvedTelemetrySchema) {
+    let stats = schema.stats();
+    // TODO - grab stdout lock.
+    println!("Resolved Telemetry Schema Stats:");
+    println!("Registry");
+    // Attribute Stats
+    println!("- Attributes");
+    println!("  - count: {}", stats.registry.attributes.attribute_count);
+    println!(
+        "  - deprecated: {}",
+        stats.registry.attributes.deprecated_count
+    );
+    println!("  - type breakdown: ");
+    for (atype, count) in stats
+        .registry
+        .attributes
+        .attribute_type_breakdown
+        .iter()
+        .sorted_by(|lhs, rhs| lhs.1.cmp(rhs.1).reverse().then(lhs.0.cmp(rhs.0)))
+    {
+        println!("    - {atype}: {count}");
+    }
+    println!("  - stability breakdown: ");
+    for (stability, count) in stats.registry.attributes.stability_breakdown.iter() {
+        println!("    - {stability}: {count}");
+    }
+    println!("- Attribute Groups");
+    println!("  TODO");
+    // Entity stats
+    println!("- Entities");
+    println!("  - count: {}", stats.registry.entities.common.count);
+    println!(
+        "  - deprecated: {}",
+        stats.registry.entities.common.deprecated_count
+    );
+    println!("  - stability breakdown: ");
+    for (stability, count) in stats.registry.entities.common.stability_breakdown.iter() {
+        println!("    - {stability}: {count}");
+    }
+    println!(
+        "  - total with note: {}",
+        stats.registry.entities.common.total_with_note
+    );
+    println!("  - entity identity length distribution: ");
+    for (length, count) in stats
+        .registry
+        .entities
+        .entity_identity_length_distribution
+        .iter()
+        .sorted_by(|lhs, rhs| lhs.0.cmp(rhs.0).then(lhs.1.cmp(rhs.1)))
+    {
+        println!("      - {length}: {count}");
+    }
+    // Event stats
+    println!("- Events");
+    println!("  - count: {}", stats.registry.events.common.count);
+    println!(
+        "  - deprecated: {}",
+        stats.registry.events.common.deprecated_count
+    );
+    println!("  - stability breakdown: ");
+    for (stability, count) in stats.registry.events.common.stability_breakdown.iter() {
+        println!("    - {stability}: {count}");
+    }
+    println!(
+        "  - total with note: {}",
+        stats.registry.events.common.total_with_note
+    );
+    // Metric stats
+    println!("- Metrics");
+    println!("  - count: {}", stats.registry.metrics.common.count);
+    println!(
+        "  - deprecated: {}",
+        stats.registry.metrics.common.deprecated_count
+    );
+    println!("  - stability breakdown: ");
+    for (stability, count) in stats.registry.metrics.common.stability_breakdown.iter() {
+        println!("    - {stability}: {count}");
+    }
+    println!(
+        "  - total with note: {}",
+        stats.registry.metrics.common.total_with_note
+    );
+    println!("  - instrument breakdown: ");
+    for (instrument, count) in stats
+        .registry
+        .metrics
+        .instrument_breakdown
+        .iter()
+        .sorted_by(|lhs, rhs| lhs.1.cmp(rhs.1).reverse())
+    {
+        println!("    - {instrument}: {count}");
+    }
+    println!("  - unit breakdown: ");
+    for (unit, count) in stats
+        .registry
+        .metrics
+        .unit_breakdown
+        .iter()
+        .sorted_by(|lhs, rhs| lhs.1.cmp(rhs.1).reverse().then(lhs.0.cmp(rhs.0)))
+    {
+        println!("    - {unit}: {count}");
+    }
+    // Span stats
+    println!("- Spans");
+    println!("  - count: {}", stats.registry.spans.common.count);
+    println!(
+        "  - deprecated: {}",
+        stats.registry.spans.common.deprecated_count
+    );
+    println!("  - stability breakdown: ");
+    for (stability, count) in stats.registry.spans.common.stability_breakdown.iter() {
+        println!("    - {stability}: {count}");
+    }
+    println!(
+        "  - total with note: {}",
+        stats.registry.spans.common.total_with_note
+    );
+    println!("  - span kind breakdown: ");
+    // TODO - sort by count
+    for (span_kind, count) in stats.registry.spans.span_kind_breakdown.iter() {
+        println!("    - {span_kind:?}: {count}");
+    }
+    println!("Refinements");
+    println!("  TODO");
 }
 
 fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
