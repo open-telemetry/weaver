@@ -1644,7 +1644,7 @@ mod tests {
 
         // Check the statistics
         assert_eq!(stats.total_entities, 8);
-        assert_eq!(stats.total_entities_by_type.get("event"), Some(&4));
+        assert_eq!(stats.total_entities_by_type.get("log"), Some(&4));
         assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&4));
 
         // Check advisor advice types
