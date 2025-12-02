@@ -18,7 +18,7 @@ use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
-use weaver_semconv_gen::{update_markdown, SnippetGenerator};
+use weaver_semconv_gen::{MarkdownSnippetGenerator, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum UpdateMarkdownError {
@@ -136,9 +136,8 @@ pub(crate) fn command(
         })
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) = update_markdown(
+        if let Err(error) = generator.update_markdown(
             &entry.path().display().to_string(),
-            &generator,
             args.dry_run,
             args.attribute_registry_base_url.as_deref(),
         ) {
