@@ -62,7 +62,9 @@ fn display_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
         match weaver_resolved_schema::v2::ResolvedTelemetrySchema::try_from(resolved_schema) {
             Ok(schema) => schema,
             Err(e) => {
-                diag_msgs.extend(DiagnosticMessages::from_error(crate::registry::Error::SchemaError(e)));
+                diag_msgs.extend(DiagnosticMessages::from_error(
+                    crate::registry::Error::SchemaError(e),
+                ));
                 return Err(diag_msgs);
             }
         };

@@ -68,7 +68,7 @@ impl Registry {
     }
 
     /// Returns the statistics for this registry.
-    #[must_use] 
+    #[must_use]
     pub fn stats(&self) -> RegistryStats {
         let attributes = {
             let mut attribute_type_breakdown = BTreeMap::new();

@@ -51,7 +51,7 @@ pub enum Error {
     DiffRender { error: String },
 
     #[error(transparent)]
-    SchemaError(#[from] weaver_resolved_schema::error::Error)
+    SchemaError(#[from] weaver_resolved_schema::error::Error),
 }
 
 impl From<Error> for DiagnosticMessages {
