@@ -3154,7 +3154,7 @@ checksum = "7f4779c6901a562440c3786d08192c6fbda7c1c2060edd10006b05ee35d10f2d"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
- "schemars",
+ "schemars 0.8.22",
  "serde",
 ]
 
@@ -4004,7 +4004,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fbf2ae1b8bc8e02df939598064d22402220cd5bbcca1c76f7d6a310974d5615"
 dependencies = [
  "dyn-clone",
- "schemars_derive",
+ "schemars_derive 0.8.22",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "schemars"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9558e172d4e8533736ba97870c4b2cd63f84b382a3d6eb063da41b91cce17289"
+dependencies = [
+ "dyn-clone",
+ "ref-cast",
+ "schemars_derive 1.1.0",
  "serde",
  "serde_json",
 ]
@@ -4014,6 +4027,18 @@ name = "schemars_derive"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32e265784ad618884abaea0600a9adf15393368d840e0222d101a072f3f7534d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "301858a4023d78debd2353c7426dc486001bddc91ae31a76fb1f55132f7e2633"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5168,7 +5193,7 @@ dependencies = [
  "prost",
  "ratatui",
  "rayon",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5201,7 +5226,7 @@ dependencies = [
  "globset",
  "miette",
  "regorus",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5238,7 +5263,7 @@ dependencies = [
  "paris",
  "regex",
  "rouille",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "tar",
@@ -5301,7 +5326,7 @@ dependencies = [
  "opentelemetry_sdk",
  "rayon",
  "regex",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5320,7 +5345,7 @@ name = "weaver_live_check"
 version = "0.19.0"
 dependencies = [
  "miette",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5351,7 +5376,7 @@ version = "0.19.0"
 dependencies = [
  "log",
  "ordered-float",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -5392,7 +5417,7 @@ dependencies = [
  "ordered-float",
  "regex",
  "saphyr",
- "schemars",
+ "schemars 1.1.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5423,7 +5448,7 @@ dependencies = [
 name = "weaver_version"
 version = "0.19.0"
 dependencies = [
- "schemars",
+ "schemars 1.1.0",
  "semver",
  "serde",
  "serde_yaml",
