@@ -107,16 +107,6 @@ impl LiveChecker {
         self.advisors.push(advisor);
     }
 
-    /// Set the OTLP emitter for emitting policy findings as log records
-    pub fn set_otlp_emitter(&mut self, emitter: Rc<OtlpEmitter>) {
-        self.otlp_emitter = Some(emitter);
-    }
-
-    /// Get the OTLP emitter for shutting down
-    pub fn otlp_emitter(&self) -> Option<Rc<OtlpEmitter>> {
-        self.otlp_emitter.as_ref().map(Rc::clone)
-    }
-
     /// Find an attribute in the registry
     #[must_use]
     pub fn find_attribute(&self, name: &str) -> Option<Rc<VersionedAttribute>> {

@@ -343,32 +343,6 @@ impl Sample {
             Sample::Metric(metric) => Some(metric.name.clone()),
         }
     }
-
-    /// Returns the live check result for this sample, if any.
-    #[must_use]
-    pub fn live_check_result(&self) -> Option<&LiveCheckResult> {
-        match self {
-            Sample::Attribute(s) => s.live_check_result.as_ref(),
-            Sample::Span(s) => s.live_check_result.as_ref(),
-            Sample::SpanEvent(s) => s.live_check_result.as_ref(),
-            Sample::SpanLink(s) => s.live_check_result.as_ref(),
-            Sample::Resource(s) => s.live_check_result.as_ref(),
-            Sample::Metric(s) => s.live_check_result.as_ref(),
-        }
-    }
-
-    /// Converts this sample to a SampleRef.
-    #[must_use]
-    pub fn as_sample_ref(&self) -> SampleRef<'_> {
-        match self {
-            Sample::Attribute(s) => SampleRef::Attribute(s),
-            Sample::Span(s) => SampleRef::Span(s),
-            Sample::SpanEvent(s) => SampleRef::SpanEvent(s),
-            Sample::SpanLink(s) => SampleRef::SpanLink(s),
-            Sample::Resource(s) => SampleRef::Resource(s),
-            Sample::Metric(s) => SampleRef::Metric(s),
-        }
-    }
 }
 
 // Dispatch the live check to the sample type
