@@ -151,7 +151,7 @@ impl Advisor for DeprecatedAdvisor {
                 let mut advices = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
-                        advices.push(PolicyFinding {
+                        let finding = PolicyFinding {
                             id: DEPRECATED_ADVICE_TYPE.to_owned(),
                             context: json!({
                                 EVENT_NAME_ADVICE_CONTEXT_KEY: sample_log.event_name.clone(),
@@ -167,7 +167,14 @@ impl Advisor for DeprecatedAdvisor {
                             level: FindingLevel::Violation,
                             signal_type: Some("log".to_owned()),
                             signal_name: Some(sample_log.event_name.clone()),
-                        });
+                        };
+
+                        // Emit if logger available
+                        if let Some(ref emitter) = otlp_emitter {
+                            emitter.emit_finding(&finding, &sample);
+                        }
+
+                        advices.push(finding);
                     }
                 }
                 Ok(advices)
@@ -243,7 +250,14 @@ impl Advisor for StabilityAdvisor {
                                 level: FindingLevel::Improvement,
                                 signal_type: parent_signal.signal_type(),
                                 signal_name: parent_signal.signal_name(),
-                            });
+                            };
+
+                            // Emit if logger available
+                            if let Some(ref emitter) = otlp_emitter {
+                                emitter.emit_finding(&finding, &sample);
+                            }
+
+                            advices.push(finding);
                         }
                         _ => {}
                     }
@@ -255,7 +269,7 @@ impl Advisor for StabilityAdvisor {
                 if let Some(group) = registry_group {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
-                            advices.push(PolicyFinding {
+                            let finding = PolicyFinding {
                                 id: NOT_STABLE_ADVICE_TYPE.to_owned(),
                                 context: json!({
                                     EVENT_NAME_ADVICE_CONTEXT_KEY: sample_log.event_name.clone(),
@@ -639,6 +653,13 @@ impl Advisor for TypeAdvisor {
                         VersionedSignal::Span(_span) => vec![],
                         VersionedSignal::Metric(_metric) => vec![],
                     };
+
+                    // Emit each finding if emitter available
+                    if let Some(ref emitter) = otlp_emitter {
+                        for finding in &advice_list {
+                            emitter.emit_finding(finding, &sample);
+                        }
+                    }
 
                     Ok(advice_list)
                 } else {

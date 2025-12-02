@@ -323,6 +323,7 @@ impl SampleRef<'_> {
             SampleRef::HistogramDataPoint(_) => "histogram_data_point",
             SampleRef::ExponentialHistogramDataPoint(_) => "exponential_histogram_data_point",
             SampleRef::Exemplar(_) => "exemplar",
+            SampleRef::Log(_) => "log",
         }
     }
 }

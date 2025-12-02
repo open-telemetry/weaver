@@ -73,6 +73,7 @@ impl LiveCheckRunner for SampleLog {
                 parent_signal,
                 None,
                 semconv_event.clone(),
+                live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(advice_list);
         }
