@@ -7,6 +7,7 @@ use std::{collections::HashMap, rc::Rc};
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_log::SampleLog;
 use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
     SampleNumberDataPoint,
@@ -38,6 +39,8 @@ pub mod json_stdin_ingester;
 pub mod live_checker;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// The intermediary format for logs
+pub mod sample_log;
 /// The intermediary format for metrics
 pub mod sample_metric;
 /// An intermediary format for resources
@@ -55,6 +58,8 @@ pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
 pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
 /// Missing Metric advice type
 pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
+/// Missing Event advice type
+pub const MISSING_EVENT_ADVICE_TYPE: &str = "missing_event";
 /// Deprecated advice type
 pub const DEPRECATED_ADVICE_TYPE: &str = "deprecated";
 /// Type Mismatch advice type
@@ -86,6 +91,10 @@ pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
 pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
 /// Expected value key in advice context
 pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
+/// Event name key in advice context
+pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
+/// Metric name key in advice context
+pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 
 /// Versioned enum for the registry
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -264,6 +273,8 @@ pub enum Sample {
     Resource(SampleResource),
     /// A sample metric
     Metric(SampleMetric),
+    /// A sample log
+    Log(SampleLog),
 }
 
 /// Represents a sample entity with a reference to the inner type.
@@ -291,7 +302,8 @@ pub enum SampleRef<'a> {
     ExponentialHistogramDataPoint(&'a SampleExponentialHistogramDataPoint),
     /// A sample exemplar
     Exemplar(&'a SampleExemplar),
-    // TODO: add logs
+    /// A sample log
+    Log(&'a SampleLog),
 }
 
 impl Sample {
@@ -306,6 +318,7 @@ impl Sample {
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => Some("resource".to_owned()),
             Sample::Metric(_) => Some("metric".to_owned()),
+            Sample::Log(_) => Some("log".to_owned()),
         }
     }
 
@@ -320,6 +333,7 @@ impl Sample {
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,
             Sample::Metric(metric) => Some(metric.name.clone()),
+            Sample::Log(log) => Some(log.event_name.clone()),
         }
     }
 }
@@ -351,6 +365,9 @@ impl LiveCheckRunner for Sample {
             }
             Sample::Metric(metric) => {
                 metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
+            Sample::Log(log) => {
+                log.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
         }
     }
@@ -438,7 +455,11 @@ pub struct LiveCheckStatistics {
     pub seen_registry_metrics: HashMap<String, usize>,
     /// The number of each non-registry metric seen
     pub seen_non_registry_metrics: HashMap<String, usize>,
-    /// Fraction of the registry covered by the attributes and metrics
+    /// The number of each event seen from the registry
+    pub seen_registry_events: HashMap<String, usize>,
+    /// The number of each non-registry event seen
+    pub seen_non_registry_events: HashMap<String, usize>,
+    /// Fraction of the registry covered by the attributes, metrics, and events
     pub registry_coverage: f32,
 }
 
@@ -448,6 +469,7 @@ impl LiveCheckStatistics {
     pub fn new(registry: &VersionedRegistry) -> Self {
         let mut seen_attributes = HashMap::new();
         let mut seen_metrics = HashMap::new();
+        let mut seen_events = HashMap::new();
         match registry {
             VersionedRegistry::V1(reg) => {
                 for group in &reg.groups {
@@ -461,6 +483,11 @@ impl LiveCheckStatistics {
                             let _ = seen_metrics.insert(metric_name.clone(), 0);
                         }
                     }
+                    if group.r#type == GroupType::Event && group.deprecated.is_none() {
+                        if let Some(event_name) = &group.name {
+                            let _ = seen_events.insert(event_name.clone(), 0);
+                        }
+                    }
                 }
             }
             VersionedRegistry::V2(reg) => {
@@ -472,6 +499,11 @@ impl LiveCheckStatistics {
                 for metric in &reg.signals.metrics {
                     if metric.common.deprecated.is_none() {
                         let _ = seen_metrics.insert(metric.name.to_string(), 0);
+                    }
+                }
+                for event in &reg.signals.events {
+                    if event.common.deprecated.is_none() {
+                        let _ = seen_events.insert(event.name.to_string(), 0);
                     }
                 }
             }
@@ -489,6 +521,8 @@ impl LiveCheckStatistics {
             seen_non_registry_attributes: HashMap::new(),
             seen_registry_metrics: seen_metrics,
             seen_non_registry_metrics: HashMap::new(),
+            seen_registry_events: seen_events,
+            seen_non_registry_events: HashMap::new(),
             registry_coverage: 0.0,
         }
     }
@@ -582,6 +616,24 @@ impl LiveCheckStatistics {
         }
     }
 
+    /// Add event name to coverage
+    pub fn add_event_name_to_coverage(&mut self, seen_event_name: String) {
+        if seen_event_name.is_empty() {
+            // Empty event_names are not counted
+            return;
+        }
+        if let Some(count) = self.seen_registry_events.get_mut(&seen_event_name) {
+            // This is a registry event
+            *count += 1;
+        } else {
+            // This is a non-registry event
+            *self
+                .seen_non_registry_events
+                .entry(seen_event_name)
+                .or_insert(0) += 1;
+        }
+    }
+
     /// Are there any violations in the statistics?
     #[must_use]
     pub fn has_violations(&self) -> bool {
@@ -592,7 +644,7 @@ impl LiveCheckStatistics {
     /// Finalize the statistics
     pub fn finalize(&mut self) {
         // Calculate the registry coverage
-        // (non-zero attributes + non-zero metrics) / (total attributes + total metrics)
+        // (non-zero attributes + non-zero metrics + non-zero events) / (total attributes + total metrics + total events)
         let non_zero_attributes = self
             .seen_registry_attributes
             .values()
@@ -607,11 +659,20 @@ impl LiveCheckStatistics {
             .count();
         let total_registry_metrics = self.seen_registry_metrics.len();
 
-        let total_registry_items = total_registry_attributes + total_registry_metrics;
+        let non_zero_events = self
+            .seen_registry_events
+            .values()
+            .filter(|&&count| count > 0)
+            .count();
+        let total_registry_events = self.seen_registry_events.len();
+
+        let total_registry_items =
+            total_registry_attributes + total_registry_metrics + total_registry_events;
 
         if total_registry_items > 0 {
-            self.registry_coverage =
-                ((non_zero_attributes + non_zero_metrics) as f32) / (total_registry_items as f32);
+            self.registry_coverage = ((non_zero_attributes + non_zero_metrics + non_zero_events)
+                as f32)
+                / (total_registry_items as f32);
         } else {
             self.registry_coverage = 0.0;
         }
