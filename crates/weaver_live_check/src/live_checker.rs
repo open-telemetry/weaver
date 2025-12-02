@@ -27,7 +27,7 @@ pub struct LiveChecker {
     templates_by_length: Vec<(String, Rc<VersionedAttribute>)>,
     /// Optional OTLP emitter for emitting findings as log records
     #[serde(skip)]
-    pub(crate) otlp_emitter: Option<Rc<OtlpEmitter>>,
+    pub otlp_emitter: Option<Rc<OtlpEmitter>>,
 }
 
 impl LiveChecker {

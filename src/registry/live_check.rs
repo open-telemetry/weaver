@@ -277,7 +277,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         } else {
             weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
         };
-        live_checker.set_otlp_emitter(std::rc::Rc::new(emitter));
+        live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
 
     let report_mode = if let OutputDirective::File = output_directive {
@@ -337,7 +337,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     }
 
     // Shutdown OTLP emitter to flush any pending log records
-    if let Some(emitter) = live_checker.otlp_emitter() {
+    if let Some(emitter) = live_checker.otlp_emitter {
         emitter.shutdown()?;
     }
 
