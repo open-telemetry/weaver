@@ -2,7 +2,7 @@
 
 //! The specification of the changes to apply to the schema for different versions.
 
-use schemars::JsonSchema;
+use schemars::{JsonSchema, json_schema};
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::BufReader;
@@ -53,14 +53,17 @@ pub enum Error {
 }
 
 /// A version of the schema.
-#[derive(PartialOrd, PartialEq)]
+/// 
+/// This is needed to smooth over limitations in semver::Version's support for Schemars.
+#[derive(PartialOrd, PartialEq, Serialize, Deserialize, Debug, Ord, Eq, Clone, Hash)]
+#[serde(transparent)]
 pub struct Version(semver::Version);
 
 /// List of versions with their changes.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
 #[serde(transparent)]
 pub struct Versions {
-    versions: BTreeMap<semver::Version, VersionSpec>,
+    versions: BTreeMap<Version, VersionSpec>,
 }
 
 /// An history of changes to apply to the schema for different versions.
@@ -131,7 +134,7 @@ impl Versions {
     /// Returns the most recent version or None if there are no versions.
     #[must_use]
     pub fn latest_version(&self) -> Option<Version> {
-        self.versions.keys().last().map(|v| Version(v.clone()))
+        self.versions.keys().last().map(|v| v.clone())
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
@@ -140,7 +143,7 @@ impl Versions {
     pub fn versions_asc(&self) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .iter()
-            .map(|(v, spec)| (Version(v.clone()), spec))
+            .map(|(v, spec)| (v.clone(), spec))
             .collect()
     }
 
@@ -151,7 +154,7 @@ impl Versions {
         self.versions
             .iter()
             .rev()
-            .map(|(v, spec)| (Version(v.clone()), spec))
+            .map(|(v, spec)| (v.clone(), spec))
             .collect()
     }
 
@@ -160,8 +163,8 @@ impl Versions {
     #[must_use]
     pub fn versions_asc_from(&self, version: Version) -> Vec<(Version, &VersionSpec)> {
         self.versions
-            .range(version.0..)
-            .map(|(v, spec)| (Version(v.clone()), spec))
+            .range(version..)
+            .map(|(v, spec)| (v.clone(), spec))
             .collect()
     }
 
@@ -170,9 +173,9 @@ impl Versions {
     #[must_use]
     pub fn versions_desc_from(&self, version: &Version) -> Vec<(Version, &VersionSpec)> {
         self.versions
-            .range(..=version.0.clone())
+            .range(..=version.clone())
             .rev()
-            .map(|(v, spec)| (Version(v.clone()), spec))
+            .map(|(v, spec)| (v.clone(), spec))
             .collect()
     }
 
@@ -629,9 +632,30 @@ impl VersionChanges {
     }
 }
 
+impl JsonSchema for Version {
+    
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Version")
+    }
+    
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        json_schema!({
+        "$ref": "#/definitions/SemVer",
+        "definitions": {
+            "SemVer": {
+            "title": "Semantic Version",
+            "description": "A string matching the Semantic Versioning 2.0.0 specification.",
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+            }
+        }
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::Versions;
+    use crate::{Version, Versions};
 
     #[test]
     fn test_ordering() {
@@ -714,7 +738,7 @@ mod tests {
         // complementing `parent_versions.yaml`
         let v1_22 = app_versions
             .versions
-            .get(&semver::Version::parse("1.22.0").unwrap())
+            .get(&Version(semver::Version::parse("1.22.0").unwrap()))
             .unwrap();
         let observed_value = v1_22.spans.as_ref().unwrap().changes[0]
             .rename_attributes
@@ -724,7 +748,7 @@ mod tests {
 
         let v1_8 = app_versions
             .versions
-            .get(&semver::Version::parse("1.8.0").unwrap())
+            .get(&Version(semver::Version::parse("1.8.0").unwrap()))
             .unwrap();
         let observed_value = v1_8.spans.as_ref().unwrap().changes[0]
             .rename_attributes
@@ -762,7 +786,7 @@ mod tests {
 
         let v1_7_1 = app_versions
             .versions
-            .get(&semver::Version::parse("1.7.1").unwrap())
+            .get(&Version(semver::Version::parse("1.7.1").unwrap()))
             .unwrap();
         let observed_value = v1_7_1.spans.as_ref().unwrap().changes[0]
             .rename_attributes
@@ -774,7 +798,7 @@ mod tests {
         // initially not present in `app_versions.yaml`
         let v1_21 = app_versions
             .versions
-            .get(&semver::Version::parse("1.21.0").unwrap())
+            .get(&Version(semver::Version::parse("1.21.0").unwrap()))
             .unwrap();
         let observed_value = v1_21.metrics.as_ref().unwrap().changes[0]
             .rename_metrics
