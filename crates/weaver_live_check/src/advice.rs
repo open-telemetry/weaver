@@ -764,7 +764,9 @@ impl Advisor for RegoAdvisor {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::rc::Rc;
 
+    use crate::otlp_logger::OtlpEmitter;
     use crate::sample_metric::SampleMetric;
 
     use super::*;
@@ -848,6 +850,7 @@ mod tests {
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
             live_check_result: None,
         });
+
         let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
         assert_eq!(advice.len(), 6);
 
@@ -920,5 +923,122 @@ mod tests {
         });
         let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
         assert!(advice.is_empty());
+    }
+
+    #[test]
+    fn test_advisors_with_otlp_emitter() {
+        // Test that advisors work with an OTLP emitter to exercise emit_finding code paths
+        let emitter = Some(Rc::new(OtlpEmitter::new_stdout()));
+
+        // Test DeprecatedAdvisor
+        let mut deprecated_advisor = DeprecatedAdvisor;
+        let deprecated_attr = Rc::new(VersionedAttribute::V1(Attribute {
+            name: "deprecated.attr".to_owned(),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "deprecated attribute".to_owned(),
+            examples: None,
+            tag: None,
+            stability: None,
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "Use new.attr instead".to_owned(),
+            }),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        }));
+
+        let sample_attr = create_sample_attribute("deprecated.attr");
+        let sample = Sample::Attribute(sample_attr.clone());
+        let findings = deprecated_advisor
+            .advise(
+                SampleRef::Attribute(&sample_attr),
+                &sample,
+                Some(deprecated_attr.clone()),
+                None,
+                emitter.clone(),
+            )
+            .unwrap();
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].id, DEPRECATED_ADVICE_TYPE);
+
+        // Test TypeAdvisor
+        let mut type_advisor = TypeAdvisor;
+        let int_attr = Rc::new(VersionedAttribute::V1(Attribute {
+            name: "int.attr".to_owned(),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            brief: "integer attribute".to_owned(),
+            examples: None,
+            tag: None,
+            stability: None,
+            deprecated: None,
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        }));
+
+        let mut sample_attr = create_sample_attribute("int.attr");
+        sample_attr.r#type = Some(PrimitiveOrArrayTypeSpec::String);
+        sample_attr.value = Some(serde_json::json!("wrong_type"));
+        let sample = Sample::Attribute(sample_attr.clone());
+
+        let findings = type_advisor
+            .advise(
+                SampleRef::Attribute(&sample_attr),
+                &sample,
+                Some(int_attr),
+                None,
+                emitter.clone(),
+            )
+            .unwrap();
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].id, TYPE_MISMATCH_ADVICE_TYPE);
+
+        // Test StabilityAdvisor
+        let mut stability_advisor = StabilityAdvisor;
+        let dev_attr = Rc::new(VersionedAttribute::V1(Attribute {
+            name: "dev.attr".to_owned(),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "development attribute".to_owned(),
+            examples: None,
+            tag: None,
+            stability: Some(Stability::Development),
+            deprecated: None,
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        }));
+
+        let sample_attr = create_sample_attribute("dev.attr");
+        let sample = Sample::Attribute(sample_attr.clone());
+
+        let findings = stability_advisor
+            .advise(
+                SampleRef::Attribute(&sample_attr),
+                &sample,
+                Some(dev_attr),
+                None,
+                emitter,
+            )
+            .unwrap();
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].id, NOT_STABLE_ADVICE_TYPE);
     }
 }

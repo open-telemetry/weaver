@@ -200,3 +200,363 @@ fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sample_attribute::SampleAttribute;
+    use crate::sample_metric::{SampleInstrument, SampleMetric};
+    use crate::sample_resource::SampleResource;
+    use crate::sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode};
+    use serde_json::json;
+    use weaver_checker::{FindingLevel, PolicyFinding};
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+
+    // Helper function to create a test attribute
+    fn create_test_attribute(name: &str) -> SampleAttribute {
+        SampleAttribute {
+            name: name.to_owned(),
+            value: None,
+            r#type: None,
+            live_check_result: None,
+        }
+    }
+
+    // Helper function to create a test span
+    fn create_test_span(name: &str) -> SampleSpan {
+        SampleSpan {
+            name: name.to_owned(),
+            kind: SpanKindSpec::Internal,
+            status: Some(Status {
+                code: StatusCode::Ok,
+                message: String::new(),
+            }),
+            attributes: vec![],
+            span_events: vec![],
+            span_links: vec![],
+            live_check_result: None,
+        }
+    }
+
+    // Helper function to create a test metric
+    fn create_test_metric(name: &str) -> SampleMetric {
+        SampleMetric {
+            name: name.to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::Gauge),
+            unit: "ms".to_owned(),
+            data_points: None,
+            live_check_result: None,
+        }
+    }
+
+    // Helper function to create a test finding
+    fn create_test_finding(
+        id: &str,
+        message: &str,
+        level: FindingLevel,
+        signal_type: Option<&str>,
+        signal_name: Option<&str>,
+        context: serde_json::Value,
+    ) -> PolicyFinding {
+        PolicyFinding {
+            id: id.to_owned(),
+            message: message.to_owned(),
+            level,
+            signal_type: signal_type.map(|s| s.to_owned()),
+            signal_name: signal_name.map(|s| s.to_owned()),
+            context,
+        }
+    }
+
+    #[test]
+    fn test_finding_level_to_severity() {
+        assert_eq!(
+            finding_level_to_severity(&FindingLevel::Violation),
+            Severity::Error
+        );
+        assert_eq!(
+            finding_level_to_severity(&FindingLevel::Improvement),
+            Severity::Warn
+        );
+        assert_eq!(
+            finding_level_to_severity(&FindingLevel::Information),
+            Severity::Info
+        );
+    }
+
+    #[test]
+    fn test_flatten_json_simple_object() {
+        let json = json!({
+            "key1": "value1",
+            "key2": 42,
+            "key3": true
+        });
+
+        let attributes = flatten_finding_context(&json);
+
+        assert_eq!(attributes.len(), 3);
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.key1"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.key2"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.key3"));
+    }
+
+    #[test]
+    fn test_flatten_json_nested_object() {
+        let json = json!({
+            "outer": {
+                "inner": {
+                    "value": "nested"
+                }
+            }
+        });
+
+        let attributes = flatten_finding_context(&json);
+
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(
+            attributes[0].key.as_str(),
+            "weaver.finding.context.outer.inner.value"
+        );
+    }
+
+    #[test]
+    fn test_flatten_json_array() {
+        let json = json!({
+            "items": ["first", "second", "third"]
+        });
+
+        let attributes = flatten_finding_context(&json);
+
+        assert_eq!(attributes.len(), 3);
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.items.0"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.items.1"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.items.2"));
+    }
+
+    #[test]
+    fn test_flatten_json_mixed_types() {
+        let json = json!({
+            "string": "text",
+            "int": 123,
+            "float": 45.67,
+            "bool": false,
+            "null": null
+        });
+
+        let attributes = flatten_finding_context(&json);
+
+        // null should be skipped
+        assert_eq!(attributes.len(), 4);
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.string"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.int"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.float"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.finding.context.bool"));
+    }
+
+    #[test]
+    fn test_flatten_json_empty_object() {
+        let json = json!({});
+        let attributes = flatten_finding_context(&json);
+        assert_eq!(attributes.len(), 0);
+    }
+
+    #[test]
+    fn test_extract_sample_context_attributes_with_signal() {
+        let sample = create_test_attribute("test.attribute");
+        let sample_ref = SampleRef::Attribute(&sample);
+        let finding = create_test_finding(
+            "test_id",
+            "test message",
+            FindingLevel::Information,
+            Some("metric"),
+            Some("http.request.duration"),
+            json!({}),
+        );
+
+        let attributes = extract_sample_context_attributes(&sample_ref, &finding);
+
+        assert_eq!(attributes.len(), 3);
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.sample.type"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.sample.signal_type"));
+        assert!(attributes
+            .iter()
+            .any(|attr| attr.key.as_str() == "weaver.sample.signal_name"));
+    }
+
+    #[test]
+    fn test_extract_sample_context_attributes_without_signal() {
+        let sample = create_test_attribute("test.attribute");
+        let sample_ref = SampleRef::Attribute(&sample);
+        let finding = create_test_finding(
+            "test_id",
+            "test message",
+            FindingLevel::Information,
+            None,
+            None,
+            json!({}),
+        );
+
+        let attributes = extract_sample_context_attributes(&sample_ref, &finding);
+
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].key.as_str(), "weaver.sample.type");
+    }
+
+    #[test]
+    fn test_otlp_emitter_new_stdout() {
+        let emitter = OtlpEmitter::new_stdout();
+        assert!(emitter.shutdown().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_otlp_emitter_new_grpc() {
+        // Test with a non-existent endpoint - should create the emitter successfully
+        // but won't actually connect until we try to emit
+        let result = OtlpEmitter::new_grpc("http://localhost:4317");
+        assert!(result.is_ok());
+
+        if let Ok(emitter) = result {
+            assert!(emitter.shutdown().is_ok());
+        }
+    }
+
+    #[test]
+    fn test_emit_finding_with_stdout_emitter() {
+        let emitter = OtlpEmitter::new_stdout();
+        let sample = create_test_span("test.span");
+        let sample_ref = SampleRef::Span(&sample);
+        let finding = create_test_finding(
+            "test_finding",
+            "This is a test finding",
+            FindingLevel::Violation,
+            Some("span"),
+            Some("test.span"),
+            json!({
+                "attribute": "test.attr",
+                "expected": "value"
+            }),
+        );
+
+        emitter.emit_finding(&finding, &sample_ref);
+
+        assert!(emitter.shutdown().is_ok());
+    }
+
+    #[test]
+    fn test_emit_finding_all_severity_levels() {
+        let emitter = OtlpEmitter::new_stdout();
+        let sample = create_test_attribute("test.attribute");
+        let sample_ref = SampleRef::Attribute(&sample);
+
+        for level in [
+            FindingLevel::Violation,
+            FindingLevel::Improvement,
+            FindingLevel::Information,
+        ] {
+            let finding = create_test_finding(
+                &format!("test_{:?}", level),
+                &format!("Test {:?} message", level),
+                level,
+                None,
+                None,
+                json!({}),
+            );
+            emitter.emit_finding(&finding, &sample_ref);
+        }
+
+        assert!(emitter.shutdown().is_ok());
+    }
+
+    #[test]
+    fn test_emit_finding_with_complex_context() {
+        let emitter = OtlpEmitter::new_stdout();
+        let sample = create_test_metric("test.metric");
+        let sample_ref = SampleRef::Metric(&sample);
+        let finding = create_test_finding(
+            "complex_context_test",
+            "Testing complex context",
+            FindingLevel::Improvement,
+            Some("metric"),
+            Some("test.metric"),
+            json!({
+                "nested": {
+                    "level1": {
+                        "level2": "deep_value"
+                    }
+                },
+                "array": [1, 2, 3],
+                "mixed": {
+                    "string": "text",
+                    "number": 42,
+                    "bool": true,
+                    "null": null
+                }
+            }),
+        );
+
+        emitter.emit_finding(&finding, &sample_ref);
+
+        assert!(emitter.shutdown().is_ok());
+    }
+
+    #[test]
+    fn test_sample_ref_types() {
+        let attr_sample = create_test_attribute("test");
+        assert_eq!(
+            SampleRef::Attribute(&attr_sample).sample_type(),
+            "attribute"
+        );
+
+        let span_sample = create_test_span("test");
+        assert_eq!(SampleRef::Span(&span_sample).sample_type(), "span");
+
+        let event_sample = SampleSpanEvent {
+            name: "test".to_owned(),
+            attributes: vec![],
+            live_check_result: None,
+        };
+        assert_eq!(
+            SampleRef::SpanEvent(&event_sample).sample_type(),
+            "span_event"
+        );
+
+        let link_sample = SampleSpanLink {
+            attributes: vec![],
+            live_check_result: None,
+        };
+        assert_eq!(SampleRef::SpanLink(&link_sample).sample_type(), "span_link");
+
+        let resource_sample = SampleResource {
+            attributes: vec![],
+            live_check_result: None,
+        };
+        assert_eq!(
+            SampleRef::Resource(&resource_sample).sample_type(),
+            "resource"
+        );
+    }
+}
