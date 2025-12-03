@@ -9,7 +9,7 @@ use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessage;
 use weaver_common::log_success;
-use weaver_common::vdir::VirtualDirectory;
+use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -19,6 +19,7 @@ use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProven
 use weaver_version::schema_changes::SchemaChanges;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::util::PolicyError;
 
 /// Defines an engine that can
 pub struct WeaverEngine<'a> {
@@ -33,6 +34,26 @@ impl<'a> WeaverEngine<'a> {
             registry_config: registry,
             policy_config: policy,
         }
+    }
+
+    /// Loads (and resolves) "raw" definitions, executing all policies there-in.
+    pub fn load_and_resolve_main(
+        &self,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<Resolved, Error> {
+        let registry_path = &self.registry_config.registry;
+        let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+
+        let loaded = self.load_definitions(main_registry_repo, diag_msgs)?;
+        if self.registry_config.v2 {
+            // Issue a warning so we fail --future.
+            if loaded.has_before_resolution_policy() {
+                diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
+            }
+        } else {
+            loaded.check_before_resolution_policy(diag_msgs)?;
+        }
+        self.resolve(loaded, diag_msgs)
     }
 
     /// Loads "raw" weaver definitions files.
@@ -95,6 +116,15 @@ pub struct Loaded {
     policy_engine: Option<Engine>,
 }
 impl Loaded {
+    /// Checks if we have any before reoslution policies.
+    pub fn has_before_resolution_policy(&self) -> bool {
+        self.policy_engine
+            .as_ref()
+            .map(|engine| engine.has_stage(PolicyStage::BeforeResolution))
+            .unwrap_or(false)
+    }
+
+    /// Checks before resolution policies.
     pub fn check_before_resolution_policy(
         &self,
         diag_msgs: &mut DiagnosticMessages,
@@ -155,10 +185,132 @@ impl Resolved {
         Ok(())
     }
 
+    /// Compares this resolved vs. a baseline.
+    pub fn check_comparison_after_resolution(
+        &self,
+        baseline: &Resolved,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<(), Error> {
+        if let Some(engine) = self.policy_engine.as_ref() {
+            let mut policy_engine = engine.clone();
+            check_policy_stage(
+                &mut policy_engine,
+                PolicyStage::ComparisonAfterResolution,
+                &self.registry_path_repr,
+                &self.template_schema(),
+                &[baseline.template_schema()],
+            )
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    log_success(format!(
+                        "All `comparison_after_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    log_success("No `comparison_after_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+        }
+        Ok(())
+    }
+
     /// Differences two repositories.
     pub fn diff(&self, other: &Self) -> Diff {
         let changes = self.resolved_schema.diff(&other.resolved_schema);
         Diff { changes }
+    }
+}
+
+pub struct ResolvedV2 {
+    resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+    template_schema: weaver_forge::v2::registry::ForgeResolvedRegistry,
+    registry_path_repr: String,
+    policy_engine: Option<Engine>,
+}
+
+impl ResolvedV2 {
+    /// Returns the schema available for templating.
+    pub fn template_schema(&self) -> &weaver_forge::v2::registry::ForgeResolvedRegistry {
+        &self.template_schema
+    }
+
+    /// Checks after resolution policies.
+    pub fn check_after_resolution_policy(
+        &self,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<(), Error> {
+        if let Some(engine) = self.policy_engine.as_ref() {
+            let mut e = engine.clone();
+            check_policy_stage::<weaver_forge::v2::registry::ForgeResolvedRegistry, ()>(
+                &mut e,
+                PolicyStage::AfterResolution,
+                &self.registry_path_repr,
+                &self.template_schema,
+                &[],
+            )
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    log_success(format!(
+                        "All `after_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    log_success("No `after_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+        }
+        Ok(())
+    }
+
+    /// Compares this resolved vs. a baseline.
+    pub fn check_comparison_after_resolution(
+        &self,
+        baseline: &ResolvedV2,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<(), Error> {
+        if let Some(engine) = self.policy_engine.as_ref() {
+            let mut policy_engine = engine.clone();
+            check_policy_stage(
+                &mut policy_engine,
+                PolicyStage::ComparisonAfterResolution,
+                &self.registry_path_repr,
+                &self.template_schema(),
+                &[baseline.template_schema()],
+            )
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    log_success(format!(
+                        "All `comparison_after_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    log_success("No `comparison_after_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+        }
+        Ok(())
+    }
+}
+
+impl TryFrom<Resolved> for ResolvedV2 {
+    type Error = Error;
+
+    fn try_from(value: Resolved) -> Result<Self, Self::Error> {
+        let resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            value.resolved_schema.try_into()?;
+        let template_schema =
+            weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                resolved_schema.clone(),
+            )?;
+        Ok(Self {
+            resolved_schema,
+            template_schema,
+            registry_path_repr: value.registry_path_repr,
+            policy_engine: value.policy_engine,
+        })
     }
 }
 

@@ -3,19 +3,12 @@
 //! Check a semantic convention registry.
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::{
-    check_policy_stage, load_semconv_specs, prepare_main_registry_opt_v2, resolve_semconv_specs,
-};
+use crate::weaver::{ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use log::info;
-use miette::Diagnostic;
-use weaver_checker::PolicyStage;
-use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
-use weaver_common::log_success;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_forge::registry::ResolvedRegistry;
-use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry check` sub-command
@@ -43,104 +36,36 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", args.registry.registry);
+    let weaver = WeaverEngine::new(&args.registry, &args.policy);
 
     // Initialize the main registry.
-    let registry_path = &args.registry.registry;
-
-    let (main_resolved_registry, opt_v2_registry, mut policy_engine) =
-        prepare_main_registry_opt_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+    let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
-    let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
-        Some(RegistryRepo::try_new("baseline", baseline_registry)?)
+    let baseline = if let Some(br) = args.baseline_registry.as_ref() {
+        let registry_repo = RegistryRepo::try_new("baseline", br)?;
+        // ignore warnings.
+        let mut ignored = DiagnosticMessages::empty();
+        let loaded = weaver.load_definitions(registry_repo, &mut ignored)?;
+        // TODO - do we need to keep any loading diagnostic messages?
+        Some(weaver.resolve(loaded, &mut diag_msgs)?)
     } else {
         None
     };
 
-    let baseline_semconv_specs = baseline_registry_repo
-        .as_ref()
-        .map(|repo| {
-            // Baseline registry resolution should allow non-future features
-            // and warnings against it should be suppressed when evaluating
-            // against it as a "baseline".
-            load_semconv_specs(repo, args.registry.follow_symlinks)
-                .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-                .capture_non_fatal_errors(&mut diag_msgs)
-        })
-        .transpose()?;
-
-    if let Some(policy_engine) = policy_engine.as_mut() {
-        if let (Some(baseline_registry_repo), Some(baseline_semconv_specs)) =
-            (baseline_registry_repo, baseline_semconv_specs)
-        {
-            let mut baseline_registry = SemConvRegistry::from_semconv_specs(
-                &baseline_registry_repo,
-                baseline_semconv_specs,
-            )?;
-            let baseline_resolved_schema =
-                resolve_semconv_specs(&mut baseline_registry, args.registry.include_unreferenced)
-                    .capture_non_fatal_errors(&mut diag_msgs)?;
-            let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-                &baseline_resolved_schema.registry,
-                baseline_resolved_schema.catalog(),
-            )
-            .combine_diag_msgs_with(&diag_msgs)?;
-
-            // TODO - This is quite an ugly way to handle v2 vs. v1, see if we can refactor.
-            if args.registry.v2 {
-                // TODO - Fix error passing here so original error is a diagnostic or we can convert to something reasonable.
-                let v2_baseline_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-                    baseline_resolved_schema.try_into().map_err(
-                        |e: weaver_resolved_schema::error::Error| {
-                            weaver_forge::error::Error::TemplateEngineError {
-                                error: e.to_string(),
-                            }
-                        },
-                    )?;
-                let v2_baseline_resolved_registry =
-                    weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
-                        v2_baseline_schema,
-                    )?;
-                let v2_registry = opt_v2_registry?;
-                check_policy_stage(
-                    policy_engine,
-                    PolicyStage::ComparisonAfterResolution,
-                    &registry_path.to_string(),
-                    &v2_registry,
-                    &[v2_baseline_resolved_registry],
-                )
-                .inspect(|_, violations| {
-                    if let Some(violations) = violations {
-                        log_success(format!(
-                            "All `comparison_after_resolution` policies checked ({} violations found)",
-                            violations.len()
-                        ));
-                    } else {
-                        log_success("No `comparison_after_resolution` policy violation");
-                    }
-                })
-                .capture_non_fatal_errors(&mut diag_msgs)?;
-            } else {
-                // Check the policies against the resolved registry (`PolicyState::ComparisonAfterResolution`).
-                check_policy_stage(
-                    policy_engine,
-                    PolicyStage::ComparisonAfterResolution,
-                    &registry_path.to_string(),
-                    &main_resolved_registry,
-                    &[baseline_resolved_registry],
-                )
-                .inspect(|_, violations| {
-                    if let Some(violations) = violations {
-                        log_success(format!(
-                            "All `comparison_after_resolution` policies checked ({} violations found)",
-                            violations.len()
-                        ));
-                    } else {
-                        log_success("No `comparison_after_resolution` policy violation");
-                    }
-                })
-                .capture_non_fatal_errors(&mut diag_msgs)?;
-            }
+    if args.registry.v2 {
+        let v2_main: ResolvedV2 = main_resolved.try_into()?;
+        v2_main.check_after_resolution_policy(&mut diag_msgs)?;
+        if let Some(b1) = baseline {
+            let v2_baseline: ResolvedV2 = b1.try_into()?;
+            v2_main.check_comparison_after_resolution(&v2_baseline, &mut diag_msgs)?;
+        }
+    } else {
+        // Check policies.
+        main_resolved.check_after_resolution_policy(&mut diag_msgs)?;
+        // Now the comparison.
+        if let Some(b) = baseline {
+            main_resolved.check_comparison_after_resolution(&b, &mut diag_msgs)?;
         }
     }
 

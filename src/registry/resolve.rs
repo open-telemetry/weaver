@@ -8,10 +8,12 @@ use clap::Args;
 
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::{prepare_main_registry, prepare_main_registry_v2};
+use crate::util::PolicyError;
+use crate::weaver::{ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry resolve` sub-command
@@ -54,12 +56,25 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
+    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let registry_path = &args.registry.registry;
+    let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
+    let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
+    // TODO - only do this in weaver check?
     if args.registry.v2 {
-        // TODO
-        let (_, registry, _) =
-            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
-        apply_format(&args.format, &registry)
+        // Issue a warning so we fail --future.
+        if loaded.has_before_resolution_policy() {
+            diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
+        }
+    } else {
+        loaded.check_before_resolution_policy(&mut diag_msgs)?;
+    }
+    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
+    if args.registry.v2 {
+        let resolved_v2: ResolvedV2 = resolved.try_into()?;
+        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
+        apply_format(&args.format, &resolved_v2.template_schema())
             .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
             .and_then(|s| {
                 if let Some(ref path) = args.output {
@@ -78,8 +93,8 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
                 panic!("{}", e);
             });
     } else {
-        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
-        apply_format(&args.format, &registry)
+        resolved.check_after_resolution_policy(&mut diag_msgs)?;
+        apply_format(&args.format, &resolved.template_schema())
             .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
             .and_then(|s| {
                 if let Some(ref path) = args.output {

@@ -10,7 +10,9 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 
 use crate::{
-    DiagnosticArgs, ExitDirectives, registry::{PolicyArgs, RegistryArgs}, weaver::WeaverEngine
+    registry::{PolicyArgs, RegistryArgs},
+    weaver::WeaverEngine,
+    DiagnosticArgs, ExitDirectives,
 };
 use ratatui::{
     crossterm::{
@@ -27,7 +29,6 @@ use ratatui::{
 };
 use std::io::{stdout, IsTerminal};
 use tui_textarea::TextArea;
-use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
@@ -364,18 +365,14 @@ pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, Diagn
     info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let registry_path = &args.registry.registry;
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
     let policy_config = PolicyArgs {
         policies: vec![],
         skip_policies: true,
         display_policy_coverage: false,
     };
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
-
     // Load the semantic convention registry into a local cache.
-    let loaded = weaver.load_definitions(registry_repo, &mut diag_msgs)?;
-    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // We should have two modes:
     // 1. a single input we take in and directly output some rendered result.
