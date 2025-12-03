@@ -224,12 +224,14 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
 }
 
 pub(crate) fn prom_name(input: Value) -> Result<String, minijinja::Error> {
-    let Some(name) = input.get_attr("metric_name")?.as_str() else {
+    let name_val = input.get_attr("metric_name")?;
+    let Some(name) = name_val.as_str() else {
         return Err(minijinja::Error::custom(
             "Expected metric_name to be a string",
         ));
     };
-    let Some(unit) = input.get_attr("unit")?.as_str() else {
+    let unit_val = input.get_attr("unit")?;
+    let Some(unit) = unit_val.as_str() else {
         return Err(minijinja::Error::custom(
             "Expected metric_name to be a string",
         ));
@@ -239,7 +241,8 @@ pub(crate) fn prom_name(input: Value) -> Result<String, minijinja::Error> {
 }
 
 pub(crate) fn prom_unit(input: Value) -> Result<String, minijinja::Error> {
-    let Some(unit) = input.get_attr("unit")?.as_str() else {
+    let unit_val = input.get_attr("unit")?;
+    let Some(unit) = unit_val.as_str() else {
         return Err(minijinja::Error::custom("Expected unit to be a string"));
     };
 
