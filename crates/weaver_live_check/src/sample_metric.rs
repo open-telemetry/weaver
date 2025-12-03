@@ -7,13 +7,13 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use weaver_checker::{FindingLevel, PolicyFinding};
+use weaver_checker::FindingLevel;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
-    MISSING_METRIC_ADVICE_TYPE,
+    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
+    Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    VersionedSignal, MISSING_METRIC_ADVICE_TYPE,
 };
 
 /// Represents the instrument type of a metric
@@ -300,19 +300,14 @@ impl LiveCheckRunner for SampleMetric {
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            let finding = PolicyFinding {
-                id: MISSING_METRIC_ADVICE_TYPE.to_owned(),
-                context: Value::Null,
-                message: "Metric does not exist in the registry.".to_owned(),
-                level: FindingLevel::Violation,
-                signal_type: Some("metric".to_owned()),
-                signal_name: Some(self.name.clone()),
-            };
-
-            // Emit if OTLP emitter available
-            if let Some(emitter) = &live_checker.otlp_emitter {
-                emitter.emit_finding(&finding, &SampleRef::Metric(self));
-            }
+            let finding = FindingBuilder::new(MISSING_METRIC_ADVICE_TYPE)
+                .message("Metric does not exist in the registry.")
+                .level(FindingLevel::Violation)
+                .signal(parent_signal)
+                .build_and_emit(
+                    &SampleRef::Metric(self),
+                    live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                );
 
             result.add_advice(finding);
         };

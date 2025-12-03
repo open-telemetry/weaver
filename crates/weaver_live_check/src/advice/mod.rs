@@ -38,7 +38,7 @@ pub trait Advisor {
 }
 
 /// Fluent builder for creating PolicyFinding instances with automatic emission
-pub(crate) struct FindingBuilder {
+pub struct FindingBuilder {
     id: String,
     context: JsonValue,
     message: String,

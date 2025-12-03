@@ -6,12 +6,11 @@ use std::rc::Rc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use weaver_checker::{FindingLevel, PolicyFinding};
+use weaver_checker::FindingLevel;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute, Error,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
     MISSING_EVENT_ADVICE_TYPE,
 };
 
@@ -53,17 +52,18 @@ impl LiveCheckRunner for SampleLog {
             // find the event in the registry
             let semconv_event = live_checker.find_event(&self.event_name);
             if semconv_event.is_none() {
-                result.add_advice(PolicyFinding {
-                    id: MISSING_EVENT_ADVICE_TYPE.to_owned(),
-                    context: Value::Null,
-                    message: format!(
+                let finding = FindingBuilder::new(MISSING_EVENT_ADVICE_TYPE)
+                    .message(format!(
                         "Event '{}' does not exist in the registry.",
                         self.event_name
-                    ),
-                    level: FindingLevel::Violation,
-                    signal_type: Some("event".to_owned()),
-                    signal_name: Some(self.event_name.clone()),
-                });
+                    ))
+                    .level(FindingLevel::Violation)
+                    .signal(parent_signal)
+                    .build_and_emit(
+                        &SampleRef::Log(self),
+                        live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    );
+                result.add_advice(finding);
             };
             semconv_event
         };
