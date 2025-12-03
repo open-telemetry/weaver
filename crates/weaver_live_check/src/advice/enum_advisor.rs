@@ -2,8 +2,8 @@
 
 //! Enum value validation advisor
 
-use std::rc::Rc;
 use serde_json::json;
+use std::rc::Rc;
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSpec};
 
@@ -65,19 +65,23 @@ impl Advisor for EnumAdvisor {
                             }
 
                             if !is_found {
-                                let finding = FindingBuilder::new(UNDEFINED_ENUM_VARIANT_ADVICE_TYPE)
-                                    .context(json!({
-                                        ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &sample_attribute.name,
-                                        ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
-                                    }))
-                                    .message(format!(
-                                        "Enum attribute '{}' has value '{}' which is not documented.",
-                                        sample_attribute.name,
-                                        attribute_value.as_str().unwrap_or(&attribute_value.to_string())
-                                    ))
-                                    .level(FindingLevel::Information)
-                                    .signal(signal)
-                                    .build_and_emit(&sample, otlp_emitter.as_deref());
+                                let finding = FindingBuilder::new(
+                                    UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
+                                )
+                                .context(json!({
+                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &sample_attribute.name,
+                                    ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
+                                }))
+                                .message(format!(
+                                    "Enum attribute '{}' has value '{}' which is not documented.",
+                                    sample_attribute.name,
+                                    attribute_value
+                                        .as_str()
+                                        .unwrap_or(&attribute_value.to_string())
+                                ))
+                                .level(FindingLevel::Information)
+                                .signal(signal)
+                                .build_and_emit(&sample, otlp_emitter.as_deref());
 
                                 return Ok(vec![finding]);
                             }

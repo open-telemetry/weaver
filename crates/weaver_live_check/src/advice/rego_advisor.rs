@@ -2,12 +2,12 @@
 
 //! Rego policy-based advisor
 
-use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 use serde::Serialize;
+use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 use weaver_checker::{Engine, PolicyFinding};
 use weaver_forge::jq;
 
-use super::{Advisor, emit_findings};
+use super::{emit_findings, Advisor};
 use crate::{
     live_checker::LiveChecker, otlp_logger::OtlpEmitter, Error, Sample, SampleRef,
     VersionedAttribute, VersionedSignal, DEFAULT_LIVE_CHECK_JQ, DEFAULT_LIVE_CHECK_REGO,

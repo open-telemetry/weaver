@@ -2,17 +2,17 @@
 
 //! Deprecation detection advisor
 
-use std::rc::Rc;
 use serde_json::json;
+use std::rc::Rc;
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_semconv::deprecated::Deprecated;
 
 use super::{Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE,
-    DEPRECATION_NOTE_ADVICE_CONTEXT_KEY, DEPRECATION_REASON_ADVICE_CONTEXT_KEY,
-    EVENT_NAME_ADVICE_CONTEXT_KEY, METRIC_NAME_ADVICE_CONTEXT_KEY,
+    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE, DEPRECATION_NOTE_ADVICE_CONTEXT_KEY,
+    DEPRECATION_REASON_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
+    METRIC_NAME_ADVICE_CONTEXT_KEY,
 };
 
 /// Convert a Deprecated value to a reason string
