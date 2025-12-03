@@ -25,7 +25,6 @@ mod cli;
 mod diagnostic;
 mod format;
 mod registry;
-mod util;
 mod weaver;
 
 /// Set of parameters used to specify the diagnostic format.

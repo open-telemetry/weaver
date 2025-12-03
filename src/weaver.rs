@@ -74,7 +74,7 @@ impl<'a> WeaverEngine<'a> {
                 .capture_non_fatal_errors(diag_msgs)?;
 
         // Optionally init policy engine
-        let policy_engine = prepare_policy_engine(&self.policy_config, &repo)?;
+        let policy_engine = prepare_policy_engine(self.policy_config, &repo)?;
         Ok(Loaded {
             repo,
             specs,
@@ -105,7 +105,7 @@ impl<'a> WeaverEngine<'a> {
         Ok(Resolved {
             resolved_schema: resolved,
             template_schema: template,
-            registry_path_repr: loaded.repo.registry_path_repr().to_string(),
+            registry_path_repr: loaded.repo.registry_path_repr().to_owned(),
             policy_engine: loaded.policy_engine,
         })
     }
@@ -392,7 +392,7 @@ fn prepare_policy_engine(
         let policy_vdirs: Vec<VirtualDirectory> = policy_args
             .policies
             .iter()
-            .map(|path| VirtualDirectory::try_new(path))
+            .map(VirtualDirectory::try_new)
             .collect::<Result<_, _>>()?;
 
         // Extract paths from VirtualDirectory instances

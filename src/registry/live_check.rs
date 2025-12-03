@@ -28,7 +28,7 @@ use weaver_live_check::{
 };
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
 use super::otlp::otlp_ingester::OtlpIngester;

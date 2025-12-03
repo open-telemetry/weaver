@@ -57,7 +57,7 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
         let resolved_v2: ResolvedV2 = resolved.try_into()?;
         info!("Emitting v2 registry `{}`", args.registry.registry);
         emit(
-            RegistryVersion::V2(&resolved_v2.template_schema()),
+            RegistryVersion::V2(resolved_v2.template_schema()),
             &args.registry.registry.to_string(),
             &exporter_config,
         )
@@ -65,7 +65,7 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
     } else {
         info!("Emitting v1 registry `{}`", args.registry.registry);
         emit(
-            RegistryVersion::V1(&resolved.template_schema()),
+            RegistryVersion::V1(resolved.template_schema()),
             &args.registry.registry.to_string(),
             &exporter_config,
         )
