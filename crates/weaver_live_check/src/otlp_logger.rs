@@ -2,10 +2,11 @@
 
 //! OTLP logger provider for emitting policy findings as log records.
 
+use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::LoggerProvider;
 use opentelemetry::logs::{Logger, Severity};
-use opentelemetry::{Key, KeyValue};
+use opentelemetry::Key;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::Resource;
@@ -13,6 +14,9 @@ use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
 use crate::{Error, SampleRef};
+
+/// Type alias for log attributes as (Key, AnyValue) pairs
+type LogAttribute = (Key, AnyValue);
 
 /// The service name for weaver resources
 const WEAVER_SERVICE_NAME: &str = "weaver";
@@ -71,13 +75,16 @@ impl OtlpEmitter {
         let severity = finding_level_to_severity(&finding.level);
 
         // Build attributes from finding and sample context
-        let mut attributes = Vec::new();
+        let mut attributes: Vec<LogAttribute> = Vec::new();
 
         // Add finding attributes
-        attributes.push(KeyValue::new("weaver.finding.id", finding.id.clone()));
-        attributes.push(KeyValue::new(
-            "weaver.finding.level",
-            finding.level.to_string(),
+        attributes.push((
+            Key::from("weaver.finding.id"),
+            AnyValue::from(finding.id.clone()),
+        ));
+        attributes.push((
+            Key::from("weaver.finding.level"),
+            AnyValue::from(finding.level.to_string()),
         ));
 
         // Flatten and add finding context
@@ -96,18 +103,8 @@ impl OtlpEmitter {
         log_record.set_body(finding.message.clone().into());
         log_record.set_event_name("weaver.live_check.finding");
 
-        // Add attributes - convert from KeyValue to individual key/value pairs
-        for attr in attributes {
-            use opentelemetry::Value;
-            match attr.value {
-                Value::Bool(b) => log_record.add_attribute(attr.key, b),
-                Value::I64(i) => log_record.add_attribute(attr.key, i),
-                Value::F64(f) => log_record.add_attribute(attr.key, f),
-                Value::String(s) => log_record.add_attribute(attr.key, s.to_string()),
-                Value::Array(_) => {} // Skip arrays for now
-                _ => {}               // Skip other unsupported types
-            }
-        }
+        // Add attributes using the add_attributes method
+        log_record.add_attributes(attributes);
 
         logger.emit(log_record);
     }
@@ -133,27 +130,27 @@ fn finding_level_to_severity(level: &FindingLevel) -> Severity {
 fn extract_sample_context_attributes(
     sample_ref: &SampleRef<'_>,
     finding: &PolicyFinding,
-) -> Vec<KeyValue> {
+) -> Vec<LogAttribute> {
     let mut attributes = Vec::new();
 
     // Add sample type
-    attributes.push(KeyValue::new(
-        "weaver.sample.type",
-        sample_ref.sample_type().to_owned(),
+    attributes.push((
+        Key::from("weaver.sample.type"),
+        AnyValue::from(sample_ref.sample_type().to_owned()),
     ));
 
     // Add signal type and name from finding
     if let Some(ref signal_type) = finding.signal_type {
-        attributes.push(KeyValue::new(
-            "weaver.sample.signal_type",
-            signal_type.clone(),
+        attributes.push((
+            Key::from("weaver.sample.signal_type"),
+            AnyValue::from(signal_type.clone()),
         ));
     }
 
     if let Some(ref signal_name) = finding.signal_name {
-        attributes.push(KeyValue::new(
-            "weaver.sample.signal_name",
-            signal_name.clone(),
+        attributes.push((
+            Key::from("weaver.sample.signal_name"),
+            AnyValue::from(signal_name.clone()),
         ));
     }
 
@@ -161,14 +158,14 @@ fn extract_sample_context_attributes(
 }
 
 /// Flatten finding context JSON into key-value pairs with dot notation
-fn flatten_finding_context(context: &JsonValue) -> Vec<KeyValue> {
+fn flatten_finding_context(context: &JsonValue) -> Vec<LogAttribute> {
     let mut attributes = Vec::new();
     flatten_json_recursive(context, "weaver.finding.context", &mut attributes);
     attributes
 }
 
 /// Recursively flatten JSON into key-value pairs
-fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<KeyValue>) {
+fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<LogAttribute>) {
     match value {
         JsonValue::Object(map) => {
             for (key, val) in map {
@@ -183,17 +180,17 @@ fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<
             }
         }
         JsonValue::String(s) => {
-            attributes.push(KeyValue::new(Key::from(prefix.to_owned()), s.clone()));
+            attributes.push((Key::from(prefix.to_owned()), AnyValue::from(s.clone())));
         }
         JsonValue::Number(n) => {
             if let Some(i) = n.as_i64() {
-                attributes.push(KeyValue::new(Key::from(prefix.to_owned()), i));
+                attributes.push((Key::from(prefix.to_owned()), AnyValue::from(i)));
             } else if let Some(f) = n.as_f64() {
-                attributes.push(KeyValue::new(Key::from(prefix.to_owned()), f));
+                attributes.push((Key::from(prefix.to_owned()), AnyValue::from(f)));
             }
         }
         JsonValue::Bool(b) => {
-            attributes.push(KeyValue::new(Key::from(prefix.to_owned()), *b));
+            attributes.push((Key::from(prefix.to_owned()), AnyValue::from(*b)));
         }
         JsonValue::Null => {
             // Skip null values
@@ -297,13 +294,13 @@ mod tests {
         assert_eq!(attributes.len(), 3);
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.key1"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.key1"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.key2"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.key2"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.key3"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.key3"));
     }
 
     #[test]
@@ -320,7 +317,7 @@ mod tests {
 
         assert_eq!(attributes.len(), 1);
         assert_eq!(
-            attributes[0].key.as_str(),
+            attributes[0].0.as_str(),
             "weaver.finding.context.outer.inner.value"
         );
     }
@@ -336,13 +333,13 @@ mod tests {
         assert_eq!(attributes.len(), 3);
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.items.0"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.items.0"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.items.1"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.items.1"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.items.2"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.items.2"));
     }
 
     #[test]
@@ -361,16 +358,16 @@ mod tests {
         assert_eq!(attributes.len(), 4);
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.string"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.string"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.int"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.int"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.float"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.float"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.finding.context.bool"));
+            .any(|attr| attr.0.as_str() == "weaver.finding.context.bool"));
     }
 
     #[test]
@@ -398,13 +395,13 @@ mod tests {
         assert_eq!(attributes.len(), 3);
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.sample.type"));
+            .any(|attr| attr.0.as_str() == "weaver.sample.type"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.sample.signal_type"));
+            .any(|attr| attr.0.as_str() == "weaver.sample.signal_type"));
         assert!(attributes
             .iter()
-            .any(|attr| attr.key.as_str() == "weaver.sample.signal_name"));
+            .any(|attr| attr.0.as_str() == "weaver.sample.signal_name"));
     }
 
     #[test]
@@ -423,7 +420,7 @@ mod tests {
         let attributes = extract_sample_context_attributes(&sample_ref, &finding);
 
         assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key.as_str(), "weaver.sample.type");
+        assert_eq!(attributes[0].0.as_str(), "weaver.sample.type");
     }
 
     #[test]
