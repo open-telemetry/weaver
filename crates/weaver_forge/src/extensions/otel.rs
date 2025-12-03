@@ -6,6 +6,7 @@ use crate::config::CaseConvention;
 use crate::extensions::case::{
     camel_case, kebab_case, pascal_case, screaming_snake_case, snake_case,
 };
+use crate::extensions::prom;
 use itertools::Itertools;
 use minijinja::filters::sort;
 use minijinja::value::{Kwargs, ValueKind};
@@ -33,6 +34,8 @@ pub(crate) fn add_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("camel_case_const", camel_case_const);
     env.add_filter("snake_case_const", snake_case_const);
     env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
+    env.add_filter("prom_name", prom_name);
+    env.add_filter("prom_unit", prom_unit);
     env.add_filter("print_member_value", print_member_value);
     env.add_filter("body_fields", body_fields);
 }
@@ -210,6 +213,29 @@ pub(crate) fn snake_case_const(input: &str) -> String {
 pub(crate) fn screaming_snake_case_const(input: &str) -> String {
     // Remove all _ and convert to the screaming snake case
     screaming_snake_case(&input.replace('_', ""))
+}
+
+pub(crate) fn prom_name(input: Value) -> Result<String, minijinja::Error> {
+    let Some(name) = input.get_attr("metric_name")?.as_str() else {
+        return Err(minijinja::Error::custom(
+            "Expected metric_name to be a string",
+        ));
+    };
+    let Some(unit) = input.get_attr("unit")?.as_str() else {
+        return Err(minijinja::Error::custom(
+            "Expected metric_name to be a string",
+        ));
+    };
+
+    Ok(prom::get_name(name, unit))
+}
+
+pub(crate) fn prom_unit(input: Value) -> Result<String, minijinja::Error> {
+    let Some(unit) = input.get_attr("unit")?.as_str() else {
+        return Err(minijinja::Error::custom("Expected unit to be a string"));
+    };
+
+    Ok(prom::get_prom_units(unit).unwrap_or(unit).to_owned())
 }
 
 /// Compares two attributes by their requirement_level, then name.
