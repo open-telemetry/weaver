@@ -142,18 +142,6 @@ pub(crate) fn sanitize_name(s: &str) -> String {
     }
 }
 
-pub(crate) fn sanitize_prom_kv(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == ':' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -180,7 +168,7 @@ mod tests {
         ];
 
         for (input, want) in tests {
-            assert_eq!(want, sanitize_name(&input.into()), "input: {input}")
+            assert_eq!(want, sanitize_name(&input), "input: {input}")
         }
     }
 
