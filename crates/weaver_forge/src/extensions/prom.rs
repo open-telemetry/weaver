@@ -21,7 +21,7 @@ pub(crate) fn get_unit_suffixes(unit: &str) -> Option<String> {
 
     // direct match with known units
     if let Some(matched) = get_prom_units(unit) {
-        return Some(matched.to_string());
+        return Some(matched.to_owned());
     }
 
     // converting foo/bar to foo_per_bar
@@ -138,7 +138,7 @@ pub(crate) fn sanitize_name(s: &str) -> String {
             }))
             .collect()
     } else {
-        s.to_string()
+        s.to_owned()
     }
 }
 
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn name_sanitization() {
         let tests = vec![
-            ("nam€_with_3_width_rune.", "nam__with_3_width_rune_"),
+            ("name€_with_3_width_rune.", "name__with_3_width_rune_"),
             ("`", "_"),
             (
                 r##"! "#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWKYZ[]\^_abcdefghijklmnopqrstuvwkyz{|}~"##,
@@ -168,7 +168,7 @@ mod tests {
         ];
 
         for (input, want) in tests {
-            assert_eq!(want, sanitize_name(&input), "input: {input}")
+            assert_eq!(want, sanitize_name(input), "input: {input}");
         }
     }
 
