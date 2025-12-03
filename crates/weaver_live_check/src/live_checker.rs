@@ -359,7 +359,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "extends_namespace");
         assert_eq!(
             all_advice[0].context,
-            json!({"attribute_name": "test", "namespace": "test"})
+            json!({"attribute_name": "test.string.not.allowed", "namespace": "test"})
         );
         assert_eq!(
             all_advice[0].message,
@@ -400,7 +400,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            json!({"attribute_name": "test", "namespace": "test"})
+            json!({"attribute_name": "test.extends", "namespace": "test"})
         );
         assert_eq!(
             all_advice[1].message,
@@ -445,7 +445,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            json!({"attribute_name": "test", "namespace": "test"})
+            json!({"attribute_name": "test.deprecated.allowed", "namespace": "test"})
         );
         assert_eq!(
             all_advice[1].message,

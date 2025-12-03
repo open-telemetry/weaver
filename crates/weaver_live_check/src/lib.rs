@@ -98,6 +98,17 @@ pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 /// Metric name key in advice context
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 
+/// Embedded default live check rego policies
+pub const DEFAULT_LIVE_CHECK_REGO: &str =
+    include_str!("../../../defaults/policies/live_check_advice/otel.rego");
+
+/// Default live check rego policy path - used in error messages
+pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
+    "defaults/policies/live_check_advice/otel.rego";
+
+/// Embedded default live check jq preprocessor
+pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
+
 /// Versioned enum for the registry
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
