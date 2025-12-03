@@ -10,7 +10,7 @@ use weaver_common::log_success;
 use weaver_emit::{emit, ExporterConfig, RegistryVersion};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::{prepare_main_registry, prepare_main_registry_v2};
+use crate::weaver::{ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry emit` sub-command
@@ -51,22 +51,21 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
             endpoint: args.endpoint.clone(),
         }
     };
-
+    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     if args.registry.v2 {
-        let (_, forge_registry, _) =
-            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
+        let resolved_v2: ResolvedV2 = resolved.try_into()?;
         info!("Emitting v2 registry `{}`", args.registry.registry);
         emit(
-            RegistryVersion::V2(&forge_registry),
+            RegistryVersion::V2(&resolved_v2.template_schema()),
             &args.registry.registry.to_string(),
             &exporter_config,
         )
         .combine_diag_msgs_with(&diag_msgs)?;
     } else {
-        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
         info!("Emitting v1 registry `{}`", args.registry.registry);
         emit(
-            RegistryVersion::V1(&registry),
+            RegistryVersion::V1(&resolved.template_schema()),
             &args.registry.registry.to_string(),
             &exporter_config,
         )

@@ -9,17 +9,17 @@ use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessage;
 use weaver_common::log_success;
-use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
+use weaver_common::vdir::VirtualDirectory;
 use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
+use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::PolicyError;
 
 /// Defines an engine that can
 pub struct WeaverEngine<'a> {
@@ -41,10 +41,7 @@ impl<'a> WeaverEngine<'a> {
         &self,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Resolved, Error> {
-        let registry_path = &self.registry_config.registry;
-        let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
-
-        let loaded = self.load_definitions(main_registry_repo, diag_msgs)?;
+        let loaded = self.load_main_definitions(diag_msgs)?;
         if self.registry_config.v2 {
             // Issue a warning so we fail --future.
             if loaded.has_before_resolution_policy() {
@@ -56,7 +53,17 @@ impl<'a> WeaverEngine<'a> {
         self.resolve(loaded, diag_msgs)
     }
 
-    /// Loads "raw" weaver definitions files.
+    /// Loads "main" weaver definition files (from our config).
+    pub fn load_main_definitions(
+        &self,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<Loaded, Error> {
+        let registry_path = &self.registry_config.registry;
+        let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+        self.load_definitions(main_registry_repo, diag_msgs)
+    }
+
+    /// Loads "raw" weaver definitions files from some external source.
     pub fn load_definitions(
         &self,
         repo: RegistryRepo,
@@ -83,10 +90,7 @@ impl<'a> WeaverEngine<'a> {
         loaded: Loaded,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Resolved, Error> {
-        let mut registry = weaver_semconv::registry::SemConvRegistry::from_semconv_specs(
-            &loaded.repo,
-            loaded.specs,
-        )?;
+        let mut registry = SemConvRegistry::from_semconv_specs(&loaded.repo, loaded.specs)?;
         // let registry_id = registry.id().to_owned();
         let resolved = SchemaResolver::resolve_semantic_convention_registry(
             &mut registry,
@@ -134,6 +138,14 @@ impl Loaded {
         }
         Ok(())
     }
+
+    /// Return a "raw" registry for the legacy V1 stats.
+    pub fn semconv_registry(&self) -> Result<SemConvRegistry, Error> {
+        Ok(SemConvRegistry::from_semconv_specs(
+            &self.repo,
+            self.specs.clone(),
+        )?)
+    }
 }
 
 /// A resolved weaver repository. Could have been derived from raw definitions or loaded directly.
@@ -154,6 +166,16 @@ impl Resolved {
     /// Returns the schema available for templating.
     pub fn template_schema(&self) -> &ResolvedRegistry {
         &self.template_schema
+    }
+
+    /// Drops resolved and just gives the template schema.
+    pub fn into_template_schema(self) -> ResolvedRegistry {
+        self.template_schema
+    }
+
+    /// Converts ourselves into a V2 resolved registry.
+    pub fn try_into_v2(self) -> Result<ResolvedV2, Error> {
+        self.try_into()
     }
 
     /// Checks after resolution policies.
@@ -230,9 +252,19 @@ pub struct ResolvedV2 {
 }
 
 impl ResolvedV2 {
+    /// Returns the resolved schema.
+    pub fn resolved_schema(&self) -> &weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+        &self.resolved_schema
+    }
+
     /// Returns the schema available for templating.
     pub fn template_schema(&self) -> &weaver_forge::v2::registry::ForgeResolvedRegistry {
         &self.template_schema
+    }
+
+    /// Drops resolved and just gives the template schema.
+    pub fn into_template_schema(self) -> weaver_forge::v2::registry::ForgeResolvedRegistry {
+        self.template_schema
     }
 
     /// Checks after resolution policies.
@@ -539,4 +571,26 @@ pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
         }),
     }
     WResult::with_non_fatal_errors((), errors)
+}
+
+/// Errors that could occur in these utilities.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
+#[non_exhaustive]
+pub enum PolicyError {
+    /// The usage of "before-resolution" rego policies is unsupported.
+    #[error("The usage of \"before-resolution\" rego policies is unsupported with V2 schema.")]
+    #[diagnostic(severity(Warning))]
+    BeforeResolutionUnsupported,
+
+    /// Issue running V2 policy enforcement due to underlying error.
+    #[error(
+        "V2 Policy enforcement requests, but repository cannot be converted in to v2: {error}"
+    )]
+    InvalidV2RepositoryNeedingV2Policies { error: String },
+}
+
+impl From<PolicyError> for DiagnosticMessages {
+    fn from(error: PolicyError) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }

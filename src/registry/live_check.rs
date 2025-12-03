@@ -28,7 +28,7 @@ use weaver_live_check::{
 };
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::{prepare_main_registry, prepare_main_registry_v2};
+use crate::weaver::{ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 use super::otlp::otlp_ingester::OtlpIngester;
@@ -169,24 +169,16 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-
+    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let registry = if args.registry.v2 {
-        let (_, forge_registry, _) =
-            prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
-        info!(
-            "Performing live check with v2 registry `{}`",
-            args.registry.registry
-        );
-        VersionedRegistry::V2(forge_registry)
+        let resolved_v2 = resolved.try_into_v2()?;
+        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
+        VersionedRegistry::V2(resolved_v2.into_template_schema())
     } else {
-        let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
-        info!(
-            "Performing live check with v1 registry `{}`",
-            args.registry.registry
-        );
-        VersionedRegistry::V1(registry)
+        resolved.check_after_resolution_policy(&mut diag_msgs)?;
+        VersionedRegistry::V1(resolved.into_template_schema())
     };
-
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(registry, default_advisors());
 

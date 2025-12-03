@@ -12,8 +12,7 @@ use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::PolicyError;
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::{PolicyError, ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry resolve` sub-command

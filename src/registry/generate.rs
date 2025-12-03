@@ -15,7 +15,7 @@ use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputDirective, TemplateEngine};
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::util::{prepare_main_registry, prepare_main_registry_v2};
+use crate::weaver::{ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
@@ -90,19 +90,8 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-
-    // Resolve v1 and v2 schema, based on user request.
-    let (v1, v2) = {
-        if args.registry.v2 {
-            let (v1, v2, _) =
-                prepare_main_registry_v2(&args.registry, &args.policy, &mut diag_msgs)?;
-            (v1, Some(v2))
-        } else {
-            let (v1, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
-            (v1, None)
-        }
-    };
-
+    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
     let templates_dir =
         VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidParams {
@@ -117,12 +106,22 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
         WeaverConfig::try_from_path(loader.root())
     }?;
     let engine = TemplateEngine::try_new(config, loader, params)?;
-
-    match v2 {
-        Some(registry) => {
-            engine.generate(&registry, args.output.as_path(), &OutputDirective::File)?;
-        }
-        None => engine.generate(&v1, args.output.as_path(), &OutputDirective::File)?,
+    // Resolve v1 and v2 schema, based on user request.
+    if args.registry.v2 {
+        let resolved_v2: ResolvedV2 = resolved.try_into()?;
+        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
+        engine.generate(
+            &resolved_v2.template_schema(),
+            args.output.as_path(),
+            &OutputDirective::File,
+        )?;
+    } else {
+        resolved.check_after_resolution_policy(&mut diag_msgs)?;
+        engine.generate(
+            &resolved.template_schema(),
+            args.output.as_path(),
+            &OutputDirective::File,
+        )?;
     }
 
     if !diag_msgs.is_empty() {
