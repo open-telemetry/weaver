@@ -61,6 +61,7 @@ impl FindingBuilder {
     }
 
     /// Set the context JSON for this finding
+    #[must_use]
     pub fn context(mut self, context: JsonValue) -> Self {
         self.context = context;
         self
@@ -73,12 +74,14 @@ impl FindingBuilder {
     }
 
     /// Set the finding level
+    #[must_use]
     pub fn level(mut self, level: FindingLevel) -> Self {
         self.level = level;
         self
     }
 
     /// Set signal_type and signal_name from the parent Sample
+    #[must_use]
     pub fn signal(mut self, signal: &Sample) -> Self {
         self.signal_type = signal.signal_type();
         self.signal_name = signal.signal_name();
@@ -86,6 +89,7 @@ impl FindingBuilder {
     }
 
     /// Build the PolicyFinding
+    #[must_use]
     pub fn build(self) -> PolicyFinding {
         PolicyFinding {
             id: self.id,
@@ -98,6 +102,7 @@ impl FindingBuilder {
     }
 
     /// Build the PolicyFinding and emit it if an emitter is available
+    #[must_use]
     pub fn build_and_emit(
         self,
         sample: &SampleRef<'_>,
