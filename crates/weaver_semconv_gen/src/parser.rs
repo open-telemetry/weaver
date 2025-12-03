@@ -219,7 +219,7 @@ pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownAr
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{MarkdownGenParameters, is_markdown_snippet_directive, is_semconv_trailer};
+    use crate::parser::{is_markdown_snippet_directive, is_semconv_trailer, MarkdownGenParameters};
     use crate::Error;
 
     use super::parse_markdown_snippet_directive;

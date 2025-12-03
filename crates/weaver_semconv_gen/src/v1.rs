@@ -12,7 +12,10 @@ use weaver_resolved_schema::{catalog::Catalog, registry::Group, ResolvedTelemetr
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::{registry::SemConvRegistry, registry_repo::RegistryRepo};
 
-use crate::{Error, MarkdownSnippetGenerator, parser::{self, GenerateMarkdownArgs, SnippetType}};
+use crate::{
+    parser::{self, GenerateMarkdownArgs, SnippetType},
+    Error, MarkdownSnippetGenerator,
+};
 
 /// State we need to generate markdown snippets from configuration.
 pub struct SnippetGenerator {
@@ -61,6 +64,7 @@ impl SnippetGenerator {
     }
 
     /// Resolve semconv registry, and make it available for rendering.
+    #[deprecated]
     pub fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
         template_engine: TemplateEngine,
@@ -78,6 +82,14 @@ impl SnippetGenerator {
             lookup: registry,
             template_engine,
         })
+    }
+
+    /// Constructs a new SnippetGenerator for the v1 schema with the given template engine.
+    pub fn new(registry: ResolvedTelemetrySchema, template_engine: TemplateEngine) -> Self {
+        Self {
+            lookup: ResolvedSemconvRegistry { schema: registry },
+            template_engine,
+        }
     }
 }
 

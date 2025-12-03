@@ -17,7 +17,6 @@ mod v1;
 /// SnippetGenerator for v1 resolution.
 pub use v1::SnippetGenerator;
 
-
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]

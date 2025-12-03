@@ -8,12 +8,9 @@ use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
-use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
-    registry::RegistryArgs,
-    util::{load_semconv_specs, resolve_semconv_specs},
-    DiagnosticArgs, ExitDirectives,
+    DiagnosticArgs, ExitDirectives, registry::{PolicyArgs, RegistryArgs}, weaver::WeaverEngine
 };
 use ratatui::{
     crossterm::{
@@ -369,22 +366,24 @@ pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, Diagn
     let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = &args.registry.registry;
     let registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    let policy_config = PolicyArgs {
+        policies: vec![],
+        skip_policies: true,
+        display_policy_coverage: false,
+    };
+    let weaver = WeaverEngine::new(&args.registry, &policy_config);
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
-        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-        .into_result_failing_non_fatal()?;
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let loaded = weaver.load_definitions(registry_repo, &mut diag_msgs)?;
+    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
 
     // We should have two modes:
     // 1. a single input we take in and directly output some rendered result.
     // 2. An interactive UI
     if let Some(pattern) = args.search_string.as_ref() {
-        run_command_line_search(&schema, pattern);
+        run_command_line_search(resolved.resolved_schema(), pattern);
     } else if stdout().is_terminal() {
-        run_ui(&schema).map_err(DiagnosticMessages::from_error)?;
+        run_ui(resolved.resolved_schema()).map_err(DiagnosticMessages::from_error)?;
     } else {
         // TODO - custom error
         println!("Error: Could not find a terminal, and no search string was provided.");
