@@ -85,7 +85,7 @@ impl SnippetGenerator {
     }
 
     /// Constructs a new SnippetGenerator for the v1 schema with the given template engine.
-    #[must_use] 
+    #[must_use]
     pub fn new(registry: ResolvedTelemetrySchema, template_engine: TemplateEngine) -> Self {
         Self {
             lookup: ResolvedSemconvRegistry { schema: registry },
