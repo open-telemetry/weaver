@@ -2,15 +2,57 @@
 // with minor modifications
 // - using String instead of Cow
 // - making functions pub(crate)
+// - adding get_suffixes function that adds _total for counters
+// - returning multiple possible names in get_names
 
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];
 
-pub(crate) fn get_name(name: &str, unit: &str) -> String {
-    let sanitized_name = sanitize_name(name);
-    match get_unit_suffixes(unit) {
-        Some(suffix) => format!("{sanitized_name}_{suffix}"),
-        None => sanitized_name,
+pub(crate) fn get_names(name: &str, unit: &str, instrument: &str) -> Vec<String> {
+    // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
+    vec![
+        with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
+        sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
+        with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
+        name.to_owned(),                                       // NoTranslation
+    ]
+    .iter()
+    .flat_map(|n| {
+        if instrument == "histogram" {
+            vec![
+                n.to_owned(),
+                format!("{n}_bucket"),
+                format!("{n}_count"),
+                format!("{n}_sum"),
+            ]
+        } else if instrument == "summary" {
+            vec![n.to_owned(), format!("{n}_count"), format!("{n}_sum")]
+        } else {
+            vec![n.to_owned()]
+        }
+    })
+    .collect()
+}
+
+fn with_suffixes(name: &str, unit: &str, instrument: &str) -> String {
+    get_suffixes(unit, instrument)
+        .into_iter()
+        .fold(name, |acc, suffix| &format!("{acc}_{suffix}"));
+}
+
+pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<String> {
+    let mut suffixes = Vec::new();
+
+    // get unit suffixes
+    if let Some(unit_suffix) = get_unit_suffixes(unit) {
+        suffixes.push(unit_suffix);
     }
+
+    // add _total for counters
+    if instrument == "counter" {
+        suffixes.push("total".to_owned());
+    }
+
+    suffixes
 }
 
 pub(crate) fn get_unit_suffixes(unit: &str) -> Option<String> {
@@ -193,5 +235,9 @@ mod tests {
         for (unit, expected_suffix) in test_cases {
             assert_eq!(get_unit_suffixes(unit), expected_suffix.map(String::from));
         }
+    }
+
+    #[test]
+    fn test_get_names() {
     }
 }

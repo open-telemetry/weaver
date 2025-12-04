@@ -34,8 +34,8 @@ pub(crate) fn add_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("camel_case_const", camel_case_const);
     env.add_filter("snake_case_const", snake_case_const);
     env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
-    env.add_filter("prom_name", prom_name);
-    env.add_filter("prom_unit", prom_unit);
+    env.add_filter("prometheus_metric_names", prom_names);
+    env.add_filter("prometheus_unit_name", prom_unit);
     env.add_filter("print_member_value", print_member_value);
     env.add_filter("body_fields", body_fields);
 }
@@ -215,7 +215,7 @@ pub(crate) fn screaming_snake_case_const(input: &str) -> String {
     screaming_snake_case(&input.replace('_', ""))
 }
 
-pub(crate) fn prom_name(input: Value) -> Result<String, minijinja::Error> {
+pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> {
     let name_val = input.get_attr("metric_name")?;
     let Some(name) = name_val.as_str() else {
         return Err(minijinja::Error::custom(
@@ -229,7 +229,7 @@ pub(crate) fn prom_name(input: Value) -> Result<String, minijinja::Error> {
         ));
     };
 
-    Ok(prom::get_name(name, unit))
+    Ok(prom::get_names(name, unit))
 }
 
 pub(crate) fn prom_unit(input: Value) -> Result<String, minijinja::Error> {
