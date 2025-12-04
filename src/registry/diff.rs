@@ -3,8 +3,8 @@
 //! Generate a diff between two versions of a semantic convention registry.
 
 use crate::registry::Error::DiffRender;
-use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_telemetry_schema};
+use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::{include_dir, Dir};
@@ -84,33 +84,27 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     };
 
     let mut diag_msgs = DiagnosticMessages::empty();
+    // TODO - make sure policy is disabled.
+    let policy_config = PolicyArgs {
+        policies: vec![],
+        skip_policies: true,
+        display_policy_coverage: false,
+    };
+    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+
     info!("Weaver Registry Diff");
     info!("Checking registry `{}`", args.registry.registry);
 
     let registry_path = args.registry.registry.clone();
     let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.registry.follow_symlinks)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-    let baseline_semconv_specs =
-        load_semconv_specs(&baseline_registry_repo, args.registry.follow_symlinks)
-            .capture_non_fatal_errors(&mut diag_msgs)?;
 
-    let main_resolved_schema = resolve_telemetry_schema(
-        &main_registry_repo,
-        main_semconv_specs,
-        args.registry.include_unreferenced,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-    let baseline_resolved_schema = resolve_telemetry_schema(
-        &baseline_registry_repo,
-        baseline_semconv_specs,
-        args.registry.include_unreferenced,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-
-    // Generate the diff between the two versions of the registries.
-    let changes = main_resolved_schema.diff(&baseline_resolved_schema);
+    let main = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
+    let baseline = weaver.load_definitions(baseline_registry_repo, &mut diag_msgs)?;
+    let main_resolved = weaver.resolve(main, &mut diag_msgs)?;
+    let baseline_resolved = weaver.resolve(baseline, &mut diag_msgs)?;
+    // Generate diff.
+    let diff = main_resolved.diff(&baseline_resolved);
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
@@ -126,7 +120,11 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
         .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
     let engine = TemplateEngine::try_new(config, loader, Params::default())?;
 
-    match engine.generate(&changes, output.as_path(), &output_directive) {
+    match engine.generate(
+        diff.as_template_context(),
+        output.as_path(),
+        &output_directive,
+    ) {
         Ok(_) => {}
         Err(e) => {
             return Err(DiagnosticMessages::from(DiffRender {

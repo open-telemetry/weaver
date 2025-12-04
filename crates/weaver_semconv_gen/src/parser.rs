@@ -3,8 +3,6 @@
 //! Parsing Utilities.
 
 use crate::Error;
-use crate::GenerateMarkdownArgs;
-use crate::MarkdownGenParameters;
 use nom::bytes::complete::take_until;
 use nom::error::ErrorKind;
 use nom::error::ParseError;
@@ -18,6 +16,58 @@ use nom::{
     sequence::pair,
     IResult, Parser,
 };
+use serde::Serialize;
+
+/// Markdown-snippet generation arguments.
+pub struct GenerateMarkdownArgs {
+    /// The id of the metric, event, span or attribute group to render.
+    pub id: String,
+    /// Arguments the user specified that we've parsed.
+    pub args: Vec<MarkdownGenParameters>,
+}
+
+impl GenerateMarkdownArgs {
+    /// Returns true if a metric table should be rendered.
+    pub fn is_metric_table(&self) -> bool {
+        self.args
+            .iter()
+            .any(|a| matches!(a, MarkdownGenParameters::MetricTable))
+    }
+
+    /// Returns all tag filters in a list.
+    pub fn tag_filters(&self) -> Vec<&str> {
+        self.args
+            .iter()
+            .find_map(|arg| match arg {
+                MarkdownGenParameters::Tag(value) => Some(value.as_str()),
+                _ => None,
+            })
+            .into_iter()
+            .collect()
+    }
+}
+
+// TODO - this is based on https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/src/opentelemetry/semconv/templating/markdown/__init__.py#L503
+// We can likely model this much better.
+/// Parameters users can specify for generating markdown.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MarkdownGenParameters {
+    /// Filter attributes to those with a given tag.
+    Tag(String),
+    /// Display all metrics in a group?
+    Full,
+    /// Generate a metric table
+    MetricTable,
+    /// Omit the requirement level.
+    OmitRequirementLevel,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SnippetType {
+    AttributeTable,
+    MetricTable,
+}
 
 /// exact string we expect for starting a semconv snippet.
 const SEMCONV_HEADER: &str = "semconv";
@@ -169,8 +219,8 @@ pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownAr
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{is_markdown_snippet_directive, is_semconv_trailer};
-    use crate::{Error, MarkdownGenParameters};
+    use crate::parser::{is_markdown_snippet_directive, is_semconv_trailer, MarkdownGenParameters};
+    use crate::Error;
 
     use super::parse_markdown_snippet_directive;
     #[test]

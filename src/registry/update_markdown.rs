@@ -4,7 +4,8 @@
 //! update the specified sections.
 
 use crate::registry::generate::generate_params_shared;
-use crate::registry::RegistryArgs;
+use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use miette::Diagnostic;
@@ -17,8 +18,7 @@ use weaver_common::{log_error, log_info, log_success, Error};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
-use weaver_semconv::registry_repo::RegistryRepo;
-use weaver_semconv_gen::{update_markdown, SnippetGenerator};
+use weaver_semconv_gen::{MarkdownSnippetGenerator, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum UpdateMarkdownError {
@@ -91,7 +91,7 @@ pub(crate) fn command(
     let params = generate_params_shared(&args.param, &args.params)?;
 
     // Construct a generator if we were given a `--target` argument.
-    let generator = {
+    let template_engine = {
         let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
             Error::InvalidVirtualDirectory {
                 path: args.templates.to_string(),
@@ -103,17 +103,14 @@ pub(crate) fn command(
         let config = WeaverConfig::try_from_loader(&loader)?;
         TemplateEngine::try_new(config, loader, params)?
     };
-
-    let registry_path = &args.registry.registry;
-
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(
-        &registry_repo,
-        generator,
-        &mut diag_msgs,
-        args.registry.follow_symlinks,
-        args.registry.include_unreferenced,
-    )?;
+    let policy_config = PolicyArgs {
+        policies: vec![],
+        skip_policies: true,
+        display_policy_coverage: false,
+    };
+    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
+    let generator = SnippetGenerator::new(resolved.into_resolved_schema(), template_engine);
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
         // If we are in future mode and there are diagnostics, return them
@@ -136,9 +133,8 @@ pub(crate) fn command(
         })
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) = update_markdown(
+        if let Err(error) = generator.update_markdown(
             &entry.path().display().to_string(),
-            &generator,
             args.dry_run,
             args.attribute_registry_base_url.as_deref(),
         ) {

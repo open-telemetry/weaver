@@ -2,19 +2,17 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_semconv_specs};
+use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::weaver::{ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use itertools::Itertools;
 use log::info;
-use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry stats` sub-command
 #[derive(Debug, Args)]
@@ -49,52 +47,35 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
 
 fn display_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
-    let registry_path = &args.registry.registry;
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
-    // TODO - v2 way to load things
-    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
-        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-        .into_result_failing_non_fatal()?;
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let resolved_schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-    let v2_resolved_schema =
-        match weaver_resolved_schema::v2::ResolvedTelemetrySchema::try_from(resolved_schema) {
-            Ok(schema) => schema,
-            Err(e) => {
-                diag_msgs.extend(DiagnosticMessages::from_error(
-                    crate::registry::Error::Schema(e),
-                ));
-                return Err(diag_msgs);
-            }
-        };
-    display_schema_stats_v2(&v2_resolved_schema);
-
+    let policy_config = PolicyArgs {
+        policies: vec![],
+        skip_policies: true,
+        display_policy_coverage: false,
+    };
+    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
+    let resolved_v2: ResolvedV2 = resolved.try_into()?;
+    display_schema_stats_v2(resolved_v2.resolved_schema());
     Ok(())
 }
 
 fn display_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
-    let registry_path = &args.registry.registry;
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    let policy_config = PolicyArgs {
+        policies: vec![],
+        skip_policies: true,
+        display_policy_coverage: false,
+    };
+    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+    let loaded = weaver.load_main_definitions(&mut diag_msgs)?;
+    display_semconv_registry_stats(&loaded.semconv_registry()?);
 
-    // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
-        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-        .into_result_failing_non_fatal()?;
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-
-    display_semconv_registry_stats(&registry);
-
-    // Resolve the semantic convention registry.
-    let resolved_schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-
+    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
     }
 
-    display_schema_stats(&resolved_schema);
+    display_schema_stats(resolved.resolved_schema());
     Ok(())
 }
 
