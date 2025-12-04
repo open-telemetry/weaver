@@ -5,7 +5,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::AttributeType;
-use weaver_version::v2::{RegistryChanges, SchemaItemChange};
 
 use crate::v2::{
     attribute::{Attribute, AttributeRef},

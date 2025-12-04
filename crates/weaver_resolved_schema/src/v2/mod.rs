@@ -71,7 +71,7 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         // TODO - get manifests
         SchemaChanges {
-            registry: self.registry_diff(&baseline_schema),
+            registry: self.registry_diff(baseline_schema),
         }
     }
 
@@ -1023,7 +1023,7 @@ mod tests {
     fn no_diff() {
         let mut baseline = empty_v2_schema();
         baseline.registry.attributes.push(AttributeV2 {
-            key: "test.key".to_owned().into(),
+            key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
             ),
@@ -1044,7 +1044,7 @@ mod tests {
     fn attribute_diff() {
         let mut baseline = empty_v2_schema();
         baseline.registry.attributes.push(AttributeV2 {
-            key: "test.key".to_owned().into(),
+            key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
             ),
@@ -1059,7 +1059,7 @@ mod tests {
         });
         let mut latest = empty_v2_schema();
         latest.registry.attributes.push(AttributeV2 {
-            key: "test.key".to_owned().into(),
+            key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
             ),
@@ -1076,7 +1076,7 @@ mod tests {
             },
         });
         latest.registry.attributes.push(AttributeV2 {
-            key: "test.key.new".to_owned().into(),
+            key: "test.key.new".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
             ),
