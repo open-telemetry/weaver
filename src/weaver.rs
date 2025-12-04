@@ -81,7 +81,7 @@ impl<'a> WeaverEngine<'a> {
             policy_engine,
         })
     }
-    // TODO - figure this out
+    // TODO - figure out how to load a remote *and pre-resolved* repository.
     // fn load_resolved() -> Resolved {}
 
     /// Resolves a loaded set of weaver definitions into a Resolved Registry.
@@ -161,6 +161,11 @@ impl Resolved {
     /// Returns the resolved schema.
     pub fn resolved_schema(&self) -> &ResolvedTelemetrySchema {
         &self.resolved_schema
+    }
+
+    /// Drops resolved and just gives the resolved schema.
+    pub fn into_resolved_schema(self) -> ResolvedTelemetrySchema {
+        self.resolved_schema
     }
 
     /// Returns the schema available for templating.
