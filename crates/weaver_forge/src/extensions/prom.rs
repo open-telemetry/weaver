@@ -5,27 +5,34 @@
 // - adding get_suffixes function that adds _total for counters
 // - returning multiple possible names in get_names
 
+use itertools::Itertools;
+
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];
 
 pub(crate) fn get_names(name: &str, unit: &str, instrument: &str) -> Vec<String> {
     // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
     [
-        with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
+        name.to_owned(),                                       // NoTranslation
         sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
         with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
-        name.to_owned(),                                       // NoTranslation
+        with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
     ]
     .iter()
+    .unique()
     .flat_map(|n| {
         if instrument == "histogram" {
             vec![
-                n.to_owned(),
+                n.to_owned(), // native histogram name
                 format!("{n}_bucket"),
                 format!("{n}_count"),
                 format!("{n}_sum"),
             ]
         } else if instrument == "summary" {
-            vec![n.to_owned(), format!("{n}_count"), format!("{n}_sum")]
+            vec![
+                n.to_owned(), // for streaming quantiles
+                format!("{n}_count"),
+                format!("{n}_sum"),
+            ]
         } else {
             vec![n.to_owned()]
         }
@@ -240,83 +247,123 @@ mod tests {
     #[test]
     fn test_get_names() {
         let test_cases = vec![
-            // Basic counter with unit
+            // Basic counter with unit (ratio)
+            // unique names: ["http_requests", "http_requests_ratio_total"]
             (
                 "http_requests",
                 "1",
                 "counter",
-                vec![
-                    "http_requests_ratio_total",
-                    "http_requests",
-                ],
+                vec!["http_requests", "http_requests_ratio_total"],
             ),
             // Counter without unit
+            // unique names: ["http_requests", "http_requests_total"]
             (
                 "http_requests",
                 "",
                 "counter",
-                vec![
-                    "http_requests_total",
-                    "http_requests",
-                    "http_requests_total",
-                    "http_requests",
-                ],
+                vec!["http_requests", "http_requests_total"],
             ),
             // Histogram with unit
+            // unique names: ["http_request_duration", "http_request_duration_seconds"]
+            // each expands to 4 names (base, _bucket, _count, _sum)
             (
                 "http_request_duration",
                 "s",
                 "histogram",
                 vec![
-                    "http_request_duration_seconds",
-                    "http_request_duration_seconds_bucket",
-                    "http_request_duration_seconds_count",
-                    "http_request_duration_seconds_sum",
                     "http_request_duration",
                     "http_request_duration_bucket",
                     "http_request_duration_count",
                     "http_request_duration_sum",
+                    "http_request_duration_seconds",
+                    "http_request_duration_seconds_bucket",
+                    "http_request_duration_seconds_count",
+                    "http_request_duration_seconds_sum",
                 ],
             ),
             // Summary without unit
+            // unique names: ["rpc_duration"]
+            // expands to 3 names (base, _count, _sum)
             (
                 "rpc_duration",
                 "",
                 "summary",
-                vec![
-                    "rpc_duration",
-                    "rpc_duration_count",
-                    "rpc_duration_sum",
-                ],
+                vec!["rpc_duration", "rpc_duration_count", "rpc_duration_sum"],
             ),
             // Gauge with bytes unit
+            // unique names: ["memory_usage", "memory_usage_bytes"]
             (
                 "memory_usage",
                 "By",
                 "gauge",
-                vec![
-                    "memory_usage_bytes",
-                    "memory_usage",
-                ],
+                vec!["memory_usage", "memory_usage_bytes"],
             ),
             // Counter with per-unit
+            // unique names: ["requests", "requests_per_second_total"]
             (
                 "requests",
                 "1/s",
                 "counter",
-                vec![
-                    "requests_per_second_total",
-                    "requests",
-                ],
+                vec!["requests", "requests_per_second_total"],
             ),
-            // Metric with special characters
+            // Gauge with special characters (dot) and unit
+            // unique names: ["http.requests", "http_requests", "http.requests_milliseconds", "http_requests_milliseconds"]
             (
                 "http.requests",
                 "ms",
                 "gauge",
                 vec![
-                    "http_requests_milliseconds",
+                    "http.requests",
                     "http_requests",
+                    "http.requests_milliseconds",
+                    "http_requests_milliseconds",
+                ],
+            ),
+            // Counter with dot in name and unit
+            // name.to_owned() = "http.server.requests"
+            // sanitize_name(name) = "http_server_requests"
+            // with_suffixes(name, "1", "counter") = "http.server.requests_ratio_total"
+            // with_suffixes(sanitize, "1", "counter") = "http_server_requests_ratio_total"
+            // unique: ["http.server.requests", "http_server_requests", "http.server.requests_ratio_total", "http_server_requests_ratio_total"]
+            (
+                "http.server.requests",
+                "1",
+                "counter",
+                vec![
+                    "http.server.requests",
+                    "http_server_requests",
+                    "http.server.requests_ratio_total",
+                    "http_server_requests_ratio_total",
+                ],
+            ),
+            // Histogram with dot in name
+            // name.to_owned() = "http.request.duration"
+            // sanitize_name(name) = "http_request_duration"
+            // with_suffixes(name, "s", "histogram") = "http.request.duration_seconds"
+            // with_suffixes(sanitize, "s", "histogram") = "http_request_duration_seconds"
+            // unique: ["http.request.duration", "http_request_duration", "http.request.duration_seconds", "http_request_duration_seconds"]
+            // each expands to 4 names
+            (
+                "http.request.duration",
+                "s",
+                "histogram",
+                vec![
+                    "http.request.duration",
+                    "http.request.duration_bucket",
+                    "http.request.duration_count",
+                    "http.request.duration_sum",
+                    "http_request_duration",
+                    "http_request_duration_bucket",
+                    "http_request_duration_count",
+                    "http_request_duration_sum",
+                    "http.request.duration_seconds",
+                    "http.request.duration_seconds_bucket",
+                    "http.request.duration_seconds_count",
+                    "http.request.duration_seconds_sum",
+                    "http_request_duration_seconds",
+                    "http_request_duration_seconds_bucket",
+                    "http_request_duration_seconds_count",
+                    "http_request_duration_seconds_sum",
                 ],
             ),
         ];
