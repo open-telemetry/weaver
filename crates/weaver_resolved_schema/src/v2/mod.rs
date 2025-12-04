@@ -5,14 +5,17 @@ use std::collections::{HashMap, HashSet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
+    deprecated::Deprecated,
     group::GroupType,
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
         CommonFields,
     },
 };
+use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::v2::{
+    attribute::Attribute,
     attribute_group::AttributeGroup,
     catalog::Catalog,
     entity::Entity,
@@ -61,6 +64,112 @@ impl ResolvedTelemetrySchema {
             refinements: self.refinements.stats(),
         }
     }
+
+    /// Generate a diff between the current schema (must be the most recent one)
+    /// and a baseline schema.
+    #[must_use]
+    pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
+        // TODO - get manifests
+        SchemaChanges {
+            registry: self.registry_diff(&baseline_schema),
+        }
+    }
+
+    #[must_use]
+    fn registry_diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> RegistryChanges {
+        RegistryChanges {
+            attribute_changes: self.registry_attribute_diff(baseline_schema),
+            attribute_group_changes: diff_signals(
+                &self.registry.attribute_groups,
+                &baseline_schema.registry.attribute_groups,
+            ),
+            entity_changes: diff_signals(
+                &self.registry.entities,
+                &baseline_schema.registry.entities,
+            ),
+            event_changes: diff_signals(&self.registry.events, &baseline_schema.registry.events),
+            metric_changes: diff_signals(&self.registry.metrics, &baseline_schema.registry.metrics),
+            span_changes: diff_signals(&self.registry.spans, &baseline_schema.registry.spans),
+        }
+    }
+
+    #[must_use]
+    fn registry_attribute_diff(
+        &self,
+        baseline_schema: &ResolvedTelemetrySchema,
+    ) -> Vec<SchemaItemChange> {
+        let mut changes = Vec::new();
+        let latest_attributes = self.registry_attribute_map();
+        let baseline_attributes = baseline_schema.registry_attribute_map();
+        // Collect all the information related to the attributes that have been
+        // deprecated in the latest schema.
+        for (attr_name, attr) in latest_attributes.iter() {
+            let baseline_attr = baseline_attributes.get(attr_name);
+
+            if let Some(baseline_attr) = baseline_attr {
+                if let Some(deprecated) = attr.common.deprecated.as_ref() {
+                    // is this a change from the baseline?
+                    if let Some(baseline_deprecated) = baseline_attr.common.deprecated.as_ref() {
+                        if deprecated == baseline_deprecated {
+                            // This attribute was already deprecated in the baseline.
+                            // We can skip it.
+                            continue;
+                        }
+                    }
+
+                    match deprecated {
+                        Deprecated::Renamed {
+                            renamed_to: rename_to,
+                            note,
+                        } => {
+                            changes.push(SchemaItemChange::Renamed {
+                                old_name: baseline_attr.key.clone(),
+                                new_name: rename_to.clone(),
+                                note: note.clone(),
+                            });
+                        }
+                        Deprecated::Obsoleted { note } => {
+                            changes.push(SchemaItemChange::Obsoleted {
+                                name: attr.key.clone(),
+                                note: note.clone(),
+                            });
+                        }
+                        Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
+                            changes.push(SchemaItemChange::Uncategorized {
+                                name: attr.key.clone(),
+                                note: note.clone(),
+                            });
+                        }
+                    }
+                }
+            } else {
+                changes.push(SchemaItemChange::Added {
+                    name: attr.key.clone(),
+                });
+            }
+        }
+        // Any attribute in the baseline schema that is not present in the latest schema
+        // is considered removed.
+        // Note: This should never occur if the registry evolution process is followed.
+        // However, detecting this case is useful for identifying a violation of the process.
+        for (attr_name, attr) in baseline_attributes.iter() {
+            if !latest_attributes.contains_key(attr_name) {
+                changes.push(SchemaItemChange::Removed {
+                    name: attr.key.clone(),
+                });
+            }
+        }
+        changes
+    }
+
+    /// Get the registry attributes of the resolved telemetry schema in a fast lookup map.
+    fn registry_attribute_map(&self) -> HashMap<&str, &Attribute> {
+        self.registry
+            .attributes
+            .iter()
+            .map(|a| (a.key.as_str(), a))
+            .collect()
+    }
 }
 
 /// Easy conversion from v1 to v2.
@@ -98,12 +207,12 @@ pub fn convert_v1_to_v2(
 ) -> Result<(Registry, Refinements), crate::error::Error> {
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
-    let attributes: HashSet<attribute::Attribute> = c
+    let attributes: HashSet<Attribute> = c
         .attributes
         .iter()
         .cloned()
         .map(|a| {
-            attribute::Attribute {
+            Attribute {
                 key: a.name,
                 r#type: a.r#type,
                 examples: a.examples,
@@ -438,12 +547,82 @@ pub fn convert_v1_to_v2(
     Ok((v2_registry, v2_refinements))
 }
 
+/// A trait that defines a signal, used for performing "diff"
+pub trait Signal {
+    /// The id of the signal.
+    fn id(&self) -> &SignalId;
+    /// The common fields for the signal.
+    fn common(&self) -> &CommonFields;
+}
+
+/// Diffs signal registries.
+#[must_use]
+fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange> {
+    let mut changes = Vec::new();
+    let baseline_signals: HashMap<&SignalId, &T> = baseline.iter().map(|s| (s.id(), s)).collect();
+    let latest_signals: HashMap<&SignalId, &T> = latest.iter().map(|s| (s.id(), s)).collect();
+    for (signal_id, _) in latest_signals.iter() {
+        let baseline_signal = baseline_signals.get(signal_id);
+        if let Some(baseline_signal) = baseline_signal {
+            if let Some(deprecated) = baseline_signal.common().deprecated.as_ref() {
+                // is this a change from the baseline?
+                if let Some(baseline_deprecated) = baseline_signal.common().deprecated.as_ref() {
+                    if deprecated == baseline_deprecated {
+                        continue;
+                    }
+                }
+
+                match deprecated {
+                    Deprecated::Renamed {
+                        renamed_to: rename_to,
+                        note,
+                    } => {
+                        changes.push(SchemaItemChange::Renamed {
+                            old_name: signal_id.to_string(),
+                            new_name: rename_to.clone(),
+                            note: note.clone(),
+                        });
+                    }
+                    Deprecated::Obsoleted { note } => {
+                        changes.push(SchemaItemChange::Obsoleted {
+                            name: signal_id.to_string(),
+                            note: note.clone(),
+                        });
+                    }
+                    Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
+                        changes.push(SchemaItemChange::Uncategorized {
+                            name: signal_id.to_string(),
+                            note: note.clone(),
+                        });
+                    }
+                }
+            }
+        } else {
+            changes.push(SchemaItemChange::Added {
+                name: signal_id.to_string(),
+            });
+        }
+    }
+    // Any signal in the baseline schema that is not present in the latest schema
+    // is considered removed.
+    // Note: This should never occur if the registry evolution process is followed.
+    // However, detecting this case is useful for identifying a violation of the process.
+    for (signal_name, _) in baseline_signals.iter() {
+        if !latest_signals.contains_key(signal_name) {
+            changes.push(SchemaItemChange::Removed {
+                name: signal_name.to_string(),
+            });
+        }
+    }
+    changes
+}
+
 #[cfg(test)]
 mod tests {
 
-    use weaver_semconv::{provenance::Provenance, stability::Stability};
-
+    use crate::v2::attribute::Attribute as AttributeV2;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
+    use weaver_semconv::{provenance::Provenance, stability::Stability};
 
     use super::*;
 
@@ -838,5 +1017,155 @@ mod tests {
         assert_eq!(v2_schema.file_format, "1.0.0");
         assert_eq!(v2_schema.schema_url, "my.schema.url");
         assert_eq!(v2_schema.registry_id, "my-registry");
+    }
+
+    #[test]
+    fn no_diff() {
+        let mut baseline = empty_v2_schema();
+        baseline.registry.attributes.push(AttributeV2 {
+            key: "test.key".to_owned().into(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: "test brief".to_owned(),
+                note: "test note".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+        });
+        let changes = baseline.diff(&baseline);
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn attribute_diff() {
+        let mut baseline = empty_v2_schema();
+        baseline.registry.attributes.push(AttributeV2 {
+            key: "test.key".to_owned().into(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: "test brief".to_owned(),
+                note: "test note".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+        });
+        let mut latest = empty_v2_schema();
+        latest.registry.attributes.push(AttributeV2 {
+            key: "test.key".to_owned().into(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: "test brief".to_owned(),
+                note: "test note".to_owned(),
+                stability: Stability::Stable,
+                deprecated: Some(Deprecated::Renamed {
+                    renamed_to: "test.key.new".to_owned(),
+                    note: "hated it".to_owned(),
+                }),
+                annotations: Default::default(),
+            },
+        });
+        latest.registry.attributes.push(AttributeV2 {
+            key: "test.key.new".to_owned().into(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: "test brief".to_owned(),
+                note: "test note".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+        });
+        let diff = latest.diff(&baseline);
+        assert!(!diff.is_empty());
+        for attr_change in diff.registry.attribute_changes.iter() {
+            match attr_change {
+                SchemaItemChange::Renamed {
+                    old_name,
+                    new_name,
+                    note,
+                } => {
+                    assert_eq!(old_name, "test.key");
+                    assert_eq!(new_name, "test.key.new");
+                    assert_eq!(note, "hated it");
+                }
+                SchemaItemChange::Added { name } => {
+                    assert_eq!(name, "test.key.new");
+                }
+                c => panic!("Unexpected change type: {:?}", c),
+            }
+        }
+    }
+
+    #[test]
+    fn v2_detect_metric_removed() {
+        // Test a user changing a metric name but not using deprecated field.
+        let mut baseline = empty_v2_schema();
+        baseline.registry.metrics.push(Metric {
+            name: "http".to_owned().into(),
+            instrument: weaver_semconv::group::InstrumentSpec::UpDownCounter,
+            unit: "s".to_owned(),
+            attributes: vec![],
+            entity_associations: vec![],
+            common: CommonFields::default(),
+        });
+        let mut latest = empty_v2_schema();
+        latest.registry.metrics.push(Metric {
+            name: "http.renamed".to_owned().into(),
+            instrument: weaver_semconv::group::InstrumentSpec::UpDownCounter,
+            unit: "s".to_owned(),
+            attributes: vec![],
+            entity_associations: vec![],
+            common: CommonFields::default(),
+        });
+        let diff = latest.diff(&baseline);
+        assert!(!diff.is_empty());
+        for change in diff.registry.metric_changes.iter() {
+            match change {
+                SchemaItemChange::Added { name } => {
+                    assert_eq!(name, "http.renamed");
+                }
+                SchemaItemChange::Removed { name } => {
+                    assert_eq!(name, "http");
+                }
+                c => panic!("Unexpected change type: {:?}", c),
+            }
+        }
+    }
+
+    // create an empty schema for testing.
+    fn empty_v2_schema() -> ResolvedTelemetrySchema {
+        ResolvedTelemetrySchema {
+            file_format: "1.0.0".to_owned(),
+            schema_url: "my.schema.url".to_owned(),
+            registry_id: "main".to_owned(),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                registry_url: "todo".to_owned(),
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+        }
     }
 }

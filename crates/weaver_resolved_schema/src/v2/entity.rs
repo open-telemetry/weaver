@@ -7,7 +7,7 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, CommonFields},
 };
 
-use crate::v2::attribute::AttributeRef;
+use crate::v2::{attribute::AttributeRef, Signal};
 
 /// The definition of an Entity signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -40,4 +40,13 @@ pub struct EntityAttributeRef {
     /// "conditionally_required", the string provided as `condition` MUST
     /// specify the conditions under which the attribute is required.
     pub requirement_level: RequirementLevel,
+}
+
+impl Signal for Entity {
+    fn id(&self) -> &SignalId {
+        &self.r#type
+    }
+    fn common(&self) -> &CommonFields {
+        &self.common
+    }
 }

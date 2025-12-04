@@ -8,7 +8,7 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::attribute::AttributeRef;
+use crate::v2::{attribute::AttributeRef, Signal};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -76,4 +76,12 @@ pub struct SpanRefinement {
     /// The definition of the span refinement.
     #[serde(flatten)]
     pub span: Span,
+}
+impl Signal for Span {
+    fn id(&self) -> &SignalId {
+        &self.r#type
+    }
+    fn common(&self) -> &CommonFields {
+        &self.common
+    }
 }
