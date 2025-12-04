@@ -62,13 +62,6 @@ pub enum MarkdownGenParameters {
     OmitRequirementLevel,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SnippetType {
-    AttributeTable,
-    MetricTable,
-}
-
 /// exact string we expect for starting a semconv snippet.
 const SEMCONV_HEADER: &str = "semconv";
 /// exact string we expect for ending a semconv snippet.

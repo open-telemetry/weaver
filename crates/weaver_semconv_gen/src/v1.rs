@@ -12,10 +12,7 @@ use weaver_resolved_schema::{catalog::Catalog, registry::Group, ResolvedTelemetr
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::{registry::SemConvRegistry, registry_repo::RegistryRepo};
 
-use crate::{
-    parser::{self, GenerateMarkdownArgs, SnippetType},
-    Error, MarkdownSnippetGenerator,
-};
+use crate::{parser::GenerateMarkdownArgs, Error, MarkdownSnippetGenerator};
 
 /// State we need to generate markdown snippets from configuration.
 pub struct SnippetGenerator {
@@ -24,45 +21,6 @@ pub struct SnippetGenerator {
 }
 
 impl SnippetGenerator {
-    // TODO - move registry base url into state of the struct...
-    fn generate_markdown_snippet(
-        &self,
-        args: GenerateMarkdownArgs,
-        attribute_registry_base_url: Option<&str>,
-    ) -> Result<String, Error> {
-        // TODO - define context.
-        let snippet_type = if args.is_metric_table() {
-            SnippetType::MetricTable
-        } else {
-            SnippetType::AttributeTable
-        };
-        let group = self
-            .lookup
-            .find_group(&args.id)
-            .ok_or(Error::GroupNotFound {
-                id: args.id.clone(),
-            })
-            .and_then(|g| Ok(ResolvedGroup::try_from_resolved(g, self.lookup.catalog())?))?;
-        // Context is the JSON sent to the jinja template engine.
-        let context = MarkdownSnippetContext {
-            group: group.clone(),
-            snippet_type,
-            tag_filter: args
-                .tag_filters()
-                .into_iter()
-                .map(|s| s.to_owned())
-                .collect(),
-            attribute_registry_base_url: attribute_registry_base_url.map(|s| s.to_owned()),
-        };
-        // We automatically default to specific file for the snippet types.
-        let snippet_template_file = "snippet.md.j2";
-        let mut result = self
-            .template_engine
-            .generate_snippet(&context, snippet_template_file.to_owned())?;
-        result.push('\n');
-        Ok(result)
-    }
-
     /// Resolve semconv registry, and make it available for rendering.
     #[deprecated]
     pub fn try_from_registry_repo(
@@ -146,37 +104,42 @@ impl ResolvedSemconvRegistry {
 }
 
 impl MarkdownSnippetGenerator for SnippetGenerator {
-    fn update_markdown_contents(
+    // TODO - move registry base url into state of the struct...
+    fn generate_markdown_snippet(
         &self,
-        contents: &str,
+        args: GenerateMarkdownArgs,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<String, Error> {
-        let mut result = String::new();
-        let mut handling_snippet = false;
-        for line in contents.lines() {
-            if handling_snippet {
-                if parser::is_semconv_trailer(line) {
-                    result.push_str(line);
-                    // TODO - do we always need this or did we trim oddly?
-                    result.push('\n');
-                    handling_snippet = false;
-                }
-            } else {
-                // Always push this line.
-                result.push_str(line);
-                // TODO - don't do this on last line.
-                result.push('\n');
-                // Check to see if line matches snippet request.
-                // If so, generate the snippet and continue.
-                if parser::is_markdown_snippet_directive(line) {
-                    handling_snippet = true;
-                    let arg = parser::parse_markdown_snippet_directive(line)?;
-                    let snippet =
-                        self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
-                    result.push_str(&snippet);
-                }
-            }
-        }
+        // TODO - define context.
+        let snippet_type = if args.is_metric_table() {
+            SnippetType::MetricTable
+        } else {
+            SnippetType::AttributeTable
+        };
+        let group = self
+            .lookup
+            .find_group(&args.id)
+            .ok_or(Error::GroupNotFound {
+                id: args.id.clone(),
+            })
+            .and_then(|g| Ok(ResolvedGroup::try_from_resolved(g, self.lookup.catalog())?))?;
+        // Context is the JSON sent to the jinja template engine.
+        let context = MarkdownSnippetContext {
+            group: group.clone(),
+            snippet_type,
+            tag_filter: args
+                .tag_filters()
+                .into_iter()
+                .map(|s| s.to_owned())
+                .collect(),
+            attribute_registry_base_url: attribute_registry_base_url.map(|s| s.to_owned()),
+        };
+        // We automatically default to specific file for the snippet types.
+        let snippet_template_file = "snippet.md.j2";
+        let mut result = self
+            .template_engine
+            .generate_snippet(&context, snippet_template_file.to_owned())?;
+        result.push('\n');
         Ok(result)
     }
 }
@@ -189,6 +152,13 @@ struct MarkdownSnippetContext {
     tag_filter: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     attribute_registry_base_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SnippetType {
+    AttributeTable,
+    MetricTable,
 }
 
 #[cfg(test)]

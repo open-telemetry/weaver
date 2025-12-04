@@ -13,9 +13,13 @@ use weaver_diff::diff_output;
 
 mod parser;
 mod v1;
+mod v2;
 
 /// SnippetGenerator for v1 resolution.
 pub use v1::SnippetGenerator;
+pub use v2::SnippetGenerator as SnipperGeneratorV2;
+
+use crate::parser::GenerateMarkdownArgs;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
@@ -125,6 +129,42 @@ pub trait MarkdownSnippetGenerator {
     fn update_markdown_contents(
         &self,
         contents: &str,
+        attribute_registry_base_url: Option<&str>,
+    ) -> Result<String, Error> {
+        let mut result = String::new();
+        let mut handling_snippet = false;
+        for line in contents.lines() {
+            if handling_snippet {
+                if parser::is_semconv_trailer(line) {
+                    result.push_str(line);
+                    // TODO - do we always need this or did we trim oddly?
+                    result.push('\n');
+                    handling_snippet = false;
+                }
+            } else {
+                // Always push this line.
+                result.push_str(line);
+                // TODO - don't do this on last line.
+                result.push('\n');
+                // Check to see if line matches snippet request.
+                // If so, generate the snippet and continue.
+                if parser::is_markdown_snippet_directive(line) {
+                    handling_snippet = true;
+                    let arg = parser::parse_markdown_snippet_directive(line)?;
+                    let snippet =
+                        self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
+                    result.push_str(&snippet);
+                }
+            }
+        }
+        Ok(result)
+    }
+
+    /// Generates a markdown snipper for a given parsed argument.
+    // TODO - move registry base url into state of the struct...
+    fn generate_markdown_snippet(
+        &self,
+        args: GenerateMarkdownArgs,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<String, Error>;
 }

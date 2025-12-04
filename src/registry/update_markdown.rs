@@ -18,7 +18,7 @@ use weaver_common::{log_error, log_info, log_success, Error};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
-use weaver_semconv_gen::{MarkdownSnippetGenerator, SnippetGenerator};
+use weaver_semconv_gen::{MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum UpdateMarkdownError {
@@ -110,7 +110,18 @@ pub(crate) fn command(
     };
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
-    let generator = SnippetGenerator::new(resolved.into_resolved_schema(), template_engine);
+    let generator: Box<dyn MarkdownSnippetGenerator> = if args.registry.v2 {
+        let resolved_v2 = resolved.try_into_v2()?;
+        Box::new(SnipperGeneratorV2::new(
+            resolved_v2.into_resolved_schema(),
+            template_engine,
+        ))
+    } else {
+        Box::new(SnippetGenerator::new(
+            resolved.into_resolved_schema(),
+            template_engine,
+        ))
+    };
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
         // If we are in future mode and there are diagnostics, return them
