@@ -224,20 +224,21 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
 }
 
 pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> {
-    let name_val = input.get_attr("metric_name")?;
-    let Some(name) = name_val.as_str() else {
-        return Err(minijinja::Error::custom(
-            "Expected metric_name to be a string",
-        ));
-    };
-    let unit_val = input.get_attr("unit")?;
-    let Some(unit) = unit_val.as_str() else {
-        return Err(minijinja::Error::custom(
-            "Expected metric_name to be a string",
-        ));
-    };
+    Ok(prom::get_names(
+        &get_attr(&input, "metric_name")?,
+        &get_attr(&input, "unit")?,
+        &get_attr(&input, "instrument")?,
+    ))
+}
 
-    Ok(prom::get_names(name, unit))
+fn get_attr(input: &Value, key: &str) -> Result<String, minijinja::Error> {
+    let val = input.get_attr(key)?;
+    let Some(s) = val.as_str() else {
+        return Err(minijinja::Error::custom(format!(
+            "Expected {key} to be a string"
+        )));
+    };
+    Ok(s.to_owned())
 }
 
 pub(crate) fn prom_unit(input: Value) -> Result<String, minijinja::Error> {

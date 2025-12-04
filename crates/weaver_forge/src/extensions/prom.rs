@@ -9,7 +9,7 @@ const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", 
 
 pub(crate) fn get_names(name: &str, unit: &str, instrument: &str) -> Vec<String> {
     // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
-    vec![
+    [
         with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
         sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
         with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
@@ -36,7 +36,7 @@ pub(crate) fn get_names(name: &str, unit: &str, instrument: &str) -> Vec<String>
 fn with_suffixes(name: &str, unit: &str, instrument: &str) -> String {
     get_suffixes(unit, instrument)
         .into_iter()
-        .fold(name, |acc, suffix| &format!("{acc}_{suffix}"));
+        .fold(name.to_owned(), |acc, suffix| format!("{acc}_{suffix}"))
 }
 
 pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<String> {
@@ -239,5 +239,95 @@ mod tests {
 
     #[test]
     fn test_get_names() {
+        let test_cases = vec![
+            // Basic counter with unit
+            (
+                "http_requests",
+                "1",
+                "counter",
+                vec![
+                    "http_requests_ratio_total",
+                    "http_requests",
+                ],
+            ),
+            // Counter without unit
+            (
+                "http_requests",
+                "",
+                "counter",
+                vec![
+                    "http_requests_total",
+                    "http_requests",
+                    "http_requests_total",
+                    "http_requests",
+                ],
+            ),
+            // Histogram with unit
+            (
+                "http_request_duration",
+                "s",
+                "histogram",
+                vec![
+                    "http_request_duration_seconds",
+                    "http_request_duration_seconds_bucket",
+                    "http_request_duration_seconds_count",
+                    "http_request_duration_seconds_sum",
+                    "http_request_duration",
+                    "http_request_duration_bucket",
+                    "http_request_duration_count",
+                    "http_request_duration_sum",
+                ],
+            ),
+            // Summary without unit
+            (
+                "rpc_duration",
+                "",
+                "summary",
+                vec![
+                    "rpc_duration",
+                    "rpc_duration_count",
+                    "rpc_duration_sum",
+                ],
+            ),
+            // Gauge with bytes unit
+            (
+                "memory_usage",
+                "By",
+                "gauge",
+                vec![
+                    "memory_usage_bytes",
+                    "memory_usage",
+                ],
+            ),
+            // Counter with per-unit
+            (
+                "requests",
+                "1/s",
+                "counter",
+                vec![
+                    "requests_per_second_total",
+                    "requests",
+                ],
+            ),
+            // Metric with special characters
+            (
+                "http.requests",
+                "ms",
+                "gauge",
+                vec![
+                    "http_requests_milliseconds",
+                    "http_requests",
+                ],
+            ),
+        ];
+
+        for (name, unit, instrument, expected) in test_cases {
+            let result = get_names(name, unit, instrument);
+            assert_eq!(
+                result, expected,
+                "Failed for name={}, unit={}, instrument={}",
+                name, unit, instrument
+            );
+        }
     }
 }
