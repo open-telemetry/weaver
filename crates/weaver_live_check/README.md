@@ -269,10 +269,10 @@ Each policy finding is emitted as an OTLP log record with the following structur
 **Log Attributes**:
 - `weaver.finding.id`: Finding type identifier (e.g., "required_attribute_not_present")
 - `weaver.finding.level`: Finding level as string ("violation", "improvement", "information")
-- `weaver.finding.context.<key>`: Key-value pairs provided in the context. Each  pair is recorded as a single attribute.
-- `weaver.sample.type`: Sample type (e.g., "attribute", "span", "metric")
-- `weaver.sample.signal_type`: Signal type (e.g., "span", "metric")
-- `weaver.sample.signal_name`: Signal name (e.g., span name or metric name)
+- `weaver.finding.context.<key>`: Key-value pairs provided in the context. Each pair is recorded as a single attribute.
+- `weaver.finding.sample_type`: Sample type (e.g., "attribute", "span", "metric")
+- `weaver.finding.signal_type`: Signal type (e.g., "span", "event", "metric")
+- `weaver.finding.signal_name`: Signal name (e.g., event name or metric name)
 
 ## Usage examples
 

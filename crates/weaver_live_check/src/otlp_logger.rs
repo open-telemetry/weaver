@@ -86,12 +86,27 @@ impl OtlpEmitter {
             Key::from("weaver.finding.level"),
             AnyValue::from(finding.level.to_string()),
         ));
+        attributes.push((
+            Key::from("weaver.finding.sample_type"),
+            AnyValue::from(sample_ref.sample_type().to_owned()),
+        ));
+
+        if let Some(ref signal_type) = finding.signal_type {
+            attributes.push((
+                Key::from("weaver.finding.signal_type"),
+                AnyValue::from(signal_type.clone()),
+            ));
+        }
+
+        if let Some(ref signal_name) = finding.signal_name {
+            attributes.push((
+                Key::from("weaver.finding.signal_name"),
+                AnyValue::from(signal_name.clone()),
+            ));
+        }
 
         // Flatten and add finding context
         attributes.extend(flatten_finding_context(&finding.context));
-
-        // Add sample context attributes
-        attributes.extend(extract_sample_context_attributes(sample_ref, finding));
 
         // Get a logger from the provider
         let logger = self.provider.logger("weaver.live_check");
@@ -124,37 +139,6 @@ fn finding_level_to_severity(level: &FindingLevel) -> Severity {
         FindingLevel::Improvement => Severity::Warn,
         FindingLevel::Information => Severity::Info,
     }
-}
-
-/// Extract sample context attributes for correlation
-fn extract_sample_context_attributes(
-    sample_ref: &SampleRef<'_>,
-    finding: &PolicyFinding,
-) -> Vec<LogAttribute> {
-    let mut attributes = Vec::new();
-
-    // Add sample type
-    attributes.push((
-        Key::from("weaver.sample.type"),
-        AnyValue::from(sample_ref.sample_type().to_owned()),
-    ));
-
-    // Add signal type and name from finding
-    if let Some(ref signal_type) = finding.signal_type {
-        attributes.push((
-            Key::from("weaver.sample.signal_type"),
-            AnyValue::from(signal_type.clone()),
-        ));
-    }
-
-    if let Some(ref signal_name) = finding.signal_name {
-        attributes.push((
-            Key::from("weaver.sample.signal_name"),
-            AnyValue::from(signal_name.clone()),
-        ));
-    }
-
-    attributes
 }
 
 /// Flatten finding context JSON into key-value pairs with dot notation
@@ -375,52 +359,6 @@ mod tests {
         let json = json!({});
         let attributes = flatten_finding_context(&json);
         assert_eq!(attributes.len(), 0);
-    }
-
-    #[test]
-    fn test_extract_sample_context_attributes_with_signal() {
-        let sample = create_test_attribute("test.attribute");
-        let sample_ref = SampleRef::Attribute(&sample);
-        let finding = create_test_finding(
-            "test_id",
-            "test message",
-            FindingLevel::Information,
-            Some("metric"),
-            Some("http.request.duration"),
-            json!({}),
-        );
-
-        let attributes = extract_sample_context_attributes(&sample_ref, &finding);
-
-        assert_eq!(attributes.len(), 3);
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.sample.type"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.sample.signal_type"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.sample.signal_name"));
-    }
-
-    #[test]
-    fn test_extract_sample_context_attributes_without_signal() {
-        let sample = create_test_attribute("test.attribute");
-        let sample_ref = SampleRef::Attribute(&sample);
-        let finding = create_test_finding(
-            "test_id",
-            "test message",
-            FindingLevel::Information,
-            None,
-            None,
-            json!({}),
-        );
-
-        let attributes = extract_sample_context_attributes(&sample_ref, &finding);
-
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].0.as_str(), "weaver.sample.type");
     }
 
     #[test]
