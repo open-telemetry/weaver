@@ -18,7 +18,6 @@ use weaver_common::{log_error, log_info, log_success, Error};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
-use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{MarkdownSnippetGenerator, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
