@@ -7,10 +7,17 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::AttributeType;
 
 use crate::v2::{
-    attribute::AttributeRef, attribute_group::AttributeGroup, catalog::AttributeCatalog, entity::Entity, event::Event, metric::Metric, span::Span, stats::{
+    attribute::AttributeRef,
+    attribute_group::AttributeGroup,
+    catalog::AttributeCatalog,
+    entity::Entity,
+    event::Event,
+    metric::Metric,
+    span::Span,
+    stats::{
         AttributeGroupStats, AttributeStats, CommonSignalStats, EntityStats, EventStats,
         MetricStats, RegistryStats, SpanStats,
-    }
+    },
 };
 
 /// A semantic convention registry.
@@ -47,7 +54,6 @@ pub struct Registry {
 }
 
 impl Registry {
-
     /// Returns the statistics for this registry.
     #[must_use]
     pub fn stats<T: AttributeCatalog>(&self, catalog: &T) -> RegistryStats {
@@ -55,7 +61,11 @@ impl Registry {
             let mut attribute_type_breakdown = BTreeMap::new();
             let mut stability_breakdown = HashMap::new();
             let mut deprecated_count = 0;
-            for attribute in self.attributes.iter().filter_map(|ar| catalog.attribute(ar)) {
+            for attribute in self
+                .attributes
+                .iter()
+                .filter_map(|ar| catalog.attribute(ar))
+            {
                 let attribute_type = if let AttributeType::Enum { members, .. } = &attribute.r#type
                 {
                     format!("enum(card:{:03})", members.len())
@@ -241,22 +251,20 @@ mod test {
 
     #[test]
     fn test_stats() {
-        let catalog = vec![
-            Attribute {
-                key: "key".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                examples: None,
-                common: CommonFields {
-                    brief: "test".to_owned(),
-                    note: "".to_owned(),
-                    stability: Stability::Stable,
-                    deprecated: None,
-                    annotations: BTreeMap::new(),
-                },
-            }
-        ];
+        let catalog = vec![Attribute {
+            key: "key".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: "test".to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+        }];
         let registry = Registry {
             attribute_groups: vec![],
             registry_url: "https://opentelemetry.io/schemas/1.23.0".to_owned(),

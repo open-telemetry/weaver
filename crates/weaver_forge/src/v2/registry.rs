@@ -84,8 +84,9 @@ impl ForgeResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
-        let attribute_lookup =
-            |r: &weaver_resolved_schema::v2::attribute::AttributeRef| schema.attribute_catalog.attribute(r);
+        let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
+            schema.attribute_catalog.attribute(r)
+        };
         // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
@@ -99,7 +100,7 @@ impl ForgeResolvedRegistry {
                 common: a.common.clone(),
             })
             .collect();
-        
+
         let mut metrics = Vec::new();
         for metric in schema.registry.metrics {
             let attributes = metric
@@ -449,14 +450,12 @@ mod tests {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
             registry_id: "my-registry".to_owned(),
-            attribute_catalog: vec![
-                attribute::Attribute {
-                    key: "test.attr".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                    examples: None,
-                    common: CommonFields::default(),
-                }
-            ],
+            attribute_catalog: vec![attribute::Attribute {
+                key: "test.attr".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields::default(),
+            }],
             registry: v2::registry::Registry {
                 registry_url: "https://example.com/registry".to_owned(),
                 attributes: vec![attribute::AttributeRef(0)],
