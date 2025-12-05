@@ -7,16 +7,10 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::AttributeType;
 
 use crate::v2::{
-    attribute::{Attribute, AttributeRef},
-    attribute_group::AttributeGroup,
-    entity::Entity,
-    event::Event,
-    metric::Metric,
-    span::Span,
-    stats::{
+    attribute::AttributeRef, attribute_group::AttributeGroup, catalog::AttributeCatalog, entity::Entity, event::Event, metric::Metric, span::Span, stats::{
         AttributeGroupStats, AttributeStats, CommonSignalStats, EntityStats, EventStats,
         MetricStats, RegistryStats, SpanStats,
-    },
+    }
 };
 
 /// A semantic convention registry.
@@ -28,8 +22,8 @@ use crate::v2::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Registry {
-    /// Catalog of attributes used in the schema.
-    pub attributes: Vec<Attribute>,
+    /// Catalog of attributes definitions.
+    pub attributes: Vec<AttributeRef>,
 
     /// Catalog of (public) attribute groups.
     pub attribute_groups: Vec<AttributeGroup>,
@@ -53,28 +47,15 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// Returns the attribute from an attribute ref if it exists.
-    #[must_use]
-    pub fn attribute(&self, attribute_ref: &AttributeRef) -> Option<&Attribute> {
-        self.attributes.get(attribute_ref.0 as usize)
-    }
-    /// Returns the attribute name from an attribute ref if it exists
-    /// in the catalog or None if it does not exist.
-    #[must_use]
-    pub fn attribute_key(&self, attribute_ref: &AttributeRef) -> Option<&str> {
-        self.attributes
-            .get(attribute_ref.0 as usize)
-            .map(|attr| attr.key.as_ref())
-    }
 
     /// Returns the statistics for this registry.
     #[must_use]
-    pub fn stats(&self) -> RegistryStats {
+    pub fn stats<T: AttributeCatalog>(&self, catalog: &T) -> RegistryStats {
         let attributes = {
             let mut attribute_type_breakdown = BTreeMap::new();
             let mut stability_breakdown = HashMap::new();
             let mut deprecated_count = 0;
-            for attribute in &self.attributes {
+            for attribute in self.attributes.iter().filter_map(|ar| catalog.attribute(ar)) {
                 let attribute_type = if let AttributeType::Enum { members, .. } = &attribute.r#type
                 {
                     format!("enum(card:{:03})", members.len())
@@ -254,12 +235,28 @@ mod test {
         v2::{span::SpanName, CommonFields},
     };
 
-    use crate::v2::entity::EntityAttributeRef;
+    use crate::v2::{attribute::Attribute, entity::EntityAttributeRef};
 
     use super::*;
 
     #[test]
     fn test_stats() {
+        let catalog = vec![
+            Attribute {
+                key: "key".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                examples: None,
+                common: CommonFields {
+                    brief: "test".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+            }
+        ];
         let registry = Registry {
             attribute_groups: vec![],
             registry_url: "https://opentelemetry.io/schemas/1.23.0".to_owned(),
@@ -311,22 +308,9 @@ mod test {
                     annotations: BTreeMap::new(),
                 },
             }],
-            attributes: vec![Attribute {
-                key: "key".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                examples: None,
-                common: CommonFields {
-                    brief: "test".to_owned(),
-                    note: "".to_owned(),
-                    stability: Stability::Stable,
-                    deprecated: None,
-                    annotations: BTreeMap::new(),
-                },
-            }],
+            attributes: vec![AttributeRef(0)],
         };
-        let stats = registry.stats();
+        let stats = registry.stats(&catalog);
         assert_eq!(stats.attributes.attribute_count, 1);
         assert_eq!(
             stats.attributes.attribute_type_breakdown.get("string"),

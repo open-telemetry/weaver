@@ -2,7 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_resolved_schema::attribute::AttributeRef;
+use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
 
 use crate::{
     error::Error,
@@ -84,11 +84,14 @@ impl ForgeResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
+        let attribute_lookup =
+            |r: &weaver_resolved_schema::v2::attribute::AttributeRef| schema.attribute_catalog.attribute(r);
         // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
             .attributes
             .iter()
+            .filter_map(|ar| attribute_lookup(ar))
             .map(|a| Attribute {
                 key: a.key.clone(),
                 r#type: a.r#type.clone(),
@@ -96,8 +99,7 @@ impl ForgeResolvedRegistry {
                 common: a.common.clone(),
             })
             .collect();
-        let attribute_lookup =
-            |r: &weaver_resolved_schema::v2::attribute::AttributeRef| attributes.get(r.0 as usize);
+        
         let mut metrics = Vec::new();
         for metric in schema.registry.metrics {
             let attributes = metric
@@ -447,14 +449,17 @@ mod tests {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
             registry_id: "my-registry".to_owned(),
-            registry: v2::registry::Registry {
-                registry_url: "https://example.com/registry".to_owned(),
-                attributes: vec![attribute::Attribute {
+            attribute_catalog: vec![
+                attribute::Attribute {
                     key: "test.attr".to_owned(),
                     r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                     examples: None,
                     common: CommonFields::default(),
-                }],
+                }
+            ],
+            registry: v2::registry::Registry {
+                registry_url: "https://example.com/registry".to_owned(),
+                attributes: vec![attribute::AttributeRef(0)],
                 spans: vec![span::Span {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
@@ -610,6 +615,7 @@ mod tests {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
             registry_id: "my-registry".to_owned(),
+            attribute_catalog: vec![],
             registry: v2::registry::Registry {
                 registry_url: "https://example.com/registry".to_owned(),
                 attributes: vec![], // No attributes - This is the logic bug.
