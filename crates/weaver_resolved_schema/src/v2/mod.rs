@@ -13,6 +13,7 @@ use weaver_semconv::{
 };
 
 use crate::v2::{
+    attribute::Attribute,
     attribute_group::AttributeGroup,
     catalog::Catalog,
     entity::Entity,
@@ -46,6 +47,8 @@ pub struct ResolvedTelemetrySchema {
     pub schema_url: String,
     /// The ID of the registry that this schema belongs to.
     pub registry_id: String,
+    /// Catalog of attributes. Note: this will include duplicates for the same key.
+    pub attribute_catalog: Vec<Attribute>,
     /// The registry that this schema belongs to.
     pub registry: Registry,
     /// Refinements for the registry
@@ -57,7 +60,7 @@ impl ResolvedTelemetrySchema {
     /// Statistics about this schema.
     pub fn stats(&self) -> Stats {
         Stats {
-            registry: self.registry.stats(),
+            registry: self.registry.stats(&self.attribute_catalog),
             refinements: self.refinements.stats(),
         }
     }
@@ -67,12 +70,14 @@ impl ResolvedTelemetrySchema {
 impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     type Error = crate::error::Error;
     fn try_from(value: crate::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
-        let (registry, refinements) = convert_v1_to_v2(value.catalog, value.registry)?;
+        let (attribute_catalog, registry, refinements) =
+            convert_v1_to_v2(value.catalog, value.registry)?;
         Ok(ResolvedTelemetrySchema {
             // TODO - bump file format?
             file_format: value.file_format,
             schema_url: value.schema_url,
             registry_id: value.registry_id,
+            attribute_catalog,
             registry,
             refinements,
         })
@@ -95,15 +100,15 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
-) -> Result<(Registry, Refinements), crate::error::Error> {
+) -> Result<(Vec<Attribute>, Registry, Refinements), crate::error::Error> {
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
-    let attributes: HashSet<attribute::Attribute> = c
+    let attributes: HashSet<Attribute> = c
         .attributes
         .iter()
         .cloned()
         .map(|a| {
-            attribute::Attribute {
+            Attribute {
                 key: a.name,
                 r#type: a.r#type,
                 examples: a.examples,
@@ -421,9 +426,31 @@ pub fn convert_v1_to_v2(
         }
     }
 
+    // Now we need to hunt for attribute definitions
+    let mut attributes = Vec::new();
+    for g in r.groups.iter() {
+        for a in g.attributes.iter() {
+            if let Some(attr) = c.attribute(a) {
+                // Attribute definitions do not have lineage.
+                let is_def = g
+                    .lineage
+                    .as_ref()
+                    .and_then(|l| l.attribute(&attr.name))
+                    .is_none();
+                if is_def {
+                    if let Some(v2) = v2_catalog.convert_ref(attr) {
+                        attributes.push(v2);
+                    } else {
+                        // TODO logic error!
+                    }
+                }
+            }
+        }
+    }
+
     let v2_registry = Registry {
         registry_url: r.registry_url,
-        attributes: v2_catalog.into(),
+        attributes,
         spans,
         metrics,
         events,
@@ -435,7 +462,7 @@ pub fn convert_v1_to_v2(
         metrics: metric_refinements,
         events: event_refinements,
     };
-    Ok((v2_registry, v2_refinements))
+    Ok((v2_catalog.into(), v2_registry, v2_refinements))
 }
 
 #[cfg(test)]
@@ -443,7 +470,11 @@ mod tests {
 
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
-    use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
+    use crate::{
+        attribute::Attribute,
+        lineage::{AttributeLineage, GroupLineage},
+        registry::Group,
+    };
 
     use super::*;
 
@@ -496,6 +527,8 @@ mod tests {
         ]);
         let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
         refinement_span_lineage.extends("span.my-span");
+        refinement_span_lineage
+            .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![
@@ -548,9 +581,11 @@ mod tests {
             ],
         };
 
-        let (v2_registry, v2_refinements) =
+        let (catalog, v2_registry, v2_refinements) =
             convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
+        assert_eq!(catalog.len(), 1);
+        // Assert one attribute shows up, due to lineage.
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
         assert_eq!(v2_registry.spans.len(), 1);
@@ -620,6 +655,8 @@ mod tests {
         ]);
         let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
         refinement_metric_lineage.extends("metric.http");
+        refinement_metric_lineage
+            .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![
@@ -672,7 +709,7 @@ mod tests {
             ],
         };
 
-        let (v2_registry, v2_refinements) =
+        let (_, v2_registry, v2_refinements) =
             convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(v2_registry.attributes.len(), 1);
@@ -746,7 +783,7 @@ mod tests {
             }],
         };
 
-        let (v2_registry, _) =
+        let (_, v2_registry, _) =
             convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.events.len(), 1);
         if let Some(event) = v2_registry.events.first() {
@@ -805,7 +842,7 @@ mod tests {
             }],
         };
 
-        let (v2_registry, _) =
+        let (_, v2_registry, _) =
             convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.entities.len(), 1);
         if let Some(entity) = v2_registry.entities.first() {
