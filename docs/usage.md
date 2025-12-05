@@ -260,8 +260,6 @@ Options:
 > **DEPRECATED**: This command is deprecated and will be removed in a future version. It is not compatible with V2 schema. Please search the generated documentation instead.
 
 ```text
-[DEPRECATED] Searches a registry. This command is deprecated and will be removed in a future version. It is not compatible with V2 schema. Please search the generated documentation instead
-
 Usage: weaver registry search [OPTIONS] [SEARCH_STRING]
 
 Arguments:
