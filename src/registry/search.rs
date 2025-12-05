@@ -87,7 +87,7 @@ impl<'a> SearchApp<'a> {
             Block::default()
                 .borders(Borders::TOP)
                 .border_style(Style::default().fg(Color::Gray))
-                .title("Search [DEPRECATED] (press `Esc` or `Ctrl-Q` to quit) ")
+                .title("Search [DEPRECATED] (press `Esc` or `Ctrl-Q` to stop running) ")
                 .title_style(Style::default().fg(Color::Green)),
         );
         SearchApp {
