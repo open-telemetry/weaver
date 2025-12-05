@@ -35,6 +35,8 @@ This has four key components:
 
 Weaver comes with an interactive component which can be leveraged with docker.  Simply run the container with an interactive terminal attached:
 
+> **DEPRECATED**: The `registry search` command is deprecated and will be removed in a future version. It is not compatible with V2 schema.
+
 ```sh
 docker run -it \
   otel/weaver:latest \

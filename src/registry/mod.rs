@@ -103,7 +103,8 @@ pub enum RegistrySubCommand {
     /// The process exits with a code of 0 if the resolution is successful.
     #[clap(verbatim_doc_comment)]
     Resolve(RegistryResolveArgs),
-    /// Searches a registry (Note: Experimental and subject to change).
+    /// [DEPRECATED] Searches a registry. This command is deprecated and will be removed in a future version.
+    /// It is not compatible with V2 schema. Please search the generated documentation instead.
     Search(RegistrySearchArgs),
     /// Calculate a set of general statistics on a semantic convention registry.
     Stats(RegistryStatsArgs),
