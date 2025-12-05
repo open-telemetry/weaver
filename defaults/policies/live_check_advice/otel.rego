@@ -48,7 +48,7 @@ deny contains make_advice_with_signal_info(advice_type, advice_level, advice_con
 	not regex.match(name_regex, input.sample.metric.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
-	advice_context := null
+	advice_context := {"metric_name": input.sample.metric.name}
 	signal_name := input.sample.metric.name
 	signal_type := "metric"
 	message := sprintf("Metric name '%s' does not match name formatting rules.", [input.sample.metric.name])
@@ -96,7 +96,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 
 	advice_type := "extends_namespace"
 	advice_level := "information"
-	advice_context := {"attribute_name": namespace, "namespace": namespace}
+	advice_context := {"attribute_name": input.sample.attribute.name, "namespace": namespace}
 	message := sprintf("Attribute name '%s' collides with existing namespace '%s'", [input.sample.attribute.name, namespace])
 }
 

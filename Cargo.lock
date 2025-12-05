@@ -5164,6 +5164,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "miette",
+ "opentelemetry",
  "portpicker",
  "prost",
  "ratatui",
@@ -5319,13 +5320,19 @@ dependencies = [
 name = "weaver_live_check"
 version = "0.19.0"
 dependencies = [
+ "log",
  "miette",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry-stdout",
+ "opentelemetry_sdk",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
  "tempfile",
  "thiserror 2.0.17",
+ "tokio",
  "weaver_checker",
  "weaver_common",
  "weaver_forge",

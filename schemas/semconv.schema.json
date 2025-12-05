@@ -91,7 +91,7 @@
 							"type": "string",
 							"description": "The new name of the telemetry object."
 						},
-						"note:": {
+						"note": {
 							"type": "string",
 							"description": "A note explaining the reason for the deprecation."
 						}
@@ -109,7 +109,7 @@
 						"reason": {
 							"const": "obsoleted"
 						},
-						"note:": {
+						"note": {
 							"type": "string",
 							"description": "A note explaining the reason for the deprecation."
 						}
@@ -126,7 +126,7 @@
 						"reason": {
 							"const": "uncategorized"
 						},
-						"note:": {
+						"note": {
 							"type": "string",
 							"description": "A note explaining the reason for the deprecation."
 						}
@@ -601,7 +601,7 @@
 							},
 							"annotations": {
 								"$ref": "#/$defs/annotations"
-							}							
+							}
 						}
 					}
 				}

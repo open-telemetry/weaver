@@ -7,7 +7,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
-use crate::{advice::Advisor, VersionedAttribute, VersionedRegistry, VersionedSignal};
+use crate::{
+    advice::Advisor, otlp_logger::OtlpEmitter, VersionedAttribute, VersionedRegistry,
+    VersionedSignal,
+};
 
 /// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
@@ -23,6 +26,9 @@ pub struct LiveChecker {
     pub advisors: Vec<Box<dyn Advisor>>,
     #[serde(skip)]
     templates_by_length: Vec<(String, Rc<VersionedAttribute>)>,
+    /// Optional OTLP emitter for emitting findings as log records
+    #[serde(skip)]
+    pub otlp_emitter: Option<Rc<OtlpEmitter>>,
 }
 
 impl LiveChecker {
@@ -107,6 +113,7 @@ impl LiveChecker {
             semconv_events,
             advisors,
             templates_by_length,
+            otlp_emitter: None,
         }
     }
 
@@ -352,7 +359,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "extends_namespace");
         assert_eq!(
             all_advice[0].context,
-            json!({"attribute_name": "test", "namespace": "test"})
+            json!({"attribute_name": "test.string.not.allowed", "namespace": "test"})
         );
         assert_eq!(
             all_advice[0].message,
@@ -393,7 +400,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            json!({"attribute_name": "test", "namespace": "test"})
+            json!({"attribute_name": "test.extends", "namespace": "test"})
         );
         assert_eq!(
             all_advice[1].message,
@@ -438,7 +445,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            json!({"attribute_name": "test", "namespace": "test"})
+            json!({"attribute_name": "test.deprecated.allowed", "namespace": "test"})
         );
         assert_eq!(
             all_advice[1].message,

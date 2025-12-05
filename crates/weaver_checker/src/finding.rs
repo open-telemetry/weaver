@@ -214,3 +214,13 @@ pub enum FindingLevel {
     /// Something that breaks compliance rules.
     Violation,
 }
+
+impl Display for FindingLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FindingLevel::Information => write!(f, "information"),
+            FindingLevel::Improvement => write!(f, "improvement"),
+            FindingLevel::Violation => write!(f, "violation"),
+        }
+    }
+}
