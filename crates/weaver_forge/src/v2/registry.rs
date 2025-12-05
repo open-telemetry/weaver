@@ -91,7 +91,7 @@ impl ForgeResolvedRegistry {
             .registry
             .attributes
             .iter()
-            .filter_map(|ar| attribute_lookup(ar))
+            .filter_map(&attribute_lookup)
             .map(|a| Attribute {
                 key: a.key.clone(),
                 r#type: a.r#type.clone(),

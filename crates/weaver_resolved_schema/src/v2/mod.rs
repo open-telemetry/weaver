@@ -427,7 +427,7 @@ pub fn convert_v1_to_v2(
                 .and_then(|l| l.attribute(&attr.name))
                 .is_none();
                 if is_def {
-                    if let Some(v2) = v2_catalog.convert_ref(&attr) {
+                    if let Some(v2) = v2_catalog.convert_ref(attr) {
                         attributes.push(v2);
                     } else {
                         // TODO logic error!
