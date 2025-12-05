@@ -7,8 +7,10 @@ use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::LoggerProvider;
 use opentelemetry::logs::{Logger, Severity};
 use opentelemetry::Key;
+use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::resource::ResourceDetector;
 use opentelemetry_sdk::Resource;
 use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
@@ -20,6 +22,37 @@ type LogAttribute = (Key, AnyValue);
 
 /// The service name for weaver resources
 const WEAVER_SERVICE_NAME: &str = "weaver";
+
+/// Custom resource detector that provides weaver-specific defaults
+struct WeaverResourceDetector;
+
+impl ResourceDetector for WeaverResourceDetector {
+    fn detect(&self) -> Resource {
+        // Check if OTEL_SERVICE_NAME is set - if so, don't override it
+        if std::env::var("OTEL_SERVICE_NAME").is_ok() {
+            return Resource::builder_empty().build();
+        }
+
+        // Check if service.name is in OTEL_RESOURCE_ATTRIBUTES
+        if let Ok(attrs) = std::env::var("OTEL_RESOURCE_ATTRIBUTES") {
+            if attrs.contains("service.name=") {
+                return Resource::builder_empty().build();
+            }
+        }
+
+        // No service name from env, provide our default
+        Resource::builder_empty()
+            .with_attributes([KeyValue::new("service.name", WEAVER_SERVICE_NAME)])
+            .build()
+    }
+}
+
+/// Build a Resource with environment variable detection and fallback defaults
+fn build_resource() -> Resource {
+    Resource::builder()
+        .with_detector(Box::new(WeaverResourceDetector))
+        .build()
+}
 
 /// OTLP emitter for policy findings
 pub struct OtlpEmitter {
@@ -41,11 +74,7 @@ impl OtlpEmitter {
             })?;
 
         let provider = SdkLoggerProvider::builder()
-            .with_resource(
-                Resource::builder()
-                    .with_service_name(WEAVER_SERVICE_NAME)
-                    .build(),
-            )
+            .with_resource(build_resource())
             .with_batch_exporter(exporter)
             .build();
 
@@ -58,11 +87,7 @@ impl OtlpEmitter {
         let exporter = opentelemetry_stdout::LogExporter::default();
 
         let provider = SdkLoggerProvider::builder()
-            .with_resource(
-                Resource::builder()
-                    .with_service_name(WEAVER_SERVICE_NAME)
-                    .build(),
-            )
+            .with_resource(build_resource())
             .with_simple_exporter(exporter)
             .build();
 
