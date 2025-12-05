@@ -28,6 +28,7 @@ pub struct TypeAdvisor;
 trait CheckableAttribute {
     fn key(&self) -> &str;
     fn requirement_level(&self) -> &RequirementLevel;
+    fn attribute_type(&self) -> &AttributeType;
 }
 
 impl CheckableAttribute for Attribute {
@@ -37,6 +38,10 @@ impl CheckableAttribute for Attribute {
 
     fn requirement_level(&self) -> &RequirementLevel {
         &self.requirement_level
+    }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.r#type
     }
 }
 
@@ -48,6 +53,10 @@ impl CheckableAttribute for MetricAttribute {
     fn requirement_level(&self) -> &RequirementLevel {
         &self.requirement_level
     }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.base.r#type
+    }
 }
 
 impl CheckableAttribute for EventAttribute {
@@ -57,6 +66,10 @@ impl CheckableAttribute for EventAttribute {
 
     fn requirement_level(&self) -> &RequirementLevel {
         &self.requirement_level
+    }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.base.r#type
     }
 }
 
@@ -86,7 +99,23 @@ fn check_attributes<T: CheckableAttribute>(
     let mut advice_list = Vec::new();
     for semconv_attribute in semconv_attributes {
         let key = semconv_attribute.key();
-        if !attribute_set.contains(key) {
+        // Check if this is a template attribute
+        let is_template = matches!(
+            semconv_attribute.attribute_type(),
+            AttributeType::Template(_)
+        );
+
+        // For template attributes, check if any sample attribute starts with the template prefix
+        // For non-template attributes, check for exact match
+        let is_present = if is_template {
+            sample_attributes
+                .iter()
+                .any(|attr| attr.name.starts_with(key))
+        } else {
+            attribute_set.contains(key)
+        };
+
+        if !is_present {
             let (advice_type, advice_level, message) = match semconv_attribute.requirement_level() {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
                     "required_attribute_not_present".to_owned(),
@@ -511,5 +540,107 @@ mod tests {
         });
         let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
         assert!(advice.is_empty());
+    }
+
+    #[test]
+    fn test_check_attributes_template_type() {
+        use weaver_semconv::attribute::{AttributeType, TemplateTypeSpec};
+
+        // Create a template attribute like "weaver.finding.context"
+        let template_attribute = Attribute {
+            name: "weaver.finding.context".to_owned(),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            r#type: AttributeType::Template(TemplateTypeSpec::Any),
+            brief: "Template attribute for context".to_owned(),
+            examples: None,
+            tag: None,
+            stability: None,
+            deprecated: None,
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        };
+
+        let semconv_attributes = vec![template_attribute];
+
+        // Test 1: Template attribute with matching prefix - should NOT generate advice
+        let sample_attributes_with_match = vec![
+            create_sample_attribute("weaver.finding.context.foo"),
+            create_sample_attribute("weaver.finding.context.bar"),
+        ];
+
+        let sample = Sample::Metric(SampleMetric {
+            name: "test_metric".to_owned(),
+            unit: "".to_owned(),
+            data_points: None,
+            instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            live_check_result: None,
+        });
+
+        let advice = check_attributes(&semconv_attributes, &sample_attributes_with_match, &sample);
+        assert!(
+            advice.is_empty(),
+            "Expected no advice when template attribute has matching prefixed attributes"
+        );
+
+        // Test 2: Template attribute without matching prefix - SHOULD generate advice
+        let sample_attributes_without_match = vec![
+            create_sample_attribute("other.attribute"),
+            create_sample_attribute("another.attribute"),
+        ];
+
+        let advice = check_attributes(
+            &semconv_attributes,
+            &sample_attributes_without_match,
+            &sample,
+        );
+        assert_eq!(
+            advice.len(),
+            1,
+            "Expected advice when template attribute has no matching prefixed attributes"
+        );
+        assert_eq!(advice[0].id, "recommended_attribute_not_present");
+        assert_eq!(advice[0].level, FindingLevel::Improvement);
+
+        // Test 3: Mix of template and non-template attributes
+        let regular_attribute = create_test_attribute(
+            "regular.attr",
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+        );
+        let mixed_semconv_attributes = vec![
+            Attribute {
+                name: "template.attr".to_owned(),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                r#type: AttributeType::Template(TemplateTypeSpec::String),
+                brief: "Template attribute".to_owned(),
+                examples: None,
+                tag: None,
+                stability: None,
+                deprecated: None,
+                sampling_relevant: None,
+                note: "".to_owned(),
+                prefix: false,
+                annotations: None,
+                role: None,
+                tags: None,
+                value: None,
+            },
+            regular_attribute,
+        ];
+
+        let mixed_sample_attributes = vec![
+            create_sample_attribute("template.attr.key1"), // Matches template
+            create_sample_attribute("regular.attr"),       // Matches regular
+        ];
+
+        let advice = check_attributes(&mixed_semconv_attributes, &mixed_sample_attributes, &sample);
+        assert!(
+            advice.is_empty(),
+            "Expected no advice when both template and regular attributes are present"
+        );
     }
 }
