@@ -17,7 +17,7 @@ use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 use crate::v2::{
     attribute::Attribute,
     attribute_group::AttributeGroup,
-    catalog::Catalog,
+    catalog::{AttributeCatalog, Catalog},
     entity::Entity,
     metric::Metric,
     refinements::Refinements,
@@ -169,6 +169,7 @@ impl ResolvedTelemetrySchema {
         self.registry
             .attributes
             .iter()
+            .filter_map(|r| self.attribute_catalog.attribute(r))
             .map(|a| (a.key.as_str(), a))
             .collect()
     }
@@ -643,88 +644,14 @@ fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange
     changes
 }
 
-/// A trait that defines a signal, used for performing "diff"
-pub trait Signal {
-    /// The id of the signal.
-    fn id(&self) -> &SignalId;
-    /// The common fields for the signal.
-    fn common(&self) -> &CommonFields;
-}
-
-/// Diffs signal registries.
-#[must_use]
-fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange> {
-    let mut changes = Vec::new();
-    let baseline_signals: HashMap<&SignalId, &T> = baseline.iter().map(|s| (s.id(), s)).collect();
-    let latest_signals: HashMap<&SignalId, &T> = latest.iter().map(|s| (s.id(), s)).collect();
-    for (signal_id, _) in latest_signals.iter() {
-        let baseline_signal = baseline_signals.get(signal_id);
-        if let Some(baseline_signal) = baseline_signal {
-            if let Some(deprecated) = baseline_signal.common().deprecated.as_ref() {
-                // is this a change from the baseline?
-                if let Some(baseline_deprecated) = baseline_signal.common().deprecated.as_ref() {
-                    if deprecated == baseline_deprecated {
-                        continue;
-                    }
-                }
-
-                match deprecated {
-                    Deprecated::Renamed {
-                        renamed_to: rename_to,
-                        note,
-                    } => {
-                        changes.push(SchemaItemChange::Renamed {
-                            old_name: signal_id.to_string(),
-                            new_name: rename_to.clone(),
-                            note: note.clone(),
-                        });
-                    }
-                    Deprecated::Obsoleted { note } => {
-                        changes.push(SchemaItemChange::Obsoleted {
-                            name: signal_id.to_string(),
-                            note: note.clone(),
-                        });
-                    }
-                    Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
-                        changes.push(SchemaItemChange::Uncategorized {
-                            name: signal_id.to_string(),
-                            note: note.clone(),
-                        });
-                    }
-                }
-            }
-        } else {
-            changes.push(SchemaItemChange::Added {
-                name: signal_id.to_string(),
-            });
-        }
-    }
-    // Any signal in the baseline schema that is not present in the latest schema
-    // is considered removed.
-    // Note: This should never occur if the registry evolution process is followed.
-    // However, detecting this case is useful for identifying a violation of the process.
-    for (signal_name, _) in baseline_signals.iter() {
-        if !latest_signals.contains_key(signal_name) {
-            changes.push(SchemaItemChange::Removed {
-                name: signal_name.to_string(),
-            });
-        }
-    }
-    changes
-}
-
 #[cfg(test)]
 mod tests {
 
-    use crate::v2::attribute::Attribute as AttributeV2;
+    use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
-    use crate::{
-        attribute::Attribute,
-        lineage::{AttributeLineage, GroupLineage},
-        registry::Group,
-    };
+    use crate::lineage::AttributeLineage;
 
     use super::*;
 
@@ -1130,7 +1057,7 @@ mod tests {
     #[test]
     fn no_diff() {
         let mut baseline = empty_v2_schema();
-        baseline.registry.attributes.push(AttributeV2 {
+        baseline.attribute_catalog.push(AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -1144,6 +1071,7 @@ mod tests {
                 annotations: Default::default(),
             },
         });
+        baseline.registry.attributes.push(AttributeRef(0));
         let changes = baseline.diff(&baseline);
         assert!(changes.is_empty());
     }
@@ -1151,7 +1079,7 @@ mod tests {
     #[test]
     fn attribute_diff() {
         let mut baseline = empty_v2_schema();
-        baseline.registry.attributes.push(AttributeV2 {
+        baseline.attribute_catalog.push(AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -1165,8 +1093,10 @@ mod tests {
                 annotations: Default::default(),
             },
         });
+        baseline.registry.attributes.push(AttributeRef(0));
         let mut latest = empty_v2_schema();
-        latest.registry.attributes.push(AttributeV2 {
+        latest.attribute_catalog.push(
+            AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -1182,8 +1112,9 @@ mod tests {
                 }),
                 annotations: Default::default(),
             },
-        });
-        latest.registry.attributes.push(AttributeV2 {
+        }
+        );
+        latest.attribute_catalog.push(AttributeV2 {
             key: "test.key.new".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -1197,6 +1128,8 @@ mod tests {
                 annotations: Default::default(),
             },
         });
+        latest.registry.attributes.push(AttributeRef(0));
+        latest.registry.attributes.push(AttributeRef(1));
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
         for attr_change in diff.registry.attribute_changes.iter() {
@@ -1260,6 +1193,7 @@ mod tests {
             file_format: "1.0.0".to_owned(),
             schema_url: "my.schema.url".to_owned(),
             registry_id: "main".to_owned(),
+            attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
