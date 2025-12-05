@@ -1095,8 +1095,7 @@ mod tests {
         });
         baseline.registry.attributes.push(AttributeRef(0));
         let mut latest = empty_v2_schema();
-        latest.attribute_catalog.push(
-            AttributeV2 {
+        latest.attribute_catalog.push(AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -1112,8 +1111,7 @@ mod tests {
                 }),
                 annotations: Default::default(),
             },
-        }
-        );
+        });
         latest.attribute_catalog.push(AttributeV2 {
             key: "test.key.new".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
