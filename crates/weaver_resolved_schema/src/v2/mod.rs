@@ -459,7 +459,7 @@ mod tests {
 
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
-    use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
+    use crate::{attribute::Attribute, lineage::{AttributeLineage, GroupLineage}, registry::Group};
 
     use super::*;
 
@@ -512,6 +512,7 @@ mod tests {
         ]);
         let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
         refinement_span_lineage.extends("span.my-span");
+        refinement_span_lineage.add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![
@@ -638,6 +639,7 @@ mod tests {
         ]);
         let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
         refinement_metric_lineage.extends("metric.http");
+        refinement_metric_lineage.add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![
