@@ -264,7 +264,7 @@ Each policy finding is emitted as an OTLP log record with the following structur
 **Event Name**: `weaver.live_check.finding`
 
 **Resource Attributes**:
-- `service.name`: "weaver"
+- `service.name`: set by OTEL_SERVICE_NAME or OTEL_RESOURCE_ATTRIBUTES environment variables, defaulting to `weaver`
 
 **Log Attributes**:
 - `weaver.finding.id`: Finding type identifier (e.g., "required_attribute_not_present")
