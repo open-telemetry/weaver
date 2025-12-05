@@ -122,6 +122,18 @@ pub struct RegistryLiveCheckArgs {
     #[clap(long, default_value = "4317")]
     otlp_grpc_port: u16,
 
+    /// Enable OTLP log emission for live check policy findings
+    #[arg(long, default_value = "false")]
+    emit_otlp_logs: bool,
+
+    /// OTLP endpoint for log emission
+    #[arg(long, default_value = "http://localhost:4317")]
+    otlp_logs_endpoint: String,
+
+    /// Use stdout for OTLP log emission (debug mode)
+    #[arg(long, default_value = "false")]
+    otlp_logs_stdout: bool,
+
     /// Port used by the HTTP admin port (endpoints: /stop).
     #[clap(long, default_value = "4320")]
     admin_port: u16,
@@ -228,7 +240,37 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         .ingest()?,
     };
 
-    // Run the live check
+    // Create Tokio runtime if OTLP log emission is enabled
+    // Use a multi-threaded runtime so we can use spawn_blocking
+    let rt = if args.emit_otlp_logs {
+        Some(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| {
+                    DiagnosticMessages::from(Error::OutputError {
+                        error: format!("Failed to create Tokio runtime: {}", e),
+                    })
+                })?,
+        )
+    } else {
+        None
+    };
+
+    // Enter the runtime context if OTLP emission is enabled
+    // This is required for the batch exporter to spawn its background tasks
+    let _guard = rt.as_ref().map(|rt| rt.enter());
+
+    // Initialize OTLP emitter if requested
+    // Must be done after entering the runtime
+    if args.emit_otlp_logs {
+        let emitter = if args.otlp_logs_stdout {
+            weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
+        } else {
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
+        };
+        live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
+    }
 
     let report_mode = if let OutputDirective::File = output_directive {
         // File output forces report mode
@@ -243,6 +285,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
+
         if report_mode {
             samples.push(sample);
         } else {
@@ -283,6 +326,11 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
                     error: e.to_string(),
                 })
             })?;
+    }
+
+    // Shutdown OTLP emitter to flush any pending log records
+    if let Some(emitter) = live_checker.otlp_emitter {
+        emitter.shutdown()?;
     }
 
     log_success(format!(

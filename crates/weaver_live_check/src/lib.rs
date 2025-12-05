@@ -37,6 +37,8 @@ pub mod json_file_ingester;
 pub mod json_stdin_ingester;
 /// Live checker
 pub mod live_checker;
+/// OTLP logger for emitting policy findings as log records
+pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
 /// The intermediary format for logs
@@ -95,6 +97,17 @@ pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
 pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 /// Metric name key in advice context
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
+
+/// Embedded default live check rego policies
+pub const DEFAULT_LIVE_CHECK_REGO: &str =
+    include_str!("../../../defaults/policies/live_check_advice/otel.rego");
+
+/// Default live check rego policy path - used in error messages
+pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
+    "defaults/policies/live_check_advice/otel.rego";
+
+/// Embedded default live check jq preprocessor
+pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
 /// Versioned enum for the registry
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -304,6 +317,26 @@ pub enum SampleRef<'a> {
     Exemplar(&'a SampleExemplar),
     /// A sample log
     Log(&'a SampleLog),
+}
+
+impl SampleRef<'_> {
+    /// Returns the sample type as a string.
+    #[must_use]
+    pub fn sample_type(&self) -> &str {
+        match self {
+            SampleRef::Attribute(_) => "attribute",
+            SampleRef::Span(_) => "span",
+            SampleRef::SpanEvent(_) => "span_event",
+            SampleRef::SpanLink(_) => "span_link",
+            SampleRef::Resource(_) => "resource",
+            SampleRef::Metric(_) => "metric",
+            SampleRef::NumberDataPoint(_) => "number_data_point",
+            SampleRef::HistogramDataPoint(_) => "histogram_data_point",
+            SampleRef::ExponentialHistogramDataPoint(_) => "exponential_histogram_data_point",
+            SampleRef::Exemplar(_) => "exemplar",
+            SampleRef::Log(_) => "log",
+        }
+    }
 }
 
 impl Sample {
@@ -731,6 +764,7 @@ pub trait Advisable {
                 parent_signal,
                 None,
                 parent_group.clone(),
+                live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(advice_list);
         }

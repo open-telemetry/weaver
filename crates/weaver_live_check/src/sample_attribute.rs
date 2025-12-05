@@ -7,12 +7,12 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_checker::{FindingLevel, PolicyFinding};
+use weaver_checker::FindingLevel;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    Sample, SampleRef, VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY,
+    advice::FindingBuilder, live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics, Sample, SampleRef, VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY,
     MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
@@ -182,29 +182,36 @@ impl LiveCheckRunner for SampleAttribute {
                 live_checker.find_template(&self.name)
             }
         };
-        let signal_type: Option<String> = parent_signal.signal_type();
-        let signal_name: Option<String> = parent_signal.signal_name();
         if semconv_attribute.is_none() {
-            result.add_advice(PolicyFinding {
-                id: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }),
-                message: format!("Attribute '{}' does not exist in the registry.", self.name),
-                level: FindingLevel::Violation,
-                signal_type,
-                signal_name,
-            });
+            let finding = FindingBuilder::new(MISSING_ATTRIBUTE_ADVICE_TYPE)
+                .context(json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }))
+                .message(format!(
+                    "Attribute '{}' does not exist in the registry.",
+                    self.name
+                ))
+                .level(FindingLevel::Violation)
+                .signal(parent_signal)
+                .build_and_emit(
+                    &SampleRef::Attribute(self),
+                    live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                );
+
+            result.add_advice(finding);
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type() {
-                    result.add_advice(PolicyFinding {
-                        id: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        context: json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }),
-                        message: format!("Attribute '{}' is a template", self.name),
-                        level: FindingLevel::Information,
-                        signal_type,
-                        signal_name,
-                    });
+                    let finding = FindingBuilder::new(TEMPLATE_ATTRIBUTE_ADVICE_TYPE)
+                        .context(json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))
+                        .message(format!("Attribute '{}' is a template", self.name))
+                        .level(FindingLevel::Information)
+                        .signal(parent_signal)
+                        .build_and_emit(
+                            &SampleRef::Attribute(self),
+                            live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                        );
+
+                    result.add_advice(finding);
                 }
             }
         }
@@ -216,6 +223,7 @@ impl LiveCheckRunner for SampleAttribute {
                 parent_signal,
                 semconv_attribute.clone(),
                 parent_group.clone(),
+                live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(advice_list);
         }

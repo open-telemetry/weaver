@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
   to `PolicyFinding`. We now use the same structure between all
   rego policies in weaver. ([#1038](https://github.com/open-telemetry/weaver/pull/1038) by @jsuereth)
 - Add Log support for emit and live-check ([#1042](https://github.com/open-telemetry/weaver/pull/1042) by @jerbly)
+- Add OTLP log emission for policy findings in live-check. Whenever a PolicyFinding is created, a log_record is emitted to your configured OTLP endpoint. ([#1045](https://github.com/open-telemetry/weaver/pull/1045) by @jerbly)
 
 # [0.19.0] - 2025-11-04
 

@@ -226,6 +226,54 @@ These should be self-explanatory, but:
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 
+## OTLP Log Record Emission
+
+In addition to the templated output formats (ANSI, JSON), live check can emit policy findings as OTLP log records. This enables real-time monitoring and analysis of semantic convention validation results through OpenTelemetry observability backends.
+
+### Enabling OTLP Emission
+
+Use the `--emit-otlp-logs` flag to enable OTLP log record emission:
+
+```sh
+weaver registry live-check --emit-otlp-logs
+```
+
+By default, log records are sent via gRPC to `http://localhost:4317`. You can customize the endpoint:
+
+```sh
+weaver registry live-check --emit-otlp-logs --otlp-logs-endpoint http://my-collector:4317
+```
+
+For debugging, you can emit to stdout instead:
+
+```sh
+weaver registry live-check --emit-otlp-logs --otlp-logs-stdout
+```
+
+### Log Record Structure
+
+Each policy finding is emitted as an OTLP log record with the following structure:
+
+**Body**: The finding message (e.g., "Required attribute 'server.address' is not present.")
+
+**Severity**:
+- `Error` (17) for `violation` level findings
+- `Warn` (13) for `improvement` level findings
+- `Info` (9) for `information` level findings
+
+**Event Name**: `weaver.live_check.finding`
+
+**Resource Attributes**:
+- `service.name`: set by OTEL_SERVICE_NAME or OTEL_RESOURCE_ATTRIBUTES environment variables, defaulting to `weaver`
+
+**Log Attributes**:
+- `weaver.finding.id`: Finding type identifier (e.g., "required_attribute_not_present")
+- `weaver.finding.level`: Finding level as string ("violation", "improvement", "information")
+- `weaver.finding.context.<key>`: Key-value pairs provided in the context. Each pair is recorded as a single attribute.
+- `weaver.finding.sample_type`: Sample type (e.g., "attribute", "span", "metric")
+- `weaver.finding.signal_type`: Signal type (e.g., "span", "event", "metric")
+- `weaver.finding.signal_name`: Signal name (e.g., event name or metric name)
+
 ## Usage examples
 
 Default operation. Receive OTLP requests and output findings as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
