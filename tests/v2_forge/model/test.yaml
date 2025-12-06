@@ -21,6 +21,7 @@ events:
     stability: stable
     attributes:
       - ref: my.attr
+        brief: Attribute for the event
 entities:
   - type: my.entity
     identity:
@@ -39,7 +40,7 @@ metrics:
     - ref: my.attr
 spans:
   - type: my.span
-    name: 
+    name:
       note: Some name pattern
     kind: client
     attributes:

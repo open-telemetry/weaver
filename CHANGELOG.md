@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add support for V2 schema in JQ helpers ([#1058](https://github.com/open-telemetry/weaver/pull/1058) by @lmolkova)
 - Add support for V2 schema in weaver_forge ([#980](https://github.com/open-telemetry/weaver/pull/980) by @jsuereth)
 - Add support for V2 schema in `weaver check` ([#1016](https://github.com/open-telemetry/weaver/pull/1016) by @jsuereth)
 - Add support for V2 schema in `emit` ([#1019](https://github.com/open-telemetry/weaver/pull/1019) by @jerbly)
