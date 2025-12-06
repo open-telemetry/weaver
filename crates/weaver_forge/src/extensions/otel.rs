@@ -557,6 +557,7 @@ mod tests {
     use minijinja::value::Object;
     use minijinja::{Environment, Value};
     use serde::Serialize;
+    use serde_json::json;
     use std::fmt::Debug;
     use std::sync::Arc;
 
@@ -566,6 +567,7 @@ mod tests {
         attribute_registry_title, attribute_sort, is_experimental, is_stable, metric_namespace,
         print_member_value,
     };
+    use crate::v2;
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
@@ -1270,6 +1272,60 @@ mod tests {
             assert_eq!(
                 result, expected,
                 "Expected item @ {idx} to have name {expected}, found {names:?}"
+            );
+        }
+    }
+
+
+    #[test]
+    fn test_attribute_sort_v2() {
+        // Attributes in no particular order.
+        let attributes: Vec<serde_json::Value> = vec![
+            json!({"key": "rec.a", "requirement_level": "recommended"}),
+            json!({"key": "rec.b", "requirement_level": "recommended"}),
+            json!({"key": "crec.a", "requirement_level": {"conditionally_required": {"text": "hi"}}}),
+            json!({"key": "crec.b", "requirement_level": {"conditionally_required": {"text": "hi"}}}),
+            json!({"key": "rec.c", "requirement_level": {"recommended": {"text": "hi"}}}),
+            json!({"key": "rec.d", "requirement_level": {"recommended": {"text": "hi"}}}),
+            json!({"key": "opt.a", "requirement_level": "opt_in"}),
+            json!({"key": "opt.b", "requirement_level": "opt_in"}),
+            json!({"key": "req.a", "requirement_level": "required"}),
+            json!({"key": "req.b", "requirement_level": "required"})
+        ];
+        let json =
+            serde_json::to_value(attributes).expect("Failed to serialize attributes to json.");
+        let result = attribute_sort(Value::from_serialize(json)).expect("Failed to sort attributes");
+        let result_seq = result
+            .try_iter()
+            .expect("Result was not a sequence!")
+            .collect::<Vec<_>>();
+        // Assert that requirement level takes precedence over anything else.
+        assert_eq!(result_seq.len(), 10, "Expected 10 items, found {result}");
+        let keys: Vec<String> = result_seq
+            .iter()
+            .map(|item| item.get_attr("key").unwrap().as_str().unwrap().to_owned())
+            .collect();
+        let expected_names: Vec<String> = vec![
+            // Required First
+            "req.a".to_owned(),
+            "req.b".to_owned(),
+            // Conditionally Required Second
+            "crec.a".to_owned(),
+            "crec.b".to_owned(),
+            // Conditionally Recommended + Recommended Third
+            "rec.a".to_owned(),
+            "rec.b".to_owned(),
+            "rec.c".to_owned(),
+            "rec.d".to_owned(),
+            // OptIn last
+            "opt.a".to_owned(),
+            "opt.b".to_owned(),
+        ];
+
+        for (idx, (result, expected)) in keys.iter().zip(expected_names.iter()).enumerate() {
+            assert_eq!(
+                result, expected,
+                "Expected item @ {idx} to have name {expected}, found {keys:?}"
             );
         }
     }
