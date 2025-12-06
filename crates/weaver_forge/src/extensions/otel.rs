@@ -567,7 +567,7 @@ mod tests {
         attribute_registry_title, attribute_sort, is_experimental, is_stable, metric_namespace,
         print_member_value,
     };
-    use crate::v2;
+
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
