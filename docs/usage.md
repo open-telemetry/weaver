@@ -257,9 +257,9 @@ Options:
 
 ### registry search
 
-```text
-Searches a registry (Note: Experimental and subject to change)
+> **DEPRECATED**: This command is deprecated and will be removed in a future version. It is not compatible with V2 schema. Please search the generated documentation instead.
 
+```text
 Usage: weaver registry search [OPTIONS] [SEARCH_STRING]
 
 Arguments:
