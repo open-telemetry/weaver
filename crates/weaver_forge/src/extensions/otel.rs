@@ -1276,7 +1276,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_attribute_sort_v2() {
         // Attributes in no particular order.
@@ -1290,11 +1289,12 @@ mod tests {
             json!({"key": "opt.a", "requirement_level": "opt_in"}),
             json!({"key": "opt.b", "requirement_level": "opt_in"}),
             json!({"key": "req.a", "requirement_level": "required"}),
-            json!({"key": "req.b", "requirement_level": "required"})
+            json!({"key": "req.b", "requirement_level": "required"}),
         ];
         let json =
             serde_json::to_value(attributes).expect("Failed to serialize attributes to json.");
-        let result = attribute_sort(Value::from_serialize(json)).expect("Failed to sort attributes");
+        let result =
+            attribute_sort(Value::from_serialize(json)).expect("Failed to sort attributes");
         let result_seq = result
             .try_iter()
             .expect("Result was not a sequence!")
