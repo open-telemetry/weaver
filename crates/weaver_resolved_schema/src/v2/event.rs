@@ -7,7 +7,7 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, CommonFields},
 };
 
-use crate::v2::attribute::AttributeRef;
+use crate::v2::{attribute::AttributeRef, Signal};
 
 /// The definition of an Event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -66,4 +66,13 @@ pub struct EventRefinement {
     /// The definition of the event refinement.
     #[serde(flatten)]
     pub event: Event,
+}
+
+impl Signal for Event {
+    fn id(&self) -> &SignalId {
+        &self.name
+    }
+    fn common(&self) -> &CommonFields {
+        &self.common
+    }
 }

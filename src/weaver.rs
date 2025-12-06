@@ -330,6 +330,12 @@ impl ResolvedV2 {
         }
         Ok(())
     }
+
+    /// Calculates the difference between this and another schema.
+    pub fn diff(&self, other: &ResolvedV2) -> DiffV2 {
+        let changes = self.resolved_schema.diff(&other.resolved_schema);
+        DiffV2 { changes }
+    }
 }
 
 impl TryFrom<Resolved> for ResolvedV2 {
@@ -359,6 +365,18 @@ pub struct Diff {
 impl Diff {
     /// Returns the context we'll use to render diffs.
     pub fn as_template_context(&self) -> &SchemaChanges {
+        &self.changes
+    }
+}
+
+/// The difference between two resolved repositories.
+pub struct DiffV2 {
+    changes: weaver_version::v2::SchemaChanges,
+}
+
+impl DiffV2 {
+    /// Returns the context we'll use to render diffs.
+    pub fn as_template_context(&self) -> &weaver_version::v2::SchemaChanges {
         &self.changes
     }
 }

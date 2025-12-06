@@ -1,6 +1,6 @@
 //! Metric related definitions structs.
 
-use crate::v2::attribute::AttributeRef;
+use crate::v2::{attribute::AttributeRef, Signal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
@@ -77,4 +77,14 @@ pub struct MetricRefinement {
     /// The definition of the metric refinement.
     #[serde(flatten)]
     pub metric: Metric,
+}
+
+impl Signal for Metric {
+    fn id(&self) -> &SignalId {
+        &self.name
+    }
+
+    fn common(&self) -> &CommonFields {
+        &self.common
+    }
 }
