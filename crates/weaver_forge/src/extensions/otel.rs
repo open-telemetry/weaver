@@ -212,6 +212,14 @@ pub(crate) fn screaming_snake_case_const(input: &str) -> String {
     screaming_snake_case(&input.replace('_', ""))
 }
 
+fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
+    let mut name = input.get_attr("name")?;
+    if name.is_undefined() {
+        name = input.get_attr("key")?;
+    }
+    Ok(name)
+}
+
 /// Compares two attributes by their requirement_level, then name.
 fn compare_requirement_level(
     lhs: &Value,
@@ -242,8 +250,8 @@ fn compare_requirement_level(
     }
     match sort_ordinal_for_requirement(lhs)?.cmp(&sort_ordinal_for_requirement(rhs)?) {
         std::cmp::Ordering::Equal => {
-            let lhs_name = lhs.get_attr("name")?;
-            let rhs_name = rhs.get_attr("name")?;
+            let lhs_name = get_name_or_key(lhs)?;
+            let rhs_name = get_name_or_key(rhs)?;
             if lhs_name.lt(&rhs_name) {
                 Ok(std::cmp::Ordering::Less)
             } else if lhs_name.eq(&rhs_name) {

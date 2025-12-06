@@ -3,6 +3,10 @@ def semconv_group_attributes_by_root_namespace:
     group_by(.root_namespace)
     | map({ root_namespace: .[0].root_namespace, attributes: . | sort_by(.name) });
 
+def semconv_group_attributesv2_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, attributes: . | sort_by(.key) });
+
 # Expands stability array that previously used "experimental" for equivalent new strings.
 def expand_stability($stability):
   if ($stability | index("experimental")) then
@@ -96,8 +100,23 @@ def semconv_attributes($options):
       end
     | sort_by(.root_namespace, .name);
 
+def semconv_attributesv2($options):
+    .attributes
+    | stability_filter($options)
+    | code_generation_exclude_filter($options)
+    | deprecated_filter($options)
+    | map(. + {root_namespace: (if .key | index(".") then .key | split(".")[0] else "other" end)})
+    | if ($options | has("exclude_root_namespace")) then
+        map(select(.root_namespace as $st | $options.exclude_root_namespace | index($st) | not))
+      else
+        .
+      end
+    | sort_by(.root_namespace, .name);
+
 # Convenience function to extract all attributes without any filtering options.
 def semconv_attributes: semconv_attributes({});
+
+def semconv_attributesv2: semconv_attributesv2({});
 
 # Groups the processed attributes by their root namespace based on provided options.
 # $options is an object that can contain:
@@ -110,10 +129,15 @@ def semconv_grouped_attributes($options):
     semconv_attributes($options)
     | semconv_group_attributes_by_root_namespace;
 
+def semconv_grouped_attributesv2($options):
+    semconv_attributesv2($options)
+    | semconv_group_attributesv2_by_root_namespace;
+
 # Convenience function to group all attributes by their root namespace without
 # any filtering options.
 def semconv_grouped_attributes: semconv_grouped_attributes({});
 
+def semconv_grouped_attributesv2: semconv_grouped_attributesv2({});
 # Generic Signal Functions
 
 # Extracts and processes semantic convention signals based on provided options.
