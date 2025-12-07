@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Axum server setup for the weaver serve command.
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use axum::{routing::get, Router};
+use miette::Diagnostic;
+use serde::Serialize;
+use tower_http::cors::{Any, CorsLayer};
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+
+use super::handlers;
+use super::search::SearchContext;
+
+/// Shared application state for all request handlers.
+pub struct AppState {
+    /// The resolved registry loaded at startup.
+    pub registry: ForgeResolvedRegistry,
+    /// Pre-built search context for fast lookups.
+    pub search_ctx: SearchContext,
+}
+
+/// Error type for server operations.
+#[derive(Debug, thiserror::Error, Serialize, Diagnostic)]
+pub enum Error {
+    /// IO error
+    #[error("IO error: {error}")]
+    Io {
+        /// The error message.
+        error: String,
+    },
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::Io {
+            error: err.to_string(),
+        }
+    }
+}
+
+/// Run the API server.
+///
+/// # Arguments
+///
+/// * `bind_addr` - The address to bind the server to.
+/// * `registry` - The resolved V2 registry to serve.
+pub async fn run_server(
+    bind_addr: SocketAddr,
+    registry: ForgeResolvedRegistry,
+) -> Result<(), Error> {
+    // Build search context once at startup
+    let search_ctx = SearchContext::from_registry(&registry);
+
+    let state = Arc::new(AppState {
+        registry,
+        search_ctx,
+    });
+
+    // Configure CORS to allow any origin (for development)
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let app = Router::new()
+        // Health check
+        .route("/health", get(handlers::health))
+        // Registry overview
+        .route("/api/v1/registry", get(handlers::registry_overview))
+        // Attributes
+        .route("/api/v1/attributes", get(handlers::list_attributes))
+        .route("/api/v1/attributes/*key", get(handlers::get_attribute))
+        // Metrics
+        .route("/api/v1/metrics", get(handlers::list_metrics))
+        .route("/api/v1/metrics/*name", get(handlers::get_metric))
+        // Spans
+        .route("/api/v1/spans", get(handlers::list_spans))
+        .route("/api/v1/spans/*type", get(handlers::get_span))
+        // Events
+        .route("/api/v1/events", get(handlers::list_events))
+        .route("/api/v1/events/*name", get(handlers::get_event))
+        // Entities
+        .route("/api/v1/entities", get(handlers::list_entities))
+        .route("/api/v1/entities/*type", get(handlers::get_entity))
+        // Search
+        .route("/api/v1/search", get(handlers::search))
+        .layer(cors)
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind(bind_addr).await?;
+
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
