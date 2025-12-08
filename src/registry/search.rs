@@ -55,6 +55,8 @@ pub struct RegistrySearchArgs {
 enum Error {
     #[error("{0}")]
     StdIoError(String),
+    #[error("The search command is deprecated and not compatible with V2 schema. Please search the generated documentation instead.")]
+    V2SchemaIncompatible,
 }
 
 impl From<std::io::Error> for Error {
@@ -85,7 +87,7 @@ impl<'a> SearchApp<'a> {
             Block::default()
                 .borders(Borders::TOP)
                 .border_style(Style::default().fg(Color::Gray))
-                .title("Search (press `Esc` or `Ctrl-Q` to stop running) ")
+                .title("Search [DEPRECATED] (press `Esc` or `Ctrl-Q` to stop running) ")
                 .title_style(Style::default().fg(Color::Green)),
         );
         SearchApp {
@@ -100,19 +102,29 @@ impl<'a> SearchApp<'a> {
         let title_block = Block::default()
             .borders(Borders::TOP)
             .style(Style::default().bg(Color::Black))
-            .border_style(Style::default().fg(Color::Gray))
+            .border_style(Style::default().fg(Color::Yellow))
             .title_alignment(ratatui::layout::Alignment::Center)
-            .title_style(Style::default().fg(Color::Green))
-            .title("Weaver Search");
+            .title_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .title("Weaver Search [DEPRECATED]");
         let group_count: usize = self.schema.registry.stats().group_count;
-        let title_contents = Line::from(vec![Span::styled(
-            format!(
-                "Loaded {0:?} groups w/ {1} attributes",
-                group_count,
-                self.schema.catalog.count_attributes()
-            ),
-            Style::default().fg(Color::Gray),
-        )]);
+        let title_contents = vec![
+            Line::from(vec![Span::styled(
+                "⚠ DEPRECATED: This command will be removed. Search generated documentation instead.",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )]),
+            Line::from(vec![Span::styled(
+                format!(
+                    "Loaded {0:?} groups w/ {1} attributes",
+                    group_count,
+                    self.schema.catalog.count_attributes()
+                ),
+                Style::default().fg(Color::Gray),
+            )]),
+        ];
         Paragraph::new(title_contents).block(title_block)
     }
 
@@ -364,6 +376,11 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
 pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Resolving registry `{}`", args.registry.registry);
 
+    // Check for V2 schema incompatibility
+    if args.registry.v2 {
+        return Err(DiagnosticMessages::from_error(Error::V2SchemaIncompatible));
+    }
+
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy_config = PolicyArgs {
         policies: vec![],
@@ -373,6 +390,11 @@ pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, Diagn
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
     // Load the semantic convention registry into a local cache.
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
+
+    // Display deprecation warning
+    log::warn!("The 'weaver registry search' command is deprecated and will be removed in a future version.");
+    log::warn!("It is not compatible with V2 schema.");
+    log::warn!("Please search the generated documentation instead.");
 
     // We should have two modes:
     // 1. a single input we take in and directly output some rendered result.

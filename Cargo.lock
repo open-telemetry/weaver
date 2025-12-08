@@ -2700,9 +2700,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.28"
+version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
+checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lru"
@@ -5164,6 +5164,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "miette",
+ "opentelemetry",
  "portpicker",
  "prost",
  "ratatui",
@@ -5319,13 +5320,19 @@ dependencies = [
 name = "weaver_live_check"
 version = "0.19.0"
 dependencies = [
+ "log",
  "miette",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry-stdout",
+ "opentelemetry_sdk",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
  "tempfile",
  "thiserror 2.0.17",
+ "tokio",
  "weaver_checker",
  "weaver_common",
  "weaver_forge",

@@ -73,6 +73,11 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
+enum VersionedDiff {
+    V1(crate::weaver::Diff),
+    V2(crate::weaver::DiffV2),
+}
+
 /// Generate a diff between two versions of a semantic convention registry.
 pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut output = PathBuf::from("output");
@@ -104,7 +109,15 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     let main_resolved = weaver.resolve(main, &mut diag_msgs)?;
     let baseline_resolved = weaver.resolve(baseline, &mut diag_msgs)?;
     // Generate diff.
-    let diff = main_resolved.diff(&baseline_resolved);
+    let diff = if args.registry.v2 {
+        VersionedDiff::V2(
+            main_resolved
+                .try_into_v2()?
+                .diff(&baseline_resolved.try_into_v2()?),
+        )
+    } else {
+        VersionedDiff::V1(main_resolved.diff(&baseline_resolved))
+    };
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
@@ -120,11 +133,15 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
         .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
     let engine = TemplateEngine::try_new(config, loader, Params::default())?;
 
-    match engine.generate(
-        diff.as_template_context(),
-        output.as_path(),
-        &output_directive,
-    ) {
+    let result = match diff {
+        VersionedDiff::V1(d) => {
+            engine.generate(d.as_template_context(), output.as_path(), &output_directive)
+        }
+        VersionedDiff::V2(d) => {
+            engine.generate(d.as_template_context(), output.as_path(), &output_directive)
+        }
+    };
+    match result {
         Ok(_) => {}
         Err(e) => {
             return Err(DiagnosticMessages::from(DiffRender {

@@ -7,7 +7,7 @@ use std::{fmt, ops::Deref};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Serialize, JsonSchema, Clone, Debug, PartialEq)]
+#[derive(Serialize, JsonSchema, Clone, Debug, PartialEq, Eq, Hash)]
 /// An identifier for a signal.  Should be `.` separated namespaces and names.
 pub struct SignalId(String);
 

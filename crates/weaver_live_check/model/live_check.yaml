@@ -1,0 +1,137 @@
+groups:
+  - id: registry.weaver
+    type: attribute_group
+    brief: >
+      A set of attributes used within Weaver Live Check.
+    attributes:
+      - id: weaver.finding.id
+        type: string
+        brief: "Finding type identifier"
+        requirement_level: required
+        stability: development
+        examples: ["required_attribute_not_present", "invalid_span_name"]
+
+      - id: weaver.finding.level
+        type:
+          members:
+            - id: violation
+              value: "violation"
+              brief: "Indicates a violation"
+              stability: development
+            - id: improvement
+              value: "improvement"
+              brief: "Indicates an improvement suggestion"
+              stability: development
+            - id: information
+              value: "information"
+              brief: "Provides informational context"
+              stability: development
+        brief: "Finding level"
+        requirement_level: required
+        stability: development
+
+      - id: weaver.finding.context
+        type: template[any]
+        brief: "Key-value pairs providing additional context for the finding"
+        note: >
+          Each key-value pair is recorded as a single attribute.
+          Replace `<key>` with the actual context key.
+          e.g., `weaver.finding.context.attribute_name`: "my_attribute"
+        requirement_level: recommended
+        stability: development
+        examples:
+          - ["my_attribute", "attribute_value"]
+
+      - id: weaver.finding.sample_type
+        type:
+          members:
+            - id: attribute
+              value: "attribute"
+              brief: "Attribute sample"
+              stability: development
+            - id: span
+              value: "span"
+              brief: "Span sample"
+              stability: development
+            - id: span_event
+              value: "span_event"
+              brief: "Span event sample"
+              stability: development
+            - id: span_link
+              value: "span_link"
+              brief: "Span link sample"
+              stability: development
+            - id: resource
+              value: "resource"
+              brief: "Resource sample"
+              stability: development
+            - id: metric
+              value: "metric"
+              brief: "Metric sample"
+              stability: development
+            - id: number_data_point
+              value: "number_data_point"
+              brief: "Number data point sample"
+              stability: development
+            - id: histogram_data_point
+              value: "histogram_data_point"
+              brief: "Histogram data point sample"
+              stability: development
+            - id: exponential_histogram_data_point
+              value: "exponential_histogram_data_point"
+              brief: "Exponential histogram data point sample"
+              stability: development
+            - id: exemplar
+              value: "exemplar"
+              brief: "Exemplar sample"
+              stability: development
+            - id: log
+              value: "log"
+              brief: "Log sample"
+              stability: development
+        brief: "Sample type"
+        requirement_level: required
+        stability: development
+
+      - id: weaver.finding.signal_type
+        type:
+          members:
+            - id: span
+              value: "span"
+              brief: "Span signal"
+              stability: development
+            - id: resource
+              value: "resource"
+              brief: "Resource signal"
+              stability: development
+            - id: metric
+              value: "metric"
+              brief: "Metric signal"
+              stability: development
+            - id: log
+              value: "log"
+              brief: "Log signal"
+              stability: development
+        brief: "Signal type"
+        requirement_level: required
+        stability: development
+
+      - id: weaver.finding.signal_name
+        type: string
+        brief: "Signal name (e.g., event name or metric name)"
+        requirement_level: recommended
+        stability: development
+        examples: ["http.request.duration", "user.login.event"]
+
+  - id: weaver.live_check.finding
+    type: event
+    name: weaver.live_check.finding
+    stability: development
+    brief: "Weaver Live Check finding event"
+    attributes:
+      - ref: weaver.finding.id
+      - ref: weaver.finding.level
+      - ref: weaver.finding.context
+      - ref: weaver.finding.sample_type
+      - ref: weaver.finding.signal_type
+      - ref: weaver.finding.signal_name

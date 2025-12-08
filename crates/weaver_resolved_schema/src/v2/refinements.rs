@@ -1,11 +1,10 @@
 //! A semantic convention refinements.
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
 use crate::v2::{
     event::EventRefinement, metric::MetricRefinement, span::SpanRefinement, stats::RefinementStats,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Semantic convention refinements.
 ///

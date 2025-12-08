@@ -20,6 +20,12 @@ serde.workspace = true
 serde_json.workspace = true
 miette.workspace = true
 schemars.workspace = true
+log.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+opentelemetry-stdout.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 tempfile = "3.23.0"

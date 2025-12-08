@@ -25,6 +25,8 @@ pub mod metrics_changes;
 pub mod resource_changes;
 pub mod schema_changes;
 pub mod spans_changes;
+pub mod v2;
+
 /// An error that can occur while loading or resolving version changes.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
