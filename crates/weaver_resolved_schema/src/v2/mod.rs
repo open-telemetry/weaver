@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     deprecated::Deprecated,
+    deprecated::Deprecated,
     group::GroupType,
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
@@ -13,10 +14,12 @@ use weaver_semconv::{
     },
 };
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
+use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::v2::{
     attribute::Attribute,
     attribute_group::AttributeGroup,
+    catalog::{AttributeCatalog, Catalog},
     catalog::{AttributeCatalog, Catalog},
     entity::Entity,
     metric::Metric,
@@ -601,6 +604,7 @@ mod tests {
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
+    use crate::lineage::AttributeLineage;
     use crate::lineage::AttributeLineage;
 
     use super::*;
