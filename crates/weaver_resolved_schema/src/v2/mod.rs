@@ -536,8 +536,8 @@ fn diff_signals_by_hash<T: Signal>(
     latest: &HashMap<&str, &T>,
     baseline: &HashMap<&str, &T>,
 ) -> Vec<SchemaItemChange> {
-    let mut changes = Vec::new();
-    for (signal_id, latest_signal) in latest.iter() {
+    let mut changes: Vec<SchemaItemChange> = Vec::new();
+    for (&signal_id, latest_signal) in latest.iter() {
         let baseline_signal = baseline.get(signal_id);
         if let Some(baseline_signal) = baseline_signal {
             if let Some(deprecated) = latest_signal.common().deprecated.as_ref() {
@@ -554,20 +554,20 @@ fn diff_signals_by_hash<T: Signal>(
                         note,
                     } => {
                         changes.push(SchemaItemChange::Renamed {
-                            old_name: (*signal_id).to_owned(),
+                            old_name: signal_id.to_owned(),
                             new_name: rename_to.clone(),
                             note: note.clone(),
                         });
                     }
                     Deprecated::Obsoleted { note } => {
                         changes.push(SchemaItemChange::Obsoleted {
-                            name: (*signal_id).to_owned(),
+                            name: signal_id.to_owned(),
                             note: note.clone(),
                         });
                     }
                     Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
                         changes.push(SchemaItemChange::Uncategorized {
-                            name: (*signal_id).to_owned(),
+                            name: signal_id.to_owned(),
                             note: note.clone(),
                         });
                     }
@@ -575,7 +575,7 @@ fn diff_signals_by_hash<T: Signal>(
             }
         } else {
             changes.push(SchemaItemChange::Added {
-                name: (*signal_id).to_owned(),
+                name: signal_id.to_owned(),
             });
         }
     }
