@@ -100,68 +100,9 @@ impl ResolvedTelemetrySchema {
         &self,
         baseline_schema: &ResolvedTelemetrySchema,
     ) -> Vec<SchemaItemChange> {
-        let mut changes = Vec::new();
         let latest_attributes = self.registry_attribute_map();
         let baseline_attributes = baseline_schema.registry_attribute_map();
-        // Collect all the information related to the attributes that have been
-        // deprecated in the latest schema.
-        for (attr_name, attr) in latest_attributes.iter() {
-            let baseline_attr = baseline_attributes.get(attr_name);
-
-            if let Some(baseline_attr) = baseline_attr {
-                if let Some(deprecated) = attr.common.deprecated.as_ref() {
-                    // is this a change from the baseline?
-                    if let Some(baseline_deprecated) = baseline_attr.common.deprecated.as_ref() {
-                        if deprecated == baseline_deprecated {
-                            // This attribute was already deprecated in the baseline.
-                            // We can skip it.
-                            continue;
-                        }
-                    }
-
-                    match deprecated {
-                        Deprecated::Renamed {
-                            renamed_to: rename_to,
-                            note,
-                        } => {
-                            changes.push(SchemaItemChange::Renamed {
-                                old_name: baseline_attr.key.clone(),
-                                new_name: rename_to.clone(),
-                                note: note.clone(),
-                            });
-                        }
-                        Deprecated::Obsoleted { note } => {
-                            changes.push(SchemaItemChange::Obsoleted {
-                                name: attr.key.clone(),
-                                note: note.clone(),
-                            });
-                        }
-                        Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
-                            changes.push(SchemaItemChange::Uncategorized {
-                                name: attr.key.clone(),
-                                note: note.clone(),
-                            });
-                        }
-                    }
-                }
-            } else {
-                changes.push(SchemaItemChange::Added {
-                    name: attr.key.clone(),
-                });
-            }
-        }
-        // Any attribute in the baseline schema that is not present in the latest schema
-        // is considered removed.
-        // Note: This should never occur if the registry evolution process is followed.
-        // However, detecting this case is useful for identifying a violation of the process.
-        for (attr_name, attr) in baseline_attributes.iter() {
-            if !latest_attributes.contains_key(attr_name) {
-                changes.push(SchemaItemChange::Removed {
-                    name: attr.key.clone(),
-                });
-            }
-        }
-        changes
+        diff_signals_by_hash(&latest_attributes, &baseline_attributes)
     }
 
     /// Get the registry attributes of the resolved telemetry schema in a fast lookup map.
@@ -577,7 +518,7 @@ pub fn convert_v1_to_v2(
 /// A trait that defines a signal, used for performing "diff"
 pub trait Signal {
     /// The id of the signal.
-    fn id(&self) -> &SignalId;
+    fn id(&self) -> &str;
     /// The common fields for the signal.
     fn common(&self) -> &CommonFields;
 }
@@ -585,11 +526,19 @@ pub trait Signal {
 /// Diffs signal registries.
 #[must_use]
 fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange> {
+    let baseline_signals: HashMap<&str, &T> = baseline.iter().map(|s| (s.id(), s)).collect();
+    let latest_signals: HashMap<&str, &T> = latest.iter().map(|s| (s.id(), s)).collect();
+    diff_signals_by_hash(&latest_signals, &baseline_signals)
+}
+
+/// Finds the difference between two signal registries using a hash into the signal id.
+fn diff_signals_by_hash<T: Signal>(
+    latest: &HashMap<&str, &T>,
+    baseline: &HashMap<&str, &T>,
+) -> Vec<SchemaItemChange> {
     let mut changes = Vec::new();
-    let baseline_signals: HashMap<&SignalId, &T> = baseline.iter().map(|s| (s.id(), s)).collect();
-    let latest_signals: HashMap<&SignalId, &T> = latest.iter().map(|s| (s.id(), s)).collect();
-    for (signal_id, latest_signal) in latest_signals.iter() {
-        let baseline_signal = baseline_signals.get(signal_id);
+    for (signal_id, latest_signal) in latest.iter() {
+        let baseline_signal = baseline.get(signal_id);
         if let Some(baseline_signal) = baseline_signal {
             if let Some(deprecated) = latest_signal.common().deprecated.as_ref() {
                 // is this a change from the baseline?
@@ -634,8 +583,8 @@ fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange
     // is considered removed.
     // Note: This should never occur if the registry evolution process is followed.
     // However, detecting this case is useful for identifying a violation of the process.
-    for (signal_name, _) in baseline_signals.iter() {
-        if !latest_signals.contains_key(signal_name) {
+    for (signal_name, _) in baseline.iter() {
+        if !latest.contains_key(signal_name) {
             changes.push(SchemaItemChange::Removed {
                 name: signal_name.to_string(),
             });

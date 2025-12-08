@@ -9,6 +9,8 @@ use weaver_semconv::{
     v2::CommonFields,
 };
 
+use crate::v2::Signal;
+
 /// The definition of an Attribute.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
@@ -41,5 +43,15 @@ pub struct AttributeRef(pub u32);
 impl Display for AttributeRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "AttributeRef({})", self.0)
+    }
+}
+
+impl Signal for Attribute {
+    fn id(&self) -> &str {
+        &self.key
+    }
+
+    fn common(&self) -> &CommonFields {
+        &self.common
     }
 }

@@ -80,7 +80,7 @@ pub struct MetricRefinement {
 }
 
 impl Signal for Metric {
-    fn id(&self) -> &SignalId {
+    fn id(&self) -> &str {
         &self.name
     }
 
