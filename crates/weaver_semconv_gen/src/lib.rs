@@ -61,6 +61,13 @@ pub enum Error {
         /// Markdown snippet identifier <!-- semconv {header} -->
         header: String,
     },
+
+    /// Thrown when a snippet lookup id is not valid.
+    #[error("Could not parse snippet id: [{id}]")]
+    InvalidSnippetId {
+        /// Markdown snipper identifier:  <!-- semconv {id} -->
+        id: String,
+    },
     /// Errors from using std io library.
     #[error("{0}")]
     StdIoError(String),

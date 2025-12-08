@@ -4,10 +4,10 @@
 
 use serde::Serialize;
 use weaver_forge::{v2::metric::MetricAttribute, TemplateEngine};
-use weaver_resolved_schema::v2::ResolvedTelemetrySchema;
+use weaver_resolved_schema::v2::{ResolvedTelemetrySchema, Signal, catalog::AttributeCatalog, metric::Metric};
 use weaver_semconv::v2::signal_id::SignalId;
 
-use crate::{Error, MarkdownSnippetGenerator};
+use crate::{Error, MarkdownSnippetGenerator, parser::{IdLookupV2, RegistryLookup, parse_id_lookup_v2}};
 
 /// Stat we need to generate markdown snippets from configuration.
 pub struct SnippetGenerator {
@@ -37,7 +37,7 @@ impl MarkdownSnippetGenerator for SnippetGenerator {
         // is the equivalent of groups in V1.
         // Additionally, we'll use the prefix, e.g. `metric.*` to
         // guide our search. This *may* break some old lookups.
-        let group = lookup_id(&self.lookup, &args.id).ok_or(Error::GroupNotFound {
+        let group = lookup_id(&self.lookup, &args.id)?.ok_or(Error::GroupNotFound {
             id: args.id.clone(),
         })?;
 
@@ -60,109 +60,75 @@ impl MarkdownSnippetGenerator for SnippetGenerator {
     }
 }
 
-fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Option<ResolvedId> {
-    // TODO - we should parse ID into a lookup path, e.g.
-    // `refinements.spans.*` -> LookupRefinement(Span(*))
-    // `spans.*` -> Either(LookupRegistry(Span(*)), LookupRefinement(Span(*)))
-    // We probably will deprecate this feature before that's needed.
+/// Looks up a signal from a registry by an id string.
+fn lookup_signal_by_id<'a, T: Signal>(signals: &'a[T], id: &str) -> Option<&'a T> {
+    signals.iter().find(|s| s.id() == id)
+}
 
-    // A bit of a hack to use V1 -> V2 namespacing rules.
-    if id.starts_with("spans.") {
-        let span_type: SignalId = id
-            .strip_prefix("spans.")
-            .expect("Prefix should already have been tested")
-            .to_owned()
-            .into();
-        registry
-            .refinements
-            .spans
-            .iter()
-            .find(|s| s.span.r#type == span_type)
-            .map(|s| {
-                // TODO
-                ResolvedId::Span(ResolvedSpan {})
-            })
-    } else if id.starts_with("metrics.") {
-        let metric_id: SignalId = id
-            .strip_prefix("metrics.")
-            .expect("Prefix should already have been tested")
-            .to_owned()
-            .into();
-        registry
-            .refinements
-            .metrics
-            .iter()
-            .find(|m| m.id == metric_id)
-            .map(|m| {
-                let mut attributes = Vec::new();
-                for ar in m.metric.attributes.iter() {
-                    let attr = registry.registry.attribute(&ar.base).expect(&format!(
-                        "Invalid schema file: Attribute reference {} does not exist",
-                        ar.base.0
-                    ));
-                    attributes.push(MetricAttribute {
-                        base: weaver_forge::v2::attribute::Attribute {
-                            key: attr.key.clone(),
-                            r#type: attr.r#type.clone(),
-                            examples: attr.examples.clone(),
-                            common: attr.common.clone(),
-                        },
-                        requirement_level: ar.requirement_level.clone(),
-                    });
-                }
-                ResolvedId::Metric(ResolvedMetric {
-                    metric: weaver_forge::v2::metric::Metric {
-                        name: m.metric.name.clone(),
-                        instrument: m.metric.instrument.clone(),
-                        unit: m.metric.unit.clone(),
-                        attributes,
-                        entity_associations: m.metric.entity_associations.clone(),
-                        common: m.metric.common.clone(),
-                    },
-                })
-            })
-    } else if id.starts_with("events.") {
-        let event_name: SignalId = id
-            .strip_prefix("events.")
-            .expect("Prefix should already have been tested")
-            .to_owned()
-            .into();
-        registry
-            .refinements
-            .events
-            .iter()
-            .find(|e| e.event.name == event_name)
-            .map(|e| {
-                // TODO
-                ResolvedId::Event(ResolvedEvent {})
-            })
-    } else if id.starts_with("entities.") {
-        let entity_type: SignalId = id
-            .strip_prefix("entities.")
-            .expect("Prefix should already have been tested")
-            .to_owned()
-            .into();
-        registry
-            .registry
-            .entities
-            .iter()
-            .find(|e| e.r#type == entity_type)
-            .map(|e| {
-                // TODO
-                ResolvedId::Entity(ResolvedEntity {})
-            })
-    } else {
-        // Assume anything not prefixed is a raw attribute group.
-        let group_id: SignalId = id.to_owned().into();
-        registry
-            .registry
-            .attribute_groups
-            .iter()
-            .find(|g| g.id == group_id)
-            .map(|g| {
-                // TODO
-                ResolvedId::AttributeGroup(ResolvedAttributeGroup {})
-            })
+/// Creates a renderable context for a resolved metric.
+fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId {
+    let mut attributes = Vec::new();
+    for ar in m.attributes.iter() {
+        let attr = catalog.attribute(&ar.base).expect(&format!(
+            "Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0
+        ));
+        attributes.push(MetricAttribute {
+            base: weaver_forge::v2::attribute::Attribute {
+                key: attr.key.clone(),
+                r#type: attr.r#type.clone(),
+                examples: attr.examples.clone(),
+                common: attr.common.clone(),
+            },
+            requirement_level: ar.requirement_level.clone(),
+        });
+    }
+    ResolvedId::Metric(ResolvedMetric {
+        metric: weaver_forge::v2::metric::Metric {
+            name: m.name.clone(),
+            instrument: m.instrument.clone(),
+            unit: m.unit.clone(),
+            attributes,
+            entity_associations: m.entity_associations.clone(),
+            common: m.common.clone(),
+        },
+    })
+}
+
+fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<ResolvedId>, Error> {
+    let lookup = parse_id_lookup_v2(id)?;
+    match lookup {
+        IdLookupV2::Registry(RegistryLookup::Attribute { id }) => {
+            todo!("Unsupported")
+        },
+        IdLookupV2::Registry(RegistryLookup::AttributeGroup { id }) => {
+            todo!("Unsupported")
+        },
+        IdLookupV2::Registry(RegistryLookup::Span { id }) => {
+            todo!("Unsupported")
+        },
+        IdLookupV2::Registry(RegistryLookup::Metric { id }) => {
+            Ok(lookup_signal_by_id(&registry.registry.metrics, &id)
+            .map(|m| resolved_metric(m, &registry.attribute_catalog)))
+        },
+        IdLookupV2::Registry(RegistryLookup::Event { id }) => {
+            todo!("Unsupported")
+        },
+        IdLookupV2::Registry(RegistryLookup::Entity { id }) => {
+            todo!("Unsupported")
+        },
+        IdLookupV2::Refinement(crate::parser::RefinementLookup::Metric { id }) => {
+            Ok(
+                registry.refinements.metrics.iter().find(|m| m.id == id)
+                .map(|m| resolved_metric(&m.metric, &registry.attribute_catalog))
+            )
+        },
+        IdLookupV2::Refinement(crate::parser::RefinementLookup::Event { id }) => {
+            todo!("Unsupported")
+        },
+        IdLookupV2::Refinement(crate::parser::RefinementLookup::Span { id }) => {
+            todo!("Unsupported")
+        },
     }
 }
 
@@ -209,7 +175,6 @@ struct MarkdownSnippetContext {
 #[cfg(test)]
 mod tests {
     use serde_yaml::Value;
-    use weaver_common::{diagnostic::DiagnosticMessages, vdir::VirtualDirectoryPath};
     use weaver_forge::{TemplateEngine, config::{Params, WeaverConfig}, file_loader::FileSystemFileLoader};
     use weaver_resolved_schema::v2::{ResolvedTelemetrySchema, attribute_group::AttributeGroup, metric::{Metric, MetricRefinement}, refinements::Refinements, registry::Registry};
     use weaver_semconv::{group::InstrumentSpec, v2::CommonFields};
@@ -250,6 +215,7 @@ mod tests {
             file_format: "v2/resolved".to_owned(),
             schema_url: "todo/1.0.0".to_owned(),
             registry_id: "main".to_owned(),
+            attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![

@@ -16,7 +16,7 @@ use nom::{
     sequence::pair,
     IResult, Parser,
 };
-use serde::Serialize;
+use weaver_semconv::v2::signal_id::SignalId;
 
 /// Markdown-snippet generation arguments.
 pub struct GenerateMarkdownArgs {
@@ -209,10 +209,118 @@ pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownAr
     }
 }
 
+/// Returns the V2 id lookup structure
+pub(crate) fn parse_id_lookup_v2(input: &str) -> Result<IdLookupV2, Error> {
+    match parse_id_lookup(input) {
+        Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
+        _ => Err(Error::InvalidSnippetId {
+            id: input.to_owned(),
+        }),
+    }
+}
+
+/// A query to lookup a particular semantic convention item in the V2 schema.
+#[derive(Debug, PartialEq)]
+pub(crate) enum IdLookupV2 {
+    Registry(RegistryLookup),
+    Refinement(RefinementLookup),
+}
+
+/// Lookup a particular item in the registry.
+#[derive(Debug, PartialEq)]
+pub(crate) enum RegistryLookup {
+    Attribute {
+        id: String,
+    },
+    AttributeGroup {
+        id: SignalId,
+    },
+    Span {
+        id: SignalId,
+    },
+    Metric {
+        id: SignalId,
+    },
+    Event {
+        id: SignalId,
+    },
+    Entity {
+        id: SignalId,
+    },
+}
+
+/// Lookup a particular refinement by id.
+#[derive(Debug, PartialEq)]
+pub(crate) enum RefinementLookup {
+    Span {
+        id: SignalId,
+    },
+    Metric {
+        id: SignalId,
+    },
+    Event {
+        id: SignalId,
+    },
+}
+
+fn parse_partial_id(input: &str) -> IResult<&str, &str> {
+    recognize(pair(
+        alpha1, // First character must be alpha, then anything is accepted.
+        many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
+    )).parse(input)
+}
+
+fn parse_id_lookup(input: &str) -> IResult<&str, IdLookupV2> {
+    let (input, name) = parse_partial_id(input)?;
+    let (input, _) = tag(".").parse(input)?;
+    match name {
+        "registry" => parse_registry_lookup(input).map(|(i,l)| (i, IdLookupV2::Registry(l))),
+        "refinements" => parse_refinement_lookup(input).map(|(i,l)| (i, IdLookupV2::Refinement(l))),
+        _ => Err(nom::Err::Failure(ParseError::from_error_kind(
+            input,
+            ErrorKind::IsNot,
+        )))
+    }
+}
+
+fn parse_registry_lookup(input: &str) -> IResult<&str, RegistryLookup> {
+    let (input, name) = parse_partial_id(input)?;
+    let (input, _) = tag(".").parse(input)?;
+    let (input, id_rest) = parse_id(input)?;
+    match name {
+        "attributes" => Ok((input, RegistryLookup::Attribute { id: id_rest.to_owned() })),
+        "attribute_groups" => Ok((input, RegistryLookup::AttributeGroup { id: id_rest.to_owned().into() })),
+        "spans" => Ok((input, RegistryLookup::Span { id: id_rest.to_owned().into() })),
+        "metrics" => Ok((input, RegistryLookup::Metric { id: id_rest.to_owned().into() })),
+        "events" => Ok((input, RegistryLookup::Event { id: id_rest.to_owned().into() })),
+        "entities" => Ok((input, RegistryLookup::Entity { id: id_rest.to_owned().into() })),
+        _ => Err(nom::Err::Failure(ParseError::from_error_kind(
+            input,
+            ErrorKind::IsNot,
+        )))
+    }
+}
+
+fn parse_refinement_lookup(input: &str) -> IResult<&str, RefinementLookup> {
+    let (input, name) = parse_partial_id(input)?;
+    let (input, _) = tag(".").parse(input)?;
+    let (input, id_rest) = parse_id(input)?;
+    match name {
+        "spans" => Ok((input, RefinementLookup::Span { id: id_rest.to_owned().into() })),
+        "metrics" => Ok((input, RefinementLookup::Metric { id: id_rest.to_owned().into() })),
+        "events" => Ok((input, RefinementLookup::Event { id: id_rest.to_owned().into() })),
+        _ => Err(nom::Err::Failure(ParseError::from_error_kind(
+            input,
+            ErrorKind::IsNot,
+        )))
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{is_markdown_snippet_directive, is_semconv_trailer, MarkdownGenParameters};
+    use crate::parser::{IdLookupV2, MarkdownGenParameters, RefinementLookup, RegistryLookup, is_markdown_snippet_directive, is_semconv_trailer, parse_id_lookup_v2};
     use crate::Error;
 
     use super::parse_markdown_snippet_directive;
@@ -289,6 +397,21 @@ mod tests {
         let result = parse_markdown_snippet_directive("<!--semconv stuff-->")?;
         assert_eq!(result.id, "stuff");
 
+        Ok(())
+    }
+
+    #[test]
+    fn parse_v2_lookups() -> Result<(), Error> {
+        assert_eq!(parse_id_lookup_v2("registry.attributes.user_agent")?, IdLookupV2::Registry(RegistryLookup::Attribute { id: "user_agent".to_owned() }));
+        assert_eq!(parse_id_lookup_v2("registry.metrics.one")?, IdLookupV2::Registry(RegistryLookup::Metric { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("registry.spans.one")?, IdLookupV2::Registry(RegistryLookup::Span { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("registry.events.one")?, IdLookupV2::Registry(RegistryLookup::Event { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("registry.entities.one")?, IdLookupV2::Registry(RegistryLookup::Entity { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("registry.attribute_groups.one")?, IdLookupV2::Registry(RegistryLookup::AttributeGroup { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("refinements.metrics.one")?, IdLookupV2::Refinement(RefinementLookup::Metric { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("refinements.spans.one")?, IdLookupV2::Refinement(RefinementLookup::Span { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("refinements.events.one")?, IdLookupV2::Refinement(RefinementLookup::Event { id: "one".to_owned().into() }));
+        assert_eq!(parse_id_lookup_v2("registry.metrics.multiple.dots.and_underscores")?, IdLookupV2::Registry(RegistryLookup::Metric { id: "multiple.dots.and_underscores".to_owned().into() }));
         Ok(())
     }
 }
