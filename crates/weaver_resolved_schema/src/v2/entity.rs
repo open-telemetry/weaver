@@ -43,7 +43,7 @@ pub struct EntityAttributeRef {
 }
 
 impl Signal for Entity {
-    fn id(&self) -> &SignalId {
+    fn id(&self) -> &str {
         &self.r#type
     }
     fn common(&self) -> &CommonFields {

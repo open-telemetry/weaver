@@ -30,7 +30,7 @@ pub struct AttributeGroup {
 }
 
 impl Signal for AttributeGroup {
-    fn id(&self) -> &SignalId {
+    fn id(&self) -> &str {
         &self.id
     }
     fn common(&self) -> &CommonFields {

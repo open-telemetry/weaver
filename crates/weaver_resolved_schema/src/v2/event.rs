@@ -69,7 +69,7 @@ pub struct EventRefinement {
 }
 
 impl Signal for Event {
-    fn id(&self) -> &SignalId {
+    fn id(&self) -> &str {
         &self.name
     }
     fn common(&self) -> &CommonFields {
