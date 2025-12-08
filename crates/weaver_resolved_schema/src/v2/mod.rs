@@ -588,10 +588,10 @@ fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange
     let mut changes = Vec::new();
     let baseline_signals: HashMap<&SignalId, &T> = baseline.iter().map(|s| (s.id(), s)).collect();
     let latest_signals: HashMap<&SignalId, &T> = latest.iter().map(|s| (s.id(), s)).collect();
-    for (signal_id, _) in latest_signals.iter() {
+    for (signal_id, latest_signal) in latest_signals.iter() {
         let baseline_signal = baseline_signals.get(signal_id);
         if let Some(baseline_signal) = baseline_signal {
-            if let Some(deprecated) = baseline_signal.common().deprecated.as_ref() {
+            if let Some(deprecated) = latest_signal.common().deprecated.as_ref() {
                 // is this a change from the baseline?
                 if let Some(baseline_deprecated) = baseline_signal.common().deprecated.as_ref() {
                     if deprecated == baseline_deprecated {
@@ -648,6 +648,7 @@ fn diff_signals<T: Signal>(latest: &[T], baseline: &[T]) -> Vec<SchemaItemChange
 mod tests {
 
     use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
+    use crate::v2::event::Event;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
@@ -1179,6 +1180,74 @@ mod tests {
                 }
                 SchemaItemChange::Removed { name } => {
                     assert_eq!(name, "http");
+                }
+                c => panic!("Unexpected change type: {:?}", c),
+            }
+        }
+    }
+
+    #[test]
+    fn v2_detect_entity_uncategorized_deprecation() {
+        // Test a user deprecating an entity with unknown change type.
+        let mut baseline = empty_v2_schema();
+        baseline.registry.entities.push(Entity {
+            common: CommonFields::default(),
+            r#type: "test.entity".to_owned().into(),
+            identity: vec![],
+            description: vec![],
+        });
+        let mut latest = empty_v2_schema();
+        latest.registry.entities.push(Entity {
+            common: CommonFields {
+                deprecated: Some(Deprecated::Uncategorized { note: "note".to_string() }),
+                ..Default::default()
+            },
+            r#type: "test.entity".to_owned().into(),
+            identity: vec![],
+            description: vec![],
+        });
+        let diff = latest.diff(&baseline);
+        assert!(!diff.is_empty());
+        for change in diff.registry.metric_changes.iter() {
+            match change {
+                SchemaItemChange::Uncategorized { name, note } => {
+                    assert_eq!(name, "test.entity");
+                    assert_eq!(note, "note");
+                }
+                c => panic!("Unexpected change type: {:?}", c),
+            }
+        }
+    }
+
+    #[test]
+    fn v2_detect_event_obsoleted() {
+        // Test a user obsoleting an event.
+        let mut baseline = empty_v2_schema();
+        baseline.registry.events.push(Event {
+            common: CommonFields::default(),
+            name: "test.event".to_owned().into(),
+            attributes: vec![],
+            entity_associations: vec![],
+            
+        });
+        let mut latest = empty_v2_schema();
+        latest.registry.events.push(Event {
+            name: "test.event".to_owned().into(),
+            attributes: vec![],
+            entity_associations: vec![],
+            common: CommonFields {
+                deprecated: Some(Deprecated::Obsoleted { note: "note".to_string() }),
+                ..Default::default()
+            },
+            
+        });
+        let diff = latest.diff(&baseline);
+        assert!(!diff.is_empty());
+        for change in diff.registry.metric_changes.iter() {
+            match change {
+                SchemaItemChange::Obsoleted { name, note } => {
+                    assert_eq!(name, "test.event");
+                    assert_eq!(note, "note");
                 }
                 c => panic!("Unexpected change type: {:?}", c),
             }
