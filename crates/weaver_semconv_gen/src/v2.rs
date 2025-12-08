@@ -4,13 +4,22 @@
 
 use serde::Serialize;
 use weaver_forge::{
-    v2::{metric::MetricAttribute, span::SpanAttribute},
+    v2::{
+        entity::EntityAttribute, event::EventAttribute, metric::MetricAttribute,
+        span::SpanAttribute,
+    },
     TemplateEngine,
 };
 use weaver_resolved_schema::v2::{
-    catalog::AttributeCatalog, metric::Metric, span::Span, ResolvedTelemetrySchema, Signal,
+    attribute::{Attribute, AttributeRef},
+    attribute_group::AttributeGroup,
+    catalog::AttributeCatalog,
+    entity::Entity,
+    event::Event,
+    metric::Metric,
+    span::Span,
+    ResolvedTelemetrySchema, Signal,
 };
-use weaver_semconv::v2::signal_id::SignalId;
 
 use crate::{
     parser::{parse_id_lookup_v2, IdLookupV2, RegistryLookup},
@@ -134,15 +143,129 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
     })
 }
 
+// Creates renderable event.
+fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
+    let mut attributes = Vec::new();
+    for ar in s.attributes.iter() {
+        let attr = catalog.attribute(&ar.base).expect(&format!(
+            "Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0
+        ));
+        attributes.push(EventAttribute {
+            base: weaver_forge::v2::attribute::Attribute {
+                key: attr.key.clone(),
+                r#type: attr.r#type.clone(),
+                examples: attr.examples.clone(),
+                common: attr.common.clone(),
+            },
+            requirement_level: ar.requirement_level.clone(),
+        });
+    }
+    ResolvedId::Event(ResolvedEvent {
+        event: weaver_forge::v2::event::Event {
+            name: s.name.clone(),
+            attributes,
+            entity_associations: s.entity_associations.clone(),
+            common: s.common.clone(),
+        },
+    })
+}
+
+// Creates renderable entity.
+fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId {
+    let mut identity = Vec::new();
+    for ar in s.identity.iter() {
+        let attr = catalog.attribute(&ar.base).expect(&format!(
+            "Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0
+        ));
+        identity.push(EntityAttribute {
+            base: weaver_forge::v2::attribute::Attribute {
+                key: attr.key.clone(),
+                r#type: attr.r#type.clone(),
+                examples: attr.examples.clone(),
+                common: attr.common.clone(),
+            },
+            requirement_level: ar.requirement_level.clone(),
+        });
+    }
+    let mut description = Vec::new();
+    for ar in s.description.iter() {
+        let attr = catalog.attribute(&ar.base).expect(&format!(
+            "Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0
+        ));
+        description.push(EntityAttribute {
+            base: weaver_forge::v2::attribute::Attribute {
+                key: attr.key.clone(),
+                r#type: attr.r#type.clone(),
+                examples: attr.examples.clone(),
+                common: attr.common.clone(),
+            },
+            requirement_level: ar.requirement_level.clone(),
+        });
+    }
+    ResolvedId::Entity(ResolvedEntity {
+        entity: weaver_forge::v2::entity::Entity {
+            common: s.common.clone(),
+            r#type: s.r#type.clone(),
+            identity,
+            description,
+        },
+    })
+}
+
+// Creates renderable attribute group.
+fn resolved_attribute_group<AC: AttributeCatalog>(s: &AttributeGroup, catalog: &AC) -> ResolvedId {
+    let mut attributes = Vec::new();
+    for ar in s.attributes.iter() {
+        let attr = catalog.attribute(ar).expect(&format!(
+            "Invalid schema file: Attribute reference {} does not exist",
+            ar.0
+        ));
+        attributes.push(weaver_forge::v2::attribute::Attribute {
+            key: attr.key.clone(),
+            r#type: attr.r#type.clone(),
+            examples: attr.examples.clone(),
+            common: attr.common.clone(),
+        });
+    }
+    ResolvedId::AttributeGroup(ResolvedAttributeGroup {
+        attribute_group: weaver_forge::v2::attribute_group::AttributeGroup {
+            common: s.common.clone(),
+            id: s.id.clone(),
+            attributes,
+        },
+    })
+}
+
+// Creates renderable attribute group.
+fn resolved_attribute(attr: &Attribute) -> ResolvedId {
+    ResolvedId::Attribute(ResolvedAttribute {
+        attribute: weaver_forge::v2::attribute::Attribute {
+            key: attr.key.clone(),
+            r#type: attr.r#type.clone(),
+            examples: attr.examples.clone(),
+            common: attr.common.clone(),
+        },
+    })
+}
+
 fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<ResolvedId>, Error> {
     let lookup = parse_id_lookup_v2(id)?;
     match lookup {
-        IdLookupV2::Registry(RegistryLookup::Attribute { id }) => {
-            todo!("Unsupported")
-        }
-        IdLookupV2::Registry(RegistryLookup::AttributeGroup { id }) => {
-            todo!("Unsupported")
-        }
+        IdLookupV2::Registry(RegistryLookup::Attribute { id }) => Ok(registry
+            .registry
+            .attributes
+            .iter()
+            .filter_map(|ar| registry.attribute_catalog.attribute(ar))
+            .find(|a| a.key == id)
+            .map(|a| resolved_attribute(a))),
+        IdLookupV2::Registry(RegistryLookup::AttributeGroup { id }) => Ok(lookup_signal_by_id(
+            &registry.registry.attribute_groups,
+            &id,
+        )
+        .map(|ag| resolved_attribute_group(ag, &registry.attribute_catalog))),
         IdLookupV2::Registry(RegistryLookup::Span { id }) => {
             Ok(lookup_signal_by_id(&registry.registry.spans, &id)
                 .map(|s| resolved_span(s, &registry.attribute_catalog)))
@@ -152,10 +275,12 @@ fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<Reso
                 .map(|m| resolved_metric(m, &registry.attribute_catalog)))
         }
         IdLookupV2::Registry(RegistryLookup::Event { id }) => {
-            todo!("Unsupported")
+            Ok(lookup_signal_by_id(&registry.registry.events, &id)
+                .map(|e| resolved_event(e, &registry.attribute_catalog)))
         }
         IdLookupV2::Registry(RegistryLookup::Entity { id }) => {
-            todo!("Unsupported")
+            Ok(lookup_signal_by_id(&registry.registry.entities, &id)
+                .map(|e| resolved_entity(e, &registry.attribute_catalog)))
         }
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Metric { id }) => Ok(registry
             .refinements
@@ -163,9 +288,12 @@ fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<Reso
             .iter()
             .find(|m| m.id == id)
             .map(|m| resolved_metric(&m.metric, &registry.attribute_catalog))),
-        IdLookupV2::Refinement(crate::parser::RefinementLookup::Event { id }) => {
-            todo!("Unsupported")
-        }
+        IdLookupV2::Refinement(crate::parser::RefinementLookup::Event { id }) => Ok(registry
+            .refinements
+            .events
+            .iter()
+            .find(|s| s.id == id)
+            .map(|e| resolved_event(&e.event, &registry.attribute_catalog))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Span { id }) => Ok(registry
             .refinements
             .spans
