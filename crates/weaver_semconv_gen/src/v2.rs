@@ -11,7 +11,7 @@ use weaver_forge::{
     TemplateEngine,
 };
 use weaver_resolved_schema::v2::{
-    attribute::{Attribute, AttributeRef},
+    attribute::Attribute,
     attribute_group::AttributeGroup,
     catalog::AttributeCatalog,
     entity::Entity,
@@ -86,10 +86,8 @@ fn lookup_signal_by_id<'a, T: Signal>(signals: &'a [T], id: &str) -> Option<&'a 
 fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in m.attributes.iter() {
-        let attr = catalog.attribute(&ar.base).expect(&format!(
-            "Invalid schema file: Attribute reference {} does not exist",
-            ar.base.0
-        ));
+        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| panic!("Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0));
         attributes.push(MetricAttribute {
             base: weaver_forge::v2::attribute::Attribute {
                 key: attr.key.clone(),
@@ -116,10 +114,8 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
 fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
-        let attr = catalog.attribute(&ar.base).expect(&format!(
-            "Invalid schema file: Attribute reference {} does not exist",
-            ar.base.0
-        ));
+        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| panic!("Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0));
         attributes.push(SpanAttribute {
             base: weaver_forge::v2::attribute::Attribute {
                 key: attr.key.clone(),
@@ -128,7 +124,7 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
                 common: attr.common.clone(),
             },
             requirement_level: ar.requirement_level.clone(),
-            sampling_relevant: ar.sampling_relevant.clone(),
+            sampling_relevant: ar.sampling_relevant,
         });
     }
     ResolvedId::Span(ResolvedSpan {
@@ -147,10 +143,8 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
 fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
-        let attr = catalog.attribute(&ar.base).expect(&format!(
-            "Invalid schema file: Attribute reference {} does not exist",
-            ar.base.0
-        ));
+        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| panic!("Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0));
         attributes.push(EventAttribute {
             base: weaver_forge::v2::attribute::Attribute {
                 key: attr.key.clone(),
@@ -175,10 +169,8 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
 fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId {
     let mut identity = Vec::new();
     for ar in s.identity.iter() {
-        let attr = catalog.attribute(&ar.base).expect(&format!(
-            "Invalid schema file: Attribute reference {} does not exist",
-            ar.base.0
-        ));
+        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| panic!("Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0));
         identity.push(EntityAttribute {
             base: weaver_forge::v2::attribute::Attribute {
                 key: attr.key.clone(),
@@ -191,10 +183,8 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
     }
     let mut description = Vec::new();
     for ar in s.description.iter() {
-        let attr = catalog.attribute(&ar.base).expect(&format!(
-            "Invalid schema file: Attribute reference {} does not exist",
-            ar.base.0
-        ));
+        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| panic!("Invalid schema file: Attribute reference {} does not exist",
+            ar.base.0));
         description.push(EntityAttribute {
             base: weaver_forge::v2::attribute::Attribute {
                 key: attr.key.clone(),
@@ -219,10 +209,8 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
 fn resolved_attribute_group<AC: AttributeCatalog>(s: &AttributeGroup, catalog: &AC) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
-        let attr = catalog.attribute(ar).expect(&format!(
-            "Invalid schema file: Attribute reference {} does not exist",
-            ar.0
-        ));
+        let attr = catalog.attribute(ar).unwrap_or_else(|| panic!("Invalid schema file: Attribute reference {} does not exist",
+            ar.0));
         attributes.push(weaver_forge::v2::attribute::Attribute {
             key: attr.key.clone(),
             r#type: attr.r#type.clone(),
@@ -260,7 +248,7 @@ fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<Reso
             .iter()
             .filter_map(|ar| registry.attribute_catalog.attribute(ar))
             .find(|a| a.key == id)
-            .map(|a| resolved_attribute(a))),
+            .map(resolved_attribute)),
         IdLookupV2::Registry(RegistryLookup::AttributeGroup { id }) => Ok(lookup_signal_by_id(
             &registry.registry.attribute_groups,
             &id,
