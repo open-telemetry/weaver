@@ -1,0 +1,6 @@
+{%- if group.signal_type == "metric" -%}{{ group.name }} {{ params.test }}
+{%- elif group.signal_type == "event" -%}{{ group.name }} {{ params.test }}
+{%- elif group.signal_type == "span" -%}{{ group.type }} {{ params.test }}
+{%- elif group.signal_type == "entity" -%}{{ group.type }} {{ params.test }}
+{%- else -%}Unknown Snippet {{ params.test }}
+{%- endif %}
