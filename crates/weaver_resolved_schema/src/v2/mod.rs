@@ -554,20 +554,20 @@ fn diff_signals_by_hash<T: Signal>(
                         note,
                     } => {
                         changes.push(SchemaItemChange::Renamed {
-                            old_name: signal_id.to_string(),
+                            old_name: (*signal_id).to_owned(),
                             new_name: rename_to.clone(),
                             note: note.clone(),
                         });
                     }
                     Deprecated::Obsoleted { note } => {
                         changes.push(SchemaItemChange::Obsoleted {
-                            name: signal_id.to_string(),
+                            name: (*signal_id).to_owned(),
                             note: note.clone(),
                         });
                     }
                     Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
                         changes.push(SchemaItemChange::Uncategorized {
-                            name: signal_id.to_string(),
+                            name: (*signal_id).to_owned(),
                             note: note.clone(),
                         });
                     }
@@ -575,7 +575,7 @@ fn diff_signals_by_hash<T: Signal>(
             }
         } else {
             changes.push(SchemaItemChange::Added {
-                name: signal_id.to_string(),
+                name: (*signal_id).to_owned(),
             });
         }
     }
@@ -586,7 +586,7 @@ fn diff_signals_by_hash<T: Signal>(
     for (signal_name, _) in baseline.iter() {
         if !latest.contains_key(signal_name) {
             changes.push(SchemaItemChange::Removed {
-                name: signal_name.to_string(),
+                name: (*signal_name).to_owned(),
             });
         }
     }
@@ -1149,7 +1149,7 @@ mod tests {
         latest.registry.entities.push(Entity {
             common: CommonFields {
                 deprecated: Some(Deprecated::Uncategorized {
-                    note: "note".to_string(),
+                    note: "note".to_owned(),
                 }),
                 ..Default::default()
             },
@@ -1187,7 +1187,7 @@ mod tests {
             entity_associations: vec![],
             common: CommonFields {
                 deprecated: Some(Deprecated::Obsoleted {
-                    note: "note".to_string(),
+                    note: "note".to_owned(),
                 }),
                 ..Default::default()
             },
