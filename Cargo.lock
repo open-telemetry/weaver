@@ -5255,6 +5255,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "miette",
+ "mime_guess",
  "opentelemetry",
  "portpicker",
  "prost",

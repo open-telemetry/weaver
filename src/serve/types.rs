@@ -155,6 +155,8 @@ pub struct AttributeSearchResult {
     /// Stability level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
+    /// Whether this item is deprecated.
+    pub deprecated: bool,
     /// Relevance score.
     pub score: u32,
 }
@@ -169,6 +171,8 @@ pub struct MetricSearchResult {
     /// Stability level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
+    /// Whether this item is deprecated.
+    pub deprecated: bool,
     /// Relevance score.
     pub score: u32,
 }
@@ -184,6 +188,8 @@ pub struct SpanSearchResult {
     /// Stability level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
+    /// Whether this item is deprecated.
+    pub deprecated: bool,
     /// Relevance score.
     pub score: u32,
 }
@@ -198,6 +204,8 @@ pub struct EventSearchResult {
     /// Stability level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
+    /// Whether this item is deprecated.
+    pub deprecated: bool,
     /// Relevance score.
     pub score: u32,
 }
@@ -213,6 +221,8 @@ pub struct EntitySearchResult {
     /// Stability level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
+    /// Whether this item is deprecated.
+    pub deprecated: bool,
     /// Relevance score.
     pub score: u32,
 }

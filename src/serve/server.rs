@@ -5,7 +5,12 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::{routing::get, Router};
+use axum::{
+    http::{header, StatusCode},
+    response::{Html, IntoResponse},
+    routing::get,
+    Router,
+};
 use miette::Diagnostic;
 use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
@@ -13,6 +18,7 @@ use weaver_forge::v2::registry::ForgeResolvedRegistry;
 
 use super::handlers;
 use super::search::SearchContext;
+use super::ui::UI_DIST;
 
 /// Shared application state for all request handlers.
 pub struct AppState {
@@ -87,6 +93,8 @@ pub async fn run_server(
         .route("/api/v1/entities/*type", get(handlers::get_entity))
         // Search
         .route("/api/v1/search", get(handlers::search))
+        // UI fallback - serves embedded static files
+        .fallback(serve_ui)
         .layer(cors)
         .with_state(state);
 
@@ -95,4 +103,28 @@ pub async fn run_server(
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Serve embedded UI files with SPA fallback.
+async fn serve_ui(uri: axum::http::Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches('/');
+
+    // Try to find the exact file in embedded assets
+    if let Some(file) = UI_DIST.get_file(path) {
+        let mime = mime_guess::from_path(path).first_or_octet_stream();
+        return (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, mime.as_ref())],
+            file.contents(),
+        )
+            .into_response();
+    }
+
+    // For SPA routing: serve index.html for any non-file paths
+    if let Some(index) = UI_DIST.get_file("index.html") {
+        return Html(index.contents_utf8().unwrap_or_default()).into_response();
+    }
+
+    // No UI available
+    (StatusCode::NOT_FOUND, "UI not available").into_response()
 }

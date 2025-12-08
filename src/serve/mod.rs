@@ -15,6 +15,7 @@ mod handlers;
 mod search;
 mod server;
 mod types;
+mod ui;
 
 pub use server::run_server;
 

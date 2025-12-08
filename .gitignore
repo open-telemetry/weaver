@@ -44,3 +44,7 @@ history-temp-repo/
 
 # Exclude patch files
 *.patch
+
+# UI build artifacts and dependencies
+ui/node_modules/
+ui/dist/
