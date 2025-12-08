@@ -1199,7 +1199,9 @@ mod tests {
         let mut latest = empty_v2_schema();
         latest.registry.entities.push(Entity {
             common: CommonFields {
-                deprecated: Some(Deprecated::Uncategorized { note: "note".to_string() }),
+                deprecated: Some(Deprecated::Uncategorized {
+                    note: "note".to_string(),
+                }),
                 ..Default::default()
             },
             r#type: "test.entity".to_owned().into(),
@@ -1228,7 +1230,6 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
-            
         });
         let mut latest = empty_v2_schema();
         latest.registry.events.push(Event {
@@ -1236,10 +1237,11 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields {
-                deprecated: Some(Deprecated::Obsoleted { note: "note".to_string() }),
+                deprecated: Some(Deprecated::Obsoleted {
+                    note: "note".to_string(),
+                }),
                 ..Default::default()
             },
-            
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
