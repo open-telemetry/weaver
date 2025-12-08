@@ -393,7 +393,6 @@ mod tests {
 
     #[test]
     fn test_template_engine() -> Result<(), Error> {
-        // TODO - pull in V2 template.
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown_v2")?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         let params = {
