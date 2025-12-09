@@ -277,7 +277,7 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 
     // Heavily demote deprecated items - divide score by 10
     if item.is_deprecated && score > 0 {
-        score = score / 10;
+        score /= 10;
         // Ensure at least 1 if there was a match
         if score == 0 {
             score = 1;

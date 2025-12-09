@@ -74,6 +74,8 @@ pub async fn run_server(
     let app = Router::new()
         // Health check
         .route("/health", get(handlers::health))
+        // Schema
+        .route("/api/v1/schema", get(handlers::get_schema))
         // Registry overview
         .route("/api/v1/registry", get(handlers::registry_overview))
         // Attributes

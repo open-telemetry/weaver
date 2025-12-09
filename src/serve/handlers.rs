@@ -14,13 +14,22 @@ use serde_json::json;
 
 use super::server::AppState;
 use super::types::{
-    ListParams, ListResponse, RegistryCounts, RegistryOverview, SearchParams,
-    SearchResponse,
+    ListParams, ListResponse, RegistryCounts, RegistryOverview, SearchParams, SearchResponse,
 };
 
 /// Health check endpoint.
 pub async fn health() -> StatusCode {
     StatusCode::OK
+}
+
+/// Serve the semconv JSON schema.
+pub async fn get_schema() -> impl IntoResponse {
+    const SCHEMA: &str = include_str!("../../schemas/forge.schema.v2.json");
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        SCHEMA,
+    )
 }
 
 /// Registry overview endpoint.
