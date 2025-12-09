@@ -1,5 +1,5 @@
 groups:
-  - id: metrics.test
+  - id: metric.test
     type: metric
     metric_name: test.metric
     brief: "Test."
