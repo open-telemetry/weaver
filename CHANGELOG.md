@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - Add Log support for emit and live-check ([#1042](https://github.com/open-telemetry/weaver/pull/1042) by @jerbly)
 - Add OTLP log emission for policy findings in live-check. Whenever a PolicyFinding is created, a log_record is emitted to your configured OTLP endpoint. ([#1045](https://github.com/open-telemetry/weaver/pull/1045) by @jerbly)
 - Deprecate `weaver registry search` command. This command is not compatible with V2 schema and will be removed in a future version. Users should search the generated documentation instead. ([#1057](https://github.com/open-telemetry/weaver/pull/1057) by @jerbly)
+- Add support for continuous live-check sessions with `--inactivity-timeout=0`, `--output=none` and `--no-stats` ([#1066](https://github.com/open-telemetry/weaver/pull/1066) by @jerbly)
 
 # [0.19.0] - 2025-11-04
 
