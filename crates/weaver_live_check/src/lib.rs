@@ -23,10 +23,7 @@ use weaver_forge::{
     v2::registry::ForgeResolvedRegistry,
 };
 use weaver_semconv::{
-    attribute::AttributeType,
-    deprecated::Deprecated,
-    group::InstrumentSpec,
-    stability::Stability,
+    attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
 };
 
 /// Advisors for live checks
@@ -465,7 +462,6 @@ pub struct LiveCheckReport {
     /// The statistics for the report
     pub statistics: LiveCheckStatistics,
 }
-
 
 /// Samples implement this trait to run live checks on themselves
 pub trait LiveCheckRunner {
