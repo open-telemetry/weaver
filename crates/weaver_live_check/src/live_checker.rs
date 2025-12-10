@@ -12,6 +12,9 @@ use crate::{
     VersionedSignal,
 };
 
+#[cfg(test)]
+use crate::CumulativeStatistics;
+
 /// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
 pub struct LiveChecker {
@@ -245,7 +248,7 @@ mod tests {
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -465,26 +468,30 @@ mod tests {
         );
 
         // Check statistics
-        assert_eq!(stats.total_entities, 12);
-        assert_eq!(stats.total_advisories, 19);
-        assert_eq!(stats.advice_level_counts.len(), 3);
-        assert_eq!(stats.advice_level_counts[&FindingLevel::Violation], 11);
-        assert_eq!(stats.advice_level_counts[&FindingLevel::Information], 6);
-        assert_eq!(stats.advice_level_counts[&FindingLevel::Improvement], 2);
-        assert_eq!(stats.highest_advice_level_counts.len(), 2);
-        assert_eq!(
-            stats.highest_advice_level_counts[&FindingLevel::Violation],
-            8
-        );
-        assert_eq!(
-            stats.highest_advice_level_counts[&FindingLevel::Information],
-            2
-        );
-        assert_eq!(stats.no_advice_count, 2);
-        assert_eq!(stats.seen_registry_attributes.len(), 3);
-        assert_eq!(stats.seen_registry_attributes["test.enum"], 4);
-        assert_eq!(stats.seen_non_registry_attributes.len(), 6);
-        assert_eq!(stats.registry_coverage, 1.0);
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(cumulative_stats.total_entities, 12);
+            assert_eq!(cumulative_stats.total_advisories, 19);
+            assert_eq!(cumulative_stats.advice_level_counts.len(), 3);
+            assert_eq!(cumulative_stats.advice_level_counts[&FindingLevel::Violation], 11);
+            assert_eq!(cumulative_stats.advice_level_counts[&FindingLevel::Information], 6);
+            assert_eq!(cumulative_stats.advice_level_counts[&FindingLevel::Improvement], 2);
+            assert_eq!(cumulative_stats.highest_advice_level_counts.len(), 2);
+            assert_eq!(
+                cumulative_stats.highest_advice_level_counts[&FindingLevel::Violation],
+                8
+            );
+            assert_eq!(
+                cumulative_stats.highest_advice_level_counts[&FindingLevel::Information],
+                2
+            );
+            assert_eq!(cumulative_stats.no_advice_count, 2);
+            assert_eq!(cumulative_stats.seen_registry_attributes.len(), 3);
+            assert_eq!(cumulative_stats.seen_registry_attributes["test.enum"], 4);
+            assert_eq!(cumulative_stats.seen_non_registry_attributes.len(), 6);
+            assert_eq!(cumulative_stats.registry_coverage, 1.0);
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     fn make_registry(use_v2: bool) -> VersionedRegistry {
@@ -1095,7 +1102,7 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1129,16 +1136,20 @@ mod tests {
         );
 
         // Check statistics
-        assert_eq!(stats.total_entities, 2);
-        assert_eq!(stats.total_advisories, 2);
-        assert_eq!(stats.advice_level_counts.len(), 1);
-        assert_eq!(stats.advice_level_counts[&FindingLevel::Violation], 2);
-        assert_eq!(stats.highest_advice_level_counts.len(), 1);
-        assert_eq!(
-            stats.highest_advice_level_counts[&FindingLevel::Violation],
-            1
-        );
-        assert_eq!(stats.no_advice_count, 1);
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(cumulative_stats.total_entities, 2);
+            assert_eq!(cumulative_stats.total_advisories, 2);
+            assert_eq!(cumulative_stats.advice_level_counts.len(), 1);
+            assert_eq!(cumulative_stats.advice_level_counts[&FindingLevel::Violation], 2);
+            assert_eq!(cumulative_stats.highest_advice_level_counts.len(), 1);
+            assert_eq!(
+                cumulative_stats.highest_advice_level_counts[&FindingLevel::Violation],
+                1
+            );
+            assert_eq!(cumulative_stats.no_advice_count, 1);
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1172,7 +1183,7 @@ mod tests {
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1181,13 +1192,17 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(stats.total_entities, 14);
-        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&10));
-        assert_eq!(stats.total_entities_by_type.get("span"), Some(&1));
-        assert_eq!(stats.total_entities_by_type.get("span_event"), Some(&1));
-        assert_eq!(stats.total_entities_by_type.get("span_link"), Some(&1));
-        assert_eq!(stats.total_entities_by_type.get("resource"), Some(&1));
-        assert_eq!(stats.total_advisories, 14);
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(cumulative_stats.total_entities, 14);
+            assert_eq!(cumulative_stats.total_entities_by_type.get("attribute"), Some(&10));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("span"), Some(&1));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("span_event"), Some(&1));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("span_link"), Some(&1));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("resource"), Some(&1));
+            assert_eq!(cumulative_stats.total_advisories, 14);
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1218,7 +1233,7 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1227,10 +1242,14 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(
-            stats.advice_type_counts.get("contains_test_in_status"),
-            Some(&1)
-        );
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("contains_test_in_status"),
+                Some(&1)
+            );
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1264,7 +1283,7 @@ mod tests {
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1273,25 +1292,29 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(stats.total_entities_by_type.get("data_point"), Some(&6));
-        assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
-        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
-        assert_eq!(stats.no_advice_count, 4);
-        assert_eq!(
-            stats
-                .advice_type_counts
-                .get("recommended_attribute_not_present"),
-            Some(&2)
-        );
-        assert_eq!(stats.advice_type_counts.get("missing_attribute"), Some(&2));
-        assert_eq!(stats.advice_type_counts.get("not_stable"), Some(&2));
-        assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
-        assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
-        assert_eq!(
-            stats.seen_registry_metrics.get("system.memory.usage"),
-            Some(&1)
-        );
-        assert_eq!(stats.seen_non_registry_metrics.len(), 3);
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(cumulative_stats.total_entities_by_type.get("data_point"), Some(&6));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("metric"), Some(&4));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("attribute"), Some(&3));
+            assert_eq!(cumulative_stats.no_advice_count, 4);
+            assert_eq!(
+                cumulative_stats
+                    .advice_type_counts
+                    .get("recommended_attribute_not_present"),
+                Some(&2)
+            );
+            assert_eq!(cumulative_stats.advice_type_counts.get("missing_attribute"), Some(&2));
+            assert_eq!(cumulative_stats.advice_type_counts.get("not_stable"), Some(&2));
+            assert_eq!(cumulative_stats.advice_type_counts.get("missing_metric"), Some(&3));
+            assert_eq!(cumulative_stats.advice_type_counts.get("missing_namespace"), Some(&2));
+            assert_eq!(
+                cumulative_stats.seen_registry_metrics.get("system.memory.usage"),
+                Some(&1)
+            );
+            assert_eq!(cumulative_stats.seen_non_registry_metrics.len(), 3);
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1322,7 +1345,7 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1330,10 +1353,14 @@ mod tests {
             assert!(result.is_ok());
         }
         stats.finalize();
-        assert_eq!(
-            stats.advice_type_counts.get("invalid_data_point_value"),
-            Some(&1)
-        );
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("invalid_data_point_value"),
+                Some(&1)
+            );
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1364,7 +1391,7 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1373,17 +1400,21 @@ mod tests {
         }
         stats.finalize();
 
-        assert_eq!(
-            stats.advice_type_counts.get("empty_body"),
-            Some(&1),
-            "Expected 1 empty_body advice for event with empty name and empty body"
-        );
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("empty_body"),
+                Some(&1),
+                "Expected 1 empty_body advice for event with empty name and empty body"
+            );
 
-        assert_eq!(
-            stats.advice_type_counts.get("required_phrase_missing"),
-            Some(&1),
-            "Expected 1 required_phrase_missing advice for session.start event missing 'hello world'"
-        );
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("required_phrase_missing"),
+                Some(&1),
+                "Expected 1 required_phrase_missing advice for session.start event missing 'hello world'"
+            );
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     fn make_events_registry(use_v2: bool) -> VersionedRegistry {
@@ -1641,7 +1672,7 @@ mod tests {
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
@@ -1650,44 +1681,48 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(stats.total_entities, 8);
-        assert_eq!(stats.total_entities_by_type.get("log"), Some(&4));
-        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&4));
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(cumulative_stats.total_entities, 8);
+            assert_eq!(cumulative_stats.total_entities_by_type.get("log"), Some(&4));
+            assert_eq!(cumulative_stats.total_entities_by_type.get("attribute"), Some(&4));
 
-        // Check advisor advice types
-        // Expected advice:
-        // - missing_attribute: 1 (session.idd does not exist in registry)
-        // - required_attribute_not_present: 1 (session.id is required but not present)
-        // - not_stable: 2 (1 for session.start event, 1 for session.previous_id attribute)
-        // - deprecated: 1 (session.start event is deprecated)
-        // - missing_event: 1 (session.test event does not exist in registry)
-        assert_eq!(
-            stats.advice_type_counts.get("missing_attribute"),
-            Some(&1),
-            "Expected 1 missing_attribute advice for session.idd"
-        );
-        assert_eq!(
-            stats
-                .advice_type_counts
-                .get("required_attribute_not_present"),
-            Some(&1),
-            "Expected 1 required_attribute_not_present advice for session.id"
-        );
-        assert_eq!(
-            stats.advice_type_counts.get("not_stable"),
-            Some(&4),
-            "Expected 4 not_stable advice (for session.start event, session.previous_id attribute, and 2 session.id attribute)"
-        );
-        assert_eq!(
-            stats.advice_type_counts.get("deprecated"),
-            Some(&1),
-            "Expected 1 deprecated advice for session.start event"
-        );
-        assert_eq!(
-            stats.advice_type_counts.get("missing_event"),
-            Some(&1),
-            "Expected 1 missing_event advice for session.test"
-        );
+            // Check advisor advice types
+            // Expected advice:
+            // - missing_attribute: 1 (session.idd does not exist in registry)
+            // - required_attribute_not_present: 1 (session.id is required but not present)
+            // - not_stable: 2 (1 for session.start event, 1 for session.previous_id attribute)
+            // - deprecated: 1 (session.start event is deprecated)
+            // - missing_event: 1 (session.test event does not exist in registry)
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("missing_attribute"),
+                Some(&1),
+                "Expected 1 missing_attribute advice for session.idd"
+            );
+            assert_eq!(
+                cumulative_stats
+                    .advice_type_counts
+                    .get("required_attribute_not_present"),
+                Some(&1),
+                "Expected 1 required_attribute_not_present advice for session.id"
+            );
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("not_stable"),
+                Some(&4),
+                "Expected 4 not_stable advice (for session.start event, session.previous_id attribute, and 2 session.id attribute)"
+            );
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("deprecated"),
+                Some(&1),
+                "Expected 1 deprecated advice for session.start event"
+            );
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("missing_event"),
+                Some(&1),
+                "Expected 1 missing_event advice for session.test"
+            );
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1718,7 +1753,7 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             // This should fail with: "error: use of undefined variable `attribu1te_name` is unsafe"
 
@@ -1773,17 +1808,21 @@ mod tests {
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(registry, advisors);
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
-        assert_eq!(
-            stats.advice_type_counts.get("unexpected_instrument"),
-            Some(&1)
-        );
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("unexpected_instrument"),
+                Some(&1)
+            );
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
         // Check the live check result for the sample has the correct instrument mismatch message
         let sample = match &samples[0] {
             Sample::Metric(m) => m,
@@ -1849,12 +1888,16 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
         stats.finalize();
-        assert_eq!(stats.advice_type_counts.get("low_value"), Some(&1));
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(cumulative_stats.advice_type_counts.get("low_value"), Some(&1));
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 
     #[test]
@@ -1889,16 +1932,20 @@ mod tests {
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(registry, advisors);
 
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let mut stats = LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
         for sample in &mut samples {
             let result =
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
         stats.finalize();
-        assert_eq!(
-            stats.advice_type_counts.get("unexpected_instrument"),
-            Some(&2)
-        );
+        if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
+            assert_eq!(
+                cumulative_stats.advice_type_counts.get("unexpected_instrument"),
+                Some(&2)
+            );
+        } else {
+            panic!("Expected Cumulative statistics");
+        }
     }
 }

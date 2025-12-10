@@ -24,7 +24,8 @@ use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{
-    Error, Ingester, LiveCheckReport, LiveCheckRunner, LiveCheckStatistics, VersionedRegistry,
+    CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
+    LiveCheckStatistics, VersionedRegistry,
 };
 
 use crate::registry::{PolicyArgs, RegistryArgs};
@@ -304,9 +305,9 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     };
 
     let mut stats = if args.no_stats {
-        LiveCheckStatistics::new_disabled(&live_checker.registry)
+        LiveCheckStatistics::Disabled(DisabledStatistics)
     } else {
-        LiveCheckStatistics::new(&live_checker.registry)
+        LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
     };
     let mut samples = Vec::new();
     for mut sample in ingester {
