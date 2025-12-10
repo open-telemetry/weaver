@@ -6,7 +6,7 @@
 //! - `Cumulative`: Full statistics accumulation for reporting
 //! - `Disabled`: No-op mode for long-running sessions to prevent memory growth
 
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::{FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
@@ -49,6 +49,7 @@ pub struct CumulativeStatistics {
 
 impl CumulativeStatistics {
     /// Create a new CumulativeStatistics initialized with registry structure
+    #[must_use]
     pub fn new(registry: &VersionedRegistry) -> Self {
         let (seen_attributes, seen_metrics, seen_events) = Self::extract_registry_items(registry);
 
@@ -259,11 +260,8 @@ impl CumulativeStatistics {
 pub struct DisabledStatistics;
 
 /// The statistics for a live check report
-///
-/// This enum provides two modes of operation:
-/// - `Cumulative`: Full statistics tracking (default)
-/// - `Disabled`: No-op mode for long-running sessions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
 #[allow(clippy::large_enum_variant)]
 pub enum LiveCheckStatistics {
     /// Cumulative statistics mode - tracks all telemetry data
@@ -273,7 +271,6 @@ pub enum LiveCheckStatistics {
 }
 
 impl LiveCheckStatistics {
-
     /// Add a live check result to the stats
     pub fn maybe_add_live_check_result(&mut self, live_check_result: Option<&LiveCheckResult>) {
         if let Self::Cumulative(stats) = self {
@@ -339,19 +336,6 @@ impl LiveCheckStatistics {
     pub fn finalize(&mut self) {
         if let Self::Cumulative(stats) = self {
             stats.finalize();
-        }
-    }
-}
-
-// Custom Serialize for LiveCheckStatistics
-impl Serialize for LiveCheckStatistics {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Self::Cumulative(stats) => stats.serialize(serializer),
-            Self::Disabled(stats) => stats.serialize(serializer),
         }
     }
 }
