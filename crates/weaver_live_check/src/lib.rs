@@ -464,42 +464,56 @@ pub struct LiveCheckReport {
 /// The statistics for a live check report
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LiveCheckStatistics {
+    /// Flag to disable statistics accumulation (for long-running sessions)
+    #[serde(skip)]
+    disabled: bool,
     /// The total number of sample entities
-    pub total_entities: usize,
+    total_entities: usize,
     /// The total number of sample entities by type
-    pub total_entities_by_type: HashMap<String, usize>,
+    total_entities_by_type: HashMap<String, usize>,
     /// The total number of advisories
-    pub total_advisories: usize,
+    total_advisories: usize,
     /// The number of each advice level
-    pub advice_level_counts: HashMap<FindingLevel, usize>,
+    advice_level_counts: HashMap<FindingLevel, usize>,
     /// The number of entities with each highest advice level
-    pub highest_advice_level_counts: HashMap<FindingLevel, usize>,
+    highest_advice_level_counts: HashMap<FindingLevel, usize>,
     /// The number of entities with no advice
-    pub no_advice_count: usize,
+    no_advice_count: usize,
     /// The number of entities with each advice type
-    pub advice_type_counts: HashMap<String, usize>,
+    advice_type_counts: HashMap<String, usize>,
     /// The number of entities with each advice message
-    pub advice_message_counts: HashMap<String, usize>,
+    advice_message_counts: HashMap<String, usize>,
     /// The number of each attribute seen from the registry
-    pub seen_registry_attributes: HashMap<String, usize>,
+    seen_registry_attributes: HashMap<String, usize>,
     /// The number of each non-registry attribute seen
-    pub seen_non_registry_attributes: HashMap<String, usize>,
+    seen_non_registry_attributes: HashMap<String, usize>,
     /// The number of each metric seen from the registry
-    pub seen_registry_metrics: HashMap<String, usize>,
+    seen_registry_metrics: HashMap<String, usize>,
     /// The number of each non-registry metric seen
-    pub seen_non_registry_metrics: HashMap<String, usize>,
+    seen_non_registry_metrics: HashMap<String, usize>,
     /// The number of each event seen from the registry
-    pub seen_registry_events: HashMap<String, usize>,
+    seen_registry_events: HashMap<String, usize>,
     /// The number of each non-registry event seen
-    pub seen_non_registry_events: HashMap<String, usize>,
+    seen_non_registry_events: HashMap<String, usize>,
     /// Fraction of the registry covered by the attributes, metrics, and events
-    pub registry_coverage: f32,
+    registry_coverage: f32,
 }
 
 impl LiveCheckStatistics {
     /// Create a new empty LiveCheckStatistics
     #[must_use]
     pub fn new(registry: &VersionedRegistry) -> Self {
+        Self::new_with_config(registry, false)
+    }
+
+    /// Create a new disabled LiveCheckStatistics (no accumulation)
+    #[must_use]
+    pub fn new_disabled(registry: &VersionedRegistry) -> Self {
+        Self::new_with_config(registry, true)
+    }
+
+    /// Create a new LiveCheckStatistics with configuration
+    fn new_with_config(registry: &VersionedRegistry, disabled: bool) -> Self {
         let mut seen_attributes = HashMap::new();
         let mut seen_metrics = HashMap::new();
         let mut seen_events = HashMap::new();
@@ -542,6 +556,7 @@ impl LiveCheckStatistics {
             }
         }
         LiveCheckStatistics {
+            disabled,
             total_entities: 0,
             total_entities_by_type: HashMap::new(),
             total_advisories: 0,
@@ -584,6 +599,9 @@ impl LiveCheckStatistics {
 
     /// Increment the total number of entities by type
     pub fn inc_entity_count(&mut self, entity_type: &str) {
+        if self.disabled {
+            return;
+        }
         *self
             .total_entities_by_type
             .entry(entity_type.to_owned())
@@ -593,6 +611,9 @@ impl LiveCheckStatistics {
 
     /// Add an advice to the statistics
     fn add_advice(&mut self, advice: &PolicyFinding) {
+        if self.disabled {
+            return;
+        }
         *self
             .advice_level_counts
             .entry(advice.level.clone())
@@ -610,6 +631,9 @@ impl LiveCheckStatistics {
 
     /// Add a highest advice level to the statistics
     fn add_highest_advice_level(&mut self, advice: &FindingLevel) {
+        if self.disabled {
+            return;
+        }
         *self
             .highest_advice_level_counts
             .entry(advice.clone())
@@ -618,11 +642,17 @@ impl LiveCheckStatistics {
 
     /// Increment the no advice count in the statistics
     fn inc_no_advice_count(&mut self) {
+        if self.disabled {
+            return;
+        }
         self.no_advice_count += 1;
     }
 
     /// Add attribute name to coverage
     pub fn add_attribute_name_to_coverage(&mut self, seen_attribute_name: String) {
+        if self.disabled {
+            return;
+        }
         if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
             // This is a registry attribute
             *count += 1;
@@ -637,6 +667,9 @@ impl LiveCheckStatistics {
 
     /// Add metric name to coverage
     pub fn add_metric_name_to_coverage(&mut self, seen_metric_name: String) {
+        if self.disabled {
+            return;
+        }
         if let Some(count) = self.seen_registry_metrics.get_mut(&seen_metric_name) {
             // This is a registry metric
             *count += 1;
@@ -651,6 +684,9 @@ impl LiveCheckStatistics {
 
     /// Add event name to coverage
     pub fn add_event_name_to_coverage(&mut self, seen_event_name: String) {
+        if self.disabled {
+            return;
+        }
         if seen_event_name.is_empty() {
             // Empty event_names are not counted
             return;

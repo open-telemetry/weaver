@@ -109,8 +109,14 @@ pub struct RegistryLiveCheckArgs {
     #[arg(long, default_value = "false")]
     no_stream: bool,
 
+    /// Disable statistics accumulation. This is useful for long-running live check
+    /// sessions. Typically combined with --emit-otlp-logs and --output=none.
+    #[arg(long, default_value = "false")]
+    no_stats: bool,
+
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the report is printed to stdout.
+    /// Use "none" to disable all template output rendering (useful when emitting OTLP logs).
     #[arg(short, long)]
     output: Option<PathBuf>,
 
@@ -168,9 +174,21 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
     let mut output = PathBuf::from("output");
+
+    // Check if output is disabled (--output=none)
+    let no_output = args
+        .output
+        .as_ref()
+        .map(|p| p.to_str() == Some("none"))
+        .unwrap_or(false);
+
     let output_directive = if let Some(path_buf) = &args.output {
-        output = path_buf.clone();
-        OutputDirective::File
+        if no_output {
+            OutputDirective::Stdout // Will be ignored when no_output is true
+        } else {
+            output = path_buf.clone();
+            OutputDirective::File
+        }
     } else {
         OutputDirective::Stdout
     };
@@ -201,25 +219,29 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
 
-    // Prepare the template engine
-    let loader = EmbeddedFileLoader::try_new(
-        &DEFAULT_LIVE_CHECK_TEMPLATES,
-        args.templates.clone(),
-        &args.format,
-    )
-    .map_err(|e| {
-        DiagnosticMessages::from(Error::OutputError {
-            error: format!(
-                "Failed to create the embedded file loader for the live check templates: {e}"
-            ),
-        })
-    })?;
-    let config = WeaverConfig::try_from_loader(&loader).map_err(|e| {
-        DiagnosticMessages::from(Error::OutputError {
-            error: format!("Failed to load `defaults/live_check_templates/weaver.yaml`: {e}"),
-        })
-    })?;
-    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
+    // Prepare the template engine (only if output is enabled)
+    let engine = if !no_output {
+        let loader = EmbeddedFileLoader::try_new(
+            &DEFAULT_LIVE_CHECK_TEMPLATES,
+            args.templates.clone(),
+            &args.format,
+        )
+        .map_err(|e| {
+            DiagnosticMessages::from(Error::OutputError {
+                error: format!(
+                    "Failed to create the embedded file loader for the live check templates: {e}"
+                ),
+            })
+        })?;
+        let config = WeaverConfig::try_from_loader(&loader).map_err(|e| {
+            DiagnosticMessages::from(Error::OutputError {
+                error: format!("Failed to load `defaults/live_check_templates/weaver.yaml`: {e}"),
+            })
+        })?;
+        Some(TemplateEngine::try_new(config, loader, Params::default())?)
+    } else {
+        None
+    };
 
     // Prepare the ingester
     let ingester = match (&args.input_source, &args.input_format) {
@@ -281,51 +303,66 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         args.no_stream
     };
 
-    let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+    let mut stats = if args.no_stats {
+        LiveCheckStatistics::new_disabled(&live_checker.registry)
+    } else {
+        LiveCheckStatistics::new(&live_checker.registry)
+    };
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
 
-        if report_mode {
+        if report_mode && !args.no_stats {
             samples.push(sample);
-        } else {
-            engine
-                .generate(&sample, output.as_path(), &output_directive)
-                .map_err(|e| {
-                    DiagnosticMessages::from(Error::OutputError {
-                        error: e.to_string(),
-                    })
-                })?;
+        } else if !no_output {
+            // Only generate output if template rendering is enabled
+            if let Some(ref engine) = engine {
+                engine
+                    .generate(&sample, output.as_path(), &output_directive)
+                    .map_err(|e| {
+                        DiagnosticMessages::from(Error::OutputError {
+                            error: e.to_string(),
+                        })
+                    })?;
+            }
         }
     }
-    stats.finalize();
-    // Set the exit_code to a non-zero code if there are any violations
-    if stats.has_violations() {
-        exit_code = 1;
-    }
 
-    if report_mode {
-        // Package into a report
-        let report = LiveCheckReport {
-            statistics: stats,
-            samples,
-        };
-        engine
-            .generate(&report, output.as_path(), &output_directive)
-            .map_err(|e| {
-                DiagnosticMessages::from(Error::OutputError {
-                    error: e.to_string(),
-                })
-            })?;
-    } else {
-        // Output the stats
-        engine
-            .generate(&stats, output.as_path(), &output_directive)
-            .map_err(|e| {
-                DiagnosticMessages::from(Error::OutputError {
-                    error: e.to_string(),
-                })
-            })?;
+    // Only finalize and output stats if stats are enabled and output is enabled
+    if !args.no_stats && !no_output {
+        stats.finalize();
+        // Set the exit_code to a non-zero code if there are any violations
+        if stats.has_violations() {
+            exit_code = 1;
+        }
+
+        if report_mode {
+            // Package into a report
+            let report = LiveCheckReport {
+                statistics: stats,
+                samples,
+            };
+            if let Some(ref engine) = engine {
+                engine
+                    .generate(&report, output.as_path(), &output_directive)
+                    .map_err(|e| {
+                        DiagnosticMessages::from(Error::OutputError {
+                            error: e.to_string(),
+                        })
+                    })?;
+            }
+        } else {
+            // Output the stats
+            if let Some(ref engine) = engine {
+                engine
+                    .generate(&stats, output.as_path(), &output_directive)
+                    .map_err(|e| {
+                        DiagnosticMessages::from(Error::OutputError {
+                            error: e.to_string(),
+                        })
+                    })?;
+            }
+        }
     }
 
     // Shutdown OTLP emitter to flush any pending log records
