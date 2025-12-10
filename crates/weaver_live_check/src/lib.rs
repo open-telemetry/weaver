@@ -819,3 +819,74 @@ pub fn get_json_schema() -> Result<String, Error> {
         error: e.to_string(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_disabled_statistics() {
+        let registry = ResolvedRegistry {
+            groups: vec![],
+            registry_url: String::new(),
+        };
+        let versioned_registry = VersionedRegistry::V1(registry);
+
+        let mut disabled_stats = LiveCheckStatistics::new_disabled(&versioned_registry);
+
+        let mut normal_stats = LiveCheckStatistics::new(&versioned_registry);
+
+        // Try to add data to both
+        disabled_stats.inc_entity_count("test_entity");
+        normal_stats.inc_entity_count("test_entity");
+
+        disabled_stats.add_attribute_name_to_coverage("test.attribute".to_owned());
+        normal_stats.add_attribute_name_to_coverage("test.attribute".to_owned());
+        disabled_stats.add_metric_name_to_coverage("test.metric".to_owned());
+        normal_stats.add_metric_name_to_coverage("test.metric".to_owned());
+        disabled_stats.add_event_name_to_coverage("test.event".to_owned());
+        normal_stats.add_event_name_to_coverage("test.event".to_owned());
+
+        // Serialize both to JSON to verify field values
+        let disabled_json = serde_json::to_value(&disabled_stats).unwrap();
+        let normal_json = serde_json::to_value(&normal_stats).unwrap();
+
+        // Disabled stats should have zero counts
+        assert_eq!(disabled_json["total_entities"], 0);
+        assert_eq!(
+            disabled_json["total_entities_by_type"],
+            serde_json::json!({})
+        );
+        assert_eq!(
+            disabled_json["seen_non_registry_attributes"],
+            serde_json::json!({})
+        );
+        assert_eq!(
+            disabled_json["seen_non_registry_metrics"],
+            serde_json::json!({})
+        );
+        assert_eq!(
+            disabled_json["seen_non_registry_events"],
+            serde_json::json!({})
+        );
+
+        // Normal stats should have the counts
+        assert_eq!(normal_json["total_entities"], 1);
+        assert!(normal_json["total_entities_by_type"]
+            .as_object()
+            .unwrap()
+            .contains_key("test_entity"));
+        assert!(normal_json["seen_non_registry_attributes"]
+            .as_object()
+            .unwrap()
+            .contains_key("test.attribute"));
+        assert!(normal_json["seen_non_registry_metrics"]
+            .as_object()
+            .unwrap()
+            .contains_key("test.metric"));
+        assert!(normal_json["seen_non_registry_events"]
+            .as_object()
+            .unwrap()
+            .contains_key("test.event"));
+    }
+}
