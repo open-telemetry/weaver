@@ -133,11 +133,20 @@ impl MarkdownSnippetGenerator for SnippetGenerator {
         };
         // We automatically default to specific file for the snippet types.
         let snippet_template_file = "snippet.md.j2";
-        let mut result = self
-            .template_engine
-            .generate_snippet(&context, snippet_template_file.to_owned())?;
+        let mut result = self.template_engine.generate_snippet(
+            &context,
+            ".",
+            snippet_template_file.to_owned(),
+        )?;
         result.push('\n');
         Ok(result)
+    }
+
+    fn generate_weaver_snippet(
+        &self,
+        _: crate::parser::WeaverGenerateMarkdownArgs,
+    ) -> Result<String, Error> {
+        Err(Error::WeaverSnippetNotSupported)
     }
 }
 

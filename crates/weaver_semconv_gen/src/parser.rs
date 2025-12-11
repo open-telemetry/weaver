@@ -18,6 +18,14 @@ use nom::{
 };
 use weaver_semconv::v2::signal_id::SignalId;
 
+/// Weaver-based snipper generation arguments.
+pub struct WeaverGenerateMarkdownArgs {
+    /// The JQ expression to execute against the repository before rendering a template.
+    pub query: String,
+    /// The template to use when rendering a snippet.
+    pub template: Option<String>,
+}
+
 /// Markdown-snippet generation arguments.
 pub struct GenerateMarkdownArgs {
     /// The id of the metric, event, span or attribute group to render.
@@ -66,6 +74,11 @@ pub enum MarkdownGenParameters {
 const SEMCONV_HEADER: &str = "semconv";
 /// exact string we expect for ending a semconv snippet.
 const SEMCONV_TRAILER: &str = "endsemconv";
+
+/// exact string we exepct from the new weaver snippet.
+const WEAVER_HEADER: &str = "weaver";
+/// exact string we expect for ending a weaver snippet.
+const WEAVER_TRAILER: &str = "endweaver";
 
 /// nom parser for tag values.
 fn parse_value(input: &str) -> IResult<&str, &str> {
@@ -159,6 +172,62 @@ fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdow
     ))
 }
 
+/// Parses the weaver header and directives for markdown generation.
+fn parse_weaver_snippet_args(input: &str) -> IResult<&str, WeaverGenerateMarkdownArgs> {
+    let (input, _) = multispace0(input)?;
+    let (input, _) = tag(WEAVER_HEADER)(input)?;
+    let (input, _) = multispace0(input)?;
+    // TODO - parse JQ expression and optional template to use.
+    let (input, template) = opt(parse_weaver_template_directive).parse(input)?;
+    let (input, _) = multispace0(input)?;
+
+    // Remaining input is assumed to be the JQ expression.
+    Ok((
+        "",
+        WeaverGenerateMarkdownArgs {
+            query: input.trim().to_owned(),
+            template,
+        },
+    ))
+}
+
+fn parse_weaver_template_directive(input: &str) -> IResult<&str, String> {
+    let (input, _) = tag("template:")(input)?;
+    // TODO - more flexible template string options.
+    let (input, template) = parse_id(input)?;
+    Ok((input, template.to_owned()))
+}
+
+/// nom parser for <!-- endweaver -->
+fn parse_weaver_trailer(input: &str) -> IResult<&str, ()> {
+    let (input, snippet) = parse_html_comment(input)?;
+    let (snippet, _) = multispace0(snippet)?;
+    let (snippet, _) = tag(WEAVER_TRAILER)(snippet)?;
+    let (snippet, _) = multispace0(snippet)?;
+    if snippet.is_empty() {
+        Ok((input, ()))
+    } else {
+        Err(nom::Err::Failure(ParseError::from_error_kind(
+            snippet,
+            ErrorKind::Not,
+        )))
+    }
+}
+
+/// nom parser for <!-- weaver {template?} {query} -->
+fn parse_weaver_snippet_raw(input: &str) -> IResult<&str, WeaverGenerateMarkdownArgs> {
+    let (input, snippet) = parse_html_comment(input)?;
+    let (remains, result) = parse_weaver_snippet_args(snippet)?;
+    if remains.is_empty() {
+        Ok((input, result))
+    } else {
+        Err(nom::Err::Failure(ParseError::from_error_kind(
+            remains,
+            ErrorKind::IsNot,
+        )))
+    }
+}
+
 /// nom parser for <!-- semconv {id}({args}) -->
 fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs> {
     let (input, snippet) = parse_html_comment(input)?;
@@ -194,14 +263,34 @@ pub fn is_semconv_trailer(line: &str) -> bool {
     matches!(parse_semconv_trailer(line), Ok((rest, _)) if rest.trim().is_empty())
 }
 
-/// Returns true if the line begins a markdown snippet directive and needs tobe parsed.
+/// Returns true if the line is the <!-- endweaver --> marker for markdown snippets.
+pub fn is_weaver_trailer(line: &str) -> bool {
+    matches!(parse_weaver_trailer(line), Ok((rest, _)) if rest.trim().is_empty())
+}
+
+/// Returns true if the line begins a markdown snippet directive and needs to be parsed.
 pub fn is_markdown_snippet_directive(line: &str) -> bool {
     matches!(parse_markdown_snippet_raw(line), Ok((rest, _)) if rest.trim().is_empty())
+}
+
+/// Returns true if the line begins a weaver snippet directive and needs to be parsed.
+pub fn is_weaver_directive(line: &str) -> bool {
+    matches!(parse_weaver_snippet_raw(line), Ok((rest, _)) if rest.trim().is_empty())
 }
 
 /// Returns the markdown args for this markdown snippet directive.
 pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownArgs, Error> {
     match parse_markdown_snippet_raw(line) {
+        Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
+        _ => Err(Error::InvalidSnippetHeader {
+            header: line.to_owned(),
+        }),
+    }
+}
+
+/// Returns the arguments used to generate a template snippet.
+pub fn parse_weaver_snippet_directive(line: &str) -> Result<WeaverGenerateMarkdownArgs, Error> {
+    match parse_weaver_snippet_raw(line) {
         Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
         _ => Err(Error::InvalidSnippetHeader {
             header: line.to_owned(),
@@ -350,8 +439,9 @@ fn parse_refinement_lookup(input: &str) -> IResult<&str, RefinementLookup> {
 mod tests {
 
     use crate::parser::{
-        is_markdown_snippet_directive, is_semconv_trailer, parse_id_lookup_v2, IdLookupV2,
-        MarkdownGenParameters, RefinementLookup, RegistryLookup,
+        is_markdown_snippet_directive, is_semconv_trailer, is_weaver_trailer, parse_id_lookup_v2,
+        parse_weaver_snippet_directive, IdLookupV2, MarkdownGenParameters, RefinementLookup,
+        RegistryLookup,
     };
     use crate::Error;
 
@@ -430,6 +520,25 @@ mod tests {
         assert_eq!(result.id, "stuff");
 
         Ok(())
+    }
+
+    #[test]
+    fn parse_weaver_header() -> Result<(), Error> {
+        let result = parse_weaver_snippet_directive("<!-- weaver .registry.metrics -->")?;
+        assert_eq!(result.template, None);
+        assert_eq!(result.query, ".registry.metrics");
+
+        let result =
+            parse_weaver_snippet_directive("<!-- weaver template:test.j2 .registry.spans[] -->")?;
+        assert_eq!(result.template, Some("test.j2".to_owned()));
+        assert_eq!(result.query, ".registry.spans[]");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_weaver_trailer() {
+        assert!(is_weaver_trailer("<!-- endweaver -->"));
+        assert!(!is_weaver_trailer("<!-- endweaverded -->"));
     }
 
     #[test]

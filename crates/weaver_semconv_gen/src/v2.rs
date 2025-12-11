@@ -6,7 +6,7 @@ use serde::Serialize;
 use weaver_forge::{
     v2::{
         entity::EntityAttribute, event::EventAttribute, metric::MetricAttribute,
-        span::SpanAttribute,
+        registry::ForgeResolvedRegistry, span::SpanAttribute,
     },
     TemplateEngine,
 };
@@ -23,15 +23,21 @@ use crate::{
 /// Stat we need to generate markdown snippets from configuration.
 pub struct SnippetGenerator {
     lookup: ResolvedTelemetrySchema,
+    template_schema: ForgeResolvedRegistry,
     template_engine: TemplateEngine,
 }
 
 impl SnippetGenerator {
     /// Constructs a new SnipperGenerator for v2 schema with given template engine.
     #[must_use]
-    pub fn new(registry: ResolvedTelemetrySchema, template_engine: TemplateEngine) -> Self {
+    pub fn new(
+        registry: ResolvedTelemetrySchema,
+        template_schema: ForgeResolvedRegistry,
+        template_engine: TemplateEngine,
+    ) -> Self {
         Self {
             lookup: registry,
+            template_schema,
             template_engine,
         }
     }
@@ -63,9 +69,26 @@ impl MarkdownSnippetGenerator for SnippetGenerator {
         };
         // We automatically default to specific file for the snippet types.
         let snippet_template_file = "snippet.md.j2";
-        let mut result = self
-            .template_engine
-            .generate_snippet(&context, snippet_template_file.to_owned())?;
+        let mut result = self.template_engine.generate_snippet(
+            &context,
+            ".",
+            snippet_template_file.to_owned(),
+        )?;
+        result.push('\n');
+        Ok(result)
+    }
+
+    fn generate_weaver_snippet(
+        &self,
+        args: crate::parser::WeaverGenerateMarkdownArgs,
+    ) -> Result<String, Error> {
+        let snippet_template_file = args.template.unwrap_or("snippet.md.j2".to_owned());
+        // TODO - we need to JQ our way into the value we'll send.
+        let mut result = self.template_engine.generate_snippet(
+            &self.template_schema,
+            &args.query,
+            snippet_template_file.to_owned(),
+        )?;
         result.push('\n');
         Ok(result)
     }
@@ -373,6 +396,8 @@ mod tests {
     use weaver_forge::{
         config::{Params, WeaverConfig},
         file_loader::FileSystemFileLoader,
+        registry,
+        v2::registry::ForgeResolvedRegistry,
         TemplateEngine,
     };
     use weaver_resolved_schema::v2::{
@@ -409,7 +434,9 @@ mod tests {
             p
         };
         let template = TemplateEngine::try_new(config, loader, params)?;
-        let generator = SnipperGeneratorV2::new(test_registry(), template);
+        let registry = test_registry();
+        let template_registry = ForgeResolvedRegistry::try_from_resolved_schema(registry.clone())?;
+        let generator = SnipperGeneratorV2::new(registry, template_registry, template);
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data_v2/templates.md";

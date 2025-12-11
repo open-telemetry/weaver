@@ -112,8 +112,11 @@ pub(crate) fn command(
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let generator: Box<dyn MarkdownSnippetGenerator> = if args.registry.v2 {
         let resolved_v2 = resolved.try_into_v2()?;
+        // TODO - extract both resolved and template in one go.
+        let template_schema = resolved_v2.template_schema().clone();
         Box::new(SnipperGeneratorV2::new(
             resolved_v2.into_resolved_schema(),
+            template_schema,
             template_engine,
         ))
     } else {

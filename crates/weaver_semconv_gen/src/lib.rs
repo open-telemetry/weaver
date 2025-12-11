@@ -19,12 +19,16 @@ mod v2;
 pub use v1::SnippetGenerator;
 pub use v2::SnippetGenerator as SnipperGeneratorV2;
 
-use crate::parser::GenerateMarkdownArgs;
+use crate::parser::{GenerateMarkdownArgs, WeaverGenerateMarkdownArgs};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// Using <!-- weaver ... --> is not supported.
+    #[error("Weaver snippets are not supported in V1")]
+    WeaverSnippetNotSupported,
+
     /// Thrown when we are unable to find a semconv by id.
     #[error("Could not find: {id}")]
     GroupNotFound {
@@ -96,6 +100,11 @@ pub enum Error {
     CompoundError(Vec<Error>),
 }
 
+enum SnippetType {
+    Semconv,
+    Weaver,
+}
+
 /// A trait denoting how to update the contents of a markdown using `semconv` snippet headers.
 pub trait MarkdownSnippetGenerator {
     /// Update the contents of a markdown file.
@@ -139,41 +148,58 @@ pub trait MarkdownSnippetGenerator {
         attribute_registry_base_url: Option<&str>,
     ) -> Result<String, Error> {
         let mut result = String::new();
-        let mut handling_snippet = false;
+        let mut snippet_context: Option<SnippetType> = None;
         for line in contents.lines() {
-            if handling_snippet {
-                if parser::is_semconv_trailer(line) {
-                    result.push_str(line);
-                    // TODO - do we always need this or did we trim oddly?
-                    result.push('\n');
-                    handling_snippet = false;
+            match snippet_context {
+                Some(SnippetType::Semconv) => {
+                    if parser::is_semconv_trailer(line) {
+                        result.push_str(line);
+                        result.push('\n');
+                        snippet_context = None;
+                    }
                 }
-            } else {
-                // Always push this line.
-                result.push_str(line);
-                // TODO - don't do this on last line.
-                result.push('\n');
-                // Check to see if line matches snippet request.
-                // If so, generate the snippet and continue.
-                if parser::is_markdown_snippet_directive(line) {
-                    handling_snippet = true;
-                    let arg = parser::parse_markdown_snippet_directive(line)?;
-                    let snippet =
-                        self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
-                    result.push_str(&snippet);
+                Some(SnippetType::Weaver) => {
+                    if parser::is_weaver_trailer(line) {
+                        result.push_str(line);
+                        result.push('\n');
+                        snippet_context = None;
+                    }
+                }
+                None => {
+                    // Always push this line.
+                    result.push_str(line);
+                    // TODO - don't do this on last line.
+                    result.push('\n');
+                    // Check to see if line matches snippet request.
+                    // If so, generate the snippet and continue.
+                    if parser::is_markdown_snippet_directive(line) {
+                        snippet_context = Some(SnippetType::Semconv);
+                        let arg = parser::parse_markdown_snippet_directive(line)?;
+                        let snippet =
+                            self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
+                        result.push_str(&snippet);
+                    } else if parser::is_weaver_directive(line) {
+                        snippet_context = Some(SnippetType::Weaver);
+                        let arg = parser::parse_weaver_snippet_directive(line)?;
+                        let snippet = self.generate_weaver_snippet(arg)?;
+                        result.push_str(&snippet);
+                    }
                 }
             }
         }
         Ok(result)
     }
 
-    /// Generates a markdown snipper for a given parsed argument.
+    /// Generates a markdown snippet for a given parsed argument.
     // TODO - move registry base url into state of the struct...
     fn generate_markdown_snippet(
         &self,
         args: GenerateMarkdownArgs,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<String, Error>;
+
+    /// Generates a snippet for a given parsed weaver command.
+    fn generate_weaver_snippet(&self, args: WeaverGenerateMarkdownArgs) -> Result<String, Error>;
 }
 
 /// Our error supports WeaverError's error combination capabilities.
