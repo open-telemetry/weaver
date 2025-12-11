@@ -4,6 +4,10 @@
     'config:best-practices',
     'helpers:pinGitHubActionDigestsToSemver',
   ],
+  "ignorePaths": [
+    // cargo-dist manages this file, so we have to pin *its* dependency here.
+    ".github/workflows/release.yml"
+  ]
   packageRules: [
     {
       groupName: 'all patch versions',
