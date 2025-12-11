@@ -118,10 +118,7 @@ impl ResolvedSemconvRegistry {
                 WResult::FatalErr(err) => return Err(err.into()),
             };
 
-        let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
-            Ok(registry) => registry,
-            Err(e) => return Err(e.into()),
-        };
+        let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)?;
         let schema = match SchemaResolver::resolve_semantic_convention_registry(
             &mut registry,
             include_unreferenced,

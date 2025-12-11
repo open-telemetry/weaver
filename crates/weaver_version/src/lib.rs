@@ -641,8 +641,8 @@ mod tests {
         let mut version = None;
 
         for (v, _) in versions.versions_asc() {
-            if version.is_some() {
-                assert!(v > version.unwrap());
+            if let Some(version) = version.as_ref() {
+                assert!(v > *version);
             }
             version = Some(v);
         }
@@ -650,8 +650,8 @@ mod tests {
         let mut version = None;
 
         for (v, _) in versions.versions_desc() {
-            if version.is_some() {
-                assert!(v < version.unwrap());
+            if let Some(version) = version.as_ref() {
+                assert!(v > *version);
             }
             version = Some(v);
         }

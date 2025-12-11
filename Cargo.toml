@@ -156,6 +156,7 @@ unused_extern_crates = "deny"
 
 unsafe_op_in_unsafe_fn = "warn"
 unused_macro_rules = "warn"
+unused_assignments = "allow"
 
 [lints]
 workspace = true
