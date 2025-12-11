@@ -224,22 +224,25 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
     Ok(name)
 }
 
-pub(crate) fn prom_names(input: Value) -> Result<Vec<Cow<'static, str>>, minijinja::Error> {
-    Ok(prom::get_names(
-        &get_attr(&input, "metric_name")?,
-        &get_attr(&input, "unit")?,
-        &get_attr(&input, "instrument")?,
-    ))
+pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> {
+    let metric_name = get_attr(&input, "metric_name")?;
+    let unit = get_attr(&input, "unit")?;
+    let instrument = get_attr(&input, "instrument")?;
+
+    Ok(prom::get_names(&Cow::Owned(metric_name), &unit, &instrument)
+        .into_iter()
+        .map(|cow| cow.into_owned())
+        .collect())
 }
 
-fn get_attr<'a>(input:&'a Value, key: &str) -> Result<Cow<'a, str>, minijinja::Error> {
+fn get_attr(input: &Value, key: &str) -> Result<String, minijinja::Error> {
     let val = input.get_attr(key)?;
     let Some(s) = val.as_str() else {
         return Err(minijinja::Error::custom(format!(
             "Expected {key} to be a string"
         )));
     };
-    Ok(Cow::Owned(s))
+    Ok(s.to_owned())
 }
 
 pub(crate) fn prom_unit(input: Value) -> Result<String, minijinja::Error> {

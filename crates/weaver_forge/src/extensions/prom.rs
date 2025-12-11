@@ -10,14 +10,14 @@ use std::borrow::Cow;
 
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];
 
-pub(crate) fn get_names(
-    name: &Cow<'static, str>,
+pub(crate) fn get_names<'a>(
+    name: &Cow<'a, str>,
     unit: &str,
     instrument: &str,
-) -> Vec<Cow<'static, str>> {
+) -> Vec<Cow<'a, str>> {
     // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
     [
-        *name,                                                 // NoTranslation
+        name.clone(),                                          // NoTranslation
         sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
         with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
         with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
@@ -27,28 +27,28 @@ pub(crate) fn get_names(
     .flat_map(|n| {
         if instrument == "histogram" {
             vec![
-                *n, // native histogram name
+                n.clone(), // native histogram name
                 Cow::Owned(format!("{n}_bucket")),
                 Cow::Owned(format!("{n}_count")),
                 Cow::Owned(format!("{n}_sum")),
             ]
         } else if instrument == "summary" {
             vec![
-                *n, // for streaming quantiles
+                n.clone(), // for streaming quantiles
                 Cow::Owned(format!("{n}_count")),
                 Cow::Owned(format!("{n}_sum")),
             ]
         } else {
-            vec![n.into()]
+            vec![n.clone()]
         }
     })
     .collect()
 }
 
-fn with_suffixes(name: &Cow<'static, str>, unit: &str, instrument: &str) -> Cow<'static, str> {
+fn with_suffixes<'a>(name: &Cow<'a, str>, unit: &str, instrument: &str) -> Cow<'a, str> {
     get_suffixes(unit, instrument)
         .into_iter()
-        .fold(name.into(), |acc, suffix| format!("{acc}_{suffix}").into())
+        .fold(name.clone(), |acc, suffix| format!("{acc}_{suffix}").into())
 }
 
 pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<Cow<'static, str>> {
@@ -163,7 +163,7 @@ fn get_prom_per_unit(unit: &str) -> Option<&'static str> {
 }
 
 #[allow(clippy::ptr_arg)]
-pub(crate) fn sanitize_name(s: &Cow<'static, str>) -> Cow<'static, str> {
+pub(crate) fn sanitize_name<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
     // prefix chars to add in case name starts with number
     let mut prefix = "";
 
@@ -224,7 +224,7 @@ mod tests {
         ];
 
         for (input, want) in tests {
-            assert_eq!(want, sanitize_name(&input.into()), "input: {input}")
+            assert_eq!(want, sanitize_name(&input.into()), "input: {input}");
         }
     }
 
@@ -375,7 +375,7 @@ mod tests {
         ];
 
         for (name, unit, instrument, expected) in test_cases {
-            let result = get_names(&Cow::Owned(name), unit, instrument);
+            let result = get_names(&Cow::Borrowed(name), unit, instrument);
             assert_eq!(
                 result, expected,
                 "Failed for name={}, unit={}, instrument={}",
