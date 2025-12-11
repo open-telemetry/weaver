@@ -274,6 +274,14 @@ Each policy finding is emitted as an OTLP log record with the following structur
 - `weaver.finding.signal_type`: Signal type (e.g., "span", "event", "metric")
 - `weaver.finding.signal_name`: Signal name (e.g., event name or metric name)
 
+## Continuous Running Sessions
+
+For long-running live-check sessions (for example, in a staging environment), there are a few settings to consider:
+
+- `--inactivity-timeout=0`: If this is set to zero then weaver never times out.
+- `--output=none`: If this is set to none then no template engine is loaded and nothing is rendered out to the console or files.
+- `--no-stats`: If this is set then statistics are not accumulated over the running time of live-check which has the potential to otherwise store a lot of info in memory.
+
 ## Usage examples
 
 Default operation. Receive OTLP requests and output findings as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
