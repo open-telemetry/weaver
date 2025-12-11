@@ -29,7 +29,7 @@ impl Advisor for StabilityAdvisor {
     ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
-                let mut advices = Vec::new();
+                let mut findings = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     match attribute.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
@@ -47,15 +47,15 @@ impl Advisor for StabilityAdvisor {
                                 .signal(parent_signal)
                                 .build_and_emit(&sample, otlp_emitter.as_deref());
 
-                            advices.push(finding);
+                            findings.push(finding);
                         }
                         _ => {}
                     }
                 }
-                Ok(advices)
+                Ok(findings)
             }
             SampleRef::Metric(sample_metric) => {
-                let mut advices = Vec::new();
+                let mut findings = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
@@ -73,15 +73,15 @@ impl Advisor for StabilityAdvisor {
                                 .signal(parent_signal)
                                 .build_and_emit(&sample, otlp_emitter.as_deref());
 
-                            advices.push(finding);
+                            findings.push(finding);
                         }
                         _ => {}
                     }
                 }
-                Ok(advices)
+                Ok(findings)
             }
             SampleRef::Log(sample_log) => {
-                let mut advices = Vec::new();
+                let mut findings = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
@@ -99,12 +99,12 @@ impl Advisor for StabilityAdvisor {
                                 .signal(parent_signal)
                                 .build_and_emit(&sample, otlp_emitter.as_deref());
 
-                            advices.push(finding);
+                            findings.push(finding);
                         }
                         _ => {}
                     }
                 }
-                Ok(advices)
+                Ok(findings)
             }
             _ => Ok(Vec::new()),
         }

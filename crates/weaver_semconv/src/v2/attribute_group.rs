@@ -201,7 +201,7 @@ mod tests {
             serde_yaml::from_str::<AttributeGroup>(v2).expect("Failed to parse YAML string");
         let mut expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        // visibility is not serializeable on v1, so let's set it explicitly
+        // visibility is not serializable on v1, so let's set it explicitly
         expected.visibility = Some(AttributeGroupVisibilitySpec::Public);
         assert_eq!(expected, attr_group.into_v1_group());
     }

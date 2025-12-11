@@ -276,7 +276,7 @@ impl<'a> SearchApp<'a> {
             .split(frame.area());
         frame.render_widget(self.title(), chunks[0]);
 
-        // Render search reuslts.
+        // Render search results.
         if let Some(index) = self.selected_result_index {
             // If the user is viewing a result, then we split the result window to show those results.
             let main_area = Layout::default()
