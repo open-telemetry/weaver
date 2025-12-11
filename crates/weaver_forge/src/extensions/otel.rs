@@ -2,6 +2,7 @@
 
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
+use std::borrow::Cow;
 use crate::config::CaseConvention;
 use crate::extensions::case::{
     camel_case, kebab_case, pascal_case, screaming_snake_case, snake_case,
@@ -223,7 +224,7 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
     Ok(name)
 }
 
-pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> {
+pub(crate) fn prom_names(input: Value) -> Result<Vec<Cow<'static, str>>, minijinja::Error> {
     Ok(prom::get_names(
         &get_attr(&input, "metric_name")?,
         &get_attr(&input, "unit")?,
@@ -231,14 +232,14 @@ pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> 
     ))
 }
 
-fn get_attr(input: &Value, key: &str) -> Result<String, minijinja::Error> {
+fn get_attr<'a>(input:&'a Value, key: &str) -> Result<Cow<'a, str>, minijinja::Error> {
     let val = input.get_attr(key)?;
     let Some(s) = val.as_str() else {
         return Err(minijinja::Error::custom(format!(
             "Expected {key} to be a string"
         )));
     };
-    Ok(s.to_owned())
+    Ok(Cow::Owned(s))
 }
 
 pub(crate) fn prom_unit(input: Value) -> Result<String, minijinja::Error> {

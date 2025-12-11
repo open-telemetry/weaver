@@ -6,13 +6,18 @@
 // - returning multiple possible names in get_names
 
 use itertools::Itertools;
+use std::borrow::Cow;
 
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];
 
-pub(crate) fn get_names(name: &str, unit: &str, instrument: &str) -> Vec<String> {
+pub(crate) fn get_names(
+    name: &Cow<'static, str>,
+    unit: &str,
+    instrument: &str,
+) -> Vec<Cow<'static, str>> {
     // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
     [
-        name.to_owned(),                                       // NoTranslation
+        *name,                                                 // NoTranslation
         sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
         with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
         with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
@@ -22,31 +27,31 @@ pub(crate) fn get_names(name: &str, unit: &str, instrument: &str) -> Vec<String>
     .flat_map(|n| {
         if instrument == "histogram" {
             vec![
-                n.to_owned(), // native histogram name
-                format!("{n}_bucket"),
-                format!("{n}_count"),
-                format!("{n}_sum"),
+                *n, // native histogram name
+                Cow::Owned(format!("{n}_bucket")),
+                Cow::Owned(format!("{n}_count")),
+                Cow::Owned(format!("{n}_sum")),
             ]
         } else if instrument == "summary" {
             vec![
-                n.to_owned(), // for streaming quantiles
-                format!("{n}_count"),
-                format!("{n}_sum"),
+                *n, // for streaming quantiles
+                Cow::Owned(format!("{n}_count")),
+                Cow::Owned(format!("{n}_sum")),
             ]
         } else {
-            vec![n.to_owned()]
+            vec![n.into()]
         }
     })
     .collect()
 }
 
-fn with_suffixes(name: &str, unit: &str, instrument: &str) -> String {
+fn with_suffixes(name: &Cow<'static, str>, unit: &str, instrument: &str) -> Cow<'static, str> {
     get_suffixes(unit, instrument)
         .into_iter()
-        .fold(name.to_owned(), |acc, suffix| format!("{acc}_{suffix}"))
+        .fold(name.into(), |acc, suffix| format!("{acc}_{suffix}").into())
 }
 
-pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<String> {
+pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<Cow<'static, str>> {
     let mut suffixes = Vec::new();
 
     // get unit suffixes
@@ -56,13 +61,13 @@ pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<String> {
 
     // add _total for counters
     if instrument == "counter" {
-        suffixes.push("total".to_owned());
+        suffixes.push("total".into());
     }
 
     suffixes
 }
 
-pub(crate) fn get_unit_suffixes(unit: &str) -> Option<String> {
+pub(crate) fn get_unit_suffixes(unit: &str) -> Option<Cow<'static, str>> {
     // no unit return early
     if unit.is_empty() {
         return None;
@@ -70,7 +75,7 @@ pub(crate) fn get_unit_suffixes(unit: &str) -> Option<String> {
 
     // direct match with known units
     if let Some(matched) = get_prom_units(unit) {
-        return Some(matched.to_owned());
+        return Some(Cow::Borrowed(matched));
     }
 
     // converting foo/bar to foo_per_bar
@@ -86,10 +91,10 @@ pub(crate) fn get_unit_suffixes(unit: &str) -> Option<String> {
             get_prom_per_unit(second),
         ) {
             (true, _, Some(second_part)) | (false, None, Some(second_part)) => {
-                Some(format!("per_{second_part}"))
+                Some(Cow::Owned(format!("per_{second_part}")))
             }
             (false, Some(first_part), Some(second_part)) => {
-                Some(format!("{first_part}_per_{second_part}"))
+                Some(Cow::Owned(format!("{first_part}_per_{second_part}")))
             }
             _ => None,
         };
@@ -158,7 +163,7 @@ fn get_prom_per_unit(unit: &str) -> Option<&'static str> {
 }
 
 #[allow(clippy::ptr_arg)]
-pub(crate) fn sanitize_name(s: &str) -> String {
+pub(crate) fn sanitize_name(s: &Cow<'static, str>) -> Cow<'static, str> {
     // prefix chars to add in case name starts with number
     let mut prefix = "";
 
@@ -175,19 +180,21 @@ pub(crate) fn sanitize_name(s: &str) -> String {
     }) {
         // up to `replace_idx` have been validated, convert the rest
         let (valid, rest) = s.split_at(replace_idx);
-        prefix
-            .chars()
-            .chain(valid.chars())
-            .chain(rest.chars().map(|c| {
-                if c.is_ascii_alphanumeric() || c == '_' || c == ':' {
-                    c
-                } else {
-                    '_'
-                }
-            }))
-            .collect()
+        Cow::Owned(
+            prefix
+                .chars()
+                .chain(valid.chars())
+                .chain(rest.chars().map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '_' || c == ':' {
+                        c
+                    } else {
+                        '_'
+                    }
+                }))
+                .collect(),
+        )
     } else {
-        s.to_owned()
+        s.clone() // no invalid chars found, return existing
     }
 }
 
@@ -217,7 +224,7 @@ mod tests {
         ];
 
         for (input, want) in tests {
-            assert_eq!(want, sanitize_name(input), "input: {input}");
+            assert_eq!(want, sanitize_name(&input.into()), "input: {input}")
         }
     }
 
@@ -225,12 +232,11 @@ mod tests {
     fn test_get_unit_suffixes() {
         let test_cases = vec![
             // Direct match
-            ("g", Some("grams")),
-            ("s", Some("seconds")),
+            ("g", Some(Cow::Borrowed("grams"))),
             // Per unit
-            ("test/y", Some("per_year")),
-            ("1/y", Some("per_year")),
-            ("m/s", Some("meters_per_second")),
+            ("test/y", Some(Cow::Owned("per_year".into()))),
+            ("1/y", Some(Cow::Owned("per_year".into()))),
+            ("m/s", Some(Cow::Owned("meters_per_second".into()))),
             // No match
             ("invalid", None),
             ("invalid/invalid", None),
@@ -240,7 +246,7 @@ mod tests {
             ("{request}", None),
         ];
         for (unit, expected_suffix) in test_cases {
-            assert_eq!(get_unit_suffixes(unit), expected_suffix.map(String::from));
+            assert_eq!(get_unit_suffixes(unit), expected_suffix);
         }
     }
 
@@ -320,7 +326,7 @@ mod tests {
                 ],
             ),
             // Counter with dot in name and unit
-            // name.to_owned() = "http.server.requests"
+            // name.into() = "http.server.requests"
             // sanitize_name(name) = "http_server_requests"
             // with_suffixes(name, "1", "counter") = "http.server.requests_ratio_total"
             // with_suffixes(sanitize, "1", "counter") = "http_server_requests_ratio_total"
@@ -337,7 +343,7 @@ mod tests {
                 ],
             ),
             // Histogram with dot in name
-            // name.to_owned() = "http.request.duration"
+            // name.into() = "http.request.duration"
             // sanitize_name(name) = "http_request_duration"
             // with_suffixes(name, "s", "histogram") = "http.request.duration_seconds"
             // with_suffixes(sanitize, "s", "histogram") = "http_request_duration_seconds"
@@ -369,7 +375,7 @@ mod tests {
         ];
 
         for (name, unit, instrument, expected) in test_cases {
-            let result = get_names(name, unit, instrument);
+            let result = get_names(&Cow::Owned(name), unit, instrument);
             assert_eq!(
                 result, expected,
                 "Failed for name={}, unit={}, instrument={}",
