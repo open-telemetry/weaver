@@ -25,7 +25,7 @@ With Weaver Forge, the following directory layout is used by default:
 | Path | Description |
 |-|-|
 | | |
-| `registry/http/` | Some [registry](registry.md) that defines telemery. In this case for HTTP |
+| `registry/http/` | Some [registry](registry.md) that defines telemetry. In this case for HTTP |
 | `registry/http/metrics.yaml` | Schema file for some HTTP metrics |
 | `registry/grpc/` | Another registry that defines telemetry for a different use-case. |
 | `registry/grpc/metrics.yaml` | Schema file for some gRPC metrics |

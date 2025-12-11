@@ -120,7 +120,7 @@ pub struct Loaded {
     policy_engine: Option<Engine>,
 }
 impl Loaded {
-    /// Checks if we have any before reoslution policies.
+    /// Checks if we have any before resolution policies.
     pub fn has_before_resolution_policy(&self) -> bool {
         self.policy_engine
             .as_ref()

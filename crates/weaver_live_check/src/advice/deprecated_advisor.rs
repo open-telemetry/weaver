@@ -55,7 +55,7 @@ impl Advisor for DeprecatedAdvisor {
     ) -> Result<Vec<PolicyFinding>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
-                let mut advices = Vec::new();
+                let mut findings = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     if let Some(deprecated) = &attribute.deprecated() {
                         let name = &sample_attribute.name;
@@ -70,13 +70,13 @@ impl Advisor for DeprecatedAdvisor {
                             .signal(signal)
                             .build_and_emit(&sample, otlp_emitter.as_deref());
 
-                        advices.push(finding);
+                        findings.push(finding);
                     }
                 }
-                Ok(advices)
+                Ok(findings)
             }
             SampleRef::Metric(sample_metric) => {
-                let mut advices = Vec::new();
+                let mut findings = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
                         let name = &sample_metric.name;
@@ -91,13 +91,13 @@ impl Advisor for DeprecatedAdvisor {
                             .signal(signal)
                             .build_and_emit(&sample, otlp_emitter.as_deref());
 
-                        advices.push(finding);
+                        findings.push(finding);
                     }
                 }
-                Ok(advices)
+                Ok(findings)
             }
             SampleRef::Log(sample_log) => {
-                let mut advices = Vec::new();
+                let mut findings = Vec::new();
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
                         let name = &sample_log.event_name;
@@ -112,10 +112,10 @@ impl Advisor for DeprecatedAdvisor {
                             .signal(signal)
                             .build_and_emit(&sample, otlp_emitter.as_deref());
 
-                        advices.push(finding);
+                        findings.push(finding);
                     }
                 }
-                Ok(advices)
+                Ok(findings)
             }
             _ => Ok(Vec::new()),
         }
