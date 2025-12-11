@@ -75,7 +75,7 @@ const SEMCONV_HEADER: &str = "semconv";
 /// exact string we expect for ending a semconv snippet.
 const SEMCONV_TRAILER: &str = "endsemconv";
 
-/// exact string we exepct from the new weaver snippet.
+/// exact string we expect from the new weaver snippet.
 const WEAVER_HEADER: &str = "weaver";
 /// exact string we expect for ending a weaver snippet.
 const WEAVER_TRAILER: &str = "endweaver";
