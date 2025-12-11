@@ -1,6 +1,5 @@
 // copied from https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-prometheus/src/utils.rs
 // with minor modifications
-// - using String instead of Cow
 // - making functions pub(crate)
 // - adding get_suffixes function that adds _total for counters
 // - returning multiple possible names in get_names
