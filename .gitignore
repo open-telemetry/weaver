@@ -48,3 +48,4 @@ history-temp-repo/
 # UI build artifacts and dependencies
 ui/node_modules/
 ui/dist/
+ui/.vite/

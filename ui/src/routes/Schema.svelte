@@ -30,7 +30,17 @@
   function formatType(prop) {
     // Check for array with items first (before checking prop.type)
     if (prop.type === 'array' && prop.items) {
-      const itemType = prop.items.$ref ? prop.items.$ref.replace('#/definitions/', '') : prop.items.type || 'any';
+      // Handle nested arrays (array of array)
+      if (prop.items.type === 'array' && prop.items.items) {
+        const innerType = prop.items.items.$ref
+          ? prop.items.items.$ref.replace('#/definitions/', '')
+          : prop.items.items.type || 'any';
+        return `array of array of ${innerType}`;
+      }
+      // Handle simple arrays
+      const itemType = prop.items.$ref
+        ? prop.items.$ref.replace('#/definitions/', '')
+        : prop.items.type || 'any';
       return `array of ${itemType}`;
     }
 
@@ -81,7 +91,16 @@
       }));
     }
 
-    // Handle array types (e.g., "array of AttributeDef")
+    // Handle nested array types (e.g., "array of array of integer")
+    if (typeStr.startsWith('array of array of ')) {
+      const innerType = typeStr.slice(18); // Skip "array of array of "
+      return [
+        { text: 'array of array of ', isClickable: false },
+        { text: innerType, isClickable: isDefinitionRef(innerType) }
+      ];
+    }
+
+    // Handle simple array types (e.g., "array of AttributeDef")
     if (typeStr.startsWith('array of ')) {
       const innerType = typeStr.slice(9); // Skip "array of "
       return [
@@ -305,21 +324,26 @@
             <h3 class="text-lg font-bold mb-3">{def.oneOf ? 'One Of' : 'Any Of'}</h3>
             <div class="space-y-2">
               {#each variants as variant}
+                {@const variantType = formatType(variant)}
+                {@const variantParts = parseTypeString(variantType)}
                 <div class="card bg-base-200">
                   <div class="card-body p-4">
-                    {#if variant.$ref}
-                      {@const refName = variant.$ref.replace('#/definitions/', '')}
-                      <button
-                        class="font-mono hover:text-primary cursor-pointer underline"
-                        onclick={() => selectDefinition(refName)}
-                      >
-                        {refName}
-                      </button>
-                    {:else if variant.type}
-                      <span class="badge badge-outline">{variant.type}</span>
-                      {#if variant.description}
-                        <p class="text-sm mt-2">{variant.description}</p>
-                      {/if}
+                    <span class="badge badge-outline font-mono inline-flex items-center gap-1">
+                      {#each variantParts as part}
+                        {#if part.isClickable}
+                          <button
+                            class="hover:text-primary cursor-pointer underline"
+                            onclick={() => selectDefinition(part.text)}
+                          >
+                            {part.text}
+                          </button>
+                        {:else}
+                          <span>{part.text}</span>
+                        {/if}
+                      {/each}
+                    </span>
+                    {#if variant.description}
+                      <p class="text-sm mt-2">{variant.description}</p>
                     {/if}
                   </div>
                 </div>
