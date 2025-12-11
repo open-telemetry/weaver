@@ -2,7 +2,6 @@
 
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
-use std::borrow::Cow;
 use crate::config::CaseConvention;
 use crate::extensions::case::{
     camel_case, kebab_case, pascal_case, screaming_snake_case, snake_case,
@@ -13,6 +12,7 @@ use minijinja::filters::sort;
 use minijinja::value::{Kwargs, ValueKind};
 use minijinja::{ErrorKind, State, Value};
 use serde::de::Error;
+use std::borrow::Cow;
 
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
@@ -229,10 +229,12 @@ pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> 
     let unit = get_attr(&input, "unit")?;
     let instrument = get_attr(&input, "instrument")?;
 
-    Ok(prom::get_names(&Cow::Owned(metric_name), &unit, &instrument)
-        .into_iter()
-        .map(|cow| cow.into_owned())
-        .collect())
+    Ok(
+        prom::get_names(&Cow::Owned(metric_name), &unit, &instrument)
+            .into_iter()
+            .map(|cow| cow.into_owned())
+            .collect(),
+    )
 }
 
 fn get_attr(input: &Value, key: &str) -> Result<String, minijinja::Error> {
