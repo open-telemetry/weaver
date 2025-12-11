@@ -229,10 +229,14 @@ impl Ingester for OtlpIngester {
             "  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.",
             self.admin_port
         );
-        info!(
-            "The OTLP receiver will stop after {} seconds of inactivity.",
-            self.inactivity_timeout
-        );
+        if self.inactivity_timeout == 0 {
+            info!("The OTLP receiver will run indefinitely until stopped manually.");
+        } else {
+            info!(
+                "The OTLP receiver will stop after {} seconds of inactivity.",
+                self.inactivity_timeout
+            );
+        };
 
         Ok(Box::new(OtlpIterator::new(Box::new(otlp_requests))))
     }

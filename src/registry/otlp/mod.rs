@@ -226,12 +226,15 @@ pub fn listen_otlp_requests(
                 // Spawn tasks to handle different stop signals
                 spawn_stop_signal_handlers(stop_tx.clone(), &mut tasks);
                 spawn_http_stop_handler(stop_tx.clone(), admin_port, &mut tasks).await;
-                spawn_inactivity_monitor(
-                    stop_tx.clone(),
-                    activity_rx,
-                    inactivity_timeout,
-                    &mut tasks,
-                );
+                // Only spawn the inactivity monitor if the timeout is greater than zero
+                if inactivity_timeout.as_secs() > 0 {
+                    spawn_inactivity_monitor(
+                        stop_tx.clone(),
+                        activity_rx,
+                        inactivity_timeout,
+                        &mut tasks,
+                    );
+                }
 
                 let tokio_listener = TcpListener::from_std(listener)
                     .expect("Failed to convert std listener to tokio listener");
@@ -512,7 +515,7 @@ mod tests {
     fn test_inactivity_stop_after_1_second() {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
-        let inactivity_timeout = Duration::from_millis(500);
+        let inactivity_timeout = Duration::from_secs(1);
 
         let mut receiver =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();

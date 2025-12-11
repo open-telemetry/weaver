@@ -2,7 +2,7 @@
 
 //! This crate provides the weaver_live_check library
 
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use live_checker::LiveChecker;
 use miette::Diagnostic;
@@ -23,10 +23,7 @@ use weaver_forge::{
     v2::registry::ForgeResolvedRegistry,
 };
 use weaver_semconv::{
-    attribute::AttributeType,
-    deprecated::Deprecated,
-    group::{GroupType, InstrumentSpec},
-    stability::Stability,
+    attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
 };
 
 /// Advisors for live checks
@@ -49,10 +46,15 @@ pub mod sample_metric;
 pub mod sample_resource;
 /// The intermediary format for spans
 pub mod sample_span;
+/// Statistics tracking for live check reports
+mod stats;
 /// An ingester that reads attribute names from a text file.
 pub mod text_file_ingester;
 /// An ingester that reads attribute names from standard input.
 pub mod text_stdin_ingester;
+
+// Re-export statistics types from stats module
+pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
 
 /// Missing Attribute advice type
 pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
@@ -459,257 +461,6 @@ pub struct LiveCheckReport {
     pub samples: Vec<Sample>,
     /// The statistics for the report
     pub statistics: LiveCheckStatistics,
-}
-
-/// The statistics for a live check report
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LiveCheckStatistics {
-    /// The total number of sample entities
-    pub total_entities: usize,
-    /// The total number of sample entities by type
-    pub total_entities_by_type: HashMap<String, usize>,
-    /// The total number of advisories
-    pub total_advisories: usize,
-    /// The number of each advice level
-    pub advice_level_counts: HashMap<FindingLevel, usize>,
-    /// The number of entities with each highest advice level
-    pub highest_advice_level_counts: HashMap<FindingLevel, usize>,
-    /// The number of entities with no advice
-    pub no_advice_count: usize,
-    /// The number of entities with each advice type
-    pub advice_type_counts: HashMap<String, usize>,
-    /// The number of entities with each advice message
-    pub advice_message_counts: HashMap<String, usize>,
-    /// The number of each attribute seen from the registry
-    pub seen_registry_attributes: HashMap<String, usize>,
-    /// The number of each non-registry attribute seen
-    pub seen_non_registry_attributes: HashMap<String, usize>,
-    /// The number of each metric seen from the registry
-    pub seen_registry_metrics: HashMap<String, usize>,
-    /// The number of each non-registry metric seen
-    pub seen_non_registry_metrics: HashMap<String, usize>,
-    /// The number of each event seen from the registry
-    pub seen_registry_events: HashMap<String, usize>,
-    /// The number of each non-registry event seen
-    pub seen_non_registry_events: HashMap<String, usize>,
-    /// Fraction of the registry covered by the attributes, metrics, and events
-    pub registry_coverage: f32,
-}
-
-impl LiveCheckStatistics {
-    /// Create a new empty LiveCheckStatistics
-    #[must_use]
-    pub fn new(registry: &VersionedRegistry) -> Self {
-        let mut seen_attributes = HashMap::new();
-        let mut seen_metrics = HashMap::new();
-        let mut seen_events = HashMap::new();
-        match registry {
-            VersionedRegistry::V1(reg) => {
-                for group in &reg.groups {
-                    for attribute in &group.attributes {
-                        if attribute.deprecated.is_none() {
-                            let _ = seen_attributes.insert(attribute.name.clone(), 0);
-                        }
-                    }
-                    if group.r#type == GroupType::Metric && group.deprecated.is_none() {
-                        if let Some(metric_name) = &group.metric_name {
-                            let _ = seen_metrics.insert(metric_name.clone(), 0);
-                        }
-                    }
-                    if group.r#type == GroupType::Event && group.deprecated.is_none() {
-                        if let Some(event_name) = &group.name {
-                            let _ = seen_events.insert(event_name.clone(), 0);
-                        }
-                    }
-                }
-            }
-            VersionedRegistry::V2(reg) => {
-                for attribute in &reg.attributes {
-                    if attribute.common.deprecated.is_none() {
-                        let _ = seen_attributes.insert(attribute.key.clone(), 0);
-                    }
-                }
-                for metric in &reg.signals.metrics {
-                    if metric.common.deprecated.is_none() {
-                        let _ = seen_metrics.insert(metric.name.to_string(), 0);
-                    }
-                }
-                for event in &reg.signals.events {
-                    if event.common.deprecated.is_none() {
-                        let _ = seen_events.insert(event.name.to_string(), 0);
-                    }
-                }
-            }
-        }
-        LiveCheckStatistics {
-            total_entities: 0,
-            total_entities_by_type: HashMap::new(),
-            total_advisories: 0,
-            advice_level_counts: HashMap::new(),
-            highest_advice_level_counts: HashMap::new(),
-            no_advice_count: 0,
-            advice_type_counts: HashMap::new(),
-            advice_message_counts: HashMap::new(),
-            seen_registry_attributes: seen_attributes,
-            seen_non_registry_attributes: HashMap::new(),
-            seen_registry_metrics: seen_metrics,
-            seen_non_registry_metrics: HashMap::new(),
-            seen_registry_events: seen_events,
-            seen_non_registry_events: HashMap::new(),
-            registry_coverage: 0.0,
-        }
-    }
-
-    /// Add a live check result to the stats
-    pub fn maybe_add_live_check_result(&mut self, live_check_result: Option<&LiveCheckResult>) {
-        if let Some(result) = live_check_result {
-            for advice in &result.all_advice {
-                // Count of total advisories
-                self.add_advice(advice);
-            }
-            // Count of samples with the highest advice level
-            if let Some(highest_advice_level) = &result.highest_advice_level {
-                self.add_highest_advice_level(highest_advice_level);
-            }
-
-            // Count of samples with no advice
-            if result.all_advice.is_empty() {
-                self.inc_no_advice_count();
-            }
-        } else {
-            // Count of samples with no advice
-            self.inc_no_advice_count();
-        }
-    }
-
-    /// Increment the total number of entities by type
-    pub fn inc_entity_count(&mut self, entity_type: &str) {
-        *self
-            .total_entities_by_type
-            .entry(entity_type.to_owned())
-            .or_insert(0) += 1;
-        self.total_entities += 1;
-    }
-
-    /// Add an advice to the statistics
-    fn add_advice(&mut self, advice: &PolicyFinding) {
-        *self
-            .advice_level_counts
-            .entry(advice.level.clone())
-            .or_insert(0) += 1;
-        *self
-            .advice_type_counts
-            .entry(advice.id.clone())
-            .or_insert(0) += 1;
-        *self
-            .advice_message_counts
-            .entry(advice.message.clone())
-            .or_insert(0) += 1;
-        self.total_advisories += 1;
-    }
-
-    /// Add a highest advice level to the statistics
-    fn add_highest_advice_level(&mut self, advice: &FindingLevel) {
-        *self
-            .highest_advice_level_counts
-            .entry(advice.clone())
-            .or_insert(0) += 1;
-    }
-
-    /// Increment the no advice count in the statistics
-    fn inc_no_advice_count(&mut self) {
-        self.no_advice_count += 1;
-    }
-
-    /// Add attribute name to coverage
-    pub fn add_attribute_name_to_coverage(&mut self, seen_attribute_name: String) {
-        if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
-            // This is a registry attribute
-            *count += 1;
-        } else {
-            // This is a non-registry attribute
-            *self
-                .seen_non_registry_attributes
-                .entry(seen_attribute_name)
-                .or_insert(0) += 1;
-        }
-    }
-
-    /// Add metric name to coverage
-    pub fn add_metric_name_to_coverage(&mut self, seen_metric_name: String) {
-        if let Some(count) = self.seen_registry_metrics.get_mut(&seen_metric_name) {
-            // This is a registry metric
-            *count += 1;
-        } else {
-            // This is a non-registry metric
-            *self
-                .seen_non_registry_metrics
-                .entry(seen_metric_name)
-                .or_insert(0) += 1;
-        }
-    }
-
-    /// Add event name to coverage
-    pub fn add_event_name_to_coverage(&mut self, seen_event_name: String) {
-        if seen_event_name.is_empty() {
-            // Empty event_names are not counted
-            return;
-        }
-        if let Some(count) = self.seen_registry_events.get_mut(&seen_event_name) {
-            // This is a registry event
-            *count += 1;
-        } else {
-            // This is a non-registry event
-            *self
-                .seen_non_registry_events
-                .entry(seen_event_name)
-                .or_insert(0) += 1;
-        }
-    }
-
-    /// Are there any violations in the statistics?
-    #[must_use]
-    pub fn has_violations(&self) -> bool {
-        self.highest_advice_level_counts
-            .contains_key(&FindingLevel::Violation)
-    }
-
-    /// Finalize the statistics
-    pub fn finalize(&mut self) {
-        // Calculate the registry coverage
-        // (non-zero attributes + non-zero metrics + non-zero events) / (total attributes + total metrics + total events)
-        let non_zero_attributes = self
-            .seen_registry_attributes
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_attributes = self.seen_registry_attributes.len();
-
-        let non_zero_metrics = self
-            .seen_registry_metrics
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_metrics = self.seen_registry_metrics.len();
-
-        let non_zero_events = self
-            .seen_registry_events
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_events = self.seen_registry_events.len();
-
-        let total_registry_items =
-            total_registry_attributes + total_registry_metrics + total_registry_events;
-
-        if total_registry_items > 0 {
-            self.registry_coverage = ((non_zero_attributes + non_zero_metrics + non_zero_events)
-                as f32)
-                / (total_registry_items as f32);
-        } else {
-            self.registry_coverage = 0.0;
-        }
-    }
 }
 
 /// Samples implement this trait to run live checks on themselves
