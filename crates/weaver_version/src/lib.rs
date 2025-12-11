@@ -651,7 +651,7 @@ mod tests {
 
         for (v, _) in versions.versions_desc() {
             if let Some(version) = version.as_ref() {
-                assert!(v > *version);
+                assert!(v < *version);
             }
             version = Some(v);
         }
