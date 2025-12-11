@@ -396,7 +396,6 @@ mod tests {
     use weaver_forge::{
         config::{Params, WeaverConfig},
         file_loader::FileSystemFileLoader,
-        registry,
         v2::registry::ForgeResolvedRegistry,
         TemplateEngine,
     };
