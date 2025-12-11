@@ -14,7 +14,7 @@
 
 # Global owners, will be the owners for everything in the repo
 
-* @open-telemetry/weaver-maintainers @open-telemetry/weaver-approvers
+* @open-telemetry/weaver-approvers
 
 # Semantic conventions schema
 /schemas/semconv.schema.json @open-telemetry/specs-semconv-approvers
