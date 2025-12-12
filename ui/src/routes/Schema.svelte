@@ -6,6 +6,7 @@
   let error = $state(null);
   let loading = $state(true);
   let selectedDefinition = $state(null);
+  let showRoot = $state(true);
 
   // Fetch schema on mount
   $effect(() => {
@@ -23,11 +24,51 @@
     fetchSchema();
   });
 
+  // Initialize state from URL on mount and listen for popstate
+  $effect(() => {
+    function updateFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const type = params.get('type');
+
+      if (type === 'root' || !type) {
+        showRoot = true;
+        selectedDefinition = null;
+      } else {
+        showRoot = false;
+        selectedDefinition = type;
+      }
+    }
+
+    // Initialize from URL
+    updateFromURL();
+
+    // Listen for browser back/forward
+    window.addEventListener('popstate', updateFromURL);
+
+    return () => {
+      window.removeEventListener('popstate', updateFromURL);
+    };
+  });
+
   // Extract definitions from schema
   const definitions = $derived(schema?.definitions ? Object.keys(schema.definitions).sort() : []);
 
   function selectDefinition(name) {
     selectedDefinition = name;
+    showRoot = false;
+    // Update URL with new state
+    const url = new URL(window.location.href);
+    url.searchParams.set('type', name);
+    window.history.pushState({}, '', url);
+  }
+
+  function selectRoot() {
+    showRoot = true;
+    selectedDefinition = null;
+    // Update URL with new state
+    const url = new URL(window.location.href);
+    url.searchParams.set('type', 'root');
+    window.history.pushState({}, '', url);
   }
 
   function formatType(prop, skipNull = false) {
@@ -177,48 +218,6 @@
     return [{ text: typeStr, isClickable: isDefinitionRef(typeStr) }];
   }
 
-  // Helper to navigate to a definition from a root property
-  function selectPropertyType(prop) {
-    const propDef = schema.properties[prop];
-
-    // Check for direct $ref
-    if (propDef.$ref) {
-      const typeName = propDef.$ref.replace('#/definitions/', '');
-      selectDefinition(typeName);
-      return;
-    }
-
-    // Check for allOf with $ref
-    if (propDef.allOf?.length > 0 && propDef.allOf[0].$ref) {
-      const typeName = propDef.allOf[0].$ref.replace('#/definitions/', '');
-      selectDefinition(typeName);
-      return;
-    }
-
-    // Check for array with $ref
-    if (propDef.items?.$ref) {
-      const typeName = propDef.items.$ref.replace('#/definitions/', '');
-      selectDefinition(typeName);
-      return;
-    }
-
-    // Check for anyOf with single $ref
-    if (propDef.anyOf?.length === 1 && propDef.anyOf[0].$ref) {
-      const typeName = propDef.anyOf[0].$ref.replace('#/definitions/', '');
-      selectDefinition(typeName);
-      return;
-    }
-
-    // Check for anyOf with $ref (skip null types)
-    if (propDef.anyOf) {
-      const refItem = propDef.anyOf.find(item => item.$ref);
-      if (refItem) {
-        const typeName = refItem.$ref.replace('#/definitions/', '');
-        selectDefinition(typeName);
-        return;
-      }
-    }
-  }
 </script>
 
 <div class="flex gap-4 h-[calc(100vh-4rem)]">
@@ -235,30 +234,20 @@
     {:else if schema}
       <div class="space-y-4">
         <!-- Schema info -->
-        <div class="card bg-base-200 sticky top-0 z-10">
+        <button
+          class="card sticky top-0 z-10 w-full text-left transition-colors cursor-pointer"
+          class:bg-primary={showRoot}
+          class:text-primary-content={showRoot}
+          class:hover:bg-primary-focus={showRoot}
+          class:bg-base-200={!showRoot}
+          class:hover:bg-base-300={!showRoot}
+          onclick={() => selectRoot()}
+        >
           <div class="card-body p-4">
             <h1 class="font-bold text-xl">{schema.title || 'Schema'}</h1>
-            <p class="text-sm text-base-content/70">{schema.description || ''}</p>
+            <p class="text-sm opacity-70">{schema.description || ''}</p>
           </div>
-        </div>
-
-        <!-- Top-level properties -->
-        <div>
-          <h3 class="font-bold text-sm mb-2 text-base-content/70">ROOT PROPERTIES</h3>
-          <div class="space-y-1">
-            {#each Object.keys(schema.properties || {}) as prop}
-              <button
-                class="w-full text-left px-3 py-2 bg-base-200 hover:bg-base-300 rounded text-sm transition-colors cursor-pointer"
-                onclick={() => selectPropertyType(prop)}
-              >
-                <code class="font-mono">{prop}</code>
-                {#if schema.properties[prop].description}
-                  <p class="text-xs text-base-content/60 mt-1">{schema.properties[prop].description}</p>
-                {/if}
-              </button>
-            {/each}
-          </div>
-        </div>
+        </button>
 
         <!-- Definitions -->
         <div>
@@ -284,7 +273,103 @@
 
   <!-- Right panel: definition details -->
   <div class="flex-1 overflow-y-auto">
-    {#if selectedDefinition && schema?.definitions[selectedDefinition]}
+    {#if showRoot && schema?.properties}
+      <div class="space-y-6">
+        <!-- Header -->
+        <div>
+          <h2 class="text-2xl font-mono font-bold mb-2">Root</h2>
+          <div class="text-base-content/70">
+            <p>Top-level properties of the schema</p>
+          </div>
+          <div class="mt-2">
+            <span class="badge badge-outline">object</span>
+          </div>
+        </div>
+
+        <!-- Required fields -->
+        {#if schema.required && schema.required.length > 0}
+          <div>
+            <h3 class="text-lg font-bold mb-3">Required Fields</h3>
+            <div class="flex flex-wrap gap-2">
+              {#each schema.required as field}
+                <span class="badge badge-error">{field}</span>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Properties -->
+        <div>
+          <h3 class="text-lg font-bold mb-3">Properties</h3>
+          <div class="overflow-x-auto">
+            <table class="table table-zebra">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th>Required</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each Object.entries(schema.properties) as [propName, propDef]}
+                  {@const isRequired = schema.required?.includes(propName)}
+                  {@const typeStr = formatType(propDef, !isRequired)}
+                  {@const typeParts = parseTypeString(typeStr)}
+                  <tr>
+                    <td>
+                      <code class="font-mono text-sm">{propName}</code>
+                    </td>
+                    <td>
+                      <span class="badge badge-sm badge-outline font-mono inline-flex items-center gap-1">
+                        {#each typeParts as part}
+                          {#if part.isClickable}
+                            <button
+                              class="hover:text-primary cursor-pointer underline"
+                              onclick={() => selectDefinition(part.text)}
+                            >
+                              {part.text}
+                            </button>
+                          {:else}
+                            <span>{part.text}</span>
+                          {/if}
+                        {/each}
+                      </span>
+                    </td>
+                    <td>
+                      {#if isRequired}
+                        <span class="badge badge-sm badge-error">required</span>
+                      {:else}
+                        <span class="badge badge-sm badge-ghost">optional</span>
+                      {/if}
+                    </td>
+                    <td class="text-sm max-w-md">
+                      {#if propDef.description}
+                        <InlineMarkdown content={propDef.description} />
+                      {:else}
+                        -
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Raw JSON view -->
+        <div>
+          <h3 class="text-lg font-bold mb-3">Raw JSON</h3>
+          <div class="mockup-code bg-base-300">
+            <pre class="text-xs overflow-x-auto text-base-content"><code>{JSON.stringify({
+  type: 'object',
+  properties: schema.properties,
+  required: schema.required
+}, null, 2)}</code></pre>
+          </div>
+        </div>
+      </div>
+    {:else if selectedDefinition && schema?.definitions[selectedDefinition]}
       {@const def = schema.definitions[selectedDefinition]}
       <div class="space-y-6">
         <!-- Header -->
