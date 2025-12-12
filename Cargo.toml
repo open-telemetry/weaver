@@ -126,8 +126,8 @@ weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
 tempfile.workspace = true
 ureq.workspace = true
-assert_cmd = "2.0.17"
-portpicker = "0.1.1"
+assert_cmd = "=2.0.17"
+portpicker = "=0.1.1"
 
 [build-dependencies]
 tonic-prost-build = "0.14.1"
