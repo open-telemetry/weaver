@@ -262,6 +262,11 @@ impl ResolvedV2 {
         &self.resolved_schema
     }
 
+    /// Drops resolved and just gives the template schema.
+    pub fn into_resolved_schema(self) -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+        self.resolved_schema
+    }
+
     /// Returns the schema available for templating.
     pub fn template_schema(&self) -> &weaver_forge::v2::registry::ForgeResolvedRegistry {
         &self.template_schema
