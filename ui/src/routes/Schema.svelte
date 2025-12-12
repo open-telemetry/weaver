@@ -1,4 +1,7 @@
 <script>
+  import Markdown from '../components/Markdown.svelte';
+  import InlineMarkdown from '../components/InlineMarkdown.svelte';
+
   let schema = $state(null);
   let error = $state(null);
   let loading = $state(true);
@@ -27,7 +30,7 @@
     selectedDefinition = name;
   }
 
-  function formatType(prop) {
+  function formatType(prop, skipNull = false) {
     // Check for array with items first (before checking prop.type)
     if (prop.type === 'array' && prop.items) {
       // Handle nested arrays (array of array)
@@ -44,8 +47,28 @@
       return `array of ${itemType}`;
     }
 
+    // Check for object with additionalProperties (like a map/dictionary)
+    // Handle both type: "object" and type: ["object", "null"]
+    const hasObjectType = prop.type === 'object' ||
+                         (Array.isArray(prop.type) && prop.type.includes('object'));
+    if (hasObjectType && prop.additionalProperties) {
+      const valueType = prop.additionalProperties.$ref
+        ? prop.additionalProperties.$ref.replace('#/definitions/', '')
+        : prop.additionalProperties.type || 'any';
+
+      // If it's a union type like ["object", "null"], filter out null if skipNull is true
+      if (Array.isArray(prop.type) && prop.type.length > 1) {
+        const otherTypes = prop.type.filter(t => t !== 'object' && (!skipNull || t !== 'null'));
+        if (otherTypes.length > 0) {
+          return `map of ${valueType} | ${otherTypes.join(' | ')}`;
+        }
+      }
+      return `map of ${valueType}`;
+    }
+
     if (Array.isArray(prop.type)) {
-      return prop.type.join(' | ');
+      const types = skipNull ? prop.type.filter(t => t !== 'null') : prop.type;
+      return types.join(' | ');
     }
     if (prop.type) return prop.type;
     if (prop.$ref) return prop.$ref.replace('#/definitions/', '');
@@ -57,10 +80,14 @@
       return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'object').join(' & ');
     }
     if (prop.anyOf) {
-      return prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null').join(' | ');
+      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null');
+      const filtered = skipNull ? types.filter(t => t !== 'null') : types;
+      return filtered.join(' | ');
     }
     if (prop.oneOf) {
-      return prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null').join(' | ');
+      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null');
+      const filtered = skipNull ? types.filter(t => t !== 'null') : types;
+      return filtered.join(' | ');
     }
     return 'unknown';
   }
@@ -73,6 +100,8 @@
     if (simpleTypes.includes(typeStr)) return false;
     // Check if it starts with "array of " (array type)
     if (typeStr.startsWith('array of ')) return false;
+    // Check if it starts with "map of " (map type)
+    if (typeStr.startsWith('map of ')) return false;
     // Check if it contains " | " (union type)
     if (typeStr.includes(' | ')) return false;
     // Otherwise, it's likely a definition reference
@@ -83,12 +112,38 @@
   function parseTypeString(typeStr) {
     if (!typeStr) return [];
 
-    // Handle union types (e.g., "Stability | null")
+    // Handle union types (e.g., "Stability | null" or "map of YamlValue | null")
     if (typeStr.includes(' | ')) {
-      return typeStr.split(' | ').map(part => ({
-        text: part,
-        isClickable: isDefinitionRef(part.trim())
-      }));
+      const parts = typeStr.split(' | ');
+      const result = [];
+
+      parts.forEach((part, index) => {
+        const trimmedPart = part.trim();
+
+        // Check if this part is a map/array type
+        if (trimmedPart.startsWith('map of ')) {
+          const valueType = trimmedPart.slice(7);
+          result.push({ text: 'map of ', isClickable: false });
+          result.push({ text: valueType, isClickable: isDefinitionRef(valueType) });
+        } else if (trimmedPart.startsWith('array of array of ')) {
+          const innerType = trimmedPart.slice(18);
+          result.push({ text: 'array of array of ', isClickable: false });
+          result.push({ text: innerType, isClickable: isDefinitionRef(innerType) });
+        } else if (trimmedPart.startsWith('array of ')) {
+          const innerType = trimmedPart.slice(9);
+          result.push({ text: 'array of ', isClickable: false });
+          result.push({ text: innerType, isClickable: isDefinitionRef(innerType) });
+        } else {
+          result.push({ text: trimmedPart, isClickable: isDefinitionRef(trimmedPart) });
+        }
+
+        // Add the separator if not the last part
+        if (index < parts.length - 1) {
+          result.push({ text: ' | ', isClickable: false });
+        }
+      });
+
+      return result;
     }
 
     // Handle nested array types (e.g., "array of array of integer")
@@ -106,6 +161,15 @@
       return [
         { text: 'array of ', isClickable: false },
         { text: innerType, isClickable: isDefinitionRef(innerType) }
+      ];
+    }
+
+    // Handle map types (e.g., "map of YamlValue")
+    if (typeStr.startsWith('map of ')) {
+      const valueType = typeStr.slice(7); // Skip "map of "
+      return [
+        { text: 'map of ', isClickable: false },
+        { text: valueType, isClickable: isDefinitionRef(valueType) }
       ];
     }
 
@@ -227,7 +291,9 @@
         <div>
           <h2 class="text-2xl font-mono font-bold mb-2">{selectedDefinition}</h2>
           {#if def.description}
-            <p class="text-base-content/70">{def.description}</p>
+            <div class="text-base-content/70">
+              <Markdown content={def.description} />
+            </div>
           {/if}
           {#if def.type}
             <div class="mt-2">
@@ -264,7 +330,8 @@
                 </thead>
                 <tbody>
                   {#each Object.entries(def.properties) as [propName, propDef]}
-                    {@const typeStr = formatType(propDef)}
+                    {@const isRequired = def.required?.includes(propName)}
+                    {@const typeStr = formatType(propDef, !isRequired)}
                     {@const typeParts = parseTypeString(typeStr)}
                     <tr>
                       <td>
@@ -272,7 +339,7 @@
                       </td>
                       <td>
                         <span class="badge badge-sm badge-outline font-mono inline-flex items-center gap-1">
-                          {#each typeParts as part, i}
+                          {#each typeParts as part}
                             {#if part.isClickable}
                               <button
                                 class="hover:text-primary cursor-pointer underline"
@@ -283,20 +350,23 @@
                             {:else}
                               <span>{part.text}</span>
                             {/if}
-                            {#if i < typeParts.length - 1 && typeStr.includes(' | ')}
-                              <span class="mx-1">|</span>
-                            {/if}
                           {/each}
                         </span>
                       </td>
                       <td>
-                        {#if def.required?.includes(propName)}
+                        {#if isRequired}
                           <span class="badge badge-sm badge-error">required</span>
                         {:else}
                           <span class="badge badge-sm badge-ghost">optional</span>
                         {/if}
                       </td>
-                      <td class="text-sm max-w-md">{propDef.description || '-'}</td>
+                      <td class="text-sm max-w-md">
+                        {#if propDef.description}
+                          <InlineMarkdown content={propDef.description} />
+                        {:else}
+                          -
+                        {/if}
+                      </td>
                     </tr>
                   {/each}
                 </tbody>
@@ -328,22 +398,98 @@
                 {@const variantParts = parseTypeString(variantType)}
                 <div class="card bg-base-200">
                   <div class="card-body p-4">
-                    <span class="badge badge-outline font-mono inline-flex items-center gap-1">
-                      {#each variantParts as part}
-                        {#if part.isClickable}
-                          <button
-                            class="hover:text-primary cursor-pointer underline"
-                            onclick={() => selectDefinition(part.text)}
-                          >
-                            {part.text}
-                          </button>
-                        {:else}
-                          <span>{part.text}</span>
-                        {/if}
-                      {/each}
-                    </span>
+                    <!-- Show enum value if it's a single-value enum (like template types) -->
+                    {#if variant.enum && variant.enum.length === 1}
+                      <code class="badge badge-outline font-mono">{variant.enum[0]}</code>
+                    {:else if variant.type === 'object' && variant.properties}
+                      <!-- Show object type with inline properties -->
+                      <span class="badge badge-outline font-mono">object</span>
+                    {:else}
+                      <span class="badge badge-outline font-mono inline-flex items-center gap-1">
+                        {#each variantParts as part}
+                          {#if part.isClickable}
+                            <button
+                              class="hover:text-primary cursor-pointer underline"
+                              onclick={() => selectDefinition(part.text)}
+                            >
+                              {part.text}
+                            </button>
+                          {:else}
+                            <span>{part.text}</span>
+                          {/if}
+                        {/each}
+                      </span>
+                    {/if}
                     {#if variant.description}
-                      <p class="text-sm mt-2">{variant.description}</p>
+                      <div class="text-sm mt-2">
+                        <Markdown content={variant.description} />
+                      </div>
+                    {/if}
+
+                    <!-- Show object properties inline -->
+                    {#if variant.type === 'object' && variant.properties}
+                      <div class="mt-3">
+                        <table class="table table-xs">
+                          <thead>
+                            <tr>
+                              <th>Field</th>
+                              <th>Type</th>
+                              <th>Required</th>
+                              <th>Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each Object.entries(variant.properties) as [propName, propDef]}
+                              {@const isRequired = variant.required?.includes(propName)}
+                              {@const typeStr = formatType(propDef, !isRequired)}
+                              {@const typeParts = parseTypeString(typeStr)}
+                              <tr>
+                                <td>
+                                  <code class="font-mono text-xs">{propName}</code>
+                                </td>
+                                <td>
+                                  <span class="badge badge-xs badge-outline font-mono inline-flex items-center gap-1">
+                                    {#each typeParts as part}
+                                      {#if part.isClickable}
+                                        <button
+                                          class="hover:text-primary cursor-pointer underline"
+                                          onclick={() => selectDefinition(part.text)}
+                                        >
+                                          {part.text}
+                                        </button>
+                                      {:else}
+                                        <span>{part.text}</span>
+                                      {/if}
+                                    {/each}
+                                  </span>
+                                  <!-- Show enum values inline if present -->
+                                  {#if propDef.enum}
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                      {#each propDef.enum as enumVal}
+                                        <code class="badge badge-xs">{enumVal}</code>
+                                      {/each}
+                                    </div>
+                                  {/if}
+                                </td>
+                                <td>
+                                  {#if isRequired}
+                                    <span class="badge badge-xs badge-error">required</span>
+                                  {:else}
+                                    <span class="badge badge-xs badge-ghost">optional</span>
+                                  {/if}
+                                </td>
+                                <td class="text-xs">
+                                  {#if propDef.description}
+                                    <InlineMarkdown content={propDef.description} />
+                                  {:else}
+                                    -
+                                  {/if}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
                     {/if}
                   </div>
                 </div>
