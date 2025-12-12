@@ -400,14 +400,16 @@ mod tests {
         TemplateEngine,
     };
     use weaver_resolved_schema::v2::{
+        attribute::{Attribute, AttributeRef},
         attribute_group::AttributeGroup,
-        metric::{Metric, MetricRefinement},
+        metric::{Metric, MetricAttributeRef, MetricRefinement},
         refinements::Refinements,
         registry::Registry,
-        span::Span,
+        span::{Span, SpanAttributeRef},
         ResolvedTelemetrySchema,
     };
     use weaver_semconv::{
+        attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
         group::InstrumentSpec,
         v2::{span::SpanName, CommonFields},
     };
@@ -449,12 +451,17 @@ mod tests {
             file_format: "v2/resolved".to_owned(),
             schema_url: "todo/1.0.0".to_owned(),
             registry_id: "main".to_owned(),
-            attribute_catalog: vec![],
+            attribute_catalog: vec![Attribute {
+                key: "attr1".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields::default(),
+            }],
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![AttributeGroup {
                     id: "test.common".to_owned().into(),
-                    attributes: vec![],
+                    attributes: vec![AttributeRef(0)],
                     common: CommonFields::default(),
                 }],
                 registry_url: "todo".to_owned(),
@@ -464,7 +471,13 @@ mod tests {
                     name: SpanName {
                         note: "note".to_owned(),
                     },
-                    attributes: vec![],
+                    attributes: vec![SpanAttributeRef {
+                        base: AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                        sampling_relevant: None,
+                    }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
                 }],
@@ -480,7 +493,12 @@ mod tests {
                         name: "test.metric".to_owned().into(),
                         instrument: InstrumentSpec::Counter,
                         unit: "{1}".to_owned(),
-                        attributes: vec![],
+                        attributes: vec![MetricAttributeRef {
+                            base: AttributeRef(0),
+                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
                     },
