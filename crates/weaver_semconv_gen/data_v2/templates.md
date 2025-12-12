@@ -6,6 +6,18 @@ trace.test param
 test.metric param
 <!-- endsemconv -->
 
+<!-- semconv refinements.events.test -->
+test.event param
+<!-- endsemconv -->
+
+<!-- semconv registry.entities.test.entity -->
+test.entity param
+<!-- endsemconv -->
+
+<!-- semconv registry.attribute_groups.test.common -->
+test.common
+<!-- endsemconv -->
+
 <!-- weaver template:custom.j2 . -->
 Custom Snippet Name
 <!-- endweaver -->

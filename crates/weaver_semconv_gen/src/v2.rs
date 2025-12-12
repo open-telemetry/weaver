@@ -402,10 +402,12 @@ mod tests {
     use weaver_resolved_schema::v2::{
         attribute::{Attribute, AttributeRef},
         attribute_group::AttributeGroup,
+        entity::{Entity, EntityAttributeRef},
+        event::{Event, EventAttributeRef, EventRefinement},
         metric::{Metric, MetricAttributeRef, MetricRefinement},
         refinements::Refinements,
         registry::Registry,
-        span::{Span, SpanAttributeRef},
+        span::{Span, SpanAttributeRef, SpanRefinement},
         ResolvedTelemetrySchema,
     };
     use weaver_semconv::{
@@ -481,12 +483,62 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields::default(),
                 }],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
+                metrics: vec![Metric {
+                    name: "test.metric".to_owned().into(),
+                    instrument: InstrumentSpec::Counter,
+                    unit: "{1}".to_owned(),
+                    attributes: vec![MetricAttributeRef {
+                        base: AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                events: vec![Event {
+                    name: "test.event".to_owned().into(),
+                    attributes: vec![EventAttributeRef {
+                        base: AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                entities: vec![Entity {
+                    r#type: "test.entity".to_owned().into(),
+                    identity: vec![EntityAttributeRef {
+                        base: AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                    description: vec![],
+                    common: CommonFields::default(),
+                }],
             },
             refinements: Refinements {
-                spans: vec![],
+                spans: vec![SpanRefinement {
+                    id: "test".to_owned().into(),
+                    span: Span {
+                        r#type: "trace.test".to_owned().into(),
+                        kind: weaver_semconv::group::SpanKindSpec::Client,
+                        name: SpanName {
+                            note: "note".to_owned(),
+                        },
+                        attributes: vec![SpanAttributeRef {
+                            base: AttributeRef(0),
+                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                            sampling_relevant: None,
+                        }],
+                        entity_associations: vec![],
+                        common: CommonFields::default(),
+                    },
+                }],
                 metrics: vec![MetricRefinement {
                     id: "test".to_owned().into(),
                     metric: Metric {
@@ -503,7 +555,20 @@ mod tests {
                         common: CommonFields::default(),
                     },
                 }],
-                events: vec![],
+                events: vec![EventRefinement {
+                    id: "test".to_owned().into(),
+                    event: Event {
+                        name: "test.event".to_owned().into(),
+                        attributes: vec![EventAttributeRef {
+                            base: AttributeRef(0),
+                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
+                        entity_associations: vec![],
+                        common: CommonFields::default(),
+                    },
+                }],
             },
         }
     }
