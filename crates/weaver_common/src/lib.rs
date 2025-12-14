@@ -5,6 +5,7 @@
 pub mod diagnostic;
 pub mod error;
 pub mod result;
+#[cfg(test)]
 pub mod test;
 pub mod vdir;
 

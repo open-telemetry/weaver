@@ -2,7 +2,6 @@
 
 //! HTTP server for testing purposes.
 
-use paris::error;
 use std::path::PathBuf;
 
 use rouille::{match_assets, Server};
