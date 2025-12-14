@@ -37,6 +37,8 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
+      - name: Verify npm is available
+        run: npm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -68,6 +70,8 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
+      - name: Verify npm is available
+        run: npm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -116,6 +120,8 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
+      - name: Verify npm is available
+        run: npm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -185,6 +191,8 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
+      - name: Verify npm is available
+        run: npm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:

@@ -34,8 +34,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
     let ui_dir = std::path::Path::new("ui");
 
+    // Get the npm command - on Windows it's npm.cmd, on Unix it's npm
+    let npm_cmd = if cfg!(target_os = "windows") {
+        "npm.cmd"
+    } else {
+        "npm"
+    };
+
     // Check if npm is available
-    let npm_check = Command::new("npm")
+    let npm_check = Command::new(npm_cmd)
         .arg("--version")
         .output();
 
@@ -52,7 +59,7 @@ fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
     let node_modules = ui_dir.join("node_modules");
     if !node_modules.exists() {
         println!("cargo:warning=Installing UI dependencies...");
-        let status = Command::new("npm")
+        let status = Command::new(npm_cmd)
             .arg("install")
             .current_dir(ui_dir)
             .status()?;
@@ -63,7 +70,7 @@ fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Build the UI
-    let status = Command::new("npm")
+    let status = Command::new(npm_cmd)
         .arg("run")
         .arg("build")
         .current_dir(ui_dir)
