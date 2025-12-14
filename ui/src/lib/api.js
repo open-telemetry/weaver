@@ -12,75 +12,41 @@ export async function getRegistry() {
   return fetchJSON(`${BASE_URL}/registry`);
 }
 
-export async function getAttributes(params = {}) {
-  const searchParams = new URLSearchParams();
-  if (params.stability) searchParams.set('stability', params.stability);
-  if (params.limit) searchParams.set('limit', params.limit);
-  if (params.offset) searchParams.set('offset', params.offset);
-  const query = searchParams.toString();
-  return fetchJSON(`${BASE_URL}/attributes${query ? '?' + query : ''}`);
-}
-
 export async function getAttribute(key) {
   return fetchJSON(`${BASE_URL}/attributes/${key}`);
-}
-
-export async function getMetrics(params = {}) {
-  const searchParams = new URLSearchParams();
-  if (params.stability) searchParams.set('stability', params.stability);
-  if (params.limit) searchParams.set('limit', params.limit);
-  if (params.offset) searchParams.set('offset', params.offset);
-  const query = searchParams.toString();
-  return fetchJSON(`${BASE_URL}/metrics${query ? '?' + query : ''}`);
 }
 
 export async function getMetric(name) {
   return fetchJSON(`${BASE_URL}/metrics/${name}`);
 }
 
-export async function getSpans(params = {}) {
-  const searchParams = new URLSearchParams();
-  if (params.stability) searchParams.set('stability', params.stability);
-  if (params.limit) searchParams.set('limit', params.limit);
-  if (params.offset) searchParams.set('offset', params.offset);
-  const query = searchParams.toString();
-  return fetchJSON(`${BASE_URL}/spans${query ? '?' + query : ''}`);
-}
-
 export async function getSpan(type) {
   return fetchJSON(`${BASE_URL}/spans/${type}`);
-}
-
-export async function getEvents(params = {}) {
-  const searchParams = new URLSearchParams();
-  if (params.stability) searchParams.set('stability', params.stability);
-  if (params.limit) searchParams.set('limit', params.limit);
-  if (params.offset) searchParams.set('offset', params.offset);
-  const query = searchParams.toString();
-  return fetchJSON(`${BASE_URL}/events${query ? '?' + query : ''}`);
 }
 
 export async function getEvent(name) {
   return fetchJSON(`${BASE_URL}/events/${name}`);
 }
 
-export async function getEntities(params = {}) {
-  const searchParams = new URLSearchParams();
-  if (params.stability) searchParams.set('stability', params.stability);
-  if (params.limit) searchParams.set('limit', params.limit);
-  if (params.offset) searchParams.set('offset', params.offset);
-  const query = searchParams.toString();
-  return fetchJSON(`${BASE_URL}/entities${query ? '?' + query : ''}`);
-}
-
 export async function getEntity(type) {
   return fetchJSON(`${BASE_URL}/entities/${type}`);
 }
 
-export async function search(query, type = 'all', limit = 50) {
+/**
+ * Unified search endpoint that handles both text search and browsing.
+ *
+ * @param {string|null} query - Search query (null or empty for browse mode)
+ * @param {string} type - Type filter (all/attribute/metric/span/event/entity)
+ * @param {string|null} stability - Stability filter (stable/development/alpha/beta)
+ * @param {number} limit - Maximum results
+ * @param {number} offset - Pagination offset
+ */
+export async function search(query = null, type = 'all', stability = null, limit = 50, offset = 0) {
   const searchParams = new URLSearchParams();
-  searchParams.set('q', query);
+  if (query) searchParams.set('q', query);
   if (type !== 'all') searchParams.set('type', type);
+  if (stability) searchParams.set('stability', stability);
   if (limit) searchParams.set('limit', limit);
+  if (offset) searchParams.set('offset', offset);
   return fetchJSON(`${BASE_URL}/search?${searchParams.toString()}`);
 }

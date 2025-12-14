@@ -48,23 +48,6 @@ pub struct RegistryCounts {
     pub attribute_groups: usize,
 }
 
-/// Query parameters for list endpoints.
-#[derive(Debug, Deserialize)]
-pub struct ListParams {
-    /// Filter by stability level.
-    pub stability: Option<StabilityFilter>,
-    /// Maximum number of results (default: 100).
-    #[serde(default = "default_limit")]
-    pub limit: usize,
-    /// Offset for pagination (default: 0).
-    #[serde(default)]
-    pub offset: usize,
-}
-
-fn default_limit() -> usize {
-    100
-}
-
 /// Stability filter options.
 #[derive(Debug, Deserialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
@@ -97,14 +80,19 @@ impl StabilityFilter {
 /// Query parameters for search endpoint.
 #[derive(Debug, Deserialize)]
 pub struct SearchParams {
-    /// Search query string.
-    pub q: String,
+    /// Search query string (optional for browse mode).
+    pub q: Option<String>,
     /// Filter by type.
     #[serde(rename = "type", default)]
     pub search_type: SearchType,
+    /// Filter by stability level.
+    pub stability: Option<StabilityFilter>,
     /// Maximum number of results (default: 50).
     #[serde(default = "default_search_limit")]
     pub limit: usize,
+    /// Offset for pagination (default: 0).
+    #[serde(default)]
+    pub offset: usize,
 }
 
 fn default_search_limit() -> usize {
@@ -133,12 +121,14 @@ pub enum SearchType {
 /// Search response.
 #[derive(Debug, Serialize)]
 pub struct SearchResponse {
-    /// The original query.
-    pub query: String,
-    /// Total number of matches.
+    /// The original query (None in browse mode).
+    pub query: Option<String>,
+    /// Total number of matches (for pagination).
     pub total: usize,
     /// Number of results returned.
     pub count: usize,
+    /// Offset used for pagination.
+    pub offset: usize,
     /// The search results.
     pub results: Vec<SearchResult>,
 }
@@ -157,17 +147,4 @@ pub enum SearchResult {
     Event(ScoredResult<Event>),
     /// An entity result.
     Entity(ScoredResult<Entity>),
-}
-
-/// Paginated list response.
-#[derive(Debug, Serialize)]
-pub struct ListResponse<T> {
-    /// Total number of items.
-    pub total: usize,
-    /// Number of items returned.
-    pub count: usize,
-    /// Offset used.
-    pub offset: usize,
-    /// The items.
-    pub items: Vec<T>,
 }

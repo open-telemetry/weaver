@@ -13,9 +13,7 @@ use axum::{
 use serde_json::json;
 
 use super::server::AppState;
-use super::types::{
-    ListParams, ListResponse, RegistryCounts, RegistryOverview, SearchParams, SearchResponse,
-};
+use super::types::{RegistryCounts, RegistryOverview, SearchParams, SearchResponse};
 
 /// Health check endpoint.
 pub async fn health() -> StatusCode {
@@ -51,40 +49,6 @@ pub async fn registry_overview(State(state): State<Arc<AppState>>) -> impl IntoR
     Json(overview)
 }
 
-/// List all attributes.
-pub async fn list_attributes(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<ListParams>,
-) -> impl IntoResponse {
-    let registry = &state.registry;
-
-    let filtered: Vec<_> = registry
-        .attributes
-        .iter()
-        .filter(|attr| {
-            params
-                .stability
-                .map(|f| f.matches(&attr.common.stability))
-                .unwrap_or(true)
-        })
-        .collect();
-
-    let total = filtered.len();
-    let items: Vec<_> = filtered
-        .into_iter()
-        .skip(params.offset)
-        .take(params.limit)
-        .cloned()
-        .collect();
-
-    Json(ListResponse {
-        total,
-        count: items.len(),
-        offset: params.offset,
-        items,
-    })
-}
-
 /// Get a specific attribute by key.
 pub async fn get_attribute(
     State(state): State<Arc<AppState>>,
@@ -103,41 +67,6 @@ pub async fn get_attribute(
         )
             .into_response(),
     }
-}
-
-/// List all metrics.
-pub async fn list_metrics(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<ListParams>,
-) -> impl IntoResponse {
-    let registry = &state.registry;
-
-    let filtered: Vec<_> = registry
-        .signals
-        .metrics
-        .iter()
-        .filter(|m| {
-            params
-                .stability
-                .map(|f| f.matches(&m.common.stability))
-                .unwrap_or(true)
-        })
-        .collect();
-
-    let total = filtered.len();
-    let items: Vec<_> = filtered
-        .into_iter()
-        .skip(params.offset)
-        .take(params.limit)
-        .cloned()
-        .collect();
-
-    Json(ListResponse {
-        total,
-        count: items.len(),
-        offset: params.offset,
-        items,
-    })
 }
 
 /// Get a specific metric by name.
@@ -164,41 +93,6 @@ pub async fn get_metric(
     }
 }
 
-/// List all spans.
-pub async fn list_spans(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<ListParams>,
-) -> impl IntoResponse {
-    let registry = &state.registry;
-
-    let filtered: Vec<_> = registry
-        .signals
-        .spans
-        .iter()
-        .filter(|s| {
-            params
-                .stability
-                .map(|f| f.matches(&s.common.stability))
-                .unwrap_or(true)
-        })
-        .collect();
-
-    let total = filtered.len();
-    let items: Vec<_> = filtered
-        .into_iter()
-        .skip(params.offset)
-        .take(params.limit)
-        .cloned()
-        .collect();
-
-    Json(ListResponse {
-        total,
-        count: items.len(),
-        offset: params.offset,
-        items,
-    })
-}
-
 /// Get a specific span by type.
 pub async fn get_span(
     State(state): State<Arc<AppState>>,
@@ -221,41 +115,6 @@ pub async fn get_span(
         )
             .into_response(),
     }
-}
-
-/// List all events.
-pub async fn list_events(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<ListParams>,
-) -> impl IntoResponse {
-    let registry = &state.registry;
-
-    let filtered: Vec<_> = registry
-        .signals
-        .events
-        .iter()
-        .filter(|e| {
-            params
-                .stability
-                .map(|f| f.matches(&e.common.stability))
-                .unwrap_or(true)
-        })
-        .collect();
-
-    let total = filtered.len();
-    let items: Vec<_> = filtered
-        .into_iter()
-        .skip(params.offset)
-        .take(params.limit)
-        .cloned()
-        .collect();
-
-    Json(ListResponse {
-        total,
-        count: items.len(),
-        offset: params.offset,
-        items,
-    })
 }
 
 /// Get a specific event by name.
@@ -282,41 +141,6 @@ pub async fn get_event(
     }
 }
 
-/// List all entities.
-pub async fn list_entities(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<ListParams>,
-) -> impl IntoResponse {
-    let registry = &state.registry;
-
-    let filtered: Vec<_> = registry
-        .signals
-        .entities
-        .iter()
-        .filter(|e| {
-            params
-                .stability
-                .map(|f| f.matches(&e.common.stability))
-                .unwrap_or(true)
-        })
-        .collect();
-
-    let total = filtered.len();
-    let items: Vec<_> = filtered
-        .into_iter()
-        .skip(params.offset)
-        .take(params.limit)
-        .cloned()
-        .collect();
-
-    Json(ListResponse {
-        total,
-        count: items.len(),
-        offset: params.offset,
-        items,
-    })
-}
-
 /// Get a specific entity by type.
 pub async fn get_entity(
     State(state): State<Arc<AppState>>,
@@ -341,27 +165,27 @@ pub async fn get_entity(
     }
 }
 
-/// Search across all types.
+/// Search across all types or list all items (browse mode).
 pub async fn search(
     State(state): State<Arc<AppState>>,
     Query(params): Query<SearchParams>,
 ) -> impl IntoResponse {
-    if params.q.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "Query parameter 'q' is required"})),
-        )
-            .into_response();
-    }
+    // Convert Option<String> to Option<&str> for search
+    let query = params.q.as_deref();
 
-    let results = state
-        .search_ctx
-        .search(&params.q, params.search_type, params.limit);
+    let (results, total) = state.search_ctx.search(
+        query,
+        params.search_type,
+        params.stability,
+        params.limit,
+        params.offset,
+    );
 
     let response = SearchResponse {
         query: params.q,
-        total: results.len(),
+        total,
         count: results.len(),
+        offset: params.offset,
         results,
     };
 

@@ -2,30 +2,20 @@
   import Router from "svelte-spa-router";
   import { link } from "svelte-spa-router";
   import Dashboard from "./routes/Dashboard.svelte";
-  import Attributes from "./routes/Attributes.svelte";
   import AttributeDetail from "./routes/AttributeDetail.svelte";
-  import Metrics from "./routes/Metrics.svelte";
   import MetricDetail from "./routes/MetricDetail.svelte";
-  import Spans from "./routes/Spans.svelte";
   import SpanDetail from "./routes/SpanDetail.svelte";
-  import Events from "./routes/Events.svelte";
   import EventDetail from "./routes/EventDetail.svelte";
-  import Entities from "./routes/Entities.svelte";
   import EntityDetail from "./routes/EntityDetail.svelte";
   import Search from "./routes/Search.svelte";
   import Schema from "./routes/Schema.svelte";
 
   const routes = {
     "/": Dashboard,
-    "/attributes": Attributes,
     "/attributes/*": AttributeDetail,
-    "/metrics": Metrics,
     "/metrics/*": MetricDetail,
-    "/spans": Spans,
     "/spans/*": SpanDetail,
-    "/events": Events,
     "/events/*": EventDetail,
-    "/entities": Entities,
     "/entities/*": EntityDetail,
     "/search": Search,
     "/schema": Schema,
@@ -146,13 +136,13 @@
       <li><a href="/search" use:link>Search</a></li>
 
       <li class="menu-title mt-4">Signals</li>
-      <li><a href="/metrics" use:link>Metrics</a></li>
-      <li><a href="/spans" use:link>Spans</a></li>
-      <li><a href="/events" use:link>Events</a></li>
-      <li><a href="/entities" use:link>Entities</a></li>
+      <li><a href="/search?type=metric" use:link>Metrics</a></li>
+      <li><a href="/search?type=span" use:link>Spans</a></li>
+      <li><a href="/search?type=event" use:link>Events</a></li>
+      <li><a href="/search?type=entity" use:link>Entities</a></li>
 
       <li class="menu-title mt-4">Definitions</li>
-      <li><a href="/attributes" use:link>Attributes</a></li>
+      <li><a href="/search?type=attribute" use:link>Attributes</a></li>
 
       <li class="menu-title mt-4">Schema</li>
       <li><a href="/schema" use:link>Forge Resolved</a></li>

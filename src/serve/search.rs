@@ -11,7 +11,7 @@ use weaver_forge::v2::metric::Metric;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 use weaver_forge::v2::span::Span;
 
-use super::types::{ScoredResult, SearchResult, SearchType};
+use super::types::{ScoredResult, SearchResult, SearchType, StabilityFilter};
 
 /// Search context for performing fuzzy searches across the registry.
 pub struct SearchContext {
@@ -66,40 +66,95 @@ impl SearchContext {
         Self { items }
     }
 
-    /// Search for items matching the query.
+    /// Search for items matching the query, or list all items if query is None.
     ///
     /// # Arguments
     ///
-    /// * `query` - The search query string.
+    /// * `query` - Optional search query string (None = browse mode).
     /// * `search_type` - Filter by item type.
+    /// * `stability` - Optional stability filter.
     /// * `limit` - Maximum number of results.
-    pub fn search(&self, query: &str, search_type: SearchType, limit: usize) -> Vec<SearchResult> {
+    /// * `offset` - Pagination offset.
+    ///
+    /// # Returns
+    ///
+    /// Tuple of (results, total_count) for pagination.
+    pub fn search(
+        &self,
+        query: Option<&str>,
+        search_type: SearchType,
+        stability: Option<StabilityFilter>,
+        limit: usize,
+        offset: usize,
+    ) -> (Vec<SearchResult>, usize) {
         let limit = limit.min(200); // Cap at 200
 
-        let mut scored_items: Vec<(u32, &SearchableItem)> = self
+        // Filter by type
+        let mut items: Vec<&SearchableItem> = self
             .items
             .iter()
             .filter(|item| search_type == SearchType::All || item.search_type() == search_type)
-            .filter_map(|item| {
-                let score = score_match(query, item);
-                if score > 0 {
-                    Some((score, item))
-                } else {
-                    None
-                }
-            })
             .collect();
 
-        // Sort by score descending
-        scored_items.sort_by(|a, b| b.0.cmp(&a.0));
+        // Filter by stability if provided
+        if let Some(stability_filter) = stability {
+            items.retain(|item| stability_filter.matches(item.stability()));
+        }
 
-        // Take top N and convert to results
-        scored_items
-            .into_iter()
-            .take(limit)
-            .map(|(score, item)| item.to_search_result(score))
-            .collect()
+        // Calculate total before moving items
+        let total = items.len();
+
+        // Branch based on whether we have a search query
+        let results = if let Some(q) = query {
+            if q.is_empty() {
+                // Empty query - browse mode
+                browse_mode(items, limit, offset)
+            } else {
+                // Non-empty query - search mode
+                search_mode(items, q, limit)
+            }
+        } else {
+            // No query - browse mode
+            browse_mode(items, limit, offset)
+        };
+
+        (results, total)
     }
+}
+
+/// Search mode: perform fuzzy matching with scoring and sort by relevance.
+fn search_mode(items: Vec<&SearchableItem>, query: &str, limit: usize) -> Vec<SearchResult> {
+    let mut scored_items: Vec<(u32, &SearchableItem)> = items
+        .into_iter()
+        .filter_map(|item| {
+            let score = score_match(query, item);
+            if score > 0 {
+                Some((score, item))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Sort by score descending
+    scored_items.sort_by(|a, b| b.0.cmp(&a.0));
+
+    // Take top N and convert to results
+    scored_items
+        .into_iter()
+        .take(limit)
+        .map(|(score, item)| item.to_search_result(score))
+        .collect()
+}
+
+/// Browse mode: return all items in natural order with pagination.
+fn browse_mode(items: Vec<&SearchableItem>, limit: usize, offset: usize) -> Vec<SearchResult> {
+    items
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(|item| item.to_search_result(0)) // Score 0 in browse mode
+        .collect()
 }
 
 impl SearchableItem {
@@ -155,6 +210,17 @@ impl SearchableItem {
             SearchableItem::Span(span) => span.common.deprecated.is_some(),
             SearchableItem::Event(event) => event.common.deprecated.is_some(),
             SearchableItem::Entity(entity) => entity.common.deprecated.is_some(),
+        }
+    }
+
+    /// Get the stability level of this item.
+    fn stability(&self) -> &weaver_semconv::stability::Stability {
+        match self {
+            SearchableItem::Attribute(attr) => &attr.common.stability,
+            SearchableItem::Metric(metric) => &metric.common.stability,
+            SearchableItem::Span(span) => &span.common.stability,
+            SearchableItem::Event(event) => &event.common.stability,
+            SearchableItem::Entity(entity) => &entity.common.stability,
         }
     }
 

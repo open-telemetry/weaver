@@ -79,21 +79,16 @@ pub async fn run_server(
         // Registry overview
         .route("/api/v1/registry", get(handlers::registry_overview))
         // Attributes
-        .route("/api/v1/attributes", get(handlers::list_attributes))
         .route("/api/v1/attributes/*key", get(handlers::get_attribute))
         // Metrics
-        .route("/api/v1/metrics", get(handlers::list_metrics))
         .route("/api/v1/metrics/*name", get(handlers::get_metric))
         // Spans
-        .route("/api/v1/spans", get(handlers::list_spans))
         .route("/api/v1/spans/*type", get(handlers::get_span))
         // Events
-        .route("/api/v1/events", get(handlers::list_events))
         .route("/api/v1/events/*name", get(handlers::get_event))
         // Entities
-        .route("/api/v1/entities", get(handlers::list_entities))
         .route("/api/v1/entities/*type", get(handlers::get_entity))
-        // Search
+        // Search (unified endpoint for both search and browse)
         .route("/api/v1/search", get(handlers::search))
         // UI fallback - serves embedded static files
         .fallback(serve_ui)
