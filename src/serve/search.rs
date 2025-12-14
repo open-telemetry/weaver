@@ -2,6 +2,8 @@
 
 //! Search functionality for the semantic convention registry.
 
+use std::sync::Arc;
+
 use weaver_forge::v2::attribute::Attribute;
 use weaver_forge::v2::entity::Entity;
 use weaver_forge::v2::event::Event;
@@ -20,15 +22,15 @@ pub struct SearchContext {
 /// A searchable item from the registry containing the full object.
 enum SearchableItem {
     /// An attribute with all its properties.
-    Attribute(Attribute),
+    Attribute(Arc<Attribute>),
     /// A metric with all its properties.
-    Metric(Metric),
+    Metric(Arc<Metric>),
     /// A span with all its properties.
-    Span(Span),
+    Span(Arc<Span>),
     /// An event with all its properties.
-    Event(Event),
+    Event(Arc<Event>),
     /// An entity with all its properties.
-    Entity(Entity),
+    Entity(Arc<Entity>),
 }
 
 impl SearchContext {
@@ -38,27 +40,27 @@ impl SearchContext {
 
         // Index all attributes
         for attr in &registry.attributes {
-            items.push(SearchableItem::Attribute(attr.clone()));
+            items.push(SearchableItem::Attribute(Arc::new(attr.clone())));
         }
 
         // Index all metrics
         for metric in &registry.signals.metrics {
-            items.push(SearchableItem::Metric(metric.clone()));
+            items.push(SearchableItem::Metric(Arc::new(metric.clone())));
         }
 
         // Index all spans
         for span in &registry.signals.spans {
-            items.push(SearchableItem::Span(span.clone()));
+            items.push(SearchableItem::Span(Arc::new(span.clone())));
         }
 
         // Index all events
         for event in &registry.signals.events {
-            items.push(SearchableItem::Event(event.clone()));
+            items.push(SearchableItem::Event(Arc::new(event.clone())));
         }
 
         // Index all entities
         for entity in &registry.signals.entities {
-            items.push(SearchableItem::Entity(entity.clone()));
+            items.push(SearchableItem::Entity(Arc::new(entity.clone())));
         }
 
         Self { items }
@@ -161,23 +163,23 @@ impl SearchableItem {
         match self {
             SearchableItem::Attribute(attr) => SearchResult::Attribute(ScoredResult {
                 score,
-                item: attr.clone(),
+                item: Arc::clone(attr),
             }),
             SearchableItem::Metric(metric) => SearchResult::Metric(ScoredResult {
                 score,
-                item: metric.clone(),
+                item: Arc::clone(metric),
             }),
             SearchableItem::Span(span) => SearchResult::Span(ScoredResult {
                 score,
-                item: span.clone(),
+                item: Arc::clone(span),
             }),
             SearchableItem::Event(event) => SearchResult::Event(ScoredResult {
                 score,
-                item: event.clone(),
+                item: Arc::clone(event),
             }),
             SearchableItem::Entity(entity) => SearchResult::Entity(ScoredResult {
                 score,
-                item: entity.clone(),
+                item: Arc::clone(entity),
             }),
         }
     }
@@ -283,7 +285,7 @@ mod tests {
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> SearchableItem {
-        SearchableItem::Attribute(Attribute {
+        SearchableItem::Attribute(Arc::new(Attribute {
             key: key.to_owned(),
             r#type: AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -302,7 +304,7 @@ mod tests {
                 },
                 annotations: BTreeMap::new(),
             },
-        })
+        }))
     }
 
     #[test]

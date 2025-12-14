@@ -2,6 +2,8 @@
 
 //! API request and response types for the serve command.
 
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use weaver_forge::v2::attribute::Attribute;
 use weaver_forge::v2::entity::Entity;
@@ -11,13 +13,13 @@ use weaver_forge::v2::span::Span;
 use weaver_semconv::stability::Stability;
 
 /// Generic wrapper that adds a relevance score to any searchable object.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ScoredResult<T> {
     /// The relevance score (higher = more relevant).
     pub score: u32,
     /// The full object (Attribute, Metric, Span, Event, or Entity).
     #[serde(flatten)]
-    pub item: T,
+    pub item: Arc<T>,
 }
 
 /// Registry overview response.
