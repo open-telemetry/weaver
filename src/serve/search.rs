@@ -2,13 +2,14 @@
 
 //! Search functionality for the semantic convention registry.
 
+use weaver_forge::v2::attribute::Attribute;
+use weaver_forge::v2::entity::Entity;
+use weaver_forge::v2::event::Event;
+use weaver_forge::v2::metric::Metric;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
-use weaver_semconv::stability::Stability;
+use weaver_forge::v2::span::Span;
 
-use super::types::{
-    AttributeSearchResult, EntitySearchResult, EventSearchResult, MetricSearchResult, SearchResult,
-    SearchType, SpanSearchResult,
-};
+use super::types::{ScoredResult, SearchResult, SearchType};
 
 /// Search context for performing fuzzy searches across the registry.
 pub struct SearchContext {
@@ -16,22 +17,18 @@ pub struct SearchContext {
     items: Vec<SearchableItem>,
 }
 
-/// A searchable item from the registry.
-struct SearchableItem {
-    /// The type of item.
-    item_type: SearchType,
-    /// Primary identifier (key/name/type).
-    id: String,
-    /// Brief description.
-    brief: String,
-    /// Note/extended description.
-    note: String,
-    /// Stability level.
-    stability: Stability,
-    /// Additional type info (for attributes).
-    type_info: Option<String>,
-    /// Whether the item is deprecated.
-    is_deprecated: bool,
+/// A searchable item from the registry containing the full object.
+enum SearchableItem {
+    /// An attribute with all its properties.
+    Attribute(Attribute),
+    /// A metric with all its properties.
+    Metric(Metric),
+    /// A span with all its properties.
+    Span(Span),
+    /// An event with all its properties.
+    Event(Event),
+    /// An entity with all its properties.
+    Entity(Entity),
 }
 
 impl SearchContext {
@@ -41,67 +38,27 @@ impl SearchContext {
 
         // Index all attributes
         for attr in &registry.attributes {
-            items.push(SearchableItem {
-                item_type: SearchType::Attribute,
-                id: attr.key.clone(),
-                brief: attr.common.brief.clone(),
-                note: attr.common.note.clone(),
-                stability: attr.common.stability.clone(),
-                type_info: Some(format!("{}", attr.r#type)),
-                is_deprecated: attr.common.deprecated.is_some(),
-            });
+            items.push(SearchableItem::Attribute(attr.clone()));
         }
 
         // Index all metrics
         for metric in &registry.signals.metrics {
-            items.push(SearchableItem {
-                item_type: SearchType::Metric,
-                id: metric.name.to_string(),
-                brief: metric.common.brief.clone(),
-                note: metric.common.note.clone(),
-                stability: metric.common.stability.clone(),
-                type_info: None,
-                is_deprecated: metric.common.deprecated.is_some(),
-            });
+            items.push(SearchableItem::Metric(metric.clone()));
         }
 
         // Index all spans
         for span in &registry.signals.spans {
-            items.push(SearchableItem {
-                item_type: SearchType::Span,
-                id: span.r#type.to_string(),
-                brief: span.common.brief.clone(),
-                note: span.common.note.clone(),
-                stability: span.common.stability.clone(),
-                type_info: None,
-                is_deprecated: span.common.deprecated.is_some(),
-            });
+            items.push(SearchableItem::Span(span.clone()));
         }
 
         // Index all events
         for event in &registry.signals.events {
-            items.push(SearchableItem {
-                item_type: SearchType::Event,
-                id: event.name.to_string(),
-                brief: event.common.brief.clone(),
-                note: event.common.note.clone(),
-                stability: event.common.stability.clone(),
-                type_info: None,
-                is_deprecated: event.common.deprecated.is_some(),
-            });
+            items.push(SearchableItem::Event(event.clone()));
         }
 
         // Index all entities
         for entity in &registry.signals.entities {
-            items.push(SearchableItem {
-                item_type: SearchType::Entity,
-                id: entity.r#type.to_string(),
-                brief: entity.common.brief.clone(),
-                note: entity.common.note.clone(),
-                stability: entity.common.stability.clone(),
-                type_info: None,
-                is_deprecated: entity.common.deprecated.is_some(),
-            });
+            items.push(SearchableItem::Entity(entity.clone()));
         }
 
         Self { items }
@@ -120,7 +77,7 @@ impl SearchContext {
         let mut scored_items: Vec<(u32, &SearchableItem)> = self
             .items
             .iter()
-            .filter(|item| search_type == SearchType::All || item.item_type == search_type)
+            .filter(|item| search_type == SearchType::All || item.search_type() == search_type)
             .filter_map(|item| {
                 let score = score_match(query, item);
                 if score > 0 {
@@ -144,55 +101,84 @@ impl SearchContext {
 }
 
 impl SearchableItem {
+    /// Get the search type of this item.
+    fn search_type(&self) -> SearchType {
+        match self {
+            SearchableItem::Attribute(_) => SearchType::Attribute,
+            SearchableItem::Metric(_) => SearchType::Metric,
+            SearchableItem::Span(_) => SearchType::Span,
+            SearchableItem::Event(_) => SearchType::Event,
+            SearchableItem::Entity(_) => SearchType::Entity,
+        }
+    }
+
+    /// Get the primary identifier for scoring (key/name/type).
+    fn id(&self) -> &str {
+        match self {
+            SearchableItem::Attribute(attr) => &attr.key,
+            SearchableItem::Metric(metric) => &metric.name,
+            SearchableItem::Span(span) => &span.r#type,
+            SearchableItem::Event(event) => &event.name,
+            SearchableItem::Entity(entity) => &entity.r#type,
+        }
+    }
+
+    /// Get the brief description for scoring.
+    fn brief(&self) -> &str {
+        match self {
+            SearchableItem::Attribute(attr) => &attr.common.brief,
+            SearchableItem::Metric(metric) => &metric.common.brief,
+            SearchableItem::Span(span) => &span.common.brief,
+            SearchableItem::Event(event) => &event.common.brief,
+            SearchableItem::Entity(entity) => &entity.common.brief,
+        }
+    }
+
+    /// Get the note for scoring.
+    fn note(&self) -> &str {
+        match self {
+            SearchableItem::Attribute(attr) => &attr.common.note,
+            SearchableItem::Metric(metric) => &metric.common.note,
+            SearchableItem::Span(span) => &span.common.note,
+            SearchableItem::Event(event) => &event.common.note,
+            SearchableItem::Entity(entity) => &entity.common.note,
+        }
+    }
+
+    /// Check if this item is deprecated.
+    fn is_deprecated(&self) -> bool {
+        match self {
+            SearchableItem::Attribute(attr) => attr.common.deprecated.is_some(),
+            SearchableItem::Metric(metric) => metric.common.deprecated.is_some(),
+            SearchableItem::Span(span) => span.common.deprecated.is_some(),
+            SearchableItem::Event(event) => event.common.deprecated.is_some(),
+            SearchableItem::Entity(entity) => entity.common.deprecated.is_some(),
+        }
+    }
+
+    /// Convert to a search result with the given score.
     fn to_search_result(&self, score: u32) -> SearchResult {
-        match self.item_type {
-            SearchType::Attribute => SearchResult::Attribute(AttributeSearchResult {
-                key: self.id.clone(),
-                brief: self.brief.clone(),
-                attr_type: self.type_info.clone().unwrap_or_default(),
-                stability: Some(self.stability.clone()),
-                deprecated: self.is_deprecated,
+        match self {
+            SearchableItem::Attribute(attr) => SearchResult::Attribute(ScoredResult {
                 score,
+                item: attr.clone(),
             }),
-            SearchType::Metric => SearchResult::Metric(MetricSearchResult {
-                name: self.id.clone(),
-                brief: self.brief.clone(),
-                stability: Some(self.stability.clone()),
-                deprecated: self.is_deprecated,
+            SearchableItem::Metric(metric) => SearchResult::Metric(ScoredResult {
                 score,
+                item: metric.clone(),
             }),
-            SearchType::Span => SearchResult::Span(SpanSearchResult {
-                span_type: self.id.clone(),
-                brief: self.brief.clone(),
-                stability: Some(self.stability.clone()),
-                deprecated: self.is_deprecated,
+            SearchableItem::Span(span) => SearchResult::Span(ScoredResult {
                 score,
+                item: span.clone(),
             }),
-            SearchType::Event => SearchResult::Event(EventSearchResult {
-                name: self.id.clone(),
-                brief: self.brief.clone(),
-                stability: Some(self.stability.clone()),
-                deprecated: self.is_deprecated,
+            SearchableItem::Event(event) => SearchResult::Event(ScoredResult {
                 score,
+                item: event.clone(),
             }),
-            SearchType::Entity => SearchResult::Entity(EntitySearchResult {
-                entity_type: self.id.clone(),
-                brief: self.brief.clone(),
-                stability: Some(self.stability.clone()),
-                deprecated: self.is_deprecated,
+            SearchableItem::Entity(entity) => SearchResult::Entity(ScoredResult {
                 score,
+                item: entity.clone(),
             }),
-            SearchType::All => {
-                // This shouldn't happen since we filter by type
-                SearchResult::Attribute(AttributeSearchResult {
-                    key: self.id.clone(),
-                    brief: self.brief.clone(),
-                    attr_type: String::new(),
-                    stability: Some(self.stability.clone()),
-                    deprecated: self.is_deprecated,
-                    score,
-                })
-            }
         }
     }
 }
@@ -209,9 +195,9 @@ impl SearchableItem {
 /// - Deprecated items: score divided by 10 (heavily demoted)
 fn score_match(query: &str, item: &SearchableItem) -> u32 {
     let query_lower = query.to_lowercase();
-    let id_lower = item.id.to_lowercase();
-    let brief_lower = item.brief.to_lowercase();
-    let note_lower = item.note.to_lowercase();
+    let id_lower = item.id().to_lowercase();
+    let brief_lower = item.brief().to_lowercase();
+    let note_lower = item.note().to_lowercase();
 
     let mut score = 0;
 
@@ -276,7 +262,7 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
     }
 
     // Heavily demote deprecated items - divide score by 10
-    if item.is_deprecated && score > 0 {
+    if item.is_deprecated() && score > 0 {
         score /= 10;
         // Ensure at least 1 if there was a match
         if score == 0 {
@@ -290,93 +276,78 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+    use weaver_semconv::attribute::AttributeType;
+    use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::CommonFields;
+
+    fn make_test_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> SearchableItem {
+        SearchableItem::Attribute(Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: brief.to_owned(),
+                note: note.to_owned(),
+                stability: Stability::Stable,
+                deprecated: if deprecated {
+                    Some(Deprecated::Obsoleted {
+                        note: "Deprecated".to_owned(),
+                    })
+                } else {
+                    None
+                },
+                annotations: BTreeMap::new(),
+            },
+        })
+    }
 
     #[test]
     fn test_exact_match_scores_highest() {
-        let item = SearchableItem {
-            item_type: SearchType::Attribute,
-            id: "http.request.method".to_owned(),
-            brief: "HTTP request method".to_owned(),
-            note: String::new(),
-            stability: Stability::Stable,
-            type_info: None,
-            is_deprecated: false,
-        };
+        let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
         assert_eq!(score_match("http.request.method", &item), 100);
     }
 
     #[test]
     fn test_starts_with_scores_high() {
-        let item = SearchableItem {
-            item_type: SearchType::Attribute,
-            id: "http.request.method".to_owned(),
-            brief: "HTTP request method".to_owned(),
-            note: String::new(),
-            stability: Stability::Stable,
-            type_info: None,
-            is_deprecated: false,
-        };
+        let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
         assert_eq!(score_match("http.request", &item), 80);
     }
 
     #[test]
     fn test_contains_scores_medium() {
-        let item = SearchableItem {
-            item_type: SearchType::Attribute,
-            id: "http.request.method".to_owned(),
-            brief: "HTTP request method".to_owned(),
-            note: String::new(),
-            stability: Stability::Stable,
-            type_info: None,
-            is_deprecated: false,
-        };
+        let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
         assert_eq!(score_match("request.method", &item), 70);
     }
 
     #[test]
     fn test_brief_match_scores_lower() {
-        let item = SearchableItem {
-            item_type: SearchType::Attribute,
-            id: "http.request.method".to_owned(),
-            brief: "The HTTP verb used in the request".to_owned(),
-            note: String::new(),
-            stability: Stability::Stable,
-            type_info: None,
-            is_deprecated: false,
-        };
+        let item = make_test_attribute(
+            "http.request.method",
+            "The HTTP verb used in the request",
+            "",
+            false,
+        );
 
         assert_eq!(score_match("verb", &item), 40);
     }
 
     #[test]
     fn test_no_match_scores_zero() {
-        let item = SearchableItem {
-            item_type: SearchType::Attribute,
-            id: "http.request.method".to_owned(),
-            brief: "HTTP request method".to_owned(),
-            note: String::new(),
-            stability: Stability::Stable,
-            type_info: None,
-            is_deprecated: false,
-        };
+        let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
         assert_eq!(score_match("database", &item), 0);
     }
 
     #[test]
     fn test_deprecated_items_score_much_lower() {
-        let item = SearchableItem {
-            item_type: SearchType::Attribute,
-            id: "http.request.method".to_owned(),
-            brief: "HTTP request method".to_owned(),
-            note: String::new(),
-            stability: Stability::Stable,
-            type_info: None,
-            is_deprecated: true,
-        };
+        let item = make_test_attribute("http.request.method", "HTTP request method", "", true);
 
         // Exact match for deprecated item: 100 / 10 = 10
         assert_eq!(score_match("http.request.method", &item), 10);

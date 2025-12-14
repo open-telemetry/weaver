@@ -3,7 +3,22 @@
 //! API request and response types for the serve command.
 
 use serde::{Deserialize, Serialize};
+use weaver_forge::v2::attribute::Attribute;
+use weaver_forge::v2::entity::Entity;
+use weaver_forge::v2::event::Event;
+use weaver_forge::v2::metric::Metric;
+use weaver_forge::v2::span::Span;
 use weaver_semconv::stability::Stability;
+
+/// Generic wrapper that adds a relevance score to any searchable object.
+#[derive(Debug, Serialize)]
+pub struct ScoredResult<T> {
+    /// The relevance score (higher = more relevant).
+    pub score: u32,
+    /// The full object (Attribute, Metric, Span, Event, or Entity).
+    #[serde(flatten)]
+    pub item: T,
+}
 
 /// Registry overview response.
 #[derive(Debug, Serialize)]
@@ -126,105 +141,20 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
 }
 
-/// A single search result.
+/// A single search result containing a full object with its relevance score.
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum SearchResult {
     /// An attribute result.
-    Attribute(AttributeSearchResult),
+    Attribute(ScoredResult<Attribute>),
     /// A metric result.
-    Metric(MetricSearchResult),
+    Metric(ScoredResult<Metric>),
     /// A span result.
-    Span(SpanSearchResult),
+    Span(ScoredResult<Span>),
     /// An event result.
-    Event(EventSearchResult),
+    Event(ScoredResult<Event>),
     /// An entity result.
-    Entity(EntitySearchResult),
-}
-
-/// Attribute search result.
-#[derive(Debug, Serialize)]
-pub struct AttributeSearchResult {
-    /// Attribute key.
-    pub key: String,
-    /// Brief description.
-    pub brief: String,
-    /// Attribute type as string.
-    #[serde(rename = "type")]
-    pub attr_type: String,
-    /// Stability level.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
-    /// Whether this item is deprecated.
-    pub deprecated: bool,
-    /// Relevance score.
-    pub score: u32,
-}
-
-/// Metric search result.
-#[derive(Debug, Serialize)]
-pub struct MetricSearchResult {
-    /// Metric name.
-    pub name: String,
-    /// Brief description.
-    pub brief: String,
-    /// Stability level.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
-    /// Whether this item is deprecated.
-    pub deprecated: bool,
-    /// Relevance score.
-    pub score: u32,
-}
-
-/// Span search result.
-#[derive(Debug, Serialize)]
-pub struct SpanSearchResult {
-    /// Span type.
-    #[serde(rename = "type")]
-    pub span_type: String,
-    /// Brief description.
-    pub brief: String,
-    /// Stability level.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
-    /// Whether this item is deprecated.
-    pub deprecated: bool,
-    /// Relevance score.
-    pub score: u32,
-}
-
-/// Event search result.
-#[derive(Debug, Serialize)]
-pub struct EventSearchResult {
-    /// Event name.
-    pub name: String,
-    /// Brief description.
-    pub brief: String,
-    /// Stability level.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
-    /// Whether this item is deprecated.
-    pub deprecated: bool,
-    /// Relevance score.
-    pub score: u32,
-}
-
-/// Entity search result.
-#[derive(Debug, Serialize)]
-pub struct EntitySearchResult {
-    /// Entity type.
-    #[serde(rename = "type")]
-    pub entity_type: String,
-    /// Brief description.
-    pub brief: String,
-    /// Stability level.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
-    /// Whether this item is deprecated.
-    pub deprecated: bool,
-    /// Relevance score.
-    pub score: u32,
+    Entity(ScoredResult<Entity>),
 }
 
 /// Paginated list response.
