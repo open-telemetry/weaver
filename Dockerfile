@@ -4,15 +4,22 @@ WORKDIR /build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 
+# Install Node.js for building UI
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
+    apt-get install -y nodejs
+
 # list out directories to avoid pulling local cargo `target/`
 COPY Cargo.toml /build/Cargo.toml
 COPY Cargo.lock /build/Cargo.lock
+COPY build.rs /build/build.rs
 COPY .cargo /build/.cargo
 COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src
 COPY tests /build/tests
 COPY defaults /build/defaults
+COPY schemas /build/schemas
+COPY ui /build/ui
 COPY cross-arch-build.sh /build/cross-arch-build.sh
 
 # Build weaver
