@@ -15,8 +15,14 @@ jobs:
   make-docker-image:
     name: Docker Image
     runs-on: ubuntu-latest
-    steps:      
+    steps:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+    - name: Setup Node.js
+      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: ui/package-lock.json
     - name: Set up QEMU
       uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
     - name: Set up Docker Buildx

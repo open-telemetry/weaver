@@ -42,9 +42,7 @@ fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Check if npm is available
-    let npm_check = Command::new(npm_cmd)
-        .arg("--version")
-        .output();
+    let npm_check = Command::new(npm_cmd).arg("--version").output();
 
     if npm_check.is_err() {
         return Err(
