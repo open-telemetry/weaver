@@ -4,14 +4,13 @@
 
 use std::sync::Arc;
 
-use weaver_forge::v2::attribute::Attribute;
-use weaver_forge::v2::entity::Entity;
-use weaver_forge::v2::event::Event;
-use weaver_forge::v2::metric::Metric;
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
-use weaver_forge::v2::span::Span;
+use weaver_forge::v2::{
+    attribute::Attribute, entity::Entity, event::Event, metric::Metric,
+    registry::ForgeResolvedRegistry, span::Span,
+};
+use weaver_semconv::stability::Stability;
 
-use super::types::{ScoredResult, SearchResult, SearchType, StabilityFilter};
+use super::types::{ScoredResult, SearchResult, SearchType};
 
 /// Search context for performing fuzzy searches across the registry.
 pub struct SearchContext {
@@ -83,7 +82,7 @@ impl SearchContext {
         &self,
         query: Option<&str>,
         search_type: SearchType,
-        stability: Option<StabilityFilter>,
+        stability: Option<Stability>,
         limit: usize,
         offset: usize,
     ) -> (Vec<SearchResult>, usize) {
@@ -98,7 +97,7 @@ impl SearchContext {
 
         // Filter by stability if provided
         if let Some(stability_filter) = stability {
-            items.retain(|item| stability_filter.matches(item.stability()));
+            items.retain(|item| item.stability() == &stability_filter);
         }
 
         // Branch based on whether we have a search query
@@ -224,7 +223,7 @@ impl SearchableItem {
     }
 
     /// Get the stability level of this item.
-    fn stability(&self) -> &weaver_semconv::stability::Stability {
+    fn stability(&self) -> &Stability {
         match self {
             SearchableItem::Attribute(attr) => &attr.common.stability,
             SearchableItem::Metric(metric) => &metric.common.stability,

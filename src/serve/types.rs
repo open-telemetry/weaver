@@ -48,39 +48,6 @@ pub struct RegistryCounts {
     pub attribute_groups: usize,
 }
 
-/// Stability filter options.
-#[derive(Debug, Deserialize, Clone, Copy)]
-#[serde(rename_all = "snake_case")]
-pub enum StabilityFilter {
-    /// Only stable items.
-    Stable,
-    /// Only development items.
-    Development,
-    /// Only alpha items.
-    Alpha,
-    /// Only beta items.
-    Beta,
-    /// Only release candidate items.
-    ReleaseCandidate,
-}
-
-impl StabilityFilter {
-    /// Check if a stability level matches this filter.
-    #[allow(deprecated)]
-    pub fn matches(&self, stability: &Stability) -> bool {
-        matches!(
-            (self, stability),
-            (StabilityFilter::Stable, Stability::Stable)
-                | (StabilityFilter::Development, Stability::Development)
-                | (StabilityFilter::Alpha, Stability::Alpha)
-                | (StabilityFilter::Beta, Stability::Beta)
-                | (
-                    StabilityFilter::ReleaseCandidate,
-                    Stability::ReleaseCandidate
-                )
-        )
-    }
-}
 
 /// Query parameters for search endpoint.
 #[derive(Debug, Deserialize)]
@@ -91,7 +58,7 @@ pub struct SearchParams {
     #[serde(rename = "type", default)]
     pub search_type: SearchType,
     /// Filter by stability level.
-    pub stability: Option<StabilityFilter>,
+    pub stability: Option<Stability>,
     /// Maximum number of results (default: 50).
     #[serde(default = "default_search_limit")]
     pub limit: usize,

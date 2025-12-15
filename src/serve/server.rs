@@ -88,7 +88,7 @@ pub async fn run_server(
         .route("/api/v1/events/*name", get(handlers::get_event))
         // Entities
         .route("/api/v1/entities/*type", get(handlers::get_entity))
-        // Search (unified endpoint for both search and browse)
+        // Search
         .route("/api/v1/search", get(handlers::search))
         // UI fallback - serves embedded static files
         .fallback(serve_ui)
