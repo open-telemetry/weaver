@@ -136,6 +136,7 @@
       <li><a href="/search" use:link>Search</a></li>
       <li class="menu-title mt-4">Schema</li>
       <li><a href="/schema" use:link>Forge Resolved</a></li>
+      <li><a href="/schema?schema=semconv" use:link>Semconv</a></li>
     </ul>
   </div>
 </div>

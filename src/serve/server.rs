@@ -74,8 +74,9 @@ pub async fn run_server(
     let app = Router::new()
         // Health check
         .route("/health", get(handlers::health))
-        // Schema
+        // Schemas - with optional name parameter (defaults to forge)
         .route("/api/v1/schema", get(handlers::get_schema))
+        .route("/api/v1/schema/*name", get(handlers::get_schema))
         // Registry overview
         .route("/api/v1/registry", get(handlers::registry_overview))
         // Individual resources

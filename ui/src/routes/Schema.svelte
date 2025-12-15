@@ -7,27 +7,55 @@
   let loading = $state(true);
   let selectedDefinition = $state(null);
   let showRoot = $state(true);
+  let currentSchemaName = $state('forge');
 
-  // Fetch schema on mount
+  // Fetch schema when schema parameter changes
   $effect(() => {
     async function fetchSchema() {
+      loading = true;
+      error = null;
+
+      // Get schema name from URL parameter (hash-based routing)
+      const hash = window.location.hash;
+      const queryStart = hash.indexOf('?');
+      const queryString = queryStart >= 0 ? hash.substring(queryStart + 1) : '';
+      const params = new URLSearchParams(queryString);
+      const schemaParam = params.get('schema') || 'forge';
+      currentSchemaName = schemaParam;
+
       try {
-        const response = await fetch('/api/v1/schema');
+        const response = await fetch(`/api/v1/schema/${schemaParam}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         schema = await response.json();
+        // Reset view state when switching schemas
+        selectedDefinition = null;
+        showRoot = true;
       } catch (e) {
         error = e.message;
       } finally {
         loading = false;
       }
     }
+
     fetchSchema();
+
+    // Listen for URL changes (e.g., when navigating between schema pages)
+    const handleHashChange = () => fetchSchema();
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   });
 
   // Initialize state from URL on mount and listen for popstate
   $effect(() => {
     function updateFromURL() {
-      const params = new URLSearchParams(window.location.search);
+      // Get type parameter from URL (hash-based routing)
+      const hash = window.location.hash;
+      const queryStart = hash.indexOf('?');
+      const queryString = queryStart >= 0 ? hash.substring(queryStart + 1) : '';
+      const params = new URLSearchParams(queryString);
       const type = params.get('type');
 
       if (type === 'root' || !type) {

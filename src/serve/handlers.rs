@@ -20,14 +20,30 @@ pub async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-/// Serve the semconv JSON schema.
-pub async fn get_schema() -> impl IntoResponse {
-    const SCHEMA: &str = include_str!("../../schemas/forge.schema.v2.json");
+/// Serve JSON schemas.
+pub async fn get_schema(path: Option<Path<String>>) -> impl IntoResponse {
+    let name = path
+        .map(|Path(s)| s.trim_start_matches('/').to_string())
+        .unwrap_or_default();
+
+    // Map schema names to their file contents
+    let schema = match name.as_str() {
+        "" | "forge" => include_str!("../../schemas/forge.schema.v2.json"),
+        "semconv" => include_str!("../../schemas/semconv.schema.v2.json"),
+        _ => {
+            return (
+                StatusCode::NOT_FOUND,
+                [(axum::http::header::CONTENT_TYPE, "application/json")],
+                json!({"error": format!("Schema '{}' not found. Available schemas: forge, semconv", name)}).to_string(),
+            ).into_response();
+        }
+    };
+
     (
         StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/json")],
-        SCHEMA,
-    )
+        schema,
+    ).into_response()
 }
 
 /// Registry overview endpoint.
