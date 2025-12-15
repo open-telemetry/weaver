@@ -101,7 +101,10 @@
 
   function formatType(prop, skipNull = false) {
     // Check for array with items first (before checking prop.type)
-    if (prop.type === 'array' && prop.items) {
+    // Handle both type: "array" and type: ["array", "null"]
+    const hasArrayType = prop.type === 'array' ||
+                         (Array.isArray(prop.type) && prop.type.includes('array'));
+    if (hasArrayType && prop.items) {
       // Handle nested arrays (array of array)
       if (prop.items.type === 'array' && prop.items.items) {
         const innerType = prop.items.items.$ref
@@ -113,6 +116,14 @@
       const itemType = prop.items.$ref
         ? prop.items.$ref.replace('#/definitions/', '')
         : prop.items.type || 'any';
+
+      // If it's a union type like ["array", "null"], add the null if not skipping
+      if (Array.isArray(prop.type) && prop.type.length > 1) {
+        const otherTypes = prop.type.filter(t => t !== 'array' && (!skipNull || t !== 'null'));
+        if (otherTypes.length > 0) {
+          return `array of ${itemType} | ${otherTypes.join(' | ')}`;
+        }
+      }
       return `array of ${itemType}`;
     }
 
