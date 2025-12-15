@@ -53,7 +53,7 @@
           <div class="font-bold">Deprecated</div>
           <div class="text-sm">{data.deprecated.note || 'This attribute is deprecated.'}</div>
           {#if data.deprecated.renamed_to}
-            <div class="text-sm mt-1">Use <a href="/attributes/{data.deprecated.renamed_to}" use:link class="link">{data.deprecated.renamed_to}</a> instead.</div>
+            <div class="text-sm mt-1">Use <a href="/attribute/{data.deprecated.renamed_to}" use:link class="link">{data.deprecated.renamed_to}</a> instead.</div>
           {/if}
         </div>
       </div>

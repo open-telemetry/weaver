@@ -45,7 +45,7 @@
           <div class="font-bold">Deprecated</div>
           <div class="text-sm">{data.deprecated.note || 'This entity is deprecated.'}</div>
           {#if data.deprecated.renamed_to}
-            <div class="text-sm mt-1">Use <a href="/entities/{data.deprecated.renamed_to}" use:link class="link">{data.deprecated.renamed_to}</a> instead.</div>
+            <div class="text-sm mt-1">Use <a href="/entity/{data.deprecated.renamed_to}" use:link class="link">{data.deprecated.renamed_to}</a> instead.</div>
           {/if}
         </div>
       </div>
@@ -85,7 +85,7 @@
                 {#each data.identity as attr}
                   <tr>
                     <td>
-                      <a href="/attributes/{attr.key}" use:link class="link link-primary font-mono text-sm">
+                      <a href="/attribute/{attr.key}" use:link class="link link-primary font-mono text-sm">
                         {attr.key}
                       </a>
                     </td>
@@ -117,7 +117,7 @@
                 {#each data.description as attr}
                   <tr>
                     <td>
-                      <a href="/attributes/{attr.key}" use:link class="link link-primary font-mono text-sm">
+                      <a href="/attribute/{attr.key}" use:link class="link link-primary font-mono text-sm">
                         {attr.key}
                       </a>
                     </td>

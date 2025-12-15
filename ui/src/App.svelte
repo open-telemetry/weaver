@@ -12,11 +12,11 @@
 
   const routes = {
     "/": Dashboard,
-    "/attributes/*": AttributeDetail,
-    "/metrics/*": MetricDetail,
-    "/spans/*": SpanDetail,
-    "/events/*": EventDetail,
-    "/entities/*": EntityDetail,
+    "/attribute/*": AttributeDetail,
+    "/metric/*": MetricDetail,
+    "/span/*": SpanDetail,
+    "/event/*": EventDetail,
+    "/entity/*": EntityDetail,
     "/search": Search,
     "/schema": Schema,
   };

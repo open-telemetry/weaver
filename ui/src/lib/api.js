@@ -13,23 +13,23 @@ export async function getRegistry() {
 }
 
 export async function getAttribute(key) {
-  return fetchJSON(`${BASE_URL}/attributes/${key}`);
+  return fetchJSON(`${BASE_URL}/attribute/${key}`);
 }
 
 export async function getMetric(name) {
-  return fetchJSON(`${BASE_URL}/metrics/${name}`);
+  return fetchJSON(`${BASE_URL}/metric/${name}`);
 }
 
 export async function getSpan(type) {
-  return fetchJSON(`${BASE_URL}/spans/${type}`);
+  return fetchJSON(`${BASE_URL}/span/${type}`);
 }
 
 export async function getEvent(name) {
-  return fetchJSON(`${BASE_URL}/events/${name}`);
+  return fetchJSON(`${BASE_URL}/event/${name}`);
 }
 
 export async function getEntity(type) {
-  return fetchJSON(`${BASE_URL}/entities/${type}`);
+  return fetchJSON(`${BASE_URL}/entity/${type}`);
 }
 
 /**

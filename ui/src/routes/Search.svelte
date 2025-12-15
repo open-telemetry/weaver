@@ -114,15 +114,15 @@
   function getItemLink(result) {
     switch (result.result_type) {
       case "attribute":
-        return `/attributes/${result.key}`;
+        return `/attribute/${result.key}`;
       case "metric":
-        return `/metrics/${result.name}`;
+        return `/metric/${result.name}`;
       case "span":
-        return `/spans/${result.type}`;
+        return `/span/${result.type}`;
       case "event":
-        return `/events/${result.name}`;
+        return `/event/${result.name}`;
       case "entity":
-        return `/entities/${result.type}`;
+        return `/entity/${result.type}`;
       default:
         return "#";
     }

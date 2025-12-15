@@ -46,7 +46,7 @@
           <div class="font-bold">Deprecated</div>
           <div class="text-sm">{data.deprecated.note || 'This span is deprecated.'}</div>
           {#if data.deprecated.renamed_to}
-            <div class="text-sm mt-1">Use <a href="/spans/{data.deprecated.renamed_to}" use:link class="link">{data.deprecated.renamed_to}</a> instead.</div>
+            <div class="text-sm mt-1">Use <a href="/span/{data.deprecated.renamed_to}" use:link class="link">{data.deprecated.renamed_to}</a> instead.</div>
           {/if}
         </div>
       </div>
@@ -88,7 +88,7 @@
                 {#each data.attributes as attr}
                   <tr>
                     <td>
-                      <a href="/attributes/{attr.key}" use:link class="link link-primary font-mono text-sm">
+                      <a href="/attribute/{attr.key}" use:link class="link link-primary font-mono text-sm">
                         {attr.key}
                       </a>
                     </td>
