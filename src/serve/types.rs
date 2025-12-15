@@ -50,17 +50,18 @@ pub struct RegistryCounts {
 
 /// Stability filter options.
 #[derive(Debug, Deserialize, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum StabilityFilter {
     /// Only stable items.
     Stable,
-    /// Only development/experimental items.
-    #[serde(alias = "experimental")]
+    /// Only development items.
     Development,
     /// Only alpha items.
     Alpha,
     /// Only beta items.
     Beta,
+    /// Only release candidate items.
+    ReleaseCandidate,
 }
 
 impl StabilityFilter {
@@ -73,6 +74,10 @@ impl StabilityFilter {
                 | (StabilityFilter::Development, Stability::Development)
                 | (StabilityFilter::Alpha, Stability::Alpha)
                 | (StabilityFilter::Beta, Stability::Beta)
+                | (
+                    StabilityFilter::ReleaseCandidate,
+                    Stability::ReleaseCandidate
+                )
         )
     }
 }
@@ -135,7 +140,7 @@ pub struct SearchResponse {
 
 /// A single search result containing a full object with its relevance score.
 #[derive(Debug, Serialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
+#[serde(tag = "result_type", rename_all = "lowercase")]
 pub enum SearchResult {
     /// An attribute result.
     Attribute(ScoredResult<Attribute>),

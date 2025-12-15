@@ -134,16 +134,6 @@
       <li class="menu-title">Registry</li>
       <li><a href="/" use:link>Dashboard</a></li>
       <li><a href="/search" use:link>Search</a></li>
-
-      <li class="menu-title mt-4">Signals</li>
-      <li><a href="/search?type=metric" use:link>Metrics</a></li>
-      <li><a href="/search?type=span" use:link>Spans</a></li>
-      <li><a href="/search?type=event" use:link>Events</a></li>
-      <li><a href="/search?type=entity" use:link>Entities</a></li>
-
-      <li class="menu-title mt-4">Definitions</li>
-      <li><a href="/search?type=attribute" use:link>Attributes</a></li>
-
       <li class="menu-title mt-4">Schema</li>
       <li><a href="/schema" use:link>Forge Resolved</a></li>
     </ul>

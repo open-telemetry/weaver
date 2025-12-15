@@ -21,13 +21,6 @@
 </script>
 
 <div class="space-y-4">
-  <div class="text-sm breadcrumbs">
-    <ul>
-      <li><a href="/events" use:link>Events</a></li>
-      <li>{params['*'] || params.wild}</li>
-    </ul>
-  </div>
-
   {#if error}
     <div class="alert alert-error">
       <span>Error: {error}</span>

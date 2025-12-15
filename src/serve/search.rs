@@ -101,29 +101,34 @@ impl SearchContext {
             items.retain(|item| stability_filter.matches(item.stability()));
         }
 
-        // Calculate total before moving items
-        let total = items.len();
-
         // Branch based on whether we have a search query
-        let results = if let Some(q) = query {
+        let (results, total) = if let Some(q) = query {
             if q.is_empty() {
                 // Empty query - browse mode
-                browse_mode(items, limit, offset)
+                let total = items.len();
+                let results = browse_mode(items, limit, offset);
+                (results, total)
             } else {
-                // Non-empty query - search mode
-                search_mode(items, q, limit)
+                // Non-empty query - search mode with scoring
+                search_mode_with_total(items, q, limit)
             }
         } else {
             // No query - browse mode
-            browse_mode(items, limit, offset)
+            let total = items.len();
+            let results = browse_mode(items, limit, offset);
+            (results, total)
         };
 
         (results, total)
     }
 }
 
-/// Search mode: perform fuzzy matching with scoring and sort by relevance.
-fn search_mode(items: Vec<&SearchableItem>, query: &str, limit: usize) -> Vec<SearchResult> {
+/// Search mode with total count: perform fuzzy matching with scoring and return (results, total).
+fn search_mode_with_total(
+    items: Vec<&SearchableItem>,
+    query: &str,
+    limit: usize,
+) -> (Vec<SearchResult>, usize) {
     let mut scored_items: Vec<(u32, &SearchableItem)> = items
         .into_iter()
         .filter_map(|item| {
@@ -139,12 +144,17 @@ fn search_mode(items: Vec<&SearchableItem>, query: &str, limit: usize) -> Vec<Se
     // Sort by score descending
     scored_items.sort_by(|a, b| b.0.cmp(&a.0));
 
+    // Calculate total before taking limit
+    let total = scored_items.len();
+
     // Take top N and convert to results
-    scored_items
+    let results = scored_items
         .into_iter()
         .take(limit)
         .map(|(score, item)| item.to_search_result(score))
-        .collect()
+        .collect();
+
+    (results, total)
 }
 
 /// Browse mode: return all items in natural order with pagination.
