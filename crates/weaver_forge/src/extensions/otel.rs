@@ -2024,8 +2024,9 @@ mod tests {
             instrument: "histogram".to_owned(),
         };
 
+        let ctx = json!({"metric": metric});
         assert_eq!(
-            env.render_str("{{ metric | prometheus_unit_name }}", &metric)
+            env.render_str("{{ metric | prometheus_unit_name }}", &ctx)
                 .unwrap(),
             "milliseconds"
         );
@@ -2037,8 +2038,9 @@ mod tests {
             instrument: "histogram".to_owned(),
         };
 
+        let ctx = json!({"metric": metric});
         assert_eq!(
-            env.render_str("{{ metric | prometheus_unit_name }}", &metric)
+            env.render_str("{{ metric | prometheus_unit_name }}", &ctx)
                 .unwrap(),
             "unknown_unit"
         );
@@ -2050,11 +2052,12 @@ mod tests {
             instrument: "histogram".to_owned(),
         };
 
+        let ctx = json!({"metric": metric});
         // NoTranslation strategy
         assert!(env
             .render_str(
                 "{{ metric | prometheus_metric_name(translation_strategy='NoTranslation') }}",
-                &metric
+                &ctx
             )
             .is_ok());
 
@@ -2062,7 +2065,7 @@ mod tests {
         assert!(env
             .render_str(
                 "{{ metric | prometheus_metric_name(translation_strategy='UnderscoreEscapingWithoutSuffixes') }}",
-                &metric
+                &ctx
             )
             .is_ok());
 
@@ -2070,7 +2073,7 @@ mod tests {
         assert!(env
             .render_str(
                 "{{ metric | prometheus_metric_name(translation_strategy='NoUTF8EscapingWithSuffixes') }}",
-                &metric
+                &ctx
             )
             .is_ok());
 
@@ -2078,20 +2081,20 @@ mod tests {
         assert!(env
             .render_str(
                 "{{ metric | prometheus_metric_name(translation_strategy='UnderscoreEscapingWithSuffixes') }}",
-                &metric
+                &ctx
             )
             .is_ok());
 
         // Test error when translation_strategy is missing
         assert!(env
-            .render_str("{{ metric | prometheus_metric_name }}", &metric)
+            .render_str("{{ metric | prometheus_metric_name }}", &ctx)
             .is_err());
 
         // Test error with invalid translation_strategy
         assert!(env
             .render_str(
                 "{{ metric | prometheus_metric_name(translation_strategy='InvalidStrategy') }}",
-                &metric
+                &ctx
             )
             .is_err());
 
@@ -2099,7 +2102,7 @@ mod tests {
         assert!(env
             .render_str(
                 "{% for name in metric | prometheus_metric_names(translation_strategy='NoTranslation') %}{{ name }}{% endfor %}",
-                &metric
+                &ctx
             )
             .is_ok());
 
@@ -2110,10 +2113,11 @@ mod tests {
             instrument: "histogram".to_owned(),
         };
 
+        let ctx = json!({"metric": metric});
         let result = env
             .render_str(
                 "{% for name in metric | prometheus_metric_names(expand_summary_and_histogram=true) %}{{ name }}|{% endfor %}",
-                &metric
+                &ctx
             )
             .unwrap();
         assert!(!result.is_empty());
@@ -2122,7 +2126,7 @@ mod tests {
         let result = env
             .render_str(
                 "{% for name in metric | prometheus_metric_names %}{{ name }}|{% endfor %}",
-                &metric,
+                &ctx,
             )
             .unwrap();
         assert!(!result.is_empty());
