@@ -26,33 +26,59 @@ pub(crate) fn get_names<'a>(
     expand_summary_and_histogram: bool,
 ) -> Vec<Cow<'a, str>> {
     // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
-    [
-        name.clone(),                                          // NoTranslation
-        sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
-        with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
-        with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
-    ]
-    .iter()
-    .unique()
-    .flat_map(|n| {
-        if instrument == "histogram" {
+
+    // Generate name variants based on translation strategy
+    let name_variants: Vec<Cow<'a, str>> = match translation_strategy {
+        None => {
+            // Generate all possible name variants
             vec![
-                n.clone(), // native histogram name
-                Cow::Owned(format!("{n}_bucket")),
-                Cow::Owned(format!("{n}_count")),
-                Cow::Owned(format!("{n}_sum")),
+                name.clone(),                                          // NoTranslation
+                sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
+                with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
+                with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
             ]
-        } else if instrument == "summary" {
-            vec![
-                n.clone(), // for streaming quantiles
-                Cow::Owned(format!("{n}_count")),
-                Cow::Owned(format!("{n}_sum")),
-            ]
-        } else {
-            vec![n.clone()]
         }
-    })
-    .collect()
+        Some(TranslationStrategy::NoTranslation) => {
+            vec![name.clone()]
+        }
+        Some(TranslationStrategy::UnderscoreEscapingWithoutSuffixes) => {
+            vec![sanitize_name(name)]
+        }
+        Some(TranslationStrategy::NoUTF8EscapingWithSuffixes) => {
+            vec![with_suffixes(name, unit, instrument)]
+        }
+        Some(TranslationStrategy::UnderscoreEscapingWithSuffixes) => {
+            vec![with_suffixes(&sanitize_name(name), unit, instrument)]
+        }
+    };
+
+    // Deduplicate and optionally expand for histogram/summary
+    name_variants
+        .into_iter()
+        .unique()
+        .flat_map(|n| {
+            if expand_summary_and_histogram {
+                if instrument == "histogram" {
+                    vec![
+                        n.clone(), // native histogram name
+                        Cow::Owned(format!("{n}_bucket")),
+                        Cow::Owned(format!("{n}_count")),
+                        Cow::Owned(format!("{n}_sum")),
+                    ]
+                } else if instrument == "summary" {
+                    vec![
+                        n.clone(), // for streaming quantiles
+                        Cow::Owned(format!("{n}_count")),
+                        Cow::Owned(format!("{n}_sum")),
+                    ]
+                } else {
+                    vec![n]
+                }
+            } else {
+                vec![n]
+            }
+        })
+        .collect()
 }
 
 fn with_suffixes<'a>(name: &Cow<'a, str>, unit: &str, instrument: &str) -> Cow<'a, str> {
@@ -261,6 +287,87 @@ mod tests {
     }
 
     #[test]
+    fn test_get_names_with_specific_translation_strategy() {
+        // Test with specific translation strategies
+        let name = Cow::Borrowed("http.request.duration");
+        let unit = "s";
+        let instrument = "histogram";
+
+        // NoTranslation strategy
+        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::NoTranslation), true);
+        assert_eq!(
+            result,
+            vec![
+                "http.request.duration",
+                "http.request.duration_bucket",
+                "http.request.duration_count",
+                "http.request.duration_sum",
+            ]
+        );
+
+        // UnderscoreEscapingWithoutSuffixes strategy
+        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithoutSuffixes), true);
+        assert_eq!(
+            result,
+            vec![
+                "http_request_duration",
+                "http_request_duration_bucket",
+                "http_request_duration_count",
+                "http_request_duration_sum",
+            ]
+        );
+
+        // NoUTF8EscapingWithSuffixes strategy
+        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes), true);
+        assert_eq!(
+            result,
+            vec![
+                "http.request.duration_seconds",
+                "http.request.duration_seconds_bucket",
+                "http.request.duration_seconds_count",
+                "http.request.duration_seconds_sum",
+            ]
+        );
+
+        // UnderscoreEscapingWithSuffixes strategy
+        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes), true);
+        assert_eq!(
+            result,
+            vec![
+                "http_request_duration_seconds",
+                "http_request_duration_seconds_bucket",
+                "http_request_duration_seconds_count",
+                "http_request_duration_seconds_sum",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_get_names_without_expansion() {
+        // Test with expand_summary_and_histogram = false
+        let name = Cow::Borrowed("http_request_duration");
+        let unit = "s";
+
+        // Histogram without expansion
+        let result = get_names(&name, unit, "histogram", None, false);
+        assert_eq!(
+            result,
+            vec![
+                "http_request_duration",
+                "http_request_duration_seconds",
+            ]
+        );
+
+        // Summary without expansion
+        let result = get_names(&Cow::Borrowed("rpc_duration"), "", "summary", None, false);
+        assert_eq!(result, vec!["rpc_duration"]);
+
+        // Counter without expansion (counters don't expand anyway)
+        let result = get_names(&Cow::Borrowed("http_requests"), "", "counter", None, false);
+        assert_eq!(result, vec!["http_requests", "http_requests_total"]);
+    }
+
+    #[test]
     fn test_get_names() {
         let test_cases = vec![
             // Basic counter with unit (ratio)
@@ -385,7 +492,7 @@ mod tests {
         ];
 
         for (name, unit, instrument, expected) in test_cases {
-            let result = get_names(&Cow::Borrowed(name), unit, instrument, , );
+            let result = get_names(&Cow::Borrowed(name), unit, instrument, None, true);
             assert_eq!(
                 result, expected,
                 "Failed for name={}, unit={}, instrument={}",
