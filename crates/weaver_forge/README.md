@@ -15,6 +15,8 @@
 - [In-Depth Features](#in-depth-features)
     - [JQ Filters Reference](#jq-filters-reference)
     - [Jinja Filters Reference](#jinja-filters-reference)
+    - [Prometheus Filters](#prometheus-filters)
+    - [Comment Filter](#comment-filter)
     - [Jinja Functions Reference](#jinja-functions-reference)
     - [Jinja Tests Reference](#jinja-tests-reference)
 
@@ -598,13 +600,19 @@ The following filters are available (the code for all available extension can be
 #### Prometheus Filters
 
 The following filters are specific to Prometheus metric name generation and follow the 
-[OpenTelemetry Prometheus exporter specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md):
+[OpenTelemetry Prometheus exporter specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md).
+
+Weaver provides three Prometheus-specific filters:
+- **`prometheus_metric_name`**: Generates a single metric name with a specified translation strategy.
+- **`prometheus_metric_names`**: Generates multiple metric names for different translation strategies with optional histogram/summary expansion.
+- **`prometheus_unit_name`**: Converts OpenTelemetry units to Prometheus-compliant unit names.
+
+---
 
 - `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric.
-  Takes an object with `metric_name`, `unit`, and `instrument` attributes. Optionally accepts a
+  Takes an object with `metric_name`, `unit`, and `instrument` attributes. **Requires** a
   `translation_strategy` parameter to control name translation:
   
-  - `None` or omitted: Returns the original metric name without translation (NoTranslation strategy)
   - `"NoTranslation"`: Returns the original metric name unchanged
   - `"UnderscoreEscapingWithoutSuffixes"`: Sanitizes the name (dots → underscores) without adding unit/instrument suffixes
   - `"NoUTF8EscapingWithSuffixes"`: Adds unit and instrument suffixes without name sanitization
@@ -614,7 +622,7 @@ The following filters are specific to Prometheus metric name generation and foll
   
   ```jinja
   {# Returns: "http.request.duration" #}
-  {{ metric|prometheus_metric_name }}
+  {{ metric|prometheus_metric_name(translation_strategy="NoTranslation") }}
   
   {# Returns: "http_request_duration" #}
   {{ metric|prometheus_metric_name(translation_strategy="UnderscoreEscapingWithoutSuffixes") }}
@@ -977,23 +985,3 @@ In addition, OTel Weaver provides the following custom function:
   only contain the brief description without the prefix "Notes: ".
 
   `{{ [attr.brief, concat_if("\n\nNotes: ", attr.note)] | comment }}`
-
-### Jinja Tests Reference
-
-All the tests available in the MiniJinja template engine are available (see
-this online [documentation](https://docs.rs/minijinja/latest/minijinja/tests/index.html)).
-
-In addition, OTel Weaver provides a set of custom tests to facilitate the
-generation of assets.
-
-- `stable`: Tests if an `Attribute` is stable.
-- `experimental`: Tests if an `Attribute` is experimental (not stable).
-- `deprecated`: Tests if an `Attribute` is deprecated.
-- `enum`: Tests if an attribute has an enum type.
-- `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean |
-  boolean[]).
-- `template_type`: Tests if a type is a template type (i.e.: template[]).
-- `enum_type`: Tests if a type is an enum type.
-- `array`: Tests if a type is an array type.
-
-> Please open an issue if you have any suggestions for new tests. They are easy to implement.

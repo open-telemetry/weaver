@@ -16,8 +16,6 @@ pub(crate) enum TranslationStrategy {
     UnderscoreEscapingWithSuffixes,
 }
 
-
-
 pub(crate) fn get_names<'a>(
     name: &Cow<'a, str>,
     unit: &str,
@@ -85,16 +83,16 @@ pub(crate) fn get_name<'a>(
     name: &Cow<'a, str>,
     unit: &str,
     instrument: &str,
-    translation_strategy: Option<&TranslationStrategy>,
+    translation_strategy: &TranslationStrategy,
 ) -> Cow<'a, str> {
     // Generate a single name based on translation strategy
     match translation_strategy {
-        None | Some(TranslationStrategy::NoTranslation) => name.clone(),
-        Some(TranslationStrategy::UnderscoreEscapingWithoutSuffixes) => sanitize_name(name),
-        Some(TranslationStrategy::NoUTF8EscapingWithSuffixes) => {
+        TranslationStrategy::NoTranslation => name.clone(),
+        TranslationStrategy::UnderscoreEscapingWithoutSuffixes => sanitize_name(name),
+        TranslationStrategy::NoUTF8EscapingWithSuffixes => {
             with_suffixes(name, unit, instrument)
         }
-        Some(TranslationStrategy::UnderscoreEscapingWithSuffixes) => {
+        TranslationStrategy::UnderscoreEscapingWithSuffixes => {
             with_suffixes(&sanitize_name(name), unit, instrument)
         }
     }
@@ -392,31 +390,26 @@ mod tests {
         let unit = "s";
         let instrument = "histogram";
 
-        // None or NoTranslation - returns original name
         assert_eq!(
-            get_name(&name, unit, instrument, None),
-            "http.request.duration"
-        );
-        assert_eq!(
-            get_name(&name, unit, instrument, Some(&TranslationStrategy::NoTranslation)),
+            get_name(&name, unit, instrument, &TranslationStrategy::NoTranslation),
             "http.request.duration"
         );
 
         // UnderscoreEscapingWithoutSuffixes
         assert_eq!(
-            get_name(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithoutSuffixes)),
+            get_name(&name, unit, instrument, &TranslationStrategy::UnderscoreEscapingWithoutSuffixes),
             "http_request_duration"
         );
 
         // NoUTF8EscapingWithSuffixes
         assert_eq!(
-            get_name(&name, unit, instrument, Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes)),
+            get_name(&name, unit, instrument, &TranslationStrategy::NoUTF8EscapingWithSuffixes),
             "http.request.duration_seconds"
         );
 
         // UnderscoreEscapingWithSuffixes
         assert_eq!(
-            get_name(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes)),
+            get_name(&name, unit, instrument, &TranslationStrategy::UnderscoreEscapingWithSuffixes),
             "http_request_duration_seconds"
         );
     }
@@ -429,11 +422,11 @@ mod tests {
 
         // With suffixes strategies, should add _total
         assert_eq!(
-            get_name(&name, unit, instrument, Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes)),
+            get_name(&name, unit, instrument, &TranslationStrategy::NoUTF8EscapingWithSuffixes),
             "http.requests_total"
         );
         assert_eq!(
-            get_name(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes)),
+            get_name(&name, unit, instrument, &TranslationStrategy::UnderscoreEscapingWithSuffixes),
             "http_requests_total"
         );
     }

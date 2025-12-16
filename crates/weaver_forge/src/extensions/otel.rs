@@ -227,7 +227,9 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
 }
 
 pub(crate) fn prom_names(input: Value, kwargs: Kwargs) -> Result<Vec<String>, minijinja::Error> {
-    let translation_strategy = kwargs.get::<Option<&TranslationStrategy>>("translation_strategy")?;
+    let translation_strategy = kwargs.get::<Option<&str>>("translation_strategy")?.map(
+
+    );
     let expand_summary_and_histogram = kwargs.get::<Option<&bool>>("expand_summary_and_histogram")?.unwrap_or(&false);
 
     let metric_name = get_attr(&input, "metric_name")?;
@@ -241,7 +243,13 @@ pub(crate) fn prom_names(input: Value, kwargs: Kwargs) -> Result<Vec<String>, mi
 }
 
 pub(crate) fn prom_name(input: Value, kwargs: Kwargs) -> Result<String, minijinja::Error> {
-    let translation_strategy = kwargs.get::<Option<&TranslationStrategy>>("translation_strategy")?;
+    let translation_strategy = kwargs
+        .get::<Option<&TranslationStrategy>>("translation_strategy")?
+        .ok_or_else(|| {
+            minijinja::Error::custom(
+                "translation_strategy parameter is required for prometheus_metric_name filter"
+            )
+        })?;
 
     let metric_name = get_attr(&input, "metric_name")?;
     let unit = get_attr(&input, "unit")?;
