@@ -2,17 +2,28 @@
 // with minor modifications
 // - making functions pub(crate)
 // - adding get_suffixes function that adds _total for counters
-// - returning multiple possible names in get_names
+// - add get_names function that generates all possible names
 
 use itertools::Itertools;
 use std::borrow::Cow;
 
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];
 
+pub(crate) enum TranslationStrategy {
+    NoTranslation,
+    UnderscoreEscapingWithoutSuffixes,
+    NoUTF8EscapingWithSuffixes,
+    UnderscoreEscapingWithSuffixes,
+}
+
+
+
 pub(crate) fn get_names<'a>(
     name: &Cow<'a, str>,
     unit: &str,
     instrument: &str,
+    translation_strategy: Option<&TranslationStrategy>,
+    expand_summary_and_histogram: bool,
 ) -> Vec<Cow<'a, str>> {
     // all possible names when using https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#configuration
     [
@@ -374,7 +385,7 @@ mod tests {
         ];
 
         for (name, unit, instrument, expected) in test_cases {
-            let result = get_names(&Cow::Borrowed(name), unit, instrument);
+            let result = get_names(&Cow::Borrowed(name), unit, instrument, , );
             assert_eq!(
                 result, expected,
                 "Failed for name={}, unit={}, instrument={}",

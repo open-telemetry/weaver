@@ -13,6 +13,7 @@ use minijinja::value::{Kwargs, ValueKind};
 use minijinja::{ErrorKind, State, Value};
 use serde::de::Error;
 use std::borrow::Cow;
+use crate::extensions::prom::TranslationStrategy;
 
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
@@ -224,17 +225,18 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
     Ok(name)
 }
 
-pub(crate) fn prom_names(input: Value) -> Result<Vec<String>, minijinja::Error> {
+pub(crate) fn prom_names(input: Value, kwargs: Kwargs) -> Result<Vec<String>, minijinja::Error> {
+    let translation_strategy = kwargs.get::<Option<&TranslationStrategy>>("translation_strategy")?;
+    let expand_summary_and_histogram = kwargs.get::<Option<&bool>>("expand_summary_and_histogram")?.unwrap_or(&false);
+
     let metric_name = get_attr(&input, "metric_name")?;
     let unit = get_attr(&input, "unit")?;
     let instrument = get_attr(&input, "instrument")?;
 
-    Ok(
-        prom::get_names(&metric_name, &unit, &instrument)
-            .into_iter()
-            .map(|cow| cow.into_owned())
-            .collect(),
-    )
+    Ok(prom::get_names(&metric_name, &unit, &instrument, translation_strategy, *expand_summary_and_histogram)?
+        .into_iter()
+        .map(|cow| cow.into_owned())
+        .collect())
 }
 
 fn get_attr<'a>(input: &'a Value, key: &str) -> Result<Cow<'a, str>, minijinja::Error> {
