@@ -595,6 +595,76 @@ The following filters are available (the code for all available extension can be
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
+#### Prometheus Filters
+
+The following filters are specific to Prometheus metric name generation and follow the 
+[OpenTelemetry Prometheus exporter specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md):
+
+- `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric.
+  Takes an object with `metric_name`, `unit`, and `instrument` attributes. Optionally accepts a
+  `translation_strategy` parameter to control name translation:
+  
+  - `None` or omitted: Returns the original metric name without translation (NoTranslation strategy)
+  - `"NoTranslation"`: Returns the original metric name unchanged
+  - `"UnderscoreEscapingWithoutSuffixes"`: Sanitizes the name (dots → underscores) without adding unit/instrument suffixes
+  - `"NoUTF8EscapingWithSuffixes"`: Adds unit and instrument suffixes without name sanitization
+  - `"UnderscoreEscapingWithSuffixes"`: Sanitizes the name and adds unit/instrument suffixes
+
+  Example usage:
+  
+  ```jinja
+  {# Returns: "http.request.duration" #}
+  {{ metric|prometheus_metric_name }}
+  
+  {# Returns: "http_request_duration" #}
+  {{ metric|prometheus_metric_name(translation_strategy="UnderscoreEscapingWithoutSuffixes") }}
+  
+  {# Returns: "http_request_duration_seconds" (for a metric with unit="s") #}
+  {{ metric|prometheus_metric_name(translation_strategy="UnderscoreEscapingWithSuffixes") }}
+  ```
+
+- `prometheus_metric_names`: Generates all possible Prometheus metric names from an OpenTelemetry metric,
+  considering different translation strategies and histogram/summary expansions. Takes an object with 
+  `metric_name`, `unit`, and `instrument` attributes. Accepts two optional parameters:
+  
+  - `translation_strategy`: When provided, only generates names for that specific strategy. When `None` or
+    omitted, generates names for all translation strategies (default behavior).
+  - `expand_summary_and_histogram`: When `true`, expands histogram metrics into `_bucket`, `_count`, and 
+    `_sum` variants, and summary metrics into `_count` and `_sum` variants. When `false`, returns only 
+    base metric names (default: `false`).
+
+  Example usage:
+  
+  ```jinja
+  {# Returns all possible name variants for all translation strategies #}
+  {% for name in metric|prometheus_metric_names %}
+    {{ name }}
+  {% endfor %}
+  
+  {# Returns only names for a specific translation strategy #}
+  {% for name in metric|prometheus_metric_names(translation_strategy="UnderscoreEscapingWithSuffixes") %}
+    {{ name }}
+  {% endfor %}
+  
+  {# Returns expanded histogram names with _bucket, _count, _sum suffixes #}
+  {% for name in histogram_metric|prometheus_metric_names(expand_summary_and_histogram=true) %}
+    {{ name }}
+  {% endfor %}
+  ```
+
+- `prometheus_unit_name`: Converts an OpenTelemetry unit to its Prometheus equivalent unit name.
+  Takes an object with a `unit` attribute and returns the Prometheus-compliant unit suffix.
+
+  Example usage:
+  
+  ```jinja
+  {# For a metric with unit="s", returns: "seconds" #}
+  {{ metric|prometheus_unit_name }}
+  
+  {# For a metric with unit="By", returns: "bytes" #}
+  {{ metric|prometheus_unit_name }}
+  ```
+
 ### Comment Filter
 
 The `comment` filter is a flexible and powerful tool designed to format comments in a

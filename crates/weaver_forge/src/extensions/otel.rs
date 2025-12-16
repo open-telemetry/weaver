@@ -37,6 +37,7 @@ pub(crate) fn add_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("snake_case_const", snake_case_const);
     env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
     env.add_filter("prometheus_metric_names", prom_names);
+    env.add_filter("prometheus_metric_name", prom_name);
     env.add_filter("prometheus_unit_name", prom_unit);
     env.add_filter("print_member_value", print_member_value);
     env.add_filter("body_fields", body_fields);
@@ -237,6 +238,16 @@ pub(crate) fn prom_names(input: Value, kwargs: Kwargs) -> Result<Vec<String>, mi
         .into_iter()
         .map(|cow| cow.into_owned())
         .collect())
+}
+
+pub(crate) fn prom_name(input: Value, kwargs: Kwargs) -> Result<String, minijinja::Error> {
+    let translation_strategy = kwargs.get::<Option<&TranslationStrategy>>("translation_strategy")?;
+
+    let metric_name = get_attr(&input, "metric_name")?;
+    let unit = get_attr(&input, "unit")?;
+    let instrument = get_attr(&input, "instrument")?;
+
+    Ok(prom::get_name(&metric_name, &unit, &instrument, translation_strategy).into_owned())
 }
 
 fn get_attr<'a>(input: &'a Value, key: &str) -> Result<Cow<'a, str>, minijinja::Error> {

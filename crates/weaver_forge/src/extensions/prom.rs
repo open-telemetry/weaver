@@ -81,6 +81,25 @@ pub(crate) fn get_names<'a>(
         .collect()
 }
 
+pub(crate) fn get_name<'a>(
+    name: &Cow<'a, str>,
+    unit: &str,
+    instrument: &str,
+    translation_strategy: Option<&TranslationStrategy>,
+) -> Cow<'a, str> {
+    // Generate a single name based on translation strategy
+    match translation_strategy {
+        None | Some(TranslationStrategy::NoTranslation) => name.clone(),
+        Some(TranslationStrategy::UnderscoreEscapingWithoutSuffixes) => sanitize_name(name),
+        Some(TranslationStrategy::NoUTF8EscapingWithSuffixes) => {
+            with_suffixes(name, unit, instrument)
+        }
+        Some(TranslationStrategy::UnderscoreEscapingWithSuffixes) => {
+            with_suffixes(&sanitize_name(name), unit, instrument)
+        }
+    }
+}
+
 fn with_suffixes<'a>(name: &Cow<'a, str>, unit: &str, instrument: &str) -> Cow<'a, str> {
     get_suffixes(unit, instrument)
         .into_iter()
@@ -365,6 +384,58 @@ mod tests {
         // Counter without expansion (counters don't expand anyway)
         let result = get_names(&Cow::Borrowed("http_requests"), "", "counter", None, false);
         assert_eq!(result, vec!["http_requests", "http_requests_total"]);
+    }
+
+    #[test]
+    fn test_get_name_with_translation_strategies() {
+        let name = Cow::Borrowed("http.request.duration");
+        let unit = "s";
+        let instrument = "histogram";
+
+        // None or NoTranslation - returns original name
+        assert_eq!(
+            get_name(&name, unit, instrument, None),
+            "http.request.duration"
+        );
+        assert_eq!(
+            get_name(&name, unit, instrument, Some(&TranslationStrategy::NoTranslation)),
+            "http.request.duration"
+        );
+
+        // UnderscoreEscapingWithoutSuffixes
+        assert_eq!(
+            get_name(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithoutSuffixes)),
+            "http_request_duration"
+        );
+
+        // NoUTF8EscapingWithSuffixes
+        assert_eq!(
+            get_name(&name, unit, instrument, Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes)),
+            "http.request.duration_seconds"
+        );
+
+        // UnderscoreEscapingWithSuffixes
+        assert_eq!(
+            get_name(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes)),
+            "http_request_duration_seconds"
+        );
+    }
+
+    #[test]
+    fn test_get_name_with_counter() {
+        let name = Cow::Borrowed("http.requests");
+        let unit = "";
+        let instrument = "counter";
+
+        // With suffixes strategies, should add _total
+        assert_eq!(
+            get_name(&name, unit, instrument, Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes)),
+            "http.requests_total"
+        );
+        assert_eq!(
+            get_name(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes)),
+            "http_requests_total"
+        );
     }
 
     #[test]
