@@ -22,10 +22,10 @@ github-attestations = true
 github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc = "windows-2025" }
 
 [dist.dependencies.apt]
-npm = { version = '*' }
+nodejs = '*'
 
 [dist.dependencies.homebrew]
-npm = { version = '*' }
+node = '*'
 
 [dist.dependencies.chocolatey]
-npm = { version = '*' }
+nodejs = '*'

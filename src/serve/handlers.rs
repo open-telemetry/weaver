@@ -23,7 +23,7 @@ pub async fn health() -> StatusCode {
 /// Serve JSON schemas.
 pub async fn get_schema(path: Option<Path<String>>) -> impl IntoResponse {
     let name = path
-        .map(|Path(s)| s.trim_start_matches('/').to_string())
+        .map(|Path(s)| s.trim_start_matches('/').to_owned())
         .unwrap_or_default();
 
     // Map schema names to their file contents
@@ -43,7 +43,8 @@ pub async fn get_schema(path: Option<Path<String>>) -> impl IntoResponse {
         StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/json")],
         schema,
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Registry overview endpoint.

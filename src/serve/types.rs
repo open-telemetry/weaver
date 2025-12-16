@@ -48,7 +48,6 @@ pub struct RegistryCounts {
     pub attribute_groups: usize,
 }
 
-
 /// Query parameters for search endpoint.
 #[derive(Debug, Deserialize)]
 pub struct SearchParams {
