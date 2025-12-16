@@ -488,6 +488,12 @@ generation of documentation and code.
 The following filters are available (the code for all available extension can be found 
 [here](./src/extensions)):
 
+- `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric
+  (more details [here](#prometheus-filters)).
+- `prometheus_metric_names`: Generates multiple Prometheus metric names for different translation
+  strategies with optional histogram/summary expansion (more details [here](#prometheus-filters)).
+- `prometheus_unit_name`: Converts OpenTelemetry units to Prometheus-compliant unit names (more
+  details [here](#prometheus-filters)).
 - `lower_case`: Converts a string to lowercase.
 - `upper_case`: Converts a string to UPPERCASE.
 - `title_case`: Converts a string to TitleCase.
@@ -597,7 +603,7 @@ The following filters are available (the code for all available extension can be
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
-#### Prometheus Filters
+### Prometheus Filters
 
 The following filters are specific to Prometheus metric name generation and follow the 
 [OpenTelemetry Prometheus exporter specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md).
@@ -985,3 +991,23 @@ In addition, OTel Weaver provides the following custom function:
   only contain the brief description without the prefix "Notes: ".
 
   `{{ [attr.brief, concat_if("\n\nNotes: ", attr.note)] | comment }}`
+
+### Jinja Tests Reference
+
+All the tests available in the MiniJinja template engine are available (see
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/tests/index.html)).
+
+In addition, OTel Weaver provides a set of custom tests to facilitate the
+generation of assets.
+
+- `stable`: Tests if an `Attribute` is stable.
+- `experimental`: Tests if an `Attribute` is experimental (not stable).
+- `deprecated`: Tests if an `Attribute` is deprecated.
+- `enum`: Tests if an attribute has an enum type.
+- `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean |
+  boolean[]).
+- `template_type`: Tests if a type is a template type (i.e.: template[]).
+- `enum_type`: Tests if a type is an enum type.
+- `array`: Tests if a type is an array type.
+
+> Please open an issue if you have any suggestions for new tests. They are easy to implement.
