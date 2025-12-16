@@ -7,13 +7,13 @@ use crate::extensions::case::{
     camel_case, kebab_case, pascal_case, screaming_snake_case, snake_case,
 };
 use crate::extensions::prom;
+use crate::extensions::prom::TranslationStrategy;
 use itertools::Itertools;
 use minijinja::filters::sort;
 use minijinja::value::{Kwargs, ValueKind};
 use minijinja::{ErrorKind, State, Value};
 use serde::de::Error;
 use std::borrow::Cow;
-use crate::extensions::prom::TranslationStrategy;
 
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
@@ -244,16 +244,24 @@ pub(crate) fn prom_names(input: Value, kwargs: Kwargs) -> Result<Vec<String>, mi
         .get::<Option<&str>>("translation_strategy")?
         .map(parse_translation_strategy)
         .transpose()?;
-    let expand_summary_and_histogram = kwargs.get::<Option<bool>>("expand_summary_and_histogram")?.unwrap_or(false);
+    let expand_summary_and_histogram = kwargs
+        .get::<Option<bool>>("expand_summary_and_histogram")?
+        .unwrap_or(false);
 
     let metric_name = get_attr(&input, "metric_name")?;
     let unit = get_attr(&input, "unit")?;
     let instrument = get_attr(&input, "instrument")?;
 
-    Ok(prom::get_names(&metric_name, &unit, &instrument, translation_strategy.as_ref(), expand_summary_and_histogram)
-        .into_iter()
-        .map(|cow| cow.into_owned())
-        .collect())
+    Ok(prom::get_names(
+        &metric_name,
+        &unit,
+        &instrument,
+        translation_strategy.as_ref(),
+        expand_summary_and_histogram,
+    )
+    .into_iter()
+    .map(|cow| cow.into_owned())
+    .collect())
 }
 
 pub(crate) fn prom_name(input: Value, kwargs: Kwargs) -> Result<String, minijinja::Error> {
@@ -261,7 +269,7 @@ pub(crate) fn prom_name(input: Value, kwargs: Kwargs) -> Result<String, minijinj
         .get::<Option<&str>>("translation_strategy")?
         .ok_or_else(|| {
             minijinja::Error::custom(
-                "translation_strategy parameter is required for prometheus_metric_name filter"
+                "translation_strategy parameter is required for prometheus_metric_name filter",
             )
         })?;
 

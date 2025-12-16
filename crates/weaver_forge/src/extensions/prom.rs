@@ -31,8 +31,8 @@ pub(crate) fn get_names<'a>(
             // Generate all possible name variants
             vec![
                 name.clone(),                                          // NoTranslation
-                sanitize_name(name),                                   // UnderscoreEscapingWithoutSuffixes
-                with_suffixes(name, unit, instrument),                 // NoUTF8EscapingWithSuffixes
+                sanitize_name(name), // UnderscoreEscapingWithoutSuffixes
+                with_suffixes(name, unit, instrument), // NoUTF8EscapingWithSuffixes
                 with_suffixes(&sanitize_name(name), unit, instrument), // UnderscoreEscapingWithSuffixes
             ]
         }
@@ -89,9 +89,7 @@ pub(crate) fn get_name<'a>(
     match translation_strategy {
         TranslationStrategy::NoTranslation => name.clone(),
         TranslationStrategy::UnderscoreEscapingWithoutSuffixes => sanitize_name(name),
-        TranslationStrategy::NoUTF8EscapingWithSuffixes => {
-            with_suffixes(name, unit, instrument)
-        }
+        TranslationStrategy::NoUTF8EscapingWithSuffixes => with_suffixes(name, unit, instrument),
         TranslationStrategy::UnderscoreEscapingWithSuffixes => {
             with_suffixes(&sanitize_name(name), unit, instrument)
         }
@@ -311,7 +309,13 @@ mod tests {
         let instrument = "histogram";
 
         // NoTranslation strategy
-        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::NoTranslation), true);
+        let result = get_names(
+            &name,
+            unit,
+            instrument,
+            Some(&TranslationStrategy::NoTranslation),
+            true,
+        );
         assert_eq!(
             result,
             vec![
@@ -323,7 +327,13 @@ mod tests {
         );
 
         // UnderscoreEscapingWithoutSuffixes strategy
-        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithoutSuffixes), true);
+        let result = get_names(
+            &name,
+            unit,
+            instrument,
+            Some(&TranslationStrategy::UnderscoreEscapingWithoutSuffixes),
+            true,
+        );
         assert_eq!(
             result,
             vec![
@@ -335,7 +345,13 @@ mod tests {
         );
 
         // NoUTF8EscapingWithSuffixes strategy
-        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes), true);
+        let result = get_names(
+            &name,
+            unit,
+            instrument,
+            Some(&TranslationStrategy::NoUTF8EscapingWithSuffixes),
+            true,
+        );
         assert_eq!(
             result,
             vec![
@@ -347,7 +363,13 @@ mod tests {
         );
 
         // UnderscoreEscapingWithSuffixes strategy
-        let result = get_names(&name, unit, instrument, Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes), true);
+        let result = get_names(
+            &name,
+            unit,
+            instrument,
+            Some(&TranslationStrategy::UnderscoreEscapingWithSuffixes),
+            true,
+        );
         assert_eq!(
             result,
             vec![
@@ -369,10 +391,7 @@ mod tests {
         let result = get_names(&name, unit, "histogram", None, false);
         assert_eq!(
             result,
-            vec![
-                "http_request_duration",
-                "http_request_duration_seconds",
-            ]
+            vec!["http_request_duration", "http_request_duration_seconds",]
         );
 
         // Summary without expansion
@@ -397,19 +416,34 @@ mod tests {
 
         // UnderscoreEscapingWithoutSuffixes
         assert_eq!(
-            get_name(&name, unit, instrument, &TranslationStrategy::UnderscoreEscapingWithoutSuffixes),
+            get_name(
+                &name,
+                unit,
+                instrument,
+                &TranslationStrategy::UnderscoreEscapingWithoutSuffixes
+            ),
             "http_request_duration"
         );
 
         // NoUTF8EscapingWithSuffixes
         assert_eq!(
-            get_name(&name, unit, instrument, &TranslationStrategy::NoUTF8EscapingWithSuffixes),
+            get_name(
+                &name,
+                unit,
+                instrument,
+                &TranslationStrategy::NoUTF8EscapingWithSuffixes
+            ),
             "http.request.duration_seconds"
         );
 
         // UnderscoreEscapingWithSuffixes
         assert_eq!(
-            get_name(&name, unit, instrument, &TranslationStrategy::UnderscoreEscapingWithSuffixes),
+            get_name(
+                &name,
+                unit,
+                instrument,
+                &TranslationStrategy::UnderscoreEscapingWithSuffixes
+            ),
             "http_request_duration_seconds"
         );
     }
@@ -422,11 +456,21 @@ mod tests {
 
         // With suffixes strategies, should add _total
         assert_eq!(
-            get_name(&name, unit, instrument, &TranslationStrategy::NoUTF8EscapingWithSuffixes),
+            get_name(
+                &name,
+                unit,
+                instrument,
+                &TranslationStrategy::NoUTF8EscapingWithSuffixes
+            ),
             "http.requests_total"
         );
         assert_eq!(
-            get_name(&name, unit, instrument, &TranslationStrategy::UnderscoreEscapingWithSuffixes),
+            get_name(
+                &name,
+                unit,
+                instrument,
+                &TranslationStrategy::UnderscoreEscapingWithSuffixes
+            ),
             "http_requests_total"
         );
     }
