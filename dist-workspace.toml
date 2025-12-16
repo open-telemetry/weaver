@@ -4,7 +4,7 @@ members = ["cargo:."]
 # Config for 'dist'
 [dist]
 # The preferred dist version to use in CI (Cargo.toml SemVer syntax)
-cargo-dist-version = "0.30.2"
+cargo-dist-version = "0.30.3"
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
@@ -19,4 +19,13 @@ install-updater = false
 install-path = "CARGO_HOME"
 # Whether to enable GitHub Attestations
 github-attestations = true
-github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc="windows-2025" }
+github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc = "windows-2025" }
+
+[dist.dependencies.apt]
+npm = { version = '*' }
+
+[dist.dependencies.homebrew]
+npm = { version = '*' }
+
+[dist.dependencies.chocolatey]
+npm = { version = '*' }
