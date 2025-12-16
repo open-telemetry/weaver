@@ -218,7 +218,7 @@ pub(crate) fn screaming_snake_case_const(input: &str) -> String {
     screaming_snake_case(&input.replace('_', ""))
 }
 
-fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
+pub(crate) fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
     let mut name = input.get_attr("name")?;
     if name.is_undefined() {
         name = input.get_attr("key")?;
@@ -226,7 +226,7 @@ fn get_name_or_key(input: &Value) -> Result<Value, minijinja::Error> {
     Ok(name)
 }
 
-fn parse_translation_strategy(s: &str) -> Result<TranslationStrategy, minijinja::Error> {
+pub(crate) fn parse_translation_strategy(s: &str) -> Result<TranslationStrategy, minijinja::Error> {
     match s {
         "NoTranslation" => Ok(TranslationStrategy::NoTranslation),
         "UnderscoreEscapingWithoutSuffixes" => Ok(TranslationStrategy::UnderscoreEscapingWithoutSuffixes),
@@ -282,7 +282,7 @@ pub(crate) fn prom_name(input: Value, kwargs: Kwargs) -> Result<String, minijinj
     Ok(prom::get_name(&metric_name, &unit, &instrument, &translation_strategy).into_owned())
 }
 
-fn get_attr<'a>(input: &'a Value, key: &str) -> Result<Cow<'a, str>, minijinja::Error> {
+pub(crate) fn get_attr<'a>(input: &'a Value, key: &str) -> Result<Cow<'a, str>, minijinja::Error> {
     let val = input.get_attr(key)?;
     let Some(s) = val.as_str() else {
         return Err(minijinja::Error::custom(format!(
@@ -2003,6 +2003,527 @@ mod tests {
             print_member_value(&Value::from(r#"This is a test
         on multiple lines with characters like ',   , \, and /"#)).unwrap(),
             "\"This is a test\\n        on multiple lines with characters like ',   , \\\\, and /\"");
+    }
+
+    #[test]
+    fn test_prometheus_filters() {
+        #[derive(Serialize)]
+        struct Metric {
+            metric_name: String,
+            unit: String,
+            instrument: String,
+        }
+
+        let mut env = Environment::new();
+        otel::add_filters(&mut env);
+
+        // Test prometheus_unit_name filter
+        let metric = Metric {
+            metric_name: "test.metric".to_owned(),
+            unit: "ms".to_owned(),
+            instrument: "histogram".to_owned(),
+        };
+
+        assert_eq!(
+            env.render_str("{{ metric | prometheus_unit_name }}", &metric)
+                .unwrap(),
+            "milliseconds"
+        );
+
+        // Test with unknown unit
+        let metric = Metric {
+            metric_name: "test.metric".to_owned(),
+            unit: "unknown_unit".to_owned(),
+            instrument: "histogram".to_owned(),
+        };
+
+        assert_eq!(
+            env.render_str("{{ metric | prometheus_unit_name }}", &metric)
+                .unwrap(),
+            "unknown_unit"
+        );
+
+        // Test prometheus_metric_name filter with all translation strategies
+        let metric = Metric {
+            metric_name: "http.server.duration".to_owned(),
+            unit: "ms".to_owned(),
+            instrument: "histogram".to_owned(),
+        };
+
+        // NoTranslation strategy
+        assert!(env
+            .render_str(
+                "{{ metric | prometheus_metric_name(translation_strategy='NoTranslation') }}",
+                &metric
+            )
+            .is_ok());
+
+        // UnderscoreEscapingWithoutSuffixes strategy
+        assert!(env
+            .render_str(
+                "{{ metric | prometheus_metric_name(translation_strategy='UnderscoreEscapingWithoutSuffixes') }}",
+                &metric
+            )
+            .is_ok());
+
+        // NoUTF8EscapingWithSuffixes strategy
+        assert!(env
+            .render_str(
+                "{{ metric | prometheus_metric_name(translation_strategy='NoUTF8EscapingWithSuffixes') }}",
+                &metric
+            )
+            .is_ok());
+
+        // UnderscoreEscapingWithSuffixes strategy
+        assert!(env
+            .render_str(
+                "{{ metric | prometheus_metric_name(translation_strategy='UnderscoreEscapingWithSuffixes') }}",
+                &metric
+            )
+            .is_ok());
+
+        // Test error when translation_strategy is missing
+        assert!(env
+            .render_str("{{ metric | prometheus_metric_name }}", &metric)
+            .is_err());
+
+        // Test error with invalid translation_strategy
+        assert!(env
+            .render_str(
+                "{{ metric | prometheus_metric_name(translation_strategy='InvalidStrategy') }}",
+                &metric
+            )
+            .is_err());
+
+        // Test prometheus_metric_names filter (plural)
+        assert!(env
+            .render_str(
+                "{% for name in metric | prometheus_metric_names(translation_strategy='NoTranslation') %}{{ name }}{% endfor %}",
+                &metric
+            )
+            .is_ok());
+
+        // Test with expand_summary_and_histogram
+        let metric = Metric {
+            metric_name: "test.metric".to_owned(),
+            unit: "".to_owned(),
+            instrument: "histogram".to_owned(),
+        };
+
+        let result = env
+            .render_str(
+                "{% for name in metric | prometheus_metric_names(expand_summary_and_histogram=true) %}{{ name }}|{% endfor %}",
+                &metric
+            )
+            .unwrap();
+        assert!(!result.is_empty());
+
+        // Test prometheus_metric_names without translation_strategy (should use default)
+        let result = env
+            .render_str(
+                "{% for name in metric | prometheus_metric_names %}{{ name }}|{% endfor %}",
+                &metric,
+            )
+            .unwrap();
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_get_attr_error_handling() {
+        use minijinja::Value;
+
+        // Test with missing attribute
+        let value = Value::from_serialize(json!({"other_field": "value"}));
+        let result = super::get_attr(&value, "metric_name");
+        assert!(result.is_err());
+
+        // Test with non-string attribute
+        let value = Value::from_serialize(json!({"metric_name": 123}));
+        let result = super::get_attr(&value, "metric_name");
+        assert!(result.is_err());
+
+        // Test with valid string attribute
+        let value = Value::from_serialize(json!({"metric_name": "test.metric"}));
+        let result = super::get_attr(&value, "metric_name");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test.metric");
+    }
+
+    #[test]
+    fn test_parse_translation_strategy_errors() {
+        use crate::extensions::otel::parse_translation_strategy;
+
+        // Test valid strategies
+        assert!(parse_translation_strategy("NoTranslation").is_ok());
+        assert!(parse_translation_strategy("UnderscoreEscapingWithoutSuffixes").is_ok());
+        assert!(parse_translation_strategy("NoUTF8EscapingWithSuffixes").is_ok());
+        assert!(parse_translation_strategy("UnderscoreEscapingWithSuffixes").is_ok());
+
+        // Test invalid strategies
+        assert!(parse_translation_strategy("Invalid").is_err());
+        assert!(parse_translation_strategy("").is_err());
+        assert!(parse_translation_strategy("notranslation").is_err()); // case sensitive
+    }
+
+    #[test]
+    fn test_get_name_or_key() {
+        // Test with name attribute
+        let value = Value::from_serialize(json!({"name": "test_name"}));
+        let result = super::get_name_or_key(&value).unwrap();
+        assert_eq!(result.as_str().unwrap(), "test_name");
+
+        // Test with key attribute (no name)
+        let value = Value::from_serialize(json!({"key": "test_key"}));
+        let result = super::get_name_or_key(&value).unwrap();
+        assert_eq!(result.as_str().unwrap(), "test_key");
+
+        // Test with both name and key (name takes precedence)
+        let value = Value::from_serialize(json!({"name": "test_name", "key": "test_key"}));
+        let result = super::get_name_or_key(&value).unwrap();
+        assert_eq!(result.as_str().unwrap(), "test_name");
+
+        // Test with neither (should error)
+        let value = Value::from_serialize(json!({"other": "value"}));
+        let result = super::get_name_or_key(&value).unwrap();
+        assert_eq!(result.as_str(), None);
+    }
+
+    #[test]
+    fn test_enum_type_with_mixed_types() {
+        // Test with int and string mixed (should promote to string)
+        let members = vec![
+            EnumEntriesSpec {
+                id: "val1".to_owned(),
+                value: 1.into(),
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: None,
+            },
+            EnumEntriesSpec {
+                id: "val2".to_owned(),
+                value: "string_value".into(),
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: None,
+            },
+        ];
+        let enum_attr_type = AttributeType::Enum { members };
+        let json = serde_json::to_value(enum_attr_type).unwrap();
+        let value = Value::from_serialize(json);
+        assert_eq!(super::enum_type(&value).unwrap(), "string");
+
+        // Test with double and string mixed (should promote to string)
+        let members = vec![
+            EnumEntriesSpec {
+                id: "val1".to_owned(),
+                value: 1.5.into(),
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: None,
+            },
+            EnumEntriesSpec {
+                id: "val2".to_owned(),
+                value: "string_value".into(),
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: None,
+            },
+        ];
+        let enum_attr_type = AttributeType::Enum { members };
+        let json = serde_json::to_value(enum_attr_type).unwrap();
+        let value = Value::from_serialize(json);
+        assert_eq!(super::enum_type(&value).unwrap(), "string");
+    }
+
+    #[test]
+    fn test_print_member_value_json_error() {
+        // Test with a complex nested structure that might cause JSON serialization edge cases
+        let value = Value::from("normal string");
+        assert_eq!(print_member_value(&value).unwrap(), "\"normal string\"");
+
+        // Test with unicode characters
+        let value = Value::from("unicode: 你好 🎉");
+        let result = print_member_value(&value).unwrap();
+        assert!(result.starts_with('"'));
+        assert!(result.ends_with('"'));
+    }
+
+    #[test]
+    fn test_is_deprecated_with_object() {
+        #[derive(Serialize)]
+        struct ComplexDeprecated {
+            reason: String,
+            note: String,
+        }
+
+        #[derive(Serialize)]
+        struct AttrWithComplexDeprecated {
+            name: String,
+            deprecated: ComplexDeprecated,
+        }
+
+        let attr = AttrWithComplexDeprecated {
+            name: "test_attr".to_owned(),
+            deprecated: ComplexDeprecated {
+                reason: "obsolete".to_owned(),
+                note: "No longer used".to_owned(),
+            },
+        };
+
+        let value = Value::from_serialize(&attr);
+        assert!(super::is_deprecated(&value));
+    }
+
+    #[test]
+    fn test_instantiated_type_with_all_array_types() {
+        #[derive(Serialize)]
+        struct Ctx {
+            attr_type: AttributeType,
+        }
+
+        let mut env = Environment::new();
+        otel::add_filters(&mut env);
+
+        // Test all array types
+        let test_cases = vec![
+            (
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
+                "string[]",
+            ),
+            (
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
+                "int[]",
+            ),
+            (
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
+                "double[]",
+            ),
+            (
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans),
+                "boolean[]",
+            ),
+        ];
+
+        for (attr_type, expected) in test_cases {
+            let result = env
+                .render_str(
+                    "{{ attr_type | instantiated_type }}",
+                    Ctx {
+                        attr_type: attr_type.clone(),
+                    },
+                )
+                .unwrap();
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_attribute_sort_error_propagation() {
+        // Test that errors in requirement level comparison are properly propagated
+        let attributes = vec![
+            json!({"key": "attr1", "requirement_level": "required"}),
+            json!({"key": "attr2", "requirement_level": {"invalid_structure": true}}),
+        ];
+
+        let result = attribute_sort(Value::from_serialize(&attributes));
+        // Should propagate the error from the invalid requirement_level
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prom_unit_error_handling() {
+        // Test with missing unit attribute
+        #[derive(Serialize)]
+        struct NoUnit {
+            other_field: String,
+        }
+
+        // Test with non-string unit
+        #[derive(Serialize)]
+        struct IntUnit {
+            unit: i32,
+        }
+
+        let mut env = Environment::new();
+        otel::add_filters(&mut env);
+
+        let ctx = NoUnit {
+            other_field: "value".to_owned(),
+        };
+
+        assert!(env
+            .render_str("{{ obj | prometheus_unit_name }}", ctx)
+            .is_err());
+
+        let ctx = IntUnit { unit: 123 };
+
+        assert!(env
+            .render_str("{{ obj | prometheus_unit_name }}", ctx)
+            .is_err());
+    }
+
+    #[test]
+    fn test_prom_name_missing_required_fields() {
+        // Test with missing metric_name
+        #[derive(Serialize)]
+        struct MissingMetricName {
+            unit: String,
+            instrument: String,
+        }
+
+        // Test with missing unit
+        #[derive(Serialize)]
+        struct MissingUnit {
+            metric_name: String,
+            instrument: String,
+        }
+
+        // Test with missing instrument
+        #[derive(Serialize)]
+        struct MissingInstrument {
+            metric_name: String,
+            unit: String,
+        }
+
+        let mut env = Environment::new();
+
+        otel::add_filters(&mut env);
+
+        let ctx = MissingMetricName {
+            unit: "ms".to_owned(),
+            instrument: "histogram".to_owned(),
+        };
+
+        assert!(env
+            .render_str(
+                "{{ obj | prometheus_metric_name(translation_strategy='NoTranslation') }}",
+                ctx
+            )
+            .is_err());
+
+        let ctx = MissingUnit {
+            metric_name: "test.metric".to_owned(),
+            instrument: "histogram".to_owned(),
+        };
+
+        assert!(env
+            .render_str(
+                "{{ obj | prometheus_metric_name(translation_strategy='NoTranslation') }}",
+                ctx
+            )
+            .is_err());
+
+        let ctx = MissingInstrument {
+            metric_name: "test.metric".to_owned(),
+            unit: "ms".to_owned(),
+        };
+
+        assert!(env
+            .render_str(
+                "{{ obj | prometheus_metric_name(translation_strategy='NoTranslation') }}",
+                ctx
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn test_kebab_case_const_direct() {
+        // Test the kebab_case_const function directly
+        assert_eq!(super::kebab_case_const("test_name"), "testname");
+        assert_eq!(super::kebab_case_const("Test_Name"), "test-name");
+        assert_eq!(super::kebab_case_const("test.name"), "test-name");
+        assert_eq!(super::kebab_case_const("TEST_NAME"), "test-name");
+        assert_eq!(super::kebab_case_const(""), "");
+    }
+
+    #[test]
+    fn test_pascal_case_const_direct() {
+        assert_eq!(super::pascal_case_const("test_name"), "Testname");
+        assert_eq!(super::pascal_case_const("test.name"), "TestName");
+        assert_eq!(super::pascal_case_const("TEST_NAME"), "TestName");
+        assert_eq!(super::pascal_case_const(""), "");
+    }
+
+    #[test]
+    fn test_camel_case_const_direct() {
+        assert_eq!(super::camel_case_const("test.name"), "testName");
+        assert_eq!(super::camel_case_const(""), "");
+    }
+
+    #[test]
+    fn test_snake_case_const_direct() {
+        assert_eq!(super::snake_case_const("test_name"), "testname");
+        assert_eq!(super::snake_case_const("test.name"), "test_name");
+        assert_eq!(super::snake_case_const("TEST_NAME"), "test_name");
+        assert_eq!(super::snake_case_const("TestName"), "test_name");
+        assert_eq!(super::snake_case_const(""), "");
+    }
+
+    #[test]
+    fn test_screaming_snake_case_const_direct() {
+        assert_eq!(super::screaming_snake_case_const("test_name"), "TESTNAME");
+        assert_eq!(super::screaming_snake_case_const("test.name"), "TEST_NAME");
+        assert_eq!(super::screaming_snake_case_const("TestName"), "TEST_NAME");
+        assert_eq!(super::screaming_snake_case_const(""), "");
+    }
+
+    #[test]
+    fn test_instantiated_type_error_with_invalid_enum() {
+        // Test with enum that has invalid value types
+        let value = Value::from_serialize(json!({
+            "members": [
+                {"id": "val1", "value": null}
+            ]
+        }));
+
+        let result = super::enum_type(&value);
+        // Should error because null is not a valid enum value type
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_required_and_not_required_with_complex_levels() {
+        // Test with various requirement level formats
+        let attrs = vec![
+            json!({"key": "attr1", "requirement_level": "required"}),
+            json!({"key": "attr2", "requirement_level": "recommended"}),
+            json!({"key": "attr3", "requirement_level": "opt_in"}),
+            json!({"key": "attr4", "requirement_level": {"conditionally_required": {"text": "when X"}}}),
+            json!({"key": "attr5", "requirement_level": {"recommended": {"text": "when Y"}}}),
+        ];
+
+        let result = super::required(Value::from_serialize(&attrs)).unwrap();
+        assert_eq!(result.len(), 1); // Only attr1 is strictly required
+
+        let result = super::not_required(Value::from_serialize(&attrs)).unwrap();
+        assert_eq!(result.len(), 4); // All others are not strictly required
+    }
+
+    #[test]
+    fn test_is_array_with_enum_types() {
+        // Enum types should not be considered arrays even if they contain array-like values
+        let members = vec![EnumEntriesSpec {
+            id: "val1".to_owned(),
+            value: "value1".into(),
+            brief: None,
+            note: None,
+            stability: None,
+            deprecated: None,
+            annotations: None,
+        }];
+        let enum_type = AttributeType::Enum { members };
+        let json = serde_json::to_value(enum_type).unwrap();
+        let value = Value::from_serialize(json);
+
+        assert!(!super::is_array(&value));
     }
 
     #[test]
