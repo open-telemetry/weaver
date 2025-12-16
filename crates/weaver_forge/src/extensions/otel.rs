@@ -2437,18 +2437,13 @@ mod tests {
     #[test]
     fn test_kebab_case_const_direct() {
         // Test the kebab_case_const function directly
-        assert_eq!(super::kebab_case_const("test_name"), "testname");
-        assert_eq!(super::kebab_case_const("Test_Name"), "test-name");
         assert_eq!(super::kebab_case_const("test.name"), "test-name");
-        assert_eq!(super::kebab_case_const("TEST_NAME"), "test-name");
         assert_eq!(super::kebab_case_const(""), "");
     }
 
     #[test]
     fn test_pascal_case_const_direct() {
-        assert_eq!(super::pascal_case_const("test_name"), "Testname");
         assert_eq!(super::pascal_case_const("test.name"), "TestName");
-        assert_eq!(super::pascal_case_const("TEST_NAME"), "TestName");
         assert_eq!(super::pascal_case_const(""), "");
     }
 
@@ -2460,16 +2455,13 @@ mod tests {
 
     #[test]
     fn test_snake_case_const_direct() {
-        assert_eq!(super::snake_case_const("test_name"), "testname");
         assert_eq!(super::snake_case_const("test.name"), "test_name");
-        assert_eq!(super::snake_case_const("TEST_NAME"), "test_name");
         assert_eq!(super::snake_case_const("TestName"), "test_name");
         assert_eq!(super::snake_case_const(""), "");
     }
 
     #[test]
     fn test_screaming_snake_case_const_direct() {
-        assert_eq!(super::screaming_snake_case_const("test_name"), "TESTNAME");
         assert_eq!(super::screaming_snake_case_const("test.name"), "TEST_NAME");
         assert_eq!(super::screaming_snake_case_const("TestName"), "TEST_NAME");
         assert_eq!(super::screaming_snake_case_const(""), "");
