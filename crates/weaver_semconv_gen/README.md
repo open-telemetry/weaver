@@ -72,7 +72,7 @@ in your current template directory.
 You can specify a different template by adding a `template:{template file}` prefix to your weaver snippet, e.g.
 
 ```md
-<!-- weaver template:my_custom_template.j2 .registry.metrics[] | select(.name = "my_custom_metric") | first -->
+<!-- weaver template:my_custom_template.j2 .signals.metrics[] | select(.name = "my_custom_metric") -->
 my_custom_template will be rendered with "my_custom_metric"'s data, right here.
 <!-- endweaver -->
 ```
