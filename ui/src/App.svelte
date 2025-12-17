@@ -9,6 +9,7 @@
   import EntityDetail from "./routes/EntityDetail.svelte";
   import Search from "./routes/Search.svelte";
   import Schema from "./routes/Schema.svelte";
+  import ApiDocs from "./routes/ApiDocs.svelte";
 
   const routes = {
     "/": Dashboard,
@@ -19,6 +20,7 @@
     "/entity/*": EntityDetail,
     "/search": Search,
     "/schema": Schema,
+    "/api-docs": ApiDocs,
   };
 
   let searchQuery = $state("");
@@ -137,6 +139,8 @@
       <li class="menu-title mt-4">Schema</li>
       <li><a href="/schema" use:link>Forge Resolved</a></li>
       <li><a href="/schema?schema=semconv" use:link>Semconv</a></li>
+      <li class="menu-title mt-4">Developer</li>
+      <li><a href="/api-docs" use:link>API Documentation</a></li>
     </ul>
   </div>
 </div>

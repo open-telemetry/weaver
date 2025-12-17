@@ -9,15 +9,23 @@ use axum::{
     http::{header, StatusCode},
     response::{Html, IntoResponse},
     routing::get,
-    Router,
+    Json, Router,
 };
 use miette::Diagnostic;
 use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use utoipa::OpenApi;
+use weaver_forge::v2::{
+    attribute::Attribute, entity::Entity, event::Event, metric::Metric,
+    registry::ForgeResolvedRegistry, span::Span,
+};
+use weaver_semconv::stability::Stability;
 
 use super::handlers;
 use super::search::SearchContext;
+use super::types::{
+    RegistryCounts, RegistryOverview, ScoredResult, SearchResponse, SearchResult, SearchType,
+};
 use super::ui::UI_DIST;
 
 /// Shared application state for all request handlers.
@@ -47,6 +55,73 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/// OpenAPI documentation for the Weaver API.
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Weaver API",
+        version = "0.0.1",
+        description = "REST API for OpenTelemetry Weaver registry, search, schemas and more.",
+        contact(
+            name = "OpenTelemetry",
+            url = "https://github.com/open-telemetry/weaver"
+        ),
+        license(
+            name = "Apache-2.0",
+            url = "https://www.apache.org/licenses/LICENSE-2.0"
+        )
+    ),
+    paths(
+        handlers::health,
+        handlers::get_default_schema,
+        handlers::get_schema_by_name,
+        handlers::registry_overview,
+        handlers::get_attribute,
+        handlers::get_metric,
+        handlers::get_span,
+        handlers::get_event,
+        handlers::get_entity,
+        handlers::search,
+    ),
+    components(
+        schemas(
+            RegistryOverview,
+            RegistryCounts,
+            SearchType,
+            SearchResponse,
+            SearchResult,
+            ScoredResult<Attribute>,
+            ScoredResult<Metric>,
+            ScoredResult<Span>,
+            ScoredResult<Event>,
+            ScoredResult<Entity>,
+            Attribute,
+            Metric,
+            Span,
+            Event,
+            Entity,
+            Stability,
+        )
+    ),
+    tags(
+        (name = "health", description = "Health check endpoints"),
+        (name = "schemas", description = "JSON schema endpoints"),
+        (name = "registry", description = "Registry overview"),
+        (name = "attributes", description = "Attribute lookup"),
+        (name = "metrics", description = "Metric lookup"),
+        (name = "spans", description = "Span lookup"),
+        (name = "events", description = "Event lookup"),
+        (name = "entities", description = "Entity lookup"),
+        (name = "search", description = "Search and browse"),
+    )
+)]
+pub struct ApiDoc;
+
+/// Handler for serving the OpenAPI specification.
+async fn openapi_spec() -> Json<utoipa::openapi::OpenApi> {
+    Json(ApiDoc::openapi())
+}
+
 /// Run the API server.
 ///
 /// # Arguments
@@ -74,9 +149,9 @@ pub async fn run_server(
     let app = Router::new()
         // Health check
         .route("/health", get(handlers::health))
-        // Schemas - with optional name parameter (defaults to forge)
-        .route("/api/v1/schema", get(handlers::get_schema))
-        .route("/api/v1/schema/*name", get(handlers::get_schema))
+        // Schemas
+        .route("/api/v1/schema", get(handlers::get_default_schema))
+        .route("/api/v1/schema/*name", get(handlers::get_schema_by_name))
         // Registry overview
         .route("/api/v1/registry", get(handlers::registry_overview))
         // Individual resources
@@ -87,6 +162,8 @@ pub async fn run_server(
         .route("/api/v1/entity/*type", get(handlers::get_entity))
         // Search
         .route("/api/v1/search", get(handlers::search))
+        // OpenAPI specification
+        .route("/api/v1/openapi.json", get(openapi_spec))
         // UI fallback - serves embedded static files
         .fallback(serve_ui)
         .layer(cors)

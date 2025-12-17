@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "marked": "^17.0.1",
+    "rapidoc": "^9.3.8",
     "svelte-spa-router": "^4.0.1"
   }
 }

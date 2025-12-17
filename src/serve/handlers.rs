@@ -16,19 +16,54 @@ use super::server::AppState;
 use super::types::{RegistryCounts, RegistryOverview, SearchParams, SearchResponse};
 
 /// Health check endpoint.
+#[utoipa::path(
+    get,
+    path = "/health",
+    responses(
+        (status = 200, description = "Service is healthy")
+    ),
+    tag = "health"
+)]
 pub async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-/// Serve JSON schemas.
-pub async fn get_schema(path: Option<Path<String>>) -> impl IntoResponse {
-    let name = path
-        .map(|Path(s)| s.trim_start_matches('/').to_owned())
-        .unwrap_or_default();
+/// Serve the default schema (forge).
+#[utoipa::path(
+    get,
+    path = "/api/v1/schema",
+    responses(
+        (status = 200, description = "Default forge schema", content_type = "application/json")
+    ),
+    tag = "schemas"
+)]
+pub async fn get_default_schema() -> impl IntoResponse {
+    const SCHEMA: &str = include_str!("../../schemas/forge.schema.v2.json");
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        SCHEMA,
+    )
+}
 
-    // Map schema names to their file contents
-    let schema = match name.as_str() {
-        "" | "forge" => include_str!("../../schemas/forge.schema.v2.json"),
+/// Serve a specific schema by name.
+#[utoipa::path(
+    get,
+    path = "/api/v1/schema/{name}",
+    params(
+        ("name" = String, Path, description = "Schema name (forge or semconv)")
+    ),
+    responses(
+        (status = 200, description = "Requested schema", content_type = "application/json"),
+        (status = 404, description = "Schema not found")
+    ),
+    tag = "schemas"
+)]
+pub async fn get_schema_by_name(Path(name): Path<String>) -> impl IntoResponse {
+    let name = name.trim_start_matches('/');
+
+    let schema = match name {
+        "forge" => include_str!("../../schemas/forge.schema.v2.json"),
         "semconv" => include_str!("../../schemas/semconv.schema.v2.json"),
         _ => {
             return (
@@ -43,11 +78,18 @@ pub async fn get_schema(path: Option<Path<String>>) -> impl IntoResponse {
         StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/json")],
         schema,
-    )
-        .into_response()
+    ).into_response()
 }
 
 /// Registry overview endpoint.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry",
+    responses(
+        (status = 200, description = "Registry overview", body = RegistryOverview)
+    ),
+    tag = "registry"
+)]
 pub async fn registry_overview(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let registry = &state.registry;
 
@@ -67,6 +109,18 @@ pub async fn registry_overview(State(state): State<Arc<AppState>>) -> impl IntoR
 }
 
 /// Get a specific attribute by key.
+#[utoipa::path(
+    get,
+    path = "/api/v1/attribute/{key}",
+    params(
+        ("key" = String, Path, description = "Attribute key")
+    ),
+    responses(
+        (status = 200, description = "Attribute details", body = weaver_forge::v2::attribute::Attribute),
+        (status = 404, description = "Attribute not found")
+    ),
+    tag = "attributes"
+)]
 pub async fn get_attribute(
     State(state): State<Arc<AppState>>,
     Path(key): Path<String>,
@@ -87,6 +141,18 @@ pub async fn get_attribute(
 }
 
 /// Get a specific metric by name.
+#[utoipa::path(
+    get,
+    path = "/api/v1/metric/{name}",
+    params(
+        ("name" = String, Path, description = "Metric name")
+    ),
+    responses(
+        (status = 200, description = "Metric details", body = weaver_forge::v2::metric::Metric),
+        (status = 404, description = "Metric not found")
+    ),
+    tag = "metrics"
+)]
 pub async fn get_metric(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
@@ -111,6 +177,18 @@ pub async fn get_metric(
 }
 
 /// Get a specific span by type.
+#[utoipa::path(
+    get,
+    path = "/api/v1/span/{type}",
+    params(
+        ("type" = String, Path, description = "Span type")
+    ),
+    responses(
+        (status = 200, description = "Span details", body = weaver_forge::v2::span::Span),
+        (status = 404, description = "Span not found")
+    ),
+    tag = "spans"
+)]
 pub async fn get_span(
     State(state): State<Arc<AppState>>,
     Path(span_type): Path<String>,
@@ -135,6 +213,18 @@ pub async fn get_span(
 }
 
 /// Get a specific event by name.
+#[utoipa::path(
+    get,
+    path = "/api/v1/event/{name}",
+    params(
+        ("name" = String, Path, description = "Event name")
+    ),
+    responses(
+        (status = 200, description = "Event details", body = weaver_forge::v2::event::Event),
+        (status = 404, description = "Event not found")
+    ),
+    tag = "events"
+)]
 pub async fn get_event(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
@@ -159,6 +249,18 @@ pub async fn get_event(
 }
 
 /// Get a specific entity by type.
+#[utoipa::path(
+    get,
+    path = "/api/v1/entity/{type}",
+    params(
+        ("type" = String, Path, description = "Entity type")
+    ),
+    responses(
+        (status = 200, description = "Entity details", body = weaver_forge::v2::entity::Entity),
+        (status = 404, description = "Entity not found")
+    ),
+    tag = "entities"
+)]
 pub async fn get_entity(
     State(state): State<Arc<AppState>>,
     Path(entity_type): Path<String>,
@@ -183,6 +285,17 @@ pub async fn get_entity(
 }
 
 /// Search across all types or list all items (browse mode).
+#[utoipa::path(
+    get,
+    path = "/api/v1/search",
+    params(
+        SearchParams
+    ),
+    responses(
+        (status = 200, description = "Search results", body = SearchResponse)
+    ),
+    tag = "search"
+)]
 pub async fn search(
     State(state): State<Arc<AppState>>,
     Query(params): Query<SearchParams>,

@@ -81,10 +81,10 @@ name = "weaver"
 # local crates dependencies
 weaver_common = { path = "crates/weaver_common" }
 weaver_resolver = { path = "crates/weaver_resolver" }
-weaver_semconv = { path = "crates/weaver_semconv" }
+weaver_semconv = { path = "crates/weaver_semconv", features = ["openapi"] }
 weaver_resolved_schema = { path = "crates/weaver_resolved_schema" }
 weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
-weaver_forge = { path = "crates/weaver_forge" }
+weaver_forge = { path = "crates/weaver_forge", features = ["openapi"] }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
@@ -109,6 +109,7 @@ chrono = "0.4.41"
 axum = "0.7"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 mime_guess = "2.0"
+utoipa = { version = "5.3", features = ["axum_extras"] }
 
 # workspace dependencies
 serde.workspace = true

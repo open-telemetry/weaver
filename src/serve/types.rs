@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use weaver_forge::v2::attribute::Attribute;
 use weaver_forge::v2::entity::Entity;
 use weaver_forge::v2::event::Event;
@@ -13,17 +14,18 @@ use weaver_forge::v2::span::Span;
 use weaver_semconv::stability::Stability;
 
 /// Generic wrapper that adds a relevance score to any searchable object.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub struct ScoredResult<T> {
     /// The relevance score (higher = more relevant).
     pub score: u32,
     /// The full object (Attribute, Metric, Span, Event, or Entity).
     #[serde(flatten)]
+    #[schema(value_type = T)]
     pub item: Arc<T>,
 }
 
 /// Registry overview response.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RegistryOverview {
     /// The registry URL.
     pub registry_url: String,
@@ -32,7 +34,7 @@ pub struct RegistryOverview {
 }
 
 /// Counts of different entity types in the registry.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RegistryCounts {
     /// Number of attributes.
     pub attributes: usize,
@@ -49,17 +51,20 @@ pub struct RegistryCounts {
 }
 
 /// Query parameters for search endpoint.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct SearchParams {
     /// Search query string (optional for browse mode).
+    #[param(example = "http")]
     pub q: Option<String>,
     /// Filter by type.
     #[serde(rename = "type", default)]
+    #[param(rename = "type")]
     pub search_type: SearchType,
     /// Filter by stability level.
     pub stability: Option<Stability>,
     /// Maximum number of results (default: 50).
     #[serde(default = "default_search_limit")]
+    #[param(maximum = 1000)]
     pub limit: usize,
     /// Offset for pagination (default: 0).
     #[serde(default)]
@@ -71,7 +76,7 @@ fn default_search_limit() -> usize {
 }
 
 /// Search type filter.
-#[derive(Debug, Deserialize, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Default, Clone, Copy, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum SearchType {
     /// Search all types.
@@ -90,7 +95,7 @@ pub enum SearchType {
 }
 
 /// Search response.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct SearchResponse {
     /// The original query (None in browse mode).
     pub query: Option<String>,
@@ -105,7 +110,7 @@ pub struct SearchResponse {
 }
 
 /// A single search result containing a full object with its relevance score.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(tag = "result_type", rename_all = "lowercase")]
 pub enum SearchResult {
     /// An attribute result.
