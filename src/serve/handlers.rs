@@ -78,7 +78,8 @@ pub async fn get_schema_by_name(Path(name): Path<String>) -> impl IntoResponse {
         StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/json")],
         schema,
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Registry overview endpoint.

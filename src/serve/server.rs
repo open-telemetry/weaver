@@ -2,6 +2,8 @@
 
 //! Axum server setup for the weaver serve command.
 
+#![allow(clippy::needless_for_each)]
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 
