@@ -75,8 +75,7 @@ impl From<std::io::Error> for Error {
     ),
     paths(
         handlers::health,
-        handlers::get_default_schema,
-        handlers::get_schema_by_name,
+        handlers::get_schema,
         handlers::registry_overview,
         handlers::get_attribute,
         handlers::get_metric,
@@ -130,9 +129,11 @@ async fn openapi_spec() -> Json<utoipa::openapi::OpenApi> {
 ///
 /// * `bind_addr` - The address to bind the server to.
 /// * `registry` - The resolved V2 registry to serve.
+/// * `cors_origins` - Optional CORS origins. Use "*" for any origin, comma-separated for specific origins, or None for no CORS.
 pub async fn run_server(
     bind_addr: SocketAddr,
     registry: ForgeResolvedRegistry,
+    cors_origins: Option<&str>,
 ) -> Result<(), Error> {
     // Build search context once at startup
     let search_ctx = SearchContext::from_registry(&registry);
@@ -142,18 +143,11 @@ pub async fn run_server(
         search_ctx,
     });
 
-    // Configure CORS to allow any origin (for development)
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    let app = Router::new()
+    let mut app = Router::new()
         // Health check
         .route("/health", get(handlers::health))
         // Schemas
-        .route("/api/v1/schema", get(handlers::get_default_schema))
-        .route("/api/v1/schema/*name", get(handlers::get_schema_by_name))
+        .route("/api/v1/schema/*name", get(handlers::get_schema))
         // Registry overview
         .route("/api/v1/registry", get(handlers::registry_overview))
         // Individual resources
@@ -168,8 +162,33 @@ pub async fn run_server(
         .route("/api/v1/openapi.json", get(openapi_spec))
         // UI fallback - serves embedded static files
         .fallback(serve_ui)
-        .layer(cors)
         .with_state(state);
+
+    // Configure CORS if origins are specified
+    if let Some(origins) = cors_origins {
+        use tower_http::cors::AllowOrigin;
+
+        let cors = if origins == "*" {
+            // Allow any origin
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        } else {
+            // Parse comma-separated origins
+            let origin_list: Vec<_> = origins
+                .split(',')
+                .map(|s| s.trim().parse().expect("Invalid origin URL"))
+                .collect();
+
+            CorsLayer::new()
+                .allow_origin(AllowOrigin::list(origin_list))
+                .allow_methods(Any)
+                .allow_headers(Any)
+        };
+
+        app = app.layer(cors);
+    }
 
     let listener = tokio::net::TcpListener::bind(bind_addr).await?;
 

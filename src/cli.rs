@@ -47,7 +47,7 @@ pub enum Commands {
     Diagnostic(DiagnosticCommand),
     /// Generate shell completions
     Completion(CompletionCommand),
-    /// Start a web API server for exploring the semantic convention registry
+    /// Start the API server (Experimental)
     Serve(ServeCommand),
 }
 

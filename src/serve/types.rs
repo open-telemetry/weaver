@@ -31,6 +31,8 @@ pub struct RegistryOverview {
     pub registry_url: String,
     /// Counts of different entity types.
     pub counts: RegistryCounts,
+    // TODO: It would be better to serve the output of `weaver registry stats` here
+    // then we could draw graphs in the UI.
 }
 
 /// Counts of different entity types in the registry.

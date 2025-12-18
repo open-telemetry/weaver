@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Web API server for exploring the semantic convention registry.
+//! Web API server for registry search, schema browsing, and more.
 
 use std::net::SocketAddr;
 
@@ -34,6 +34,11 @@ pub struct ServeCommand {
     #[arg(long, default_value = "127.0.0.1:8080")]
     pub bind: SocketAddr,
 
+    /// Allowed CORS origins (comma-separated). Use '*' for any origin.
+    /// If not specified, CORS is disabled (same-origin only).
+    #[arg(long)]
+    pub cors_origins: Option<String>,
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -45,6 +50,11 @@ pub fn command(args: &ServeCommand) -> CmdResult {
 }
 
 fn run_serve(args: &ServeCommand) -> Result<ExitDirectives, DiagnosticMessages> {
+    // TODO: Currently the serve command takes a registry on the command line. Really we want to be
+    // able to hot load a registry from within the server. This would mean calling an API to load
+    // a new registry, and then the server would update its internal state to use the new registry.
+    // A UI could be built to allow selecting a registry file, or specifying a git repo/branch.
+
     info!("Loading registry from `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
@@ -76,7 +86,9 @@ fn run_serve(args: &ServeCommand) -> Result<ExitDirectives, DiagnosticMessages> 
     // Run the async server using tokio runtime
     tokio::runtime::Runtime::new()
         .expect("Failed to create tokio runtime")
-        .block_on(async { run_server(args.bind, forge_registry).await })
+        .block_on(async {
+            run_server(args.bind, forge_registry, args.cors_origins.as_deref()).await
+        })
         .map_err(DiagnosticMessages::from_error)?;
 
     Ok(ExitDirectives {

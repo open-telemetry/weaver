@@ -28,24 +28,6 @@ pub async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-/// Serve the default schema (forge).
-#[utoipa::path(
-    get,
-    path = "/api/v1/schema",
-    responses(
-        (status = 200, description = "Default forge schema", content_type = "application/json")
-    ),
-    tag = "schemas"
-)]
-pub async fn get_default_schema() -> impl IntoResponse {
-    const SCHEMA: &str = include_str!("../../schemas/forge.schema.v2.json");
-    (
-        StatusCode::OK,
-        [(axum::http::header::CONTENT_TYPE, "application/json")],
-        SCHEMA,
-    )
-}
-
 /// Serve a specific schema by name.
 #[utoipa::path(
     get,
@@ -59,7 +41,7 @@ pub async fn get_default_schema() -> impl IntoResponse {
     ),
     tag = "schemas"
 )]
-pub async fn get_schema_by_name(Path(name): Path<String>) -> impl IntoResponse {
+pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
     let name = name.trim_start_matches('/');
 
     let schema = match name {
