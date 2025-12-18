@@ -15,6 +15,8 @@
 - [In-Depth Features](#in-depth-features)
     - [JQ Filters Reference](#jq-filters-reference)
     - [Jinja Filters Reference](#jinja-filters-reference)
+    - [Prometheus Filters](#prometheus-filters)
+    - [Comment Filter](#comment-filter)
     - [Jinja Functions Reference](#jinja-functions-reference)
     - [Jinja Tests Reference](#jinja-tests-reference)
 
@@ -486,6 +488,12 @@ generation of documentation and code.
 The following filters are available (the code for all available extension can be found 
 [here](./src/extensions)):
 
+- `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric
+  (more details [here](#prometheus-filters)).
+- `prometheus_metric_names`: Generates multiple Prometheus metric names for different translation
+  strategies with optional histogram/summary expansion (more details [here](#prometheus-filters)).
+- `prometheus_unit_name`: Converts OpenTelemetry units to Prometheus-compliant unit names (more
+  details [here](#prometheus-filters)).
 - `lower_case`: Converts a string to lowercase.
 - `upper_case`: Converts a string to UPPERCASE.
 - `title_case`: Converts a string to TitleCase.
@@ -594,6 +602,82 @@ The following filters are available (the code for all available extension can be
 
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
+
+### Prometheus Filters
+
+The following filters are specific to Prometheus metric name generation and follow the 
+[OpenTelemetry Prometheus exporter specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md).
+
+Weaver provides three Prometheus-specific filters:
+- **`prometheus_metric_name`**: Generates a single metric name with a specified translation strategy.
+- **`prometheus_metric_names`**: Generates multiple metric names for different translation strategies with optional histogram/summary expansion.
+- **`prometheus_unit_name`**: Converts OpenTelemetry units to Prometheus-compliant unit names.
+
+---
+
+- `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric.
+  Takes an object with `metric_name`, `unit`, and `instrument` attributes. **Requires** a
+  `translation_strategy` parameter to control name translation:
+  
+  - `"NoTranslation"`: Returns the original metric name unchanged
+  - `"UnderscoreEscapingWithoutSuffixes"`: Sanitizes the name (dots → underscores) without adding unit/instrument suffixes
+  - `"NoUTF8EscapingWithSuffixes"`: Adds unit and instrument suffixes without name sanitization
+  - `"UnderscoreEscapingWithSuffixes"`: Sanitizes the name and adds unit/instrument suffixes
+
+  Example usage:
+  
+  ```jinja
+  {# Returns: "http.request.duration" #}
+  {{ metric|prometheus_metric_name(translation_strategy="NoTranslation") }}
+  
+  {# Returns: "http_request_duration" #}
+  {{ metric|prometheus_metric_name(translation_strategy="UnderscoreEscapingWithoutSuffixes") }}
+  
+  {# Returns: "http_request_duration_seconds" (for a metric with unit="s") #}
+  {{ metric|prometheus_metric_name(translation_strategy="UnderscoreEscapingWithSuffixes") }}
+  ```
+
+- `prometheus_metric_names`: Generates all possible Prometheus metric names from an OpenTelemetry metric,
+  considering different translation strategies and histogram/summary expansions. Takes an object with 
+  `metric_name`, `unit`, and `instrument` attributes. Accepts two optional parameters:
+  
+  - `translation_strategy`: When provided, only generates names for that specific strategy. When `None` or
+    omitted, generates names for all translation strategies (default behavior).
+  - `expand_summary_and_histogram`: When `true`, expands histogram metrics into `_bucket`, `_count`, and 
+    `_sum` variants, and summary metrics into `_count` and `_sum` variants. When `false`, returns only 
+    base metric names (default: `false`).
+
+  Example usage:
+  
+  ```jinja
+  {# Returns all possible name variants for all translation strategies #}
+  {% for name in metric|prometheus_metric_names %}
+    {{ name }}
+  {% endfor %}
+  
+  {# Returns only names for a specific translation strategy #}
+  {% for name in metric|prometheus_metric_names(translation_strategy="UnderscoreEscapingWithSuffixes") %}
+    {{ name }}
+  {% endfor %}
+  
+  {# Returns expanded histogram names with _bucket, _count, _sum suffixes #}
+  {% for name in histogram_metric|prometheus_metric_names(expand_summary_and_histogram=true) %}
+    {{ name }}
+  {% endfor %}
+  ```
+
+- `prometheus_unit_name`: Converts an OpenTelemetry unit to its Prometheus equivalent unit name.
+  Takes an object with a `unit` attribute and returns the Prometheus-compliant unit suffix.
+
+  Example usage:
+  
+  ```jinja
+  {# For a metric with unit="s", returns: "seconds" #}
+  {{ metric|prometheus_unit_name }}
+  
+  {# For a metric with unit="By", returns: "bytes" #}
+  {{ metric|prometheus_unit_name }}
+  ```
 
 ### Comment Filter
 
