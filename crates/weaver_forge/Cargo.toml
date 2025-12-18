@@ -49,7 +49,7 @@ include_dir.workspace = true
 schemars.workspace = true
 dirs.workspace = true
 log.workspace = true
-utoipa = { version = "5.3", optional = true }
+utoipa = { workspace = true, optional = true }
 
 [features]
 openapi = ["utoipa"]

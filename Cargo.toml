@@ -66,6 +66,7 @@ tokio = { version = "1.47.1", features = ["full"] }
 rouille = "3.6.2"
 convert_case = "0.7.1"
 log = { version = "0.4.28", features = ["std"] }
+utoipa = "5.3"
 
 # Features definition =========================================================
 [features]
@@ -109,7 +110,7 @@ chrono = "0.4.41"
 axum = "0.7"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 mime_guess = "2.0"
-utoipa = { version = "5.3", features = ["axum_extras"] }
+utoipa = { workspace = true, features = ["axum_extras"] }
 
 # workspace dependencies
 serde.workspace = true
