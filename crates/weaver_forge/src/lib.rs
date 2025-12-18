@@ -266,10 +266,12 @@ impl TemplateEngine {
     /// # Arguments
     ///
     /// * `context` - The context to use when generating snippets.
+    /// * `filter` - The jq filter expression to use.
     /// * `snippet_id` - The template to use when rendering the snippet.
     pub fn generate_snippet<T: Serialize>(
         &self,
         context: &T,
+        filter: &str,
         snippet_id: String,
     ) -> Result<String, Error> {
         // TODO - find the snippet by id.
@@ -287,16 +289,23 @@ impl TemplateEngine {
             .as_ref()
             .cloned()
             .unwrap_or_default();
+
         for (name, value) in self.snippet_params.params.iter() {
             // The result of the insert method is ignored because we don't care about
             // the previous value of the param.
             _ = params.insert(name.clone(), value.clone());
         }
+        // Apply the filter
+        let filter = Filter::new(filter);
+        let filter_params = Self::prepare_jq_context(&params)?;
+        let filtered_context = filter.apply(context, &filter_params)?;
         engine.add_global("params", Value::from_object(ParamsObject::new(params)));
         let template = engine
             .get_template(&snippet_id)
             .map_err(error::jinja_err_convert)?;
-        let result = template.render(context).map_err(error::jinja_err_convert)?;
+        let result = template
+            .render(filtered_context)
+            .map_err(error::jinja_err_convert)?;
         Ok(result)
     }
 
