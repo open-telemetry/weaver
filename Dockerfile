@@ -5,7 +5,9 @@ ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 
 # Install Node.js for building UI
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
+# renovate: datasource=node-version depName=node
+ARG NODE_VERSION=24
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs
 
 # list out directories to avoid pulling local cargo `target/`
