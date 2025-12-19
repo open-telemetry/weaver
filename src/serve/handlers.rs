@@ -10,6 +10,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use schemars::schema_for;
 use serde_json::json;
 
 use super::server::AppState;
@@ -33,7 +34,7 @@ pub async fn health() -> StatusCode {
     get,
     path = "/api/v1/schema/{name}",
     params(
-        ("name" = String, Path, description = "Schema name (forge or semconv)")
+        ("name" = String, Path, description = "Schema name (forge, semconv, or sample)")
     ),
     responses(
         (status = 200, description = "Requested schema", content_type = "application/json"),
@@ -45,23 +46,32 @@ pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
     let name = name.trim_start_matches('/');
 
     let schema = match name {
-        "forge" => include_str!("../../schemas/forge.schema.v2.json"),
-        "semconv" => include_str!("../../schemas/semconv.schema.v2.json"),
+        "forge" => schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry),
+        "semconv" => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        "sample" => schema_for!(weaver_live_check::Sample),
         _ => {
             return (
                 StatusCode::NOT_FOUND,
                 [(axum::http::header::CONTENT_TYPE, "application/json")],
-                json!({"error": format!("Schema '{}' not found. Available schemas: forge, semconv", name)}).to_string(),
+                json!({"error": format!("Schema '{}' not found. Available schemas: forge, semconv, sample", name)}).to_string(),
             ).into_response();
         }
     };
 
-    (
-        StatusCode::OK,
-        [(axum::http::header::CONTENT_TYPE, "application/json")],
-        schema,
-    )
-        .into_response()
+    match serde_json::to_string_pretty(&schema) {
+        Ok(schema_json) => (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "application/json")],
+            schema_json,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(axum::http::header::CONTENT_TYPE, "application/json")],
+            json!({"error": format!("Failed to serialize schema: {}", e)}).to_string(),
+        )
+            .into_response(),
+    }
 }
 
 /// Registry overview endpoint.

@@ -312,21 +312,144 @@
 
   <!-- Right panel: definition details -->
   <div class="flex-1 overflow-y-auto">
-    {#if showRoot && schema?.properties}
+    {#if showRoot && schema && (schema.properties || schema.oneOf || schema.anyOf)}
       <div class="space-y-6">
         <!-- Header -->
         <div>
           <h2 class="text-2xl font-mono font-bold mb-2">Root</h2>
-          <div class="text-base-content/70">
-            <p>Top-level properties of the schema</p>
-          </div>
+          {#if schema.description}
+            <div class="text-base-content/70">
+              <Markdown content={schema.description} />
+            </div>
+          {:else}
+            <div class="text-base-content/70">
+              <p>Top-level properties of the schema</p>
+            </div>
+          {/if}
           <div class="mt-2">
-            <span class="badge badge-outline">object</span>
+            {#if schema.type}
+              <span class="badge badge-outline">{schema.type}</span>
+            {:else if schema.oneOf}
+              <span class="badge badge-outline">oneOf</span>
+            {:else if schema.anyOf}
+              <span class="badge badge-outline">anyOf</span>
+            {/if}
           </div>
         </div>
 
+        <!-- oneOf/anyOf at root level -->
+        {#if schema.oneOf || schema.anyOf}
+          {@const variants = schema.oneOf || schema.anyOf}
+          <div>
+            <h3 class="text-lg font-bold mb-3">{schema.oneOf ? 'One Of' : 'Any Of'}</h3>
+            <div class="space-y-2">
+              {#each variants as variant}
+                {@const variantType = formatType(variant)}
+                {@const variantParts = parseTypeString(variantType)}
+                <div class="card bg-base-200">
+                  <div class="card-body p-4">
+                    <!-- Show enum value if it's a single-value enum (like template types) -->
+                    {#if variant.enum && variant.enum.length === 1}
+                      <code class="badge badge-outline font-mono">{variant.enum[0]}</code>
+                    {:else if variant.type === 'object' && variant.properties}
+                      <!-- Show object type with inline properties -->
+                      <span class="badge badge-outline font-mono">object</span>
+                    {:else}
+                      <span class="badge badge-outline font-mono inline-flex items-center gap-1">
+                        {#each variantParts as part}
+                          {#if part.isClickable}
+                            <button
+                              class="hover:text-primary cursor-pointer underline"
+                              onclick={() => selectDefinition(part.text)}
+                            >
+                              {part.text}
+                            </button>
+                          {:else}
+                            <span>{part.text}</span>
+                          {/if}
+                        {/each}
+                      </span>
+                    {/if}
+                    {#if variant.description}
+                      <div class="text-sm mt-2">
+                        <Markdown content={variant.description} />
+                      </div>
+                    {/if}
+
+                    <!-- Show object properties inline -->
+                    {#if variant.type === 'object' && variant.properties}
+                      <div class="mt-3">
+                        <table class="table table-xs">
+                          <thead>
+                            <tr>
+                              <th>Field</th>
+                              <th>Type</th>
+                              <th>Required</th>
+                              <th>Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each Object.entries(variant.properties) as [propName, propDef]}
+                              {@const isRequired = variant.required?.includes(propName)}
+                              {@const typeStr = formatType(propDef, !isRequired)}
+                              {@const typeParts = parseTypeString(typeStr)}
+                              <tr>
+                                <td>
+                                  <code class="font-mono text-xs">{propName}</code>
+                                </td>
+                                <td>
+                                  <span class="badge badge-xs badge-outline font-mono inline-flex items-center gap-1">
+                                    {#each typeParts as part}
+                                      {#if part.isClickable}
+                                        <button
+                                          class="hover:text-primary cursor-pointer underline"
+                                          onclick={() => selectDefinition(part.text)}
+                                        >
+                                          {part.text}
+                                        </button>
+                                      {:else}
+                                        <span>{part.text}</span>
+                                      {/if}
+                                    {/each}
+                                  </span>
+                                  <!-- Show enum values inline if present -->
+                                  {#if propDef.enum}
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                      {#each propDef.enum as enumVal}
+                                        <code class="badge badge-xs">{enumVal}</code>
+                                      {/each}
+                                    </div>
+                                  {/if}
+                                </td>
+                                <td>
+                                  {#if isRequired}
+                                    <span class="badge badge-xs badge-error">required</span>
+                                  {:else}
+                                    <span class="badge badge-xs badge-ghost">optional</span>
+                                  {/if}
+                                </td>
+                                <td class="text-xs">
+                                  {#if propDef.description}
+                                    <InlineMarkdown content={propDef.description} />
+                                  {:else}
+                                    -
+                                  {/if}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <!-- Required fields -->
-        {#if schema.required && schema.required.length > 0}
+        {#if schema.properties && schema.required && schema.required.length > 0}
           <div>
             <h3 class="text-lg font-bold mb-3">Required Fields</h3>
             <div class="flex flex-wrap gap-2">
@@ -338,20 +461,21 @@
         {/if}
 
         <!-- Properties -->
-        <div>
-          <h3 class="text-lg font-bold mb-3">Properties</h3>
-          <div class="overflow-x-auto">
-            <table class="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Type</th>
-                  <th>Required</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each Object.entries(schema.properties) as [propName, propDef]}
+        {#if schema.properties}
+          <div>
+            <h3 class="text-lg font-bold mb-3">Properties</h3>
+            <div class="overflow-x-auto">
+              <table class="table table-zebra">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each Object.entries(schema.properties) as [propName, propDef]}
                   {@const isRequired = schema.required?.includes(propName)}
                   {@const typeStr = formatType(propDef, !isRequired)}
                   {@const typeParts = parseTypeString(typeStr)}
@@ -390,21 +514,22 @@
                       {/if}
                     </td>
                   </tr>
-                {/each}
-              </tbody>
-            </table>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        {/if}
 
         <!-- Raw JSON view -->
         <div>
           <h3 class="text-lg font-bold mb-3">Raw JSON</h3>
           <div class="mockup-code bg-base-300">
-            <pre class="text-xs overflow-x-auto text-base-content"><code>{JSON.stringify({
+            <pre class="text-xs overflow-x-auto text-base-content"><code>{JSON.stringify(schema.properties ? {
   type: 'object',
   properties: schema.properties,
   required: schema.required
-}, null, 2)}</code></pre>
+} : schema, null, 2)}</code></pre>
           </div>
         </div>
       </div>
