@@ -34,7 +34,7 @@ pub async fn health() -> StatusCode {
     get,
     path = "/api/v1/schema/{name}",
     params(
-        ("name" = String, Path, description = "Schema name (forge, semconv, or sample)")
+        ("name" = String, Path, description = "Schema name (ForgeRegistryV2, SemconvDefinitionV2, or LiveCheckSample)")
     ),
     responses(
         (status = 200, description = "Requested schema", content_type = "application/json"),
@@ -46,14 +46,14 @@ pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
     let name = name.trim_start_matches('/');
 
     let schema = match name {
-        "forge" => schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry),
-        "semconv" => schema_for!(weaver_semconv::v2::SemConvSpecV2),
-        "sample" => schema_for!(weaver_live_check::Sample),
+        "ForgeRegistryV2" => schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry),
+        "SemconvDefinitionV2" => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        "LiveCheckSample" => schema_for!(weaver_live_check::Sample),
         _ => {
             return (
                 StatusCode::NOT_FOUND,
                 [(axum::http::header::CONTENT_TYPE, "application/json")],
-                json!({"error": format!("Schema '{}' not found. Available schemas: forge, semconv, sample", name)}).to_string(),
+                json!({"error": format!("Schema '{}' not found. Available schemas: ForgeRegistryV2, SemconvDefinitionV2, LiveCheckSample", name)}).to_string(),
             ).into_response();
         }
     };

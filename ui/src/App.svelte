@@ -137,9 +137,9 @@
       <li><a href="/" use:link>Dashboard</a></li>
       <li><a href="/search" use:link>Search</a></li>
       <li class="menu-title mt-4">Schema</li>
-      <li><a href="/schema" use:link>Forge Resolved</a></li>
-      <li><a href="/schema?schema=semconv" use:link>Semconv</a></li>
-      <li><a href="/schema?schema=sample" use:link>Live-check Sample</a></li>
+      <li><a href="/schema?schema=ForgeRegistryV2" use:link>ForgeRegistryV2</a></li>
+      <li><a href="/schema?schema=SemconvDefinitionV2" use:link>SemconvDefinitionV2</a></li>
+      <li><a href="/schema?schema=LiveCheckSample" use:link>LiveCheckSample</a></li>
       <li class="menu-title mt-4">Developer</li>
       <li><a href="/api-docs" use:link>API Documentation</a></li>
     </ul>
