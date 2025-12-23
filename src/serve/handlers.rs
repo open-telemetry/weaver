@@ -16,7 +16,7 @@ use serde_json::json;
 use super::server::AppState;
 use super::types::{RegistryCounts, RegistryStats, SearchParams, SearchResponse};
 
-/// Health check endpoint.
+/// Health check.
 #[utoipa::path(
     get,
     path = "/health",
@@ -29,7 +29,7 @@ pub async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-/// Serve a specific schema by name.
+/// Get a schema by name.
 #[utoipa::path(
     get,
     path = "/api/v1/schema/{name}",
@@ -74,7 +74,7 @@ pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// Registry stats endpoint.
+/// Get statistics for the registry.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/stats",
@@ -101,7 +101,7 @@ pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl Into
     Json(stats)
 }
 
-/// Get a specific attribute by key.
+/// Get an attribute by key.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/attribute/{key}",
@@ -112,7 +112,7 @@ pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl Into
         (status = 200, description = "Attribute details", body = weaver_forge::v2::attribute::Attribute),
         (status = 404, description = "Attribute not found")
     ),
-    tag = "attributes"
+    tag = "registry"
 )]
 pub async fn get_registry_attribute(
     State(state): State<Arc<AppState>>,
@@ -124,7 +124,7 @@ pub async fn get_registry_attribute(
     let attr = state.registry.attributes.iter().find(|a| a.key == key);
 
     match attr {
-        Some(attr) => Json(json!(attr)).into_response(),
+        Some(attr) => Json(attr).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Attribute not found", "key": key})),
@@ -133,7 +133,7 @@ pub async fn get_registry_attribute(
     }
 }
 
-/// Get a specific metric by name.
+/// Get a metric by name.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/metric/{name}",
@@ -144,7 +144,7 @@ pub async fn get_registry_attribute(
         (status = 200, description = "Metric details", body = weaver_forge::v2::metric::Metric),
         (status = 404, description = "Metric not found")
     ),
-    tag = "metrics"
+    tag = "registry"
 )]
 pub async fn get_registry_metric(
     State(state): State<Arc<AppState>>,
@@ -160,7 +160,7 @@ pub async fn get_registry_metric(
         .find(|m| &*m.name == name);
 
     match metric {
-        Some(metric) => Json(json!(metric)).into_response(),
+        Some(metric) => Json(metric).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Metric not found", "name": name})),
@@ -169,7 +169,7 @@ pub async fn get_registry_metric(
     }
 }
 
-/// Get a specific span by type.
+/// Get a span by type.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/span/{type}",
@@ -180,7 +180,7 @@ pub async fn get_registry_metric(
         (status = 200, description = "Span details", body = weaver_forge::v2::span::Span),
         (status = 404, description = "Span not found")
     ),
-    tag = "spans"
+    tag = "registry"
 )]
 pub async fn get_registry_span(
     State(state): State<Arc<AppState>>,
@@ -196,7 +196,7 @@ pub async fn get_registry_span(
         .find(|s| &*s.r#type == span_type);
 
     match span {
-        Some(span) => Json(json!(span)).into_response(),
+        Some(span) => Json(span).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Span not found", "type": span_type})),
@@ -205,7 +205,7 @@ pub async fn get_registry_span(
     }
 }
 
-/// Get a specific event by name.
+/// Get an event by name.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/event/{name}",
@@ -216,7 +216,7 @@ pub async fn get_registry_span(
         (status = 200, description = "Event details", body = weaver_forge::v2::event::Event),
         (status = 404, description = "Event not found")
     ),
-    tag = "events"
+    tag = "registry"
 )]
 pub async fn get_registry_event(
     State(state): State<Arc<AppState>>,
@@ -232,7 +232,7 @@ pub async fn get_registry_event(
         .find(|e| &*e.name == name);
 
     match event {
-        Some(event) => Json(json!(event)).into_response(),
+        Some(event) => Json(event).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Event not found", "name": name})),
@@ -241,7 +241,7 @@ pub async fn get_registry_event(
     }
 }
 
-/// Get a specific entity by type.
+/// Get an entity by type.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/entity/{type}",
@@ -252,7 +252,7 @@ pub async fn get_registry_event(
         (status = 200, description = "Entity details", body = weaver_forge::v2::entity::Entity),
         (status = 404, description = "Entity not found")
     ),
-    tag = "entities"
+    tag = "registry"
 )]
 pub async fn get_registry_entity(
     State(state): State<Arc<AppState>>,
@@ -268,7 +268,7 @@ pub async fn get_registry_entity(
         .find(|e| &*e.r#type == entity_type);
 
     match entity {
-        Some(entity) => Json(json!(entity)).into_response(),
+        Some(entity) => Json(entity).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Entity not found", "type": entity_type})),
@@ -277,7 +277,7 @@ pub async fn get_registry_entity(
     }
 }
 
-/// Search registry across all types or list all items (browse mode).
+/// Search registry across all attributes and signals.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/search",
@@ -287,7 +287,7 @@ pub async fn get_registry_entity(
     responses(
         (status = 200, description = "Registry search results", body = SearchResponse)
     ),
-    tag = "search"
+    tag = "registry"
 )]
 pub async fn search_registry(
     State(state): State<Arc<AppState>>,

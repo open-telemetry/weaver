@@ -107,13 +107,7 @@ impl From<std::io::Error> for Error {
     tags(
         (name = "health", description = "Health check endpoints"),
         (name = "schemas", description = "JSON schema endpoints"),
-        (name = "registry", description = "Registry overview"),
-        (name = "attributes", description = "Attribute lookup"),
-        (name = "metrics", description = "Metric lookup"),
-        (name = "spans", description = "Span lookup"),
-        (name = "events", description = "Event lookup"),
-        (name = "entities", description = "Entity lookup"),
-        (name = "search", description = "Search and browse"),
+        (name = "registry", description = "Registry stats, search, and resource lookup"),
     )
 )]
 pub struct ApiDoc;
