@@ -15,6 +15,7 @@ use std::fmt::{Display, Formatter};
 
 /// The different ways to deprecate an attribute, a metric, ...
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "reason")]
 pub enum Deprecated {

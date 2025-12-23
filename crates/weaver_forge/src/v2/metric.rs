@@ -11,6 +11,7 @@ use weaver_semconv::{
 
 /// The definition of a metric signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Metric {
     /// The name of the metric.
@@ -44,6 +45,7 @@ pub struct Metric {
 
 /// A special type of reference to attributes that remembers metric-specific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct MetricAttribute {
     /// Base attribute definitions.

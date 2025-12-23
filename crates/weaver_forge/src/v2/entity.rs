@@ -11,6 +11,7 @@ use crate::v2::attribute::Attribute;
 
 /// The definition of an entity signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Entity {
     /// The type of the entity.
@@ -33,6 +34,7 @@ pub struct Entity {
 
 /// A special type of reference to attributes that remembers entity-specific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct EntityAttribute {
     /// Base attribute definitions.

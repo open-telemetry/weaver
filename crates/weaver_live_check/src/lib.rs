@@ -271,8 +271,7 @@ pub trait Ingester {
     fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error>;
 }
 
-/// Represents a sample root entity. A root entity has no contextual
-/// dependency on a parent entity and can therefore be ingested independently.
+/// Live-check Sample root items.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Sample {

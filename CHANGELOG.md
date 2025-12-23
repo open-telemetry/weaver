@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
+
 # [0.20.0] - 2025-12-11
 
 - Add support for V2 schema in `weaver diff` ([#1053](https://github.com/open-telemetry/weaver/pull/1053) by @jsuereth)

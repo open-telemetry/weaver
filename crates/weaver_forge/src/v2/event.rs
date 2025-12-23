@@ -11,6 +11,7 @@ use crate::v2::attribute::Attribute;
 
 /// The definition of an event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
@@ -36,6 +37,7 @@ pub struct Event {
 
 /// A special type of reference to attributes that remembers event-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct EventAttribute {
     /// Base attribute definitions.

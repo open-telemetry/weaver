@@ -600,6 +600,7 @@ impl Default for GroupType {
 
 /// The span kind.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum SpanKindSpec {
     /// An internal span.
@@ -616,6 +617,7 @@ pub enum SpanKindSpec {
 
 /// The type of the metric.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum InstrumentSpec {
     /// An up-down counter metric.

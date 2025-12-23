@@ -25,6 +25,7 @@ mod cli;
 mod diagnostic;
 mod format;
 mod registry;
+mod serve;
 mod weaver;
 
 /// Set of parameters used to specify the diagnostic format.
@@ -134,6 +135,7 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),
+        Some(Commands::Serve(params)) => serve::command(params),
         Some(Commands::Completion(completions)) => {
             if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
                 log_error(&e);

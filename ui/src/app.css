@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+.stability-stable {
+  @apply badge-success;
+}
+
+.stability-development {
+  @apply badge-warning;
+}
+
+.stability-alpha,
+.stability-beta {
+  @apply badge-info;
+}
