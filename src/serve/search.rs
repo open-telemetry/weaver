@@ -12,6 +12,9 @@ use weaver_semconv::stability::Stability;
 
 use super::types::{ScoredResult, SearchResult, SearchType};
 
+//TODO: Consider using a fuzzy matching crate for improved search capabilities.
+// e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
+
 /// Search context for performing fuzzy searches across the registry.
 pub struct SearchContext {
     /// All searchable items indexed for fast lookup.
