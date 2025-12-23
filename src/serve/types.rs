@@ -24,9 +24,9 @@ pub struct ScoredResult<T> {
     pub item: Arc<T>,
 }
 
-/// Registry overview response.
+/// Registry stats response.
 #[derive(Debug, Serialize, ToSchema)]
-pub struct RegistryOverview {
+pub struct RegistryStats {
     /// The registry URL.
     pub registry_url: String,
     /// Counts of different entity types.

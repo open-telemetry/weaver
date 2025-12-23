@@ -8,28 +8,28 @@ async function fetchJSON(url, options = {}) {
   return response.json();
 }
 
-export async function getRegistry() {
-  return fetchJSON(`${BASE_URL}/registry`);
+export async function getRegistryStats() {
+  return fetchJSON(`${BASE_URL}/registry/stats`);
 }
 
 export async function getAttribute(key) {
-  return fetchJSON(`${BASE_URL}/attribute/${key}`);
+  return fetchJSON(`${BASE_URL}/registry/attribute/${key}`);
 }
 
 export async function getMetric(name) {
-  return fetchJSON(`${BASE_URL}/metric/${name}`);
+  return fetchJSON(`${BASE_URL}/registry/metric/${name}`);
 }
 
 export async function getSpan(type) {
-  return fetchJSON(`${BASE_URL}/span/${type}`);
+  return fetchJSON(`${BASE_URL}/registry/span/${type}`);
 }
 
 export async function getEvent(name) {
-  return fetchJSON(`${BASE_URL}/event/${name}`);
+  return fetchJSON(`${BASE_URL}/registry/event/${name}`);
 }
 
 export async function getEntity(type) {
-  return fetchJSON(`${BASE_URL}/entity/${type}`);
+  return fetchJSON(`${BASE_URL}/registry/entity/${type}`);
 }
 
 /**
@@ -48,5 +48,5 @@ export async function search(query = null, type = 'all', stability = null, limit
   if (stability) searchParams.set('stability', stability);
   if (limit) searchParams.set('limit', limit);
   if (offset) searchParams.set('offset', offset);
-  return fetchJSON(`${BASE_URL}/search?${searchParams.toString()}`);
+  return fetchJSON(`${BASE_URL}/registry/search?${searchParams.toString()}`);
 }

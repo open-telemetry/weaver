@@ -14,7 +14,7 @@ use schemars::schema_for;
 use serde_json::json;
 
 use super::server::AppState;
-use super::types::{RegistryCounts, RegistryOverview, SearchParams, SearchResponse};
+use super::types::{RegistryCounts, RegistryStats, SearchParams, SearchResponse};
 
 /// Health check endpoint.
 #[utoipa::path(
@@ -74,19 +74,19 @@ pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// Registry overview endpoint.
+/// Registry stats endpoint.
 #[utoipa::path(
     get,
-    path = "/api/v1/registry",
+    path = "/api/v1/registry/stats",
     responses(
-        (status = 200, description = "Registry overview", body = RegistryOverview)
+        (status = 200, description = "Registry stats", body = RegistryStats)
     ),
     tag = "registry"
 )]
-pub async fn registry_overview(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let registry = &state.registry;
 
-    let overview = RegistryOverview {
+    let stats = RegistryStats {
         registry_url: registry.registry_url.clone(),
         counts: RegistryCounts {
             attributes: registry.attributes.len(),
@@ -98,13 +98,13 @@ pub async fn registry_overview(State(state): State<Arc<AppState>>) -> impl IntoR
         },
     };
 
-    Json(overview)
+    Json(stats)
 }
 
 /// Get a specific attribute by key.
 #[utoipa::path(
     get,
-    path = "/api/v1/attribute/{key}",
+    path = "/api/v1/registry/attribute/{key}",
     params(
         ("key" = String, Path, description = "Attribute key")
     ),
@@ -114,7 +114,7 @@ pub async fn registry_overview(State(state): State<Arc<AppState>>) -> impl IntoR
     ),
     tag = "attributes"
 )]
-pub async fn get_attribute(
+pub async fn get_registry_attribute(
     State(state): State<Arc<AppState>>,
     Path(key): Path<String>,
 ) -> impl IntoResponse {
@@ -136,7 +136,7 @@ pub async fn get_attribute(
 /// Get a specific metric by name.
 #[utoipa::path(
     get,
-    path = "/api/v1/metric/{name}",
+    path = "/api/v1/registry/metric/{name}",
     params(
         ("name" = String, Path, description = "Metric name")
     ),
@@ -146,7 +146,7 @@ pub async fn get_attribute(
     ),
     tag = "metrics"
 )]
-pub async fn get_metric(
+pub async fn get_registry_metric(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
 ) -> impl IntoResponse {
@@ -172,7 +172,7 @@ pub async fn get_metric(
 /// Get a specific span by type.
 #[utoipa::path(
     get,
-    path = "/api/v1/span/{type}",
+    path = "/api/v1/registry/span/{type}",
     params(
         ("type" = String, Path, description = "Span type")
     ),
@@ -182,7 +182,7 @@ pub async fn get_metric(
     ),
     tag = "spans"
 )]
-pub async fn get_span(
+pub async fn get_registry_span(
     State(state): State<Arc<AppState>>,
     Path(span_type): Path<String>,
 ) -> impl IntoResponse {
@@ -208,7 +208,7 @@ pub async fn get_span(
 /// Get a specific event by name.
 #[utoipa::path(
     get,
-    path = "/api/v1/event/{name}",
+    path = "/api/v1/registry/event/{name}",
     params(
         ("name" = String, Path, description = "Event name")
     ),
@@ -218,7 +218,7 @@ pub async fn get_span(
     ),
     tag = "events"
 )]
-pub async fn get_event(
+pub async fn get_registry_event(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
 ) -> impl IntoResponse {
@@ -244,7 +244,7 @@ pub async fn get_event(
 /// Get a specific entity by type.
 #[utoipa::path(
     get,
-    path = "/api/v1/entity/{type}",
+    path = "/api/v1/registry/entity/{type}",
     params(
         ("type" = String, Path, description = "Entity type")
     ),
@@ -254,7 +254,7 @@ pub async fn get_event(
     ),
     tag = "entities"
 )]
-pub async fn get_entity(
+pub async fn get_registry_entity(
     State(state): State<Arc<AppState>>,
     Path(entity_type): Path<String>,
 ) -> impl IntoResponse {
@@ -277,19 +277,19 @@ pub async fn get_entity(
     }
 }
 
-/// Search across all types or list all items (browse mode).
+/// Search registry across all types or list all items (browse mode).
 #[utoipa::path(
     get,
-    path = "/api/v1/search",
+    path = "/api/v1/registry/search",
     params(
         SearchParams
     ),
     responses(
-        (status = 200, description = "Search results", body = SearchResponse)
+        (status = 200, description = "Registry search results", body = SearchResponse)
     ),
     tag = "search"
 )]
-pub async fn search(
+pub async fn search_registry(
     State(state): State<Arc<AppState>>,
     Query(params): Query<SearchParams>,
 ) -> impl IntoResponse {

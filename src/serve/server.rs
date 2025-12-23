@@ -26,7 +26,7 @@ use weaver_semconv::stability::Stability;
 use super::handlers;
 use super::search::SearchContext;
 use super::types::{
-    RegistryCounts, RegistryOverview, ScoredResult, SearchResponse, SearchResult, SearchType,
+    RegistryCounts, RegistryStats, ScoredResult, SearchResponse, SearchResult, SearchType,
 };
 use super::ui::UI_DIST;
 
@@ -76,17 +76,17 @@ impl From<std::io::Error> for Error {
     paths(
         handlers::health,
         handlers::get_schema,
-        handlers::registry_overview,
-        handlers::get_attribute,
-        handlers::get_metric,
-        handlers::get_span,
-        handlers::get_event,
-        handlers::get_entity,
-        handlers::search,
+        handlers::get_registry_stats,
+        handlers::get_registry_attribute,
+        handlers::get_registry_metric,
+        handlers::get_registry_span,
+        handlers::get_registry_event,
+        handlers::get_registry_entity,
+        handlers::search_registry,
     ),
     components(
         schemas(
-            RegistryOverview,
+            RegistryStats,
             RegistryCounts,
             SearchType,
             SearchResponse,
@@ -148,16 +148,16 @@ pub async fn run_server(
         .route("/health", get(handlers::health))
         // Schemas
         .route("/api/v1/schema/*name", get(handlers::get_schema))
-        // Registry overview
-        .route("/api/v1/registry", get(handlers::registry_overview))
+        // Registry stats
+        .route("/api/v1/registry/stats", get(handlers::get_registry_stats))
         // Individual resources
-        .route("/api/v1/attribute/*key", get(handlers::get_attribute))
-        .route("/api/v1/metric/*name", get(handlers::get_metric))
-        .route("/api/v1/span/*type", get(handlers::get_span))
-        .route("/api/v1/event/*name", get(handlers::get_event))
-        .route("/api/v1/entity/*type", get(handlers::get_entity))
+        .route("/api/v1/registry/attribute/*key", get(handlers::get_registry_attribute))
+        .route("/api/v1/registry/metric/*name", get(handlers::get_registry_metric))
+        .route("/api/v1/registry/span/*type", get(handlers::get_registry_span))
+        .route("/api/v1/registry/event/*name", get(handlers::get_registry_event))
+        .route("/api/v1/registry/entity/*type", get(handlers::get_registry_entity))
         // Search
-        .route("/api/v1/search", get(handlers::search))
+        .route("/api/v1/registry/search", get(handlers::search_registry))
         // OpenAPI specification
         .route("/api/v1/openapi.json", get(openapi_spec))
         // UI fallback - serves embedded static files
