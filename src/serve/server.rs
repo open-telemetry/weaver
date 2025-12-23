@@ -145,11 +145,26 @@ pub async fn run_server(
         // Registry stats
         .route("/api/v1/registry/stats", get(handlers::get_registry_stats))
         // Individual resources
-        .route("/api/v1/registry/attribute/*key", get(handlers::get_registry_attribute))
-        .route("/api/v1/registry/metric/*name", get(handlers::get_registry_metric))
-        .route("/api/v1/registry/span/*type", get(handlers::get_registry_span))
-        .route("/api/v1/registry/event/*name", get(handlers::get_registry_event))
-        .route("/api/v1/registry/entity/*type", get(handlers::get_registry_entity))
+        .route(
+            "/api/v1/registry/attribute/*key",
+            get(handlers::get_registry_attribute),
+        )
+        .route(
+            "/api/v1/registry/metric/*name",
+            get(handlers::get_registry_metric),
+        )
+        .route(
+            "/api/v1/registry/span/*type",
+            get(handlers::get_registry_span),
+        )
+        .route(
+            "/api/v1/registry/event/*name",
+            get(handlers::get_registry_event),
+        )
+        .route(
+            "/api/v1/registry/entity/*type",
+            get(handlers::get_registry_entity),
+        )
         // Search
         .route("/api/v1/registry/search", get(handlers::search_registry))
         // OpenAPI specification
