@@ -33,10 +33,8 @@
       currentPage = parseInt(params.get("page")) || 1;
       initialized = true;
 
-      // Perform initial search if there are parameters
-      if (query || searchType !== "all" || stabilityFilter) {
-        performSearch();
-      }
+      // Perform initial search (even with empty criteria to browse all items)
+      performSearch();
     }
   });
 

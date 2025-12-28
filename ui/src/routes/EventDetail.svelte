@@ -18,6 +18,15 @@
         .catch(e => error = e.message);
     }
   });
+
+  let copied = $state(false);
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      copied = true;
+      setTimeout(() => copied = false, 2000);
+    });
+  }
 </script>
 
 <div class="space-y-4">
@@ -30,8 +39,24 @@
       <span class="loading loading-spinner loading-lg"></span>
     </div>
   {:else}
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-4 flex-wrap">
       <h1 class="text-2xl font-bold font-mono">{data.name}</h1>
+      <button
+        class="btn btn-ghost btn-sm btn-circle"
+        onclick={() => copyToClipboard(data.name)}
+        title="Copy to clipboard"
+      >
+        {#if copied}
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        {:else}
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        {/if}
+      </button>
+      <span class="badge badge-outline">Event</span>
       <StabilityBadge stability={data.stability} />
       {#if data.deprecated}
         <span class="badge badge-warning">deprecated</span>

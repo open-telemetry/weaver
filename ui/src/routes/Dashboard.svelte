@@ -33,35 +33,35 @@
     {/if}
 
     <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-      <div class="stat">
+      <a href="/search?type=attribute" use:link class="stat hover:bg-base-300 cursor-pointer transition-colors">
         <div class="stat-title">Attributes</div>
         <div class="stat-value">{stats.counts.attributes}</div>
         <div class="stat-desc">Semantic attributes</div>
-      </div>
+      </a>
 
-      <div class="stat">
+      <a href="/search?type=metric" use:link class="stat hover:bg-base-300 cursor-pointer transition-colors">
         <div class="stat-title">Metrics</div>
         <div class="stat-value">{stats.counts.metrics}</div>
         <div class="stat-desc">Metric definitions</div>
-      </div>
+      </a>
 
-      <div class="stat">
+      <a href="/search?type=span" use:link class="stat hover:bg-base-300 cursor-pointer transition-colors">
         <div class="stat-title">Spans</div>
         <div class="stat-value">{stats.counts.spans}</div>
         <div class="stat-desc">Span types</div>
-      </div>
+      </a>
 
-      <div class="stat">
+      <a href="/search?type=event" use:link class="stat hover:bg-base-300 cursor-pointer transition-colors">
         <div class="stat-title">Events</div>
         <div class="stat-value">{stats.counts.events}</div>
         <div class="stat-desc">Event definitions</div>
-      </div>
+      </a>
 
-      <div class="stat">
+      <a href="/search?type=entity" use:link class="stat hover:bg-base-300 cursor-pointer transition-colors">
         <div class="stat-title">Entities</div>
         <div class="stat-value">{stats.counts.entities}</div>
         <div class="stat-desc">Entity types</div>
-      </div>
+      </a>
     </div>
   {/if}
 </div>

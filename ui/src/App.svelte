@@ -1,6 +1,6 @@
 <script>
   import Router from "svelte-spa-router";
-  import { link } from "svelte-spa-router";
+  import { link, location } from "svelte-spa-router";
   import Dashboard from "./routes/Dashboard.svelte";
   import AttributeDetail from "./routes/AttributeDetail.svelte";
   import MetricDetail from "./routes/MetricDetail.svelte";
@@ -12,19 +12,33 @@
   import ApiDocs from "./routes/ApiDocs.svelte";
 
   const routes = {
-    "/": Dashboard,
+    "/": Search,
+    "/search": Search,
+    "/stats": Dashboard,
     "/attribute/*": AttributeDetail,
     "/metric/*": MetricDetail,
     "/span/*": SpanDetail,
     "/event/*": EventDetail,
     "/entity/*": EntityDetail,
-    "/search": Search,
     "/schema": Schema,
     "/api-docs": ApiDocs,
   };
 
-  let searchQuery = $state("");
   let theme = $state("light");
+  let currentPath = $state("");
+
+  // Track current location
+  $effect(() => {
+    const unsubscribe = location.subscribe(value => {
+      currentPath = value;
+    });
+    return unsubscribe;
+  });
+
+  function isActive(path) {
+    if (path === "/") return currentPath === "/";
+    return currentPath.startsWith(path);
+  }
 
   // Load theme from localStorage on mount
   $effect(() => {
@@ -38,12 +52,6 @@
     theme = newTheme;
     localStorage.setItem("theme", newTheme);
     document.documentElement.setAttribute("data-theme", newTheme);
-  }
-
-  function handleSearch(e) {
-    if (e.key === "Enter" && searchQuery.trim()) {
-      window.location.hash = `/search?q=${encodeURIComponent(searchQuery)}`;
-    }
   }
 </script>
 
@@ -74,15 +82,6 @@
         <a href="/" use:link class="btn btn-ghost text-xl">Weaver</a>
       </div>
       <div class="flex-none gap-2">
-        <div class="form-control">
-          <input
-            type="text"
-            placeholder="Search..."
-            class="input input-bordered w-24 md:w-auto"
-            bind:value={searchQuery}
-            onkeydown={handleSearch}
-          />
-        </div>
         <button
           class="btn btn-ghost btn-circle"
           onclick={toggleTheme}
@@ -134,14 +133,14 @@
     <label for="sidebar" class="drawer-overlay"></label>
     <ul class="menu p-4 w-64 min-h-full bg-base-200 text-base-content">
       <li class="menu-title">Registry</li>
-      <li><a href="/" use:link>Dashboard</a></li>
-      <li><a href="/search" use:link>Search</a></li>
+      <li><a href="/" use:link class:active={isActive("/") && currentPath === "/"}>Search</a></li>
+      <li><a href="/stats" use:link class:active={isActive("/stats")}>Stats</a></li>
       <li class="menu-title mt-4">Schema</li>
-      <li><a href="/schema?schema=ForgeRegistryV2" use:link>ForgeRegistryV2</a></li>
-      <li><a href="/schema?schema=SemconvDefinitionV2" use:link>SemconvDefinitionV2</a></li>
-      <li><a href="/schema?schema=LiveCheckSample" use:link>LiveCheckSample</a></li>
+      <li><a href="/schema?schema=ForgeRegistryV2" use:link class:active={isActive("/schema") && currentPath.includes("ForgeRegistryV2")}>ForgeRegistryV2</a></li>
+      <li><a href="/schema?schema=SemconvDefinitionV2" use:link class:active={isActive("/schema") && currentPath.includes("SemconvDefinitionV2")}>SemconvDefinitionV2</a></li>
+      <li><a href="/schema?schema=LiveCheckSample" use:link class:active={isActive("/schema") && currentPath.includes("LiveCheckSample")}>LiveCheckSample</a></li>
       <li class="menu-title mt-4">Developer</li>
-      <li><a href="/api-docs" use:link>API Documentation</a></li>
+      <li><a href="/api-docs" use:link class:active={isActive("/api-docs")}>API Documentation</a></li>
     </ul>
   </div>
 </div>
