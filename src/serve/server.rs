@@ -24,11 +24,9 @@ use weaver_forge::v2::{
 use weaver_semconv::stability::Stability;
 
 use super::handlers;
-use super::search::SearchContext;
-use super::types::{
-    RegistryCounts, RegistryStats, ScoredResult, SearchResponse, SearchResult, SearchType,
-};
+use super::types::{RegistryCounts, RegistryStats, SearchResponse};
 use super::ui::UI_DIST;
+use weaver_search::{ScoredResult, SearchContext, SearchResult, SearchType};
 
 /// Shared application state for all request handlers.
 pub struct AppState {

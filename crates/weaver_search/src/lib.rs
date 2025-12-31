@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Search functionality for the semantic convention registry.
+//!
+//! This crate provides a search engine for querying OpenTelemetry semantic
+//! convention registries. It supports fuzzy matching, type filtering, and
+//! stability filtering.
+
+#![doc = include_str!("../README.md")]
+
+mod types;
+
+pub use types::{ScoredResult, SearchResult, SearchType};
 
 use std::sync::Arc;
 
@@ -9,8 +19,6 @@ use weaver_forge::v2::{
     registry::ForgeResolvedRegistry, span::Span,
 };
 use weaver_semconv::stability::Stability;
-
-use super::types::{ScoredResult, SearchResult, SearchType};
 
 //TODO: Consider using a fuzzy matching crate for improved search capabilities.
 // e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
@@ -37,6 +45,7 @@ enum SearchableItem {
 
 impl SearchContext {
     /// Build a search context from a resolved registry.
+    #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
         let mut items = Vec::new();
 
@@ -81,6 +90,7 @@ impl SearchContext {
     /// # Returns
     ///
     /// Tuple of (results, total_count) for pagination.
+    #[must_use]
     pub fn search(
         &self,
         query: Option<&str>,

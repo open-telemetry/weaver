@@ -5317,6 +5317,7 @@ dependencies = [
  "weaver_live_check",
  "weaver_resolved_schema",
  "weaver_resolver",
+ "weaver_search",
  "weaver_semconv",
  "weaver_semconv_gen",
  "weaver_version",
@@ -5511,6 +5512,17 @@ dependencies = [
  "weaver_common",
  "weaver_diff",
  "weaver_resolved_schema",
+ "weaver_semconv",
+]
+
+[[package]]
+name = "weaver_search"
+version = "0.20.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "utoipa",
+ "weaver_forge",
  "weaver_semconv",
 ]
 

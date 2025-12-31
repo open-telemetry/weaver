@@ -12,7 +12,6 @@ use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
 
 mod handlers;
-mod search;
 mod server;
 mod types;
 mod ui;
