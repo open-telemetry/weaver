@@ -8,7 +8,7 @@ ARG TARGETPLATFORM
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=24
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
-    apt-get install -y nodejs
+  apt-get install -y nodejs
 
 # Copy UI package files first for better layer caching
 COPY ui/package.json ui/package-lock.json /build/ui/
@@ -27,7 +27,6 @@ COPY data /build/data
 COPY src /build/src
 COPY tests /build/tests
 COPY defaults /build/defaults
-COPY schemas /build/schemas
 COPY cross-arch-build.sh /build/cross-arch-build.sh
 
 # Build weaver
