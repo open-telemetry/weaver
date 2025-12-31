@@ -66,6 +66,7 @@ tokio = { version = "1.47.1", features = ["full"] }
 rouille = "3.6.2"
 convert_case = "0.7.1"
 log = { version = "0.4.28", features = ["std"] }
+utoipa = "5.3"
 
 # Features definition =========================================================
 [features]
@@ -81,13 +82,14 @@ name = "weaver"
 # local crates dependencies
 weaver_common = { path = "crates/weaver_common" }
 weaver_resolver = { path = "crates/weaver_resolver" }
-weaver_semconv = { path = "crates/weaver_semconv" }
+weaver_semconv = { path = "crates/weaver_semconv", features = ["openapi"] }
 weaver_resolved_schema = { path = "crates/weaver_resolved_schema" }
 weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
-weaver_forge = { path = "crates/weaver_forge" }
+weaver_forge = { path = "crates/weaver_forge", features = ["openapi"] }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
+weaver_search = { path = "crates/weaver_search" }
 weaver_version = { path = "crates/weaver_version" }
 
 clap = { version = "4.5.41", features = ["derive"] }
@@ -106,6 +108,10 @@ tonic = { version = "0.14.1", default-features = false, features = [
 tonic-prost = "0.14.1"
 env_logger = "0.11.8"
 chrono = "0.4.41"
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+mime_guess = "2.0"
+utoipa = { workspace = true, features = ["axum_extras"] }
 
 # workspace dependencies
 serde.workspace = true

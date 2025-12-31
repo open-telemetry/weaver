@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Serialize, JsonSchema, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 /// An identifier for a signal.  Should be `.` separated namespaces and names.
 pub struct SignalId(String);
 

@@ -49,6 +49,10 @@ include_dir.workspace = true
 schemars.workspace = true
 dirs.workspace = true
 log.workspace = true
+utoipa = { workspace = true, optional = true }
+
+[features]
+openapi = ["utoipa"]
 
 [dev-dependencies]
 opentelemetry.workspace = true

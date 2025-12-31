@@ -417,6 +417,24 @@ impl JsonSchema for YamlValue {
     }
 }
 
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for YamlValue {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::RefOr::T(utoipa::openapi::schema::Schema::Object(
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .description(Some("A YAML value that can be any valid YAML type"))
+                .build(),
+        ))
+    }
+}
+
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for YamlValue {
+    fn name() -> Cow<'static, str> {
+        Cow::Borrowed("YamlValue")
+    }
+}
+
 /// Implement Hash for YamlValue.
 /// Keys are sorted for consistent hashing in the case of mappings/objects.
 impl std::hash::Hash for YamlValue {

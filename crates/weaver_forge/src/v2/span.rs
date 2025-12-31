@@ -11,6 +11,7 @@ use weaver_semconv::{
 
 /// The definition of a span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Span {
     /// The type of the Span. This denotes the identity
@@ -39,6 +40,7 @@ pub struct Span {
 
 /// A special type of reference to attributes that remembers span-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SpanAttribute {
     /// Base attribute definitions.

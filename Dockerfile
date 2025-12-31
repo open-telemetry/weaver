@@ -4,10 +4,24 @@ WORKDIR /build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 
-# list out directories to avoid pulling local cargo `target/`
-COPY Cargo.toml /build/Cargo.toml
-COPY Cargo.lock /build/Cargo.lock
+# Install Node.js for building UI
+# renovate: datasource=node-version depName=node
+ARG NODE_VERSION=24
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+  apt-get install -y nodejs
+
+# Copy UI package files first for better layer caching
+COPY ui/package.json ui/package-lock.json /build/ui/
+RUN cd /build/ui && npm ci
+
+# Copy UI source files
+COPY ui /build/ui
+
+# Copy Rust dependencies for better layer caching
+COPY Cargo.toml Cargo.lock build.rs /build/
 COPY .cargo /build/.cargo
+
+# Copy source files
 COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src

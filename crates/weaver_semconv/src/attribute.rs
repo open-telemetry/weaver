@@ -208,6 +208,7 @@ impl AttributeSpec {
 
 /// The different types of attributes (specification).
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum AttributeType {
@@ -260,6 +261,7 @@ impl AttributeRole {
 
 /// Primitive or array types.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum PrimitiveOrArrayTypeSpec {
     /// A boolean attribute.
@@ -319,6 +321,7 @@ impl PrimitiveOrArrayTypeSpec {
 
 /// Template types.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateTypeSpec {
     /// A boolean attribute.
@@ -369,6 +372,7 @@ impl Display for TemplateTypeSpec {
 
 /// Possible enum entries.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
@@ -407,12 +411,14 @@ impl Display for EnumEntriesSpec {
 
 /// The different types of values.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum ValueSpec {
     /// A integer value.
     Int(i64),
     /// A double value.
+    #[cfg_attr(feature = "openapi", schema(value_type = f64))]
     Double(OrderedFloat<f64>),
     /// A string value.
     String(String),
@@ -467,6 +473,7 @@ impl From<&str> for ValueSpec {
 
 /// The different types of examples.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum Examples {
@@ -475,6 +482,7 @@ pub enum Examples {
     /// A integer example.
     Int(i64),
     /// A double example.
+    #[cfg_attr(feature = "openapi", schema(value_type = f64))]
     Double(OrderedFloat<f64>),
     /// A string example.
     String(String),
@@ -483,6 +491,7 @@ pub enum Examples {
     /// A array of integers example.
     Ints(Vec<i64>),
     /// A array of doubles example.
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<f64>))]
     Doubles(Vec<OrderedFloat<f64>>),
     /// A array of bools example.
     Bools(Vec<bool>),
@@ -493,6 +502,7 @@ pub enum Examples {
     /// List of arrays of integers example.
     ListOfInts(Vec<Vec<i64>>),
     /// List of arrays of doubles example.
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<Vec<f64>>))]
     ListOfDoubles(Vec<Vec<OrderedFloat<f64>>>),
     /// List of arrays of bools example.
     ListOfBools(Vec<Vec<bool>>),
@@ -652,6 +662,7 @@ impl Examples {
 
 /// The different requirement level specifications.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum RequirementLevel {
@@ -701,6 +712,7 @@ impl Default for RequirementLevel {
 
 /// The different types of basic requirement levels.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum BasicRequirementLevelSpec {
     /// A required requirement level.

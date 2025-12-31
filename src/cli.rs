@@ -4,6 +4,7 @@
 
 use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
+use crate::serve::ServeCommand;
 use clap::{Args, Parser, Subcommand};
 
 /// Command line arguments.
@@ -46,6 +47,8 @@ pub enum Commands {
     Diagnostic(DiagnosticCommand),
     /// Generate shell completions
     Completion(CompletionCommand),
+    /// Start the API server (Experimental)
+    Serve(ServeCommand),
 }
 
 #[derive(Args)]
