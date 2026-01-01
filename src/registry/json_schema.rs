@@ -90,7 +90,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::ResolvedRegistryV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
         JsonSchemaType::ForgeRegistryV2 => {
             schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
-        },
+        }
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
     };
