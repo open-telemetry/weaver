@@ -8,19 +8,29 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// JSON-RPC 2.0 request.
+/// JSON-RPC 2.0 message (can be request or notification).
+///
+/// Requests have an `id` field and expect a response.
+/// Notifications have no `id` field and should not receive a response.
 #[derive(Debug, Deserialize)]
-pub struct JsonRpcRequest {
+pub struct JsonRpcMessage {
     /// JSON-RPC version (always "2.0").
     #[allow(dead_code)]
     pub jsonrpc: String,
-    /// Request ID (can be number or string).
-    pub id: Value,
+    /// Request ID (can be number or string). None for notifications.
+    pub id: Option<Value>,
     /// Method name.
     pub method: String,
     /// Optional parameters.
     #[serde(default)]
     pub params: Value,
+}
+
+impl JsonRpcMessage {
+    /// Returns true if this is a notification (no id field).
+    pub fn is_notification(&self) -> bool {
+        self.id.is_none()
+    }
 }
 
 /// JSON-RPC 2.0 response.
@@ -77,6 +87,7 @@ pub struct JsonRpcError {
 }
 
 // Standard JSON-RPC error codes
+#[allow(dead_code)]
 pub const PARSE_ERROR: i32 = -32700;
 #[allow(dead_code)]
 pub const INVALID_REQUEST: i32 = -32600;

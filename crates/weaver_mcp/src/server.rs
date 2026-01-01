@@ -15,7 +15,7 @@ use weaver_search::SearchContext;
 
 use crate::error::McpError;
 use crate::protocol::{
-    InitializeResult, JsonRpcRequest, JsonRpcResponse, ServerCapabilities, ServerInfo,
+    InitializeResult, JsonRpcMessage, JsonRpcResponse, ServerCapabilities, ServerInfo,
     ToolCallParams, ToolCallResult, ToolDefinition, ToolsCapability, ToolsListResult,
     INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND,
 };
@@ -69,18 +69,27 @@ impl McpServer {
 
             debug!("Received: {}", line);
 
-            // Parse the JSON-RPC request
-            let response = match serde_json::from_str::<JsonRpcRequest>(&line) {
-                Ok(request) => self.handle_request(request),
+            // Parse the JSON-RPC message (request or notification)
+            let message = match serde_json::from_str::<JsonRpcMessage>(&line) {
+                Ok(msg) => msg,
                 Err(e) => {
-                    error!("Failed to parse request: {}", e);
-                    JsonRpcResponse::error(
-                        Value::Null,
-                        crate::protocol::PARSE_ERROR,
-                        format!("Parse error: {}", e),
-                    )
+                    error!("Failed to parse message: {}", e);
+                    // For parse errors, we don't know the id, so we can't send a proper response
+                    // Just log and continue
+                    continue;
                 }
             };
+
+            // Handle notifications (no id) - don't send a response
+            if message.is_notification() {
+                debug!("Received notification: {}", message.method);
+                self.handle_notification(&message);
+                continue;
+            }
+
+            // Handle requests (have id) - send a response
+            let id = message.id.clone().unwrap_or(Value::Null);
+            let response = self.handle_request(id, &message.method, message.params);
 
             // Serialize and write the response
             let response_json = serde_json::to_string(&response)?;
@@ -93,26 +102,36 @@ impl McpServer {
         Ok(())
     }
 
-    /// Handle a single JSON-RPC request.
-    fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
-        debug!("Handling method: {}", request.method);
-
-        match request.method.as_str() {
-            "initialize" => self.handle_initialize(request.id),
-            "initialized" => {
-                // Client notification that initialization is complete - no response needed
-                // But we still need to return something for the response
-                JsonRpcResponse::success(request.id, Value::Null)
+    /// Handle a notification (no response expected).
+    fn handle_notification(&self, message: &JsonRpcMessage) {
+        match message.method.as_str() {
+            "notifications/initialized" => {
+                debug!("Client initialized");
             }
-            "tools/list" => self.handle_tools_list(request.id),
-            "tools/call" => self.handle_tools_call(request.id, request.params),
-            "ping" => JsonRpcResponse::success(request.id, serde_json::json!({})),
+            "notifications/cancelled" => {
+                debug!("Request cancelled");
+            }
             _ => {
-                error!("Unknown method: {}", request.method);
+                debug!("Unknown notification: {}", message.method);
+            }
+        }
+    }
+
+    /// Handle a single JSON-RPC request.
+    fn handle_request(&self, id: Value, method: &str, params: Value) -> JsonRpcResponse {
+        debug!("Handling method: {}", method);
+
+        match method {
+            "initialize" => self.handle_initialize(id),
+            "tools/list" => self.handle_tools_list(id),
+            "tools/call" => self.handle_tools_call(id, params),
+            "ping" => JsonRpcResponse::success(id, serde_json::json!({})),
+            _ => {
+                error!("Unknown method: {}", method);
                 JsonRpcResponse::error(
-                    request.id,
+                    id,
                     METHOD_NOT_FOUND,
-                    format!("Method not found: {}", request.method),
+                    format!("Method not found: {}", method),
                 )
             }
         }
