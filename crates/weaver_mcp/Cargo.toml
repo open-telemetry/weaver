@@ -1,0 +1,25 @@
+[package]
+name = "weaver_mcp"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "MCP (Model Context Protocol) server for semantic convention registry"
+
+[lints]
+workspace = true
+
+[dependencies]
+weaver_search = { path = "../weaver_search" }
+weaver_forge = { path = "../weaver_forge", features = ["openapi"] }
+weaver_semconv = { path = "../weaver_semconv", features = ["openapi"] }
+
+tokio = { version = "1", features = ["full"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+miette.workspace = true
+log.workspace = true

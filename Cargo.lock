@@ -5308,6 +5308,7 @@ dependencies = [
  "weaver_emit",
  "weaver_forge",
  "weaver_live_check",
+ "weaver_mcp",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_search",
@@ -5459,6 +5460,21 @@ dependencies = [
  "weaver_common",
  "weaver_forge",
  "weaver_resolved_schema",
+ "weaver_semconv",
+]
+
+[[package]]
+name = "weaver_mcp"
+version = "0.20.0"
+dependencies = [
+ "log",
+ "miette",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+ "weaver_forge",
+ "weaver_search",
  "weaver_semconv",
 ]
 

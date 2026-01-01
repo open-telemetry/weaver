@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Get attribute tool for retrieving specific attributes from the registry.
+
+use std::sync::Arc;
+
+use serde::Deserialize;
+use serde_json::{json, Value};
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+
+use super::{Tool, ToolCallResult, ToolDefinition};
+use crate::error::McpError;
+
+/// Tool for getting a specific attribute by key.
+pub struct GetAttributeTool {
+    registry: Arc<ForgeResolvedRegistry>,
+}
+
+impl GetAttributeTool {
+    /// Create a new get attribute tool with the given registry.
+    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
+        Self { registry }
+    }
+}
+
+/// Parameters for the get attribute tool.
+#[derive(Debug, Deserialize)]
+struct GetAttributeParams {
+    /// Attribute key (e.g., 'http.request.method', 'db.system').
+    key: String,
+}
+
+impl Tool for GetAttributeTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "get_attribute".to_owned(),
+            description: "Get detailed information about a specific semantic convention attribute \
+                          by its key. Returns type, examples, stability, deprecation info, and \
+                          full documentation.".to_owned(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Attribute key (e.g., 'http.request.method', 'db.system')"
+                    }
+                },
+                "required": ["key"]
+            }),
+        }
+    }
+
+    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+        let params: GetAttributeParams = serde_json::from_value(arguments)?;
+
+        // Find the attribute by key
+        let attribute = self
+            .registry
+            .attributes
+            .iter()
+            .find(|a| a.key == params.key);
+
+        match attribute {
+            Some(attr) => {
+                let result_json = serde_json::to_value(attr)?;
+                Ok(ToolCallResult::text(serde_json::to_string_pretty(
+                    &result_json,
+                )?))
+            }
+            None => Err(McpError::NotFound {
+                item_type: "Attribute".to_owned(),
+                key: params.key,
+            }),
+        }
+    }
+}
