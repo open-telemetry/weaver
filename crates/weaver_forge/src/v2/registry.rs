@@ -23,10 +23,11 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ForgeResolvedRegistry {
-    /// The semantic convention registry url.
+    /// Version of the file structure.
+    pub file_format: String,
+    /// Schema URL for corresponding resolved schema version
     #[serde(skip_serializing_if = "String::is_empty")]
-    pub registry_url: String,
-    // TODO - Attribute Groups
+    pub schema_url: String,
     /// The signals defined in this registry.
     pub registry: Registry,
     /// The set of refinments defined in this registry.
@@ -413,7 +414,8 @@ impl ForgeResolvedRegistry {
         }
 
         Ok(Self {
-            registry_url: schema.schema_url.clone(),
+            file_format: schema.file_format,
+            schema_url: schema.schema_url.clone(),
             registry: Registry {
                 attributes,
                 attribute_groups,
@@ -449,7 +451,7 @@ mod tests {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
-            registry_id: "my-registry".to_owned(),
+            registry_url: "my-registry".to_owned(),
             attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -613,7 +615,7 @@ mod tests {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
-            registry_id: "my-registry".to_owned(),
+            registry_url: "http://example.com/registry".to_owned(),
             attribute_catalog: vec![],
             registry: v2::registry::Registry {
                 registry_url: "https://example.com/registry".to_owned(),
