@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
@@ -24,7 +25,7 @@ impl GetMetricTool {
 }
 
 /// Parameters for the get metric tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct GetMetricParams {
     /// Metric name (e.g., 'http.server.request.duration').
     name: String,
@@ -38,16 +39,8 @@ impl Tool for GetMetricTool {
                           by its name. Returns instrument type, unit, attributes, stability, \
                           and full documentation."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Metric name (e.g., 'http.server.request.duration')"
-                    }
-                },
-                "required": ["name"]
-            }),
+            input_schema: serde_json::to_value(schema_for!(GetMetricParams))
+                .expect("GetMetricParams schema should serialize"),
         }
     }
 

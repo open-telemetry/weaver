@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
@@ -24,10 +25,11 @@ impl GetSpanTool {
 }
 
 /// Parameters for the get span tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct GetSpanParams {
     /// Span type (e.g., 'http.client', 'db.query').
     #[serde(rename = "type")]
+    #[schemars(rename = "type")]
     span_type: String,
 }
 
@@ -39,16 +41,8 @@ impl Tool for GetSpanTool {
                           by its type. Returns span kind, attributes, events, stability, \
                           and full documentation."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "description": "Span type (e.g., 'http.client', 'db.query')"
-                    }
-                },
-                "required": ["type"]
-            }),
+            input_schema: serde_json::to_value(schema_for!(GetSpanParams))
+                .expect("GetSpanParams schema should serialize"),
         }
     }
 

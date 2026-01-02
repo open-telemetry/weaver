@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
@@ -24,7 +25,7 @@ impl GetAttributeTool {
 }
 
 /// Parameters for the get attribute tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct GetAttributeParams {
     /// Attribute key (e.g., 'http.request.method', 'db.system').
     key: String,
@@ -38,16 +39,8 @@ impl Tool for GetAttributeTool {
                           by its key. Returns type, examples, stability, deprecation info, and \
                           full documentation."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "key": {
-                        "type": "string",
-                        "description": "Attribute key (e.g., 'http.request.method', 'db.system')"
-                    }
-                },
-                "required": ["key"]
-            }),
+            input_schema: serde_json::to_value(schema_for!(GetAttributeParams))
+                .expect("GetAttributeParams schema should serialize"),
         }
     }
 

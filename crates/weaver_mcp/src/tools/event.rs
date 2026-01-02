@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
@@ -24,7 +25,7 @@ impl GetEventTool {
 }
 
 /// Parameters for the get event tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct GetEventParams {
     /// Event name (e.g., 'exception', 'session.start').
     name: String,
@@ -37,16 +38,8 @@ impl Tool for GetEventTool {
             description: "Get detailed information about a specific semantic convention event \
                           by its name. Returns attributes, stability, and full documentation."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Event name (e.g., 'exception', 'session.start')"
-                    }
-                },
-                "required": ["name"]
-            }),
+            input_schema: serde_json::to_value(schema_for!(GetEventParams))
+                .expect("GetEventParams schema should serialize"),
         }
     }
 

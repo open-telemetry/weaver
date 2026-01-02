@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use weaver_search::{SearchContext, SearchType};
@@ -25,17 +26,19 @@ impl SearchTool {
 }
 
 /// Parameters for the search tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct SearchParams {
     /// Search query (keywords, attribute names, etc.). Omit for browse mode.
     query: Option<String>,
     /// Filter results by type.
     #[serde(rename = "type", default)]
+    #[schemars(rename = "type")]
     search_type: SearchTypeParam,
-    /// Filter by stability level.
+    /// Filter by stability level (development = experimental).
     stability: Option<StabilityParam>,
     /// Maximum results to return.
     #[serde(default = "default_limit")]
+    #[schemars(range(min = 1, max = 100))]
     limit: usize,
 }
 
@@ -43,7 +46,8 @@ fn default_limit() -> usize {
     20
 }
 
-#[derive(Debug, Deserialize, Default)]
+/// Filter results by type.
+#[derive(Debug, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
 enum SearchTypeParam {
     #[default]
@@ -68,7 +72,8 @@ impl From<SearchTypeParam> for SearchType {
     }
 }
 
-#[derive(Debug, Deserialize)]
+/// Filter by stability level.
+#[derive(Debug, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 enum StabilityParam {
     Stable,
@@ -95,33 +100,8 @@ impl Tool for SearchTool {
                           conventions when instrumenting code (e.g., 'search for HTTP server \
                           attributes')."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query (keywords, attribute names, etc.). Omit for browse mode."
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["all", "attribute", "metric", "span", "event", "entity"],
-                        "default": "all",
-                        "description": "Filter results by type"
-                    },
-                    "stability": {
-                        "type": "string",
-                        "enum": ["stable", "development"],
-                        "description": "Filter by stability level (development = experimental)"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "default": 20,
-                        "minimum": 1,
-                        "maximum": 100,
-                        "description": "Maximum results to return"
-                    }
-                }
-            }),
+            input_schema: serde_json::to_value(schema_for!(SearchParams))
+                .expect("SearchParams schema should serialize"),
         }
     }
 

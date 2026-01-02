@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
@@ -24,10 +25,11 @@ impl GetEntityTool {
 }
 
 /// Parameters for the get entity tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct GetEntityParams {
     /// Entity type (e.g., 'service', 'host', 'container').
     #[serde(rename = "type")]
+    #[schemars(rename = "type")]
     entity_type: String,
 }
 
@@ -38,16 +40,8 @@ impl Tool for GetEntityTool {
             description: "Get detailed information about a specific semantic convention entity \
                           by its type. Returns attributes, stability, and full documentation."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "description": "Entity type (e.g., 'service', 'host', 'container')"
-                    }
-                },
-                "required": ["type"]
-            }),
+            input_schema: serde_json::to_value(schema_for!(GetEntityParams))
+                .expect("GetEntityParams schema should serialize"),
         }
     }
 
