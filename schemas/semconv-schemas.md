@@ -16,6 +16,10 @@
 > This document describes a new (future) version of the Semantic Conventions YAML model.
 > This model is not yet feature-complete and is under active development.
 
+This document describes three schemas that govern the lifecycle of semantic conventions:
+the source schema for authoring, the resolved schema for distribution, and the diff schema
+for tracking changes between versions.
+
 Semantic conventions are authored in YAML following the [source schema](#source-schema),
 packaged and then consumed following the [resolved schema](#resolved-schema).
 
@@ -23,12 +27,12 @@ The difference between two versions of semantic conventions is described using t
 
 ## Source schema
 
-*Source* schema is used to write conventions. Conventions can be defined in multiple files. The
-syntax is focused on avoiding duplication, maximizing consistency, and write-time convenience.
-Check out the [source schema syntax](/schemas/semconv.source-syntax.v2.md) for details and examples,
+The *source* schema is used to write conventions. Conventions can be defined in multiple files. The
+syntax is focused on avoiding duplication, maximizing consistency, and ease of authoring.
+See the [source schema syntax](/schemas/semconv.source-syntax.v2.md) for details and examples,
 and the [source JSON schema](/schemas/semconv.source-schema.v2.json) for the full reference.
 
-For example, source might look like this:
+For example, the source schema might look like this:
 
 ```yaml
 metrics:
@@ -44,10 +48,10 @@ metrics:
 
 ## Resolved schema
 
-*Resolved* schema is a single file that's produced from a set of sources. It contains fully resolved
+The *resolved* schema is a single file that's produced from a set of sources. It contains fully resolved
 signal definitions and refinements that are self-sufficient.
 
-The resolved version would look like this:
+The resolved version of the example above would look like this:
 
 ```yaml
 metrics:
@@ -84,7 +88,7 @@ The following commands produce data that follows the *resolved* schema:
 - `weaver registry resolve`
 - `weaver registry generate` - the data passed to JQ filters follows the resolved schema
 
-Check out the [resolved JSON schema](/schemas/semconv.resolved-schema.v2.json) for the
+See the [resolved JSON schema](/schemas/semconv.resolved-schema.v2.json) for the
 full reference.
 
 ### Resolved schema overview
@@ -102,8 +106,8 @@ All definitions share these common properties: `brief`, `stability`, and optiona
   - `id`: Unique identifier
   - `attributes`: Resolved attributes in this group
   - common properties
-- **signals**: All telemetry signals. Each of the signals also appears in
-  the `refinements` section, as a refinement of itself.
+- **signals**: All telemetry signals. Each signal definition is also included in
+  the `refinements` section as a base refinement that can be specialized.
   - **metrics**: Metric signal definitions
     - `name`: Metric name
     - `instrument`: Instrument type (counter, gauge, histogram, updowncounter)
@@ -128,7 +132,6 @@ All definitions share these common properties: `brief`, `stability`, and optiona
     - `identity`: Attributes that identify the entity
     - `description`: Attributes that describe the entity
     - common properties
-
 - **refinements**: Signal refinements that extend base signals for specific implementations.
   Refinements also contain the original definitions of the signals.
   - **spans**: Specialized span refinements
@@ -143,12 +146,18 @@ All definitions share these common properties: `brief`, `stability`, and optiona
 
 ## Diff schema
 
+The *diff* schema represents changes between two versions of a semantic convention registry.
 Weaver can produce a diff between two semantic convention registry versions.
-Check out the [diff JSON schema](/schemas/semconv.diff.v2.json) for the full reference.
+See the [diff JSON schema](/schemas/semconv.diff.v2.json)
+for the full reference.
+
+Diffs are produced with the `weaver registry diff` command. If templates are provided,
+the data conforming to the diff schema is passed to the JQ filter in the weaver config file.
+If templates are not provided, the output of the command follows this schema.
 
 The diff schema contains a single top-level property:
 
-- **registry**: A `regustry` object containing change arrays for each telemetry type:
+- **registry**: A `registry` object containing change arrays for each telemetry type:
   - `attribute_changes`: Array of changes to attributes
   - `attribute_group_changes`: Array of changes to attribute groups
   - `metric_changes`: Array of changes to metrics
@@ -158,33 +167,24 @@ The diff schema contains a single top-level property:
 
 Each change array contains objects representing different types of changes:
 
-**Added**:
-
-- `name`: The name of the added object (attribute key, metric name, entity type, event name, span type, or attribute group id)
-- `type`: "added"
-
-**Removed**:
-
-- `name`: The name of the removed object
-- `type`: "removed"
-
-**Renamed**:
-
-- `old_name`: Original name in the baseline registry
-- `new_name`: New name in the head registry
-- `note`: Context about the rename
-- `type`: "renamed"
-
-**Obsoleted**:
-
-- `name`: The name of the deprecated object
-- `note`: Deprecation context
-- `type`: "obsoleted"
-
-**Uncategorized**:
-
-- `name`: The name of the affected object
-- `note`: Context about the change
-- `type`: "uncategorized"
+- **added**:
+  - `name`: The name of the added object (attribute key, metric name, entity type, event name, span type, or attribute group id)
+  - `type`: "added"
+- **removed**:
+  - `name`: The name of the removed object
+  - `type`: "removed"
+- **renamed**:
+  - `old_name`: Original name in the baseline registry
+  - `new_name`: New name in the head registry
+  - `note`: Context about the rename
+  - `type`: "renamed"
+- **obsoleted**:
+  - `name`: The name of the deprecated object
+  - `note`: Deprecation details
+  - `type`: "obsoleted"
+- **uncategorized**:
+  - `name`: The name of the affected object
+  - `note`: Context about the change
+  - `type`: "uncategorized"
 
 [DocumentStatus]: https://opentelemetry.io/docs/specs/otel/document-status
