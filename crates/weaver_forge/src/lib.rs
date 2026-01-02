@@ -151,6 +151,20 @@ impl Object for ParamsObject {
     }
 }
 
+/// Runs raw JQ filter on a context object.
+pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_json::Value, Error> {
+    // Create a read-only context for the filter evaluations
+    let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+        error: e.to_string(),
+    })?;
+    // Apply the filter
+    let filter = Filter::new(filter);
+    // TODO - create real filter params
+    let filter_params = BTreeMap::new();
+    let filtered_context = filter.apply(context, &filter_params)?;
+    Ok(filtered_context)
+}
+
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
 pub struct TemplateEngine {

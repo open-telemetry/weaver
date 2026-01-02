@@ -74,3 +74,12 @@ pub struct SearchResponse {
     /// The search results.
     pub results: Vec<SearchResult>,
 }
+
+
+/// Query parameters for filter endpoint.
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct FilterParams {
+    /// JQ Filter string.
+    #[param(example = ".")]
+    pub filter: Option<String>,
+}
