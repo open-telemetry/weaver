@@ -36,7 +36,8 @@ impl Tool for GetEntityTool {
         ToolDefinition {
             name: "get_entity".to_owned(),
             description: "Get detailed information about a specific semantic convention entity \
-                          by its type. Returns attributes, stability, and full documentation.".to_owned(),
+                          by its type. Returns attributes, stability, and full documentation."
+                .to_owned(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

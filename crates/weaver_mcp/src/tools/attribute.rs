@@ -36,7 +36,8 @@ impl Tool for GetAttributeTool {
             name: "get_attribute".to_owned(),
             description: "Get detailed information about a specific semantic convention attribute \
                           by its key. Returns type, examples, stability, deprecation info, and \
-                          full documentation.".to_owned(),
+                          full documentation."
+                .to_owned(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

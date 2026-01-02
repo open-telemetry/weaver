@@ -93,7 +93,8 @@ impl Tool for SearchTool {
                           keywords across attributes, metrics, spans, events, and entities. \
                           Returns matching definitions with relevance scores. Use this to find \
                           conventions when instrumenting code (e.g., 'search for HTTP server \
-                          attributes').".to_owned(),
+                          attributes')."
+                .to_owned(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

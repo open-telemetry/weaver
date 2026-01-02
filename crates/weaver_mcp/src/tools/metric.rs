@@ -36,7 +36,8 @@ impl Tool for GetMetricTool {
             name: "get_metric".to_owned(),
             description: "Get detailed information about a specific semantic convention metric \
                           by its name. Returns instrument type, unit, attributes, stability, \
-                          and full documentation.".to_owned(),
+                          and full documentation."
+                .to_owned(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

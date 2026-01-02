@@ -2,17 +2,19 @@
 
 //! MCP tool implementations for the semantic convention registry.
 //!
-//! This module provides 6 tools for querying the registry:
+//! This module provides 7 tools for querying and validating against the registry:
 //! - `search` - Search across all registry items
 //! - `get_attribute` - Get a specific attribute by key
 //! - `get_metric` - Get a specific metric by name
 //! - `get_span` - Get a specific span by type
 //! - `get_event` - Get a specific event by name
 //! - `get_entity` - Get a specific entity by type
+//! - `live_check` - Validate telemetry samples against the registry
 
 mod attribute;
 mod entity;
 mod event;
+mod live_check;
 mod metric;
 mod search;
 mod span;
@@ -20,6 +22,7 @@ mod span;
 pub use attribute::GetAttributeTool;
 pub use entity::GetEntityTool;
 pub use event::GetEventTool;
+pub use live_check::LiveCheckTool;
 pub use metric::GetMetricTool;
 pub use search::SearchTool;
 pub use span::GetSpanTool;

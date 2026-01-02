@@ -35,7 +35,8 @@ impl Tool for GetEventTool {
         ToolDefinition {
             name: "get_event".to_owned(),
             description: "Get detailed information about a specific semantic convention event \
-                          by its name. Returns attributes, stability, and full documentation.".to_owned(),
+                          by its name. Returns attributes, stability, and full documentation."
+                .to_owned(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

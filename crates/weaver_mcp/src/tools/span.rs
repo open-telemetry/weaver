@@ -37,7 +37,8 @@ impl Tool for GetSpanTool {
             name: "get_span".to_owned(),
             description: "Get detailed information about a specific semantic convention span \
                           by its type. Returns span kind, attributes, events, stability, \
-                          and full documentation.".to_owned(),
+                          and full documentation."
+                .to_owned(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

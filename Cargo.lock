@@ -5474,6 +5474,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "weaver_forge",
+ "weaver_live_check",
  "weaver_search",
  "weaver_semconv",
 ]

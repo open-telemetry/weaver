@@ -11,6 +11,7 @@ use std::sync::Arc;
 use log::{debug, error, info};
 use serde_json::Value;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_live_check::VersionedRegistry;
 use weaver_search::SearchContext;
 
 use crate::error::McpError;
@@ -20,7 +21,8 @@ use crate::protocol::{
     INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND,
 };
 use crate::tools::{
-    GetAttributeTool, GetEntityTool, GetEventTool, GetMetricTool, SearchTool, GetSpanTool, Tool,
+    GetAttributeTool, GetEntityTool, GetEventTool, GetMetricTool, GetSpanTool, LiveCheckTool,
+    SearchTool, Tool,
 };
 
 /// MCP server for the semantic convention registry.
@@ -35,6 +37,9 @@ impl McpServer {
     pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
         let search_context = Arc::new(SearchContext::from_registry(&registry));
 
+        // Create versioned registry wrapper once for live check (clone happens here, not per-request)
+        let versioned_registry = Arc::new(VersionedRegistry::V2((*registry).clone()));
+
         let tools: Vec<Box<dyn Tool>> = vec![
             Box::new(SearchTool::new(Arc::clone(&search_context))),
             Box::new(GetAttributeTool::new(Arc::clone(&registry))),
@@ -42,6 +47,7 @@ impl McpServer {
             Box::new(GetSpanTool::new(Arc::clone(&registry))),
             Box::new(GetEventTool::new(Arc::clone(&registry))),
             Box::new(GetEntityTool::new(Arc::clone(&registry))),
+            Box::new(LiveCheckTool::new(versioned_registry)),
         ];
 
         Self { tools }
@@ -196,7 +202,10 @@ impl McpServer {
         debug!("Calling tool: {}", call_params.name);
 
         // Find the tool
-        let tool = self.tools.iter().find(|t| t.definition().name == call_params.name);
+        let tool = self
+            .tools
+            .iter()
+            .find(|t| t.definition().name == call_params.name);
 
         match tool {
             Some(t) => {

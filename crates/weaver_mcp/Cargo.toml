@@ -16,6 +16,7 @@ workspace = true
 weaver_search = { path = "../weaver_search" }
 weaver_forge = { path = "../weaver_forge", features = ["openapi"] }
 weaver_semconv = { path = "../weaver_semconv", features = ["openapi"] }
+weaver_live_check = { path = "../weaver_live_check" }
 
 tokio = { version = "1", features = ["full"] }
 serde.workspace = true
