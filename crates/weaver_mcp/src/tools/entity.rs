@@ -6,20 +6,20 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
 use crate::error::McpError;
 
 /// Tool for getting a specific entity by type.
 pub struct GetEntityTool {
-    registry: Arc<ForgeResolvedRegistry>,
+    search_context: Arc<SearchContext>,
 }
 
 impl GetEntityTool {
-    /// Create a new get entity tool with the given registry.
-    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
-        Self { registry }
+    /// Create a new get entity tool with the given search context.
+    pub fn new(search_context: Arc<SearchContext>) -> Self {
+        Self { search_context }
     }
 }
 
@@ -54,17 +54,10 @@ impl Tool for GetEntityTool {
     fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetEntityParams = serde_json::from_value(arguments)?;
 
-        // Find the entity by type
-        let entity = self
-            .registry
-            .signals
-            .entities
-            .iter()
-            .find(|e| *e.r#type == params.entity_type);
-
-        match entity {
+        // O(1) lookup by type
+        match self.search_context.get_entity(&params.entity_type) {
             Some(e) => {
-                let result_json = serde_json::to_value(e)?;
+                let result_json = serde_json::to_value(e.as_ref())?;
                 Ok(ToolCallResult::text(serde_json::to_string_pretty(
                     &result_json,
                 )?))

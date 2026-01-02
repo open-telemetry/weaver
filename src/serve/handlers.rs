@@ -121,10 +121,9 @@ pub async fn get_registry_attribute(
     // Remove leading slash if present (from wildcard match)
     let key = key.trim_start_matches('/');
 
-    let attr = state.registry.attributes.iter().find(|a| a.key == key);
-
-    match attr {
-        Some(attr) => Json(attr).into_response(),
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_attribute(key) {
+        Some(attr) => Json(attr.as_ref()).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Attribute not found", "key": key})),
@@ -152,15 +151,9 @@ pub async fn get_registry_metric(
 ) -> impl IntoResponse {
     let name = name.trim_start_matches('/');
 
-    let metric = state
-        .registry
-        .signals
-        .metrics
-        .iter()
-        .find(|m| &*m.name == name);
-
-    match metric {
-        Some(metric) => Json(metric).into_response(),
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_metric(name) {
+        Some(metric) => Json(metric.as_ref()).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Metric not found", "name": name})),
@@ -188,15 +181,9 @@ pub async fn get_registry_span(
 ) -> impl IntoResponse {
     let span_type = span_type.trim_start_matches('/');
 
-    let span = state
-        .registry
-        .signals
-        .spans
-        .iter()
-        .find(|s| &*s.r#type == span_type);
-
-    match span {
-        Some(span) => Json(span).into_response(),
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_span(span_type) {
+        Some(span) => Json(span.as_ref()).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Span not found", "type": span_type})),
@@ -224,15 +211,9 @@ pub async fn get_registry_event(
 ) -> impl IntoResponse {
     let name = name.trim_start_matches('/');
 
-    let event = state
-        .registry
-        .signals
-        .events
-        .iter()
-        .find(|e| &*e.name == name);
-
-    match event {
-        Some(event) => Json(event).into_response(),
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_event(name) {
+        Some(event) => Json(event.as_ref()).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Event not found", "name": name})),
@@ -260,15 +241,9 @@ pub async fn get_registry_entity(
 ) -> impl IntoResponse {
     let entity_type = entity_type.trim_start_matches('/');
 
-    let entity = state
-        .registry
-        .signals
-        .entities
-        .iter()
-        .find(|e| &*e.r#type == entity_type);
-
-    match entity {
-        Some(entity) => Json(entity).into_response(),
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_entity(entity_type) {
+        Some(entity) => Json(entity.as_ref()).into_response(),
         None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Entity not found", "type": entity_type})),

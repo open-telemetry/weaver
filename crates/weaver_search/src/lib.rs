@@ -12,21 +12,39 @@ mod types;
 
 pub use types::{ScoredResult, SearchResult, SearchType};
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use weaver_forge::v2::{
     attribute::Attribute, entity::Entity, event::Event, metric::Metric,
     registry::ForgeResolvedRegistry, span::Span,
 };
+use weaver_semconv::attribute::AttributeType;
 use weaver_semconv::stability::Stability;
 
 //TODO: Consider using a fuzzy matching crate for improved search capabilities.
 // e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
 
-/// Search context for performing fuzzy searches across the registry.
+/// Search context for performing fuzzy searches and O(1) lookups across the registry.
 pub struct SearchContext {
-    /// All searchable items indexed for fast lookup.
+    /// All searchable items for fuzzy search.
     items: Vec<SearchableItem>,
+
+    // O(1) lookup indices (following LiveChecker pattern)
+    /// Attributes indexed by key.
+    attr_index: HashMap<String, Arc<Attribute>>,
+    /// Template attributes indexed by key.
+    template_index: HashMap<String, Arc<Attribute>>,
+    /// Templates sorted by key length (longest first) for prefix matching.
+    templates_by_length: Vec<(String, Arc<Attribute>)>,
+    /// Metrics indexed by name.
+    metric_index: HashMap<String, Arc<Metric>>,
+    /// Spans indexed by type.
+    span_index: HashMap<String, Arc<Span>>,
+    /// Events indexed by name.
+    event_index: HashMap<String, Arc<Event>>,
+    /// Entities indexed by type.
+    entity_index: HashMap<String, Arc<Entity>>,
 }
 
 /// A searchable item from the registry containing the full object.
@@ -48,33 +66,69 @@ impl SearchContext {
     #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
         let mut items = Vec::new();
+        let mut attr_index = HashMap::new();
+        let mut template_index = HashMap::new();
+        let mut templates_by_length = Vec::new();
+        let mut metric_index = HashMap::new();
+        let mut span_index = HashMap::new();
+        let mut event_index = HashMap::new();
+        let mut entity_index = HashMap::new();
 
         // Index all attributes
         for attr in &registry.attributes {
-            items.push(SearchableItem::Attribute(Arc::new(attr.clone())));
+            let arc_attr = Arc::new(attr.clone());
+            items.push(SearchableItem::Attribute(Arc::clone(&arc_attr)));
+
+            // Separate templates from regular attributes (following LiveChecker pattern)
+            if matches!(attr.r#type, AttributeType::Template(_)) {
+                let _ = template_index.insert(attr.key.clone(), Arc::clone(&arc_attr));
+                templates_by_length.push((attr.key.clone(), arc_attr));
+            } else {
+                let _ = attr_index.insert(attr.key.clone(), arc_attr);
+            }
         }
+
+        // Sort templates by key length descending (longest first for prefix matching)
+        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
 
         // Index all metrics
         for metric in &registry.signals.metrics {
-            items.push(SearchableItem::Metric(Arc::new(metric.clone())));
+            let arc_metric = Arc::new(metric.clone());
+            items.push(SearchableItem::Metric(Arc::clone(&arc_metric)));
+            let _ = metric_index.insert(metric.name.to_string(), arc_metric);
         }
 
         // Index all spans
         for span in &registry.signals.spans {
-            items.push(SearchableItem::Span(Arc::new(span.clone())));
+            let arc_span = Arc::new(span.clone());
+            items.push(SearchableItem::Span(Arc::clone(&arc_span)));
+            let _ = span_index.insert(span.r#type.to_string(), arc_span);
         }
 
         // Index all events
         for event in &registry.signals.events {
-            items.push(SearchableItem::Event(Arc::new(event.clone())));
+            let arc_event = Arc::new(event.clone());
+            items.push(SearchableItem::Event(Arc::clone(&arc_event)));
+            let _ = event_index.insert(event.name.to_string(), arc_event);
         }
 
         // Index all entities
         for entity in &registry.signals.entities {
-            items.push(SearchableItem::Entity(Arc::new(entity.clone())));
+            let arc_entity = Arc::new(entity.clone());
+            items.push(SearchableItem::Entity(Arc::clone(&arc_entity)));
+            let _ = entity_index.insert(entity.r#type.to_string(), arc_entity);
         }
 
-        Self { items }
+        Self {
+            items,
+            attr_index,
+            template_index,
+            templates_by_length,
+            metric_index,
+            span_index,
+            event_index,
+            entity_index,
+        }
     }
 
     /// Search for items matching the query, or list all items if query is None.
@@ -132,6 +186,59 @@ impl SearchContext {
         };
 
         (results, total)
+    }
+
+    // ==========================================================================
+    // O(1) Lookup Methods (following LiveChecker pattern)
+    // ==========================================================================
+
+    /// Get an attribute by exact key match. O(1) lookup.
+    #[must_use]
+    pub fn get_attribute(&self, key: &str) -> Option<Arc<Attribute>> {
+        self.attr_index.get(key).map(Arc::clone)
+    }
+
+    /// Get a template attribute by exact key match. O(1) lookup.
+    #[must_use]
+    pub fn get_template(&self, key: &str) -> Option<Arc<Attribute>> {
+        self.template_index.get(key).map(Arc::clone)
+    }
+
+    /// Find a template attribute matching the given attribute name prefix.
+    /// Uses longest-prefix matching (e.g., "test.template.foo" matches "test.template").
+    /// This follows the LiveChecker pattern for template resolution.
+    #[must_use]
+    pub fn find_template(&self, attribute_name: &str) -> Option<Arc<Attribute>> {
+        for (template_key, attr) in &self.templates_by_length {
+            if attribute_name.starts_with(template_key) {
+                return Some(Arc::clone(attr));
+            }
+        }
+        None
+    }
+
+    /// Get a metric by exact name match. O(1) lookup.
+    #[must_use]
+    pub fn get_metric(&self, name: &str) -> Option<Arc<Metric>> {
+        self.metric_index.get(name).map(Arc::clone)
+    }
+
+    /// Get a span by exact type match. O(1) lookup.
+    #[must_use]
+    pub fn get_span(&self, span_type: &str) -> Option<Arc<Span>> {
+        self.span_index.get(span_type).map(Arc::clone)
+    }
+
+    /// Get an event by exact name match. O(1) lookup.
+    #[must_use]
+    pub fn get_event(&self, name: &str) -> Option<Arc<Event>> {
+        self.event_index.get(name).map(Arc::clone)
+    }
+
+    /// Get an entity by exact type match. O(1) lookup.
+    #[must_use]
+    pub fn get_entity(&self, entity_type: &str) -> Option<Arc<Entity>> {
+        self.entity_index.get(entity_type).map(Arc::clone)
     }
 }
 

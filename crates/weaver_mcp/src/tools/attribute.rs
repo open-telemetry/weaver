@@ -6,20 +6,20 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
 use crate::error::McpError;
 
 /// Tool for getting a specific attribute by key.
 pub struct GetAttributeTool {
-    registry: Arc<ForgeResolvedRegistry>,
+    search_context: Arc<SearchContext>,
 }
 
 impl GetAttributeTool {
-    /// Create a new get attribute tool with the given registry.
-    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
-        Self { registry }
+    /// Create a new get attribute tool with the given search context.
+    pub fn new(search_context: Arc<SearchContext>) -> Self {
+        Self { search_context }
     }
 }
 
@@ -54,16 +54,10 @@ impl Tool for GetAttributeTool {
     fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetAttributeParams = serde_json::from_value(arguments)?;
 
-        // Find the attribute by key
-        let attribute = self
-            .registry
-            .attributes
-            .iter()
-            .find(|a| a.key == params.key);
-
-        match attribute {
+        // O(1) lookup by key
+        match self.search_context.get_attribute(&params.key) {
             Some(attr) => {
-                let result_json = serde_json::to_value(attr)?;
+                let result_json = serde_json::to_value(attr.as_ref())?;
                 Ok(ToolCallResult::text(serde_json::to_string_pretty(
                     &result_json,
                 )?))

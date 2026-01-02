@@ -6,20 +6,20 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
 use crate::error::McpError;
 
 /// Tool for getting a specific span by type.
 pub struct GetSpanTool {
-    registry: Arc<ForgeResolvedRegistry>,
+    search_context: Arc<SearchContext>,
 }
 
 impl GetSpanTool {
-    /// Create a new get span tool with the given registry.
-    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
-        Self { registry }
+    /// Create a new get span tool with the given search context.
+    pub fn new(search_context: Arc<SearchContext>) -> Self {
+        Self { search_context }
     }
 }
 
@@ -55,17 +55,10 @@ impl Tool for GetSpanTool {
     fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetSpanParams = serde_json::from_value(arguments)?;
 
-        // Find the span by type
-        let span = self
-            .registry
-            .signals
-            .spans
-            .iter()
-            .find(|s| *s.r#type == params.span_type);
-
-        match span {
+        // O(1) lookup by type
+        match self.search_context.get_span(&params.span_type) {
             Some(s) => {
-                let result_json = serde_json::to_value(s)?;
+                let result_json = serde_json::to_value(s.as_ref())?;
                 Ok(ToolCallResult::text(serde_json::to_string_pretty(
                     &result_json,
                 )?))

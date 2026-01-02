@@ -6,20 +6,20 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
 use crate::error::McpError;
 
 /// Tool for getting a specific event by name.
 pub struct GetEventTool {
-    registry: Arc<ForgeResolvedRegistry>,
+    search_context: Arc<SearchContext>,
 }
 
 impl GetEventTool {
-    /// Create a new get event tool with the given registry.
-    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
-        Self { registry }
+    /// Create a new get event tool with the given search context.
+    pub fn new(search_context: Arc<SearchContext>) -> Self {
+        Self { search_context }
     }
 }
 
@@ -53,17 +53,10 @@ impl Tool for GetEventTool {
     fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetEventParams = serde_json::from_value(arguments)?;
 
-        // Find the event by name
-        let event = self
-            .registry
-            .signals
-            .events
-            .iter()
-            .find(|e| *e.name == params.name);
-
-        match event {
+        // O(1) lookup by name
+        match self.search_context.get_event(&params.name) {
             Some(e) => {
-                let result_json = serde_json::to_value(e)?;
+                let result_json = serde_json::to_value(e.as_ref())?;
                 Ok(ToolCallResult::text(serde_json::to_string_pretty(
                     &result_json,
                 )?))

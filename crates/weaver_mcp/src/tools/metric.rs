@@ -6,20 +6,20 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_search::SearchContext;
 
 use super::{Tool, ToolCallResult, ToolDefinition};
 use crate::error::McpError;
 
 /// Tool for getting a specific metric by name.
 pub struct GetMetricTool {
-    registry: Arc<ForgeResolvedRegistry>,
+    search_context: Arc<SearchContext>,
 }
 
 impl GetMetricTool {
-    /// Create a new get metric tool with the given registry.
-    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
-        Self { registry }
+    /// Create a new get metric tool with the given search context.
+    pub fn new(search_context: Arc<SearchContext>) -> Self {
+        Self { search_context }
     }
 }
 
@@ -54,17 +54,10 @@ impl Tool for GetMetricTool {
     fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetMetricParams = serde_json::from_value(arguments)?;
 
-        // Find the metric by name
-        let metric = self
-            .registry
-            .signals
-            .metrics
-            .iter()
-            .find(|m| *m.name == params.name);
-
-        match metric {
+        // O(1) lookup by name
+        match self.search_context.get_metric(&params.name) {
             Some(m) => {
-                let result_json = serde_json::to_value(m)?;
+                let result_json = serde_json::to_value(m.as_ref())?;
                 Ok(ToolCallResult::text(serde_json::to_string_pretty(
                     &result_json,
                 )?))

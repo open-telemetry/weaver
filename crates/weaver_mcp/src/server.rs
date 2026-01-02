@@ -42,11 +42,11 @@ impl McpServer {
 
         let tools: Vec<Box<dyn Tool>> = vec![
             Box::new(SearchTool::new(Arc::clone(&search_context))),
-            Box::new(GetAttributeTool::new(Arc::clone(&registry))),
-            Box::new(GetMetricTool::new(Arc::clone(&registry))),
-            Box::new(GetSpanTool::new(Arc::clone(&registry))),
-            Box::new(GetEventTool::new(Arc::clone(&registry))),
-            Box::new(GetEntityTool::new(Arc::clone(&registry))),
+            Box::new(GetAttributeTool::new(Arc::clone(&search_context))),
+            Box::new(GetMetricTool::new(Arc::clone(&search_context))),
+            Box::new(GetSpanTool::new(Arc::clone(&search_context))),
+            Box::new(GetEventTool::new(Arc::clone(&search_context))),
+            Box::new(GetEntityTool::new(Arc::clone(&search_context))),
             Box::new(LiveCheckTool::new(versioned_registry)),
         ];
 
