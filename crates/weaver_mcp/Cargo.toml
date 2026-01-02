@@ -19,6 +19,7 @@ weaver_semconv = { path = "../weaver_semconv", features = ["openapi"] }
 weaver_live_check = { path = "../weaver_live_check" }
 
 tokio = { version = "1", features = ["full"] }
+schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

@@ -5469,6 +5469,7 @@ version = "0.20.0"
 dependencies = [
  "log",
  "miette",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror 2.0.17",

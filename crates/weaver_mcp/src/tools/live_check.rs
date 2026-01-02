@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, StabilityAdvisor, TypeAdvisor,
 };
@@ -30,9 +31,9 @@ impl LiveCheckTool {
 }
 
 /// Parameters for the live check tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct LiveCheckParams {
-    /// Array of telemetry samples to check.
+    /// Array of telemetry samples to check (attributes, spans, metrics, logs, or resources).
     samples: Vec<Sample>,
 }
 
@@ -54,124 +55,8 @@ impl Tool for LiveCheckTool {
                           registry. Returns the samples with live_check_result fields populated \
                           containing advice and findings."
                 .to_owned(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "samples": {
-                        "type": "array",
-                        "description": "Array of telemetry samples to check (attributes, spans, metrics, logs, or resources)",
-                        "items": {
-                            "oneOf": [
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "attribute": {
-                                            "type": "object",
-                                            "properties": {
-                                                "name": { "type": "string" },
-                                                "value": {}
-                                            },
-                                            "required": ["name"]
-                                        }
-                                    },
-                                    "required": ["attribute"]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "span": {
-                                            "type": "object",
-                                            "properties": {
-                                                "name": { "type": "string" },
-                                                "kind": { "type": "string" },
-                                                "attributes": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "name": { "type": "string" },
-                                                            "value": {}
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "required": ["name"]
-                                        }
-                                    },
-                                    "required": ["span"]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "metric": {
-                                            "type": "object",
-                                            "properties": {
-                                                "name": { "type": "string" },
-                                                "attributes": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "name": { "type": "string" },
-                                                            "value": {}
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "required": ["name"]
-                                        }
-                                    },
-                                    "required": ["metric"]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "log": {
-                                            "type": "object",
-                                            "properties": {
-                                                "body": {},
-                                                "attributes": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "name": { "type": "string" },
-                                                            "value": {}
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-                                    "required": ["log"]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "resource": {
-                                            "type": "object",
-                                            "properties": {
-                                                "attributes": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "name": { "type": "string" },
-                                                            "value": {}
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-                                    "required": ["resource"]
-                                }
-                            ]
-                        }
-                    }
-                },
-                "required": ["samples"]
-            }),
+            input_schema: serde_json::to_value(schema_for!(LiveCheckParams))
+                .expect("LiveCheckParams schema should serialize"),
         }
     }
 
