@@ -1,12 +1,13 @@
 //! V2 diffs.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // V2 Leverages the same nomenclature for diff as V1.
 pub use crate::schema_changes::SchemaItemChange;
 
 /// A summary of schema changes between two versions of a schema.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SchemaChanges {
     /// Changes to the registry.
@@ -14,7 +15,7 @@ pub struct SchemaChanges {
 }
 
 /// A summary of changes to the registry of signals and attributes.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RegistryChanges {
     /// Changes across the registry of attributes.
