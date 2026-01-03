@@ -489,10 +489,7 @@ mod tests {
         );
 
         // Test with no version in path
-        assert_eq!(
-            extract_semconv_version("/some/path/without/version"),
-            None
-        );
+        assert_eq!(extract_semconv_version("/some/path/without/version"), None);
 
         // Test with invalid semver (missing patch version)
         assert_eq!(extract_semconv_version("/path/v1.2/registry"), None);
