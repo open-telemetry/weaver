@@ -69,7 +69,7 @@ impl McpServer {
     /// # Errors
     ///
     /// Returns an error if there's an IO error during communication.
-    pub fn run(&self) -> Result<(), McpError> {
+    pub fn run(&mut self) -> Result<(), McpError> {
         info!("Starting MCP server");
 
         let stdin = std::io::stdin();
@@ -106,7 +106,7 @@ impl McpServer {
 
             // Handle requests (have id) - send a response
             let id = message.id.clone().unwrap_or(Value::Null);
-            let response = self.handle_request(id, &message.method, message.params);
+            let response = self.handle_request(id, &message.method, message.params.clone());
 
             // Serialize and write the response
             let response_json = serde_json::to_string(&response)?;
@@ -135,7 +135,7 @@ impl McpServer {
     }
 
     /// Handle a single JSON-RPC request.
-    fn handle_request(&self, id: Value, method: &str, params: Value) -> JsonRpcResponse {
+    fn handle_request(&mut self, id: Value, method: &str, params: Value) -> JsonRpcResponse {
         debug!("Handling method: {}", method);
 
         match method {
@@ -195,7 +195,7 @@ impl McpServer {
     }
 
     /// Handle the tools/call request.
-    fn handle_tools_call(&self, id: Value, params: Value) -> JsonRpcResponse {
+    fn handle_tools_call(&mut self, id: Value, params: Value) -> JsonRpcResponse {
         debug!("Handling tools/call request");
 
         // Parse the tool call parameters
@@ -212,30 +212,27 @@ impl McpServer {
 
         debug!("Calling tool: {}", call_params.name);
 
-        // Find the tool
+        // Find and execute the tool
         let tool = self
             .tools
-            .iter()
+            .iter_mut()
             .find(|t| t.definition().name == call_params.name);
 
         match tool {
-            Some(t) => {
-                // Execute the tool
-                match t.execute(call_params.arguments) {
-                    Ok(result) => JsonRpcResponse::success(
+            Some(t) => match t.execute(call_params.arguments) {
+                Ok(result) => JsonRpcResponse::success(
+                    id,
+                    serde_json::to_value(result).expect("ToolCallResult should serialize"),
+                ),
+                Err(e) => {
+                    let error_result = ToolCallResult::error(e.to_string());
+                    JsonRpcResponse::success(
                         id,
-                        serde_json::to_value(result).expect("ToolCallResult should serialize"),
-                    ),
-                    Err(e) => {
-                        let error_result = ToolCallResult::error(e.to_string());
-                        JsonRpcResponse::success(
-                            id,
-                            serde_json::to_value(error_result)
-                                .expect("ToolCallResult should serialize"),
-                        )
-                    }
+                        serde_json::to_value(error_result)
+                            .expect("ToolCallResult should serialize"),
+                    )
                 }
-            }
+            },
             None => JsonRpcResponse::error(
                 id,
                 INTERNAL_ERROR,

@@ -2,7 +2,6 @@
 
 //! Live check tool for validating telemetry samples against the registry.
 
-use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -26,9 +25,7 @@ use crate::error::McpError;
 /// for efficiency. The LiveChecker includes all configured advisors (built-in
 /// and optionally Rego-based).
 pub struct LiveCheckTool {
-    /// The live checker instance, wrapped in RefCell for interior mutability.
-    /// LiveChecker's advisors are mutable, but the Tool trait requires &self.
-    live_checker: RefCell<LiveChecker>,
+    live_checker: LiveChecker,
 }
 
 impl LiveCheckTool {
@@ -58,9 +55,7 @@ impl LiveCheckTool {
             })?;
         live_checker.add_advisor(Box::new(rego_advisor));
 
-        Ok(Self {
-            live_checker: RefCell::new(live_checker),
-        })
+        Ok(Self { live_checker })
     }
 }
 
@@ -94,19 +89,16 @@ impl Tool for LiveCheckTool {
         }
     }
 
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: LiveCheckParams = serde_json::from_value(arguments)?;
         let mut samples = params.samples;
-
-        // Borrow the pre-initialized LiveChecker (reused across calls)
-        let mut live_checker = self.live_checker.borrow_mut();
         let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
 
         // Run live check on each sample (mutates samples in place)
         for sample in &mut samples {
             let sample_clone = sample.clone();
             sample
-                .run_live_check(&mut live_checker, &mut stats, None, &sample_clone)
+                .run_live_check(&mut self.live_checker, &mut stats, None, &sample_clone)
                 .map_err(|e| McpError::ToolExecution(format!("Live check failed: {e}")))?;
         }
 

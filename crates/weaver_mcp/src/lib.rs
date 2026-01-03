@@ -69,6 +69,6 @@ pub fn run(registry: ForgeResolvedRegistry) -> Result<(), McpError> {
 /// Returns an error if there's an IO error during communication.
 pub fn run_with_config(registry: ForgeResolvedRegistry, config: McpConfig) -> Result<(), McpError> {
     let registry = Arc::new(registry);
-    let server = McpServer::new(registry, config)?;
+    let mut server = McpServer::new(registry, config)?;
     server.run()
 }

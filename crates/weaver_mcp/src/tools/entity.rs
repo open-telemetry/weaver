@@ -45,7 +45,7 @@ impl Tool for GetEntityTool {
         }
     }
 
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetEntityParams = serde_json::from_value(arguments)?;
 
         // O(1) lookup by type

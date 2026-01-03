@@ -43,7 +43,7 @@ impl Tool for GetEventTool {
         }
     }
 
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetEventParams = serde_json::from_value(arguments)?;
 
         // O(1) lookup by name

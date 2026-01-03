@@ -38,5 +38,5 @@ pub trait Tool {
     fn definition(&self) -> ToolDefinition;
 
     /// Execute the tool with the given arguments.
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError>;
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError>;
 }

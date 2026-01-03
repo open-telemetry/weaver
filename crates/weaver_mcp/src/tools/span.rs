@@ -46,7 +46,7 @@ impl Tool for GetSpanTool {
         }
     }
 
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetSpanParams = serde_json::from_value(arguments)?;
 
         // O(1) lookup by type

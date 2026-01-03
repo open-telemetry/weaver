@@ -44,7 +44,7 @@ impl Tool for GetAttributeTool {
         }
     }
 
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: GetAttributeParams = serde_json::from_value(arguments)?;
 
         // O(1) lookup by key

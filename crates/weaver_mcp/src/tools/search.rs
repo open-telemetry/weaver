@@ -105,7 +105,7 @@ impl Tool for SearchTool {
         }
     }
 
-    fn execute(&self, arguments: Value) -> Result<ToolCallResult, McpError> {
+    fn execute(&mut self, arguments: Value) -> Result<ToolCallResult, McpError> {
         let params: SearchParams = serde_json::from_value(arguments)?;
 
         let search_type: SearchType = params.search_type.into();
