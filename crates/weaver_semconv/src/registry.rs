@@ -12,11 +12,36 @@ use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
-use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::LazyLock;
 use weaver_common::result::WResult;
+
+/// Extracts a semantic version from a path string.
+///
+/// This function searches through path segments (separated by '/') looking for
+/// a segment that starts with 'v' followed by a valid semantic version.
+///
+/// # Arguments
+///
+/// * `path` - A path string that may contain a version segment (e.g., "/path/v1.26.0/file")
+///
+/// # Returns
+///
+/// * `Some(String)` - The version string including the 'v' prefix (e.g., "v1.26.0")
+/// * `None` - If no valid semantic version is found in the path
+fn extract_semconv_version(path: &str) -> Option<String> {
+    for segment in path.split('/') {
+        if segment.starts_with('v') && segment.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
+            // Try to parse it with semver (strip the 'v' first)
+            if let Some(version_part) = segment.strip_prefix('v') {
+                if semver::Version::parse(version_part).is_ok() {
+                    return Some(segment.to_owned());
+                }
+            }
+        }
+    }
+    None
+}
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -125,10 +150,6 @@ impl SemConvRegistry {
         registry_repo: &RegistryRepo,
         semconv_specs: Vec<SemConvSpecWithProvenance>,
     ) -> Result<SemConvRegistry, Error> {
-        // ToDo We should use: https://docs.rs/semver/latest/semver/ and URL parser that can give us the last element of the path to send to the parser.
-        static VERSION_REGEX: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
-
         // Load all the semantic convention registry.
         let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
 
@@ -137,16 +158,11 @@ impl SemConvRegistry {
         }
 
         if registry_repo.manifest().is_none() {
-            let mut semconv_version = "unversioned".to_owned();
-
             // No registry manifest found.
-            // Try to infer the manifest from the registry path by detecting the
-            // presence of the following pattern in the registry path: v\d+\.\d+\.\d+.
-            if let Some(captures) = VERSION_REGEX.captures(registry_repo.registry_path_repr()) {
-                if let Some(captured_text) = captures.get(1) {
-                    semconv_version = captured_text.as_str().to_owned();
-                }
-            }
+            // Try to infer the manifest from the registry path by detecting a
+            // valid semantic version segment (e.g., v1.26.0) in the path.
+            let semconv_version = extract_semconv_version(registry_repo.registry_path_repr())
+                .unwrap_or_else(|| "unversioned".to_owned());
 
             registry.set_manifest(RegistryManifest {
                 name: registry_repo.id().as_ref().to_owned(),
@@ -446,5 +462,60 @@ mod tests {
             .unresolved_group_with_provenance_iter()
             .collect::<Vec<_>>();
         assert_eq!(groups.len(), 3);
+    }
+
+    #[test]
+    fn test_extract_semconv_version() {
+        use super::extract_semconv_version;
+
+        // Test with GitHub release URL pattern
+        assert_eq!(
+            extract_semconv_version(
+                "https://github.com/open-telemetry/semantic-conventions/releases/download/v1.26.0/semantic-conventions.zip"
+            ),
+            Some("v1.26.0".to_owned())
+        );
+
+        // Test with local path containing version
+        assert_eq!(
+            extract_semconv_version("/some/path/v1.2.3/registry"),
+            Some("v1.2.3".to_owned())
+        );
+
+        // Test with version at the end of path
+        assert_eq!(
+            extract_semconv_version("/path/to/semantic-conventions-v2.0.0"),
+            None // "v2.0.0" is not a standalone segment
+        );
+
+        // Test with no version in path
+        assert_eq!(
+            extract_semconv_version("/some/path/without/version"),
+            None
+        );
+
+        // Test with invalid semver (missing patch version)
+        assert_eq!(extract_semconv_version("/path/v1.2/registry"), None);
+
+        // Test with pre-release version
+        assert_eq!(
+            extract_semconv_version("/path/v1.0.0-alpha.1/registry"),
+            Some("v1.0.0-alpha.1".to_owned())
+        );
+
+        // Test with build metadata
+        assert_eq!(
+            extract_semconv_version("/path/v1.0.0+build.123/registry"),
+            Some("v1.0.0+build.123".to_owned())
+        );
+
+        // Test empty path
+        assert_eq!(extract_semconv_version(""), None);
+
+        // Test path with only slashes
+        assert_eq!(extract_semconv_version("///"), None);
+
+        // Test version-like but not starting with 'v'
+        assert_eq!(extract_semconv_version("/path/1.2.3/registry"), None);
     }
 }
