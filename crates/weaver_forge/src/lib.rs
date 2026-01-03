@@ -1135,6 +1135,6 @@ mod tests {
             "test": expected.clone()
         });
         let result = run_filter_raw(&input, ".test").expect("failed to run raw filter `.test`");
-        assert_eq!(result, expected)
+        assert_eq!(result, expected);
     }
 }
