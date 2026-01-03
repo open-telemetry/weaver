@@ -151,6 +151,20 @@ impl Object for ParamsObject {
     }
 }
 
+/// Runs raw JQ filter on a context object.
+pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_json::Value, Error> {
+    // Create a read-only context for the filter evaluations
+    let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+        error: e.to_string(),
+    })?;
+    // Apply the filter
+    let filter = Filter::new(filter);
+    // TODO - create real filter params
+    let filter_params = BTreeMap::new();
+    let filtered_context = filter.apply(context, &filter_params)?;
+    Ok(filtered_context)
+}
+
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
 pub struct TemplateEngine {
@@ -747,7 +761,7 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
-    use crate::{OutputDirective, TemplateEngine};
+    use crate::{run_filter_raw, OutputDirective, TemplateEngine};
 
     fn prepare_test(
         target: &str,
@@ -1112,5 +1126,15 @@ mod tests {
             msg.contains("Template pattern 'does-not-exist.j2' did not match any files"),
             "Unexpected error message - {msg}"
         );
+    }
+
+    #[test]
+    fn test_run_filter_raw() {
+        let expected = serde_json::json!({ "one": 1 });
+        let input = serde_json::json!({
+            "test": expected.clone()
+        });
+        let result = run_filter_raw(&input, ".test").expect("failed to run raw filter `.test`");
+        assert_eq!(result, expected);
     }
 }

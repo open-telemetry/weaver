@@ -12,6 +12,9 @@ use axum::{
 };
 use schemars::schema_for;
 use serde_json::json;
+use weaver_forge::run_filter_raw;
+
+use crate::serve::types::FilterParams;
 
 use super::server::AppState;
 use super::types::{RegistryCounts, RegistryStats, SearchParams, SearchResponse};
@@ -313,4 +316,32 @@ pub async fn search_registry(
     };
 
     Json(response).into_response()
+}
+
+/// Runs a JQ filter against a registry.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/filter",
+    params(
+        FilterParams
+    ),
+    responses(
+        (status = 200, description = "Registry filter results", body = serde_json::Value)
+    ),
+    tag = "registry"
+)]
+pub async fn filter_registry(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<FilterParams>,
+) -> impl IntoResponse {
+    // TODO - Should filter be required?
+    let filter = params.filter.as_deref().unwrap_or(".");
+    match run_filter_raw(&state.registry, filter) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": format!("{e}")})),
+        )
+            .into_response(),
+    }
 }
