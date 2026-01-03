@@ -318,7 +318,6 @@ pub async fn search_registry(
     Json(response).into_response()
 }
 
-
 /// Runs a JQ filter against a registry.
 #[utoipa::path(
     get,
@@ -335,15 +334,14 @@ pub async fn filter_registry(
     State(state): State<Arc<AppState>>,
     Query(params): Query<FilterParams>,
 ) -> impl IntoResponse {
-    // Convert Option<String> to Option<&str> for search
-    let filter = 
-        params.filter.as_deref()
-        .unwrap_or(".");
+    // TODO - Should filter be required?
+    let filter = params.filter.as_deref().unwrap_or(".");
     match run_filter_raw(&state.registry, filter) {
         Ok(v) => Json(v).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": format!("{e}")})),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }

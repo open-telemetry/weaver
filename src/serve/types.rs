@@ -75,7 +75,6 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
 }
 
-
 /// Query parameters for filter endpoint.
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct FilterParams {
