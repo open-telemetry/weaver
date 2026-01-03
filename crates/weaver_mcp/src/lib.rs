@@ -13,19 +13,17 @@
 //! - `get_entity` - Get a specific entity by type
 //! - `live_check` - Validate telemetry samples against the registry
 //!
-//! The server uses JSON-RPC 2.0 over stdio for communication.
+//! The server uses the rmcp SDK with JSON-RPC 2.0 over stdio for communication.
 
-mod error;
-mod protocol;
-mod server;
-mod tools;
+mod service;
 
-pub use error::McpError;
-pub use server::McpServer;
+pub use service::WeaverMcpService;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use rmcp::transport::stdio;
+use rmcp::ServiceExt;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 
 /// Configuration for the MCP server.
@@ -39,6 +37,19 @@ pub struct McpConfig {
     /// The script transforms registry data before passing to Rego.
     pub advice_preprocessor: Option<PathBuf>,
 }
+
+/// Error type for MCP operations.
+#[derive(Debug, serde::Serialize, miette::Diagnostic)]
+#[diagnostic(code(weaver::mcp::error))]
+pub struct McpError(#[help] String);
+
+impl std::fmt::Display for McpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MCP error: {}", self.0)
+    }
+}
+
+impl std::error::Error for McpError {}
 
 /// Run the MCP server with the given registry and default configuration.
 ///
@@ -68,7 +79,28 @@ pub fn run(registry: ForgeResolvedRegistry) -> Result<(), McpError> {
 ///
 /// Returns an error if there's an IO error during communication.
 pub fn run_with_config(registry: ForgeResolvedRegistry, config: McpConfig) -> Result<(), McpError> {
+    // Create a tokio runtime for the async rmcp server
+    let rt = tokio::runtime::Runtime::new().map_err(|e| McpError(e.to_string()))?;
+
+    rt.block_on(async { run_async(registry, config).await })
+}
+
+/// Run the MCP server asynchronously.
+///
+/// This is the async implementation that uses rmcp's stdio transport.
+async fn run_async(registry: ForgeResolvedRegistry, config: McpConfig) -> Result<(), McpError> {
     let registry = Arc::new(registry);
-    let mut server = McpServer::new(registry, config)?;
-    server.run()
+    let service = WeaverMcpService::new(registry, config);
+
+    let server = service
+        .serve(stdio())
+        .await
+        .map_err(|e| McpError(e.to_string()))?;
+
+    let _quit_reason = server
+        .waiting()
+        .await
+        .map_err(|e| McpError(e.to_string()))?;
+
+    Ok(())
 }
