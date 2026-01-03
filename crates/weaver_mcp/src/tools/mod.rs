@@ -33,7 +33,7 @@ use crate::error::McpError;
 use crate::protocol::{ToolCallResult, ToolDefinition};
 
 /// Trait for MCP tools.
-pub trait Tool: Send + Sync {
+pub trait Tool {
     /// Get the tool definition for MCP registration.
     fn definition(&self) -> ToolDefinition;
 

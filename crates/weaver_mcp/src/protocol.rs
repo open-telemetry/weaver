@@ -86,7 +86,8 @@ pub struct JsonRpcError {
     pub data: Option<Value>,
 }
 
-// Standard JSON-RPC error codes
+// Standard JSON-RPC 2.0 error codes
+// See: https://www.jsonrpc.org/specification#error_object
 #[allow(dead_code)]
 pub const PARSE_ERROR: i32 = -32700;
 #[allow(dead_code)]

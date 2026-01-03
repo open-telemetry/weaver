@@ -6,6 +6,8 @@
 //! (Model Context Protocol) server exposing the semantic conventions registry
 //! to LLMs like Claude.
 
+use std::path::PathBuf;
+
 use clap::Args;
 use log::info;
 
@@ -24,6 +26,18 @@ pub struct RegistryMcpArgs {
     /// Diagnostic arguments.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// Advice policies directory. Set this to override the default policies.
+    #[arg(long)]
+    pub advice_policies: Option<PathBuf>,
+
+    /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
+    ///
+    /// Rego policies are run for each sample as it arrives. The preprocessor
+    /// can be used to create a new data structure that is more efficient for the rego policies
+    /// versus processing the data for every sample.
+    #[arg(long)]
+    pub advice_preprocessor: Option<PathBuf>,
 }
 
 /// Run the MCP server for the semantic convention registry.
@@ -50,8 +64,14 @@ pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, Diagnost
     info!("Starting MCP server (communicating over stdio)");
     info!("The server will run until stdin is closed.");
 
+    // Build MCP config from command line args
+    let config = weaver_mcp::McpConfig {
+        advice_policies: args.advice_policies.clone(),
+        advice_preprocessor: args.advice_preprocessor.clone(),
+    };
+
     // Run the MCP server
-    if let Err(e) = weaver_mcp::run(forge_registry) {
+    if let Err(e) = weaver_mcp::run_with_config(forge_registry, config) {
         return Err(DiagnosticMessages::from_error(e));
     }
 

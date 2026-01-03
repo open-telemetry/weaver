@@ -2,13 +2,15 @@
 
 //! Live check tool for validating telemetry samples against the registry.
 
+use std::cell::RefCell;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use serde_json::Value;
 use weaver_live_check::advice::{
-    Advisor, DeprecatedAdvisor, EnumAdvisor, StabilityAdvisor, TypeAdvisor,
+    Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
 use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::{
@@ -19,14 +21,46 @@ use super::{Tool, ToolCallResult, ToolDefinition};
 use crate::error::McpError;
 
 /// Tool for running live-check on telemetry samples.
+///
+/// This tool holds a pre-initialized `LiveChecker` that is reused across calls
+/// for efficiency. The LiveChecker includes all configured advisors (built-in
+/// and optionally Rego-based).
 pub struct LiveCheckTool {
-    versioned_registry: Arc<VersionedRegistry>,
+    /// The live checker instance, wrapped in RefCell for interior mutability.
+    /// LiveChecker's advisors are mutable, but the Tool trait requires &self.
+    live_checker: RefCell<LiveChecker>,
 }
 
 impl LiveCheckTool {
-    /// Create a new live check tool with the given registry.
-    pub fn new(versioned_registry: Arc<VersionedRegistry>) -> Self {
-        Self { versioned_registry }
+    /// Create a new live check tool with pre-initialized LiveChecker.
+    ///
+    /// # Arguments
+    ///
+    /// * `versioned_registry` - The semantic convention registry.
+    /// * `advice_policies` - Optional path to custom Rego policies directory.
+    /// * `advice_preprocessor` - Optional path to jq preprocessor script.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if RegoAdvisor initialization fails.
+    pub fn new(
+        versioned_registry: Arc<VersionedRegistry>,
+        advice_policies: Option<PathBuf>,
+        advice_preprocessor: Option<PathBuf>,
+    ) -> Result<Self, McpError> {
+        // Create LiveChecker with default advisors
+        let mut live_checker = LiveChecker::new(versioned_registry, default_advisors());
+
+        // Add RegoAdvisor for policy-based advice
+        let rego_advisor = RegoAdvisor::new(&live_checker, &advice_policies, &advice_preprocessor)
+            .map_err(|e| {
+                McpError::ToolExecution(format!("Failed to initialize RegoAdvisor: {e}"))
+            })?;
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        Ok(Self {
+            live_checker: RefCell::new(live_checker),
+        })
     }
 }
 
@@ -64,9 +98,8 @@ impl Tool for LiveCheckTool {
         let params: LiveCheckParams = serde_json::from_value(arguments)?;
         let mut samples = params.samples;
 
-        // Create LiveChecker with shared registry (Arc::clone is cheap)
-        let mut live_checker =
-            LiveChecker::new(Arc::clone(&self.versioned_registry), default_advisors());
+        // Borrow the pre-initialized LiveChecker (reused across calls)
+        let mut live_checker = self.live_checker.borrow_mut();
         let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
 
         // Run live check on each sample (mutates samples in place)

@@ -24,6 +24,7 @@ use crate::tools::{
     GetAttributeTool, GetEntityTool, GetEventTool, GetMetricTool, GetSpanTool, LiveCheckTool,
     SearchTool, Tool,
 };
+use crate::McpConfig;
 
 /// MCP server for the semantic convention registry.
 pub struct McpServer {
@@ -32,13 +33,23 @@ pub struct McpServer {
 }
 
 impl McpServer {
-    /// Create a new MCP server with the given registry.
-    #[must_use]
-    pub fn new(registry: Arc<ForgeResolvedRegistry>) -> Self {
+    /// Create a new MCP server with the given registry and configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the LiveChecker or RegoAdvisor fails to initialize.
+    pub fn new(registry: Arc<ForgeResolvedRegistry>, config: McpConfig) -> Result<Self, McpError> {
         let search_context = Arc::new(SearchContext::from_registry(&registry));
 
         // Create versioned registry wrapper once for live check (clone happens here, not per-request)
         let versioned_registry = Arc::new(VersionedRegistry::V2((*registry).clone()));
+
+        // Create the LiveCheckTool with pre-initialized LiveChecker (reused across calls)
+        let live_check_tool = LiveCheckTool::new(
+            versioned_registry,
+            config.advice_policies,
+            config.advice_preprocessor,
+        )?;
 
         let tools: Vec<Box<dyn Tool>> = vec![
             Box::new(SearchTool::new(Arc::clone(&search_context))),
@@ -47,10 +58,10 @@ impl McpServer {
             Box::new(GetSpanTool::new(Arc::clone(&search_context))),
             Box::new(GetEventTool::new(Arc::clone(&search_context))),
             Box::new(GetEntityTool::new(Arc::clone(&search_context))),
-            Box::new(LiveCheckTool::new(versioned_registry)),
+            Box::new(live_check_tool),
         ];
 
-        Self { tools }
+        Ok(Self { tools })
     }
 
     /// Run the MCP server, reading from stdin and writing to stdout.
