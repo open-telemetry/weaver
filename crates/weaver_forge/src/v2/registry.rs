@@ -28,6 +28,7 @@ pub struct ForgeResolvedRegistry {
     /// Schema URL for corresponding resolved schema version
     pub schema_url: String,
     /// The URL of the registry that this schema belongs to.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
     /// The raw attributes in this registry.
     pub attributes: Vec<Attribute>,
