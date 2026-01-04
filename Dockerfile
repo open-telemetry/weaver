@@ -1,5 +1,5 @@
 # The build image
-FROM --platform=$BUILDPLATFORM docker.io/rust:1.92.0@sha256:910b9dc6597a3ef16458dc1d20520714d3526ddb038749b8d87334798064d672 AS weaver-build
+FROM --platform=$BUILDPLATFORM docker.io/rust:1.92.0@sha256:65734d21f103d104fe0d9e508a424f7f60abd10e489d36de8bd36ae6c80e746d AS weaver-build
 WORKDIR /build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
