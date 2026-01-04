@@ -66,7 +66,7 @@ full reference.
 The resolved version of the metric above would look like this:
 
 ```yaml
-attributes:
+attribute_catalog:
 ...
 - key: my.operation.name
   type: string
@@ -77,20 +77,19 @@ attributes:
 registry:
   attributes:
   ...
-  - 888
-  - 1042
+  - 888   # this is the index of `server.address` in the attribute_catalog
+  - 1042  # this is the index of `my.operation.name` in attribute_catalog
   ...
   metrics:
   - name: my.client.operation.duration
     instrument: histogram
     unit: s
     attributes:
-      - base: 1042  # this is the index of `my.operation.name` in attributes list
+      - base: 1042  # this is the index of `my.operation.name` in attribute_catalog
         requirement_level: required
-      - base: 888  # this is the index of `server.address` in the attributes list
+      - base: 888  # this is the index of `server.address` in the attribute_catalog
         requirement_level: recommended
       ...
-
 ```
 
 Instead of references, we see indexes of attributes along with overridden properties.
