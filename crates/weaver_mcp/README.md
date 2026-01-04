@@ -2,23 +2,9 @@
 
 Weaver includes an MCP (Model Context Protocol) server that exposes the semantic conventions registry to LLMs. This enables natural language queries for finding and understanding conventions while writing instrumentation code.
 
-Supported clients:
-- [Claude Code / Claude Desktop](#configure-claude-code)
-- [GitHub Copilot](#configure-github-copilot)
+## Configure Your LLM Client
 
-## Quick Start
-
-### 1. Build Weaver
-
-```bash
-cargo build --release
-```
-
-### 2. Configure Your LLM Client
-
-#### Configure Claude Code
-
-Add the MCP server using the Claude CLI:
+Follow the steps for your specific LLM client to add the Weaver MCP server. For example, Claude Code: 
 
 ```bash
 # Add globally (available in all projects)
@@ -37,81 +23,14 @@ To use a specific registry:
 ```bash
 claude mcp add --global --transport stdio weaver \
   /path/to/weaver registry mcp \
-  --registry https://github.com/open-telemetry/semantic-conventions.git
+  --registry my_project/model
 ```
 
-#### Alternative: Manual Configuration
-
-You can also manually edit the Claude Code configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Linux**: `~/.config/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "weaver": {
-      "command": "/path/to/weaver",
-      "args": [
-        "registry",
-        "mcp",
-        "--registry",
-        "https://github.com/open-telemetry/semantic-conventions.git"
-      ]
-    }
-  }
-}
-```
-
-#### Configure GitHub Copilot
-
-Add the MCP server to your VS Code settings (`settings.json`):
-
-```json
-{
-  "github.copilot.chat.mcp.servers": {
-    "weaver": {
-      "command": "/path/to/weaver",
-      "args": [
-        "registry",
-        "mcp",
-        "--registry",
-        "https://github.com/open-telemetry/semantic-conventions.git"
-      ]
-    }
-  }
-}
-```
-
-Or add to workspace settings (`.vscode/settings.json`) for project-specific configuration.
-
-Replace `/path/to/weaver` with the actual path to your weaver binary.
-
-### 3. Restart Your Editor
-
-After configuration, restart your editor/client to load the MCP server.
-
-### 4. Verify Connection
+## Verify Connection
 
 You should see the weaver tools available. Try asking:
 
 > "Search for HTTP server attributes in semantic conventions"
-
-## Command Usage
-
-```bash
-# With OpenTelemetry semantic conventions (default)
-weaver registry mcp --registry https://github.com/open-telemetry/semantic-conventions.git
-
-# With a local registry
-weaver registry mcp --registry /path/to/local/registry
-
-# Specify registry path within the repo (default: "model")
-weaver registry mcp --registry https://github.com/my-org/my-conventions.git --registry-path model
-```
-
-Custom registries must follow the [Weaver registry format](./registry.md).
 
 ## Available Tools
 
@@ -190,47 +109,4 @@ Here are some example prompts:
 
 > "How should I instrument a Redis client according to OpenTelemetry conventions?"
 
-## Troubleshooting
-
-### Server doesn't start
-
-1. Check the path to the weaver binary is correct
-2. Verify the registry URL is accessible
-3. Check logs for error messages:
-   - **Claude Code**: Check the MCP server logs in the output panel
-   - **GitHub Copilot**: Check the VS Code Output panel → "GitHub Copilot Chat"
-
-### No tools available
-
-1. Ensure the configuration JSON is valid
-2. Restart your editor after configuration changes
-3. Check that the MCP server process is running
-
-### Slow startup
-
-The first run may be slow as it clones the semantic conventions repository. Subsequent runs use a cached version.
-
-### Using a local registry
-
-For faster startup during development, clone the registry locally:
-
-```bash
-git clone https://github.com/open-telemetry/semantic-conventions.git /path/to/semconv
-
-# Then use local path
-weaver registry mcp --registry /path/to/semconv
-```
-
-## Architecture
-
-The MCP server:
-
-1. Loads the semantic conventions registry into memory at startup
-2. Communicates via JSON-RPC 2.0 over stdio
-3. Provides direct memory access to registry data (no HTTP overhead)
-4. Runs as a single process managed by the LLM client
-
-```
-LLM Client <-- JSON-RPC (stdio) --> weaver registry mcp <-- memory --> Registry
-```
 
