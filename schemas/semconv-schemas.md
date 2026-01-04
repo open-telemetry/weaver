@@ -5,7 +5,9 @@
 - [Semantic Conventions Schemas](#semantic-conventions-schemas)
   - [Source schema](#source-schema)
   - [Resolved schema](#resolved-schema)
-    - [Resolved schema overview](#resolved-schema-overview)
+    - [Resolved schema properties](#resolved-schema-properties)
+  - [Materialized resolved schema](#materialized-resolved-schema)
+    - [Materialized schema properties](#materialized-schema-properties)
   - [Diff schema](#diff-schema)
 
 <!-- tocstop -->
@@ -16,25 +18,30 @@
 > This document describes a new (future) version of the Semantic Conventions YAML model.
 > This model is not yet feature-complete and is under active development.
 
-This document describes three schemas that govern the lifecycle of semantic conventions:
-the source schema for authoring, the resolved schema for distribution, and the diff schema
-for tracking changes between versions.
+This document describes schemas that govern the lifecycle of semantic conventions:
 
-Semantic conventions are authored in YAML following the [source schema](#source-schema),
-packaged and then consumed following the [resolved schema](#resolved-schema).
-
-The difference between two versions of semantic conventions is described using the [diff schema](#diff-schema).
+- the [source schema](#source-schema) for authoring,
+- the [resolved schema](#resolved-schema) for distribution,
+- the [materialized resolved schema](#materialized-resolved-schema) for validation and documentation/code generation,
+- and the [diff schema](#diff-schema) for tracking changes between versions.
 
 ## Source schema
 
 The *source* schema is used to write conventions. Conventions can be defined in multiple files. The
 syntax is focused on avoiding duplication, maximizing consistency, and ease of authoring.
 See the [source schema syntax](/schemas/semconv.source-syntax.v2.md) for details and examples,
-and the [source JSON schema](/schemas/semconv.source-schema.v2.json) for the full reference.
+and the [JSON schema](/schemas/semconv.source-schema.v2.json) for the full reference.
 
 For example, the source schema might look like this:
 
 ```yaml
+attributes:
+- key: my.operation.name
+  type: string
+  stability: development
+  brief: My service operation name as defined in this Open API spec
+  examples: ["get_object", "create_collection"]
+...
 metrics:
 - name: my.client.operation.duration
   stability: stable
@@ -48,101 +55,207 @@ metrics:
 
 ## Resolved schema
 
-The *resolved* schema is a single file that's produced from a set of sources. It contains fully resolved
-signal definitions and refinements that are self-sufficient.
+The *resolved* schema is a single file produced from a set of source schemas. It contains resolved
+signal definitions and refinements that are self-contained. It is optimized for
+distribution and in-memory representation.
 
-The resolved version of the example above would look like this:
-
-```yaml
-metrics:
-- name: my.client.operation.duration
-  instrument: histogram
-  unit: s
-  attributes:
-    - key: my.operation.name
-      brief: My service operation name as defined in this Open API spec
-      stability: stable
-      requirement_level: required
-      type:
-        members:
-        - id: get_my_order
-          ...
-        - id: create_my_order
-          ...
-    - key: server.address
-      type: string
-      brief: My server host name
-      note: MUST match regional endpoint
-      ...
-      examples: ["foo-us-west-prod.my.com"]
-      requirement_level: recommended
-    - key: server.port
-    ...
-
-```
-
-Instead of references, we see actual attributes along with their properties.
-
-The following commands produce data that follows the *resolved* schema:
-
-- `weaver registry resolve`
-- `weaver registry generate` - the data passed to JQ filters follows the resolved schema
-
+The *resolved* schema is produced by the `weaver registry resolve` command.
 See the [resolved JSON schema](/schemas/semconv.resolved-schema.v2.json) for the
 full reference.
 
-### Resolved schema overview
+The resolved version of the metric above would look like this:
 
-All definitions share these common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+```yaml
+attributes:
+...
+- key: my.operation.name
+  type: string
+  stability: development
+  brief: My service operation name as defined in this Open API spec
+  examples: ["get_object", "create_collection"]
+...
+registry:
+  attributes:
+  ...
+  - 888
+  - 1042
+  ...
+  metrics:
+  - name: my.client.operation.duration
+    instrument: histogram
+    unit: s
+    attributes:
+      - base: 1042  # this is the index of `my.operation.name` in attributes list
+        requirement_level: required
+      - base: 888  # this is the index of `server.address` in the attributes list
+        requirement_level: recommended
+      ...
 
-**Top-level collections:**
+```
 
+Instead of references, we see indexes of attributes along with overridden properties.
+
+### Resolved schema properties
+
+- **file_format**: Version of the resolved schema, `2.0.0` in this iteration (defaults to `2.0.0` if not specified)
+- **schema_url**: Schema URL where this file is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
+- **registry_url**: URL of the registry where the conventions are defined (not versioned). E.g., `https://github.com/open-telemetry/semantic-conventions/`
+- **attribute_catalog**: Attribute catalog containing definitions and refinements. May include duplicate keys.
+  - `key`: Attribute key
+  - `type`: Primitive, array, template, or enum with members
+  - `examples`: Example values (optional)
+  - Common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+- **registry**: All signal and attribute definitions in the registry
+  - **attributes**: List of indexes (into `attributes_catalog` array) corresponding to original attribute definitions. Does not include duplicates.
+  - **attribute_groups**: Public attribute groups
+    - `id`: Unique identifier
+    - `attributes`: List of attribute indexes (into `attributes_catalog` array) belonging to this group
+    - Common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+  - **metrics**: Metric signal definitions
+    - `name`: Unique metric name
+    - `instrument`: Instrument type (counter, gauge, histogram, updowncounter)
+    - `unit`: Measurement unit
+    - `attributes`: List of metric attribute references
+      - `base`: Index (into `attributes_catalog` array)
+      - `requirement_level`: Requirement level of this attribute
+    - `entity_associations`: Associated entity types (optional)
+    - Common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+  - **spans**: Span signal definitions
+    - `type`: Unique span type identifier
+    - `name`: Span name pattern
+    - `kind`: Span kind (client, server, internal, producer, consumer)
+    - `attributes`: List of span attribute references
+      - `base`: Index (into `attributes_catalog` array)
+      - `requirement_level`: Requirement level of this attribute
+      - `sampling_relevant`: Whether this attribute should be provided at span start time (optional)
+    - `entity_associations`: Associated entity types (optional)
+    - Common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+  - **events**: Event signal definitions
+    - `name`: Unique event name
+    - `attributes`: List of event attribute references
+      - `base`: Index (into `attributes_catalog` array)
+      - `requirement_level`: Requirement level of this attribute
+    - `entity_associations`: Associated entity types (optional)
+    - Common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+  - **entities**: Entity (resource) signal definitions
+    - `type`: Unique entity type
+    - `identity`: List of identity attribute references
+      - `base`: Index (into `attributes_catalog` array)
+      - `requirement_level`: Requirement level of this attribute
+    - `description`: List of descriptive attribute references
+      - `base`: Index (into `attributes_catalog` array)
+      - `requirement_level`: Requirement level of this attribute
+    - Common properties: `brief`, `stability`, and optionally `note`, `deprecated`, and `annotations`.
+- **refinements**: Signal refinements that extend base signals for specific implementations.
+  Refinements also contain the original definitions of signals.
+  - **spans**: Span refinements
+    - `id`: Unique identifier for the refinement
+    - All properties of the refined span (as defined in the `signals.spans` section)
+  - **metrics**: Metric refinements
+    - `id`: Unique identifier for the refinement
+    - All properties of the refined metric (as defined in the `signals.metrics` section)
+  - **events**: Event refinements
+    - `id`: Unique identifier for the refinement
+    - All properties of the refined event (as defined in the `signals.events` section)
+
+## Materialized resolved schema
+
+The *materialized resolved* schema, *materialized* for short (and also known as *forge* schema in the weaver codebase),
+is based on the *resolved* schema. It expands attribute indexes into actual attribute definitions.
+It is optimized for consumption when generating code or documentation, and validating telemetry where
+full definitions of every signal and attribute are necessary.
+
+When running `weaver registry generate` or `weaver registry update-markdown`, the data passed
+to JQ filters in weaver config follows the *materialized resolved* schema.
+
+When running `weaver registry live-check` with custom Rego policies, the schema of the
+attributes and signals matches the *materialized resolved* schema too.
+
+See the [materialized JSON schema](/schemas/semconv.materialized-schema.v2.json) for the
+full reference.
+
+The materialized resolved schema of the original metric would look like:
+
+```yaml
+attributes:
+...
+- key: my.operation.name
+  type: string
+  stability: stable
+  brief: My service operation name as defined in this Open API spec
+  examples: ["get_object", "create_collection"]
+...
+signals:
+  metrics:
+  - name: my.client.operation.duration
+    instrument: histogram
+    unit: s
+    attributes:
+      - key: my.operation.name  # attribute index is expanded into actual attribute definition
+        type: string
+        brief: My service operation name as defined in this Open API spec
+        stability: stable
+        examples: ["get_object", "create_collection"]
+        requirement_level: required
+      - key: server.address
+        type: string
+        brief: Server domain name or IP address
+        examples: ["foo-us-west-prod.my.com"]
+        requirement_level: recommended
+      ...
+```
+
+### Materialized schema properties
+
+- **file_format**: Version of the resolved schema, `2.0.0` in this iteration
+- **schema_url**: Schema URL where this file is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
+- **registry_url**: URL of the registry where the conventions are defined (not versioned). E.g., `https://github.com/open-telemetry/semantic-conventions/`
 - **attributes**: Fully expanded attribute definitions
   - `key`: Unique identifier
   - `type`: Primitive, array, template, or enum with members
   - `examples`: Example values (optional)
-  - common properties
+  - Common properties
 - **attribute_groups**: Named collections of attributes
   - `id`: Unique identifier
   - `attributes`: Resolved attributes in this group
-  - common properties
+  - Common properties
 - **signals**: All telemetry signals. Each signal definition is also included in
   the `refinements` section as a base refinement that can be specialized.
   - **metrics**: Metric signal definitions
     - `name`: Metric name
     - `instrument`: Instrument type (counter, gauge, histogram, updowncounter)
     - `unit`: Measurement unit
-    - `attributes`: List of resolved metric attributes with requirement levels
+    - `attributes`: List of fully expanded metric attributes with requirement levels
     - `entity_associations`: Associated entity types (optional)
-    - common properties
+    - Common properties
   - **spans**: Span signal definitions
     - `type`: Unique span type identifier
     - `name`: Span name pattern
     - `kind`: Span kind (client, server, internal, producer, consumer)
-    - `attributes`: List of resolved span attributes with requirement levels and sampling-relevant flag
+    - `attributes`: List of fully expanded span attributes with requirement levels and sampling-relevant flag
     - `entity_associations`: Associated entity types (optional)
-    - common properties
+    - Common properties
   - **events**: Event signal definitions
     - `name`: Event name
-    - `attributes`: List of resolved event attributes with requirement levels
+    - `attributes`: List of fully expanded event attributes with requirement levels
     - `entity_associations`: Associated entity types (optional)
-    - common properties
+    - Common properties
   - **entities**: Entity (resource) signal definitions
     - `type`: Entity type identifier
     - `identity`: Attributes that identify the entity
     - `description`: Attributes that describe the entity
-    - common properties
+    - Common properties
 - **refinements**: Signal refinements that extend base signals for specific implementations.
-  Refinements also contain the original definitions of the signals.
-  - **spans**: Specialized span refinements
+  Refinements also contain the original definitions of signals.
+  - **spans**: Span refinements
     - `id`: Unique identifier for the refinement
-    - all properties of the refined span (as defined in the signals section)
-  - **metrics**: Specialized metric refinements
+    - All properties of the refined span (as defined in the `signals.spans` section)
+  - **metrics**: Metric refinements
     - `id`: Unique identifier for the refinement
-    - all properties of the refined metric (as defined in the signals section)
-  - **events**: Specialized event refinements
+    - All properties of the refined metric (as defined in the `signals.metrics` section)
+  - **events**: Event refinements
     - `id`: Unique identifier for the refinement
-    - all properties of the refined event (as defined in the signals section)
+    - All properties of the refined event (as defined in the `signals.events` section)
 
 ## Diff schema
 
