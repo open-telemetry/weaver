@@ -509,6 +509,40 @@ mod tests {
         }
     }
 
+    fn make_template_attribute(key: &str, brief: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::Template(
+                weaver_semconv::attribute::TemplateTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: brief.to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+        }
+    }
+
+    fn make_development_attribute(key: &str, brief: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: brief.to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Development,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+        }
+    }
+
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
             registry_url: "test".to_owned(),
@@ -526,6 +560,10 @@ mod tests {
                     "The database management system",
                     false,
                 ),
+                // Template attribute for testing get_template/find_template
+                make_template_attribute("test.template", "A template attribute"),
+                // Development stability attribute for testing stability filtering
+                make_development_attribute("experimental.feature", "An experimental feature"),
             ],
             attribute_groups: vec![],
             signals: Signals {
@@ -703,9 +741,9 @@ mod tests {
         // None query = browse mode
         let (results, total) = ctx.search(None, SearchType::All, None, 100, 0);
 
-        // Should return all items: 3 attributes + 1 metric + 1 span + 1 event + 1 entity = 7
-        assert_eq!(total, 7);
-        assert_eq!(results.len(), 7);
+        // Should return all items: 5 attributes + 1 metric + 1 span + 1 event + 1 entity = 9
+        assert_eq!(total, 9);
+        assert_eq!(results.len(), 9);
     }
 
     #[test]
@@ -715,8 +753,8 @@ mod tests {
 
         // Filter by Attribute only
         let (results, total) = ctx.search(None, SearchType::Attribute, None, 100, 0);
-        assert_eq!(total, 3); // 3 attributes
-        assert_eq!(results.len(), 3);
+        assert_eq!(total, 5); // 5 attributes (3 regular + 1 template + 1 development)
+        assert_eq!(results.len(), 5);
 
         // Filter by Metric only
         let (results, total) = ctx.search(None, SearchType::Metric, None, 100, 0);
@@ -743,17 +781,17 @@ mod tests {
 
         // Get first 2 items
         let (results1, total1) = ctx.search(None, SearchType::All, None, 2, 0);
-        assert_eq!(total1, 7);
+        assert_eq!(total1, 9);
         assert_eq!(results1.len(), 2);
 
         // Get next 2 items with offset
         let (results2, total2) = ctx.search(None, SearchType::All, None, 2, 2);
-        assert_eq!(total2, 7);
+        assert_eq!(total2, 9);
         assert_eq!(results2.len(), 2);
 
         // Get remaining items
         let (results3, _) = ctx.search(None, SearchType::All, None, 100, 4);
-        assert_eq!(results3.len(), 3);
+        assert_eq!(results3.len(), 5);
     }
 
     #[test]
@@ -764,9 +802,9 @@ mod tests {
         // Request limit > 200 should be capped
         let (results, _) = ctx.search(None, SearchType::All, None, 500, 0);
 
-        // We only have 7 items, so we get 7 (not testing the cap directly,
+        // We only have 9 items, so we get 9 (not testing the cap directly,
         // but ensuring it doesn't crash with large limit)
-        assert_eq!(results.len(), 7);
+        assert_eq!(results.len(), 9);
     }
 
     #[test]
@@ -778,5 +816,104 @@ mod tests {
 
         assert_eq!(total, 0);
         assert!(results.is_empty());
+    }
+
+    // =========================================================================
+    // Template Attribute Tests
+    // =========================================================================
+
+    #[test]
+    fn test_get_template_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let result = ctx.get_template("test.template");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().key, "test.template");
+    }
+
+    #[test]
+    fn test_get_template_not_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Regular attribute should not be found via get_template
+        assert!(ctx.get_template("http.request.method").is_none());
+        // Nonexistent should not be found
+        assert!(ctx.get_template("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_find_template_exact_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let result = ctx.find_template("test.template");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().key, "test.template");
+    }
+
+    #[test]
+    fn test_find_template_prefix_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // find_template should find templates by prefix
+        let result = ctx.find_template("test.template.foo");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().key, "test.template");
+    }
+
+    #[test]
+    fn test_find_template_not_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        assert!(ctx.find_template("nonexistent.template").is_none());
+    }
+
+    // =========================================================================
+    // Stability Filtering Tests
+    // =========================================================================
+
+    #[test]
+    fn test_search_stability_filter_stable() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Filter by Stable only
+        let (results, total) =
+            ctx.search(None, SearchType::Attribute, Some(Stability::Stable), 100, 0);
+
+        // Should return only stable attributes (4: http.request.method, http.response.status_code, db.system, test.template)
+        assert_eq!(total, 4);
+        assert_eq!(results.len(), 4);
+    }
+
+    #[test]
+    fn test_search_stability_filter_development() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Filter by Development only
+        let (results, total) =
+            ctx.search(None, SearchType::Attribute, Some(Stability::Development), 100, 0);
+
+        // Should return only development attributes (1: experimental.feature)
+        assert_eq!(total, 1);
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_searchable_item_stability() {
+        let attr = make_attribute("test", "test", "", false);
+        let item = SearchableItem::Attribute(Arc::new(attr));
+
+        assert_eq!(item.stability(), &Stability::Stable);
+
+        let dev_attr = make_development_attribute("dev", "dev");
+        let dev_item = SearchableItem::Attribute(Arc::new(dev_attr));
+
+        assert_eq!(dev_item.stability(), &Stability::Development);
     }
 }

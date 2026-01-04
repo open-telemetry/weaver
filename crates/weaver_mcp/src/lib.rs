@@ -104,3 +104,46 @@ async fn run_async(registry: ForgeResolvedRegistry, config: McpConfig) -> Result
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mcp_error_display() {
+        let error = McpError("test error message".to_owned());
+        let display = format!("{error}");
+        assert_eq!(display, "MCP error: test error message");
+    }
+
+    #[test]
+    fn test_mcp_error_debug() {
+        let error = McpError("test".to_owned());
+        let debug = format!("{error:?}");
+        assert!(debug.contains("McpError"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_mcp_config_default() {
+        let config = McpConfig::default();
+        assert!(config.advice_policies.is_none());
+        assert!(config.advice_preprocessor.is_none());
+    }
+
+    #[test]
+    fn test_mcp_config_with_paths() {
+        let config = McpConfig {
+            advice_policies: Some(PathBuf::from("/path/to/policies")),
+            advice_preprocessor: Some(PathBuf::from("/path/to/preprocessor.jq")),
+        };
+        assert_eq!(
+            config.advice_policies,
+            Some(PathBuf::from("/path/to/policies"))
+        );
+        assert_eq!(
+            config.advice_preprocessor,
+            Some(PathBuf::from("/path/to/preprocessor.jq"))
+        );
+    }
+}

@@ -390,8 +390,106 @@ impl WeaverMcpService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+    use weaver_forge::v2::attribute::Attribute;
+    use weaver_forge::v2::entity::Entity;
+    use weaver_forge::v2::event::Event;
+    use weaver_forge::v2::metric::Metric;
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Signals};
+    use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
+    use weaver_semconv::attribute::AttributeType;
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::span::SpanName;
+    use weaver_semconv::v2::CommonFields;
+
+    fn make_test_registry() -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            registry_url: "test".to_owned(),
+            attributes: vec![Attribute {
+                key: "http.request.method".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                examples: None,
+                common: CommonFields {
+                    brief: "HTTP request method".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+            }],
+            attribute_groups: vec![],
+            signals: Signals {
+                metrics: vec![Metric {
+                    name: "http.server.request.duration".to_owned().into(),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "Duration of HTTP server requests".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                spans: vec![Span {
+                    r#type: "http.client".to_owned().into(),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "HTTP client span".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "HTTP client span".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                events: vec![Event {
+                    name: "exception".to_owned().into(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "An exception event".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                entities: vec![Entity {
+                    r#type: "service".to_owned().into(),
+                    identity: vec![],
+                    description: vec![],
+                    common: CommonFields {
+                        brief: "A service entity".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        }
+    }
+
+    fn create_test_service() -> WeaverMcpService {
+        let registry = Arc::new(make_test_registry());
+        WeaverMcpService::new(registry, McpConfig::default())
+    }
 
     // =========================================================================
     // Parameter Conversion Tests
@@ -484,5 +582,265 @@ mod tests {
         // Verify SearchTypeParam defaults to All
         let default: SearchTypeParam = Default::default();
         assert!(matches!(default, SearchTypeParam::All));
+    }
+
+    // =========================================================================
+    // Service Method Tests
+    // =========================================================================
+
+    #[test]
+    fn test_service_new_and_get_info() {
+        let service = create_test_service();
+
+        // Test get_info returns valid ServerInfo
+        let info = service.get_info();
+        assert!(info.instructions.is_some());
+        assert!(info
+            .instructions
+            .unwrap()
+            .contains("OpenTelemetry semantic conventions"));
+    }
+
+    #[test]
+    fn test_search_tool_with_query() {
+        let service = create_test_service();
+
+        let params = SearchParams {
+            query: Some("http".to_owned()),
+            search_type: SearchTypeParam::All,
+            stability: None,
+            limit: 20,
+        };
+
+        let result = service.search(Parameters(params));
+
+        // Result should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("results").is_some());
+        assert!(parsed.get("count").is_some());
+        assert!(parsed.get("total").is_some());
+    }
+
+    #[test]
+    fn test_search_tool_browse_mode() {
+        let service = create_test_service();
+
+        let params = SearchParams {
+            query: None,
+            search_type: SearchTypeParam::All,
+            stability: None,
+            limit: 100,
+        };
+
+        let result = service.search(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        // Should return all 5 items (1 attr + 1 metric + 1 span + 1 event + 1 entity)
+        assert_eq!(parsed["total"].as_u64().unwrap(), 5);
+    }
+
+    #[test]
+    fn test_search_tool_limit_clamped_to_100() {
+        let service = create_test_service();
+
+        let params = SearchParams {
+            query: None,
+            search_type: SearchTypeParam::All,
+            stability: None,
+            limit: 200, // MCP should clamp this to 100
+        };
+
+        let result = service.search(Parameters(params));
+
+        // Should still work (we only have 5 items anyway)
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("results").is_some());
+    }
+
+    #[test]
+    fn test_get_attribute_found() {
+        let service = create_test_service();
+
+        let params = GetAttributeParams {
+            key: "http.request.method".to_owned(),
+        };
+
+        let result = service.get_attribute(Parameters(params));
+
+        // Should return valid JSON with the attribute
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["key"], "http.request.method");
+    }
+
+    #[test]
+    fn test_get_attribute_not_found() {
+        let service = create_test_service();
+
+        let params = GetAttributeParams {
+            key: "nonexistent.attr".to_owned(),
+        };
+
+        let result = service.get_attribute(Parameters(params));
+
+        assert!(result.contains("not found"));
+        assert!(result.contains("nonexistent.attr"));
+    }
+
+    #[test]
+    fn test_get_metric_found() {
+        let service = create_test_service();
+
+        let params = GetMetricParams {
+            name: "http.server.request.duration".to_owned(),
+        };
+
+        let result = service.get_metric(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "http.server.request.duration");
+    }
+
+    #[test]
+    fn test_get_metric_not_found() {
+        let service = create_test_service();
+
+        let params = GetMetricParams {
+            name: "nonexistent.metric".to_owned(),
+        };
+
+        let result = service.get_metric(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_span_found() {
+        let service = create_test_service();
+
+        let params = GetSpanParams {
+            span_type: "http.client".to_owned(),
+        };
+
+        let result = service.get_span(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["type"], "http.client");
+    }
+
+    #[test]
+    fn test_get_span_not_found() {
+        let service = create_test_service();
+
+        let params = GetSpanParams {
+            span_type: "nonexistent.span".to_owned(),
+        };
+
+        let result = service.get_span(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_event_found() {
+        let service = create_test_service();
+
+        let params = GetEventParams {
+            name: "exception".to_owned(),
+        };
+
+        let result = service.get_event(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "exception");
+    }
+
+    #[test]
+    fn test_get_event_not_found() {
+        let service = create_test_service();
+
+        let params = GetEventParams {
+            name: "nonexistent.event".to_owned(),
+        };
+
+        let result = service.get_event(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_entity_found() {
+        let service = create_test_service();
+
+        let params = GetEntityParams {
+            entity_type: "service".to_owned(),
+        };
+
+        let result = service.get_entity(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["type"], "service");
+    }
+
+    #[test]
+    fn test_get_entity_not_found() {
+        let service = create_test_service();
+
+        let params = GetEntityParams {
+            entity_type: "nonexistent.entity".to_owned(),
+        };
+
+        let result = service.get_entity(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_live_check_with_valid_sample() {
+        let service = create_test_service();
+
+        // Create a valid attribute sample
+        let sample_json = serde_json::json!({
+            "attribute": {
+                "name": "http.request.method",
+                "value": "GET"
+            }
+        });
+
+        let params = LiveCheckParams {
+            samples: vec![sample_json],
+        };
+
+        let result = service.live_check(Parameters(params));
+
+        // Should return valid JSON array
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.is_array());
+    }
+
+    #[test]
+    fn test_live_check_with_invalid_sample() {
+        let service = create_test_service();
+
+        let params = LiveCheckParams {
+            samples: vec![serde_json::json!({"invalid": "structure"})],
+        };
+
+        let result = service.live_check(Parameters(params));
+
+        assert!(result.starts_with("Invalid sample:"));
+    }
+
+    #[test]
+    fn test_live_check_empty_samples() {
+        let service = create_test_service();
+
+        let params = LiveCheckParams { samples: vec![] };
+
+        let result = service.live_check(Parameters(params));
+
+        // Should return empty array
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.is_array());
+        assert_eq!(parsed.as_array().unwrap().len(), 0);
     }
 }
