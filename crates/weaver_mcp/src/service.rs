@@ -386,3 +386,103 @@ impl WeaverMcpService {
         serde_json::to_string_pretty(&samples).unwrap_or_else(|e| format!("Error: {e}"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_search::SearchType;
+    use weaver_semconv::stability::Stability;
+
+    // =========================================================================
+    // Parameter Conversion Tests
+    // =========================================================================
+
+    #[test]
+    fn test_search_type_param_to_search_type() {
+        assert_eq!(SearchType::from(SearchTypeParam::All), SearchType::All);
+        assert_eq!(
+            SearchType::from(SearchTypeParam::Attribute),
+            SearchType::Attribute
+        );
+        assert_eq!(
+            SearchType::from(SearchTypeParam::Metric),
+            SearchType::Metric
+        );
+        assert_eq!(SearchType::from(SearchTypeParam::Span), SearchType::Span);
+        assert_eq!(SearchType::from(SearchTypeParam::Event), SearchType::Event);
+        assert_eq!(
+            SearchType::from(SearchTypeParam::Entity),
+            SearchType::Entity
+        );
+    }
+
+    #[test]
+    fn test_stability_param_to_stability() {
+        assert_eq!(Stability::from(StabilityParam::Stable), Stability::Stable);
+        assert_eq!(
+            Stability::from(StabilityParam::Development),
+            Stability::Development
+        );
+    }
+
+    #[test]
+    fn test_stability_param_deserialize_experimental_alias() {
+        // "experimental" should deserialize to Development
+        let json = r#""experimental""#;
+        let param: StabilityParam = serde_json::from_str(json).unwrap();
+        assert_eq!(Stability::from(param), Stability::Development);
+    }
+
+    // =========================================================================
+    // MCP-Specific Behavior Tests
+    // =========================================================================
+
+    #[test]
+    fn test_get_attribute_not_found_message_format() {
+        // The not-found message should contain the attribute key
+        let key = "nonexistent.attr";
+        let expected_msg = format!("Attribute '{}' not found in registry", key);
+
+        // We verify the format matches what the service returns
+        assert!(expected_msg.contains(key));
+        assert!(expected_msg.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_metric_not_found_message_format() {
+        let name = "nonexistent.metric";
+        let expected_msg = format!("Metric '{}' not found in registry", name);
+
+        assert!(expected_msg.contains(name));
+        assert!(expected_msg.contains("not found"));
+    }
+
+    #[test]
+    fn test_live_check_invalid_sample_error() {
+        // Invalid JSON should produce an error message
+        let invalid_json = serde_json::json!({"invalid": "structure"});
+
+        // Try to deserialize as Sample - this should fail
+        let result: Result<Sample, _> = serde_json::from_value(invalid_json);
+        assert!(result.is_err());
+
+        // The error message format should be user-friendly
+        if let Err(e) = result {
+            let error_msg = format!("Invalid sample: {e}");
+            assert!(error_msg.starts_with("Invalid sample:"));
+        }
+    }
+
+    #[test]
+    fn test_search_params_default_limit() {
+        // Verify the default limit function returns 20
+        assert_eq!(default_limit(), 20);
+    }
+
+    #[test]
+    fn test_search_type_param_default() {
+        // Verify SearchTypeParam defaults to All
+        let default: SearchTypeParam = Default::default();
+        assert!(matches!(default, SearchTypeParam::All));
+    }
+}

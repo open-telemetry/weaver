@@ -474,13 +474,20 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Signals};
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> SearchableItem {
-        SearchableItem::Attribute(Arc::new(Attribute {
+        SearchableItem::Attribute(Arc::new(make_attribute(key, brief, note, deprecated)))
+    }
+
+    fn make_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> Attribute {
+        Attribute {
             key: key.to_owned(),
             r#type: AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -499,7 +506,90 @@ mod tests {
                 },
                 annotations: BTreeMap::new(),
             },
-        }))
+        }
+    }
+
+    fn make_test_registry() -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            registry_url: "test".to_owned(),
+            attributes: vec![
+                make_attribute("http.request.method", "HTTP request method", "", false),
+                make_attribute(
+                    "http.response.status_code",
+                    "HTTP response status code",
+                    "",
+                    false,
+                ),
+                make_attribute(
+                    "db.system",
+                    "Database system",
+                    "The database management system",
+                    false,
+                ),
+            ],
+            attribute_groups: vec![],
+            signals: Signals {
+                metrics: vec![Metric {
+                    name: "http.server.request.duration".to_owned().into(),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "Duration of HTTP server requests".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                spans: vec![Span {
+                    r#type: "http.client".to_owned().into(),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "HTTP client span".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "HTTP client span".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                events: vec![Event {
+                    name: "exception".to_owned().into(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "An exception event".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                entities: vec![Entity {
+                    r#type: "service".to_owned().into(),
+                    identity: vec![],
+                    description: vec![],
+                    common: CommonFields {
+                        brief: "A service entity".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        }
     }
 
     #[test]
@@ -551,5 +641,142 @@ mod tests {
 
         // Starts with for deprecated item: 80 / 10 = 8
         assert_eq!(score_match("http.request", &item), 8);
+    }
+
+    // =========================================================================
+    // SearchContext Tests
+    // =========================================================================
+
+    #[test]
+    fn test_from_registry_indexes_all_types() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Check attributes are indexed
+        assert!(ctx.get_attribute("http.request.method").is_some());
+        assert!(ctx.get_attribute("http.response.status_code").is_some());
+        assert!(ctx.get_attribute("db.system").is_some());
+
+        // Check metric is indexed
+        assert!(ctx.get_metric("http.server.request.duration").is_some());
+
+        // Check span is indexed
+        assert!(ctx.get_span("http.client").is_some());
+
+        // Check event is indexed
+        assert!(ctx.get_event("exception").is_some());
+
+        // Check entity is indexed
+        assert!(ctx.get_entity("service").is_some());
+    }
+
+    #[test]
+    fn test_get_attribute_not_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        assert!(ctx.get_attribute("nonexistent.attribute").is_none());
+        assert!(ctx.get_metric("nonexistent.metric").is_none());
+        assert!(ctx.get_span("nonexistent.span").is_none());
+        assert!(ctx.get_event("nonexistent.event").is_none());
+        assert!(ctx.get_entity("nonexistent.entity").is_none());
+    }
+
+    #[test]
+    fn test_search_with_query_returns_matches() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (results, total) = ctx.search(Some("http"), SearchType::All, None, 10, 0);
+
+        // Should find http.request.method, http.response.status_code,
+        // http.server.request.duration, http.client
+        assert!(total >= 4);
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_search_browse_mode() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // None query = browse mode
+        let (results, total) = ctx.search(None, SearchType::All, None, 100, 0);
+
+        // Should return all items: 3 attributes + 1 metric + 1 span + 1 event + 1 entity = 7
+        assert_eq!(total, 7);
+        assert_eq!(results.len(), 7);
+    }
+
+    #[test]
+    fn test_search_type_filter() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Filter by Attribute only
+        let (results, total) = ctx.search(None, SearchType::Attribute, None, 100, 0);
+        assert_eq!(total, 3); // 3 attributes
+        assert_eq!(results.len(), 3);
+
+        // Filter by Metric only
+        let (results, total) = ctx.search(None, SearchType::Metric, None, 100, 0);
+        assert_eq!(total, 1);
+        assert_eq!(results.len(), 1);
+
+        // Filter by Span only
+        let (_, total) = ctx.search(None, SearchType::Span, None, 100, 0);
+        assert_eq!(total, 1);
+
+        // Filter by Event only
+        let (_, total) = ctx.search(None, SearchType::Event, None, 100, 0);
+        assert_eq!(total, 1);
+
+        // Filter by Entity only
+        let (_, total) = ctx.search(None, SearchType::Entity, None, 100, 0);
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn test_search_pagination() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Get first 2 items
+        let (results1, total1) = ctx.search(None, SearchType::All, None, 2, 0);
+        assert_eq!(total1, 7);
+        assert_eq!(results1.len(), 2);
+
+        // Get next 2 items with offset
+        let (results2, total2) = ctx.search(None, SearchType::All, None, 2, 2);
+        assert_eq!(total2, 7);
+        assert_eq!(results2.len(), 2);
+
+        // Get remaining items
+        let (results3, _) = ctx.search(None, SearchType::All, None, 100, 4);
+        assert_eq!(results3.len(), 3);
+    }
+
+    #[test]
+    fn test_search_limit_capped_at_200() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Request limit > 200 should be capped
+        let (results, _) = ctx.search(None, SearchType::All, None, 500, 0);
+
+        // We only have 7 items, so we get 7 (not testing the cap directly,
+        // but ensuring it doesn't crash with large limit)
+        assert_eq!(results.len(), 7);
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (results, total) = ctx.search(Some("zzzznonexistent"), SearchType::All, None, 10, 0);
+
+        assert_eq!(total, 0);
+        assert!(results.is_empty());
     }
 }
