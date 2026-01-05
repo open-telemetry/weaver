@@ -4,16 +4,16 @@ Weaver includes an MCP (Model Context Protocol) server that exposes the semantic
 
 ## Configure Your LLM Client
 
-Follow the steps for your specific LLM client to add the Weaver MCP server. For example, Claude Code: 
+Follow the steps for your specific LLM client to add the Weaver MCP server. For example, Claude Code:
 
 ```bash
 # Add globally (available in all projects)
 claude mcp add --global --transport stdio weaver \
-  /path/to/weaver registry mcp
+  /path/to/weaver -- registry mcp
 
 # Or add to current project only
 claude mcp add --transport stdio weaver \
-  /path/to/weaver registry mcp
+  /path/to/weaver -- registry mcp
 ```
 
 Replace `/path/to/weaver` with the actual path to your weaver binary (e.g., `./target/release/weaver`).
@@ -22,7 +22,7 @@ To use a specific registry:
 
 ```bash
 claude mcp add --global --transport stdio weaver \
-  /path/to/weaver registry mcp \
+  /path/to/weaver -- registry mcp \
   --registry my_project/model
 ```
 
@@ -36,15 +36,15 @@ You should see the weaver tools available. Try asking:
 
 The MCP server exposes 7 tools:
 
-| Tool | Description |
-|------|-------------|
-| `search` | Search across all registry items (attributes, metrics, spans, events, entities) |
-| `get_attribute` | Get detailed information about a specific attribute by key |
-| `get_metric` | Get detailed information about a specific metric by name |
-| `get_span` | Get detailed information about a specific span by type |
-| `get_event` | Get detailed information about a specific event by name |
-| `get_entity` | Get detailed information about a specific entity by type |
-| `live_check` | Validate telemetry samples against the registry |
+| Tool            | Description                                                                     |
+| --------------- | ------------------------------------------------------------------------------- |
+| `search`        | Search across all registry items (attributes, metrics, spans, events, entities) |
+| `get_attribute` | Get detailed information about a specific attribute by key                      |
+| `get_metric`    | Get detailed information about a specific metric by name                        |
+| `get_span`      | Get detailed information about a specific span by type                          |
+| `get_event`     | Get detailed information about a specific event by name                         |
+| `get_entity`    | Get detailed information about a specific entity by type                        |
+| `live_check`    | Validate telemetry samples against the registry                                 |
 
 ### Search Tool
 
@@ -70,19 +70,27 @@ Each get tool retrieves detailed information about a specific item:
 Validates telemetry samples against the semantic conventions registry. Pass an array of samples (attributes, spans, metrics, logs, or resources) and receive them back with `live_check_result` fields populated containing advice and findings.
 
 Example input:
+
 ```json
 {
   "samples": [
-    {"attribute": {"name": "http.request.method", "value": "GET"}},
-    {"span": {"name": "GET /users", "kind": "server", "attributes": [
-      {"name": "http.request.method", "value": "GET"},
-      {"name": "http.response.status_code", "value": 200}
-    ]}}
+    { "attribute": { "name": "http.request.method", "value": "GET" } },
+    {
+      "span": {
+        "name": "GET /users",
+        "kind": "server",
+        "attributes": [
+          { "name": "http.request.method", "value": "GET" },
+          { "name": "http.response.status_code", "value": 200 }
+        ]
+      }
+    }
   ]
 }
 ```
 
 The tool runs built-in advisors (deprecated, stability, type, enum) to provide feedback on:
+
 - Deprecated attributes/metrics
 - Non-stable items (experimental/development)
 - Type mismatches (e.g., string vs int)
@@ -93,6 +101,7 @@ The tool runs built-in advisors (deprecated, stability, type, enum) to provide f
 Here are some example prompts:
 
 ### Finding Attributes
+
 > "What attributes should I use for HTTP server instrumentation?"
 
 > "Search for database-related attributes"
@@ -100,13 +109,13 @@ Here are some example prompts:
 > "Find all stable attributes for messaging systems"
 
 ### Getting Details
+
 > "Get the details for the http.request.method attribute"
 
 > "What is the http.server.request.duration metric?"
 
 ### Instrumentation Guidance
+
 > "I'm adding tracing to a gRPC service. What semantic conventions should I follow?"
 
 > "How should I instrument a Redis client according to OpenTelemetry conventions?"
-
-
