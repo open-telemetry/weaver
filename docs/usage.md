@@ -123,7 +123,7 @@ Usage: weaver registry generate [OPTIONS] <TARGET> [OUTPUT]
 Arguments:
   <TARGET>
           Target to generate the artifacts for
-          
+
           [default: ]
 
   [OUTPUT]
@@ -361,6 +361,18 @@ Usage: weaver registry json-schema [OPTIONS]
 Options:
       --debug...
           Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
+
+  -j, --json-schema <JSON_SCHEMA>
+          The type of JSON schema to generate
+
+          Possible values:
+          - resolved-registry:     The JSON schema of a resolved registry
+          - semconv-group:         The JSON schema of a semantic convention group
+          - semconv-definition-v2: The JSON schema of the V2 definition
+          - resolved-registry-v2:  The JSON schema of the V2 resolved registry
+          - forge-registry-v2:     The JSON schema we send to Rego / Jinja
+          - diff:                  The JSON schema of the diff
+          - diff-v2:               The JSON schema of the diff V2
 
   -o, --output <OUTPUT>
           Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout

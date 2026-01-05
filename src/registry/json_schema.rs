@@ -66,6 +66,10 @@ pub enum JsonSchemaType {
     ResolvedRegistryV2,
     /// The JSON schema we send to Rego / Jinja.
     ForgeRegistryV2,
+    /// The JSON schema of the diff
+    Diff,
+    /// The JSON schema of the diff V2
+    DiffV2,
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -87,6 +91,8 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::ForgeRegistryV2 => {
             schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
         }
+        JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
+        JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
     };
 
     let json_schema_str =
