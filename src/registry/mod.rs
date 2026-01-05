@@ -139,7 +139,7 @@ pub enum RegistrySubCommand {
 
     /// Run an MCP (Model Context Protocol) server for the semantic convention registry.
     ///
-    /// This server exposes the registry to LLMs like Claude, enabling natural language
+    /// This server exposes the registry to LLMs, enabling natural language
     /// queries for finding and understanding semantic conventions while writing
     /// instrumentation code.
     ///

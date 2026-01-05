@@ -99,7 +99,7 @@ Further reading:
 | [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update markdown files that contain markers indicating the templates used to update the specified sections |
 | [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry |
 | [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver |
-| [weaver registry mcp](docs/mcp-server.md)                                 | Run an MCP server for LLM integration (e.g., Claude Code) |
+| [weaver registry mcp](docs/mcp-server.md)                                 | Run an MCP server for LLM integration |
 | [weaver completion](docs/usage.md#completion)                             | Generate shell completions |
 
 

@@ -3,7 +3,7 @@
 //! MCP (Model Context Protocol) server for the semantic convention registry.
 //!
 //! This crate provides an MCP server that exposes the semantic conventions
-//! registry to LLMs like Claude. It supports 7 tools:
+//! registry to LLMs. It supports 7 tools:
 //!
 //! - `search` - Search across all registry items
 //! - `get_attribute` - Get a specific attribute by key

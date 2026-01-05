@@ -4,7 +4,7 @@
 //!
 //! This module provides the `weaver registry mcp` subcommand that runs an MCP
 //! (Model Context Protocol) server exposing the semantic conventions registry
-//! to LLMs like Claude.
+//! to LLMs.
 
 use std::path::PathBuf;
 
