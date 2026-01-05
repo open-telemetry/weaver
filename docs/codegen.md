@@ -108,6 +108,17 @@ Weaver resolves the entire registry (http and grpc in this case) into a single d
 
 This output in turn is passed to the `metrics.md.j2` template, evaluated by the [minijinja](https://github.com/mitsuhiko/minijinja) templating engine. Because `application_mode` is set to `each`, the template is invoked for each group, so this yields a `http.md` and a separate `grpc.md`.
 
+## Working with V2 Schema
+
+When using V2 schema format, add the `--v2` flag to the generate command:
+
+```bash
+weaver registry generate --v2 md
+```
+
+The `--v2` flag affects both the schema resolution and the data structure passed to templates and policies. V2 schemas use `version: "2"` and organize signals in top-level sections (`attributes`, `spans`, `metrics`, etc.) rather than groups.
+
+> **Note**: V2 schema is currently in Alpha status. See [semconv-syntax.v2.md](/schemas/semconv-syntax.v2.md) for details on V2 format. Your templates may need adjustments to work with the V2 schema structure.
 
 ## Tips and Tricks
 

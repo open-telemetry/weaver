@@ -59,8 +59,11 @@ registry of general attributes and signals across many domains, from databases
 and messaging to generative AI (see
 the [official OTEL semantic conventions](https://opentelemetry.io/docs/specs/semconv/)).
 
-You can define your own semantic conventions or reuse those defined by OTEL. The
-example below shows how to define a simple span semantic convention representing
+You can define your own semantic conventions or reuse those defined by OTEL. Weaver supports two schema formats:
+
+### V1 Schema Format (Default)
+
+The V1 format uses a `groups` structure. The example below shows how to define a simple span semantic convention representing
 a message sent by a client application.
 
 You can also import existing semantic conventions from other registries, such as
@@ -92,20 +95,63 @@ In the `imports` section, you can specify which metric, event, and entity groups
 to import from other registries. You can use a wildcard expression to import all
 groups in a namespace or specify individual groups by name.
 
+### V2 Schema Format (Alpha)
+
+> **Note**: V2 schema is currently in Alpha status and under active development. Use the `--v2` flag with weaver commands when working with V2 schemas.
+
+V2 uses a different structure with `version: "2"` at the top and direct signal type sections. Here's an equivalent example in V2 format:
+
+```yaml
+version: "2"
+
+spans:
+  - name: example_message
+    stability: development
+    brief: This span represents a simple message.
+    span_kind: client
+    attributes:
+      - ref: host.name                 # imported from OTEL semantic conventions
+        requirement_level: required
+      - ref: host.arch                 # imported from OTEL semantic conventions
+        requirement_level: required
+
+imports:
+  metrics:
+    - db.*                # import all metrics in the `db` namespace
+  entities:
+    - gcp.*               # import all entities in the `gcp` namespace
+  events:
+    - session.start       # import the `session.start` event
+```
+
+Key differences in V2:
+- Must start with `version: "2"`
+- Signals are defined directly in top-level sections (`spans`, `metrics`, `events`, `attributes`) instead of in `groups`
+- Span names don't require the `span.` prefix in the name field
+- Full V2 syntax documentation: [semconv-syntax.v2.md](/schemas/semconv-syntax.v2.md)
+
 ## Run weaver commands on your schema
 
-To check the validity of your custom registry
+To check the validity of your custom registry (V1):
 
 ```bash
 weaver registry check -r <path-to-your-registry>
 ```
 
-To control the compliance of your instrumentation with your custom registry
+To check a V2 registry, add the `--v2` flag:
+
+```bash
+weaver registry check --v2 -r <path-to-your-v2-registry>
+```
+
+To control the compliance of your instrumentation with your custom registry:
 
 ```bash
 weaver registry live-check --registry <path-to-your-registry>
+# For V2 registries:
+weaver registry live-check --v2 --registry <path-to-your-v2-registry>
 ```
 
 All commands accepting the `-r` or `--registry` parameter can be applied to your
-custom registry. It is important to note that some templates are specific to the
+custom registry, with the `--v2` flag when using V2 schema format. It is important to note that some templates are specific to the
 OTEL registry. We are working to remove this type of limitation.

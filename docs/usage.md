@@ -46,6 +46,15 @@ Options:
   -h, --help      Print help
 ```
 
+### Common Registry Options
+
+Most `weaver registry` subcommands support the following common options:
+
+- **`--v2`** - Whether or not to output version 2 of the schema. When enabled, Weaver will process and output telemetry schema using the V2 format. This flag impacts both output to templates and policies. Default is `false`.
+  - V2 schema uses a different syntax with `version: "2"` and top-level sections like `attributes`, `spans`, `metrics`, etc.
+  - For detailed V2 syntax, see [V2 Schema Syntax](/schemas/semconv-syntax.v2.md)
+  - Note: V2 schema is currently in Alpha status and under active development
+
 ### registry check
 
 ```text
@@ -77,6 +86,11 @@ Options:
 
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
 
       --baseline-registry <BASELINE_REGISTRY>
           Parameters to specify the baseline semantic convention registry
@@ -160,6 +174,11 @@ Options:
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
+
   -p, --policy <POLICIES>
           Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
 
@@ -213,6 +232,11 @@ Options:
 
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
 
       --future
           Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
@@ -302,6 +326,10 @@ Options:
           Turn the quiet mode on (i.e., minimal output)
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
       --diagnostic-format <DIAGNOSTIC_FORMAT>
           Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command [default: ansi]
       --future
@@ -331,6 +359,10 @@ Options:
           Turn the quiet mode on (i.e., minimal output)
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
       --dry-run
           Whether or not to run updates in dry-run mode
       --future
@@ -412,6 +444,11 @@ Options:
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
+
       --baseline-registry <BASELINE_REGISTRY>
           Parameters to specify the baseline semantic convention registry
 
@@ -476,6 +513,11 @@ Options:
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
+
       --future
           Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
 
@@ -536,6 +578,11 @@ Options:
 
   -s, --follow-symlinks
           Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
+      --v2
+          Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+          [default: false]
 
       --future
           Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
