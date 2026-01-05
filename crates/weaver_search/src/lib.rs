@@ -512,9 +512,7 @@ mod tests {
     fn make_template_attribute(key: &str, brief: &str) -> Attribute {
         Attribute {
             key: key.to_owned(),
-            r#type: AttributeType::Template(
-                weaver_semconv::attribute::TemplateTypeSpec::String,
-            ),
+            r#type: AttributeType::Template(weaver_semconv::attribute::TemplateTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
@@ -896,8 +894,13 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Filter by Development only
-        let (results, total) =
-            ctx.search(None, SearchType::Attribute, Some(Stability::Development), 100, 0);
+        let (results, total) = ctx.search(
+            None,
+            SearchType::Attribute,
+            Some(Stability::Development),
+            100,
+            0,
+        );
 
         // Should return only development attributes (1: experimental.feature)
         assert_eq!(total, 1);
