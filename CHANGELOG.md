@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
-- New Experimental feature: `weaver registry mcp` MCP server for a registry. ([#????](https://github.com/open-telemetry/weaver/pull/????) by @jerbly)
+- New Experimental feature: `weaver registry mcp` MCP server for a registry with search, get and live_check tools. ([#????](https://github.com/open-telemetry/weaver/pull/????) by @jerbly)
 
 # [0.20.0] - 2025-12-11
 
