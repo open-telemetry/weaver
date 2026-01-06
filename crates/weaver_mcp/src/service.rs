@@ -241,10 +241,10 @@ impl WeaverMcpService {
     /// Search OpenTelemetry semantic conventions.
     #[tool(
         name = "search",
-        description = "Search OpenTelemetry semantic conventions. Supports searching by keywords \
-                       across attributes, metrics, spans, events, and entities. Returns matching \
-                       definitions with relevance scores. Use this to find conventions when \
-                       instrumenting code (e.g., 'search for HTTP server attributes')."
+        description = "Search OpenTelemetry and custom semantic conventions. Supports searching by keywords \
+                       across attributes, metrics, spans, events, and entities. Query terms are AND-matched \
+                       (all must appear). Returns matching definitions with relevance scores. \
+                       Use short queries like 'http.request', 'db system', or 'server duration'."
     )]
     fn search(&self, Parameters(params): Parameters<SearchParams>) -> String {
         let search_type: SearchType = params.search_type.into();
