@@ -98,7 +98,7 @@ weaver registry check \
   --registry ./my-registry \
   --policy ./my-policies \
   --diagnostic-format json \
-  --diagnostic-stdout > findings.json
+  2> findings.json
 ```
 
 The JSON output is an array of diagnostic messages, each containing a `PolicyFinding`:
