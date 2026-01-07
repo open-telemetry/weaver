@@ -576,7 +576,7 @@ mod tests {
             attribute::Attribute as V2Attribute,
             event::{Event, EventAttribute},
             metric::Metric,
-            registry::{ForgeResolvedRegistry, Refinements, Signals},
+            registry::{ForgeResolvedRegistry, Refinements, Registry},
             span::{Span, SpanAttribute},
         };
         use weaver_semconv::{
@@ -591,9 +591,9 @@ mod tests {
 
         let registry = ForgeResolvedRegistry {
             registry_url: "TEST_V2".to_owned(),
-            attributes: vec![],
-            attribute_groups: vec![],
-            signals: Signals {
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
                 spans: vec![Span {
                     r#type: SignalId::from("test.comprehensive.internal".to_owned()),
                     kind: SpanKindSpec::Internal,

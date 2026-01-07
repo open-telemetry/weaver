@@ -67,7 +67,7 @@ pub(crate) fn emit_trace_for_registry_v2(registry: &ForgeResolvedRegistry, regis
         ));
 
         // Emit each span to the OTLP receiver.
-        for span in registry.signals.spans.iter() {
+        for span in registry.registry.spans.iter() {
             let _span =
                 tracer
                     .span_builder(span.r#type.to_string())

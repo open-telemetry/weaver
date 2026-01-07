@@ -80,17 +80,17 @@ impl LiveChecker {
                 }
             }
             VersionedRegistry::V2(registry) => {
-                for metric in &registry.signals.metrics {
+                for metric in &registry.registry.metrics {
                     let metric_name = metric.name.to_string();
                     let metric_rc = Rc::new(VersionedSignal::Metric(metric.clone()));
                     let _ = semconv_metrics.insert(metric_name, metric_rc);
                 }
-                for event in &registry.signals.events {
+                for event in &registry.registry.events {
                     let event_name = event.name.to_string();
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
-                for attribute in &registry.attributes {
+                for attribute in &registry.registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
                         AttributeType::Template(_) => {
@@ -180,7 +180,7 @@ mod tests {
         attribute::Attribute as V2Attribute,
         event::{Event as V2Event, EventAttribute},
         metric::{Metric as V2Metric, MetricAttribute},
-        registry::{ForgeResolvedRegistry, Refinements, Signals},
+        registry::{ForgeResolvedRegistry, Refinements, Registry},
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
@@ -508,92 +508,96 @@ mod tests {
         if use_v2 {
             VersionedRegistry::V2(ForgeResolvedRegistry {
                 registry_url: "TEST".to_owned(),
-                attributes: vec![
-                    V2Attribute {
-                        key: "test.string".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                        examples: Some(Examples::Strings(vec![
-                            "value1".to_owned(),
-                            "value2".to_owned(),
-                        ])),
-                        common: CommonFields {
-                            brief: "".to_owned(),
-                            note: "".to_owned(),
-                            stability: Stability::Stable,
-                            deprecated: None,
-                            annotations: BTreeMap::new(),
-                        },
-                    },
-                    V2Attribute {
-                        key: "test.enum".to_owned(),
-                        r#type: AttributeType::Enum {
-                            members: vec![
-                                EnumEntriesSpec {
-                                    id: "test_enum_member".to_owned(),
-                                    value: ValueSpec::String("example_variant1".to_owned()),
-                                    brief: None,
-                                    note: None,
-                                    stability: Some(Stability::Stable),
-                                    deprecated: None,
-                                    annotations: None,
-                                },
-                                EnumEntriesSpec {
-                                    id: "test_enum_member2".to_owned(),
-                                    value: ValueSpec::String("example_variant2".to_owned()),
-                                    brief: None,
-                                    note: None,
-                                    stability: Some(Stability::Stable),
-                                    deprecated: None,
-                                    annotations: None,
-                                },
-                            ],
-                        },
-                        examples: None,
-                        common: CommonFields {
-                            brief: "".to_owned(),
-                            note: "".to_owned(),
-                            stability: Stability::Stable,
-                            deprecated: None,
-                            annotations: BTreeMap::new(),
-                        },
-                    },
-                    V2Attribute {
-                        key: "test.deprecated".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                        examples: Some(Examples::Strings(vec![
-                            "value1".to_owned(),
-                            "value2".to_owned(),
-                        ])),
-                        common: CommonFields {
-                            brief: "".to_owned(),
-                            note: "".to_owned(),
-                            stability: Stability::Development,
-                            deprecated: Some(
-                                weaver_semconv::deprecated::Deprecated::Uncategorized {
-                                    note: "note".to_owned(),
-                                },
+                registry: Registry {
+                    attributes: vec![
+                        V2Attribute {
+                            key: "test.string".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
                             ),
-                            annotations: BTreeMap::new(),
+                            examples: Some(Examples::Strings(vec![
+                                "value1".to_owned(),
+                                "value2".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
                         },
-                    },
-                    V2Attribute {
-                        key: "test.template".to_owned(),
-                        r#type: AttributeType::Template(TemplateTypeSpec::String),
-                        examples: Some(Examples::Strings(vec![
-                            "value1".to_owned(),
-                            "value2".to_owned(),
-                        ])),
-                        common: CommonFields {
-                            brief: "".to_owned(),
-                            note: "".to_owned(),
-                            stability: Stability::Stable,
-                            deprecated: None,
-                            annotations: BTreeMap::new(),
+                        V2Attribute {
+                            key: "test.enum".to_owned(),
+                            r#type: AttributeType::Enum {
+                                members: vec![
+                                    EnumEntriesSpec {
+                                        id: "test_enum_member".to_owned(),
+                                        value: ValueSpec::String("example_variant1".to_owned()),
+                                        brief: None,
+                                        note: None,
+                                        stability: Some(Stability::Stable),
+                                        deprecated: None,
+                                        annotations: None,
+                                    },
+                                    EnumEntriesSpec {
+                                        id: "test_enum_member2".to_owned(),
+                                        value: ValueSpec::String("example_variant2".to_owned()),
+                                        brief: None,
+                                        note: None,
+                                        stability: Some(Stability::Stable),
+                                        deprecated: None,
+                                        annotations: None,
+                                    },
+                                ],
+                            },
+                            examples: None,
+                            common: CommonFields {
+                                brief: "".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
                         },
-                    },
-                ],
-                attribute_groups: vec![],
-                signals: Signals {
+                        V2Attribute {
+                            key: "test.deprecated".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: Some(Examples::Strings(vec![
+                                "value1".to_owned(),
+                                "value2".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Development,
+                                deprecated: Some(
+                                    weaver_semconv::deprecated::Deprecated::Uncategorized {
+                                        note: "note".to_owned(),
+                                    },
+                                ),
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                        V2Attribute {
+                            key: "test.template".to_owned(),
+                            r#type: AttributeType::Template(TemplateTypeSpec::String),
+                            examples: Some(Examples::Strings(vec![
+                                "value1".to_owned(),
+                                "value2".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "".to_owned(),
+                                note: "".to_owned(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                        },
+                    ],
+                    attribute_groups: vec![],
                     metrics: vec![],
                     spans: vec![],
                     events: vec![],
@@ -790,9 +794,9 @@ mod tests {
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
                 registry_url: "TEST_METRICS".to_owned(),
-                attributes: vec![memory_state_attr.clone()],
-                attribute_groups: vec![],
-                signals: Signals {
+                registry: Registry {
+                    attributes: vec![memory_state_attr.clone()],
+                    attribute_groups: vec![],
                     metrics: vec![
                         V2Metric {
                             name: "system.uptime".to_owned().into(),
@@ -998,9 +1002,10 @@ mod tests {
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
                 registry_url: "TEST".to_owned(),
-                attributes: vec![custom_string_attr.clone()],
-                attribute_groups: vec![],
-                signals: Signals {
+
+                registry: Registry {
+                    attributes: vec![custom_string_attr.clone()],
+                    attribute_groups: vec![],
                     metrics: vec![],
                     spans: vec![V2Span {
                         r#type: "custom.comprehensive.internal".to_owned().into(),
@@ -1512,9 +1517,9 @@ mod tests {
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),
-                attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
-                attribute_groups: vec![],
-                signals: Signals {
+                registry: Registry {
+                    attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
+                    attribute_groups: vec![],
                     metrics: vec![],
                     spans: vec![],
                     events: vec![

@@ -3,7 +3,7 @@ package after_resolution
 import rego.v1
 
 deny contains invalid_attr_violation("invalid_metric_attr", metric.name, attr.key) if {
-	metric := input.signals.metrics[_]
+	metric := input.registry.metrics[_]
 	attr := metric.attributes[_]
 	attr.key == "my.attr"
 }

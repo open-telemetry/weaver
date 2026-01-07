@@ -26,13 +26,9 @@ pub struct ForgeResolvedRegistry {
     /// The semantic convention registry url.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
-    /// The raw attributes in this registry.
-    pub attributes: Vec<Attribute>,
-    /// The public attribute groups in this registry.
-    pub attribute_groups: Vec<AttributeGroup>,
     // TODO - Attribute Groups
     /// The signals defined in this registry.
-    pub signals: Signals,
+    pub registry: Registry,
     /// The set of refinments defined in this registry.
     pub refinements: Refinements,
 }
@@ -40,7 +36,11 @@ pub struct ForgeResolvedRegistry {
 /// The set of all defined signals for a given semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct Signals {
+pub struct Registry {
+    /// The raw attributes in this registry.
+    pub attributes: Vec<Attribute>,
+    /// The public attribute groups in this registry.
+    pub attribute_groups: Vec<AttributeGroup>,
     /// The metric signals defined.
     pub metrics: Vec<Metric>,
     /// The span signals defined.
@@ -414,9 +414,9 @@ impl ForgeResolvedRegistry {
 
         Ok(Self {
             registry_url: schema.schema_url.clone(),
-            attributes,
-            attribute_groups,
-            signals: Signals {
+            registry: Registry {
+                attributes,
+                attribute_groups,
                 metrics,
                 spans,
                 events,
@@ -568,21 +568,21 @@ mod tests {
         let forge_registry =
             ForgeResolvedRegistry::try_from(resolved_schema).expect("Conversion failed");
 
-        assert_eq!(forge_registry.attributes.len(), 1);
-        assert_eq!(forge_registry.signals.spans.len(), 1);
-        assert_eq!(forge_registry.signals.metrics.len(), 1);
-        assert_eq!(forge_registry.signals.events.len(), 1);
-        assert_eq!(forge_registry.signals.entities.len(), 1);
+        assert_eq!(forge_registry.registry.attributes.len(), 1);
+        assert_eq!(forge_registry.registry.spans.len(), 1);
+        assert_eq!(forge_registry.registry.metrics.len(), 1);
+        assert_eq!(forge_registry.registry.events.len(), 1);
+        assert_eq!(forge_registry.registry.entities.len(), 1);
         assert_eq!(forge_registry.refinements.spans.len(), 1);
         assert_eq!(forge_registry.refinements.metrics.len(), 1);
         assert_eq!(forge_registry.refinements.events.len(), 1);
 
-        let span = &forge_registry.signals.spans[0];
+        let span = &forge_registry.registry.spans[0];
         assert_eq!(span.r#type, "my-span".to_owned().into());
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.attributes[0].base.key, "test.attr");
 
-        let entity = &forge_registry.signals.entities[0];
+        let entity = &forge_registry.registry.entities[0];
         assert_eq!(entity.r#type, "my-entity".to_owned().into());
         assert_eq!(entity.identity.len(), 1);
         assert_eq!(entity.identity[0].base.key, "test.attr");

@@ -74,7 +74,7 @@ pub(crate) fn emit_logs_for_registry_v2(
     let logger = logger_provider.logger("weaver");
 
     // Emit each event as a log record to the OTLP receiver.
-    for event in registry.signals.events.iter() {
+    for event in registry.registry.events.iter() {
         let event_name = event.name.to_string();
 
         let mut log_record = logger.create_log_record();

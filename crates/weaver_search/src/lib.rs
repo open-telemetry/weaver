@@ -50,27 +50,27 @@ impl SearchContext {
         let mut items = Vec::new();
 
         // Index all attributes
-        for attr in &registry.attributes {
+        for attr in &registry.registry.attributes {
             items.push(SearchableItem::Attribute(Arc::new(attr.clone())));
         }
 
         // Index all metrics
-        for metric in &registry.signals.metrics {
+        for metric in &registry.registry.metrics {
             items.push(SearchableItem::Metric(Arc::new(metric.clone())));
         }
 
         // Index all spans
-        for span in &registry.signals.spans {
+        for span in &registry.registry.spans {
             items.push(SearchableItem::Span(Arc::new(span.clone())));
         }
 
         // Index all events
-        for event in &registry.signals.events {
+        for event in &registry.registry.events {
             items.push(SearchableItem::Event(Arc::new(event.clone())));
         }
 
         // Index all entities
-        for entity in &registry.signals.entities {
+        for entity in &registry.registry.entities {
             items.push(SearchableItem::Entity(Arc::new(entity.clone())));
         }
 

@@ -105,17 +105,17 @@ impl CumulativeStatistics {
                 }
             }
             VersionedRegistry::V2(reg) => {
-                for attribute in &reg.attributes {
+                for attribute in &reg.registry.attributes {
                     if attribute.common.deprecated.is_none() {
                         let _ = seen_attributes.insert(attribute.key.clone(), 0);
                     }
                 }
-                for metric in &reg.signals.metrics {
+                for metric in &reg.registry.metrics {
                     if metric.common.deprecated.is_none() {
                         let _ = seen_metrics.insert(metric.name.to_string(), 0);
                     }
                 }
-                for event in &reg.signals.events {
+                for event in &reg.registry.events {
                     if event.common.deprecated.is_none() {
                         let _ = seen_events.insert(event.name.to_string(), 0);
                     }
