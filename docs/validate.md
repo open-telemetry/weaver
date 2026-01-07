@@ -42,6 +42,8 @@ The `level` field indicates the severity and expected action:
 
 ### Creating PolicyFindings in Rego
 
+To write custom Rego policies, refer to the [Rego Policy Language documentation](https://www.openpolicyagent.org/docs/policy-language) for syntax and language features. For more details on the Weaver Policy Engine, see the [Weaver Checker documentation](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_checker/README.md).
+
 Here's how to create a `PolicyFinding` in your Rego policy:
 
 ```rego
