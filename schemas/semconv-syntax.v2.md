@@ -169,9 +169,10 @@ and another example of an int enum attribute:
 Enum members have the following properties:
 
 - `id` - Required. Identifies the enum member within this enum.
+- `value` - Required. String, int, or boolean value of the enum entry.
 - `brief` - Optional. A short description of what this enum member represents.
 - `note` - Optional. A more elaborate description of the member.
-- `stability` - Required. Specifies the [stability](#stability-levels) of the enum member.
+- `stability` - Optional. Specifies the [stability](#stability-levels) of the enum member.
 - `deprecated` - Optional. When present, marks the member as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Annotations are key-value pairs that provide additional information about the attribute. See [annotations](#annotations) for details.
 
