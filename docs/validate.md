@@ -15,13 +15,13 @@ Specific validation rules can be expressed using the Rego policy language (https
 
 Please see [Weaver Checker](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_checker/README.md) for details.
 
-## PolicyFinding Structure
+## Finding Structure
 
-When a custom Rego policy detects an issue, it returns a `PolicyFinding` object. This unified structure replaced the legacy `Violation` and `Advice` types to provide consistent reporting across all policy checks.
+When a custom Rego policy detects an issue, it returns a finding object. The structure of this object is used by Weaver to report warnings and violations.
 
 ### Fields
 
-A `PolicyFinding` contains the following fields:
+A finding object contains the following fields:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -40,30 +40,32 @@ The `level` field indicates the severity and expected action:
 - **`improvement`**: A suggested change that would improve the quality or maintainability of the schema. Not required but recommended.
 - **`violation`**: Something that breaks compliance rules and must be fixed before the schema can be published.
 
-### Creating PolicyFindings in Rego
+### Creating custom findings in Rego
 
-To write custom Rego policies, refer to the [Rego Policy Language documentation](https://www.openpolicyagent.org/docs/policy-language) for syntax and language features. For more details on the Weaver Policy Engine, see the [Weaver Checker documentation](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_checker/README.md).
+To write custom Rego policies, refer to the [Rego Policy Language documentation](https://www.openpolicyagent.org/docs/policy-language) for syntax and language features. For more details on the Weaver Policy Engine, see the [Weaver Checker documentation](/crates/weaver_checker/README.md).
 
-Here's how to create a `PolicyFinding` in your Rego policy:
+Here's how to create custom findings in your Rego policy:
 
 ```rego
 package after_resolution
 
-# Example: Check for deprecated attributes being used
+# Example: Validate attribute names contain only alphanumeric chars, dots, or underscores
 deny contains finding if {
+    # These lines assume the input is following schema v1
     group := input.groups[_]
     attr := group.attributes[_]
-    attr.stability == "deprecated"
+    
+    # Check if attribute name contains invalid characters
+    not regex.match("^[a-zA-Z0-9._]+$", attr.name)
     
     finding := {
-        "id": "deprecated_attribute_used",
+        "id": "invalid_attribute_name",
         "context": {
             "attribute_name": attr.name,
-            "group_id": group.id,
-            "reason": attr.deprecated
+            "group_id": group.id
         },
-        "message": sprintf("Attribute '%s' in group '%s' is deprecated: %s", 
-            [attr.name, group.id, attr.deprecated]),
+        "message": sprintf("Attribute '%s' in group '%s' contains invalid characters. Only alphanumeric characters, dots, and underscores are allowed.", 
+            [attr.name, group.id]),
         "level": "violation"
     }
 }
@@ -87,7 +89,7 @@ deny contains finding if {
 }
 ```
 
-### Exporting PolicyFindings
+### Exporting Findings
 
 The `weaver registry check` command supports multiple output formats via the `--diagnostic-format` flag:
 
@@ -103,18 +105,17 @@ weaver registry check \
   2> findings.json
 ```
 
-The JSON output is an array of diagnostic messages, each containing a `PolicyFinding`:
+The JSON output is an array of diagnostic messages, each containing a finding:
 
 ```json
 [
   {
-    "id": "deprecated_attribute_used",
+    "id": "invalid_attribute_name",
     "context": {
-      "attribute_name": "http.method",
-      "group_id": "registry.http",
-      "reason": "Use http.request.method instead"
+      "attribute_name": "http-method",
+      "group_id": "registry.http"
     },
-    "message": "Attribute 'http.method' in group 'registry.http' is deprecated: Use http.request.method instead",
+    "message": "Attribute 'http-method' in group 'registry.http' contains invalid characters. Only alphanumeric characters, dots, and underscores are allowed.",
     "level": "violation"
   },
   {
@@ -161,4 +162,4 @@ For backward compatibility, Weaver still accepts legacy finding formats:
   }
   ```
 
-These formats are automatically converted to `PolicyFinding` internally. **For new policies, use the unified `PolicyFinding` structure shown above.**
+These formats are automatically converted internally. **For new policies, use the finding structure shown above.**
