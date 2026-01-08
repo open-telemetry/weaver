@@ -40,13 +40,13 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Ensure `ui-react/src/main.tsx` imports global CSS
 
 ### 2) Tailwind + DaisyUI (mirror Svelte)
-- [ ] Install Tailwind + PostCSS + Autoprefixer in `ui-react/`
-- [ ] Install DaisyUI in `ui-react/` (match `ui/` version initially)
-- [ ] Create `ui-react/postcss.config.*` for Tailwind
-- [ ] Create `ui-react/tailwind.config.*` with `content` globs for React (`index.html`, `src/**/*.{ts,tsx}`)
-- [ ] Enable DaisyUI plugin in Tailwind config
-- [ ] Configure DaisyUI themes: `light`, `dark`
-- [ ] Port global CSS from `ui/src/app.css` into React global CSS (Tailwind layers + custom classes)
+- [x] Install Tailwind + PostCSS + Autoprefixer in `ui-react/`
+- [x] Install DaisyUI in `ui-react/` (match `ui/` version initially)
+- [x] Create `ui-react/postcss.config.*` for Tailwind
+- [x] Create `ui-react/tailwind.config.*` with `content` globs for React (`index.html`, `src/**/*.{ts,tsx}`)
+- [x] Enable DaisyUI plugin in Tailwind config
+- [x] Configure DaisyUI themes: `light`, `dark`
+- [x] Port global CSS from `ui/src/app.css` into React global CSS (Tailwind layers + custom classes)
 
 ### 3) Router: TanStack Router (file-based)
 - [ ] Install TanStack Router (React) packages in `ui-react/`
