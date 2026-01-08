@@ -93,7 +93,7 @@ pub(crate) fn emit_metrics_for_registry_v2(registry: &ForgeResolvedRegistry) {
     let meter = global::meter("weaver");
 
     // Emit each metric to the OTLP receiver.
-    for metric in registry.signals.metrics.iter() {
+    for metric in registry.registry.metrics.iter() {
         let instrument = &metric.instrument;
         let metric_name = metric.name.to_string();
         let unit = metric.unit.clone();

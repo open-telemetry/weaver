@@ -92,12 +92,12 @@ pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl Into
     let stats = RegistryStats {
         registry_url: registry.registry_url.clone(),
         counts: RegistryCounts {
-            attributes: registry.attributes.len(),
-            metrics: registry.signals.metrics.len(),
-            spans: registry.signals.spans.len(),
-            events: registry.signals.events.len(),
-            entities: registry.signals.entities.len(),
-            attribute_groups: registry.attribute_groups.len(),
+            attributes: registry.registry.attributes.len(),
+            metrics: registry.registry.metrics.len(),
+            spans: registry.registry.spans.len(),
+            events: registry.registry.events.len(),
+            entities: registry.registry.entities.len(),
+            attribute_groups: registry.registry.attribute_groups.len(),
         },
     };
 
@@ -124,7 +124,12 @@ pub async fn get_registry_attribute(
     // Remove leading slash if present (from wildcard match)
     let key = key.trim_start_matches('/');
 
-    let attr = state.registry.attributes.iter().find(|a| a.key == key);
+    let attr = state
+        .registry
+        .registry
+        .attributes
+        .iter()
+        .find(|a| a.key == key);
 
     match attr {
         Some(attr) => Json(attr).into_response(),
@@ -157,7 +162,7 @@ pub async fn get_registry_metric(
 
     let metric = state
         .registry
-        .signals
+        .registry
         .metrics
         .iter()
         .find(|m| &*m.name == name);
@@ -193,7 +198,7 @@ pub async fn get_registry_span(
 
     let span = state
         .registry
-        .signals
+        .registry
         .spans
         .iter()
         .find(|s| &*s.r#type == span_type);
@@ -229,7 +234,7 @@ pub async fn get_registry_event(
 
     let event = state
         .registry
-        .signals
+        .registry
         .events
         .iter()
         .find(|e| &*e.name == name);
@@ -265,7 +270,7 @@ pub async fn get_registry_entity(
 
     let entity = state
         .registry
-        .signals
+        .registry
         .entities
         .iter()
         .find(|e| &*e.r#type == entity_type);
