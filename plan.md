@@ -48,19 +48,19 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 **Note:** Upgraded to Tailwind CSS v4 using official Vite plugin approach per https://tailwindcss.com/docs/installation/using-vite. Removed postcss.config.js and tailwind.config.js (not needed with v4).
 
 ### 3) Router: TanStack Router (file-based)
-- [ ] Install TanStack Router (React) packages in `ui-react/`
-- [ ] Set up TanStack Router file-based routing per docs
-- [ ] Add route for `/` (root)
-- [ ] Add route for `/search`
-- [ ] Add route for `/stats`
-- [ ] Add route for `/schema`
-- [ ] Add route for `/api-docs`
-- [ ] Add route for `/attribute/$key`
-- [ ] Add route for `/metric/$name`
-- [ ] Add route for `/span/$type`
-- [ ] Add route for `/event/$name`
-- [ ] Add route for `/entity/$type`
-- [ ] Verify deep links work in dev for all routes
+- [x] Install TanStack Router (React) packages in `ui-react/`
+- [x] Set up TanStack Router file-based routing per docs
+- [x] Add route for `/` (root)
+- [x] Add route for `/search`
+- [x] Add route for `/stats`
+- [x] Add route for `/schema`
+- [x] Add route for `/api-docs`
+- [x] Add route for `/attribute/$key`
+- [x] Add route for `/metric/$name`
+- [x] Add route for `/span/$type`
+- [x] Add route for `/event/$name`
+- [x] Add route for `/entity/$type`
+- [x] Verify deep links work in dev for all routes
 
 ### 4) Dev proxy (same as Svelte)
 - [ ] Create `ui-react/vite.config.ts`
