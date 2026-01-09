@@ -15,24 +15,39 @@ use crate::Error;
 use std::collections::HashMap;
 use std::path::Path;
 use weaver_common::result::WResult;
+use weaver_common::vdir::{TAR_GZ_EXT, ZIP_EXT};
+
+/// Strips known archive extensions from a string.
+fn strip_archive_extension(s: &str) -> &str {
+    if let Some(stripped) = s.strip_suffix(TAR_GZ_EXT) {
+        stripped
+    } else if let Some(stripped) = s.strip_suffix(ZIP_EXT) {
+        stripped
+    } else {
+        s
+    }
+}
 
 /// Extracts a semantic version from a path string.
 ///
 /// This function searches through path segments (separated by '/') looking for
-/// a segment that starts with 'v' followed by a valid semantic version.
+/// a segment that is a valid semantic version. Archive extensions (e.g.
+/// `.tar.gz` and `.zip`) are automatically stripped before parsing.
 ///
 /// # Arguments
 ///
-/// * `path` - A path string that may contain a version segment (e.g., "/path/v1.26.0/file")
+/// * `path` - A path string that may contain a version segment (e.g., "/path/v1.26.0/file"
+///   or "/path/1.26.0.tar.gz")
 ///
 /// # Returns
 ///
 /// * `Some(String)` - The version string including the 'v' prefix (e.g., "v1.26.0")
 /// * `None` - If no valid semantic version is found in the path
 fn extract_semconv_version(path: &str) -> Option<String> {
-    for segment in path.split('/') {
+    let stripped_path = strip_archive_extension(path);
+
+    for segment in stripped_path.split('/') {
         if segment.starts_with('v') && segment.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
-            // Try to parse it with semver (strip the 'v' first)
             if let Some(version_part) = segment.strip_prefix('v') {
                 if semver::Version::parse(version_part).is_ok() {
                     return Some(segment.to_owned());
@@ -468,12 +483,28 @@ mod tests {
     fn test_extract_semconv_version() {
         use super::extract_semconv_version;
 
-        // Test with GitHub release URL pattern
+        // Test with GitHub release URL pattern (version as standalone segment)
         assert_eq!(
             extract_semconv_version(
                 "https://github.com/open-telemetry/semantic-conventions/releases/download/v1.26.0/semantic-conventions.zip"
             ),
             Some("v1.26.0".to_owned())
+        );
+
+        // Test with GitHub archive URL pattern (version with .tar.gz extension)
+        assert_eq!(
+            extract_semconv_version(
+                "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.38.0.tar.gz"
+            ),
+            Some("v1.38.0".to_owned())
+        );
+
+        // Test with GitHub archive URL pattern (version with .zip extension)
+        assert_eq!(
+            extract_semconv_version(
+                "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.38.0.zip"
+            ),
+            Some("v1.38.0".to_owned())
         );
 
         // Test with local path containing version
