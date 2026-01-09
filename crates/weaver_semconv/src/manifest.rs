@@ -30,6 +30,7 @@ pub struct RegistryManifest {
     /// This field can be used to provide additional context or information about the registry's
     /// purpose and contents.
     /// The format of the description is markdown.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
@@ -41,7 +42,8 @@ pub struct RegistryManifest {
     /// List of the registry's dependencies.
     /// Note: In the current phase, we only support zero or one dependency.
     /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
-    pub dependencies: Option<Vec<Dependency>>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub dependencies: Vec<Dependency>,
 }
 
 /// Represents a dependency of a semantic convention registry.

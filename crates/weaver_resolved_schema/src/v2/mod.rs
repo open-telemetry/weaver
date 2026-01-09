@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     deprecated::Deprecated,
     group::GroupType,
+    manifest::RegistryManifest,
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
         CommonFields,
@@ -14,17 +15,20 @@ use weaver_semconv::{
 };
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
-use crate::{V2_RESOLVED_FILE_FORMAT, v2::{
-    attribute::Attribute,
-    attribute_group::AttributeGroup,
-    catalog::{AttributeCatalog, Catalog},
-    entity::Entity,
-    metric::Metric,
-    refinements::Refinements,
-    registry::Registry,
-    span::{Span, SpanRefinement},
-    stats::Stats,
-}};
+use crate::{
+    v2::{
+        attribute::Attribute,
+        attribute_group::AttributeGroup,
+        catalog::{AttributeCatalog, Catalog},
+        entity::Entity,
+        metric::Metric,
+        refinements::Refinements,
+        registry::Registry,
+        span::{Span, SpanRefinement},
+        stats::Stats,
+    },
+    V2_RESOLVED_FILE_FORMAT,
+};
 
 pub mod attribute;
 pub mod attribute_group;
@@ -55,7 +59,8 @@ pub struct ResolvedTelemetrySchema {
     pub registry: Registry,
     /// Refinements for the registry
     pub refinements: Refinements,
-    // TODO - versions, dependencies and other options.
+    /// The manifest of the registry.
+    pub registry_manifest: Option<RegistryManifest>,
 }
 
 impl ResolvedTelemetrySchema {
@@ -129,6 +134,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
             attribute_catalog,
             registry,
             refinements,
+            registry_manifest: None,
         })
     }
 }
@@ -595,9 +601,9 @@ fn diff_signals_by_hash<T: Signal>(
 #[cfg(test)]
 mod tests {
 
-    use crate::V1_RESOLVED_FILE_FORMAT;
     use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
     use crate::v2::event::Event;
+    use crate::V1_RESOLVED_FILE_FORMAT;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
@@ -1226,6 +1232,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            registry_manifest: None,
         }
     }
 }

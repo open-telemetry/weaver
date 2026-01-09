@@ -211,7 +211,7 @@ fn gc_unreferenced_objects(
     )?;
 
     if let Some(manifest) = manifest {
-        if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
+        if manifest.dependencies.len() > 0 {
             // This registry has dependencies.
             let current_reg_id = manifest.name.clone();
 

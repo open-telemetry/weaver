@@ -18,7 +18,7 @@ use crate::{
 
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
-///
+///registry_manifest: None,
 /// This includes all registrys fully fleshed out and ready for codegen.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -563,6 +563,7 @@ mod tests {
                     },
                 }],
             },
+            registry_manifest: None,
         };
 
         let forge_registry =
@@ -644,6 +645,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            registry_manifest: None,
         };
 
         let result = ForgeResolvedRegistry::try_from(resolved_schema);

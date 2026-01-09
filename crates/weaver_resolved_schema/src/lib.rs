@@ -92,11 +92,7 @@ pub struct Stats {
 
 impl ResolvedTelemetrySchema {
     /// Create a new resolved telemetry schema.
-    pub fn new<S: AsRef<str>>(
-        schema_url: S,
-        registry_id: S,
-        registry_url: S,
-    ) -> Self {
+    pub fn new<S: AsRef<str>>(schema_url: S, registry_id: S, registry_url: S) -> Self {
         Self {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: schema_url.as_ref().to_owned(),

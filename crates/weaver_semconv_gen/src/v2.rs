@@ -570,6 +570,7 @@ mod tests {
                     },
                 }],
             },
+            registry_manifest: None,
         }
     }
 }

@@ -421,11 +421,8 @@ impl SchemaResolver {
     ) -> Option<WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error>> {
         match registry_repo.manifest() {
             Some(manifest) => {
-                if let Some(dependencies) = manifest
-                    .dependencies
-                    .as_ref()
-                    .filter(|deps| !deps.is_empty())
-                {
+                let dependencies = &manifest.dependencies;
+                if !dependencies.is_empty() {
                     if !allow_registry_deps {
                         Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
                             error: format!(
