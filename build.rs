@@ -63,7 +63,7 @@ fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
     if !status.success() {
         return Err("Failed to install UI dependencies".into());
     }
-    
+
     // Build the UI
     let status = Command::new(npm_cmd)
         .arg("run")
