@@ -82,17 +82,17 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Implement toggle button + icons matching Svelte behavior
 
 ### 7) API client (`/api/v1`, TypeScript)
-- [ ] Create `ui-react/src/lib/api.ts`
-- [ ] Implement `BASE_URL = '/api/v1'`
-- [ ] Implement `fetchJSON()` with same error semantics as Svelte (throw on `!ok`)
-- [ ] Implement `getRegistryStats()`
-- [ ] Implement `getAttribute(key)`
-- [ ] Implement `getMetric(name)`
-- [ ] Implement `getSpan(type)`
-- [ ] Implement `getEvent(name)`
-- [ ] Implement `getEntity(type)`
-- [ ] Implement `search(query, type, stability, limit, offset)` using `URLSearchParams`
-- [ ] Add minimal TS types (prefer `unknown` + narrowing over `any`)
+- [x] Create `ui-react/src/lib/api.ts`
+- [x] Implement `BASE_URL = '/api/v1'`
+- [x] Implement `fetchJSON()` with same error semantics as Svelte (throw on `!ok`)
+- [x] Implement `getRegistryStats()`
+- [x] Implement `getAttribute(key)`
+- [x] Implement `getMetric(name)`
+- [x] Implement `getSpan(type)`
+- [x] Implement `getEvent(name)`
+- [x] Implement `getEntity(type)`
+- [x] Implement `search(query, type, stability, limit, offset)` using `URLSearchParams`
+- [x] Add minimal TS types (prefer `unknown` + narrowing over `any`)
 
 ### 8) Shared UI components (React parity)
 - [ ] Create `ui-react/src/components/StabilityBadge.tsx` (same mapping + labels as Svelte)
