@@ -63,16 +63,16 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Verify deep links work in dev for all routes
 
 ### 4) Dev proxy (same as Svelte)
-- [ ] Create `ui-react/vite.config.ts`
-- [ ] Configure dev server proxy: `/api` → `http://localhost:8080`
+- [x] Create `ui-react/vite.config.ts`
+- [x] Configure dev server proxy: `/api` → `http://localhost:8080`
 - [ ] Confirm `/api/v1/...` requests succeed via proxy in dev
 
 ### 5) App shell layout (DaisyUI parity)
-- [ ] Recreate Drawer layout (desktop open, mobile toggle) matching `ui/src/App.svelte`
-- [ ] Recreate Navbar (sticky top) matching `ui/src/App.svelte`
-- [ ] Recreate Sidebar sections + links (Registry / Schema / Developer)
-- [ ] Implement “active link” styling parity (based on current path)
-- [ ] Ensure sidebar links match Svelte destinations exactly
+- [x] Recreate Drawer layout (desktop open, mobile toggle) matching `ui/src/App.svelte`
+- [x] Recreate Navbar (sticky top) matching `ui/src/App.svelte`
+- [x] Recreate Sidebar sections + links (Registry / Schema / Developer)
+- [x] Implement "active link" styling parity (based on current path)
+- [x] Ensure sidebar links match Svelte destinations exactly
 
 ### 6) Theme toggle (exact parity)
 - [ ] Implement `theme` state (React hooks)
