@@ -36,6 +36,11 @@ pub mod value;
 /// This ID is reserved and should not be used by any other registry.
 pub const OTEL_REGISTRY_ID: &str = "OTEL";
 
+/// Version string denoting V1 resolved schema.
+pub(crate) const V1_RESOLVED_FILE_FORMAT: &str = "resolved/1.0.0";
+/// Version string dentoing V2 resolved scehma.
+pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0.0";
+
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
@@ -88,13 +93,12 @@ pub struct Stats {
 impl ResolvedTelemetrySchema {
     /// Create a new resolved telemetry schema.
     pub fn new<S: AsRef<str>>(
-        file_format: S,
         schema_url: S,
         registry_id: S,
         registry_url: S,
     ) -> Self {
         Self {
-            file_format: file_format.as_ref().to_owned(),
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: schema_url.as_ref().to_owned(),
             registry_id: registry_id.as_ref().to_owned(),
             registry: Registry::new(registry_url),
@@ -537,7 +541,7 @@ mod tests {
 
     #[test]
     fn no_diff() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "group1",
             [
@@ -554,7 +558,7 @@ mod tests {
 
     #[test]
     fn detect_2_added_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -563,7 +567,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -582,7 +586,7 @@ mod tests {
 
     #[test]
     fn detect_2_deprecated_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -596,7 +600,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -643,7 +647,7 @@ mod tests {
 
     #[test]
     fn detect_2_renamed_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -657,7 +661,7 @@ mod tests {
         // 2 new attributes are added: attr2_bis and attr3_bis
         // attr2 is renamed attr2_bis
         // attr3 is renamed attr3_bis
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -691,7 +695,7 @@ mod tests {
 
     #[test]
     fn detect_2_attributes_renamed_to_the_same_existing_attribute() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -703,7 +707,7 @@ mod tests {
         );
         prior_schema.add_attribute_group("group2", [Attribute::string("attr5", "brief", "note")]);
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -730,7 +734,7 @@ mod tests {
 
     #[test]
     fn detect_2_attributes_renamed_to_the_same_new_attribute() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -741,7 +745,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -774,7 +778,7 @@ mod tests {
     /// However, detecting this case is useful for identifying a violation of the process.
     #[test]
     fn detect_2_removed_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -785,7 +789,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -803,9 +807,9 @@ mod tests {
     // TODO add many more group diff checks for various capabilities.
     #[test]
     fn detect_metric_name_change() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "test/base_version", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "test/base_version", "");
         prior_schema.add_metric_group("metrics.cpu.time", "cpu.time", [], None);
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "test/new_version", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "test/new_version", "");
         latest_schema.add_metric_group(
             "metrics.cpu.time",
             "cpu.time",

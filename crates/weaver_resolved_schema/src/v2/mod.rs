@@ -14,7 +14,7 @@ use weaver_semconv::{
 };
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
-use crate::v2::{
+use crate::{V2_RESOLVED_FILE_FORMAT, v2::{
     attribute::Attribute,
     attribute_group::AttributeGroup,
     catalog::{AttributeCatalog, Catalog},
@@ -24,7 +24,7 @@ use crate::v2::{
     registry::Registry,
     span::{Span, SpanRefinement},
     stats::Stats,
-};
+}};
 
 pub mod attribute;
 pub mod attribute_group;
@@ -123,8 +123,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
         Ok(ResolvedTelemetrySchema {
-            // TODO - bump file format?
-            file_format: value.file_format,
+            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: value.schema_url,
             registry_id: value.registry_id,
             attribute_catalog,
@@ -596,6 +595,7 @@ fn diff_signals_by_hash<T: Signal>(
 #[cfg(test)]
 mod tests {
 
+    use crate::V1_RESOLVED_FILE_FORMAT;
     use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
     use crate::v2::event::Event;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
@@ -981,7 +981,7 @@ mod tests {
     #[test]
     fn test_try_from_v1_to_v2() {
         let v1_schema = crate::ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "my.schema.url".to_owned(),
             registry_id: "my-registry".to_owned(),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
@@ -999,7 +999,7 @@ mod tests {
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();
         assert!(v2_schema.is_ok());
         let v2_schema = v2_schema.unwrap();
-        assert_eq!(v2_schema.file_format, "1.0.0");
+        assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(v2_schema.schema_url, "my.schema.url");
         assert_eq!(v2_schema.registry_id, "my-registry");
     }
@@ -1208,7 +1208,7 @@ mod tests {
     // create an empty schema for testing.
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
+            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "my.schema.url".to_owned(),
             registry_id: "main".to_owned(),
             attribute_catalog: vec![],
