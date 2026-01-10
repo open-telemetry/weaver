@@ -169,10 +169,7 @@ mod tests {
                 .expect("Expected a JSON object")
                 .get("$defs");
 
-            assert!(
-                defs.is_some(),
-                "Expected a '$defs' key in the JSON schema"
-            );
+            assert!(defs.is_some(), "Expected a '$defs' key in the JSON schema");
         }
     }
 }

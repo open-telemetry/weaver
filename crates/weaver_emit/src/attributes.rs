@@ -294,10 +294,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.double",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
-            Some(Examples::Doubles(vec![
-                OrderedF64(3.15),
-                OrderedF64(2.71),
-            ])),
+            Some(Examples::Doubles(vec![OrderedF64(3.15), OrderedF64(2.71)])),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.double", 3.15));
@@ -410,10 +407,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.doubles",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
-            Some(Examples::Doubles(vec![
-                OrderedF64(1.1),
-                OrderedF64(2.2),
-            ])),
+            Some(Examples::Doubles(vec![OrderedF64(1.1), OrderedF64(2.2)])),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv.value, Value::Array(Array::F64(vec![1.1, 2.2])));

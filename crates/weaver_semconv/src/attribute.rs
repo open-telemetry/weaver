@@ -8,12 +8,12 @@ use crate::any_value::AnyValueSpec;
 use crate::deprecated::Deprecated;
 use crate::stability::Stability;
 use crate::{Error, YamlValue};
-use weaver_common::ordered_float::OrderedF64;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
+use weaver_common::ordered_float::OrderedF64;
 use weaver_common::result::WResult;
 use AttributeType::{Enum, PrimitiveOrArray, Template};
 
@@ -966,10 +966,7 @@ mod tests {
 
     #[test]
     fn test_examples_from_f64() {
-        assert_eq!(
-            Examples::from_f64(42.0),
-            Examples::Double(OrderedF64(42.0))
-        );
+        assert_eq!(Examples::from_f64(42.0), Examples::Double(OrderedF64(42.0)));
     }
 
     #[test]
