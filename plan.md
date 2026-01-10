@@ -25,7 +25,8 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Record API endpoints used by UI from `ui/src/lib/api.js` (paths + params)
 - [ ] Record theme behavior from `ui/src/App.svelte` (localStorage key + `data-theme`)
 - [ ] Record Markdown behavior from `ui/src/components/Markdown.svelte` (block)
-- [ ] Record InlineMarkdown behavior from `ui/src/components/InlineMarkdown.svelte` (strip `<p>`)
+- [x] Record InlineMarkdown behavior from `ui/src/components/InlineMarkdown.svelte` (strip `<p>`)
+  - Uses `marked.parse` with `async: false`, `breaks: false`, `gfm: true`, strips `<p>` tags via `/<\/?p>/g`, renders inside a `<span>` with inline styles for `code`, `a`, `strong`, `em`.
 - [ ] Record Pagination behavior from `ui/src/components/Pagination.svelte` (window size, ellipses)
 - [ ] Record API docs behavior from `ui/src/routes/ApiDocs.svelte` (RapiDoc + theme sync)
 - [ ] Record Schema page URL behavior from `ui/src/routes/Schema.svelte` (`schema` + `type` query params)
