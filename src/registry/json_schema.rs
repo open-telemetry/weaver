@@ -87,7 +87,9 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::SemconvDefinitionV2 => {
             schema_for!(weaver_semconv::v2::SemConvSpecV2)
         }
-        JsonSchemaType::ResolvedRegistryV2 => schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema),
+        JsonSchemaType::ResolvedRegistryV2 => {
+            schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
+        }
         JsonSchemaType::MaterializedRegistryV2 => {
             schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
         }

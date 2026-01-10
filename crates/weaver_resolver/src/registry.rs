@@ -950,7 +950,7 @@ mod tests {
                     matches!(
                         e,
                         weaver_semconv::Error::UnstableFileVersion {
-                            version: _,
+                            file_format: _,
                             provenance: _,
                         }
                     )

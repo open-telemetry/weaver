@@ -455,7 +455,7 @@ mod tests {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2/materialized".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
-                attribute_catalog: vec![attribute::Attribute {
+            attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 examples: None,

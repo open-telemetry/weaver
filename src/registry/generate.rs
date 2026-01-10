@@ -408,7 +408,7 @@ mod tests {
         assert_eq!(rust_files, expected_rust_files);
     }
 
-    //#[test]
+    #[test]
     fn test_registry_generate_with_symbolic_link_cases() {
         env_logger::builder().is_test(true).init();
         let test_cases = vec![

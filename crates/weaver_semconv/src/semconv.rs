@@ -55,7 +55,9 @@ const _: () = {
                         one_of: Some(<[_]>::into_vec(Box::new([
                             schemars::_private::metadata::add_description(
                                 schemars::_private::new_internally_tagged_enum(
-                                    "file_format", "1", false,
+                                    "file_format",
+                                    "1",
+                                    false,
                                 ),
                                 "Version 1 of the semantic convention schema.",
                             )
@@ -64,7 +66,9 @@ const _: () = {
                             ),
                             schemars::_private::metadata::add_description(
                                 schemars::_private::new_internally_tagged_enum(
-                                    "file_format", "2", false,
+                                    "file_format",
+                                    "2",
+                                    false,
                                 ),
                                 "Version 2 of the semantic convention schema.",
                             )
