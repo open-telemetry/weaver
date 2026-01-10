@@ -14,19 +14,19 @@ use std::path::Path;
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](/schemas/semconv-syntax.md)
-/// A semconv file either follows version 1 or 2.  Default is version 1.
+/// A semconv file either follows file_format 1 or 2.  Default is file_format 1.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum SemConvSpec {
-    /// Semantic convention specification that includes a version tag.
+    /// Semantic convention specification that includes a file_format tag.
     WithVersion(Versioned),
-    /// Semantic convention specification that does NOT include a version tag.
+    /// Semantic convention specification that does NOT include a file_format tag.
     NoVersion(SemConvSpecV1),
 }
 
 /// A versioned semantic convention file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "version")]
+#[serde(tag = "file_format")]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "1")]
@@ -55,7 +55,7 @@ const _: () = {
                         one_of: Some(<[_]>::into_vec(Box::new([
                             schemars::_private::metadata::add_description(
                                 schemars::_private::new_internally_tagged_enum(
-                                    "version", "1", false,
+                                    "file_format", "1", false,
                                 ),
                                 "Version 1 of the semantic convention schema.",
                             )
@@ -64,7 +64,7 @@ const _: () = {
                             ),
                             schemars::_private::metadata::add_description(
                                 schemars::_private::new_internally_tagged_enum(
-                                    "version", "2", false,
+                                    "file_format", "2", false,
                                 ),
                                 "Version 2 of the semantic convention schema.",
                             )
@@ -160,7 +160,7 @@ impl SemConvSpecV1 {
 }
 
 impl SemConvSpec {
-    /// Converts this SemconvSpec into the version 1 specification.
+    /// Converts this SemconvSpec into the file_format 1 specification.
     ///
     /// name: A unique identifier to use for synthetic group ids in this semconv, if needed.
     #[must_use]
@@ -214,7 +214,7 @@ fn provenance_path_to_name(path: &str) -> String {
 }
 
 impl SemConvSpecWithProvenance {
-    /// True if this specification contains V2 version.
+    /// True if this specification contains V2 file_format.
     fn is_v2(&self) -> bool {
         matches!(
             self,
@@ -225,7 +225,7 @@ impl SemConvSpecWithProvenance {
         )
     }
 
-    /// Converts this semconv specification into version 1, preserving provenance.
+    /// Converts this semconv specification into file_format 1, preserving provenance.
     #[must_use]
     pub fn into_v1(self) -> SemConvSpecV1WithProvenance {
         // TODO - better name
@@ -315,7 +315,7 @@ impl SemConvSpecWithProvenance {
                         // TODO - Check if we should use versioned or unversioned validator.
                         if yaml_value
                             .as_mapping()
-                            .and_then(|m| m.get("version"))
+                            .and_then(|m| m.get("file_format"))
                             .map(|v| v.is_string())
                             .unwrap_or(false)
                         {
@@ -355,7 +355,7 @@ impl SemConvSpecWithProvenance {
             WResult::Ok(spec) => {
                 if spec.is_v2() {
                     let nfe = Error::UnstableFileVersion {
-                        version: "2".to_owned(),
+                        file_format: "2".to_owned(),
                         provenance: spec.provenance.path.clone(),
                     };
                     WResult::with_non_fatal_errors(spec, vec![nfe])
@@ -367,7 +367,7 @@ impl SemConvSpecWithProvenance {
                 if spec.is_v2() {
                     let mut nfes = errs;
                     nfes.push(Error::UnstableFileVersion {
-                        version: "2".to_owned(),
+                        file_format: "2".to_owned(),
                         provenance: spec.provenance.path.clone(),
                     });
                     WResult::OkWithNFEs(spec, nfes)
@@ -711,7 +711,7 @@ mod tests {
         }));
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
-            r#"version: '2'
+            r#"file_format: '2'
 attributes:
 - key: test.key
   type: int
@@ -736,9 +736,9 @@ attributes:
                 examples: "example1""#,
         );
         assert!(matches!(raw, SemConvSpec::NoVersion(_)));
-        let v1 = parse_versioned(r#"version: '1'"#);
+        let v1 = parse_versioned(r#"file_format: '1'"#);
         assert!(matches!(v1, SemConvSpec::WithVersion(Versioned::V1 { .. })));
-        let v2 = parse_versioned("version: '2'");
+        let v2 = parse_versioned("file_format: '2'");
         assert!(matches!(v2, SemConvSpec::WithVersion(Versioned::V2 { .. })));
     }
 
@@ -746,7 +746,7 @@ attributes:
     fn test_semconv_spec_with_provenance_from_string_v2() {
         // let provenance = Provenance::new("main", "my_string");
         let spec = r#"
-        version: '2'
+        file_format: '2'
         attributes:
         - key: "attr1"
           stability: "stable"

@@ -7,7 +7,6 @@
     "attribute_catalog",
     "refinements",
     "registry",
-    "registry_url",
     "schema_url"
   ],
   "properties": {
@@ -20,7 +19,7 @@
     },
     "file_format": {
       "description": "Version of the file structure.",
-      "default": "2.0.0",
+      "default": "2/resolved",
       "type": "string"
     },
     "refinements": {
@@ -39,12 +38,8 @@
         }
       ]
     },
-    "registry_url": {
-      "description": "The URL of the registry that this schema belongs to.",
-      "type": "string"
-    },
     "schema_url": {
-      "description": "Schema URL that this file is published at.",
+      "description": "The URL of the registry that this schema belongs to.",
       "type": "string"
     }
   },
@@ -1129,7 +1124,6 @@
         "entities",
         "events",
         "metrics",
-        "registry_url",
         "spans"
       ],
       "properties": {
@@ -1167,10 +1161,6 @@
           "items": {
             "$ref": "#/definitions/Metric"
           }
-        },
-        "registry_url": {
-          "description": "The semantic convention registry url.\n\nThis is the base URL, under which this registry can be found.",
-          "type": "string"
         },
         "spans": {
           "description": "A  list of span signal definitions.",

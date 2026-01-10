@@ -1,4 +1,4 @@
-version: "2"
+file_format: "2"
 attributes:
   - key: server.port
     stability: stable

@@ -4,7 +4,6 @@
   "description": "A resolved semantic convention registry used in the context of the template and policy engines.\n\nThis includes all registrys fully fleshed out and ready for codegen.",
   "type": "object",
   "required": [
-    "file_format",
     "refinements",
     "registry",
     "schema_url"
@@ -12,6 +11,7 @@
   "properties": {
     "file_format": {
       "description": "Version of the file structure.",
+      "default": "2/materialized",
       "type": "string"
     },
     "refinements": {

@@ -1,9 +1,11 @@
 # Semantic Conventions Schemas
 
+**Status**: [Alpha][DocumentStatus]
+
 <!-- toc -->
 
 - [Semantic Conventions Schemas](#semantic-conventions-schemas)
-  - [Source schema](#source-schema)
+  - [Definition schema](#definition-schema)
   - [Resolved schema](#resolved-schema)
     - [Resolved schema properties](#resolved-schema-properties)
   - [Materialized resolved schema](#materialized-resolved-schema)
@@ -12,29 +14,28 @@
 
 <!-- tocstop -->
 
-**Status**: [Alpha][DocumentStatus]
-
 > [!WARNING]
 > This document describes a new (future) version of the Semantic Conventions YAML model.
 > This model is not yet feature-complete and is under active development.
 
 This document describes schemas that govern the lifecycle of semantic conventions:
 
-- the [source schema](#source-schema) for authoring,
+- the [definition schema](#definition-schema) for authoring,
 - the [resolved schema](#resolved-schema) for distribution,
 - the [materialized resolved schema](#materialized-resolved-schema) for validation and documentation/code generation,
 - and the [diff schema](#diff-schema) for tracking changes between versions.
 
-## Source schema
+## Definition schema
 
-The *source* schema is used to write conventions. Conventions can be defined in multiple files. The
+The *definition* schema is used to write conventions. Conventions can be defined in multiple files. The
 syntax is focused on avoiding duplication, maximizing consistency, and ease of authoring.
-See the [source schema syntax](/schemas/semconv.source-syntax.v2.md) for details and examples,
-and the [JSON schema](/schemas/semconv.source-schema.v2.json) for the full reference.
+See the [definition schema syntax](/schemas/semconv.definition-syntax.v2.md) for details and examples,
+and the [JSON schema](/schemas/semconv.definition-schema.v2.json) for the full reference.
 
-For example, the source schema might look like this:
+For example, the definition schema might look like this:
 
 ```yaml
+file_format: "2"
 attributes:
 - key: my.operation.name
   type: string
@@ -55,8 +56,8 @@ metrics:
 
 ## Resolved schema
 
-The *resolved* schema is a single file produced from a set of source schemas. It contains resolved
-signal definitions and refinements that are self-contained. It is optimized for
+The *resolved* schema is a single file produced from a set of definition schemas. It contains a resolved
+registry and refinements that are self-contained. It is optimized for
 distribution and in-memory representation.
 
 The *resolved* schema is produced by the `weaver registry resolve` command.
@@ -66,6 +67,8 @@ full reference.
 The resolved version of the metric above would look like this:
 
 ```yaml
+file_format: "2/resolved"
+schema_url: https://api.mycompany.io/schemas/v1.2.3
 attribute_catalog:
 ...
 - key: my.operation.name
@@ -76,7 +79,6 @@ attribute_catalog:
 ...
 registry:
   attributes:
-  ...
   - 888   # this is the index of `server.address` in the attribute_catalog
   - 1042  # this is the index of `my.operation.name` in attribute_catalog
   ...
@@ -90,16 +92,24 @@ registry:
       - base: 888  # this is the index of `server.address` in the attribute_catalog
         requirement_level: recommended
       ...
+refinements:
+  metrics:
+  - name: my.client.operation.duration  # refinements include original signal definitions
+    instrument: histogram
+    unit: s
+    attributes:
+      - base: 1042
+        requirement_level: required
+        ...
 ```
 
 Instead of references, we see indexes of attributes along with overridden properties.
 
 ### Resolved schema properties
 
-- **file_format**: Version of the resolved schema, `2.0.0` in this iteration (defaults to `2.0.0` if not specified)
-- **schema_url**: Schema URL where this file is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
-- **registry_url**: URL of the registry where the conventions are defined (not versioned). E.g., `https://github.com/open-telemetry/semantic-conventions/`
-- **attribute_catalog**: Attribute catalog containing definitions and refinements. May include duplicate keys.
+- **file_format**: Version of the resolved schema, `2/resolved` in this iteration
+- **schema_url**: Schema URL where this schema is published. E.g., `https://api.mycompany.io/schemas/v1.2.3`
+- **attribute_catalog**: Attribute catalog containing all attribute definitions and refinements. May include duplicate keys.
   - `key`: Attribute key
   - `type`: Primitive, array, template, or enum with members
   - `examples`: Example values (optional)
@@ -159,9 +169,9 @@ Instead of references, we see indexes of attributes along with overridden proper
 
 ## Materialized resolved schema
 
-The *materialized resolved* schema, *materialized* for short (and also known as *forge* schema in the weaver codebase),
+The *materialized resolved* schema, or *materialized* for short (and also known as the *forge* schema in the weaver codebase),
 is based on the *resolved* schema. It expands attribute indexes into actual attribute definitions.
-It is optimized for consumption when generating code or documentation, and validating telemetry where
+It is optimized for consumption when generating code or documentation, and for validating telemetry where
 full definitions of every signal and attribute are necessary.
 
 When running `weaver registry generate` or `weaver registry update-markdown`, the data passed
@@ -176,15 +186,17 @@ full reference.
 The materialized resolved schema of the original metric would look like:
 
 ```yaml
-attributes:
-...
-- key: my.operation.name
-  type: string
-  stability: stable
-  brief: My service operation name as defined in this Open API spec
-  examples: ["get_object", "create_collection"]
-...
-signals:
+file_format: 2/materialized
+schema_url: https://api.mycompany.io/schemas/v1.2.3
+registry:
+  attributes:
+  ...
+  - key: my.operation.name
+    type: string
+    stability: stable
+    brief: My service operation name as defined in this Open API spec
+    examples: ["get_object", "create_collection"]
+  ...
   metrics:
   - name: my.client.operation.duration
     instrument: histogram
@@ -201,60 +213,29 @@ signals:
         brief: Server domain name or IP address
         examples: ["foo-us-west-prod.my.com"]
         requirement_level: recommended
-      ...
+  ...
+refinements:
+  metrics:
+  - name: my.client.operation.duration  # refinements include original signal definitions
+    instrument: histogram
+    unit: s
+    attributes:
+      - key: my.operation.name  # fully expanded attribute
+        type: string
+        brief: My service operation name as defined in this Open API spec
+        stability: stable
+        examples: ["get_object", "create_collection"]
+        requirement_level: required
+      ,,,
 ```
 
 ### Materialized schema properties
 
-- **file_format**: Version of the resolved schema, `2.0.0` in this iteration
-- **schema_url**: Schema URL where this file is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
+- **file_format**: Version of the materialized schema, `2/materialized` in this iteration
+- **schema_url**: Schema URL where the schema is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
 - **registry_url**: URL of the registry where the conventions are defined (not versioned). E.g., `https://github.com/open-telemetry/semantic-conventions/`
-- **attributes**: Fully expanded attribute definitions
-  - `key`: Unique identifier
-  - `type`: Primitive, array, template, or enum with members
-  - `examples`: Example values (optional)
-  - Common properties
-- **attribute_groups**: Named collections of attributes
-  - `id`: Unique identifier
-  - `attributes`: Resolved attributes in this group
-  - Common properties
-- **signals**: All telemetry signals. Each signal definition is also included in
-  the `refinements` section as a base refinement that can be specialized.
-  - **metrics**: Metric signal definitions
-    - `name`: Metric name
-    - `instrument`: Instrument type (counter, gauge, histogram, updowncounter)
-    - `unit`: Measurement unit
-    - `attributes`: List of fully expanded metric attributes with requirement levels
-    - `entity_associations`: Associated entity types (optional)
-    - Common properties
-  - **spans**: Span signal definitions
-    - `type`: Unique span type identifier
-    - `name`: Span name pattern
-    - `kind`: Span kind (client, server, internal, producer, consumer)
-    - `attributes`: List of fully expanded span attributes with requirement levels and sampling-relevant flag
-    - `entity_associations`: Associated entity types (optional)
-    - Common properties
-  - **events**: Event signal definitions
-    - `name`: Event name
-    - `attributes`: List of fully expanded event attributes with requirement levels
-    - `entity_associations`: Associated entity types (optional)
-    - Common properties
-  - **entities**: Entity (resource) signal definitions
-    - `type`: Entity type identifier
-    - `identity`: Attributes that identify the entity
-    - `description`: Attributes that describe the entity
-    - Common properties
-- **refinements**: Signal refinements that extend base signals for specific implementations.
-  Refinements also contain the original definitions of signals.
-  - **spans**: Span refinements
-    - `id`: Unique identifier for the refinement
-    - All properties of the refined span (as defined in the `signals.spans` section)
-  - **metrics**: Metric refinements
-    - `id`: Unique identifier for the refinement
-    - All properties of the refined metric (as defined in the `signals.metrics` section)
-  - **events**: Event refinements
-    - `id`: Unique identifier for the refinement
-    - All properties of the refined event (as defined in the `signals.events` section)
+- **registry**: Same as in the *resolved* schema, but attribute references are fully expanded
+- **refinements**: Same as in the *resolved* schema, but attribute references are fully expanded
 
 ## Diff schema
 
