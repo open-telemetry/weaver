@@ -169,15 +169,24 @@ mod tests {
 
     #[test]
     fn test_partial_ord() {
-        assert_eq!(OrderedF64(1.0).partial_cmp(&OrderedF64(2.0)), Some(Ordering::Less));
+        assert_eq!(
+            OrderedF64(1.0).partial_cmp(&OrderedF64(2.0)),
+            Some(Ordering::Less)
+        );
     }
 
     #[test]
     fn test_ord() {
         assert_eq!(OrderedF64(1.0).cmp(&OrderedF64(2.0)), Ordering::Less);
-        assert_eq!(OrderedF64(f64::NAN).cmp(&OrderedF64(1.0)), Ordering::Greater);
+        assert_eq!(
+            OrderedF64(f64::NAN).cmp(&OrderedF64(1.0)),
+            Ordering::Greater
+        );
         assert_eq!(OrderedF64(1.0).cmp(&OrderedF64(f64::NAN)), Ordering::Less);
-        assert_eq!(OrderedF64(f64::NAN).cmp(&OrderedF64(f64::NAN)), Ordering::Equal);
+        assert_eq!(
+            OrderedF64(f64::NAN).cmp(&OrderedF64(f64::NAN)),
+            Ordering::Equal
+        );
     }
 
     #[test]
