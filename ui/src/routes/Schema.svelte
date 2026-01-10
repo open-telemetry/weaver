@@ -79,7 +79,7 @@
   });
 
   // Extract definitions from schema
-  const definitions = $derived(schema?.definitions ? Object.keys(schema.definitions).sort() : []);
+  const definitions = $derived(schema?.['$defs'] ? Object.keys(schema['$defs']).sort() : []);
 
   function selectDefinition(name) {
     selectedDefinition = name;
@@ -108,13 +108,13 @@
       // Handle nested arrays (array of array)
       if (prop.items.type === 'array' && prop.items.items) {
         const innerType = prop.items.items.$ref
-          ? prop.items.items.$ref.replace('#/definitions/', '')
+          ? prop.items.items.$ref.replace('#/$defs/', '')
           : prop.items.items.type || 'any';
         return `array of array of ${innerType}`;
       }
       // Handle simple arrays
       const itemType = prop.items.$ref
-        ? prop.items.$ref.replace('#/definitions/', '')
+        ? prop.items.$ref.replace('#/$defs/', '')
         : prop.items.type || 'any';
 
       // If it's a union type like ["array", "null"], add the null if not skipping
@@ -133,7 +133,7 @@
                          (Array.isArray(prop.type) && prop.type.includes('object'));
     if (hasObjectType && prop.additionalProperties) {
       const valueType = prop.additionalProperties.$ref
-        ? prop.additionalProperties.$ref.replace('#/definitions/', '')
+        ? prop.additionalProperties.$ref.replace('#/$defs/', '')
         : prop.additionalProperties.type || 'any';
 
       // If it's a union type like ["object", "null"], filter out null if skipNull is true
@@ -151,21 +151,21 @@
       return types.join(' | ');
     }
     if (prop.type) return prop.type;
-    if (prop.$ref) return prop.$ref.replace('#/definitions/', '');
+    if (prop.$ref) return prop.$ref.replace('#/$defs/', '');
     if (prop.allOf) {
       // allOf is typically used for single type references
       if (prop.allOf.length === 1 && prop.allOf[0].$ref) {
-        return prop.allOf[0].$ref.replace('#/definitions/', '');
+        return prop.allOf[0].$ref.replace('#/$defs/', '');
       }
-      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'object').join(' & ');
+      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'object').join(' & ');
     }
     if (prop.anyOf) {
-      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null');
+      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'null');
       const filtered = skipNull ? types.filter(t => t !== 'null') : types;
       return filtered.join(' | ');
     }
     if (prop.oneOf) {
-      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null');
+      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'null');
       const filtered = skipNull ? types.filter(t => t !== 'null') : types;
       return filtered.join(' | ');
     }
@@ -185,7 +185,7 @@
     // Check if it contains " | " (union type)
     if (typeStr.includes(' | ')) return false;
     // Otherwise, it's likely a definition reference
-    return schema?.definitions && schema.definitions[typeStr] !== undefined;
+    return schema?.['$defs'] && schema['$defs'][typeStr] !== undefined;
   }
 
   // Parse a type string and return clickable parts
@@ -533,8 +533,8 @@
           </div>
         </div>
       </div>
-    {:else if selectedDefinition && schema?.definitions[selectedDefinition]}
-      {@const def = schema.definitions[selectedDefinition]}
+    {:else if selectedDefinition && schema?.['$defs'][selectedDefinition]}
+      {@const def = schema['$defs'][selectedDefinition]}
       <div class="space-y-6">
         <!-- Header -->
         <div>

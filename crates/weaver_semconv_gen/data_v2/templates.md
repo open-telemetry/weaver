@@ -26,6 +26,6 @@ Custom Snippet Name
 todo/1.0.0
 <!-- endweaver -->
 
-<!-- weaver template:registry.md.j2 { value: .signals.metrics[] | select(.name == "test.metric") | .unit } -->
+<!-- weaver template:registry.md.j2 { value: .registry.metrics[] | select(.name == "test.metric") | .unit } -->
 {1}
 <!-- endweaver -->

@@ -4,8 +4,7 @@
 
 use crate::Error::CompoundError;
 use miette::{Diagnostic, NamedSource, SourceSpan};
-use schemars::schema::{InstanceType, Schema};
-use schemars::{JsonSchema, SchemaGenerator};
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::hash::Hasher;
@@ -392,28 +391,19 @@ impl From<Error> for DiagnosticMessages {
 pub struct YamlValue(pub serde_yaml::value::Value);
 
 impl JsonSchema for YamlValue {
-    fn schema_name() -> String {
-        "YamlValue".to_owned()
+    fn schema_name() -> Cow<'static, str> {
+        "YamlValue".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        concat!(module_path!(), "::YamlValue").into()
     }
 
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
-        // Create a schema that accepts any type
-        let schema = schemars::schema::SchemaObject {
-            instance_type: Some(
-                vec![
-                    InstanceType::Null,
-                    InstanceType::Boolean,
-                    InstanceType::Object,
-                    InstanceType::Array,
-                    InstanceType::Number,
-                    InstanceType::String,
-                ]
-                .into(),
-            ),
-            ..Default::default()
-        };
-
-        Schema::Object(schema)
+        // Accept any JSON type
+        json_schema!({
+            "type": ["null", "boolean", "object", "array", "number", "string"]
+        })
     }
 }
 

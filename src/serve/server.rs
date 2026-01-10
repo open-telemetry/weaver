@@ -81,6 +81,7 @@ impl From<std::io::Error> for Error {
         handlers::get_registry_event,
         handlers::get_registry_entity,
         handlers::search_registry,
+        handlers::filter_registry,
     ),
     components(
         schemas(
@@ -165,6 +166,8 @@ pub async fn run_server(
         )
         // Search
         .route("/api/v1/registry/search", get(handlers::search_registry))
+        // Filter
+        .route("/api/v1/registry/filter", get(handlers::filter_registry))
         // OpenAPI specification
         .route("/api/v1/openapi.json", get(openapi_spec))
         // UI fallback - serves embedded static files

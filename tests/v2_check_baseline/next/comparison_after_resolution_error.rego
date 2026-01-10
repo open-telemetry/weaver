@@ -3,8 +3,8 @@ package comparison_after_resolution
 import rego.v1
 
 deny contains bcompat_violation(description) if {
-	metric := input.signals.metrics[_]
-    baseline_metric := data.signals.metrics[_]
+	metric := input.registry.metrics[_]
+    baseline_metric := data.registry.metrics[_]
     metric.name == baseline_metric.name
     baseline_attributes := { attr.key |
         some attr in baseline_metric.attributes

@@ -75,7 +75,7 @@ impl SearchContext {
         let mut entity_index = HashMap::new();
 
         // Index all attributes
-        for attr in &registry.attributes {
+        for attr in &registry.registry.attributes {
             let arc_attr = Arc::new(attr.clone());
             items.push(SearchableItem::Attribute(Arc::clone(&arc_attr)));
 
@@ -92,28 +92,28 @@ impl SearchContext {
         templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
 
         // Index all metrics
-        for metric in &registry.signals.metrics {
+        for metric in &registry.registry.metrics {
             let arc_metric = Arc::new(metric.clone());
             items.push(SearchableItem::Metric(Arc::clone(&arc_metric)));
             let _ = metric_index.insert(metric.name.to_string(), arc_metric);
         }
 
         // Index all spans
-        for span in &registry.signals.spans {
+        for span in &registry.registry.spans {
             let arc_span = Arc::new(span.clone());
             items.push(SearchableItem::Span(Arc::clone(&arc_span)));
             let _ = span_index.insert(span.r#type.to_string(), arc_span);
         }
 
         // Index all events
-        for event in &registry.signals.events {
+        for event in &registry.registry.events {
             let arc_event = Arc::new(event.clone());
             items.push(SearchableItem::Event(Arc::clone(&arc_event)));
             let _ = event_index.insert(event.name.to_string(), arc_event);
         }
 
         // Index all entities
-        for entity in &registry.signals.entities {
+        for entity in &registry.registry.entities {
             let arc_entity = Arc::new(entity.clone());
             items.push(SearchableItem::Entity(Arc::clone(&arc_entity)));
             let _ = entity_index.insert(entity.r#type.to_string(), arc_entity);

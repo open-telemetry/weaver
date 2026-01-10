@@ -119,7 +119,7 @@ def deprecated_filter($options):
 # - ignore_code_generation_annotations: a boolean to ignore code generation annotations.
 def semconv_attributes($options):
   if ($options | has("v2") and $options.v2 == true) then
-      .attributes
+      .registry.attributes
       | map(. + {root_namespace: .key | split(".")[0]})
   else
       .groups
@@ -170,7 +170,7 @@ def semconv_grouped_attributes: semconv_grouped_attributes({});
 # - v2: a boolean to use v2 schema.
 def semconv_signal($signal; $options):
   if ($options | has("v2") and $options.v2 == true) then
-    .signals
+    .registry
     | signal_filter_v2($signal)
     | map(. + {root_namespace: get_id($signal; .) | split(".")[0]})
   else

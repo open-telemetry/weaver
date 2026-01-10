@@ -74,11 +74,11 @@ fn run_serve(args: &ServeCommand) -> Result<ExitDirectives, DiagnosticMessages> 
     info!("Registry loaded successfully");
     info!(
         "Found {} attributes, {} metrics, {} spans, {} events, {} entities",
-        forge_registry.attributes.len(),
-        forge_registry.signals.metrics.len(),
-        forge_registry.signals.spans.len(),
-        forge_registry.signals.events.len(),
-        forge_registry.signals.entities.len(),
+        forge_registry.registry.attributes.len(),
+        forge_registry.registry.metrics.len(),
+        forge_registry.registry.spans.len(),
+        forge_registry.registry.events.len(),
+        forge_registry.registry.entities.len(),
     );
     info!("Starting server on {}", args.bind);
 
