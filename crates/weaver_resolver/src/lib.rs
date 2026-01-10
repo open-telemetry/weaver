@@ -325,22 +325,50 @@ impl SchemaResolver {
         let _ = visited_registries.insert(registry_id.clone());
         dependency_chain.push(registry_id.clone());
 
-        // TODO - figure out if this is a raw repository or something else.
+        // Either load a fully resolved repository, or read in raw files.
         if let Some(manifest) = registry_repo.manifest() {
-            // TODO - load dependencies here.
-            // manifest.dependencies
-            // TODO - Check if we need to load a resolved repository.
-            todo!()
+            if let Some(resolved_url) = manifest.resolved_schema_url.as_ref() {
+                todo!(
+                    "Loading resolved telemetry schema ({resolved_url}) is currently unsupported."
+                );
+            } else {
+                if manifest.dependencies.len() > 1 {
+                    todo!("Multiple dependencies is not supported yet.")
+                }
+                // Load dependencies.
+                let mut loaded_dependencies = vec![];
+                for d in manifest.dependencies.iter() {
+                    match RegistryRepo::try_new(&d.name, &d.registry_path) {
+                        Ok(d_repo) => {
+                            // TODO - dependency chain should ONLY include current dependencies.   We're pushing the whole thing down
+                            // so we need to make sure the dependency chain only include direct dependencies of each other.
+                            match Self::load_semconv_repository_recursive(
+                                &d_repo,
+                                follow_symlinks,
+                                max_dependency_depth - 1,
+                                visited_registries,
+                                dependency_chain,
+                            ) {
+                                WResult::Ok(d) => loaded_dependencies.push(d),
+                                // TODO - Should we always ignore warnings on loaded dependencies?
+                                WResult::OkWithNFEs(d, _) => loaded_dependencies.push(d),
+                                WResult::FatalErr(err) => return WResult::FatalErr(err),
+                            }
+                        }
+                        Err(err) => return WResult::FatalErr(err),
+                    }
+                }
+                // Now load the raw repository.
+                Self::load_definition_repository(
+                    registry_repo,
+                    follow_symlinks,
+                    loaded_dependencies,
+                )
+            }
         } else {
             // This is a raw repository with *no* manifest.
             // TODO - issue a warning that manifest will be required w/ 2.0 to allow publishing.
-            Self::load_definition_repository(
-                registry_repo,
-                follow_symlinks,
-                max_dependency_depth,
-                visited_registries,
-                dependency_chain,
-            )
+            Self::load_definition_repository(registry_repo, follow_symlinks, vec![])
         }
     }
 
@@ -348,9 +376,7 @@ impl SchemaResolver {
     fn load_definition_repository(
         registry_repo: &RegistryRepo,
         follow_symlinks: bool,
-        max_dependency_depth: u32,
-        visited_registries: &mut HashSet<String>,
-        dependency_chain: &mut Vec<String>,
+        dependencies: Vec<LoadedSemconvRegistry>,
     ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
