@@ -3977,7 +3977,7 @@ dependencies = [
  "pastey",
  "pin-project-lite",
  "rmcp-macros",
- "schemars 1.2.0",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -4153,6 +4153,7 @@ version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54e910108742c57a770f492731f99be216a52fadd361b06c8fb59d74ccc267d2"
 dependencies = [
+ "chrono",
  "dyn-clone",
  "ref-cast",
  "schemars_derive",
@@ -5376,7 +5377,7 @@ dependencies = [
  "prost",
  "ratatui",
  "rayon",
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5413,7 +5414,7 @@ dependencies = [
  "globset",
  "miette",
  "regorus",
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5450,7 +5451,7 @@ dependencies = [
  "paris",
  "regex",
  "rouille",
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "serde_json",
  "tar",
@@ -5512,7 +5513,7 @@ dependencies = [
  "opentelemetry_sdk",
  "rayon",
  "regex",
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5537,7 +5538,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry-stdout",
  "opentelemetry_sdk",
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5558,7 +5559,7 @@ dependencies = [
  "log",
  "miette",
  "rmcp",
- "schemars 1.2.0",
+ "schemars",
  "serde",
  "serde_json",
  "tokio",
@@ -5618,7 +5619,7 @@ dependencies = [
 name = "weaver_search"
 version = "0.20.0"
 dependencies = [
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "utoipa",
  "weaver_forge",
@@ -5637,7 +5638,7 @@ dependencies = [
  "miette",
  "regex",
  "saphyr",
- "schemars 0.8.22",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5669,7 +5670,7 @@ dependencies = [
 name = "weaver_version"
 version = "0.20.0"
 dependencies = [
- "schemars 0.8.22",
+ "schemars",
  "semver",
  "serde",
  "serde_yaml",

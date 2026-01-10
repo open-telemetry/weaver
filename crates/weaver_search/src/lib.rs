@@ -474,7 +474,7 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
-    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Signals};
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
@@ -544,27 +544,27 @@ mod tests {
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
             registry_url: "test".to_owned(),
-            attributes: vec![
-                make_attribute("http.request.method", "HTTP request method", "", false),
-                make_attribute(
-                    "http.response.status_code",
-                    "HTTP response status code",
-                    "",
-                    false,
-                ),
-                make_attribute(
-                    "db.system",
-                    "Database system",
-                    "The database management system",
-                    false,
-                ),
-                // Template attribute for testing get_template/find_template
-                make_template_attribute("test.template", "A template attribute"),
-                // Development stability attribute for testing stability filtering
-                make_development_attribute("experimental.feature", "An experimental feature"),
-            ],
-            attribute_groups: vec![],
-            signals: Signals {
+            registry: Registry {
+                attributes: vec![
+                    make_attribute("http.request.method", "HTTP request method", "", false),
+                    make_attribute(
+                        "http.response.status_code",
+                        "HTTP response status code",
+                        "",
+                        false,
+                    ),
+                    make_attribute(
+                        "db.system",
+                        "Database system",
+                        "The database management system",
+                        false,
+                    ),
+                    // Template attribute for testing get_template/find_template
+                    make_template_attribute("test.template", "A template attribute"),
+                    // Development stability attribute for testing stability filtering
+                    make_development_attribute("experimental.feature", "An experimental feature"),
+                ],
+                attribute_groups: vec![],
                 metrics: vec![Metric {
                     name: "http.server.request.duration".to_owned().into(),
                     instrument: InstrumentSpec::Histogram,

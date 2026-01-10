@@ -395,7 +395,7 @@ mod tests {
     use weaver_forge::v2::entity::Entity;
     use weaver_forge::v2::event::Event;
     use weaver_forge::v2::metric::Metric;
-    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Signals};
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
     use weaver_semconv::attribute::AttributeType;
@@ -407,22 +407,22 @@ mod tests {
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
             registry_url: "test".to_owned(),
-            attributes: vec![Attribute {
-                key: "http.request.method".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                examples: None,
-                common: CommonFields {
-                    brief: "HTTP request method".to_owned(),
-                    note: "".to_owned(),
-                    stability: Stability::Stable,
-                    deprecated: None,
-                    annotations: BTreeMap::new(),
-                },
-            }],
-            attribute_groups: vec![],
-            signals: Signals {
+            registry: Registry {
+                attributes: vec![Attribute {
+                    key: "http.request.method".to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(
+                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: CommonFields {
+                        brief: "HTTP request method".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                attribute_groups: vec![],
                 metrics: vec![Metric {
                     name: "http.server.request.duration".to_owned().into(),
                     instrument: InstrumentSpec::Histogram,
