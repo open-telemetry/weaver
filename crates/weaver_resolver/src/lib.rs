@@ -285,7 +285,7 @@ impl SchemaResolver {
     /// Note: This may load in a definition (raw) repository *or* an already resolved repository.
     ///       When loading a raw repository, dependencies will also be loaded.
     pub fn load_semconv_repository(
-        registry_repo: &RegistryRepo,
+        registry_repo: RegistryRepo,
         follow_symlinks: bool,
     ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
         let mut visited_registries = HashSet::new();
@@ -304,7 +304,7 @@ impl SchemaResolver {
     /// Recursively iterates over semconv dependencies and loads their definition.
     /// Note: Prevents circular dependencies.
     fn load_semconv_repository_recursive(
-        registry_repo: &RegistryRepo,
+        registry_repo: RegistryRepo,
         follow_symlinks: bool,
         max_dependency_depth: u32,
         visited_registries: &mut HashSet<String>,
@@ -343,7 +343,7 @@ impl SchemaResolver {
                             // TODO - dependency chain should ONLY include current dependencies.   We're pushing the whole thing down
                             // so we need to make sure the dependency chain only include direct dependencies of each other.
                             match Self::load_semconv_repository_recursive(
-                                &d_repo,
+                                d_repo,
                                 follow_symlinks,
                                 max_dependency_depth - 1,
                                 visited_registries,
@@ -374,7 +374,7 @@ impl SchemaResolver {
 
     /// Loads a "raw" repository (composed of the original definition).
     fn load_definition_repository(
-        registry_repo: &RegistryRepo,
+        registry_repo: RegistryRepo,
         follow_symlinks: bool,
         dependencies: Vec<LoadedSemconvRegistry>,
     ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
@@ -395,10 +395,96 @@ impl SchemaResolver {
                 && file_name != "schema-next.yaml"
                 && file_name != REGISTRY_MANIFEST
         }
+        let local_path = registry_repo.path().to_path_buf();
+        let registry_path_repr = registry_repo.registry_path_repr();
+        let versioned_validator = JsonSchemaValidator::new_versioned();
+        let unversioned_validator = JsonSchemaValidator::new_unversioned();
 
-        let registry_id = registry_repo.id().to_string();
+        // Loads the semantic convention specifications from the git repo.
+        // All yaml files are recursively loaded and parsed in parallel from
+        // the given path.
+        let result = walkdir::WalkDir::new(local_path.clone())
+            .follow_links(follow_symlinks)
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+            .par_bridge()
+            .flat_map(|entry| {
+                match entry {
+                    Ok(entry) => {
+                        if !is_semantic_convention_file(&entry) {
+                            return vec![].into_par_iter();
+                        }
 
-        todo!()
+                        vec![SemConvRegistry::semconv_spec_from_file(
+                            &registry_repo.id(),
+                            entry.path(),
+                            &unversioned_validator,
+                            &versioned_validator,
+                            |path| {
+                                // Replace the local path with the git URL combined with the relative path
+                                // of the semantic convention file.
+                                let prefix = local_path
+                                    .to_str()
+                                    .map(|s| s.to_owned())
+                                    .unwrap_or_default();
+                                if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                    let relative_path = &path[prefix.len()..];
+                                    format!("{registry_path_repr}{relative_path}")
+                                } else {
+                                    let relative_path = &path[prefix.len() + 1..];
+                                    format!("{registry_path_repr}/{relative_path}")
+                                }
+                            },
+                        )]
+                        .into_par_iter()
+                    }
+                    Err(e) => vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                        error: e.to_string(),
+                    })]
+                    .into_par_iter(),
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let mut non_fatal_errors = vec![];
+        let mut specs = vec![];
+        let mut imports = vec![];
+        // Process all the results of the previous parallel processing.
+        // The first fatal error will stop the processing and return the error.
+        // Otherwise, all non-fatal errors will be collected and returned along
+        // with the result.
+        for r in result {
+            match r {
+                WResult::Ok(t) => specs.push(t),
+                WResult::OkWithNFEs(t, nfes) => {
+                    specs.push(t);
+                    non_fatal_errors.extend(nfes);
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
+        // Load imports from the specification.
+        for (i, provenance) in specs.iter().flat_map(|s| {
+            let v1 = s.clone().into_v1();
+            v1.spec.imports().map(|i| (i.clone(), v1.provenance))
+        }) {
+            imports.push(ImportsWithProvenance {
+                imports: i,
+                provenance,
+            });
+        }
+
+        // Create loaded repository, pulling imports, specs, etc.
+        WResult::OkWithNFEs(
+            LoadedSemconvRegistry::Unresolved {
+                repo: registry_repo,
+                specs,
+                imports,
+                dependencies,
+            },
+            non_fatal_errors,
+        )
     }
 
     /// Loads the semantic convention specifications from the given registry path.
