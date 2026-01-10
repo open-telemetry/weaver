@@ -139,41 +139,69 @@ mod tests {
     use std::collections::hash_map::DefaultHasher;
 
     #[test]
-    fn test_ordering() {
-        assert!(OrderedF64(1.0) < OrderedF64(2.0));
-        assert!(OrderedF64(2.0) > OrderedF64(1.0));
+    fn test_deref() {
+        assert_eq!(*OrderedF64(2.5), 2.5);
+    }
+
+    #[test]
+    fn test_deref_mut() {
+        let mut value = OrderedF64(2.5);
+        *value = 3.5;
+        assert_eq!(*value, 3.5);
+    }
+
+    #[test]
+    fn test_debug() {
+        assert_eq!(format!("{:?}", OrderedF64(2.5)), "2.5");
+    }
+
+    #[test]
+    fn test_display() {
+        assert_eq!(format!("{}", OrderedF64(2.5)), "2.5");
+    }
+
+    #[test]
+    fn test_partial_eq() {
         assert!(OrderedF64(1.0) == OrderedF64(1.0));
+        assert!(OrderedF64(1.0) != OrderedF64(2.0));
+        assert!(OrderedF64(f64::NAN) == OrderedF64(f64::NAN));
     }
 
     #[test]
-    fn test_nan_ordering() {
-        let nan = OrderedF64(f64::NAN);
-        let one = OrderedF64(1.0);
-        assert!(nan > one);
-        assert!(nan == nan);
+    fn test_partial_ord() {
+        assert_eq!(OrderedF64(1.0).partial_cmp(&OrderedF64(2.0)), Some(Ordering::Less));
     }
 
     #[test]
-    fn test_hash_consistency() {
+    fn test_ord() {
+        assert_eq!(OrderedF64(1.0).cmp(&OrderedF64(2.0)), Ordering::Less);
+        assert_eq!(OrderedF64(f64::NAN).cmp(&OrderedF64(1.0)), Ordering::Greater);
+        assert_eq!(OrderedF64(1.0).cmp(&OrderedF64(f64::NAN)), Ordering::Less);
+        assert_eq!(OrderedF64(f64::NAN).cmp(&OrderedF64(f64::NAN)), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_hash() {
         fn hash<T: Hash>(value: &T) -> u64 {
             let mut hasher = DefaultHasher::new();
             value.hash(&mut hasher);
             hasher.finish()
         }
-
         assert_eq!(hash(&OrderedF64(1.0)), hash(&OrderedF64(1.0)));
         assert_eq!(hash(&OrderedF64(0.0)), hash(&OrderedF64(-0.0)));
         assert_eq!(hash(&OrderedF64(f64::NAN)), hash(&OrderedF64(f64::NAN)));
     }
 
     #[test]
-    fn test_serialization() {
-        let value = OrderedF64(3.15);
-        let serialized = serde_json::to_string(&value).unwrap();
-        assert_eq!(serialized, "3.15");
+    fn test_from_f64() {
+        let value: OrderedF64 = 2.5.into();
+        assert_eq!(*value, 2.5);
+    }
 
-        let deserialized: OrderedF64 = serde_json::from_str("3.15").unwrap();
-        assert_eq!(deserialized, value);
+    #[test]
+    fn test_into_f64() {
+        let f: f64 = OrderedF64(2.5).into();
+        assert_eq!(f, 2.5);
     }
 
     #[test]
@@ -181,5 +209,27 @@ mod tests {
         let schema = schemars::schema_for!(OrderedF64);
         let schema_str = serde_json::to_string_pretty(&schema).unwrap();
         assert!(schema_str.contains("\"type\": \"number\""));
+    }
+
+    #[test]
+    fn test_default() {
+        assert_eq!(*OrderedF64::default(), 0.0);
+    }
+
+    #[test]
+    fn test_clone() {
+        let a = OrderedF64(2.5);
+        assert_eq!(a.clone(), a);
+    }
+
+    #[test]
+    fn test_serialize() {
+        assert_eq!(serde_json::to_string(&OrderedF64(3.15)).unwrap(), "3.15");
+    }
+
+    #[test]
+    fn test_deserialize() {
+        let value: OrderedF64 = serde_json::from_str("3.15").unwrap();
+        assert_eq!(value, OrderedF64(3.15));
     }
 }
