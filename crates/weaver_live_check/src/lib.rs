@@ -114,6 +114,7 @@ pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advic
 /// Versioned enum for the registry
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum VersionedRegistry {
     /// v1 ResolvedRegistry
     V1(ResolvedRegistry),
