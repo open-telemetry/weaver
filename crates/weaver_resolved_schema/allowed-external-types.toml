@@ -5,7 +5,7 @@
 allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
-    "ordered_float::OrderedFloat",      # ToDo: Remove this dependency before version 1.0
+    "weaver_common::*",
     "weaver_semconv::*",
     "weaver_version::*",
     "schemars::JsonSchema",

@@ -25,7 +25,7 @@ pub enum SemConvSpec {
 }
 
 /// A versioned semantic convention file.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "version")]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
@@ -35,52 +35,6 @@ pub enum Versioned {
     #[serde(rename = "2")]
     V2(SemConvSpecV2),
 }
-
-// Note: We automatically create the Schemars code and provide `allow(unused_qualifications)` to work around schemars limitations.
-// You can use `cargo expand -p weaver_semconv` to find this code and generate it in the future.
-const _: () = {
-    #[automatically_derived]
-    #[allow(unused_braces, unused_qualifications)]
-    impl schemars::JsonSchema for Versioned {
-        fn schema_name() -> std::string::String {
-            "Versioned".to_owned()
-        }
-        fn schema_id() -> std::borrow::Cow<'static, str> {
-            std::borrow::Cow::Borrowed("weaver_semconv::semconv::Versioned")
-        }
-        fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-            schemars::_private::metadata::add_description(
-                schemars::schema::Schema::Object(schemars::schema::SchemaObject {
-                    subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-                        one_of: Some(<[_]>::into_vec(Box::new([
-                            schemars::_private::metadata::add_description(
-                                schemars::_private::new_internally_tagged_enum(
-                                    "version", "1", false,
-                                ),
-                                "Version 1 of the semantic convention schema.",
-                            )
-                            .flatten(
-                                <SemConvSpecV1 as schemars::JsonSchema>::json_schema(generator),
-                            ),
-                            schemars::_private::metadata::add_description(
-                                schemars::_private::new_internally_tagged_enum(
-                                    "version", "2", false,
-                                ),
-                                "Version 2 of the semantic convention schema.",
-                            )
-                            .flatten(
-                                <SemConvSpecV2 as schemars::JsonSchema>::json_schema(generator),
-                            ),
-                        ]))),
-                        ..Default::default()
-                    })),
-                    ..Default::default()
-                }),
-                "A versioned semantic convention file.",
-            )
-        }
-    }
-};
 
 /// A semantic convention file as defined [here](/schemas/semconv.schema.json)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).

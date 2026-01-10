@@ -8,7 +8,7 @@ use crate::any_value::AnyValueSpec;
 use crate::deprecated::Deprecated;
 use crate::stability::Stability;
 use crate::{Error, YamlValue};
-use ordered_float::OrderedFloat;
+use weaver_common::ordered_float::OrderedF64;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -419,7 +419,7 @@ pub enum ValueSpec {
     Int(i64),
     /// A double value.
     #[cfg_attr(feature = "openapi", schema(value_type = f64))]
-    Double(OrderedFloat<f64>),
+    Double(OrderedF64),
     /// A string value.
     String(String),
     /// A boolean value.
@@ -451,7 +451,7 @@ impl From<i64> for ValueSpec {
 impl From<f64> for ValueSpec {
     /// Converts a f64 into a ValueSpec.
     fn from(value: f64) -> Self {
-        ValueSpec::Double(OrderedFloat(value))
+        ValueSpec::Double(OrderedF64(value))
     }
 }
 
@@ -483,7 +483,7 @@ pub enum Examples {
     Int(i64),
     /// A double example.
     #[cfg_attr(feature = "openapi", schema(value_type = f64))]
-    Double(OrderedFloat<f64>),
+    Double(OrderedF64),
     /// A string example.
     String(String),
     /// A any example.
@@ -492,7 +492,7 @@ pub enum Examples {
     Ints(Vec<i64>),
     /// A array of doubles example.
     #[cfg_attr(feature = "openapi", schema(value_type = Vec<f64>))]
-    Doubles(Vec<OrderedFloat<f64>>),
+    Doubles(Vec<OrderedF64>),
     /// A array of bools example.
     Bools(Vec<bool>),
     /// A array of strings example.
@@ -503,7 +503,7 @@ pub enum Examples {
     ListOfInts(Vec<Vec<i64>>),
     /// List of arrays of doubles example.
     #[cfg_attr(feature = "openapi", schema(value_type = Vec<Vec<f64>>))]
-    ListOfDoubles(Vec<Vec<OrderedFloat<f64>>>),
+    ListOfDoubles(Vec<Vec<OrderedF64>>),
     /// List of arrays of bools example.
     ListOfBools(Vec<Vec<bool>>),
     /// List of arrays of strings example.
@@ -738,13 +738,13 @@ impl Examples {
     /// Creates an example from a f64.
     #[must_use]
     pub fn from_f64(value: f64) -> Self {
-        Examples::Double(OrderedFloat(value))
+        Examples::Double(OrderedF64(value))
     }
 
     /// Creates an example from several f64.
     #[must_use]
     pub fn from_f64s(values: Vec<f64>) -> Self {
-        Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
+        Examples::Doubles(values.into_iter().map(OrderedF64).collect())
     }
 }
 
@@ -755,7 +755,7 @@ mod tests {
     #[test]
     fn test_value_spec_display() {
         assert_eq!(format!("{}", ValueSpec::Int(42)), "42");
-        assert_eq!(format!("{}", ValueSpec::Double(OrderedFloat(42.0))), "42");
+        assert_eq!(format!("{}", ValueSpec::Double(OrderedF64(42.0))), "42");
         assert_eq!(format!("{}", ValueSpec::String("42".to_owned())), "42");
     }
 
@@ -968,7 +968,7 @@ mod tests {
     fn test_examples_from_f64() {
         assert_eq!(
             Examples::from_f64(42.0),
-            Examples::Double(OrderedFloat(42.0))
+            Examples::Double(OrderedF64(42.0))
         );
     }
 
@@ -976,7 +976,7 @@ mod tests {
     fn test_examples_from_f64s() {
         assert_eq!(
             Examples::from_f64s(vec![42.0, 43.0]),
-            Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)])
+            Examples::Doubles(vec![OrderedF64(42.0), OrderedF64(43.0)])
         );
     }
 
@@ -1045,7 +1045,7 @@ mod tests {
     fn test_examples_double() {
         let yaml = "---\n3.15";
         let ex: Examples = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(ex, Examples::Double(OrderedFloat(3.15)));
+        assert_eq!(ex, Examples::Double(OrderedF64(3.15)));
     }
 
     #[test]
@@ -1078,7 +1078,7 @@ mod tests {
         let ex: Examples = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(
             ex,
-            Examples::Doubles(vec![OrderedFloat(3.15), OrderedFloat(2.71)])
+            Examples::Doubles(vec![OrderedF64(3.15), OrderedF64(2.71)])
         );
     }
 
@@ -1097,7 +1097,7 @@ mod tests {
             ex,
             Examples::Anys(vec![
                 ValueSpec::Int(1),
-                ValueSpec::Double(OrderedFloat(2.0)),
+                ValueSpec::Double(OrderedF64(2.0)),
                 ValueSpec::String("text".to_owned()),
                 ValueSpec::Bool(true),
             ])
@@ -1118,8 +1118,8 @@ mod tests {
         assert_eq!(
             ex,
             Examples::ListOfDoubles(vec![
-                vec![OrderedFloat(3.15), OrderedFloat(2.71)],
-                vec![OrderedFloat(1.41), OrderedFloat(1.61)]
+                vec![OrderedF64(3.15), OrderedF64(2.71)],
+                vec![OrderedF64(1.41), OrderedF64(1.61)]
             ])
         );
     }
@@ -1161,8 +1161,8 @@ mod tests {
         assert_eq!(
             ex,
             Examples::ListOfDoubles(vec![
-                vec![OrderedFloat(3.15), OrderedFloat(2.71)],
-                vec![OrderedFloat(1.41), OrderedFloat(1.61)]
+                vec![OrderedF64(3.15), OrderedF64(2.71)],
+                vec![OrderedF64(1.41), OrderedF64(1.61)]
             ])
         );
     }
@@ -1326,7 +1326,7 @@ mod tests {
             .is_err());
 
         // === Test double-like examples ===
-        let examples = Examples::Double(OrderedFloat(42.0));
+        let examples = Examples::Double(OrderedF64(42.0));
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
             .into_result_failing_non_fatal()
@@ -1336,7 +1336,7 @@ mod tests {
             .into_result_failing_non_fatal()
             .is_err());
 
-        let examples = Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)]);
+        let examples = Examples::Doubles(vec![OrderedF64(42.0), OrderedF64(43.0)]);
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
             .into_result_failing_non_fatal()
@@ -1347,8 +1347,8 @@ mod tests {
             .is_err());
 
         let examples = Examples::ListOfDoubles(vec![
-            vec![OrderedFloat(42.0), OrderedFloat(43.0)],
-            vec![OrderedFloat(44.0), OrderedFloat(45.0)],
+            vec![OrderedF64(42.0), OrderedF64(43.0)],
+            vec![OrderedF64(44.0), OrderedF64(45.0)],
         ]);
         assert!(examples
             .validate(&attr_doubles, "grp", "attr", "url")
