@@ -19,7 +19,6 @@ pub mod deprecated;
 pub mod group;
 pub mod json_schema;
 pub mod manifest;
-pub mod metric;
 pub mod provenance;
 pub mod registry;
 pub mod registry_repo;

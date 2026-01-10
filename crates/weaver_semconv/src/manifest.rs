@@ -22,6 +22,12 @@ use weaver_common::vdir::VirtualDirectoryPath;
 /// base url.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct RegistryManifest {
+    /// The file format for this registry.
+    ///
+    /// No value is assumed to be `definition/1.0.0`
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub file_format: Option<String>,
+
     /// The name of the registry. This name is used to define the package name.
     pub name: String,
 
@@ -34,9 +40,11 @@ pub struct RegistryManifest {
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
+    // TODO - rename to `version``.
     pub semconv_version: String,
 
     /// The base URL where the registry's schema files are hosted.
+    // TODO - rename to `repository_url`
     pub schema_base_url: String,
 
     /// List of the registry's dependencies.
@@ -44,6 +52,8 @@ pub struct RegistryManifest {
     /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub dependencies: Vec<Dependency>,
+    // TODO: Add `stability`
+    // TODO: Add `resolved_schema_url` as optional.
 }
 
 /// Represents a dependency of a semantic convention registry.

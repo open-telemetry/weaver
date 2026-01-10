@@ -6,7 +6,6 @@ use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
-use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
@@ -37,11 +36,6 @@ pub struct SemConvRegistry {
     ///
     /// This collection contains all the attributes defined in the semantic convention registry.
     attributes: HashMap<String, AttributeSpecWithProvenance>,
-
-    /// Metrics indexed by their respective id.
-    ///
-    /// This collection contains all the metrics defined in the semantic convention registry.
-    metrics: HashMap<String, MetricSpecWithProvenance>,
 
     /// The manifest of the semantic convention registry.
     manifest: Option<RegistryManifest>,
@@ -149,6 +143,7 @@ impl SemConvRegistry {
             }
 
             registry.set_manifest(RegistryManifest {
+                file_format: None,
                 name: registry_repo.id().as_ref().to_owned(),
                 description: None,
                 semconv_version,
@@ -273,7 +268,6 @@ impl SemConvRegistry {
                     acc
                 }),
             attribute_count: self.attributes.len(),
-            metric_count: self.metrics.len(),
         }
     }
 }

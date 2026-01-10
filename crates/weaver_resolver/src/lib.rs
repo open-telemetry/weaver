@@ -6,6 +6,7 @@ use miette::Diagnostic;
 use std::collections::HashSet;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 use weaver_common::log_error;
+use weaver_semconv::group::ImportsWithProvenance;
 
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
@@ -30,6 +31,33 @@ pub mod registry;
 
 /// Maximum allowed depth for registry dependency chains.
 const MAX_DEPENDENCY_DEPTH: u32 = 10;
+
+/// The result of loading a semantic convention URL prior to resolution.
+enum LoadedSemconvRegistry {
+    /// The semconv repository was unresolved and needs to be run through resolution.
+    Unresolved {
+        // TODO - We need the imports here.
+        /// The specification of this raw repository.
+        repo: RegistryRepo,
+        /// The raw definition schema for this repository.
+        specs: Vec<SemConvSpecWithProvenance>,
+        /// List of unresolved imports that should be loaded from dependencies.
+        imports: Vec<ImportsWithProvenance>,
+        /// The dependencies of this repository.
+        dependencies: Vec<LoadedSemconvRegistry>,
+    },
+    /// The semconv respository is already resolved and can be used as-is.
+    Resolved(ResolvedTelemetrySchema),
+    /// The semconv respository is already resolved and can be used as-is.
+    ResolvedV2(weaver_resolved_schema::v2::ResolvedTelemetrySchema),
+}
+
+impl LoadedSemconvRegistry {
+    /// Returns true if the repository is unresolved.
+    pub fn is_unresolved(&self) -> bool {
+        matches!(self, LoadedSemconvRegistry::Unresolved { .. })
+    }
+}
 
 /// A resolver that can be used to resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
@@ -250,6 +278,101 @@ impl SchemaResolver {
                 resolved_schema
             },
         )
+    }
+
+    /// Loads a semantic convention repository.
+    ///
+    /// Note: This may load in a definition (raw) repository *or* an already resolved repository.
+    ///       When loading a raw repository, dependencies will also be loaded.
+    pub fn load_semconv_repository(
+        registry_repo: &RegistryRepo,
+        follow_symlinks: bool,
+    ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+        let mut visited_registries = HashSet::new();
+        let mut dependency_chain = Vec::new();
+        // TODO - logic to determine what kind of repository we're looking at.
+
+        Self::load_semconv_repository_recursive(
+            registry_repo,
+            follow_symlinks,
+            MAX_DEPENDENCY_DEPTH,
+            &mut visited_registries,
+            &mut dependency_chain,
+        )
+    }
+
+    /// Recursively iterates over semconv dependencies and loads their definition.
+    /// Note: Prevents circular dependencies.
+    fn load_semconv_repository_recursive(
+        registry_repo: &RegistryRepo,
+        follow_symlinks: bool,
+        max_dependency_depth: u32,
+        visited_registries: &mut HashSet<String>,
+        dependency_chain: &mut Vec<String>,
+    ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+        let registry_id = registry_repo.id().to_string();
+        // Check for circular dependency
+        if visited_registries.contains(&registry_id) {
+            dependency_chain.push(registry_id.clone());
+            let chain_str = dependency_chain.join(" → ");
+            return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                error: format!(
+                    "Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain_str}"
+                ),
+            });
+        }
+        // Add current registry to visited set and dependency chain
+        let _ = visited_registries.insert(registry_id.clone());
+        dependency_chain.push(registry_id.clone());
+
+        // TODO - figure out if this is a raw repository or something else.
+        if let Some(manifest) = registry_repo.manifest() {
+            // TODO - load dependencies here.
+            // manifest.dependencies
+            // TODO - Check if we need to load a resolved repository.
+            todo!()
+        } else {
+            // This is a raw repository with *no* manifest.
+            // TODO - issue a warning that manifest will be required w/ 2.0 to allow publishing.
+            Self::load_definition_repository(
+                registry_repo,
+                follow_symlinks,
+                max_dependency_depth,
+                visited_registries,
+                dependency_chain,
+            )
+        }
+    }
+
+    /// Loads a "raw" repository (composed of the original definition).
+    fn load_definition_repository(
+        registry_repo: &RegistryRepo,
+        follow_symlinks: bool,
+        max_dependency_depth: u32,
+        visited_registries: &mut HashSet<String>,
+        dependency_chain: &mut Vec<String>,
+    ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+        // Define helper functions for filtering files.
+        fn is_hidden(entry: &DirEntry) -> bool {
+            entry
+                .file_name()
+                .to_str()
+                .map(|s| s.starts_with('.'))
+                .unwrap_or(false)
+        }
+        fn is_semantic_convention_file(entry: &DirEntry) -> bool {
+            let path = entry.path();
+            let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
+            let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
+            path.is_file()
+                && (extension == "yaml" || extension == "yml")
+                && file_name != "schema-next.yaml"
+                && file_name != REGISTRY_MANIFEST
+        }
+
+        let registry_id = registry_repo.id().to_string();
+
+        todo!()
     }
 
     /// Loads the semantic convention specifications from the given registry path.
