@@ -27,6 +27,13 @@ pub enum Stability {
     ReleaseCandidate,
 }
 
+/// We provide a default for legacy repositories that did not specify a stability.
+impl Default for Stability {
+    fn default() -> Self {
+        Stability::Development
+    }
+}
+
 /// Implements a human readable display for the stability.
 impl Display for Stability {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

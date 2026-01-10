@@ -149,6 +149,8 @@ impl SemConvRegistry {
                 version: semconv_version,
                 repository_url: "".to_owned(),
                 dependencies: vec![],
+                resolved_schema_url: None,
+                stability: crate::stability::Stability::Development,
             });
         } else {
             registry.manifest = registry_repo.manifest().cloned();

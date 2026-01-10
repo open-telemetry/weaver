@@ -8,6 +8,7 @@
 //! In the future, this struct may be extended to include additional information
 //! such as the registry's owner, maintainers, and dependencies.
 
+use crate::stability::Stability;
 use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
@@ -40,11 +41,11 @@ pub struct RegistryManifest {
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
-    #[serde(alias="semconv_version")]
+    #[serde(alias = "semconv_version")]
     pub version: String,
 
     /// The base URL where the registry's schema files are hosted.
-    #[serde(alias="schema_base_url")]
+    #[serde(alias = "schema_base_url")]
     pub repository_url: String,
 
     /// List of the registry's dependencies.
@@ -52,8 +53,14 @@ pub struct RegistryManifest {
     /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub dependencies: Vec<Dependency>,
-    // TODO: Add `stability`
-    // TODO: Add `resolved_schema_url` as optional.
+
+    /// The stability of this repository.
+    #[serde(default)]
+    pub stability: Stability,
+
+    /// The location of the resolved telemetry schema, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved_schema_url: Option<String>,
 }
 
 /// Represents a dependency of a semantic convention registry.
