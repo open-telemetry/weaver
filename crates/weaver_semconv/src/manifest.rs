@@ -40,12 +40,12 @@ pub struct RegistryManifest {
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
-    // TODO - rename to `version``.
-    pub semconv_version: String,
+    #[serde(alias="semconv_version")]
+    pub version: String,
 
     /// The base URL where the registry's schema files are hosted.
-    // TODO - rename to `repository_url`
-    pub schema_base_url: String,
+    #[serde(alias="schema_base_url")]
+    pub repository_url: String,
 
     /// List of the registry's dependencies.
     /// Note: In the current phase, we only support zero or one dependency.
@@ -104,14 +104,14 @@ impl RegistryManifest {
             });
         }
 
-        if self.semconv_version.is_empty() {
+        if self.version.is_empty() {
             errors.push(InvalidRegistryManifest {
                 path: path.clone(),
                 error: "The registry version is required.".to_owned(),
             });
         }
 
-        if self.schema_base_url.is_empty() {
+        if self.repository_url.is_empty() {
             errors.push(InvalidRegistryManifest {
                 path: path.clone(),
                 error: "The registry schema base URL is required.".to_owned(),
@@ -153,8 +153,8 @@ mod tests {
             RegistryManifest::try_from_file("tests/test_data/valid_semconv_registry_manifest.yaml")
                 .expect("Failed to load the registry configuration file.");
         assert_eq!(config.name, "vendor_acme");
-        assert_eq!(config.semconv_version, "0.1.0");
-        assert_eq!(config.schema_base_url, "https://acme.com/schemas/");
+        assert_eq!(config.version, "0.1.0");
+        assert_eq!(config.repository_url, "https://acme.com/schemas/");
     }
 
     #[test]

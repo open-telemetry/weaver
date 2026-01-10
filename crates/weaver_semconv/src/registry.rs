@@ -146,8 +146,8 @@ impl SemConvRegistry {
                 file_format: None,
                 name: registry_repo.id().as_ref().to_owned(),
                 description: None,
-                semconv_version,
-                schema_base_url: "".to_owned(),
+                version: semconv_version,
+                repository_url: "".to_owned(),
                 dependencies: vec![],
             });
         } else {
