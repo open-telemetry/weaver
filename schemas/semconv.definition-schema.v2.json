@@ -813,7 +813,11 @@
       "properties": {
         "ref_group": {
           "description": "Reference an existing attribute group by id.",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/SignalId"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1099,7 +1103,7 @@
       "type": "string"
     },
     "Span": {
-      "description": "A group defines an attribute group, an entity, or a signal. Supported group types are: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`. Mandatory fields are: `id` and `brief`.\n\nNote: The `resource` type is no longer used and is an alias for `entity`.",
+      "description": "Defines a new Span signal.",
       "type": "object",
       "required": [
         "brief",

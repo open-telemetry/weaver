@@ -136,7 +136,7 @@
       <li><a href="/" use:link class:active={isActive("/") && currentPath === "/"}>Search</a></li>
       <li><a href="/stats" use:link class:active={isActive("/stats")}>Stats</a></li>
       <li class="menu-title mt-4">Schema</li>
-      <li><a href="/schema?schema=ForgeRegistryV2" use:link class:active={isActive("/schema") && currentPath.includes("ForgeRegistryV2")}>ForgeRegistryV2</a></li>
+      <li><a href="/schema?schema=MaterializedRegistryV2" use:link class:active={isActive("/schema") && currentPath.includes("MaterializedRegistryV2")}>MaterializedRegistryV2</a></li>
       <li><a href="/schema?schema=SemconvDefinitionV2" use:link class:active={isActive("/schema") && currentPath.includes("SemconvDefinitionV2")}>SemconvDefinitionV2</a></li>
       <li><a href="/schema?schema=LiveCheckSample" use:link class:active={isActive("/schema") && currentPath.includes("LiveCheckSample")}>LiveCheckSample</a></li>
       <li class="menu-title mt-4">Developer</li>

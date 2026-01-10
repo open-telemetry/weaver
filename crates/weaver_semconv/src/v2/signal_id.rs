@@ -13,7 +13,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub struct SignalId(String);
 
 impl SignalId {
-    /// Returns the v1 version of signal ids (raw strings).
+    /// Returns the v1 file_format of signal ids (raw strings).
     #[must_use]
     pub fn into_v1(self) -> String {
         self.0
