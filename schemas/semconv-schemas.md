@@ -233,7 +233,6 @@ refinements:
 
 - **file_format**: Version of the materialized schema, `2.0.0/materialized` in this iteration
 - **schema_url**: Schema URL where the schema is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
-- **registry_url**: URL of the registry where the conventions are defined (not versioned). E.g., `https://github.com/open-telemetry/semantic-conventions/`
 - **registry**: Same as in the *resolved* schema, but attribute references are fully expanded
 - **refinements**: Same as in the *resolved* schema, but attribute references are fully expanded
 
