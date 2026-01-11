@@ -17,7 +17,7 @@ Please see [Weaver Checker](https://github.com/open-telemetry/weaver/blob/main/c
 
 ## Finding Structure
 
-When a custom Rego policy detects an issue, it returns a finding object. The structure of this object is used by Weaver to report warnings and violations.
+When a custom Rego policy detects an issue, it returns a finding object. The structure of this object is used by Weaver to report findings from policy checks.
 
 ### Fields
 
