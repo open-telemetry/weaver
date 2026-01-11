@@ -41,7 +41,10 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
   - `/api/v1/registry/event/:name`
   - `/api/v1/registry/entity/:type`
   - `/api/v1/registry/search` params: `q`, `type` (omit when `all`), `stability`, `limit`, `offset`
-- [ ] Record theme behavior from `ui/src/App.svelte` (localStorage key + `data-theme`)
+- [x] Record theme behavior from `ui/src/App.svelte` (localStorage key + `data-theme`)
+  - Loads `localStorage.getItem("theme") || "light"` on mount
+  - Sets `document.documentElement` `data-theme` to saved theme
+  - Toggle switches `light` ↔ `dark`, persists to `localStorage` key `theme`, and updates `data-theme`
 - [x] Record Markdown behavior from `ui/src/components/Markdown.svelte` (block)
   - Uses `marked.setOptions({ breaks: true, gfm: true })`, renders `marked(...)` synchronously into `<div class="prose prose-sm max-w-none">` with global styles for `a`, `code`, `pre`, `ul`, `ol`, `li`, `p`.
 - [x] Record InlineMarkdown behavior from `ui/src/components/InlineMarkdown.svelte` (strip `<p>`)
