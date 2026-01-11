@@ -21,7 +21,8 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 ### 0) Baseline inventory (Svelte is source-of-truth)
 - [ ] Confirm current Svelte build output: `ui/dist` (Vite build)
 - [ ] List Svelte routes from `ui/src/App.svelte`
-- [ ] Record Svelte dev proxy behavior from `ui/vite.config.js` (`/api` → `http://localhost:8080`)
+- [x] Record Svelte dev proxy behavior from `ui/vite.config.js` (`/api` → `http://localhost:8080`)
+  - `server.proxy` maps `/api` to `http://localhost:8080`
 - [x] Record API endpoints used by UI from `ui/src/lib/api.js` (paths + params)
   - `/api/v1/registry/stats`
   - `/api/v1/registry/attribute/:key`
