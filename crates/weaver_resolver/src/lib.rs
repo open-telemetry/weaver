@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 use weaver_common::log_error;
 use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::manifest::Dependency;
 
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
@@ -14,7 +15,8 @@ use serde::Serialize;
 use walkdir::DirEntry;
 
 use crate::attribute::AttributeCatalog;
-use crate::registry::resolve_semconv_registry;
+use crate::dependency::ResolvedDependency;
+use crate::registry::{resolve_registry_with_dependencies, resolve_semconv_registry};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
@@ -27,13 +29,14 @@ use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
 pub mod attribute;
+pub mod dependency;
 pub mod registry;
 
 /// Maximum allowed depth for registry dependency chains.
 const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// The result of loading a semantic convention URL prior to resolution.
-enum LoadedSemconvRegistry {
+pub enum LoadedSemconvRegistry {
     /// The semconv repository was unresolved and needs to be run through resolution.
     Unresolved {
         // TODO - We need the imports here.
@@ -251,8 +254,91 @@ impl Error {
 }
 
 impl SchemaResolver {
+    /// Resolves a loaded semantic convention registry and returns the corresponding resolved schema.
+    pub fn resolve(loaded: LoadedSemconvRegistry) -> WResult<ResolvedTelemetrySchema, Error> {
+        match loaded {
+            LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs,
+                imports,
+                dependencies,
+            } => Self::resolve_registry(repo, specs, imports, dependencies),
+            LoadedSemconvRegistry::Resolved(resolved_telemetry_schema) => {
+                WResult::Ok(resolved_telemetry_schema)
+            }
+            LoadedSemconvRegistry::ResolvedV2(_) => {
+                todo!("Converting V2 schema back into V1 is unsupported")
+            }
+        }
+    }
+
+    fn resolve_registry(
+        repo: RegistryRepo,
+        specs: Vec<SemConvSpecWithProvenance>,
+        imports: Vec<ImportsWithProvenance>,
+        dependencies: Vec<LoadedSemconvRegistry>,
+    ) -> WResult<ResolvedTelemetrySchema, Error> {
+        // First, let's make sure all dependencies are resolved.
+        let mut opt_resolved_dependencies: Vec<WResult<ResolvedDependency, Error>> = vec![];
+        // TODO - do this in multiple threads w/ `.par_bridge()` and `+ Send`.
+        for d in dependencies {
+            match d {
+                LoadedSemconvRegistry::Unresolved { .. } => {
+                    opt_resolved_dependencies.push(Self::resolve(d).map(|s| s.into()));
+                }
+                LoadedSemconvRegistry::Resolved(schema) => {
+                    opt_resolved_dependencies.push(WResult::Ok(schema.into()));
+                }
+                LoadedSemconvRegistry::ResolvedV2(schema) => {
+                    opt_resolved_dependencies.push(WResult::Ok(schema.into()));
+                }
+            }
+        }
+        // Now resolve warnings/errors.
+        let mut resolved_dependencies = vec![];
+        let mut non_fatal_errors = vec![];
+        for r in opt_resolved_dependencies {
+            match r {
+                WResult::Ok(d) => resolved_dependencies.push(d),
+                WResult::OkWithNFEs(d, nfes) => {
+                    resolved_dependencies.push(d);
+                    non_fatal_errors.extend(nfes);
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+        let registry_id: String = repo.id().to_string();
+        let manifest = repo.manifest().cloned();
+        let mut attr_catalog = AttributeCatalog::default();
+        // TODO - Do something with non_fatal_errors if we need to.
+        resolve_registry_with_dependencies(
+            &mut attr_catalog,
+            repo,
+            specs,
+            imports,
+            resolved_dependencies,
+        )
+        .map(move |resolved_registry| {
+            let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
+            let resolved_schema = ResolvedTelemetrySchema {
+                file_format: "1.0.0".to_owned(),
+                schema_url: "".to_owned(),
+                registry_id,
+                registry: resolved_registry,
+                catalog,
+                resource: None,
+                instrumentation_library: None,
+                dependencies: vec![],
+                versions: None, // ToDo LQ: Implement this!
+                registry_manifest: manifest,
+            };
+            resolved_schema
+        })
+    }
+
     /// Resolves the given semantic convention registry and returns the
     /// corresponding resolved telemetry schema.
+    #[deprecated(note = "Use resolve method instead")]
     pub fn resolve_semantic_convention_registry(
         registry: &mut SemConvRegistry,
         include_unreferenced: bool,
@@ -288,10 +374,9 @@ impl SchemaResolver {
         registry_repo: RegistryRepo,
         follow_symlinks: bool,
     ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+        // This method simply sets up the resolution state and delgates to the actual work.
         let mut visited_registries = HashSet::new();
         let mut dependency_chain = Vec::new();
-        // TODO - logic to determine what kind of repository we're looking at.
-
         Self::load_semconv_repository_recursive(
             registry_repo,
             follow_symlinks,

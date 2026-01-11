@@ -3,6 +3,7 @@
 //! Functions to resolve a semantic convention registry.
 
 use crate::attribute::AttributeCatalog;
+use crate::dependency::ResolvedDependency;
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use globset::GlobSet;
@@ -15,6 +16,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
@@ -22,6 +24,8 @@ use weaver_semconv::group::{
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::semconv::SemConvSpecWithProvenance;
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
 /// A registry containing unresolved groups.
@@ -59,6 +63,35 @@ pub struct UnresolvedGroup {
 
     /// The provenance of the group (URL or path).
     pub provenance: Provenance,
+}
+
+/// Resolves the semantic convention registry passed as argument and returns
+/// the resolved registry or an error if the resolution process failed.
+///
+/// The resolution process consists of the following steps:
+/// - Resolve all attribute references and apply the overrides when needed.
+/// - Resolve all the `extends` references.
+///
+/// # Arguments
+///
+/// * `attr_catalog` - The attribute catalog to use to resolve the attribute references.
+/// * `repo` - The manifest of the registry
+/// * `specs` - The raw specifications of the repository
+/// * `imports` - Definitions to import from dependencies.
+/// * `dependencies` - The resolved schemas of the dependencies of this repository.
+///
+/// # Returns
+///
+/// This function returns the resolved registry or an error if the resolution process
+/// failed.
+pub(crate) fn resolve_registry_with_dependencies(
+    attr_catalog: &mut AttributeCatalog,
+    repo: RegistryRepo,
+    specs: Vec<SemConvSpecWithProvenance>,
+    imports: Vec<ImportsWithProvenance>,
+    dependencies: Vec<ResolvedDependency>,
+) -> WResult<Registry, Error> {
+    todo!("Implement this")
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
