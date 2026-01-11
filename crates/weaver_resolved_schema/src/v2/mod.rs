@@ -28,7 +28,7 @@ use crate::v2::{
 
 /// Returns the file format version for v2 resolved schema.
 fn resolved_file_format() -> String {
-    "2/resolved".to_owned()
+    "2.0.0/resolved".to_owned()
 }
 
 pub mod attribute;

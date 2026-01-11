@@ -17,7 +17,7 @@ use crate::{
 };
 
 fn forge_file_format() -> String {
-    "2/materialized".to_owned()
+    "2.0.0/materialized".to_owned()
 }
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
@@ -418,7 +418,7 @@ impl ForgeResolvedRegistry {
         }
 
         Ok(Self {
-            file_format: "2/materialized".to_owned(),
+            file_format: "2.0.0/materialized".to_owned(),
             schema_url: schema.schema_url.clone(),
             registry: Registry {
                 attributes,
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn test_try_from_resolved_schema() {
         let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "2/materialized".to_owned(),
+            file_format: "2.0.0/materialized".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
             attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
@@ -615,7 +615,7 @@ mod tests {
     #[test]
     fn test_try_from_resolved_schema_with_missing_attribute() {
         let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "2/materialized".to_owned(),
+            file_format: "2.0.0/materialized".to_owned(),
             schema_url: "https://example.com/schema".to_owned(),
             attribute_catalog: vec![],
             registry: v2::registry::Registry {

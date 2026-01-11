@@ -29,10 +29,10 @@ pub enum SemConvSpec {
 #[serde(tag = "file_format")]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
-    #[serde(rename = "1")]
+    #[serde(rename = "1.0.0")]
     V1(SemConvSpecV1),
     /// Version 2 of the semantic convention schema.
-    #[serde(rename = "2")]
+    #[serde(rename = "2.0.0/definition")]
     V2(SemConvSpecV2),
 }
 
@@ -56,7 +56,7 @@ const _: () = {
                             schemars::_private::metadata::add_description(
                                 schemars::_private::new_internally_tagged_enum(
                                     "file_format",
-                                    "1",
+                                    "1.0.0",
                                     false,
                                 ),
                                 "Version 1 of the semantic convention schema.",
@@ -67,7 +67,7 @@ const _: () = {
                             schemars::_private::metadata::add_description(
                                 schemars::_private::new_internally_tagged_enum(
                                     "file_format",
-                                    "2",
+                                    "2.0.0/definition",
                                     false,
                                 ),
                                 "Version 2 of the semantic convention schema.",
@@ -359,7 +359,7 @@ impl SemConvSpecWithProvenance {
             WResult::Ok(spec) => {
                 if spec.is_v2() {
                     let nfe = Error::UnstableFileVersion {
-                        file_format: "2".to_owned(),
+                        file_format: "2.0.0/definition".to_owned(),
                         provenance: spec.provenance.path.clone(),
                     };
                     WResult::with_non_fatal_errors(spec, vec![nfe])
@@ -371,7 +371,7 @@ impl SemConvSpecWithProvenance {
                 if spec.is_v2() {
                     let mut nfes = errs;
                     nfes.push(Error::UnstableFileVersion {
-                        file_format: "2".to_owned(),
+                        file_format: "2.0.0/definition".to_owned(),
                         provenance: spec.provenance.path.clone(),
                     });
                     WResult::OkWithNFEs(spec, nfes)
@@ -715,7 +715,7 @@ mod tests {
         }));
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
-            r#"file_format: '2'
+            r#"file_format: '2.0.0/definition'
 attributes:
 - key: test.key
   type: int
@@ -740,9 +740,9 @@ attributes:
                 examples: "example1""#,
         );
         assert!(matches!(raw, SemConvSpec::NoVersion(_)));
-        let v1 = parse_versioned(r#"file_format: '1'"#);
+        let v1 = parse_versioned(r#"file_format: '1.0.0'"#);
         assert!(matches!(v1, SemConvSpec::WithVersion(Versioned::V1 { .. })));
-        let v2 = parse_versioned("file_format: '2'");
+        let v2 = parse_versioned("file_format: '2.0.0/definition'");
         assert!(matches!(v2, SemConvSpec::WithVersion(Versioned::V2 { .. })));
     }
 
@@ -750,7 +750,7 @@ attributes:
     fn test_semconv_spec_with_provenance_from_string_v2() {
         // let provenance = Provenance::new("main", "my_string");
         let spec = r#"
-        file_format: '2'
+        file_format: '2.0.0/definition'
         attributes:
         - key: "attr1"
           stability: "stable"

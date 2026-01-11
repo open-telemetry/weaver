@@ -11,7 +11,7 @@
   "properties": {
     "file_format": {
       "description": "Version of the file structure.",
-      "default": "2/materialized",
+      "default": "2.0.0/materialized",
       "type": "string"
     },
     "refinements": {

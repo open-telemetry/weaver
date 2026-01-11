@@ -19,7 +19,7 @@
     },
     "file_format": {
       "description": "Version of the file structure.",
-      "default": "2/resolved",
+      "default": "2.0.0/resolved",
       "type": "string"
     },
     "refinements": {

@@ -35,7 +35,7 @@ and the [JSON schema](/schemas/semconv.definition-schema.v2.json) for the full r
 For example, the definition schema might look like this:
 
 ```yaml
-file_format: "2"
+file_format: "2.0.0/definition"
 attributes:
 - key: my.operation.name
   type: string
@@ -67,7 +67,7 @@ full reference.
 The resolved version of the metric above would look like this:
 
 ```yaml
-file_format: "2/resolved"
+file_format: "2.0.0/resolved"
 schema_url: https://api.mycompany.io/schemas/v1.2.3
 attribute_catalog:
 ...
@@ -107,7 +107,7 @@ Instead of references, we see indexes of attributes along with overridden proper
 
 ### Resolved schema properties
 
-- **file_format**: Version of the resolved schema, `2/resolved` in this iteration
+- **file_format**: Version of the resolved schema, `2.0.0/resolved` in this iteration
 - **schema_url**: Schema URL where this schema is published. E.g., `https://api.mycompany.io/schemas/v1.2.3`
 - **attribute_catalog**: Attribute catalog containing all attribute definitions and refinements. May include duplicate keys.
   - `key`: Attribute key
@@ -186,7 +186,7 @@ full reference.
 The materialized resolved schema of the original metric would look like:
 
 ```yaml
-file_format: 2/materialized
+file_format: 2.0.0/materialized
 schema_url: https://api.mycompany.io/schemas/v1.2.3
 registry:
   attributes:
@@ -231,7 +231,7 @@ refinements:
 
 ### Materialized schema properties
 
-- **file_format**: Version of the materialized schema, `2/materialized` in this iteration
+- **file_format**: Version of the materialized schema, `2.0.0/materialized` in this iteration
 - **schema_url**: Schema URL where the schema is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
 - **registry_url**: URL of the registry where the conventions are defined (not versioned). E.g., `https://github.com/open-telemetry/semantic-conventions/`
 - **registry**: Same as in the *resolved* schema, but attribute references are fully expanded

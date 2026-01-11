@@ -1,4 +1,4 @@
-file_format: "2"
+file_format: "2.0.0/definition"
 attributes:
   - key: network.protocol.name
     stability: stable
