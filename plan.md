@@ -22,7 +22,14 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Confirm current Svelte build output: `ui/dist` (Vite build)
 - [ ] List Svelte routes from `ui/src/App.svelte`
 - [ ] Record Svelte dev proxy behavior from `ui/vite.config.js` (`/api` → `http://localhost:8080`)
-- [ ] Record API endpoints used by UI from `ui/src/lib/api.js` (paths + params)
+- [x] Record API endpoints used by UI from `ui/src/lib/api.js` (paths + params)
+  - `/api/v1/registry/stats`
+  - `/api/v1/registry/attribute/:key`
+  - `/api/v1/registry/metric/:name`
+  - `/api/v1/registry/span/:type`
+  - `/api/v1/registry/event/:name`
+  - `/api/v1/registry/entity/:type`
+  - `/api/v1/registry/search` params: `q`, `type` (omit when `all`), `stability`, `limit`, `offset`
 - [ ] Record theme behavior from `ui/src/App.svelte` (localStorage key + `data-theme`)
 - [x] Record Markdown behavior from `ui/src/components/Markdown.svelte` (block)
   - Uses `marked.setOptions({ breaks: true, gfm: true })`, renders `marked(...)` synchronously into `<div class="prose prose-sm max-w-none">` with global styles for `a`, `code`, `pre`, `ul`, `ol`, `li`, `p`.
