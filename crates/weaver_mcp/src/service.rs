@@ -223,13 +223,10 @@ pub struct GetEntityParams {
 }
 
 /// Parameters for the live check tool.
-///
-/// Note: We use Value here because Sample is from weaver_live_check which uses
-/// schemars 0.8.x, while rmcp uses schemars 1.x. We deserialize manually.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct LiveCheckParams {
     /// Array of telemetry samples to check (attributes, spans, metrics, logs, or resources).
-    samples: Vec<serde_json::Value>,
+    samples: Vec<Sample>,
 }
 
 // =============================================================================
@@ -353,18 +350,7 @@ impl WeaverMcpService {
                        containing advice and findings."
     )]
     fn live_check(&self, Parameters(params): Parameters<LiveCheckParams>) -> String {
-        // Deserialize samples from Value to Sample
-        let samples_result: Result<Vec<Sample>, _> = params
-            .samples
-            .into_iter()
-            .map(serde_json::from_value)
-            .collect();
-
-        let mut samples = match samples_result {
-            Ok(s) => s,
-            Err(e) => return format!("Invalid sample: {e}"),
-        };
-
+        let mut samples = params.samples;
         let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
 
         // Create a fresh LiveChecker for this call (contains Rc, not Send)
@@ -553,22 +539,6 @@ mod tests {
 
         assert!(expected_msg.contains(name));
         assert!(expected_msg.contains("not found"));
-    }
-
-    #[test]
-    fn test_live_check_invalid_sample_error() {
-        // Invalid JSON should produce an error message
-        let invalid_json = serde_json::json!({"invalid": "structure"});
-
-        // Try to deserialize as Sample - this should fail
-        let result: Result<Sample, _> = serde_json::from_value(invalid_json);
-        assert!(result.is_err());
-
-        // The error message format should be user-friendly
-        if let Err(e) = result {
-            let error_msg = format!("Invalid sample: {e}");
-            assert!(error_msg.starts_with("Invalid sample:"));
-        }
     }
 
     #[test]
@@ -799,15 +769,16 @@ mod tests {
         let service = create_test_service();
 
         // Create a valid attribute sample
-        let sample_json = serde_json::json!({
+        let sample: Sample = serde_json::from_value(serde_json::json!({
             "attribute": {
                 "name": "http.request.method",
                 "value": "GET"
             }
-        });
+        }))
+        .unwrap();
 
         let params = LiveCheckParams {
-            samples: vec![sample_json],
+            samples: vec![sample],
         };
 
         let result = service.live_check(Parameters(params));
@@ -818,16 +789,17 @@ mod tests {
     }
 
     #[test]
-    fn test_live_check_with_invalid_sample() {
-        let service = create_test_service();
+    fn test_live_check_invalid_sample_deserialization() {
+        // Invalid JSON should fail to deserialize as Sample
+        let invalid_json = serde_json::json!({"invalid": "structure"});
+        let result: Result<Sample, _> = serde_json::from_value(invalid_json);
+        assert!(result.is_err());
 
-        let params = LiveCheckParams {
-            samples: vec![serde_json::json!({"invalid": "structure"})],
-        };
-
-        let result = service.live_check(Parameters(params));
-
-        assert!(result.starts_with("Invalid sample:"));
+        // The error message format should be user-friendly
+        if let Err(e) = result {
+            let error_msg = format!("Invalid sample: {e}");
+            assert!(error_msg.starts_with("Invalid sample:"));
+        }
     }
 
     #[test]
