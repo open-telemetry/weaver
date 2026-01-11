@@ -23,8 +23,10 @@
       "required": [
         "attribute_changes",
         "attribute_group_changes",
+        "baseline_schema_url",
         "entity_changes",
         "event_changes",
+        "head_schema_url",
         "metric_changes",
         "span_changes"
       ],
@@ -43,6 +45,10 @@
             "$ref": "#/definitions/SchemaItemChange"
           }
         },
+        "baseline_schema_url": {
+          "description": "The schema URL that the baseline schema is published at.",
+          "type": "string"
+        },
         "entity_changes": {
           "description": "Changes across the registry of entities.",
           "type": "array",
@@ -56,6 +62,15 @@
           "items": {
             "$ref": "#/definitions/SchemaItemChange"
           }
+        },
+        "file_format": {
+          "description": "The file format version of the diff schema.",
+          "default": "2.0.0/diff",
+          "type": "string"
+        },
+        "head_schema_url": {
+          "description": "The schema URL that the current (head) schema is published at.",
+          "type": "string"
         },
         "metric_changes": {
           "description": "Changes across the registry of metrics.",

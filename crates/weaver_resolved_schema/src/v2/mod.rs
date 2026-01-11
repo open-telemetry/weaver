@@ -12,7 +12,7 @@ use weaver_semconv::{
         CommonFields,
     },
 };
-use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
+use weaver_version::v2::{DIFF_FILE_FORMAT, RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::v2::{
     attribute::Attribute,
@@ -85,6 +85,9 @@ impl ResolvedTelemetrySchema {
     #[must_use]
     fn registry_diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> RegistryChanges {
         RegistryChanges {
+            file_format: DIFF_FILE_FORMAT.to_owned(),
+            head_schema_url: self.schema_url.clone(),
+            baseline_schema_url: baseline_schema.schema_url.clone(),
             attribute_changes: self.registry_attribute_diff(baseline_schema),
             attribute_group_changes: diff_signals(
                 &self.registry.attribute_groups,
