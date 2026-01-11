@@ -5,6 +5,7 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
@@ -19,7 +20,7 @@ use crate::CumulativeStatistics;
 #[derive(Serialize)]
 pub struct LiveChecker {
     /// The resolved registry
-    pub registry: VersionedRegistry,
+    pub registry: Arc<VersionedRegistry>,
     semconv_attributes: HashMap<String, Rc<VersionedAttribute>>,
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
@@ -37,7 +38,7 @@ pub struct LiveChecker {
 impl LiveChecker {
     #[must_use]
     /// Create a new LiveChecker
-    pub fn new(registry: VersionedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
+    pub fn new(registry: Arc<VersionedRegistry>, advisors: Vec<Box<dyn Advisor>>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
@@ -47,7 +48,7 @@ impl LiveChecker {
         // Hashmap of events by name
         let mut semconv_events = HashMap::new();
 
-        match &registry {
+        match registry.as_ref() {
             VersionedRegistry::V1(registry) => {
                 for group in &registry.groups {
                     if group.r#type == GroupType::Metric {
@@ -243,7 +244,7 @@ mod tests {
             Box::new(EnumAdvisor),
         ];
 
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
         let rego_advisor =
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1108,7 +1109,7 @@ mod tests {
 
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1197,7 +1198,7 @@ mod tests {
             Box::new(EnumAdvisor),
         ];
 
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
         let rego_advisor =
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1259,7 +1260,7 @@ mod tests {
             serde_json::from_reader(File::open(path).expect("Unable to open file"))
                 .expect("Unable to parse JSON");
 
-        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1316,7 +1317,7 @@ mod tests {
             Box::new(EnumAdvisor),
         ];
 
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
         let rego_advisor =
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1398,7 +1399,7 @@ mod tests {
             serde_json::from_reader(File::open(path).expect("Unable to open file"))
                 .expect("Unable to parse JSON");
 
-        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1447,7 +1448,7 @@ mod tests {
             serde_json::from_reader(File::open(path).expect("Unable to open file"))
                 .expect("Unable to parse JSON");
 
-        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1733,7 +1734,7 @@ mod tests {
             Box::new(EnumAdvisor),
         ];
 
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
         let rego_advisor =
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1814,7 +1815,7 @@ mod tests {
 
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/bad_advice/".into()),
@@ -1877,7 +1878,7 @@ mod tests {
         });
         let mut samples = vec![sample];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
 
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -1952,7 +1953,7 @@ mod tests {
             live_check_result: None,
         });
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
@@ -2008,7 +2009,7 @@ mod tests {
             }),
         ];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
-        let mut live_checker = LiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
 
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));

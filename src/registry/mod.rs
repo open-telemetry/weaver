@@ -13,6 +13,7 @@ use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::RegistryLiveCheckArgs;
+use crate::registry::mcp::RegistryMcpArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -28,6 +29,7 @@ mod emit;
 mod generate;
 mod json_schema;
 mod live_check;
+mod mcp;
 mod otlp;
 mod resolve;
 mod search;
@@ -134,6 +136,16 @@ pub enum RegistrySubCommand {
     /// Includes: Flexible input ingestion, configurable assessment, and template-based output.
     #[clap(verbatim_doc_comment)]
     LiveCheck(RegistryLiveCheckArgs),
+
+    /// Run an MCP (Model Context Protocol) server for the semantic convention registry.
+    ///
+    /// This server exposes the registry to LLMs, enabling natural language
+    /// queries for finding and understanding semantic conventions while writing
+    /// instrumentation code.
+    ///
+    /// The server communicates over stdio using JSON-RPC.
+    #[clap(verbatim_doc_comment)]
+    Mcp(RegistryMcpArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -216,6 +228,9 @@ pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
         }
         RegistrySubCommand::Emit(args) => {
             CmdResult::new(emit::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Mcp(args) => {
+            CmdResult::new(mcp::command(args), Some(args.diagnostic.clone()))
         }
     }
 }

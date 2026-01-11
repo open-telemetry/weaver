@@ -89,6 +89,7 @@ weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
 weaver_search = { path = "crates/weaver_search" }
+weaver_mcp = { path = "crates/weaver_mcp" }
 weaver_version = { path = "crates/weaver_version" }
 
 clap = { version = "4.5.41", features = ["derive"] }

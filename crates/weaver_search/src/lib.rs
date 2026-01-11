@@ -12,21 +12,39 @@ mod types;
 
 pub use types::{ScoredResult, SearchResult, SearchType};
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use weaver_forge::v2::{
     attribute::Attribute, entity::Entity, event::Event, metric::Metric,
     registry::ForgeResolvedRegistry, span::Span,
 };
+use weaver_semconv::attribute::AttributeType;
 use weaver_semconv::stability::Stability;
 
 //TODO: Consider using a fuzzy matching crate for improved search capabilities.
 // e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
 
-/// Search context for performing fuzzy searches across the registry.
+/// Search context for performing fuzzy searches and O(1) lookups across the registry.
 pub struct SearchContext {
-    /// All searchable items indexed for fast lookup.
+    /// All searchable items for fuzzy search.
     items: Vec<SearchableItem>,
+
+    // O(1) lookup indices (following LiveChecker pattern)
+    /// Attributes indexed by key.
+    attr_index: HashMap<String, Arc<Attribute>>,
+    /// Template attributes indexed by key.
+    template_index: HashMap<String, Arc<Attribute>>,
+    /// Templates sorted by key length (longest first) for prefix matching.
+    templates_by_length: Vec<(String, Arc<Attribute>)>,
+    /// Metrics indexed by name.
+    metric_index: HashMap<String, Arc<Metric>>,
+    /// Spans indexed by type.
+    span_index: HashMap<String, Arc<Span>>,
+    /// Events indexed by name.
+    event_index: HashMap<String, Arc<Event>>,
+    /// Entities indexed by type.
+    entity_index: HashMap<String, Arc<Entity>>,
 }
 
 /// A searchable item from the registry containing the full object.
@@ -48,33 +66,69 @@ impl SearchContext {
     #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
         let mut items = Vec::new();
+        let mut attr_index = HashMap::new();
+        let mut template_index = HashMap::new();
+        let mut templates_by_length = Vec::new();
+        let mut metric_index = HashMap::new();
+        let mut span_index = HashMap::new();
+        let mut event_index = HashMap::new();
+        let mut entity_index = HashMap::new();
 
         // Index all attributes
         for attr in &registry.registry.attributes {
-            items.push(SearchableItem::Attribute(Arc::new(attr.clone())));
+            let arc_attr = Arc::new(attr.clone());
+            items.push(SearchableItem::Attribute(Arc::clone(&arc_attr)));
+
+            // Separate templates from regular attributes (following LiveChecker pattern)
+            if matches!(attr.r#type, AttributeType::Template(_)) {
+                let _ = template_index.insert(attr.key.clone(), Arc::clone(&arc_attr));
+                templates_by_length.push((attr.key.clone(), arc_attr));
+            } else {
+                let _ = attr_index.insert(attr.key.clone(), arc_attr);
+            }
         }
+
+        // Sort templates by key length descending (longest first for prefix matching)
+        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
 
         // Index all metrics
         for metric in &registry.registry.metrics {
-            items.push(SearchableItem::Metric(Arc::new(metric.clone())));
+            let arc_metric = Arc::new(metric.clone());
+            items.push(SearchableItem::Metric(Arc::clone(&arc_metric)));
+            let _ = metric_index.insert(metric.name.to_string(), arc_metric);
         }
 
         // Index all spans
         for span in &registry.registry.spans {
-            items.push(SearchableItem::Span(Arc::new(span.clone())));
+            let arc_span = Arc::new(span.clone());
+            items.push(SearchableItem::Span(Arc::clone(&arc_span)));
+            let _ = span_index.insert(span.r#type.to_string(), arc_span);
         }
 
         // Index all events
         for event in &registry.registry.events {
-            items.push(SearchableItem::Event(Arc::new(event.clone())));
+            let arc_event = Arc::new(event.clone());
+            items.push(SearchableItem::Event(Arc::clone(&arc_event)));
+            let _ = event_index.insert(event.name.to_string(), arc_event);
         }
 
         // Index all entities
         for entity in &registry.registry.entities {
-            items.push(SearchableItem::Entity(Arc::new(entity.clone())));
+            let arc_entity = Arc::new(entity.clone());
+            items.push(SearchableItem::Entity(Arc::clone(&arc_entity)));
+            let _ = entity_index.insert(entity.r#type.to_string(), arc_entity);
         }
 
-        Self { items }
+        Self {
+            items,
+            attr_index,
+            template_index,
+            templates_by_length,
+            metric_index,
+            span_index,
+            event_index,
+            entity_index,
+        }
     }
 
     /// Search for items matching the query, or list all items if query is None.
@@ -132,6 +186,59 @@ impl SearchContext {
         };
 
         (results, total)
+    }
+
+    // ==========================================================================
+    // O(1) Lookup Methods (following LiveChecker pattern)
+    // ==========================================================================
+
+    /// Get an attribute by exact key match. O(1) lookup.
+    #[must_use]
+    pub fn get_attribute(&self, key: &str) -> Option<Arc<Attribute>> {
+        self.attr_index.get(key).map(Arc::clone)
+    }
+
+    /// Get a template attribute by exact key match. O(1) lookup.
+    #[must_use]
+    pub fn get_template(&self, key: &str) -> Option<Arc<Attribute>> {
+        self.template_index.get(key).map(Arc::clone)
+    }
+
+    /// Find a template attribute matching the given attribute name prefix.
+    /// Uses longest-prefix matching (e.g., "test.template.foo" matches "test.template").
+    /// This follows the LiveChecker pattern for template resolution.
+    #[must_use]
+    pub fn find_template(&self, attribute_name: &str) -> Option<Arc<Attribute>> {
+        for (template_key, attr) in &self.templates_by_length {
+            if attribute_name.starts_with(template_key) {
+                return Some(Arc::clone(attr));
+            }
+        }
+        None
+    }
+
+    /// Get a metric by exact name match. O(1) lookup.
+    #[must_use]
+    pub fn get_metric(&self, name: &str) -> Option<Arc<Metric>> {
+        self.metric_index.get(name).map(Arc::clone)
+    }
+
+    /// Get a span by exact type match. O(1) lookup.
+    #[must_use]
+    pub fn get_span(&self, span_type: &str) -> Option<Arc<Span>> {
+        self.span_index.get(span_type).map(Arc::clone)
+    }
+
+    /// Get an event by exact name match. O(1) lookup.
+    #[must_use]
+    pub fn get_event(&self, name: &str) -> Option<Arc<Event>> {
+        self.event_index.get(name).map(Arc::clone)
+    }
+
+    /// Get an entity by exact type match. O(1) lookup.
+    #[must_use]
+    pub fn get_entity(&self, entity_type: &str) -> Option<Arc<Entity>> {
+        self.entity_index.get(entity_type).map(Arc::clone)
     }
 }
 
@@ -367,13 +474,20 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> SearchableItem {
-        SearchableItem::Attribute(Arc::new(Attribute {
+        SearchableItem::Attribute(Arc::new(make_attribute(key, brief, note, deprecated)))
+    }
+
+    fn make_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> Attribute {
+        Attribute {
             key: key.to_owned(),
             r#type: AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -392,7 +506,126 @@ mod tests {
                 },
                 annotations: BTreeMap::new(),
             },
-        }))
+        }
+    }
+
+    fn make_template_attribute(key: &str, brief: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::Template(weaver_semconv::attribute::TemplateTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: brief.to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+        }
+    }
+
+    fn make_development_attribute(key: &str, brief: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: brief.to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Development,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+        }
+    }
+
+    fn make_test_registry() -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            registry_url: "test".to_owned(),
+            registry: Registry {
+                attributes: vec![
+                    make_attribute("http.request.method", "HTTP request method", "", false),
+                    make_attribute(
+                        "http.response.status_code",
+                        "HTTP response status code",
+                        "",
+                        false,
+                    ),
+                    make_attribute(
+                        "db.system",
+                        "Database system",
+                        "The database management system",
+                        false,
+                    ),
+                    // Template attribute for testing get_template/find_template
+                    make_template_attribute("test.template", "A template attribute"),
+                    // Development stability attribute for testing stability filtering
+                    make_development_attribute("experimental.feature", "An experimental feature"),
+                ],
+                attribute_groups: vec![],
+                metrics: vec![Metric {
+                    name: "http.server.request.duration".to_owned().into(),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "Duration of HTTP server requests".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                spans: vec![Span {
+                    r#type: "http.client".to_owned().into(),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "HTTP client span".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "HTTP client span".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                events: vec![Event {
+                    name: "exception".to_owned().into(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "An exception event".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+                entities: vec![Entity {
+                    r#type: "service".to_owned().into(),
+                    identity: vec![],
+                    description: vec![],
+                    common: CommonFields {
+                        brief: "A service entity".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                }],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        }
     }
 
     #[test]
@@ -444,5 +677,246 @@ mod tests {
 
         // Starts with for deprecated item: 80 / 10 = 8
         assert_eq!(score_match("http.request", &item), 8);
+    }
+
+    // =========================================================================
+    // SearchContext Tests
+    // =========================================================================
+
+    #[test]
+    fn test_from_registry_indexes_all_types() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Check attributes are indexed
+        assert!(ctx.get_attribute("http.request.method").is_some());
+        assert!(ctx.get_attribute("http.response.status_code").is_some());
+        assert!(ctx.get_attribute("db.system").is_some());
+
+        // Check metric is indexed
+        assert!(ctx.get_metric("http.server.request.duration").is_some());
+
+        // Check span is indexed
+        assert!(ctx.get_span("http.client").is_some());
+
+        // Check event is indexed
+        assert!(ctx.get_event("exception").is_some());
+
+        // Check entity is indexed
+        assert!(ctx.get_entity("service").is_some());
+    }
+
+    #[test]
+    fn test_get_attribute_not_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        assert!(ctx.get_attribute("nonexistent.attribute").is_none());
+        assert!(ctx.get_metric("nonexistent.metric").is_none());
+        assert!(ctx.get_span("nonexistent.span").is_none());
+        assert!(ctx.get_event("nonexistent.event").is_none());
+        assert!(ctx.get_entity("nonexistent.entity").is_none());
+    }
+
+    #[test]
+    fn test_search_with_query_returns_matches() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (results, total) = ctx.search(Some("http"), SearchType::All, None, 10, 0);
+
+        // Should find http.request.method, http.response.status_code,
+        // http.server.request.duration, http.client
+        assert!(total >= 4);
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_search_browse_mode() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // None query = browse mode
+        let (results, total) = ctx.search(None, SearchType::All, None, 100, 0);
+
+        // Should return all items: 5 attributes + 1 metric + 1 span + 1 event + 1 entity = 9
+        assert_eq!(total, 9);
+        assert_eq!(results.len(), 9);
+    }
+
+    #[test]
+    fn test_search_type_filter() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Filter by Attribute only
+        let (results, total) = ctx.search(None, SearchType::Attribute, None, 100, 0);
+        assert_eq!(total, 5); // 5 attributes (3 regular + 1 template + 1 development)
+        assert_eq!(results.len(), 5);
+
+        // Filter by Metric only
+        let (results, total) = ctx.search(None, SearchType::Metric, None, 100, 0);
+        assert_eq!(total, 1);
+        assert_eq!(results.len(), 1);
+
+        // Filter by Span only
+        let (_, total) = ctx.search(None, SearchType::Span, None, 100, 0);
+        assert_eq!(total, 1);
+
+        // Filter by Event only
+        let (_, total) = ctx.search(None, SearchType::Event, None, 100, 0);
+        assert_eq!(total, 1);
+
+        // Filter by Entity only
+        let (_, total) = ctx.search(None, SearchType::Entity, None, 100, 0);
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn test_search_pagination() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Get first 2 items
+        let (results1, total1) = ctx.search(None, SearchType::All, None, 2, 0);
+        assert_eq!(total1, 9);
+        assert_eq!(results1.len(), 2);
+
+        // Get next 2 items with offset
+        let (results2, total2) = ctx.search(None, SearchType::All, None, 2, 2);
+        assert_eq!(total2, 9);
+        assert_eq!(results2.len(), 2);
+
+        // Get remaining items
+        let (results3, _) = ctx.search(None, SearchType::All, None, 100, 4);
+        assert_eq!(results3.len(), 5);
+    }
+
+    #[test]
+    fn test_search_limit_capped_at_200() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Request limit > 200 should be capped
+        let (results, _) = ctx.search(None, SearchType::All, None, 500, 0);
+
+        // We only have 9 items, so we get 9 (not testing the cap directly,
+        // but ensuring it doesn't crash with large limit)
+        assert_eq!(results.len(), 9);
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (results, total) = ctx.search(Some("zzzznonexistent"), SearchType::All, None, 10, 0);
+
+        assert_eq!(total, 0);
+        assert!(results.is_empty());
+    }
+
+    // =========================================================================
+    // Template Attribute Tests
+    // =========================================================================
+
+    #[test]
+    fn test_get_template_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let result = ctx.get_template("test.template");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().key, "test.template");
+    }
+
+    #[test]
+    fn test_get_template_not_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Regular attribute should not be found via get_template
+        assert!(ctx.get_template("http.request.method").is_none());
+        // Nonexistent should not be found
+        assert!(ctx.get_template("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_find_template_exact_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let result = ctx.find_template("test.template");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().key, "test.template");
+    }
+
+    #[test]
+    fn test_find_template_prefix_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // find_template should find templates by prefix
+        let result = ctx.find_template("test.template.foo");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().key, "test.template");
+    }
+
+    #[test]
+    fn test_find_template_not_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        assert!(ctx.find_template("nonexistent.template").is_none());
+    }
+
+    // =========================================================================
+    // Stability Filtering Tests
+    // =========================================================================
+
+    #[test]
+    fn test_search_stability_filter_stable() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Filter by Stable only
+        let (results, total) =
+            ctx.search(None, SearchType::Attribute, Some(Stability::Stable), 100, 0);
+
+        // Should return only stable attributes (4: http.request.method, http.response.status_code, db.system, test.template)
+        assert_eq!(total, 4);
+        assert_eq!(results.len(), 4);
+    }
+
+    #[test]
+    fn test_search_stability_filter_development() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Filter by Development only
+        let (results, total) = ctx.search(
+            None,
+            SearchType::Attribute,
+            Some(Stability::Development),
+            100,
+            0,
+        );
+
+        // Should return only development attributes (1: experimental.feature)
+        assert_eq!(total, 1);
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_searchable_item_stability() {
+        let attr = make_attribute("test", "test", "", false);
+        let item = SearchableItem::Attribute(Arc::new(attr));
+
+        assert_eq!(item.stability(), &Stability::Stable);
+
+        let dev_attr = make_development_attribute("dev", "dev");
+        let dev_item = SearchableItem::Attribute(Arc::new(dev_attr));
+
+        assert_eq!(dev_item.stability(), &Stability::Development);
     }
 }
