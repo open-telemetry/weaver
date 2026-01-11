@@ -2,8 +2,8 @@
 
 //! MCP service implementation using rmcp SDK.
 //!
-//! This module provides the `WeaverMcpService` which implements all 7 tools
-//! for querying and validating against the semantic convention registry.
+//! This module provides the `WeaverMcpService` which implements all tools
+//! for querying, debugging and validating against the semantic convention registry.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -30,7 +30,7 @@ use crate::McpConfig;
 
 /// MCP service for the semantic convention registry.
 ///
-/// This service exposes 7 tools for querying and validating against the registry:
+/// This service exposes tools for querying, debugging and validating against the registry:
 /// - `search` - Search across all registry items
 /// - `get_attribute` - Get a specific attribute by key
 /// - `get_metric` - Get a specific metric by name
