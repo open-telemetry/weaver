@@ -226,7 +226,7 @@ refinements:
         stability: stable
         examples: ["get_object", "create_collection"]
         requirement_level: required
-      ,,,
+      ...
 ```
 
 ### Materialized schema properties
@@ -250,6 +250,9 @@ If templates are not provided, the output of the command follows this schema.
 
 The diff schema contains a single top-level property:
 
+- **file_format**: Version of the matdifferialized schema, `2.0.0/diff` in this iteration
+- **head_schema_url**: Schema URL where the head schema is published. E.g., `https://opentelemetry.io/schemas/1.42.0`
+- **baseline_schema_url**: Schema URL where the baseline schema is published. E.g., `https://opentelemetry.io/schemas/1.40.0`
 - **registry**: A `registry` object containing change arrays for each telemetry type:
   - `attribute_changes`: Array of changes to attributes
   - `attribute_group_changes`: Array of changes to attribute groups
