@@ -135,7 +135,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Add minimal TS types (prefer `unknown` + narrowing over `any`)
 
 ### 8) Shared UI components (React parity)
-- [ ] Create `ui-react/src/components/StabilityBadge.tsx` (same mapping + labels as Svelte)
+- [x] Create `ui-react/src/components/StabilityBadge.tsx` (same mapping + labels as Svelte)
 - [ ] Create `ui-react/src/components/Markdown.tsx` using `marked` (block rendering)
 - [ ] Configure `marked` options like Svelte (`breaks`, `gfm`)
 - [ ] Create `ui-react/src/components/InlineMarkdown.tsx` using `marked.parse`
