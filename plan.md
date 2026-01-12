@@ -56,7 +56,12 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
   - Shows first/last page buttons with `...` when gaps > 1
   - Prev/next buttons disabled at bounds; `goToPage(page)` sets `offset = (page - 1) * limit`
   - Pagination renders only when `totalPages > 1`
-- [ ] Record API docs behavior from `ui/src/routes/ApiDocs.svelte` (RapiDoc + theme sync)
+- [x] Record API docs behavior from `ui/src/routes/ApiDocs.svelte` (RapiDoc + theme sync)
+  - Loads RapiDoc CDN script `https://unpkg.com/rapidoc/dist/rapidoc-min.js`
+  - `spec-url="/api/v1/openapi.json"`, `render-style="read"`, `layout="column"`, `schema-style="tree"`
+  - Disables header/auth/server selection; allows try (`allow-try="true"`)
+  - Theme sync via `MutationObserver` on `data-theme`, updating RapiDoc color attributes
+  - Container is fixed under navbar/sidebar with responsive left offset
 - [ ] Record Schema page URL behavior from `ui/src/routes/Schema.svelte` (`schema` + `type` query params)
 
 ### 1) Scaffold `ui-react/` (Vite + React + TS)
