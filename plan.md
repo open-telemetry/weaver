@@ -62,7 +62,11 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
   - Disables header/auth/server selection; allows try (`allow-try="true"`)
   - Theme sync via `MutationObserver` on `data-theme`, updating RapiDoc color attributes
   - Container is fixed under navbar/sidebar with responsive left offset
-- [ ] Record Schema page URL behavior from `ui/src/routes/Schema.svelte` (`schema` + `type` query params)
+- [x] Record Schema page URL behavior from `ui/src/routes/Schema.svelte` (`schema` + `type` query params)
+  - Reads `schema` from hash query string (`window.location.hash`), default `ForgeRegistryV2`
+  - Fetches `/api/v1/schema/:schema` on load and on `hashchange`
+  - Reads `type` from hash query string; `root` or missing shows root, otherwise selects definition
+  - `selectDefinition`/`selectRoot` update `type` via `history.pushState` on current URL
 
 ### 1) Scaffold `ui-react/` (Vite + React + TS)
 - [x] Create `ui-react/` via Vite React + TS template
