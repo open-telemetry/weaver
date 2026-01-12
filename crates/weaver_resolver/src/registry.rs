@@ -141,6 +141,8 @@ pub(crate) fn resolve_registry_with_dependencies(
 
     // TODO - In the original we'd GC unreferenced objects.
     // In this we need to *import* objects from the dependencies as required.
+    // If the flag to pull in all dependencies is set, we should grab ALL
+    // groups from our dependency.
 
     // Now we do validations.
     let mut errors = vec![];

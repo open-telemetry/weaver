@@ -966,6 +966,7 @@ mod tests {
             let resolved = SchemaResolver::resolve(loaded);
             match resolved {
                 WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                    // TODO - handle includes *and* include unreferenced.
                     if include_unreferenced {
                         // The group `otel.unused` shouldn't be garbage collected
                         let group = resolved_registry.group("otel.unused");
