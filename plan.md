@@ -19,7 +19,9 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 ## Backlog (chronological, small/isolated tasks)
 
 ### 0) Baseline inventory (Svelte is source-of-truth)
-- [ ] Confirm current Svelte build output: `ui/dist` (Vite build)
+- [x] Confirm current Svelte build output: `ui/dist` (Vite build)
+  - `ui/vite.config.js` sets `build.outDir = "dist"`
+  - `ui/package.json` uses `vite build` (no custom outDir override)
 - [x] List Svelte routes from `ui/src/App.svelte`
   - `/`
   - `/search`
