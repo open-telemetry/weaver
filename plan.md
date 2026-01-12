@@ -49,7 +49,13 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
   - Uses `marked.setOptions({ breaks: true, gfm: true })`, renders `marked(...)` synchronously into `<div class="prose prose-sm max-w-none">` with global styles for `a`, `code`, `pre`, `ul`, `ol`, `li`, `p`.
 - [x] Record InlineMarkdown behavior from `ui/src/components/InlineMarkdown.svelte` (strip `<p>`)
   - Uses `marked.parse` with `async: false`, `breaks: false`, `gfm: true`, strips `<p>` tags via `/<\/?p>/g`, renders inside a `<span>` with inline styles for `code`, `a`, `strong`, `em`.
-- [ ] Record Pagination behavior from `ui/src/components/Pagination.svelte` (window size, ellipses)
+- [x] Record Pagination behavior from `ui/src/components/Pagination.svelte` (window size, ellipses)
+  - `totalPages = ceil(total / limit)`; `currentPage = floor(offset / limit) + 1`
+  - Visible window size `maxVisible = 7` (sliding window centered on current page)
+  - Adjusts window when near end (`start` shifts so `end` hits `totalPages`)
+  - Shows first/last page buttons with `...` when gaps > 1
+  - Prev/next buttons disabled at bounds; `goToPage(page)` sets `offset = (page - 1) * limit`
+  - Pagination renders only when `totalPages > 1`
 - [ ] Record API docs behavior from `ui/src/routes/ApiDocs.svelte` (RapiDoc + theme sync)
 - [ ] Record Schema page URL behavior from `ui/src/routes/Schema.svelte` (`schema` + `type` query params)
 
