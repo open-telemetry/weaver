@@ -105,7 +105,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 ### 4) Dev proxy (same as Svelte)
 - [x] Create `ui-react/vite.config.ts`
 - [x] Configure dev server proxy: `/api` → `http://localhost:8080`
-- [ ] Confirm `/api/v1/...` requests succeed via proxy in dev
+- [x] Confirm `/api/v1/...` requests succeed via proxy in dev
 
 ### 5) App shell layout (DaisyUI parity)
 - [x] Recreate Drawer layout (desktop open, mobile toggle) matching `ui/src/App.svelte`
