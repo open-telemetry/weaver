@@ -3,7 +3,7 @@
 //! Functions to resolve a semantic convention registry.
 
 use crate::attribute::AttributeCatalog;
-use crate::dependency::ResolvedDependency;
+use crate::dependency::{ImportableDependency, ResolvedDependency};
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use globset::GlobSet;
@@ -92,6 +92,7 @@ pub(crate) fn resolve_registry_with_dependencies(
     specs: Vec<SemConvSpecWithProvenance>,
     imports: Vec<ImportsWithProvenance>,
     dependencies: Vec<ResolvedDependency>,
+    include_unreferenced: bool,
 ) -> WResult<Registry, Error> {
     let groups = specs
         .into_iter()
@@ -126,6 +127,14 @@ pub(crate) fn resolve_registry_with_dependencies(
     if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog) {
         return WResult::FatalErr(e);
     }
+
+    // We need to *import* objects from the dependencies as required.
+    // If the flag to pull in all dependencies is set, we should grab ALL
+    // groups from our dependency.
+    if let Err(e) = resolve_dependeny_imports(&mut ureg, include_unreferenced) {
+        return WResult::FatalErr(e);
+    }
+
     // Sort the attribute internal references in each group.
     // This is needed to ensure that the resolved registry is easy to compare
     // in unit tests.
@@ -138,11 +147,6 @@ pub(crate) fn resolve_registry_with_dependencies(
             g.group
         })
         .collect();
-
-    // TODO - In the original we'd GC unreferenced objects.
-    // In this we need to *import* objects from the dependencies as required.
-    // If the flag to pull in all dependencies is set, we should grab ALL
-    // groups from our dependency.
 
     // Now we do validations.
     let mut errors = vec![];
@@ -576,6 +580,22 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
             }
         }
     }
+    Ok(())
+}
+
+/// Resolves imports defined on dependencies.
+///
+/// If `include_all` is true, then all groups are imported
+/// from all dependencies.
+fn resolve_dependeny_imports(
+    ureg: &mut UnresolvedRegistry,
+    include_all: bool,
+) -> Result<(), Error> {
+    // Import from our dependencies, and add to the final registry.
+    let imports = &ureg.imports;
+    let dependencies = &ureg.dependencies;
+    let groups = dependencies.import_groups(imports, include_all)?;
+    ureg.registry.groups.extend(groups);
     Ok(())
 }
 

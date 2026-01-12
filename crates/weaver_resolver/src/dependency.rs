@@ -4,8 +4,12 @@
 
 use serde::Deserialize;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
+use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+use weaver_semconv::group::ImportsWithProvenance;
+
+use crate::Error;
 
 /// A Resolved dependency, for which we can look up items.
 #[derive(Debug, Deserialize)]
@@ -23,6 +27,65 @@ impl ResolvedDependency {
             ResolvedDependency::V1(schema) => schema.lookup_group_atributes(id),
             ResolvedDependency::V2(schema) => schema.lookup_group_atributes(id),
         }
+    }
+}
+
+/// Allows importing dependencies
+pub(crate) trait ImportableDependency {
+    /// Imports groups from the given dependency using the flags provided.
+    fn import_groups(
+        &self,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
+    ) -> Result<Vec<Group>, Error>;
+}
+
+impl ImportableDependency for V1Schema {
+    fn import_groups(
+        &self,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
+    ) -> Result<Vec<Group>, Error> {
+        todo!()
+    }
+}
+
+impl ImportableDependency for V2Schema {
+    fn import_groups(
+        &self,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
+    ) -> Result<Vec<Group>, Error> {
+        todo!()
+    }
+}
+
+impl ImportableDependency for ResolvedDependency {
+    fn import_groups(
+        &self,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
+    ) -> Result<Vec<Group>, Error> {
+        match self {
+            ResolvedDependency::V1(schema) => schema.import_groups(imports, include_all),
+            ResolvedDependency::V2(schema) => schema.import_groups(imports, include_all),
+        }
+    }
+}
+
+// Allows importing across all dependencies.
+impl ImportableDependency for Vec<ResolvedDependency> {
+    fn import_groups(
+        &self,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
+    ) -> Result<Vec<Group>, Error> {
+        self.iter()
+            .map(|d| d.import_groups(imports, include_all))
+            .try_fold(vec![], |mut result, next| {
+                result.extend(next?);
+                Ok(result)
+            })
     }
 }
 

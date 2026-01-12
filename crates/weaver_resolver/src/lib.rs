@@ -257,14 +257,18 @@ impl Error {
 
 impl SchemaResolver {
     /// Resolves a loaded semantic convention registry and returns the corresponding resolved schema.
-    pub fn resolve(loaded: LoadedSemconvRegistry) -> WResult<ResolvedTelemetrySchema, Error> {
+    pub fn resolve(
+        loaded: LoadedSemconvRegistry,
+        include_unreferenced: bool,
+    ) -> WResult<ResolvedTelemetrySchema, Error> {
+        // TODO - can we deprecate include_unreferenced?
         match loaded {
             LoadedSemconvRegistry::Unresolved {
                 repo,
                 specs,
                 imports,
                 dependencies,
-            } => Self::resolve_registry(repo, specs, imports, dependencies),
+            } => Self::resolve_registry(repo, specs, imports, dependencies, include_unreferenced),
             LoadedSemconvRegistry::Resolved(resolved_telemetry_schema) => {
                 WResult::Ok(resolved_telemetry_schema)
             }
@@ -279,6 +283,7 @@ impl SchemaResolver {
         specs: Vec<SemConvSpecWithProvenance>,
         imports: Vec<ImportsWithProvenance>,
         dependencies: Vec<LoadedSemconvRegistry>,
+        include_unreferenced: bool,
     ) -> WResult<ResolvedTelemetrySchema, Error> {
         // First, let's make sure all dependencies are resolved.
         let mut opt_resolved_dependencies: Vec<WResult<ResolvedDependency, Error>> = vec![];
@@ -286,7 +291,9 @@ impl SchemaResolver {
         for d in dependencies {
             match d {
                 LoadedSemconvRegistry::Unresolved { .. } => {
-                    opt_resolved_dependencies.push(Self::resolve(d).map(|s| s.into()));
+                    // TODO - for dependencies, we're not including unreferenced.
+                    // The thought is that the dependency itself should decide if that's needed.
+                    opt_resolved_dependencies.push(Self::resolve(d, false).map(|s| s.into()));
                 }
                 LoadedSemconvRegistry::Resolved(schema) => {
                     opt_resolved_dependencies.push(WResult::Ok(schema.into()));
@@ -319,6 +326,7 @@ impl SchemaResolver {
             specs,
             imports,
             resolved_dependencies,
+            include_unreferenced,
         )
         .map(move |resolved_registry| {
             let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
@@ -851,6 +859,7 @@ mod tests {
             assert_eq!("acme", repo.id().as_ref());
             assert_eq!(dependencies.len(), 1);
             assert_eq!(specs.len(), 1);
+            assert_eq!(imports.len(), 1);
             if let &[LoadedSemconvRegistry::Unresolved {
                 repo,
                 specs,
@@ -861,6 +870,7 @@ mod tests {
                 assert_eq!("otel", repo.id().as_ref());
                 assert_eq!(dependencies.len(), 0);
                 assert_eq!(specs.len(), 1);
+                assert_eq!(imports.len(), 0);
             } else {
                 panic!("Failed to load unresolved registry dependency")
             }
@@ -963,7 +973,7 @@ mod tests {
                 .capture_non_fatal_errors(&mut diag_msgs)
                 .expect("Failed to load the registry");
             println!("Loaded registry: {loaded}");
-            let resolved = SchemaResolver::resolve(loaded);
+            let resolved = SchemaResolver::resolve(loaded, include_unreferenced);
             match resolved {
                 WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
                     // TODO - handle includes *and* include unreferenced.
