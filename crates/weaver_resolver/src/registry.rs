@@ -16,7 +16,6 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
-use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
@@ -25,7 +24,7 @@ use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
-use weaver_semconv::semconv::SemConvSpecWithProvenance;
+use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
 /// A registry containing unresolved groups.
@@ -41,6 +40,9 @@ pub struct UnresolvedRegistry {
 
     /// List of unresolved imports that belong to the semantic convention
     pub imports: Vec<ImportsWithProvenance>,
+
+    /// List of dependencies we may use when resolving this registry.
+    pub(crate) dependencies: Vec<ResolvedDependency>,
 }
 
 /// A group containing unresolved attributes.
@@ -91,7 +93,93 @@ pub(crate) fn resolve_registry_with_dependencies(
     imports: Vec<ImportsWithProvenance>,
     dependencies: Vec<ResolvedDependency>,
 ) -> WResult<Registry, Error> {
-    todo!("Implement this")
+    let groups = specs
+        .into_iter()
+        .map(|g| g.into_v1())
+        .flat_map(|SemConvSpecV1WithProvenance { spec, provenance }| {
+            spec.groups()
+                .iter()
+                .map(|group| GroupSpecWithProvenance {
+                    spec: group.clone(),
+                    provenance: provenance.clone(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .map(group_from_spec)
+        .collect();
+    let mut ureg = UnresolvedRegistry {
+        registry: Registry::new(repo.registry_path_repr()),
+        groups,
+        imports,
+        dependencies,
+    };
+
+    // Now we to the resolution.
+    if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
+
+    if let Err(e) = resolve_extends_references(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
+
+    if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog) {
+        return WResult::FatalErr(e);
+    }
+    // Sort the attribute internal references in each group.
+    // This is needed to ensure that the resolved registry is easy to compare
+    // in unit tests.
+    ureg.registry.groups = ureg
+        .groups
+        .into_iter()
+        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
+        .map(|mut g| {
+            g.group.attributes.sort();
+            g.group
+        })
+        .collect();
+
+    // TODO - In the original we'd GC unreferenced objects.
+    // In this we need to *import* objects from the dependencies as required.
+
+    // Now we do validations.
+    let mut errors = vec![];
+    let attr_name_index = attr_catalog.attribute_name_index();
+
+    // Other complementary checks.
+    // Check for duplicate group IDs.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| Some(group.id.clone()),
+        |group_id, provenances| DuplicateGroupId {
+            group_id,
+            provenances,
+        },
+    );
+    // Check for duplicate metric names.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| group.metric_name.clone(),
+        |metric_name, provenances| DuplicateMetricName {
+            metric_name,
+            provenances,
+        },
+    );
+    // Check for duplicate group names.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| group.name.clone(),
+        |group_name, provenances| DuplicateGroupName {
+            group_name,
+            provenances,
+        },
+    );
+    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
+
+    WResult::OkWithNFEs(ureg.registry, errors)
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
@@ -113,6 +201,7 @@ pub(crate) fn resolve_registry_with_dependencies(
 ///
 /// This function returns the resolved registry or an error if the resolution process
 /// failed.
+#[deprecated]
 pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
@@ -200,6 +289,7 @@ pub fn resolve_semconv_registry(
 /// Garbage collect all the signals and attributes not defined or referenced in the
 /// current registry, i.e. telemetry objects only defined in a dependency and not
 /// referenced in the current registry.
+#[deprecated]
 fn gc_unreferenced_objects(
     manifest: Option<&RegistryManifest>,
     registry: &mut Registry,
@@ -425,6 +515,7 @@ fn unresolved_registry_from_specs(
         registry: Registry::new(registry_url),
         groups,
         imports,
+        dependencies: vec![],
     }
 }
 
@@ -499,12 +590,16 @@ fn resolve_attribute_references(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &mut AttributeCatalog,
 ) -> Result<(), Error> {
+    // TODO - Right now the attribute registry does NOT have any of the
+    // attributes from dependencies. We expect to resolve all groups in the current
+    // algorithm, instead we need to *pre-register* those attributes here.
     loop {
         let mut errors = vec![];
         let mut resolved_attr_count = 0;
 
         // Iterate over all groups and resolve the attributes.
         for unresolved_group in ureg.groups.iter_mut() {
+            // TODO - we need to look up attributes from dependencies in needed here.
             let mut resolved_attr = vec![];
 
             // Remove attributes that are resolved and keep unresolved attributes
@@ -519,6 +614,7 @@ fn resolve_attribute_references(
                         &unresolved_group.group.prefix,
                         &attr.spec,
                         unresolved_group.group.lineage.as_mut(),
+                        &ureg.dependencies,
                     );
                     if let Some(attr_ref) = attr_ref {
                         // Attribute reference resolved successfully.
@@ -599,6 +695,8 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         // Create a map group_id -> attributes for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
+        let dependencies = &ureg.dependencies;
+        // TODO - we need to add in the *dependencies* registry here for lookups.
         for group in ureg.groups.iter() {
             if group.group.extends.is_none() && group.include_groups.is_empty() {
                 log::debug!(
@@ -613,15 +711,17 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 _ = group_index.insert(group.group.id.clone(), group.attributes.clone());
             }
         }
-
         // Iterate over all groups and resolve the `extends` clauses.
         for unresolved_group in ureg.groups.iter_mut() {
+            // TODO - also look in dependencies.
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
-                if let Some(attrs) = group_index.get(extends) {
+                if let Some(attrs) =
+                    lookup_group_attributes_with_dependencies(dependencies, &group_index, extends)
+                {
                     unresolved_group.attributes = resolve_inheritance_attrs_unified(
                         &unresolved_group.group.id,
                         &unresolved_group.attributes,
-                        vec![(extends, attrs)],
+                        vec![(extends, &attrs)],
                         unresolved_group.group.lineage.as_mut(),
                     );
                     if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
@@ -632,6 +732,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         unresolved_group,
                         &mut resolved_group_count,
                     );
+                // TODO - first check imports.
                 } else {
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
@@ -902,6 +1003,28 @@ fn resolve_inheritance_attr(
         }
         AttributeSpec::Id { .. } => attr.clone(),
     }
+}
+
+// Note The below helper functions are to avoid causing RUST
+// to be confused about borrowing mutable aspects of the Unresolved Registry.
+//
+// We borrow dependencies as immutable, always, so this should be safe.
+// We do NOT borrow the index as mutable when iterating over groups, but
+// Rust's type system is not advanced enough to know about partial mutable
+// borrowing of a reference.
+fn lookup_group_attributes_with_dependencies(
+    dependencies: &Vec<ResolvedDependency>,
+    local_index: &HashMap<String, Vec<UnresolvedAttribute>>,
+    id: &str,
+) -> Option<Vec<UnresolvedAttribute>> {
+    // First check our direct groups.
+    if let Some(attrs) = local_index.get(id) {
+        return Some(attrs.clone());
+    }
+    // Now check dependencies in order.
+    dependencies
+        .iter()
+        .find_map(|d| d.lookup_group_atributes(id))
 }
 
 #[cfg(test)]

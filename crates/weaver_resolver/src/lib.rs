@@ -2,8 +2,10 @@
 
 #![doc = include_str!("../README.md")]
 
+use itertools::Itertools;
 use miette::Diagnostic;
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 use weaver_common::log_error;
 use weaver_semconv::group::ImportsWithProvenance;
@@ -795,10 +797,31 @@ impl SchemaResolver {
     }
 }
 
+impl Display for LoadedSemconvRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs: _,
+                imports: _,
+                dependencies,
+            } => write!(
+                f,
+                "{} - [{}]",
+                repo.id(),
+                dependencies.iter().map(|d| format!("{d}")).join(",")
+            ),
+            LoadedSemconvRegistry::Resolved(schema) => write!(f, "{}", schema.registry_id),
+            LoadedSemconvRegistry::ResolvedV2(schema) => write!(f, "{}", schema.registry_id),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::SchemaResolver;
+    use crate::{LoadedSemconvRegistry, SchemaResolver};
     use std::collections::HashSet;
+    use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_common::result::WResult;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
@@ -809,9 +832,48 @@ mod tests {
     use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance, Versioned};
 
     #[test]
+    fn test_load_unresovled_registry_with_dependencies() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/multi-registry/custom_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+            .capture_non_fatal_errors(&mut diag_msgs)?;
+        // Assert that we've loaded the ACME repository and the dependency of OTEL.
+        if let LoadedSemconvRegistry::Unresolved {
+            repo,
+            specs,
+            imports,
+            dependencies,
+        } = loaded
+        {
+            assert_eq!("acme", repo.id().as_ref());
+            assert_eq!(dependencies.len(), 1);
+            assert_eq!(specs.len(), 1);
+            if let &[LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs,
+                imports,
+                dependencies,
+            }] = &dependencies.as_slice()
+            {
+                assert_eq!("otel", repo.id().as_ref());
+                assert_eq!(dependencies.len(), 0);
+                assert_eq!(specs.len(), 1);
+            } else {
+                panic!("Failed to load unresolved registry dependency")
+            }
+        } else {
+            panic!("Failed to load unresolved registry")
+        }
+        Ok(())
+    }
+
+    #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
         fn check_semconv_specs(
-            registry_repo: &RegistryRepo,
+            registry_repo: RegistryRepo,
             semconv_specs: Vec<SemConvSpecWithProvenance>,
             include_unreferenced: bool,
         ) {
@@ -889,12 +951,20 @@ mod tests {
                 }
             }
 
-            let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
-                .expect("Failed to create the registry");
-            match SchemaResolver::resolve_semantic_convention_registry(
-                &mut registry,
-                include_unreferenced,
-            ) {
+            // let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
+            //     .expect("Failed to create the registry");
+            // let resolved = SchemaResolver::resolve_semantic_convention_registry(
+            //    &mut registry,
+            //    include_unreferenced,
+            //);
+
+            let mut diag_msgs = DiagnosticMessages::empty();
+            let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+                .capture_non_fatal_errors(&mut diag_msgs)
+                .expect("Failed to load the registry");
+            println!("Loaded registry: {loaded}");
+            let resolved = SchemaResolver::resolve(loaded);
+            match resolved {
                 WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
                     if include_unreferenced {
                         // The group `otel.unused` shouldn't be garbage collected
@@ -982,15 +1052,15 @@ mod tests {
         match result {
             WResult::Ok(semconv_specs) => {
                 // test with the `include_unreferenced` flag set to false
-                check_semconv_specs(&registry_repo, semconv_specs.clone(), false);
+                check_semconv_specs(registry_repo.try_clone()?, semconv_specs.clone(), false);
                 // test with the `include_unreferenced` flag set to true
-                check_semconv_specs(&registry_repo, semconv_specs, true);
+                check_semconv_specs(registry_repo.try_clone()?, semconv_specs, true);
             }
             WResult::OkWithNFEs(semconv_specs, nfe) => {
                 // test with the `include_unreferenced` flag set to false
-                check_semconv_specs(&registry_repo, semconv_specs.clone(), false);
+                check_semconv_specs(registry_repo.try_clone()?, semconv_specs.clone(), false);
                 // test with the `include_unreferenced` flag set to true
-                check_semconv_specs(&registry_repo, semconv_specs, true);
+                check_semconv_specs(registry_repo.try_clone()?, semconv_specs, true);
                 if !nfe.is_empty() {
                     panic!("Non-fatal errors: {nfe:?}");
                 }

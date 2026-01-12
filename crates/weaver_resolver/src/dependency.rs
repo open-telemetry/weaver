@@ -2,12 +2,13 @@
 
 //! Helpers to handle reading from dependencies.
 
-use std::borrow::Cow;
-use weaver_resolved_schema::registry::Group;
+use serde::Deserialize;
+use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 
 /// A Resolved dependency, for which we can look up items.
+#[derive(Debug, Deserialize)]
 pub(crate) enum ResolvedDependency {
     /// A V1 Dependency
     V1(V1Schema),
@@ -16,12 +17,57 @@ pub(crate) enum ResolvedDependency {
 }
 
 impl ResolvedDependency {
-    /// Looks for a group on the resolved dependency.
-    pub(crate) fn lookup_group<'a>(&'a self, id: &str) -> Option<Cow<'a, Group>> {
+    /// Creates unresolved attributes to fill out "ref" attributes when resolving a repository.
+    pub(crate) fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
         match self {
-            ResolvedDependency::V1(schema) => schema.group(id).map(Cow::Borrowed),
-            ResolvedDependency::V2(schema) => todo!(),
+            ResolvedDependency::V1(schema) => schema.lookup_group_atributes(id),
+            ResolvedDependency::V2(schema) => schema.lookup_group_atributes(id),
         }
+    }
+}
+
+/// Helper trait for abstracting over V1 and V2 schema.
+trait UnresolvedAttributeLookup {
+    /// Looks up group attributes on this repo.
+    fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>>;
+}
+
+impl UnresolvedAttributeLookup for V1Schema {
+    fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+        self.group(id).map(|g| {
+            let attributes: Vec<UnresolvedAttribute> = g
+                .attributes
+                .iter()
+                .filter_map(|ar| self.catalog.attribute(ar))
+                .map(|a| {
+                    // TODO - we should include *chained* provenance from dependencies here.
+                    UnresolvedAttribute {
+                        spec: weaver_semconv::attribute::AttributeSpec::Id {
+                            id: a.name.clone(),
+                            r#type: a.r#type.clone(),
+                            brief: Some(a.brief.clone()),
+                            examples: a.examples.clone(),
+                            tag: a.tag.clone(),
+                            requirement_level: a.requirement_level.clone(),
+                            sampling_relevant: a.sampling_relevant.clone(),
+                            note: a.note.clone(),
+                            stability: a.stability.clone(),
+                            deprecated: a.deprecated.clone(),
+                            annotations: a.annotations.clone(),
+                            role: a.role.clone(),
+                        },
+                    }
+                })
+                .collect();
+            attributes
+        })
+    }
+}
+
+impl UnresolvedAttributeLookup for V2Schema {
+    fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+        // TODO - we need to lookup on all possible groups.
+        todo!("Support V2 in resolution")
     }
 }
 

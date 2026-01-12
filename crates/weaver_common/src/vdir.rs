@@ -144,6 +144,21 @@ impl TryFrom<String> for VirtualDirectoryPath {
     }
 }
 
+/// Enables parsing a [`VirtualDirectoryPath`] from a string representation.
+///
+/// This implementation allows easy deserialization from strings (e.g. configuration files, command-line arguments).
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidRegistryPath`] if the provided string does not match any valid format.
+impl TryFrom<&str> for VirtualDirectoryPath {
+    type Error = Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
 /// Implement `From<VirtualDirectoryPath>` for String, so that it can be serialized to a
 /// string via serde.
 impl From<VirtualDirectoryPath> for String {

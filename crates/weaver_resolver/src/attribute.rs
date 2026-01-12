@@ -9,7 +9,11 @@ use serde::Deserialize;
 use weaver_resolved_schema::attribute;
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::attribute::AttributeSpec;
+
+use crate::dependency::ResolvedDependency;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
 #[derive(Deserialize, Debug, Default, PartialEq)]
@@ -103,12 +107,13 @@ impl AttributeCatalog {
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.
     /// Returns `None` if the attribute spec is a ref and it does not exist yet
     /// in the catalog.
-    pub fn resolve(
+    pub(crate) fn resolve(
         &mut self,
         group_id: &str,
         group_prefix: &str,
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
+        dependencies: &Vec<ResolvedDependency>,
     ) -> Option<AttributeRef> {
         match attr {
             AttributeSpec::Ref {
@@ -126,7 +131,14 @@ impl AttributeCatalog {
                 role,
             } => {
                 let name;
-                let root_attr = self.root_attributes.get(r#ref);
+                let mut root_attr: Option<&AttributeWithGroupId> = self.root_attributes.get(r#ref);
+                // If we fail to find an attribute, check dependencies first.
+                if root_attr.is_none() {
+                    if let Some(at) = dependencies.lookup_attribute(r#ref) {
+                        _ = self.root_attributes.insert(r#ref.to_owned(), at);
+                        root_attr = self.root_attributes.get(r#ref);
+                    }
+                }
                 if let Some(root_attr) = root_attr {
                     let mut attr_lineage = AttributeLineage::new(&root_attr.group_id);
 
@@ -238,6 +250,69 @@ impl AttributeCatalog {
                 Some(self.attribute_ref(attr))
             }
         }
+    }
+}
+
+/// Helper trait for abstracting over V1 and V2 schema.
+trait AttributeLookup {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId>;
+}
+
+impl AttributeLookup for Vec<ResolvedDependency> {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        self.iter().find_map(|d| d.lookup_attribute(key))
+    }
+}
+
+impl AttributeLookup for ResolvedDependency {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        match self {
+            ResolvedDependency::V1(schema) => schema.lookup_attribute(key),
+            ResolvedDependency::V2(schema) => schema.lookup_attribute(key),
+        }
+    }
+}
+
+impl AttributeLookup for V1Schema {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        // TODO - fast lookup, not a table scan...
+        // Because of how the algorithm works, we need to looks across
+        // *all possible* groups for an attribute.
+        // Note: This *only* works with lineage and breaks otherwise.
+        let result = self.registry.groups.iter().find_map(|g| {
+            g.attributes
+                .iter()
+                .find_map(|ar| {
+                    self.catalog
+                        .attribute(ar)
+                        .filter(|a| a.name == key)
+                        .and_then(|a| {
+                            let lineage = g
+                                .lineage
+                                .as_ref()
+                                .and_then(|l| l.attribute(&a.name))
+                                .filter(|al| al.source_group == g.id);
+                            // We defined the attribute.
+                            if lineage.is_none() {
+                                Some(a.clone())
+                            } else {
+                                // We did not define the attribute.
+                                None
+                            }
+                        })
+                })
+                .map(|a| AttributeWithGroupId {
+                    attribute: a,
+                    group_id: g.id.to_owned(),
+                })
+        });
+        result
+    }
+}
+
+impl AttributeLookup for V2Schema {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        todo!("Lookup {key} on v2 schema.")
     }
 }
 
