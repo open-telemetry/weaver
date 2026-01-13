@@ -144,7 +144,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Configure `marked` options like Svelte (`breaks`, `gfm`)
 - [ ] Create `ui-react/src/components/InlineMarkdown.tsx` using `marked.parse`
 - [ ] Strip `<p>` tags in InlineMarkdown exactly like Svelte (`/<\/??p>/g` equivalent)
-- [ ] Create `ui-react/src/components/Pagination.tsx` matching Svelte pagination window + ellipses
+- [x] Create `ui-react/src/components/Pagination.tsx` matching Svelte pagination window + ellipses
 
 ### 9) Page: Search (`/` and `/search`) — strict parity
 - [ ] Create Search route component
