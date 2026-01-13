@@ -18,6 +18,7 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
+use crate::registry::infer::RegistryInferArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -35,6 +36,7 @@ mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
+mod infer;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
@@ -146,6 +148,10 @@ pub enum RegistrySubCommand {
     /// The server communicates over stdio using JSON-RPC.
     #[clap(verbatim_doc_comment)]
     Mcp(RegistryMcpArgs),
+
+    /// Generates a schema file by inferring the schema from a OTLP message.
+    #[clap(verbatim_doc_comment)]
+    Infer(RegistryInferArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -231,6 +237,9 @@ pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
         }
         RegistrySubCommand::Mcp(args) => {
             CmdResult::new(mcp::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Infer(args) => {
+            CmdResult::new(infer::command(args), Some(args.diagnostic.clone()))
         }
     }
 }
