@@ -148,11 +148,6 @@ pub(crate) fn resolve_registry_with_dependencies(
         })
         .collect();
 
-    println!("Post sorting - register [{}]", ureg.registry.registry_url);
-    for g in ureg.registry.groups.iter() {
-        println!(" - {}", &g.id);
-    }
-
     // Now we do validations.
     let mut errors = vec![];
     let attr_name_index = attr_catalog.attribute_name_index();
@@ -602,16 +597,15 @@ fn resolve_dependeny_imports(
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
     for group in groups {
+        let provenance = group.provenance();
         ureg.groups.push(UnresolvedGroup {
             group,
             attributes: vec![],
             include_groups: vec![],
             visibility: None,
-            // TODO
-            provenance: Provenance::undefined(),
+            provenance,
         })
     }
-    // ureg.registry.groups.extend(groups);
     Ok(())
 }
 

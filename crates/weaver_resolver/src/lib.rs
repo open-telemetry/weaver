@@ -62,6 +62,40 @@ impl LoadedSemconvRegistry {
     pub fn is_unresolved(&self) -> bool {
         matches!(self, LoadedSemconvRegistry::Unresolved { .. })
     }
+
+    /// Returns the depth of the dependency chain for this loaded repository.
+    #[cfg(test)]
+    pub fn dependency_depth(&self) -> u32 {
+        match self {
+            LoadedSemconvRegistry::Unresolved { dependencies, .. } => {
+                1 + dependencies
+                    .iter()
+                    .map(|d| d.dependency_depth())
+                    .max()
+                    .unwrap_or_default()
+            }
+            LoadedSemconvRegistry::Resolved(_) => 1,
+            LoadedSemconvRegistry::ResolvedV2(_) => 1,
+        }
+    }
+
+    /// Returns all the registry ids in this loaded registry and its dependencies.
+    #[cfg(test)]
+    pub fn registry_ids(&self) -> Vec<String> {
+        match self {
+            LoadedSemconvRegistry::Unresolved {
+                repo, dependencies, ..
+            } => {
+                let mut result = vec![repo.id().to_string()];
+                for d in dependencies {
+                    result.extend(d.registry_ids());
+                }
+                result
+            }
+            LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry_id.clone()],
+            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.registry_id.clone()],
+        }
+    }
 }
 
 /// A resolver that can be used to resolve telemetry schemas.
@@ -435,7 +469,17 @@ impl SchemaResolver {
                 for d in manifest.dependencies.iter() {
                     match RegistryRepo::try_new(&d.name, &d.registry_path) {
                         Ok(d_repo) => {
-                            // TODO - dependency chain should ONLY include current dependencies.   We're pushing the whole thing down
+                            // TODO - dependency chain should ONLY include current dependencies.
+
+                            // Make sure we don't go pat our max dependency depth.
+                            if max_dependency_depth <= 0 {
+                                return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                                    error: format!(
+                                        "Maximum dependency depth reached for registry `{}`. Cannot load further dependencies.",
+                                        registry_repo.registry_path_repr()
+                                    ),
+                                });
+                            }
                             // so we need to make sure the dependency chain only include direct dependencies of each other.
                             match Self::load_semconv_repository_recursive(
                                 d_repo,
@@ -590,6 +634,7 @@ impl SchemaResolver {
     /// * `registry_repo` - The registry repository containing the semantic convention files.
     /// * `allow_registry_deps` - Whether to allow registry dependencies.
     /// * `follow_symlinks` - Whether to follow symbolic links.
+    #[deprecated(note = "Use load_semconv_repository instead")]
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
@@ -882,97 +927,13 @@ mod tests {
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
-        fn check_semconv_specs(
-            registry_repo: RegistryRepo,
-            semconv_specs: Vec<SemConvSpecWithProvenance>,
-            include_unreferenced: bool,
-        ) {
-            assert_eq!(semconv_specs.len(), 2);
-            for SemConvSpecWithProvenance {
-                spec: versioned_spec,
-                provenance: Provenance { registry_id, path },
-            } in semconv_specs.iter()
-            {
-                match versioned_spec {
-                    SemConvSpec::WithVersion(Versioned::V1(semconv_spec))
-                    | SemConvSpec::NoVersion(semconv_spec) => match registry_id.as_ref() {
-                        "acme" => {
-                            assert_eq!(
-                                path,
-                                "data/multi-registry/custom_registry/custom_registry.yaml"
-                            );
-                            assert_eq!(semconv_spec.groups().len(), 2);
-                            assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
-                            assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
-                            assert_eq!(
-                                semconv_spec
-                                    .imports()
-                                    .unwrap()
-                                    .metrics
-                                    .as_ref()
-                                    .unwrap()
-                                    .len(),
-                                1
-                            );
-                            assert_eq!(
-                                semconv_spec
-                                    .imports()
-                                    .unwrap()
-                                    .events
-                                    .as_ref()
-                                    .unwrap()
-                                    .len(),
-                                1
-                            );
-                            assert_eq!(
-                                semconv_spec
-                                    .imports()
-                                    .unwrap()
-                                    .entities
-                                    .as_ref()
-                                    .unwrap()
-                                    .len(),
-                                1
-                            );
-                        }
-                        "otel" => {
-                            assert_eq!(
-                                path,
-                                "data/multi-registry/otel_registry/otel_registry.yaml"
-                            );
-                            assert_eq!(semconv_spec.groups().len(), 7);
-                            assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
-                            assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
-                            assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
-                            assert_eq!(
-                                &semconv_spec.groups()[3].id,
-                                "entity.gcp.apphub.application"
-                            );
-                            assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
-                            assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
-                            assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
-                        }
-                        _ => panic!("Unexpected registry id: {registry_id}"),
-                    },
-                    SemConvSpec::WithVersion(Versioned::V2(_)) => {
-                        // Ignore for now
-                        panic!("Unexpected V2 specification: {registry_id}")
-                    }
-                }
-            }
-
-            // let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
-            //     .expect("Failed to create the registry");
-            // let resolved = SchemaResolver::resolve_semantic_convention_registry(
-            //    &mut registry,
-            //    include_unreferenced,
-            //);
-
+        /// Helper to load a specific repository and reoslve with the given include flag.
+        fn check_semconv_load_and_resolve(registry_repo: RegistryRepo, include_unreferenced: bool) {
             let mut diag_msgs = DiagnosticMessages::empty();
             let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
                 .capture_non_fatal_errors(&mut diag_msgs)
                 .expect("Failed to load the registry");
-            println!("Loaded registry: {loaded}");
+            // println!("Loaded registry: {loaded}");
             let resolved = SchemaResolver::resolve(loaded, include_unreferenced);
             match resolved {
                 WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
@@ -1059,28 +1020,10 @@ mod tests {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
-        match result {
-            WResult::Ok(semconv_specs) => {
-                // test with the `include_unreferenced` flag set to false
-                check_semconv_specs(registry_repo.try_clone()?, semconv_specs.clone(), false);
-                // test with the `include_unreferenced` flag set to true
-                check_semconv_specs(registry_repo.try_clone()?, semconv_specs, true);
-            }
-            WResult::OkWithNFEs(semconv_specs, nfe) => {
-                // test with the `include_unreferenced` flag set to false
-                check_semconv_specs(registry_repo.try_clone()?, semconv_specs.clone(), false);
-                // test with the `include_unreferenced` flag set to true
-                check_semconv_specs(registry_repo.try_clone()?, semconv_specs, true);
-                if !nfe.is_empty() {
-                    panic!("Non-fatal errors: {nfe:?}");
-                }
-            }
-            WResult::FatalErr(fatal) => {
-                panic!("Fatal error: {fatal}");
-            }
-        }
-
+        // test with the `include_unreferenced` flag set to false
+        check_semconv_load_and_resolve(registry_repo.try_clone()?, false);
+        // test with the `include_unreferenced` flag set to true
+        check_semconv_load_and_resolve(registry_repo.try_clone()?, true);
         Ok(())
     }
 
@@ -1091,39 +1034,36 @@ mod tests {
             path: "data/multi-registry/app_registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
-        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+        let result = SchemaResolver::load_semconv_repository(registry_repo, true);
 
         match result {
-            WResult::Ok(semconv_specs) | WResult::OkWithNFEs(semconv_specs, _) => {
+            WResult::Ok(loaded) | WResult::OkWithNFEs(loaded, _) => {
                 // Should successfully load specs from all three registries
-                assert!(
-                    semconv_specs.len() >= 3,
+                assert_eq!(
+                    loaded.dependency_depth(),
+                    3,
                     "Expected specs from at least 3 registries, got {}",
-                    semconv_specs.len()
+                    loaded
                 );
 
                 // Verify we have specs from all three registries
-                let registry_ids: Vec<&str> = semconv_specs
-                    .iter()
-                    .map(|spec| spec.provenance.registry_id.as_ref())
-                    .collect();
+                let registry_ids = loaded.registry_ids();
 
-                assert!(registry_ids.contains(&"app"), "Missing app registry specs");
                 assert!(
-                    registry_ids.contains(&"acme"),
+                    registry_ids.contains(&"app".to_owned()),
+                    "Missing app registry specs"
+                );
+                assert!(
+                    registry_ids.contains(&"acme".to_owned()),
                     "Missing acme registry specs"
                 );
                 assert!(
-                    registry_ids.contains(&"otel"),
+                    registry_ids.contains(&"otel".to_owned()),
                     "Missing otel registry specs"
                 );
 
                 // Now test the resolved registry content
-                let mut registry =
-                    SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
-                        .expect("Failed to create the registry");
-                let resolved_result =
-                    SchemaResolver::resolve_semantic_convention_registry(&mut registry, false);
+                let resolved_result = SchemaResolver::resolve(loaded, false);
 
                 match resolved_result {
                     WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
@@ -1217,9 +1157,8 @@ mod tests {
         // Try with depth limit of 1 - should fail at acme->otel transition
         let mut visited_registries = HashSet::new();
         let mut dependency_chain = Vec::new();
-        let result = SchemaResolver::load_semconv_specs_with_depth(
-            &registry_repo,
-            true,
+        let result = SchemaResolver::load_semconv_repository_recursive(
+            registry_repo,
             true,
             1,
             &mut visited_registries,
@@ -1249,7 +1188,7 @@ mod tests {
             path: "data/circular-registry-test/registry_a".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("registry_a", &registry_path)?;
-        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+        let result = SchemaResolver::load_semconv_repository(registry_repo, true);
 
         match result {
             WResult::FatalErr(fatal) => {

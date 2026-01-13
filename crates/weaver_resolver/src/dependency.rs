@@ -49,7 +49,6 @@ impl ImportableDependency for V1Schema {
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        println!("Importing Dependencies from {}", self.registry_id);
         let build_globset = |wildcards: Option<&Vec<GroupWildcard>>| {
             let mut builder = GlobSet::builder();
             if let Some(wildcards_vec) = wildcards {
@@ -107,15 +106,27 @@ impl ImportableDependency for V1Schema {
                     weaver_semconv::group::GroupType::Undefined => false,
                 }
         };
-        // TODO - we need to fix all the group references
-        // to use the attribute catalog of ureg.
         Ok(self
             .registry
             .groups
             .iter()
             .filter(|g| filter(g))
             .cloned()
-            .inspect(|g| println!("- Importing group: {}", &g.id))
+            .map(|mut g| {
+                // We need to fix all the attribute references in this group to be
+                // against hte passed in attribute catalog.
+                let mut attributes = vec![];
+                for a in g
+                    .attributes
+                    .iter()
+                    .filter_map(|ar| self.catalog().attribute(ar))
+                {
+                    let ar = attribute_catalog.attribute_ref(a.clone());
+                    attributes.push(ar);
+                }
+                g.attributes = attributes;
+                g
+            })
             .collect())
     }
 }
