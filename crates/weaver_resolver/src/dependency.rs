@@ -134,9 +134,9 @@ impl ImportableDependency for V1Schema {
 impl ImportableDependency for V2Schema {
     fn import_groups(
         &self,
-        imports: &[ImportsWithProvenance],
-        include_all: bool,
-        attribute_catalog: &mut AttributeCatalog,
+        _imports: &[ImportsWithProvenance],
+        _include_all: bool,
+        _attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         todo!("Support V2 schema dependency resolution.")
     }
@@ -200,7 +200,7 @@ impl UnresolvedAttributeLookup for V1Schema {
                             examples: a.examples.clone(),
                             tag: a.tag.clone(),
                             requirement_level: a.requirement_level.clone(),
-                            sampling_relevant: a.sampling_relevant.clone(),
+                            sampling_relevant: a.sampling_relevant,
                             note: a.note.clone(),
                             stability: a.stability.clone(),
                             deprecated: a.deprecated.clone(),
@@ -216,7 +216,7 @@ impl UnresolvedAttributeLookup for V1Schema {
 }
 
 impl UnresolvedAttributeLookup for V2Schema {
-    fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+    fn lookup_group_atributes(&self, _id: &str) -> Option<Vec<UnresolvedAttribute>> {
         // TODO - we need to lookup on all possible groups.
         todo!("Support V2 in resolution")
     }

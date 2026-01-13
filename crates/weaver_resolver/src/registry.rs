@@ -340,7 +340,7 @@ fn gc_unreferenced_objects(
     )?;
 
     if let Some(manifest) = manifest {
-        if manifest.dependencies.len() > 0 {
+        if !manifest.dependencies.is_empty() {
             // This registry has dependencies.
             let current_reg_id = manifest.name.clone();
 
@@ -604,7 +604,7 @@ fn resolve_dependeny_imports(
             include_groups: vec![],
             visibility: None,
             provenance,
-        })
+        });
     }
     Ok(())
 }

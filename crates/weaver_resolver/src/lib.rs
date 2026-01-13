@@ -9,7 +9,6 @@ use std::fmt::Display;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 use weaver_common::log_error;
 use weaver_semconv::group::ImportsWithProvenance;
-use weaver_semconv::manifest::Dependency;
 
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
@@ -59,11 +58,13 @@ pub enum LoadedSemconvRegistry {
 
 impl LoadedSemconvRegistry {
     /// Returns true if the repository is unresolved.
+    #[must_use] 
     pub fn is_unresolved(&self) -> bool {
         matches!(self, LoadedSemconvRegistry::Unresolved { .. })
     }
 
     /// The path representing this registry.
+    #[must_use] 
     pub fn registry_path_repr(&self) -> &str {
         match self {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
@@ -387,7 +388,8 @@ impl SchemaResolver {
         )
         .map(move |resolved_registry| {
             let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
-            let resolved_schema = ResolvedTelemetrySchema {
+            
+            ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),
                 schema_url: "".to_owned(),
                 registry_id,
@@ -398,8 +400,7 @@ impl SchemaResolver {
                 dependencies: vec![],
                 versions: None, // ToDo LQ: Implement this!
                 registry_manifest: manifest,
-            };
-            resolved_schema
+            }
         })
     }
 
@@ -627,7 +628,7 @@ impl SchemaResolver {
         }
 
         // Load imports from the specification.
-        for (i, provenance) in specs.iter().flat_map(|s| {
+        for (i, provenance) in specs.iter().filter_map(|s| {
             let v1 = s.clone().into_v1();
             v1.spec.imports().map(|i| (i.clone(), v1.provenance))
         }) {
