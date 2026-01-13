@@ -115,7 +115,11 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Ensure sidebar links match Svelte destinations exactly
 
 ### 6) Theme toggle (exact parity)
-- [ ] Implement `theme` state (React hooks)
+- [x] Implement `theme` state (React hooks)
+- [x] On load: read `localStorage.getItem('theme') ?? 'light'`
+- [x] On theme change: set `document.documentElement.setAttribute('data-theme', theme)`
+- [x] Persist theme to `localStorage` under key `theme`
+- [x] Implement toggle button + icons matching Svelte behavior
 - [ ] On load: read `localStorage.getItem('theme') ?? 'light'`
 - [ ] On theme change: set `document.documentElement.setAttribute('data-theme', theme)`
 - [ ] Persist theme to `localStorage` under key `theme`
@@ -136,7 +140,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 
 ### 8) Shared UI components (React parity)
 - [x] Create `ui-react/src/components/StabilityBadge.tsx` (same mapping + labels as Svelte)
-- [ ] Create `ui-react/src/components/Markdown.tsx` using `marked` (block rendering)
+- [x] Create `ui-react/src/components/Markdown.tsx` using `marked` (block rendering)
 - [ ] Configure `marked` options like Svelte (`breaks`, `gfm`)
 - [ ] Create `ui-react/src/components/InlineMarkdown.tsx` using `marked.parse`
 - [ ] Strip `<p>` tags in InlineMarkdown exactly like Svelte (`/<\/??p>/g` equivalent)
