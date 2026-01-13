@@ -12,7 +12,7 @@ use weaver_semconv::{
         CommonFields,
     },
 };
-use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
+use weaver_version::v2::{DIFF_FILE_FORMAT, RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::v2::{
     attribute::Attribute,
@@ -25,6 +25,11 @@ use crate::v2::{
     span::{Span, SpanRefinement},
     stats::Stats,
 };
+
+/// Returns the file format version for v2 resolved schema.
+fn resolved_file_format() -> String {
+    "2.0.0/resolved".to_owned()
+}
 
 pub mod attribute;
 pub mod attribute_group;
@@ -44,11 +49,11 @@ pub mod stats;
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
+    #[serde(default = "resolved_file_format")]
     pub file_format: String,
-    /// Schema URL that this file is published at.
+    /// The URL of the registry that this schema belongs to.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub schema_url: String,
-    /// The ID of the registry that this schema belongs to.
-    pub registry_id: String,
     /// Catalog of attributes. Note: this will include duplicates for the same key.
     pub attribute_catalog: Vec<Attribute>,
     /// The registry that this schema belongs to.
@@ -80,6 +85,9 @@ impl ResolvedTelemetrySchema {
     #[must_use]
     fn registry_diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> RegistryChanges {
         RegistryChanges {
+            file_format: DIFF_FILE_FORMAT.to_owned(),
+            head_schema_url: self.schema_url.clone(),
+            baseline_schema_url: baseline_schema.schema_url.clone(),
             attribute_changes: self.registry_attribute_diff(baseline_schema),
             attribute_group_changes: diff_signals(
                 &self.registry.attribute_groups,
@@ -123,10 +131,8 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
         Ok(ResolvedTelemetrySchema {
-            // TODO - bump file format?
-            file_format: value.file_format,
+            file_format: resolved_file_format(),
             schema_url: value.schema_url,
-            registry_id: value.registry_id,
             attribute_catalog,
             registry,
             refinements,
@@ -499,7 +505,6 @@ pub fn convert_v1_to_v2(
     }
 
     let v2_registry = Registry {
-        registry_url: r.registry_url,
         attributes,
         spans,
         metrics,
@@ -999,9 +1004,8 @@ mod tests {
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();
         assert!(v2_schema.is_ok());
         let v2_schema = v2_schema.unwrap();
-        assert_eq!(v2_schema.file_format, "1.0.0");
+        assert_eq!(v2_schema.file_format, resolved_file_format());
         assert_eq!(v2_schema.schema_url, "my.schema.url");
-        assert_eq!(v2_schema.registry_id, "my-registry");
     }
 
     #[test]
@@ -1208,14 +1212,12 @@ mod tests {
     // create an empty schema for testing.
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
+            file_format: resolved_file_format(),
             schema_url: "my.schema.url".to_owned(),
-            registry_id: "main".to_owned(),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
-                registry_url: "todo".to_owned(),
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],

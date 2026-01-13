@@ -297,13 +297,13 @@ pub enum Error {
         error: String,
     },
 
-    /// This indicates the file version used is not yet stable.
-    #[error("Version `{version}` schema file format is not yet stable: {provenance}")]
+    /// This indicates the file file_format used is not yet stable.
+    #[error("File format `{file_format}` schema file format is not yet stable: {provenance}")]
     #[diagnostic(severity(Warning))]
     UnstableFileVersion {
-        /// The version specified.
-        version: String,
-        /// The source using that version.
+        /// The file_formatversion specified.
+        file_format: String,
+        /// The source using that file_format.
         provenance: String,
     },
 

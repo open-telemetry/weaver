@@ -14,10 +14,26 @@ pub struct SchemaChanges {
     pub registry: RegistryChanges,
 }
 
+/// The file format version for v2 diff schema.
+pub const DIFF_FILE_FORMAT: &str = "2.0.0/diff";
+
+fn diff_file_format() -> String {
+    DIFF_FILE_FORMAT.to_string()
+}
+
 /// A summary of changes to the registry of signals and attributes.
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RegistryChanges {
+    /// The file format version of the diff schema.
+    #[serde(default = "diff_file_format")]
+    pub file_format: String,
+    /// The schema URL that the current (head) schema is published at.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub head_schema_url: String,
+    /// The schema URL that the baseline schema is published at.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub baseline_schema_url: String,
     /// Changes across the registry of attributes.
     pub attribute_changes: Vec<SchemaItemChange>,
     /// Changes across the registry of attribute groups.

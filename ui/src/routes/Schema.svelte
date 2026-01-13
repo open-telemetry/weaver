@@ -7,7 +7,7 @@
   let loading = $state(true);
   let selectedDefinition = $state(null);
   let showRoot = $state(true);
-  let currentSchemaName = $state('ForgeRegistryV2');
+  let currentSchemaName = $state('MaterializedRegistryV2');
 
   // Fetch schema when schema parameter changes
   $effect(() => {
@@ -20,7 +20,7 @@
       const queryStart = hash.indexOf('?');
       const queryString = queryStart >= 0 ? hash.substring(queryStart + 1) : '';
       const params = new URLSearchParams(queryString);
-      const schemaParam = params.get('schema') || 'ForgeRegistryV2';
+      const schemaParam = params.get('schema') || 'MaterializedRegistryV2';
       currentSchemaName = schemaParam;
 
       try {

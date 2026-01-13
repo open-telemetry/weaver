@@ -508,7 +508,8 @@ mod tests {
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
+                file_format: "2.0.0/materialized".to_owned(),
+                schema_url: "TEST".to_owned(),
                 registry: Registry {
                     attributes: vec![
                         V2Attribute {
@@ -794,7 +795,8 @@ mod tests {
             };
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_METRICS".to_owned(),
+                file_format: "2.0.0/materialized".to_owned(),
+                schema_url: "TEST_METRICS".to_owned(),
                 registry: Registry {
                     attributes: vec![memory_state_attr.clone()],
                     attribute_groups: vec![],
@@ -1002,7 +1004,8 @@ mod tests {
             };
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
+                file_format: "2.0.0/materialized".to_owned(),
+                schema_url: "TEST".to_owned(),
 
                 registry: Registry {
                     attributes: vec![custom_string_attr.clone()],
@@ -1517,7 +1520,8 @@ mod tests {
             };
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_EVENTS".to_owned(),
+                file_format: "2.0.0/materialized".to_owned(),
+                schema_url: "TEST_EVENTS".to_owned(),
                 registry: Registry {
                     attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
                     attribute_groups: vec![],

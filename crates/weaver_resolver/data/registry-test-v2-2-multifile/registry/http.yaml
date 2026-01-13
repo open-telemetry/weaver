@@ -1,4 +1,4 @@
-version: "2"
+file_format: "2.0.0/definition"
 metrics:
   - name: http.server.request.duration
     brief: "Duration of HTTP server requests."
