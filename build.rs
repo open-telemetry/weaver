@@ -53,18 +53,15 @@ fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("cargo:warning=Building UI...");
 
-    // Install dependencies if node_modules doesn't exist
-    let node_modules = ui_dir.join("node_modules");
-    if !node_modules.exists() {
-        println!("cargo:warning=Installing UI dependencies...");
-        let status = Command::new(npm_cmd)
-            .arg("install")
-            .current_dir(ui_dir)
-            .status()?;
+    // Always update dependencies to exactly match latest package-lock.json
+    println!("cargo:warning=Checking UI dependencies...");
+    let status = Command::new(npm_cmd)
+        .arg("ci")
+        .current_dir(ui_dir)
+        .status()?;
 
-        if !status.success() {
-            return Err("Failed to install UI dependencies".into());
-        }
+    if !status.success() {
+        return Err("Failed to install UI dependencies".into());
     }
 
     // Build the UI

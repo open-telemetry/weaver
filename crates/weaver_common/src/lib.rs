@@ -4,6 +4,7 @@
 
 pub mod diagnostic;
 pub mod error;
+pub mod ordered_float;
 pub mod result;
 #[cfg(test)]
 pub mod test;

@@ -5,6 +5,7 @@
 //! - Running built-in and custom policies to provide advice on how to improve the telemetry.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
@@ -211,7 +212,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         VersionedRegistry::V1(resolved.into_template_schema())
     };
     // Create the live checker with advisors
-    let mut live_checker = LiveChecker::new(registry, default_advisors());
+    let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
