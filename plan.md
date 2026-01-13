@@ -141,7 +141,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 ### 8) Shared UI components (React parity)
 - [x] Create `ui-react/src/components/StabilityBadge.tsx` (same mapping + labels as Svelte)
 - [x] Create `ui-react/src/components/Markdown.tsx` using `marked` (block rendering)
-- [ ] Configure `marked` options like Svelte (`breaks`, `gfm`)
+- [x] Configure `marked` options like Svelte (`breaks`, `gfm`)
 - [ ] Create `ui-react/src/components/InlineMarkdown.tsx` using `marked.parse`
 - [ ] Strip `<p>` tags in InlineMarkdown exactly like Svelte (`/<\/??p>/g` equivalent)
 - [x] Create `ui-react/src/components/Pagination.tsx` matching Svelte pagination window + ellipses
