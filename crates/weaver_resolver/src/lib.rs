@@ -63,6 +63,29 @@ impl LoadedSemconvRegistry {
         matches!(self, LoadedSemconvRegistry::Unresolved { .. })
     }
 
+    /// The path representing this registry.
+    pub fn registry_path_repr(&self) -> &str {
+        match self {
+            LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
+            // TODO - are these correct?
+            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
+            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url,
+        }
+    }
+
+    /// Returns a SemConvRegistry of this loaded repository.
+    ///
+    /// Note: used for legacy stats checks, may be removed.
+    pub fn semconv_registry(&self) -> Result<Option<SemConvRegistry>, weaver_semconv::Error> {
+        match self {
+            LoadedSemconvRegistry::Unresolved { repo, specs, .. } => Ok(Some(
+                SemConvRegistry::from_semconv_specs(repo, specs.clone())?,
+            )),
+            LoadedSemconvRegistry::Resolved(_) => Ok(None),
+            LoadedSemconvRegistry::ResolvedV2(_) => Ok(None),
+        }
+    }
+
     /// Returns the depth of the dependency chain for this loaded repository.
     #[cfg(test)]
     pub fn dependency_depth(&self) -> u32 {

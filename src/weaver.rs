@@ -13,7 +13,7 @@ use weaver_common::vdir::VirtualDirectory;
 use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_resolver::SchemaResolver;
+use weaver_resolver::{LoadedSemconvRegistry, SchemaResolver};
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
@@ -69,15 +69,17 @@ impl<'a> WeaverEngine<'a> {
         repo: RegistryRepo,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Loaded, Error> {
-        let specs: Vec<SemConvSpecWithProvenance> =
-            load_semconv_specs(&repo, self.registry_config.follow_symlinks)
-                .capture_non_fatal_errors(diag_msgs)?;
+        // TODO - avoid cloning the repo here.
+        let loaded = SchemaResolver::load_semconv_repository(
+            repo.try_clone()?,
+            self.registry_config.follow_symlinks,
+        )
+        .capture_non_fatal_errors(diag_msgs)?;
 
         // Optionally init policy engine
         let policy_engine = prepare_policy_engine(self.policy_config, &repo)?;
         Ok(Loaded {
-            repo,
-            specs,
+            loaded,
             policy_engine,
         })
     }
@@ -90,13 +92,10 @@ impl<'a> WeaverEngine<'a> {
         loaded: Loaded,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Resolved, Error> {
-        let mut registry = SemConvRegistry::from_semconv_specs(&loaded.repo, loaded.specs)?;
-        // let registry_id = registry.id().to_owned();
-        let resolved = SchemaResolver::resolve_semantic_convention_registry(
-            &mut registry,
-            self.registry_config.include_unreferenced,
-        )
-        .capture_non_fatal_errors(diag_msgs)?;
+        let registry_path_repr: String = loaded.loaded.registry_path_repr().to_owned();
+        let resolved =
+            SchemaResolver::resolve(loaded.loaded, self.registry_config.include_unreferenced)
+                .capture_non_fatal_errors(diag_msgs)?;
 
         // This creates the template/json friendly registry.
         let template =
@@ -105,7 +104,7 @@ impl<'a> WeaverEngine<'a> {
         Ok(Resolved {
             resolved_schema: resolved,
             template_schema: template,
-            registry_path_repr: loaded.repo.registry_path_repr().to_owned(),
+            registry_path_repr,
             policy_engine: loaded.policy_engine,
         })
     }
@@ -115,8 +114,7 @@ impl<'a> WeaverEngine<'a> {
 ///
 /// Contains the repository definition and raw files and an optional policy engine with policies for this repo.
 pub struct Loaded {
-    repo: RegistryRepo,
-    specs: Vec<SemConvSpecWithProvenance>,
+    loaded: LoadedSemconvRegistry,
     policy_engine: Option<Engine>,
 }
 impl Loaded {
@@ -134,17 +132,26 @@ impl Loaded {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<(), Error> {
         if let Some(policy_engine) = self.policy_engine.as_ref() {
-            check_policy(policy_engine, &self.specs).capture_non_fatal_errors(diag_msgs)?;
+            match &self.loaded {
+                LoadedSemconvRegistry::Unresolved { specs, .. } => {
+                    check_policy(policy_engine, specs).capture_non_fatal_errors(diag_msgs)?;
+                }
+                // We can't check polices on resolved registries.
+                // TODO - Issue a warning of some such.
+                _ => (),
+            }
         }
         Ok(())
     }
 
     /// Return a "raw" registry for the legacy V1 stats.
     pub fn semconv_registry(&self) -> Result<SemConvRegistry, Error> {
-        Ok(SemConvRegistry::from_semconv_specs(
-            &self.repo,
-            self.specs.clone(),
-        )?)
+        // TODO - issue an error if we can't convert semconv registry.
+        match self.loaded.semconv_registry()? {
+            Some(r) => Ok(r),
+            // TODO - make abetter error.
+            None => todo!(),
+        }
     }
 }
 

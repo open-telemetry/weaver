@@ -10,7 +10,7 @@ use weaver_common::{
 use weaver_forge::{registry::ResolvedGroup, TemplateEngine};
 use weaver_resolved_schema::{catalog::Catalog, registry::Group, ResolvedTelemetrySchema};
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::{registry::SemConvRegistry, registry_repo::RegistryRepo};
+use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::{parser::GenerateMarkdownArgs, Error, MarkdownSnippetGenerator};
 
@@ -65,22 +65,19 @@ impl ResolvedSemconvRegistry {
         follow_symlinks: bool,
         include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let semconv_specs =
-            match SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks) {
-                WResult::Ok(semconv_specs) => semconv_specs,
-                WResult::OkWithNFEs(semconv_specs, errs) => {
-                    diag_msgs
-                        .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
-                    semconv_specs
-                }
-                WResult::FatalErr(err) => return Err(err.into()),
-            };
-
-        let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)?;
-        let schema = match SchemaResolver::resolve_semantic_convention_registry(
-            &mut registry,
-            include_unreferenced,
+        let loaded = match SchemaResolver::load_semconv_repository(
+            registry_repo.try_clone()?,
+            follow_symlinks,
         ) {
+            WResult::Ok(semconv_specs) => semconv_specs,
+            WResult::OkWithNFEs(semconv_specs, errs) => {
+                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                semconv_specs
+            }
+            WResult::FatalErr(err) => return Err(err.into()),
+        };
+
+        let schema = match SchemaResolver::resolve(loaded, include_unreferenced) {
             WResult::Ok(schema) => schema,
             WResult::OkWithNFEs(schema, errs) => {
                 diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
