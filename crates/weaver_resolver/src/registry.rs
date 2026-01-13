@@ -131,7 +131,7 @@ pub(crate) fn resolve_registry_with_dependencies(
     // We need to *import* objects from the dependencies as required.
     // If the flag to pull in all dependencies is set, we should grab ALL
     // groups from our dependency.
-    if let Err(e) = resolve_dependeny_imports(&mut ureg, include_unreferenced) {
+    if let Err(e) = resolve_dependeny_imports(&mut ureg, attr_catalog, include_unreferenced) {
         return WResult::FatalErr(e);
     }
 
@@ -147,6 +147,11 @@ pub(crate) fn resolve_registry_with_dependencies(
             g.group
         })
         .collect();
+
+    println!("Post sorting - register [{}]", ureg.registry.registry_url);
+    for g in ureg.registry.groups.iter() {
+        println!(" - {}", &g.id);
+    }
 
     // Now we do validations.
     let mut errors = vec![];
@@ -589,13 +594,24 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 /// from all dependencies.
 fn resolve_dependeny_imports(
     ureg: &mut UnresolvedRegistry,
+    attribute_catalog: &mut AttributeCatalog,
     include_all: bool,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
-    let groups = dependencies.import_groups(imports, include_all)?;
-    ureg.registry.groups.extend(groups);
+    let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
+    for group in groups {
+        ureg.groups.push(UnresolvedGroup {
+            group,
+            attributes: vec![],
+            include_groups: vec![],
+            visibility: None,
+            // TODO
+            provenance: Provenance::undefined(),
+        })
+    }
+    // ureg.registry.groups.extend(groups);
     Ok(())
 }
 

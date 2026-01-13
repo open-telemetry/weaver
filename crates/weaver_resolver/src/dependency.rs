@@ -2,14 +2,15 @@
 
 //! Helpers to handle reading from dependencies.
 
+use globset::GlobSet;
 use serde::Deserialize;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 
-use crate::Error;
+use crate::{attribute::AttributeCatalog, Error};
 
 /// A Resolved dependency, for which we can look up items.
 #[derive(Debug, Deserialize)]
@@ -37,6 +38,7 @@ pub(crate) trait ImportableDependency {
         &self,
         imports: &[ImportsWithProvenance],
         include_all: bool,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error>;
 }
 
@@ -45,8 +47,76 @@ impl ImportableDependency for V1Schema {
         &self,
         imports: &[ImportsWithProvenance],
         include_all: bool,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        todo!()
+        println!("Importing Dependencies from {}", self.registry_id);
+        let build_globset = |wildcards: Option<&Vec<GroupWildcard>>| {
+            let mut builder = GlobSet::builder();
+            if let Some(wildcards_vec) = wildcards {
+                for wildcard in wildcards_vec.iter() {
+                    _ = builder.add(wildcard.0.clone());
+                }
+            }
+            builder.build().map_err(|e| Error::InvalidWildcard {
+                error: e.to_string(),
+            })
+        };
+
+        // Filter imports to only include those from the current registry
+        // TODO - we shouldn't need to do anything because new reoslutions does this.
+        let current_registry_imports: Vec<_> = imports.iter().collect();
+
+        let metrics_imports_matcher = build_globset(
+            current_registry_imports
+                .iter()
+                .find_map(|i| i.imports.metrics.as_ref()),
+        )?;
+        let events_imports_matcher = build_globset(
+            current_registry_imports
+                .iter()
+                .find_map(|i| i.imports.events.as_ref()),
+        )?;
+        let entities_imports_matcher = build_globset(
+            current_registry_imports
+                .iter()
+                .find_map(|i| i.imports.entities.as_ref()),
+        )?;
+
+        let filter = move |g: &Group| {
+            include_all
+                || match g.r#type {
+                    // TODO - support importing attribute groups.
+                    weaver_semconv::group::GroupType::AttributeGroup => false,
+                    // TODO - support importing spans.
+                    weaver_semconv::group::GroupType::Span => false,
+                    weaver_semconv::group::GroupType::Event => g
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
+                    weaver_semconv::group::GroupType::Metric => {
+                        g.metric_name.as_ref().is_some_and(|metric_name| {
+                            metrics_imports_matcher.is_match(metric_name.as_str())
+                        })
+                    }
+                    weaver_semconv::group::GroupType::MetricGroup => false,
+                    weaver_semconv::group::GroupType::Entity => g
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
+                    weaver_semconv::group::GroupType::Scope => false,
+                    weaver_semconv::group::GroupType::Undefined => false,
+                }
+        };
+        // TODO - we need to fix all the group references
+        // to use the attribute catalog of ureg.
+        Ok(self
+            .registry
+            .groups
+            .iter()
+            .filter(|g| filter(g))
+            .cloned()
+            .inspect(|g| println!("- Importing group: {}", &g.id))
+            .collect())
     }
 }
 
@@ -55,8 +125,9 @@ impl ImportableDependency for V2Schema {
         &self,
         imports: &[ImportsWithProvenance],
         include_all: bool,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        todo!()
+        todo!("Support V2 schema dependency resolution.")
     }
 }
 
@@ -65,10 +136,15 @@ impl ImportableDependency for ResolvedDependency {
         &self,
         imports: &[ImportsWithProvenance],
         include_all: bool,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         match self {
-            ResolvedDependency::V1(schema) => schema.import_groups(imports, include_all),
-            ResolvedDependency::V2(schema) => schema.import_groups(imports, include_all),
+            ResolvedDependency::V1(schema) => {
+                schema.import_groups(imports, include_all, attribute_catalog)
+            }
+            ResolvedDependency::V2(schema) => {
+                schema.import_groups(imports, include_all, attribute_catalog)
+            }
         }
     }
 }
@@ -79,9 +155,10 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         &self,
         imports: &[ImportsWithProvenance],
         include_all: bool,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         self.iter()
-            .map(|d| d.import_groups(imports, include_all))
+            .map(|d| d.import_groups(imports, include_all, attribute_catalog))
             .try_fold(vec![], |mut result, next| {
                 result.extend(next?);
                 Ok(result)
