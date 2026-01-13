@@ -61,3 +61,23 @@
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
 }
+
+.inline-markdown code {
+  background-color: hsl(var(--b3));
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.inline-markdown a {
+  color: hsl(var(--p));
+  text-decoration: underline;
+}
+
+.inline-markdown strong {
+  font-weight: 600;
+}
+
+.inline-markdown em {
+  font-style: italic;
+}
