@@ -2,7 +2,7 @@
 
 //! A build script to generate the gRPC OTLP receiver API (client and server stubs.
 
-use std::{path::Path, time::SystemTime};
+use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The gRPC OTLP Receiver is vendored in `src/otlp_receiver/receiver` to avoid
@@ -25,64 +25,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //         &["src/registry/otlp/proto"],
     //     )?;
 
-    // Build the UI
-    check_ui()?;
+    // Build the React UI (ui-react/)
+    build_ui()?;
 
     Ok(())
 }
 
-fn timestamp(dir: walkdir::DirEntry) -> Result<SystemTime, Box<dyn std::error::Error>> {
-    let md = dir.metadata()?;
-    Ok(md.modified()?)
-}
+fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
+    let ui_dir = std::path::Path::new("ui-react");
 
-/// Helper function to determine if package-lock file is out of date.
-fn is_package_lock_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
-    let lock_timestamp = dir.join("pnpm-lock.yaml").metadata()?.modified()?;
-    let package_timestamp = dir.join("package.json").metadata()?.modified()?;
-    if package_timestamp > lock_timestamp {
-        return Ok(true);
-    }
-    Ok(false)
-}
+    // Get the npm command - on Windows it's npm.cmd, on Unix it's npm
+    let npm_cmd = if cfg!(target_os = "windows") {
+        "npm.cmd"
+    } else {
+        "npm"
+    };
 
-/// Helper function to determine if NPM project is out of date.
-fn is_ui_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
-    // If any output directories don't exist, rebuild.
-    if !dir.join("dist").exists() {
-        return Ok(true);
-    }
-    if !dir.join("node_modules").exists() {
-        return Ok(true);
-    }
-    // Now check source files. This may be a bit expensive, as we continuously check last modified.
-    let last_build = dir.join("dist/index.html").metadata()?.modified()?;
-    let lock_timestamp = dir.join("pnpm-lock.yaml").metadata()?.modified()?;
-    if lock_timestamp > last_build {
-        return Ok(true);
-    }
-    for entry in walkdir::WalkDir::new(dir.join("src")) {
-        if timestamp(entry?)? > last_build {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
+    // Check if npm is available
+    let npm_check = Command::new(npm_cmd).arg("--version").output();
 
-fn check_ui() -> Result<(), Box<dyn std::error::Error>> {
-    let ui_dir = Path::new("ui");
-
-    // Check if UI is out of date before running.
-    if is_ui_stale(ui_dir)? {
-        println!("cargo::warning=Weaver UI is out of date. Please run `pnpm build` in the `ui` directory.");
-        return Ok(());
+    if npm_check.is_err() {
+        return Err(
+            "npm not found. Please install Node.js and npm from https://nodejs.org/ to build this project."
+                .into(),
+        );
     }
 
-    // Check if we need to install packages.
-    if is_package_lock_stale(ui_dir)? {
-        println!("cargo::warning=Weaver `ui/pnpm-lock.yaml` is out of date. Please run `pnpm install` in the `ui` directory.");
-        return Ok(());
+    println!("cargo:warning=Building UI...");
+
+    // Always update dependencies to exactly match latest package-lock.json
+    println!("cargo:warning=Checking UI dependencies...");
+    let status = Command::new(npm_cmd)
+        .arg("ci")
+        .current_dir(ui_dir)
+        .status()?;
+
+    if !status.success() {
+        return Err("Failed to install UI dependencies".into());
     }
+
+    // Build the UI
+    let status = Command::new(npm_cmd)
+        .arg("run")
+        .arg("build")
+        .current_dir(ui_dir)
+        .status()?;
+
+    if !status.success() {
+        return Err("Failed to build UI".into());
+    }
+
+    println!("cargo:warning=UI build complete");
 
     Ok(())
 }
