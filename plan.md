@@ -163,12 +163,12 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Ensure links to detail pages match Svelte route scheme
 
 ### 10) Page: Stats (`/stats`) — strict parity
-- [ ] Create Stats route component
-- [ ] Fetch `getRegistryStats()` on mount
-- [ ] Render loading spinner parity
-- [ ] Render error alert parity
-- [ ] Render stats cards (Attributes/Metrics/Spans/Events/Entities)
-- [ ] Ensure each stat card link matches Svelte search link query usage
+- [x] Create Stats route component
+- [x] Fetch `getRegistryStats()` on mount
+- [x] Render loading spinner parity
+- [x] Render error alert parity
+- [x] Render stats cards (Attributes/Metrics/Spans/Events/Entities)
+- [x] Ensure each stat card link matches Svelte search link query usage
 
 ### 11) Detail pages — strict parity
 
