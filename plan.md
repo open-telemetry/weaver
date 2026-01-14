@@ -221,12 +221,12 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Verify browser back/forward behavior parity
 
 ### 13) Page: API Docs (`/api-docs`) — strict parity
-- [ ] Create API Docs route component
-- [ ] Load RapiDoc via CDN script (allowed)
-- [ ] Render `<rapi-doc>` with `spec-url="/api/v1/openapi.json"`
-- [ ] Implement theme sync via MutationObserver on `data-theme`
-- [ ] Port the exact light/dark color attributes mapping from Svelte
-- [ ] Ensure layout sizing/positioning matches Svelte (navbar + sidebar offsets)
+- [x] Create API Docs route component
+- [x] Load RapiDoc via CDN script (allowed)
+- [x] Render `<rapi-doc>` with `spec-url="/api/v1/openapi.json"`
+- [x] Implement theme sync via MutationObserver on `data-theme`
+- [x] Port the exact light/dark color attributes mapping from Svelte
+- [x] Ensure layout sizing/positioning matches Svelte (navbar + sidebar offsets)
 
 ### 14) Parity verification (manual, no tests)
 - [ ] Build `ui-react` and run `preview`, smoke-test all routes
