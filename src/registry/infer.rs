@@ -334,8 +334,8 @@ impl AccumulatedSamples {
             attributes.sort_by(|a, b| a.id.cmp(&b.id));
 
             groups.push(YamlGroup {
-                id: "resource".to_string(),
-                r#type: "resource".to_string(),
+                id: "resource".to_owned(),
+                r#type: "resource".to_owned(),
                 brief: String::new(),
                 span_kind: None,
                 metric_name: None,
@@ -362,7 +362,7 @@ impl AccumulatedSamples {
 
             groups.push(YamlGroup {
                 id: format!("span.{}", sanitize_id(&span.name)),
-                r#type: "span".to_string(),
+                r#type: "span".to_owned(),
                 brief: String::new(),
                 span_kind: Some(span_kind_to_string(&span.kind)),
                 metric_name: None,
@@ -388,7 +388,7 @@ impl AccumulatedSamples {
 
                 groups.push(YamlGroup {
                     id: format!("span_event.{}", sanitize_id(&event.name)),
-                    r#type: "event".to_string(),
+                    r#type: "event".to_owned(),
                     brief: String::new(),
                     span_kind: None,
                     metric_name: None,
@@ -416,7 +416,7 @@ impl AccumulatedSamples {
 
             groups.push(YamlGroup {
                 id: format!("metric.{}", sanitize_id(&metric.name)),
-                r#type: "metric".to_string(),
+                r#type: "metric".to_owned(),
                 brief: String::new(),
                 span_kind: None,
                 metric_name: Some(metric.name.clone()),
@@ -447,7 +447,7 @@ impl AccumulatedSamples {
 
             groups.push(YamlGroup {
                 id: format!("event.{}", sanitize_id(&event.name)),
-                r#type: "event".to_string(),
+                r#type: "event".to_owned(),
                 brief: String::new(),
                 span_kind: None,
                 metric_name: None,
@@ -497,34 +497,34 @@ struct YamlAttribute {
 
 fn type_to_string(t: &Option<PrimitiveOrArrayTypeSpec>) -> String {
     match t {
-        Some(PrimitiveOrArrayTypeSpec::Boolean) => "boolean".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Int) => "int".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Double) => "double".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::String) => "string".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Booleans) => "boolean[]".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Ints) => "int[]".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Doubles) => "double[]".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Strings) => "string[]".to_string(),
-        Some(PrimitiveOrArrayTypeSpec::Any) | None => "string".to_string(),
+        Some(PrimitiveOrArrayTypeSpec::Boolean) => "boolean".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Int) => "int".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Double) => "double".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::String) => "string".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Booleans) => "boolean[]".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Ints) => "int[]".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Doubles) => "double[]".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Strings) => "string[]".to_owned(),
+        Some(PrimitiveOrArrayTypeSpec::Any) | None => "string".to_owned(),
     }
 }
 
 fn span_kind_to_string(kind: &SpanKindSpec) -> String {
     match kind {
-        SpanKindSpec::Internal => "internal".to_string(),
-        SpanKindSpec::Client => "client".to_string(),
-        SpanKindSpec::Server => "server".to_string(),
-        SpanKindSpec::Producer => "producer".to_string(),
-        SpanKindSpec::Consumer => "consumer".to_string(),
+        SpanKindSpec::Internal => "internal".to_owned(),
+        SpanKindSpec::Client => "client".to_owned(),
+        SpanKindSpec::Server => "server".to_owned(),
+        SpanKindSpec::Producer => "producer".to_owned(),
+        SpanKindSpec::Consumer => "consumer".to_owned(),
     }
 }
 
 fn instrument_to_string(instrument: &Option<InstrumentSpec>) -> Option<String> {
     instrument.as_ref().map(|i| match i {
-        InstrumentSpec::Counter => "counter".to_string(),
-        InstrumentSpec::UpDownCounter => "updowncounter".to_string(),
-        InstrumentSpec::Gauge => "gauge".to_string(),
-        InstrumentSpec::Histogram => "histogram".to_string(),
+        InstrumentSpec::Counter => "counter".to_owned(),
+        InstrumentSpec::UpDownCounter => "updowncounter".to_owned(),
+        InstrumentSpec::Gauge => "gauge".to_owned(),
+        InstrumentSpec::Histogram => "histogram".to_owned(),
     })
 }
 
@@ -532,7 +532,7 @@ fn sanitize_id(name: &str) -> String {
     name.replace(['/', ' ', '-', '.'], "_")
         .to_lowercase()
         .trim_matches('_')
-        .to_string()
+        .to_owned()
 }
 
 fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSamples) -> bool {
