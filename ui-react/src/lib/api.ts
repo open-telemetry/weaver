@@ -93,3 +93,7 @@ export async function search(
   if (offset) searchParams.set('offset', offset.toString());
   return fetchJSON<SearchResponse>(`${BASE_URL}/registry/search?${searchParams.toString()}`);
 }
+
+export async function getSchema(name: string): Promise<unknown> {
+  return fetchJSON(`${BASE_URL}/schema/${encodeURIComponent(name)}`);
+}
