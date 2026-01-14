@@ -240,7 +240,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Verify strict parity for: theme persistence + RapiDoc theme update
 - [x] Ensure `ui/` build continues unchanged
 - [x] Ensure `ui-react/` build output stays `ui-react/dist`
-- [ ] Document how to run/build each app separately (`ui/` vs `ui-react/`)
+- [x] Document how to run/build each app separately (`ui/` vs `ui-react/`)
 
 ### 15) Keep apps separated (side-by-side)
 - [ ] Ensure `ui/` build continues unchanged
