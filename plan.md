@@ -225,7 +225,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Ensure layout sizing/positioning matches Svelte (navbar + sidebar offsets)
 
 ### 14) Parity verification (manual, no tests)
-- [ ] Build `ui-react` and run `preview`, smoke-test all routes
+- [x] Build `ui-react` and run `preview`, smoke-test all routes
 - [ ] Verify strict parity for: Search filters, pagination, link targets
 - [ ] Verify strict parity for: detail pages tables + deprecated behavior
 - [ ] Verify strict parity for: Schema page navigation and query params
