@@ -9,11 +9,17 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export interface RegistryStats {
+  registry_url: string;
+  counts: RegistryCounts;
+}
+
+export interface RegistryCounts {
   attributes: number;
   metrics: number;
   spans: number;
   events: number;
   entities: number;
+  attribute_groups: number;
 }
 
 export interface SearchResult {
