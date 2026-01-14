@@ -23,21 +23,35 @@ export interface RegistryCounts {
 }
 
 export interface SearchResult {
-  id: string;
-  type: 'attribute' | 'metric' | 'span' | 'event' | 'entity';
-  brief?: string;
-  stability: string;
+  result_type: 'attribute' | 'metric' | 'span' | 'event' | 'entity';
+  score: number;
+  stability?: Exclude<StabilityFilter, null>;
   deprecated?: boolean;
+  brief?: string;
+  key?: string;
+  name?: string;
+  type?: unknown;
+  instrument?: string;
+  unit?: string;
+  kind?: string;
 }
 
 export interface SearchResponse {
-  items: SearchResult[];
+  query: string | null;
   total: number;
+  count: number;
   offset: number;
-  limit: number;
+  results: SearchResult[];
 }
 
-export type StabilityFilter = 'stable' | 'development' | 'alpha' | 'beta' | null;
+export type StabilityFilter =
+  | 'stable'
+  | 'development'
+  | 'alpha'
+  | 'beta'
+  | 'release_candidate'
+  | 'deprecated'
+  | null;
 export type TypeFilter = 'all' | 'attribute' | 'metric' | 'span' | 'event' | 'entity';
 
 export async function getRegistryStats(): Promise<RegistryStats> {
