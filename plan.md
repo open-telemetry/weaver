@@ -186,11 +186,11 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Render attributes table parity (requirement level badge rules)
 
 #### Span (`/span/:type`)
-- [ ] Create Span detail route component
-- [ ] Fetch span by type
-- [ ] Implement copy-to-clipboard parity
-- [ ] Render kind badge parity (default `internal`)
-- [ ] Render attributes table parity (sampling relevant indicator)
+- [x] Create Span detail route component
+- [x] Fetch span by type
+- [x] Implement copy-to-clipboard parity
+- [x] Render kind badge parity (default `internal`)
+- [x] Render attributes table parity (sampling relevant indicator)
 
 #### Event (`/event/:name`)
 - [ ] Create Event detail route component
