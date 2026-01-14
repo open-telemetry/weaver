@@ -251,7 +251,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Update Rust embed from `ui/dist` to `ui-react/dist` (in `src/serve/ui.rs`)
 - [x] Update any server-side docs/comments referencing `ui/` build
 - [x] Confirm SPA fallback works with TanStack Router + chosen routing mode
-- [ ] Delete `ui/` after cutover is complete and verified
+- [x] Delete `ui/` after cutover is complete and verified
 
 ### 17) Additional Notes
 - [x] Note: Both apps share the same Tailwind + DaisyUI styling and API endpoints
