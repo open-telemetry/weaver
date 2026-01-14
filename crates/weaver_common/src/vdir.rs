@@ -53,6 +53,7 @@ use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tempfile::TempDir;
 
@@ -267,7 +268,7 @@ impl Display for VirtualDirectoryPath {
 /// - Downloading and extracting an archive into a temporary cache directory.
 ///
 /// Temporary directories are managed and automatically cleaned up when this struct goes out of scope.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct VirtualDirectory {
     /// The original string representation used to create this virtual directory.
     vdir_path: String,
@@ -279,7 +280,7 @@ pub struct VirtualDirectory {
     /// Holds the `TempDir` instance, ensuring the temporary directory (if created)
     /// persists for the lifetime of `VirtualDirectory` and is cleaned up afterwards.
     #[allow(dead_code)]
-    tmp_dir: Option<TempDir>,
+    tmp_dir: Arc<Option<TempDir>>,
 }
 
 impl VirtualDirectory {
@@ -297,7 +298,7 @@ impl VirtualDirectory {
             LocalFolder { path } => Ok(Self {
                 vdir_path: vdir_path_repr,
                 path: path.into(),
-                tmp_dir: None,
+                tmp_dir: Arc::new(None),
             }),
             GitRepo {
                 url, sub_folder, ..
@@ -391,7 +392,7 @@ impl VirtualDirectory {
         Ok(Self {
             vdir_path,
             path,
-            tmp_dir: Some(tmp_dir),
+            tmp_dir: Arc::new(Some(tmp_dir)),
         })
     }
 
@@ -439,7 +440,7 @@ impl VirtualDirectory {
         Ok(Self {
             vdir_path,
             path: target_path_buf,
-            tmp_dir: Some(target_dir),
+            tmp_dir: Arc::new(Some(target_dir)),
         })
     }
 

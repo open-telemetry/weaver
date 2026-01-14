@@ -2,98 +2,18 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "attributes.http.common",
-      "type": "attribute_group",
-      "brief": "Describes HTTP attributes.",
-      "attributes": [
-        62,
-        63,
-        64,
-        65,
-        66
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-3-extends/registry/http-common.yaml"
-        },
-        "attributes": {
-          "error.type": {
-            "source_group": "registry.error",
-            "inherited_fields": [
-              "brief",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "http.request.method": {
-            "source_group": "registry.http",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "http.response.status_code": {
-            "source_group": "registry.http",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.protocol.name": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          "network.protocol.version": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples"
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "attributes.http.client",
       "type": "attribute_group",
       "brief": "HTTP Client attributes",
       "attributes": [
-        62,
-        63,
-        64,
-        65,
-        66,
-        67,
-        68,
-        69
+        5,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
       ],
       "lineage": {
         "provenance": {
@@ -202,19 +122,99 @@
       }
     },
     {
+      "id": "attributes.http.common",
+      "type": "attribute_group",
+      "brief": "Describes HTTP attributes.",
+      "attributes": [
+        71,
+        72,
+        73,
+        74,
+        75
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/http-common.yaml"
+        },
+        "attributes": {
+          "error.type": {
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
+          },
+          "http.request.method": {
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "http.response.status_code": {
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples"
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": "attributes.http.server",
       "type": "attribute_group",
       "brief": "HTTP Server attributes",
       "attributes": [
-        62,
-        63,
-        64,
-        65,
-        66,
-        70,
+        6,
         71,
         72,
-        73
+        73,
+        74,
+        75,
+        78,
+        79,
+        80
       ],
       "lineage": {
         "provenance": {
@@ -339,12 +339,12 @@
       "type": "attribute_group",
       "brief": "Common messaging attributes.",
       "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78
+        17,
+        49,
+        50,
+        51,
+        69,
+        70
       ],
       "lineage": {
         "provenance": {
@@ -431,14 +431,14 @@
       "type": "attribute_group",
       "brief": "Common messaging metrics attributes.",
       "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
       ],
       "lineage": {
         "provenance": {
@@ -546,267 +546,267 @@
       }
     },
     {
-      "id": "metric.messaging.publish.duration",
-      "type": "metric",
-      "brief": "Measures the duration of publish operation.",
-      "stability": "development",
-      "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
-      ],
-      "metric_name": "messaging.publish.duration",
-      "instrument": "histogram",
-      "unit": "s",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
-        },
-        "extends_group": "metric.messaging.attributes",
-        "attributes": {
-          "error.type": {
-            "source_group": "registry.error",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          "messaging.destination.name": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "messaging.destination.template": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "messaging.system": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.protocol.name": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          "network.protocol.version": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          "server.address": {
-            "source_group": "server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.messaging.receive.duration",
-      "type": "metric",
-      "brief": "Measures the duration of receive operation.",
-      "stability": "development",
-      "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
-      ],
-      "metric_name": "messaging.receive.duration",
-      "instrument": "histogram",
-      "unit": "s",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
-        },
-        "extends_group": "metric.messaging.attributes",
-        "attributes": {
-          "error.type": {
-            "source_group": "registry.error",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          "messaging.destination.name": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "messaging.destination.template": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "messaging.system": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.protocol.name": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          "network.protocol.version": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          "server.address": {
-            "source_group": "server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "metric.messaging.deliver.duration",
       "type": "metric",
       "brief": "Measures the duration of deliver operation.",
       "stability": "development",
       "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
       ],
       "metric_name": "messaging.deliver.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
+        },
+        "extends_group": "metric.messaging.attributes",
+        "attributes": {
+          "error.type": {
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          "messaging.destination.name": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "messaging.destination.template": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "messaging.system": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.deliver.messages",
+      "type": "metric",
+      "brief": "Measures the number of delivered messages.",
+      "stability": "development",
+      "attributes": [
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
+      ],
+      "metric_name": "messaging.deliver.messages",
+      "instrument": "counter",
+      "unit": "{message}",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
+        },
+        "extends_group": "metric.messaging.attributes",
+        "attributes": {
+          "error.type": {
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          "messaging.destination.name": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "messaging.destination.template": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "messaging.system": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.publish.duration",
+      "type": "metric",
+      "brief": "Measures the duration of publish operation.",
+      "stability": "development",
+      "attributes": [
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
+      ],
+      "metric_name": "messaging.publish.duration",
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
@@ -920,18 +920,141 @@
       "brief": "Measures the number of published messages.",
       "stability": "development",
       "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
       ],
       "metric_name": "messaging.publish.messages",
       "instrument": "counter",
       "unit": "{message}",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
+        },
+        "extends_group": "metric.messaging.attributes",
+        "attributes": {
+          "error.type": {
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          "messaging.destination.name": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "messaging.destination.template": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "messaging.system": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.receive.duration",
+      "type": "metric",
+      "brief": "Measures the duration of receive operation.",
+      "stability": "development",
+      "attributes": [
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
+      ],
+      "metric_name": "messaging.receive.duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": {
           "registry_id": "default",
@@ -1043,139 +1166,16 @@
       "brief": "Measures the number of received messages.",
       "stability": "development",
       "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
+        17,
+        49,
+        50,
+        51,
+        67,
+        68,
+        69,
+        70
       ],
       "metric_name": "messaging.receive.messages",
-      "instrument": "counter",
-      "unit": "{message}",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
-        },
-        "extends_group": "metric.messaging.attributes",
-        "attributes": {
-          "error.type": {
-            "source_group": "registry.error",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          "messaging.destination.name": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "messaging.destination.template": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "messaging.system": {
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.protocol.name": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          "network.protocol.version": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          "server.address": {
-            "source_group": "server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.messaging.deliver.messages",
-      "type": "metric",
-      "brief": "Measures the number of delivered messages.",
-      "stability": "development",
-      "attributes": [
-        56,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80
-      ],
-      "metric_name": "messaging.deliver.messages",
       "instrument": "counter",
       "unit": "{message}",
       "lineage": {
@@ -1288,7 +1288,7 @@
       "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report an error.\n",
       "attributes": [
-        0
+        48
       ],
       "lineage": {
         "provenance": {
@@ -1302,15 +1302,15 @@
       "type": "attribute_group",
       "brief": "This document defines semantic convention attributes in the HTTP namespace.",
       "attributes": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
         7,
         8,
-        9
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
       ],
       "lineage": {
         "provenance": {
@@ -1324,14 +1324,6 @@
       "type": "attribute_group",
       "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
       "attributes": [
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
         18,
         19,
         20,
@@ -1353,7 +1345,15 @@
         36,
         37,
         38,
-        39
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
       ],
       "lineage": {
         "provenance": {
@@ -1367,21 +1367,21 @@
       "type": "attribute_group",
       "brief": "These attributes may be used for any network related operation.\n",
       "attributes": [
-        40,
-        41,
-        42,
-        43,
-        44,
-        45,
-        46,
-        47,
-        48,
-        49,
-        50,
-        51,
         52,
         53,
-        54
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66
       ],
       "lineage": {
         "provenance": {
@@ -1391,35 +1391,35 @@
       }
     },
     {
-      "id": "server",
-      "type": "attribute_group",
-      "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
-      "attributes": [
-        55,
-        56
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-3-extends/registry/registry-server.yaml"
-        }
-      }
-    },
-    {
       "id": "registry.url",
       "type": "attribute_group",
       "brief": "Attributes describing URL.",
       "attributes": [
-        57,
-        58,
-        59,
-        60,
-        61
+        0,
+        1,
+        2,
+        3,
+        4
       ],
       "lineage": {
         "provenance": {
           "registry_id": "default",
           "path": "data/registry-test-3-extends/registry/registry-url.yaml"
+        }
+      }
+    },
+    {
+      "id": "server",
+      "type": "attribute_group",
+      "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
+      "attributes": [
+        16,
+        17
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/registry-server.yaml"
         }
       }
     }

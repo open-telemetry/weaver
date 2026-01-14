@@ -16,22 +16,6 @@
       }
     },
     {
-      "id": "registry.xyz",
-      "type": "attribute_group",
-      "brief": "Just a registry of attributes",
-      "attributes": [
-        1,
-        2,
-        3
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-lineage-2/registry/groups.yaml"
-        }
-      }
-    },
-    {
       "id": "intermediate.level",
       "type": "attribute_group",
       "brief": "Intermediate level",
@@ -58,6 +42,22 @@
               "requirement_level"
             ]
           }
+        }
+      }
+    },
+    {
+      "id": "registry.xyz",
+      "type": "attribute_group",
+      "brief": "Just a registry of attributes",
+      "attributes": [
+        1,
+        2,
+        3
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-2/registry/groups.yaml"
         }
       }
     },

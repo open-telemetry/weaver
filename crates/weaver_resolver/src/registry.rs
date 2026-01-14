@@ -139,10 +139,12 @@ pub(crate) fn resolve_registry_with_dependencies(
     let mut errors = vec![];
     let attr_name_index = attr_catalog.attribute_name_index();
 
+    let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg);
+
     // Other complementary checks.
     // Check for duplicate group IDs.
     check_uniqueness(
-        &ureg.registry,
+        &result,
         &mut errors,
         |group| Some(group.id.clone()),
         |group_id, provenances| DuplicateGroupId {
@@ -152,7 +154,7 @@ pub(crate) fn resolve_registry_with_dependencies(
     );
     // Check for duplicate metric names.
     check_uniqueness(
-        &ureg.registry,
+        &result,
         &mut errors,
         |group| group.metric_name.clone(),
         |metric_name, provenances| DuplicateMetricName {
@@ -162,7 +164,7 @@ pub(crate) fn resolve_registry_with_dependencies(
     );
     // Check for duplicate group names.
     check_uniqueness(
-        &ureg.registry,
+        &result,
         &mut errors,
         |group| group.name.clone(),
         |group_name, provenances| DuplicateGroupName {
@@ -170,9 +172,7 @@ pub(crate) fn resolve_registry_with_dependencies(
             provenances,
         },
     );
-    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
-
-    let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg);
+    check_root_attribute_id_duplicates(&result, &attr_name_index, &mut errors);
 
     WResult::OkWithNFEs(result, errors)
 }
@@ -1138,7 +1138,16 @@ mod tests {
     #[test]
     #[allow(clippy::print_stdout)]
     fn test_registry_resolution() {
-        let skip_tests = vec!["registry-test-10-duplicate-attr-name"];
+        let skip_tests: Vec<&str> = vec![
+            // "registry-test-10-prefix-refs",
+            // "registry-test-11-prefix-refs-extends",
+            // "registry-test-3-extends",
+            // "registry-test-4-events",
+            // "registry-test-6-resources",
+            // "registry-test-7-spans",
+            // "registry-test-8-http",
+            // "registry-test-v2-2-multifile",
+        ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
         for test_entry in glob("data/registry-test-*").expect("Failed to read glob pattern") {
@@ -1163,10 +1172,9 @@ mod tests {
             let location: VirtualDirectoryPath = format!("{test_dir}/registry")
                 .try_into()
                 .expect("Failed to parse file directory");
-            let loaded = SchemaResolver::load_definition_repository(
+            let loaded = SchemaResolver::load_semconv_repository(
                 RegistryRepo::try_new(registry_id, &location).expect("Failed to load registry"),
                 true,
-                vec![],
             )
             .ignore(|e| {
                 // Ignore prefix errors on tests of prefix.
@@ -1221,6 +1229,21 @@ mod tests {
             // If the file is present, the test is expected to fail with the errors in the file.
             let expected_errors_file = format!("{test_dir}/expected-errors.json");
             if PathBuf::from(&expected_errors_file).exists() {
+                if !observed_registry.is_err() {
+                    // Debugging info.
+                    println!("catalog");
+                    for a in &observed_attr_catalog {
+                        println!(" - {}", a.name)
+                    }
+                    println!("Registry");
+                    for g in &observed_registry.as_ref().unwrap().groups {
+                        println!(" - {}", g.id);
+                        for a in g.attributes.iter() {
+                            let name = &observed_attr_catalog[a.0 as usize].name;
+                            println!("   - {}", name);
+                        }
+                    }
+                }
                 assert!(observed_registry.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
@@ -1377,8 +1400,8 @@ groups:
             path: "data/registry-test-7-spans/registry".to_owned(),
         };
         let repo = RegistryRepo::try_new(registry_id, &path)?;
-        let loaded = SchemaResolver::load_definition_repository(repo, true, vec![])
-            .into_result_failing_non_fatal()?;
+        let loaded =
+            SchemaResolver::load_semconv_repository(repo, true).into_result_failing_non_fatal()?;
         let resolved_schema =
             SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal()?;
 

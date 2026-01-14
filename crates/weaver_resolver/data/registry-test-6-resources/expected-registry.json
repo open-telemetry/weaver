@@ -2,20 +2,6 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.user_agent",
-      "type": "attribute_group",
-      "brief": "Describes user-agent attributes.",
-      "attributes": [
-        0
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
-        }
-      }
-    },
-    {
       "id": "browser",
       "type": "entity",
       "brief": "The web browser in which the application represented by the resource is running. The `browser.*` attributes MUST be used only for resources that represent applications running in a web browser (regardless of whether running on a mobile or desktop device).\n",
@@ -45,6 +31,20 @@
               "note"
             ]
           }
+        }
+      }
+    },
+    {
+      "id": "registry.user_agent",
+      "type": "attribute_group",
+      "brief": "Describes user-agent attributes.",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
         }
       }
     }

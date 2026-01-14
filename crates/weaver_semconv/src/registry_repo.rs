@@ -18,7 +18,7 @@ pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 /// - A simple wrapper around a local directory
 /// - Initialized from a Git repository
 /// - Initialized from a Git archive
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct RegistryRepo {
     // A unique identifier for the registry (e.g. main, baseline, etc.)
     id: Arc<str>,
@@ -92,19 +92,6 @@ impl RegistryRepo {
             ));
             None
         }
-    }
-
-    /// Creates an expensive clone of this RegistryRepo (may create new temp directory).
-    ///
-    /// For testing only!
-    #[must_use]
-    pub fn try_clone(&self) -> Result<RegistryRepo, Error> {
-        let path: VirtualDirectoryPath = self
-            .registry
-            .vdir_path()
-            .try_into()
-            .map_err(Error::VirtualDirectoryError)?;
-        RegistryRepo::try_new(&self.id, &path)
     }
 }
 

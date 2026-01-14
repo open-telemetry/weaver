@@ -2,21 +2,6 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.host",
-      "type": "attribute_group",
-      "brief": "Registry server",
-      "attributes": [
-        0,
-        1
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-lineage-3/registry/groups.yaml"
-        }
-      }
-    },
-    {
       "id": "entity.host",
       "type": "entity",
       "brief": "host entity",
@@ -55,6 +40,21 @@
               "role"
             ]
           }
+        }
+      }
+    },
+    {
+      "id": "registry.host",
+      "type": "attribute_group",
+      "brief": "Registry server",
+      "attributes": [
+        0,
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-3/registry/groups.yaml"
         }
       }
     }

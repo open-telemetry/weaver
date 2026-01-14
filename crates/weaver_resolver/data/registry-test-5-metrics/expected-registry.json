@@ -19,64 +19,6 @@
       }
     },
     {
-      "id": "metric.faas.invoke_duration",
-      "type": "metric",
-      "brief": "Measures the duration of the function's logic execution",
-      "stability": "development",
-      "attributes": [
-        0
-      ],
-      "metric_name": "faas.invoke_duration",
-      "instrument": "histogram",
-      "unit": "s",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
-        },
-        "attributes": {
-          "faas.trigger": {
-            "source_group": "attributes.faas.common",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.faas.init_duration",
-      "type": "metric",
-      "brief": "Measures the duration of the function's initialization, such as a cold start",
-      "stability": "development",
-      "attributes": [
-        0
-      ],
-      "metric_name": "faas.init_duration",
-      "instrument": "histogram",
-      "unit": "s",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
-        },
-        "attributes": {
-          "faas.trigger": {
-            "source_group": "attributes.faas.common",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "metric.faas.coldstarts",
       "type": "metric",
       "brief": "Number of invocation cold starts",
@@ -87,122 +29,6 @@
       "metric_name": "faas.coldstarts",
       "instrument": "counter",
       "unit": "{coldstart}",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
-        },
-        "attributes": {
-          "faas.trigger": {
-            "source_group": "attributes.faas.common",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.faas.errors",
-      "type": "metric",
-      "brief": "Number of invocation errors",
-      "stability": "development",
-      "attributes": [
-        0
-      ],
-      "metric_name": "faas.errors",
-      "instrument": "counter",
-      "unit": "{error}",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
-        },
-        "attributes": {
-          "faas.trigger": {
-            "source_group": "attributes.faas.common",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.faas.invocations",
-      "type": "metric",
-      "brief": "Number of successful invocations",
-      "stability": "development",
-      "attributes": [
-        0
-      ],
-      "metric_name": "faas.invocations",
-      "instrument": "counter",
-      "unit": "{invocation}",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
-        },
-        "attributes": {
-          "faas.trigger": {
-            "source_group": "attributes.faas.common",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.faas.timeouts",
-      "type": "metric",
-      "brief": "Number of invocation timeouts",
-      "stability": "development",
-      "attributes": [
-        0
-      ],
-      "metric_name": "faas.timeouts",
-      "instrument": "counter",
-      "unit": "{timeout}",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
-        },
-        "attributes": {
-          "faas.trigger": {
-            "source_group": "attributes.faas.common",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "metric.faas.mem_usage",
-      "type": "metric",
-      "brief": "Distribution of max memory usage per invocation",
-      "stability": "development",
-      "attributes": [
-        0
-      ],
-      "metric_name": "faas.mem_usage",
-      "instrument": "histogram",
-      "unit": "By",
       "lineage": {
         "provenance": {
           "registry_id": "default",
@@ -251,6 +77,151 @@
       }
     },
     {
+      "id": "metric.faas.errors",
+      "type": "metric",
+      "brief": "Number of invocation errors",
+      "stability": "development",
+      "attributes": [
+        0
+      ],
+      "metric_name": "faas.errors",
+      "instrument": "counter",
+      "unit": "{error}",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
+        "attributes": {
+          "faas.trigger": {
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.faas.init_duration",
+      "type": "metric",
+      "brief": "Measures the duration of the function's initialization, such as a cold start",
+      "stability": "development",
+      "attributes": [
+        0
+      ],
+      "metric_name": "faas.init_duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
+        "attributes": {
+          "faas.trigger": {
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.faas.invocations",
+      "type": "metric",
+      "brief": "Number of successful invocations",
+      "stability": "development",
+      "attributes": [
+        0
+      ],
+      "metric_name": "faas.invocations",
+      "instrument": "counter",
+      "unit": "{invocation}",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
+        "attributes": {
+          "faas.trigger": {
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.faas.invoke_duration",
+      "type": "metric",
+      "brief": "Measures the duration of the function's logic execution",
+      "stability": "development",
+      "attributes": [
+        0
+      ],
+      "metric_name": "faas.invoke_duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
+        "attributes": {
+          "faas.trigger": {
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.faas.mem_usage",
+      "type": "metric",
+      "brief": "Distribution of max memory usage per invocation",
+      "stability": "development",
+      "attributes": [
+        0
+      ],
+      "metric_name": "faas.mem_usage",
+      "instrument": "histogram",
+      "unit": "By",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
+        "attributes": {
+          "faas.trigger": {
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": "metric.faas.net_io",
       "type": "metric",
       "brief": "Distribution of net I/O usage per invocation",
@@ -261,6 +232,35 @@
       "metric_name": "faas.net_io",
       "instrument": "histogram",
       "unit": "By",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
+        "attributes": {
+          "faas.trigger": {
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.faas.timeouts",
+      "type": "metric",
+      "brief": "Number of invocation timeouts",
+      "stability": "development",
+      "attributes": [
+        0
+      ],
+      "metric_name": "faas.timeouts",
+      "instrument": "counter",
+      "unit": "{timeout}",
       "lineage": {
         "provenance": {
           "registry_id": "default",
