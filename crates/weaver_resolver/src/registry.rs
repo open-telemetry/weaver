@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::attribute::UnresolvedAttribute;
+use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
@@ -1049,18 +1049,17 @@ fn lookup_group_attributes_with_dependencies(
 }
 
 /// This will sort the clean and sort the attribute catalog and registry.
-/// 
+///
 /// This helps with idempotent/stable resolved schemas.
 pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
     attr_catalog: &mut AttributeCatalog,
     mut ureg: UnresolvedRegistry,
 ) -> Registry {
     // Clean up the attribute registry and groups to have consistent ordering.
-    let attr_refs = ureg
-        .registry
+    let attr_refs: HashSet<AttributeRef> = ureg
         .groups
         .iter()
-        .flat_map(|g| g.attributes.iter().cloned())
+        .flat_map(|g| g.group.attributes.iter().cloned())
         .collect();
     let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
     for g in ureg.registry.groups.iter_mut() {
@@ -1070,6 +1069,9 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
             }
         }
     }
+
+    // Sort groups by id.
+    ureg.groups.sort_by(|l, r| l.group.id.cmp(&r.group.id));
 
     // Sort the attribute internal references in each group.
     // This is needed to ensure that the resolved registry is easy to compare
@@ -1088,12 +1090,12 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
 
 #[cfg(test)]
 mod tests {
+    use rand::rng;
+    use rand::seq::SliceRandom;
     use std::cmp::Ordering;
     use std::error::Error;
     use std::fs::OpenOptions;
     use std::path::PathBuf;
-    use rand::rng;
-    use rand::seq::SliceRandom;
 
     use glob::glob;
     use serde::Serialize;
@@ -1110,10 +1112,11 @@ mod tests {
     use weaver_semconv::registry_repo::RegistryRepo;
 
     use crate::attribute::AttributeCatalog;
-    use crate::registry::UnresolvedRegistry;
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
     use crate::registry::resolve_registry_with_dependencies;
     use crate::registry::resolve_semconv_registry;
+    use crate::registry::UnresolvedGroup;
+    use crate::registry::UnresolvedRegistry;
     use crate::LoadedSemconvRegistry;
     use crate::SchemaResolver;
 
@@ -1382,7 +1385,6 @@ groups:
 
         // Get the catalog of the resolved telemetry schema.
         let catalog = resolved_schema.catalog();
-
         // Scan over all the metrics
         let mut metric_count = 0;
         for metric in resolved_registry.groups(GroupType::Metric) {
@@ -1407,7 +1409,6 @@ groups:
         Ok(())
     }
 
-
     #[test]
     fn test_drop_unused_attributes_in_catalog() -> Result<(), Box<dyn Error>> {
         let mut catalog = AttributeCatalog::default();
@@ -1416,7 +1417,9 @@ groups:
         for c in 'a'..='z' {
             attr_refs.push(catalog.attribute_ref(Attribute {
                 name: format!("{c}"),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
                 brief: Default::default(),
                 examples: Default::default(),
                 tag: Default::default(),
@@ -1432,42 +1435,50 @@ groups:
                 role: Default::default(),
             }));
         }
-        
-        // We only need to fille out the registry here.
+
+        // We only need to file out portions here.
         let ureg = UnresolvedRegistry {
-            registry: Registry { 
-                registry_url: "test".to_owned(), 
-                groups: vec![
-                    Group { 
-                        id: "b".to_owned(), 
-                        r#type: GroupType::AttributeGroup, 
-                        brief: Default::default(), 
-                        note: Default::default(), 
-                        prefix: Default::default(),
-                        extends: Default::default(),
-                        stability: Default::default(),
-                        deprecated: Default::default(),
-                        attributes: attr_refs.iter().take(10).cloned().collect(),
-                        span_kind: Default::default(),
-                        events: Default::default(),
-                        metric_name: Default::default(),
-                        instrument: Default::default(),
-                        unit: Default::default(),
-                        name: Default::default(),
-                        lineage: Default::default(),
-                        display_name: Default::default(),
-                        body: Default::default(),
-                        annotations: Default::default(),
-                        entity_associations: Default::default(),
-                        visibility: Default::default() 
-                    },
-                ] },
-            groups: vec![],
+            registry: Registry {
+                registry_url: "test".to_owned(),
+                groups: vec![],
+            },
+            groups: vec![UnresolvedGroup {
+                group: Group {
+                    id: "b".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: Default::default(),
+                    note: Default::default(),
+                    prefix: Default::default(),
+                    extends: Default::default(),
+                    stability: Default::default(),
+                    deprecated: Default::default(),
+                    attributes: attr_refs.iter().take(10).cloned().collect(),
+                    span_kind: Default::default(),
+                    events: Default::default(),
+                    metric_name: Default::default(),
+                    instrument: Default::default(),
+                    unit: Default::default(),
+                    name: Default::default(),
+                    lineage: Default::default(),
+                    display_name: Default::default(),
+                    body: Default::default(),
+                    annotations: Default::default(),
+                    entity_associations: Default::default(),
+                    visibility: Default::default(),
+                },
+                attributes: Default::default(),
+                include_groups: Default::default(),
+                visibility: Default::default(),
+                provenance: Provenance {
+                    registry_id: Default::default(),
+                    path: Default::default(),
+                },
+            }],
             imports: vec![],
             dependencies: vec![],
         };
 
-        let _ = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);        
+        let _ = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
         let attrs = catalog.drain_attributes();
 
         // We should only have 10 attributes.
@@ -1488,7 +1499,9 @@ groups:
         for c in 'a'..='z' {
             attr_refs.push(catalog.attribute_ref(Attribute {
                 name: format!("{c}"),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
                 brief: Default::default(),
                 examples: Default::default(),
                 tag: Default::default(),
@@ -1507,17 +1520,20 @@ groups:
         // 2. Get a thread-local random number generator (RNG)
         let mut rng = rng();
         attr_refs.shuffle(&mut rng);
-        
+
         // We only need to fille out the registry here.
         let ureg = UnresolvedRegistry {
-            registry: Registry { 
-                registry_url: "test".to_owned(), 
-                groups: vec![
-                    Group { 
-                        id: "b".to_owned(), 
-                        r#type: GroupType::AttributeGroup, 
-                        brief: Default::default(), 
-                        note: Default::default(), 
+            registry: Registry {
+                registry_url: "test".to_owned(),
+                groups: vec![],
+            },
+            groups: vec![
+                UnresolvedGroup {
+                    group: Group {
+                        id: "b".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
                         prefix: Default::default(),
                         extends: Default::default(),
                         stability: Default::default(),
@@ -1534,13 +1550,22 @@ groups:
                         body: Default::default(),
                         annotations: Default::default(),
                         entity_associations: Default::default(),
-                        visibility: Default::default() 
+                        visibility: Default::default(),
                     },
-                    Group {
-                        id: "a".to_owned(), 
-                        r#type: GroupType::AttributeGroup, 
-                        brief: Default::default(), 
-                        note: Default::default(), 
+                    attributes: Default::default(),
+                    include_groups: Default::default(),
+                    visibility: Default::default(),
+                    provenance: Provenance {
+                        registry_id: Default::default(),
+                        path: Default::default(),
+                    },
+                },
+                UnresolvedGroup {
+                    group: Group {
+                        id: "a".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
                         prefix: Default::default(),
                         extends: Default::default(),
                         stability: Default::default(),
@@ -1557,13 +1582,22 @@ groups:
                         body: Default::default(),
                         annotations: Default::default(),
                         entity_associations: Default::default(),
-                        visibility: Default::default() 
+                        visibility: Default::default(),
                     },
-                    Group {
-                        id: "a".to_owned(), 
-                        r#type: GroupType::AttributeGroup, 
-                        brief: Default::default(), 
-                        note: Default::default(), 
+                    attributes: Default::default(),
+                    include_groups: Default::default(),
+                    visibility: Default::default(),
+                    provenance: Provenance {
+                        registry_id: Default::default(),
+                        path: Default::default(),
+                    },
+                },
+                UnresolvedGroup {
+                    group: Group {
+                        id: "a".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
                         prefix: Default::default(),
                         extends: Default::default(),
                         stability: Default::default(),
@@ -1580,15 +1614,22 @@ groups:
                         body: Default::default(),
                         annotations: Default::default(),
                         entity_associations: Default::default(),
-                        visibility: Default::default() 
+                        visibility: Default::default(),
                     },
-                ] },
-            groups: vec![],
+                    attributes: Default::default(),
+                    include_groups: Default::default(),
+                    visibility: Default::default(),
+                    provenance: Provenance {
+                        registry_id: Default::default(),
+                        path: Default::default(),
+                    },
+                },
+            ],
             imports: vec![],
             dependencies: vec![],
         };
 
-        let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);        
+        let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
         let attrs = catalog.drain_attributes();
 
         // Check catalog for sorting.
@@ -1597,12 +1638,9 @@ groups:
         }
         // Now check registry for sorting.
         for g in &registry.groups {
-             for (l,r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
+            for (l, r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
                 assert_eq!(l.0.cmp(&r.0), Ordering::Less)
-             }
-        }
-        for (l, r) in registry.groups.iter().zip(registry.groups.iter().skip(1)) {
-            assert_eq!(l.id.cmp(&r.id), Ordering::Less)
+            }
         }
         Ok(())
     }

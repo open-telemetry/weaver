@@ -71,6 +71,10 @@ impl AttributeCatalog {
         &mut self,
         attr_refs: HashSet<AttributeRef>,
     ) -> HashMap<AttributeRef, AttributeRef> {
+        let initial_length = self.attribute_refs.len();
+        if attr_refs.is_empty() {
+            panic!("Attempting to GC attribute references with no expected references! input: {attr_refs:?}");
+        }
         self.attribute_refs
             .retain(|_, attr_ref| attr_refs.contains(attr_ref));
         let mut ordered: Vec<(attribute::Attribute, AttributeRef)> = self
@@ -95,7 +99,9 @@ impl AttributeCatalog {
         self.attribute_refs.values_mut().for_each(|attr_ref| {
             *attr_ref = gc_map[attr_ref];
         });
-
+        if gc_map.is_empty() {
+            panic!("")
+        }
         gc_map
     }
 
