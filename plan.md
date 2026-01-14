@@ -199,11 +199,11 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Render attributes table parity
 
 #### Entity (`/entity/:type`)
-- [ ] Create Entity detail route component
-- [ ] Fetch entity by type
-- [ ] Implement copy-to-clipboard parity
-- [ ] Render identity attributes table parity
-- [ ] Render description attributes table parity
+- [x] Create Entity detail route component
+- [x] Fetch entity by type
+- [x] Implement copy-to-clipboard parity
+- [x] Render identity attributes table parity
+- [x] Render description attributes table parity
 
 ### 12) Page: Schema (`/schema`) — strict parity
 - [ ] Create Schema route component
