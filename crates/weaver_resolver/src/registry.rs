@@ -1093,6 +1093,7 @@ mod tests {
     use rand::rng;
     use rand::seq::SliceRandom;
     use std::cmp::Ordering;
+    use std::collections::HashMap;
     use std::error::Error;
     use std::fs::OpenOptions;
     use std::path::PathBuf;
@@ -1137,6 +1138,9 @@ mod tests {
     #[test]
     #[allow(clippy::print_stdout)]
     fn test_registry_resolution() {
+        let skip_tests = vec![
+            "registry-test-10-duplicate-attr-name",
+        ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
         for test_entry in glob("data/registry-test-*").expect("Failed to read glob pattern") {
@@ -1145,10 +1149,10 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
-            // if !test_dir.ends_with("registry-test-7-spans") {
-            //     // Skip the test for now as it is not yet supported.
-            //     continue;
-            // }
+            if skip_tests.iter().any(|skip| test_dir.ends_with(skip)) {
+                 // Skip the test for now as it is not yet supported.
+                 continue;
+            }
             println!("Testing `{test_dir}`");
 
             // Delete all the files in the observed_output/target directory
@@ -1594,7 +1598,7 @@ groups:
                 },
                 UnresolvedGroup {
                     group: Group {
-                        id: "a".to_owned(),
+                        id: "c".to_owned(),
                         r#type: GroupType::AttributeGroup,
                         brief: Default::default(),
                         note: Default::default(),
@@ -1628,7 +1632,14 @@ groups:
             imports: vec![],
             dependencies: vec![],
         };
-
+        // Group id to expected attribute names.
+        let lookups: HashMap<String, Vec<String>> = ureg.groups.iter().map(|g| {
+            let attr_names: Vec<String> = g.group.attributes
+            .iter()
+            .filter_map(|ar| catalog.attribute(ar))
+            .map(|a| a.name.clone()).collect();
+            (g.group.id.clone(), attr_names)
+        }).collect();
         let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
         let attrs = catalog.drain_attributes();
 
@@ -1640,6 +1651,12 @@ groups:
         for g in &registry.groups {
             for (l, r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
                 assert_eq!(l.0.cmp(&r.0), Ordering::Less)
+            }
+            let expected_names = lookups.get(&g.id).expect("Expected to find same group output as input");
+            assert_eq!(expected_names.len(), g.attributes.len(), "Wrong number of attributes for group: {}", g.id);
+            for ar in &g.attributes {
+                let a = &attrs[ar.0 as usize];
+                assert!(expected_names.contains(&a.name))
             }
         }
         Ok(())

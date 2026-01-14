@@ -42,6 +42,22 @@ impl AttributeCatalog {
         self.root_attributes.get(name)
     }
 
+    /// Returns an attribute from a referenc.
+    /// NOTE: this is ineffecient and should only be used in tests.
+    #[cfg(test)]
+    pub fn attribute(&self, ar: &AttributeRef) -> Option<attribute::Attribute> {
+        self.attribute_refs
+        .iter()
+        .find_map(|(a, r)| {
+            if ar == r {
+                Some(a.clone())
+            } else {
+                None
+            }
+        })
+        
+    }
+
     /// Returns the reference of the given attribute or creates a new reference if the attribute
     /// does not exist in the catalog.
     pub fn attribute_ref(&mut self, attr: attribute::Attribute) -> AttributeRef {
@@ -71,7 +87,6 @@ impl AttributeCatalog {
         &mut self,
         attr_refs: HashSet<AttributeRef>,
     ) -> HashMap<AttributeRef, AttributeRef> {
-        let initial_length = self.attribute_refs.len();
         if attr_refs.is_empty() {
             panic!("Attempting to GC attribute references with no expected references! input: {attr_refs:?}");
         }
