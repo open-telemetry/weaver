@@ -206,15 +206,15 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Render description attributes table parity
 
 ### 12) Page: Schema (`/schema`) — strict parity
-- [ ] Create Schema route component
-- [ ] Parse `schema` query param (default `ForgeRegistryV2`)
-- [ ] Fetch schema JSON from `/api/v1/schema/:name`
-- [ ] Render left definition list + root card parity
-- [ ] Parse `type` query param (`root` or definition name)
-- [ ] Implement “select definition” updates to URL (same semantics as Svelte)
-- [ ] Port type formatting logic (array/map/union/allOf/oneOf/anyOf) for display parity
-- [ ] Implement clickable type references navigation parity
-- [ ] Verify browser back/forward behavior parity
+- [x] Create Schema route component
+- [x] Parse `schema` query param (default `ForgeRegistryV2`)
+- [x] Fetch schema JSON from `/api/v1/schema/:name`
+- [x] Render left definition list + root card parity
+- [x] Parse `type` query param (`root` or definition name)
+- [x] Implement "select definition" updates to URL (same semantics as Svelte)
+- [x] Port type formatting logic (array/map/union/allOf/oneOf/anyOf) for display parity
+- [x] Implement clickable type references navigation parity
+- [x] Verify browser back/forward behavior parity
 
 ### 13) Page: API Docs (`/api-docs`) — strict parity
 - [x] Create API Docs route component
