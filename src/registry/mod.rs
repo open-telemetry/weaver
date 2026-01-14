@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
+use crate::registry::infer::RegistryInferArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::RegistryLiveCheckArgs;
 use crate::registry::mcp::RegistryMcpArgs;
@@ -18,7 +19,6 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-use crate::registry::infer::RegistryInferArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -28,6 +28,7 @@ mod check;
 mod diff;
 mod emit;
 mod generate;
+mod infer;
 mod json_schema;
 mod live_check;
 mod mcp;
@@ -36,7 +37,6 @@ mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
-mod infer;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]

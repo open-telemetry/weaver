@@ -186,7 +186,9 @@ impl AccumulatedSamples {
             let attr_entry = entry
                 .attributes
                 .entry(attr.name.clone())
-                .or_insert_with(|| AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone()));
+                .or_insert_with(|| {
+                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
+                });
             attr_entry.add_example(&attr.value);
         }
 
@@ -200,7 +202,9 @@ impl AccumulatedSamples {
                 let attr_entry = event_entry
                     .attributes
                     .entry(attr.name.clone())
-                    .or_insert_with(|| AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone()));
+                    .or_insert_with(|| {
+                        AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
+                    });
                 attr_entry.add_example(&attr.value);
             }
         }
@@ -212,10 +216,9 @@ impl AccumulatedSamples {
             SampleInstrument::Unsupported(_) => None,
         };
 
-        let entry = self
-            .metrics
-            .entry(metric.name.clone())
-            .or_insert_with(|| AccumulatedMetric::new(metric.name.clone(), instrument, metric.unit.clone()));
+        let entry = self.metrics.entry(metric.name.clone()).or_insert_with(|| {
+            AccumulatedMetric::new(metric.name.clone(), instrument, metric.unit.clone())
+        });
 
         if let Some(data_points) = metric.data_points {
             use weaver_live_check::sample_metric::DataPoints;
@@ -227,7 +230,10 @@ impl AccumulatedSamples {
                                 .attributes
                                 .entry(attr.name.clone())
                                 .or_insert_with(|| {
-                                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
+                                    AccumulatedAttribute::new(
+                                        attr.name.clone(),
+                                        attr.r#type.clone(),
+                                    )
                                 });
                             attr_entry.add_example(&attr.value);
                         }
@@ -240,7 +246,10 @@ impl AccumulatedSamples {
                                 .attributes
                                 .entry(attr.name.clone())
                                 .or_insert_with(|| {
-                                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
+                                    AccumulatedAttribute::new(
+                                        attr.name.clone(),
+                                        attr.r#type.clone(),
+                                    )
                                 });
                             attr_entry.add_example(&attr.value);
                         }
@@ -253,7 +262,10 @@ impl AccumulatedSamples {
                                 .attributes
                                 .entry(attr.name.clone())
                                 .or_insert_with(|| {
-                                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
+                                    AccumulatedAttribute::new(
+                                        attr.name.clone(),
+                                        attr.r#type.clone(),
+                                    )
                                 });
                             attr_entry.add_example(&attr.value);
                         }
@@ -277,7 +289,9 @@ impl AccumulatedSamples {
             let attr_entry = entry
                 .attributes
                 .entry(attr.name.clone())
-                .or_insert_with(|| AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone()));
+                .or_insert_with(|| {
+                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
+                });
             attr_entry.add_example(&attr.value);
         }
     }
@@ -407,7 +421,11 @@ impl AccumulatedSamples {
                 span_kind: None,
                 metric_name: Some(metric.name.clone()),
                 instrument: instrument_to_string(&metric.instrument),
-                unit: if metric.unit.is_empty() { None } else { Some(metric.unit.clone()) },
+                unit: if metric.unit.is_empty() {
+                    None
+                } else {
+                    Some(metric.unit.clone())
+                },
                 name: None,
                 attributes,
             });
@@ -647,7 +665,10 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
     .map_err(DiagnosticMessages::from)?;
 
     info!("OTLP gRPC server started. Waiting for telemetry...");
-    info!("To stop: press CTRL+C, send SIGHUP, or POST to http://localhost:{}/stop", args.admin_port);
+    info!(
+        "To stop: press CTRL+C, send SIGHUP, or POST to http://localhost:{}/stop",
+        args.admin_port
+    );
 
     // Accumulate samples
     let mut accumulator = AccumulatedSamples::new();
@@ -659,7 +680,10 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
     }
 
     let (resources, spans, metrics, events) = accumulator.stats();
-    info!("OTLP receiver stopped. Accumulated: {} resource attrs, {} spans, {} metrics, {} events", resources, spans, metrics, events);
+    info!(
+        "OTLP receiver stopped. Accumulated: {} resource attrs, {} spans, {} metrics, {} events",
+        resources, spans, metrics, events
+    );
 
     if accumulator.is_empty() {
         info!("No telemetry data received. No YAML file generated.");
