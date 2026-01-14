@@ -254,8 +254,8 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Delete `ui/` after cutover is complete and verified
 
 ### 17) Additional Notes
-- [ ] Note: Both apps share the same Tailwind + DaisyUI styling and API endpoints
-- [ ] Note: React app uses TanStack Router for file-based routing with auto-generated route files in `src/routes/`
-- [ ] Note: Svelte uses svelte-spa-router for hash-based routing
-- [ ] Note: Development servers run on different ports (ui: 4173, ui-react: 5173) to avoid conflicts
-- [ ] Note: Theme toggle and RapiDoc theme sync already implemented in React
+- [x] Note: Both apps share the same Tailwind + DaisyUI styling and API endpoints
+- [x] Note: React app uses TanStack Router for file-based routing with auto-generated route files in `src/routes/`
+- [x] Note: Svelte uses svelte-spa-router for hash-based routing
+- [x] Note: Development servers run on different ports (ui: 4173, ui-react: 5173) to avoid conflicts
+- [x] Note: Theme toggle and RapiDoc theme sync already implemented in React
