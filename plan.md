@@ -179,11 +179,11 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Render examples parity
 
 #### Metric (`/metric/:name`)
-- [ ] Create Metric detail route component
-- [ ] Fetch metric by name
-- [ ] Implement copy-to-clipboard parity
-- [ ] Render instrument/unit/attributes summary cards parity
-- [ ] Render attributes table parity (requirement level badge rules)
+- [x] Create Metric detail route component
+- [x] Fetch metric by name
+- [x] Implement copy-to-clipboard parity
+- [x] Render instrument/unit/attributes summary cards parity
+- [x] Render attributes table parity (requirement level badge rules)
 
 #### Span (`/span/:type`)
 - [ ] Create Span detail route component
