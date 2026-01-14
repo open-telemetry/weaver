@@ -143,20 +143,20 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Create `ui-react/src/components/Pagination.tsx` matching Svelte pagination window + ellipses
 
 ### 9) Page: Search (`/` and `/search`) — strict parity
-- [ ] Create Search route component
-- [ ] Implement state: query, type filter, stability filter, current page, loading, error
-- [ ] Mirror `itemsPerPage = 50`
-- [ ] Parse initial state from URL query params (`q`, `type`, `stability`, `page`)
-- [ ] Trigger initial search even with empty query (browse mode)
-- [ ] Update URL when search state changes (same param rules as Svelte)
-- [ ] Search on typing and on Enter (same behavior)
-- [ ] Render results list cards with DaisyUI classes matching Svelte
-- [ ] Render result type badge + id + stability badge + deprecated styling
-- [ ] Render `brief` using InlineMarkdown
-- [ ] Implement top pagination UI parity
-- [ ] Implement bottom pagination UI parity
-- [ ] Implement empty state + error alert + loading spinner parity
-- [ ] Ensure links to detail pages match Svelte route scheme
+- [x] Create Search route component
+- [x] Implement state: query, type filter, stability filter, current page, loading, error
+- [x] Mirror `itemsPerPage = 50`
+- [x] Parse initial state from URL query params (`q`, `type`, `stability`, `page`)
+- [x] Trigger initial search even with empty query (browse mode)
+- [x] Update URL when search state changes (same param rules as Svelte)
+- [x] Search on typing and on Enter (same behavior)
+- [x] Render results list cards with DaisyUI classes matching Svelte
+- [x] Render result type badge + id + stability badge + deprecated styling
+- [x] Render `brief` using InlineMarkdown
+- [x] Implement top pagination UI parity
+- [x] Implement bottom pagination UI parity
+- [x] Implement empty state + error alert + loading spinner parity
+- [x] Ensure links to detail pages match Svelte route scheme
 
 ### 10) Page: Stats (`/stats`) — strict parity
 - [x] Create Stats route component
