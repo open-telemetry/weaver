@@ -243,9 +243,9 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Document how to run/build each app separately (`ui/` vs `ui-react/`)
 
 ### 15) Keep apps separated (side-by-side)
-- [ ] Ensure `ui/` build continues unchanged
-- [ ] Ensure `ui-react/` build output stays `ui-react/dist`
-- [ ] Document how to run/build each app separately (`ui/` vs `ui-react/`)
+- [x] Ensure `ui/` build continues unchanged
+- [x] Ensure `ui-react/` build output stays `ui-react/dist`
+- [x] Document how to run/build each app separately (`ui/` vs `ui-react/`)
 
 ### 16) Cutover (later, after parity is accepted)
 - [ ] Update Rust embed from `ui/dist` to `ui-react/dist` (in `src/serve/ui.rs`)
