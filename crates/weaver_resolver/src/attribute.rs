@@ -2,12 +2,13 @@
 
 //! Attribute resolution.
 
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use weaver_resolved_schema::attribute;
 use weaver_resolved_schema::attribute::AttributeRef;
+use weaver_resolved_schema::attribute::{self};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -67,17 +68,22 @@ impl AttributeCatalog {
     ///
     /// Returns a map of old attribute refs to new attribute refs.
     #[must_use]
-    pub fn gc_unreferenced_attribute_refs(
+    pub fn gc_unreferenced_attribute_refs_and_sort(
         &mut self,
         attr_refs: HashSet<AttributeRef>,
     ) -> HashMap<AttributeRef, AttributeRef> {
         self.attribute_refs
             .retain(|_, attr_ref| attr_refs.contains(attr_ref));
-        let mut next_id = 0;
-        let gc_map: HashMap<AttributeRef, AttributeRef> = self
+        let mut ordered: Vec<(attribute::Attribute, AttributeRef)> = self
             .attribute_refs
-            .values()
-            .map(|attr_ref| {
+            .iter()
+            .map(|(a, ar)| (a.clone(), ar.clone()))
+            .collect();
+        ordered.sort_by(|(ln, _), (rn, _)| ln.cmp(rn));
+        let mut next_id = 0;
+        let gc_map: HashMap<AttributeRef, AttributeRef> = ordered
+            .iter()
+            .map(|(_, attr_ref)| {
                 let new_attr_ref = AttributeRef(next_id);
                 next_id += 1;
                 (*attr_ref, new_attr_ref)
@@ -338,7 +344,7 @@ mod tests {
         _ = attr_refs.insert(AttributeRef(2));
         _ = attr_refs.insert(AttributeRef(4));
         _ = attr_refs.insert(AttributeRef(7));
-        let attr_ref_map = catalog.gc_unreferenced_attribute_refs(attr_refs);
+        let attr_ref_map = catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
 
         // We should have 3 attributes left in the catalog.
         // The resulting map should map the old attribute refs [2, 4, 7] to the new ones
@@ -404,7 +410,7 @@ mod tests {
         _ = attr_refs.insert(AttributeRef(3));
         _ = attr_refs.insert(AttributeRef(4));
         _ = attr_refs.insert(AttributeRef(5));
-        _ = catalog.gc_unreferenced_attribute_refs(attr_refs);
+        _ = catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
         let attr_names = catalog
             .attribute_name_index()
             .into_iter()

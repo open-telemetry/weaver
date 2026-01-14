@@ -207,7 +207,9 @@ impl AttributeSpec {
 }
 
 /// The different types of attributes (specification).
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
@@ -242,7 +244,9 @@ impl Display for AttributeType {
 }
 
 /// The different roles for attributes in groups.
-#[derive(Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributeRole {
     /// The attribute is considered identifying for the signal it is associated with.
@@ -260,7 +264,9 @@ impl AttributeRole {
 }
 
 /// Primitive or array types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum PrimitiveOrArrayTypeSpec {
@@ -320,7 +326,9 @@ impl PrimitiveOrArrayTypeSpec {
 }
 
 /// Template types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateTypeSpec {
@@ -371,7 +379,9 @@ impl Display for TemplateTypeSpec {
 }
 
 /// Possible enum entries.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct EnumEntriesSpec {
@@ -410,7 +420,9 @@ impl Display for EnumEntriesSpec {
 }
 
 /// The different types of values.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
@@ -472,7 +484,7 @@ impl From<&str> for ValueSpec {
 }
 
 /// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
@@ -686,6 +698,98 @@ pub enum RequirementLevel {
         #[serde(rename = "opt_in")]
         text: String,
     },
+}
+
+impl PartialOrd for RequirementLevel {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RequirementLevel {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            // Required is lowest
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ) => std::cmp::Ordering::Equal,
+            (RequirementLevel::Basic(BasicRequirementLevelSpec::Required), _) => {
+                std::cmp::Ordering::Less
+            }
+            // Conditionally required is next.
+            (
+                RequirementLevel::ConditionallyRequired { .. },
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ) => std::cmp::Ordering::Greater,
+            (
+                RequirementLevel::ConditionallyRequired { text: lhs },
+                RequirementLevel::ConditionallyRequired { text: rhs },
+            ) => lhs.cmp(rhs),
+            (RequirementLevel::ConditionallyRequired { .. }, _) => std::cmp::Ordering::Less,
+
+            // Recommended is next
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ) => std::cmp::Ordering::Less,
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                RequirementLevel::ConditionallyRequired { .. },
+            ) => std::cmp::Ordering::Less,
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            ) => std::cmp::Ordering::Equal,
+            (RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended), _) => {
+                std::cmp::Ordering::Greater
+            }
+
+            // Conditionally Recommended is next
+            (
+                RequirementLevel::Recommended { .. },
+                RequirementLevel::Basic(
+                    BasicRequirementLevelSpec::Required | BasicRequirementLevelSpec::Recommended,
+                ),
+            ) => std::cmp::Ordering::Greater,
+            (
+                RequirementLevel::Recommended { .. },
+                RequirementLevel::ConditionallyRequired { .. },
+            ) => std::cmp::Ordering::Greater,
+            (
+                RequirementLevel::Recommended { text: lhs },
+                RequirementLevel::Recommended { text: rhs },
+            ) => lhs.cmp(rhs),
+            (RequirementLevel::Recommended { .. }, _) => std::cmp::Ordering::Less,
+
+            // Opt-in is next
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+            ) => std::cmp::Ordering::Equal,
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+                RequirementLevel::Basic(_),
+            ) => std::cmp::Ordering::Less,
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+                RequirementLevel::ConditionallyRequired { .. },
+            ) => std::cmp::Ordering::Less,
+            (
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+                RequirementLevel::Recommended { .. },
+            ) => std::cmp::Ordering::Less,
+            (RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn), _) => {
+                std::cmp::Ordering::Greater
+            }
+
+            // Conditional Opt-in is last
+            (RequirementLevel::OptIn { text: lhs }, RequirementLevel::OptIn { text: rhs }) => {
+                lhs.cmp(rhs)
+            }
+            (RequirementLevel::OptIn { .. }, _) => std::cmp::Ordering::Greater,
+        }
+    }
 }
 
 /// Implements a human readable display for RequirementLevel.

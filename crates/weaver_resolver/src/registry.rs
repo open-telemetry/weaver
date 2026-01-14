@@ -185,6 +185,23 @@ pub(crate) fn resolve_registry_with_dependencies(
     );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
+    // Clean up the attribute registry and groups to have consistent ordering.
+    let attr_refs = ureg
+        .registry
+        .groups
+        .iter()
+        .flat_map(|g| g.attributes.iter().cloned())
+        .collect();
+    let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
+    for g in ureg.registry.groups.iter_mut() {
+        for a in g.attributes.iter_mut() {
+            if let Some(ar) = mapping.get(a) {
+                *a = ar.clone();
+            }
+        }
+    }
+    // TODO - mutate groups.
+
     WResult::OkWithNFEs(ureg.registry, errors)
 }
 
@@ -382,7 +399,7 @@ fn gc_unreferenced_objects(
 
             // Remove all attributes no longer referenced in the catalog and update all the
             // attribute references in the registry.
-            let attr_refs_map = attr_catalog.gc_unreferenced_attribute_refs(attr_refs);
+            let attr_refs_map = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
             registry.groups.iter_mut().for_each(|group| {
                 group.attributes.iter_mut().for_each(|attr_ref| {
                     *attr_ref = *attr_refs_map
@@ -1068,15 +1085,19 @@ mod tests {
     use glob::glob;
     use serde::Serialize;
     use weaver_common::result::WResult;
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::canonicalize_json_string;
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::Registry;
     use weaver_semconv::group::GroupType;
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
+    use weaver_semconv::registry_repo::RegistryRepo;
 
     use crate::attribute::AttributeCatalog;
+    use crate::registry::resolve_registry_with_dependencies;
     use crate::registry::resolve_semconv_registry;
+    use crate::LoadedSemconvRegistry;
     use crate::SchemaResolver;
 
     /// Test the resolution of semantic convention registries stored in the
@@ -1116,41 +1137,61 @@ mod tests {
             let observed_output_dir = PathBuf::from(format!("observed_output/{test_dir}"));
             std::fs::create_dir_all(observed_output_dir.clone())
                 .expect("Failed to create observed output directory");
-
             let registry_id = "default";
-            let result = SemConvRegistry::try_from_path_pattern(
-                registry_id,
-                &format!("{test_dir}/registry/*.yaml"),
-            );
-            let sc_specs = result
-                .ignore(|e| {
-                    // Ignore prefix errors on tests of prefix.
-                    test_dir.contains("prefix")
-                        && matches!(
-                            e,
-                            weaver_semconv::Error::InvalidGroupUsesPrefix {
-                                path_or_url: _,
-                                group_id: _
-                            }
-                        )
-                })
-                .ignore(|e| {
-                    matches!(
+            let location: VirtualDirectoryPath = format!("{test_dir}/registry")
+                .try_into()
+                .expect("Failed to parse file directory");
+            let loaded = SchemaResolver::load_definition_repository(
+                RegistryRepo::try_new(registry_id, &location).expect("Failed to load registry"),
+                true,
+                vec![],
+            )
+            .ignore(|e| {
+                // Ignore prefix errors on tests of prefix.
+                test_dir.contains("prefix")
+                    && matches!(
                         e,
-                        weaver_semconv::Error::UnstableFileVersion {
-                            version: _,
-                            provenance: _,
+                        weaver_semconv::Error::InvalidGroupUsesPrefix {
+                            path_or_url: _,
+                            group_id: _
                         }
                     )
-                })
-                .into_result_failing_non_fatal()
-                .expect("Failed to load semconv specs");
+            })
+            .ignore(|e| {
+                matches!(
+                    e,
+                    weaver_semconv::Error::UnstableFileVersion {
+                        version: _,
+                        provenance: _,
+                    }
+                )
+            })
+            .into_result_failing_non_fatal()
+            .expect("Failed to load semconv specs");
 
+            let LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs,
+                imports,
+                dependencies,
+            } = loaded
+            else {
+                panic!("Should have loaded an unresolved registry")
+            };
+            assert!(
+                dependencies.is_empty(),
+                "Unable to handle dependnecies in resolution unit tests"
+            );
             let mut attr_catalog = AttributeCatalog::default();
-            let observed_registry =
-                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs, false)
-                    .into_result_failing_non_fatal();
-
+            let observed_registry = resolve_registry_with_dependencies(
+                &mut attr_catalog,
+                repo,
+                specs,
+                imports,
+                vec![],
+                false,
+            )
+            .into_result_failing_non_fatal();
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
 
@@ -1175,7 +1216,11 @@ mod tests {
             }
 
             // At this point, the normal behavior of this test is to pass.
-            let observed_registry = observed_registry.expect("Failed to resolve the registry");
+            let mut observed_registry = observed_registry.expect("Failed to resolve the registry");
+            // Force registry URL to consistent stirng
+            observed_registry.registry_url = "https://127.0.0.1".to_owned();
+            // Now sort groups so we don't get flaky tests.
+            observed_registry.groups.sort_by_key(|g| g.id.to_owned());
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
@@ -1305,16 +1350,15 @@ groups:
         // Load a semantic convention registry from a local directory.
         // Note: A method is also available to load a registry from a git
         // repository.
-        let mut semconv_registry = SemConvRegistry::try_from_path_pattern(
-            registry_id,
-            "data/registry-test-7-spans/registry/*.yaml",
-        )
-        .into_result_failing_non_fatal()?;
-
-        // Resolve the semantic convention registry.
+        // TODO - registry path.
+        let path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-7-spans/registry".to_owned(),
+        };
+        let repo = RegistryRepo::try_new(registry_id, &path)?;
+        let loaded = SchemaResolver::load_definition_repository(repo, true, vec![])
+            .into_result_failing_non_fatal()?;
         let resolved_schema =
-            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry, false)
-                .into_result_failing_non_fatal()?;
+            SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal()?;
 
         // Get the resolved registry by its ID.
         let resolved_registry = &resolved_schema.registry;

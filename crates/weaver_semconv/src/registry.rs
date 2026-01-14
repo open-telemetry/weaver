@@ -68,6 +68,7 @@ impl SemConvRegistry {
     /// # Errors
     ///
     /// If the registry path pattern is invalid.
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
     pub fn try_from_path_pattern(registry_id: &str, path_pattern: &str) -> WResult<Self, Error> {
         fn create_registry_or_fatal(
             registry_id: &str,

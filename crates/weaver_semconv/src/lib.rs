@@ -390,6 +390,135 @@ impl From<Error> for DiagnosticMessages {
 #[serde(transparent)]
 pub struct YamlValue(pub serde_yaml::value::Value);
 
+impl PartialOrd for YamlValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for YamlValue {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // TODO - Implement.
+        match (&self.0, &other.0) {
+            (serde_yaml::Value::Null, serde_yaml::Value::Null) => std::cmp::Ordering::Equal,
+            (serde_yaml::Value::Null, serde_yaml::Value::Bool(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Sequence(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::Bool(l), serde_yaml::Value::Bool(r)) => l.cmp(&r),
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Number(l), serde_yaml::Value::Number(r)) => {
+                l.partial_cmp(&r).unwrap_or(std::cmp::Ordering::Less)
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::String(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::String(l), serde_yaml::Value::String(r)) => l.cmp(&r),
+            (serde_yaml::Value::String(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Null) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_l), serde_yaml::Value::Sequence(_r)) => {
+                // TODO - actually implement a comparison.
+                // This is good enoguh for sorting attributes.
+                std::cmp::Ordering::Equal
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_l), serde_yaml::Value::Mapping(_r)) => {
+                // TODO - actually implement a comparison.
+                // This is good enoguh for sorting attributes.
+                std::cmp::Ordering::Equal
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Null) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Bool(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_l), serde_yaml::Value::Tagged(_r)) => {
+                // TODO - actually implement a comparison.
+                // This is good enoguh for sorting attributes.
+                std::cmp::Ordering::Equal
+            }
+        }
+    }
+}
+
 impl JsonSchema for YamlValue {
     fn schema_name() -> String {
         "YamlValue".to_owned()

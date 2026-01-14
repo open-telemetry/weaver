@@ -8,9 +8,11 @@ use crate::tags::Tags;
 use crate::value::Value;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::ops::Not;
+use weaver_semconv::attribute::EnumEntriesSpec;
 #[cfg(test)]
 use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 use weaver_semconv::attribute::{
@@ -21,7 +23,9 @@ use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
 /// An attribute definition.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Attribute {
     /// Attribute name.
