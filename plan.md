@@ -169,14 +169,14 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 ### 11) Detail pages — strict parity
 
 #### Attribute (`/attribute/:key`)
-- [ ] Create Attribute detail route component
-- [ ] Fetch attribute by key on mount/param change
-- [ ] Implement loading + error states parity
-- [ ] Implement copy-to-clipboard + temporary copied indicator (2s)
-- [ ] Render deprecated warning block parity (note + renamed_to link)
-- [ ] Render description + note using Markdown component
-- [ ] Render type formatting parity (incl enum members)
-- [ ] Render examples parity
+- [x] Create Attribute detail route component
+- [x] Fetch attribute by key on mount/param change
+- [x] Implement loading + error states parity
+- [x] Implement copy-to-clipboard + temporary copied indicator (2s)
+- [x] Render deprecated warning block parity (note + renamed_to link)
+- [x] Render description + note using Markdown component
+- [x] Render type formatting parity (incl enum members)
+- [x] Render examples parity
 
 #### Metric (`/metric/:name`)
 - [ ] Create Metric detail route component
