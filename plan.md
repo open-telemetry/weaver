@@ -120,10 +120,6 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] On theme change: set `document.documentElement.setAttribute('data-theme', theme)`
 - [x] Persist theme to `localStorage` under key `theme`
 - [x] Implement toggle button + icons matching Svelte behavior
-- [ ] On load: read `localStorage.getItem('theme') ?? 'light'`
-- [ ] On theme change: set `document.documentElement.setAttribute('data-theme', theme)`
-- [ ] Persist theme to `localStorage` under key `theme`
-- [ ] Implement toggle button + icons matching Svelte behavior
 
 ### 7) API client (`/api/v1`, TypeScript)
 - [x] Create `ui-react/src/lib/api.ts`
