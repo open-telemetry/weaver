@@ -193,10 +193,10 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Render attributes table parity (sampling relevant indicator)
 
 #### Event (`/event/:name`)
-- [ ] Create Event detail route component
-- [ ] Fetch event by name
-- [ ] Implement copy-to-clipboard parity
-- [ ] Render attributes table parity
+- [x] Create Event detail route component
+- [x] Fetch event by name
+- [x] Implement copy-to-clipboard parity
+- [x] Render attributes table parity
 
 #### Entity (`/entity/:type`)
 - [ ] Create Entity detail route component
