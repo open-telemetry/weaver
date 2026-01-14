@@ -226,7 +226,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 
 ### 14) Parity verification (manual, no tests)
 - [x] Build `ui-react` and run `preview`, smoke-test all routes
-- [ ] Verify strict parity for: Search filters, pagination, link targets
+- [x] Verify strict parity for: Search filters, pagination, link targets
 - [ ] Verify strict parity for: detail pages tables + deprecated behavior
 - [ ] Verify strict parity for: Schema page navigation and query params
 - [ ] Verify strict parity for: theme persistence + RapiDoc theme update
