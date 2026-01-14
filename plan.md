@@ -13,7 +13,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - Keep **marked** for Markdown, same behavior as Svelte.
 - Keep **RapiDoc** with **CDN script** loading.
 - Keep API base path: `/api/v1` (same as Svelte).
-- No “fallbacks”; modern browsers only.
+- No "fallbacks"; modern browsers only.
 - For now, **do not modify** the Rust server UI embed (`src/serve/ui.rs` currently embeds `ui/dist`).
 
 ## Backlog (chronological, small/isolated tasks)
@@ -66,7 +66,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
   - Container is fixed under navbar/sidebar with responsive left offset
 - [x] Record Schema page URL behavior from `ui/src/routes/Schema.svelte` (`schema` + `type` query params)
   - Reads `schema` from hash query string (`window.location.hash`), default `ForgeRegistryV2`
-  - Fetches `/api/v1/schema/:schema` on load and on `hashchange`
+  - Fetches `/api/v1/schema/:name` on load and on `hashchange`
   - Reads `type` from hash query string; `root` or missing shows root, otherwise selects definition
   - `selectDefinition`/`selectRoot` update `type` via `history.pushState` on current URL
 
@@ -137,10 +137,18 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 ### 8) Shared UI components (React parity)
 - [x] Create `ui-react/src/components/StabilityBadge.tsx` (same mapping + labels as Svelte)
 - [x] Create `ui-react/src/components/Markdown.tsx` using `marked` (block rendering)
-- [x] Configure `marked` options like Svelte (`breaks`, `gfm`)
+  - Configure `marked` options like Svelte (`breaks`, `gfm`)
+  - Render `marked(...)` into `<div class="prose prose-sm max-w-none">` with global styles
 - [x] Create `ui-react/src/components/InlineMarkdown.tsx` using `marked.parse`
-- [x] Strip `<p>` tags in InlineMarkdown exactly like Svelte (`/<\/??p>/g` equivalent)
+  - Strip `<p>` tags in InlineMarkdown exactly like Svelte (`/<\/?p>/g`)
+  - Render inside `<span>` with inline styles for `code`, `a`, `strong`, `em`
 - [x] Create `ui-react/src/components/Pagination.tsx` matching Svelte pagination window + ellipses
+  - `totalPages = ceil(total / limit)`; `currentPage = floor(offset / limit) + 1`
+  - Visible window size `maxVisible = 7` (sliding window centered on current page)
+  - Adjusts window when near end (`start` shifts so `end` hits `totalPages`)
+  - Shows first/last page buttons with `...` when gaps > 1
+  - Prev/next buttons disabled at bounds; `goToPage(page)` sets `offset = (page - 1) * limit`
+  - Pagination renders only when `totalPages > 1`
 
 ### 9) Page: Search (`/` and `/search`) — strict parity
 - [x] Create Search route component
@@ -221,15 +229,18 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [x] Load RapiDoc via CDN script (allowed)
 - [x] Render `<rapi-doc>` with `spec-url="/api/v1/openapi.json"`
 - [x] Implement theme sync via MutationObserver on `data-theme`
-- [x] Port the exact light/dark color attributes mapping from Svelte
+- [x] Port exact light/dark color attributes mapping from Svelte
 - [x] Ensure layout sizing/positioning matches Svelte (navbar + sidebar offsets)
 
 ### 14) Parity verification (manual, no tests)
 - [x] Build `ui-react` and run `preview`, smoke-test all routes
 - [x] Verify strict parity for: Search filters, pagination, link targets
-- [ ] Verify strict parity for: detail pages tables + deprecated behavior
-- [ ] Verify strict parity for: Schema page navigation and query params
-- [ ] Verify strict parity for: theme persistence + RapiDoc theme update
+- [x] Verify strict parity for: detail pages tables + deprecated behavior
+- [x] Verify strict parity for: Schema page navigation and query params
+- [x] Verify strict parity for: theme persistence + RapiDoc theme update
+- [ ] Ensure `ui/` build continues unchanged
+- [ ] Ensure `ui-react/` build output stays `ui-react/dist`
+- [ ] Document how to run/build each app separately (`ui/` vs `ui-react/`)
 
 ### 15) Keep apps separated (side-by-side)
 - [ ] Ensure `ui/` build continues unchanged
@@ -241,3 +252,10 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 - [ ] Update any server-side docs/comments referencing `ui/` build
 - [ ] Confirm SPA fallback works with TanStack Router + chosen routing mode
 - [ ] Delete `ui/` after cutover is complete and verified
+
+### 17) Additional Notes
+- [ ] Note: Both apps share the same Tailwind + DaisyUI styling and API endpoints
+- [ ] Note: React app uses TanStack Router for file-based routing with auto-generated route files in `src/routes/`
+- [ ] Note: Svelte uses svelte-spa-router for hash-based routing
+- [ ] Note: Development servers run on different ports (ui: 4173, ui-react: 5173) to avoid conflicts
+- [ ] Note: Theme toggle and RapiDoc theme sync already implemented in React
