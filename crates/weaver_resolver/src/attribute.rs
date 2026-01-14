@@ -47,15 +47,8 @@ impl AttributeCatalog {
     #[cfg(test)]
     pub fn attribute(&self, ar: &AttributeRef) -> Option<attribute::Attribute> {
         self.attribute_refs
-        .iter()
-        .find_map(|(a, r)| {
-            if ar == r {
-                Some(a.clone())
-            } else {
-                None
-            }
-        })
-        
+            .iter()
+            .find_map(|(a, r)| if ar == r { Some(a.clone()) } else { None })
     }
 
     /// Returns the reference of the given attribute or creates a new reference if the attribute

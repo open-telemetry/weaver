@@ -1138,9 +1138,7 @@ mod tests {
     #[test]
     #[allow(clippy::print_stdout)]
     fn test_registry_resolution() {
-        let skip_tests = vec![
-            "registry-test-10-duplicate-attr-name",
-        ];
+        let skip_tests = vec!["registry-test-10-duplicate-attr-name"];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
         for test_entry in glob("data/registry-test-*").expect("Failed to read glob pattern") {
@@ -1150,8 +1148,8 @@ mod tests {
                 .expect("Failed to convert test directory to string");
 
             if skip_tests.iter().any(|skip| test_dir.ends_with(skip)) {
-                 // Skip the test for now as it is not yet supported.
-                 continue;
+                // Skip the test for now as it is not yet supported.
+                continue;
             }
             println!("Testing `{test_dir}`");
 
@@ -1633,13 +1631,20 @@ groups:
             dependencies: vec![],
         };
         // Group id to expected attribute names.
-        let lookups: HashMap<String, Vec<String>> = ureg.groups.iter().map(|g| {
-            let attr_names: Vec<String> = g.group.attributes
+        let lookups: HashMap<String, Vec<String>> = ureg
+            .groups
             .iter()
-            .filter_map(|ar| catalog.attribute(ar))
-            .map(|a| a.name.clone()).collect();
-            (g.group.id.clone(), attr_names)
-        }).collect();
+            .map(|g| {
+                let attr_names: Vec<String> = g
+                    .group
+                    .attributes
+                    .iter()
+                    .filter_map(|ar| catalog.attribute(ar))
+                    .map(|a| a.name.clone())
+                    .collect();
+                (g.group.id.clone(), attr_names)
+            })
+            .collect();
         let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
         let attrs = catalog.drain_attributes();
 
@@ -1652,8 +1657,15 @@ groups:
             for (l, r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
                 assert_eq!(l.0.cmp(&r.0), Ordering::Less)
             }
-            let expected_names = lookups.get(&g.id).expect("Expected to find same group output as input");
-            assert_eq!(expected_names.len(), g.attributes.len(), "Wrong number of attributes for group: {}", g.id);
+            let expected_names = lookups
+                .get(&g.id)
+                .expect("Expected to find same group output as input");
+            assert_eq!(
+                expected_names.len(),
+                g.attributes.len(),
+                "Wrong number of attributes for group: {}",
+                g.id
+            );
             for ar in &g.attributes {
                 let a = &attrs[ar.0 as usize];
                 assert!(expected_names.contains(&a.name))
