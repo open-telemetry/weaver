@@ -249,7 +249,7 @@ Create a **separate** React app in `ui-react/` (Vite + React + TypeScript) using
 
 ### 16) Cutover (later, after parity is accepted)
 - [x] Update Rust embed from `ui/dist` to `ui-react/dist` (in `src/serve/ui.rs`)
-- [ ] Update any server-side docs/comments referencing `ui/` build
+- [x] Update any server-side docs/comments referencing `ui/` build
 - [ ] Confirm SPA fallback works with TanStack Router + chosen routing mode
 - [ ] Delete `ui/` after cutover is complete and verified
 
