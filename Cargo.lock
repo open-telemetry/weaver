@@ -5497,6 +5497,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "miette",
+ "rand 0.9.2",
  "rayon",
  "serde",
  "serde_json",

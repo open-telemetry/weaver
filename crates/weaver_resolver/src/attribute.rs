@@ -2,7 +2,6 @@
 
 //! Attribute resolution.
 
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
@@ -81,6 +80,8 @@ impl AttributeCatalog {
             .collect();
         ordered.sort_by(|(ln, _), (rn, _)| ln.cmp(rn));
         let mut next_id = 0;
+        // Construct map that converts old attirbute refs into new ones, where
+        // the new IDs are incresing using attribute ordering.
         let gc_map: HashMap<AttributeRef, AttributeRef> = ordered
             .iter()
             .map(|(_, attr_ref)| {

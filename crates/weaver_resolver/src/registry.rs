@@ -131,22 +131,9 @@ pub(crate) fn resolve_registry_with_dependencies(
     // We need to *import* objects from the dependencies as required.
     // If the flag to pull in all dependencies is set, we should grab ALL
     // groups from our dependency.
-    if let Err(e) = resolve_dependeny_imports(&mut ureg, attr_catalog, include_unreferenced) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, include_unreferenced) {
         return WResult::FatalErr(e);
     }
-
-    // Sort the attribute internal references in each group.
-    // This is needed to ensure that the resolved registry is easy to compare
-    // in unit tests.
-    ureg.registry.groups = ureg
-        .groups
-        .into_iter()
-        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
-        .map(|mut g| {
-            g.group.attributes.sort();
-            g.group
-        })
-        .collect();
 
     // Now we do validations.
     let mut errors = vec![];
@@ -185,24 +172,9 @@ pub(crate) fn resolve_registry_with_dependencies(
     );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
-    // Clean up the attribute registry and groups to have consistent ordering.
-    let attr_refs = ureg
-        .registry
-        .groups
-        .iter()
-        .flat_map(|g| g.attributes.iter().cloned())
-        .collect();
-    let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
-    for g in ureg.registry.groups.iter_mut() {
-        for a in g.attributes.iter_mut() {
-            if let Some(ar) = mapping.get(a) {
-                *a = ar.clone();
-            }
-        }
-    }
-    // TODO - mutate groups.
+    let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg);
 
-    WResult::OkWithNFEs(ureg.registry, errors)
+    WResult::OkWithNFEs(result, errors)
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
@@ -604,7 +576,7 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 ///
 /// If `include_all` is true, then all groups are imported
 /// from all dependencies.
-fn resolve_dependeny_imports(
+fn resolve_dependency_imports(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
     include_all: bool,
@@ -1076,11 +1048,52 @@ fn lookup_group_attributes_with_dependencies(
         .find_map(|d| d.lookup_group_atributes(id))
 }
 
+/// This will sort the clean and sort the attribute catalog and registry.
+/// 
+/// This helps with idempotent/stable resolved schemas.
+pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
+    attr_catalog: &mut AttributeCatalog,
+    mut ureg: UnresolvedRegistry,
+) -> Registry {
+    // Clean up the attribute registry and groups to have consistent ordering.
+    let attr_refs = ureg
+        .registry
+        .groups
+        .iter()
+        .flat_map(|g| g.attributes.iter().cloned())
+        .collect();
+    let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
+    for g in ureg.registry.groups.iter_mut() {
+        for a in g.attributes.iter_mut() {
+            if let Some(ar) = mapping.get(a) {
+                *a = ar.clone();
+            }
+        }
+    }
+
+    // Sort the attribute internal references in each group.
+    // This is needed to ensure that the resolved registry is easy to compare
+    // in unit tests.
+    ureg.registry.groups = ureg
+        .groups
+        .into_iter()
+        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
+        .map(|mut g| {
+            g.group.attributes.sort();
+            g.group
+        })
+        .collect();
+    ureg.registry
+}
+
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
     use std::error::Error;
     use std::fs::OpenOptions;
     use std::path::PathBuf;
+    use rand::rng;
+    use rand::seq::SliceRandom;
 
     use glob::glob;
     use serde::Serialize;
@@ -1088,6 +1101,8 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::canonicalize_json_string;
     use weaver_resolved_schema::attribute;
+    use weaver_resolved_schema::attribute::Attribute;
+    use weaver_resolved_schema::registry::Group;
     use weaver_resolved_schema::registry::Registry;
     use weaver_semconv::group::GroupType;
     use weaver_semconv::provenance::Provenance;
@@ -1095,6 +1110,8 @@ mod tests {
     use weaver_semconv::registry_repo::RegistryRepo;
 
     use crate::attribute::AttributeCatalog;
+    use crate::registry::UnresolvedRegistry;
+    use crate::registry::cleanup_and_stabilize_catalog_and_registry;
     use crate::registry::resolve_registry_with_dependencies;
     use crate::registry::resolve_semconv_registry;
     use crate::LoadedSemconvRegistry;
@@ -1224,7 +1241,7 @@ mod tests {
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
-            let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
+            let expected_attr_catalog: Vec<Attribute> = serde_json::from_reader(
                 std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
             )
@@ -1387,6 +1404,206 @@ groups:
         }
         assert_eq!(span_count, 10, "10 spans in the resolved registry expected");
 
+        Ok(())
+    }
+
+
+    #[test]
+    fn test_drop_unused_attributes_in_catalog() -> Result<(), Box<dyn Error>> {
+        let mut catalog = AttributeCatalog::default();
+        // Create 26 attribute refs, and then randomize them.
+        let mut attr_refs = vec![];
+        for c in 'a'..='z' {
+            attr_refs.push(catalog.attribute_ref(Attribute {
+                name: format!("{c}"),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String),
+                brief: Default::default(),
+                examples: Default::default(),
+                tag: Default::default(),
+                requirement_level: Default::default(),
+                sampling_relevant: Default::default(),
+                note: Default::default(),
+                stability: Default::default(),
+                deprecated: Default::default(),
+                prefix: Default::default(),
+                tags: Default::default(),
+                annotations: Default::default(),
+                value: Default::default(),
+                role: Default::default(),
+            }));
+        }
+        
+        // We only need to fille out the registry here.
+        let ureg = UnresolvedRegistry {
+            registry: Registry { 
+                registry_url: "test".to_owned(), 
+                groups: vec![
+                    Group { 
+                        id: "b".to_owned(), 
+                        r#type: GroupType::AttributeGroup, 
+                        brief: Default::default(), 
+                        note: Default::default(), 
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().take(10).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default() 
+                    },
+                ] },
+            groups: vec![],
+            imports: vec![],
+            dependencies: vec![],
+        };
+
+        let _ = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);        
+        let attrs = catalog.drain_attributes();
+
+        // We should only have 10 attributes.
+        assert_eq!(attrs.len(), 10);
+
+        // Check catalog for sorting.
+        for (a, expected) in attrs.iter().zip('a'..='z') {
+            assert_eq!(a.name, format!("{expected}"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_sort_result_catalog() -> Result<(), Box<dyn Error>> {
+        let mut catalog = AttributeCatalog::default();
+        // Create 26 attribute refs, and then randomize them.
+        let mut attr_refs = vec![];
+        for c in 'a'..='z' {
+            attr_refs.push(catalog.attribute_ref(Attribute {
+                name: format!("{c}"),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String),
+                brief: Default::default(),
+                examples: Default::default(),
+                tag: Default::default(),
+                requirement_level: Default::default(),
+                sampling_relevant: Default::default(),
+                note: Default::default(),
+                stability: Default::default(),
+                deprecated: Default::default(),
+                prefix: Default::default(),
+                tags: Default::default(),
+                annotations: Default::default(),
+                value: Default::default(),
+                role: Default::default(),
+            }));
+        }
+        // 2. Get a thread-local random number generator (RNG)
+        let mut rng = rng();
+        attr_refs.shuffle(&mut rng);
+        
+        // We only need to fille out the registry here.
+        let ureg = UnresolvedRegistry {
+            registry: Registry { 
+                registry_url: "test".to_owned(), 
+                groups: vec![
+                    Group { 
+                        id: "b".to_owned(), 
+                        r#type: GroupType::AttributeGroup, 
+                        brief: Default::default(), 
+                        note: Default::default(), 
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().take(10).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default() 
+                    },
+                    Group {
+                        id: "a".to_owned(), 
+                        r#type: GroupType::AttributeGroup, 
+                        brief: Default::default(), 
+                        note: Default::default(), 
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().skip(10).take(10).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default() 
+                    },
+                    Group {
+                        id: "a".to_owned(), 
+                        r#type: GroupType::AttributeGroup, 
+                        brief: Default::default(), 
+                        note: Default::default(), 
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().skip(20).take(6).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default() 
+                    },
+                ] },
+            groups: vec![],
+            imports: vec![],
+            dependencies: vec![],
+        };
+
+        let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);        
+        let attrs = catalog.drain_attributes();
+
+        // Check catalog for sorting.
+        for (a, expected) in attrs.iter().zip('a'..='z') {
+            assert_eq!(a.name, format!("{expected}"));
+        }
+        // Now check registry for sorting.
+        for g in &registry.groups {
+             for (l,r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
+                assert_eq!(l.0.cmp(&r.0), Ordering::Less)
+             }
+        }
+        for (l, r) in registry.groups.iter().zip(registry.groups.iter().skip(1)) {
+            assert_eq!(l.id.cmp(&r.id), Ordering::Less)
+        }
         Ok(())
     }
 
