@@ -122,9 +122,8 @@ Then navigate to:
 
 ## Production Deployment
 
-Currently, the Rust server (`src/serve/ui.rs`) embeds the Svelte UI build (`ui/dist`) for serving. The React UI build (`ui-react/dist`) is not yet embedded.
+Currently, Rust server (`src/serve/ui.rs`) embeds React UI build (`ui-react/dist`) for serving. The Svelte UI build (`ui/dist`) is no longer embedded.
 
-To switch the embedded UI to React, update the Rust embed path in `src/serve/ui.rs` from `ui/dist` to `ui-react/dist` after verifying feature parity.
 
 ## API Server Requirements
 
