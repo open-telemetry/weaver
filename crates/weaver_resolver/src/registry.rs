@@ -980,21 +980,6 @@ mod tests {
             // If the file is present, the test is expected to fail with the errors in the file.
             let expected_errors_file = format!("{test_dir}/expected-errors.json");
             if PathBuf::from(&expected_errors_file).exists() {
-                if !observed_registry.is_err() {
-                    // Debugging info.
-                    println!("catalog");
-                    for a in &observed_attr_catalog {
-                        println!(" - {}", a.name)
-                    }
-                    println!("Registry");
-                    for g in &observed_registry.as_ref().unwrap().groups {
-                        println!(" - {}", g.id);
-                        for a in g.attributes.iter() {
-                            let name = &observed_attr_catalog[a.0 as usize].name;
-                            println!("   - {}", name);
-                        }
-                    }
-                }
                 assert!(observed_registry.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
@@ -1423,7 +1408,7 @@ groups:
         // Now check registry for sorting.
         for g in &registry.groups {
             for (l, r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
-                assert_eq!(l.0.cmp(&r.0), Ordering::Less)
+                assert_eq!(l.0.cmp(&r.0), Ordering::Less);
             }
             let expected_names = lookups
                 .get(&g.id)
@@ -1436,7 +1421,7 @@ groups:
             );
             for ar in &g.attributes {
                 let a = &attrs[ar.0 as usize];
-                assert!(expected_names.contains(&a.name))
+                assert!(expected_names.contains(&a.name));
             }
         }
         Ok(())
