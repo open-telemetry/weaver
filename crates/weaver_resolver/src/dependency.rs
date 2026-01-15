@@ -113,7 +113,7 @@ impl ImportableDependency for V1Schema {
             .cloned()
             .map(|mut g| {
                 // We need to fix all the attribute references in this group to be
-                // against hte passed in attribute catalog.
+                // against the passed in attribute catalog.
                 let mut attributes = vec![];
                 for a in g
                     .attributes
