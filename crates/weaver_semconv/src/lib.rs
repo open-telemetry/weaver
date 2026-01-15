@@ -466,7 +466,7 @@ impl Ord for YamlValue {
             }
             (serde_yaml::Value::Sequence(_l), serde_yaml::Value::Sequence(_r)) => {
                 // TODO - actually implement a comparison.
-                // This is good enoguh for sorting attributes.
+                // This is good enough for sorting attributes.
                 std::cmp::Ordering::Equal
             }
             (serde_yaml::Value::Sequence(_), serde_yaml::Value::Mapping(_)) => {
@@ -490,7 +490,7 @@ impl Ord for YamlValue {
             }
             (serde_yaml::Value::Mapping(_l), serde_yaml::Value::Mapping(_r)) => {
                 // TODO - actually implement a comparison.
-                // This is good enoguh for sorting attributes.
+                // This is good enough for sorting attributes.
                 std::cmp::Ordering::Equal
             }
             (serde_yaml::Value::Mapping(_), serde_yaml::Value::Tagged(_)) => {
@@ -512,7 +512,7 @@ impl Ord for YamlValue {
             }
             (serde_yaml::Value::Tagged(_l), serde_yaml::Value::Tagged(_r)) => {
                 // TODO - actually implement a comparison.
-                // This is good enoguh for sorting attributes.
+                // This is good enough for sorting attributes.
                 std::cmp::Ordering::Equal
             }
         }

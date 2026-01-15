@@ -42,8 +42,8 @@ impl AttributeCatalog {
         self.root_attributes.get(name)
     }
 
-    /// Returns an attribute from a referenc.
-    /// NOTE: this is ineffecient and should only be used in tests.
+    /// Returns an attribute from a reference.
+    /// NOTE: this is inefficient and should only be used in tests.
     #[cfg(test)]
     pub fn attribute(&self, ar: &AttributeRef) -> Option<attribute::Attribute> {
         self.attribute_refs
@@ -90,8 +90,8 @@ impl AttributeCatalog {
         ordered.sort_by(|(ln, _), (rn, _)| ln.cmp(rn));
         // assert_eq!(ordered.len(), self.attribute_refs.len());
         let mut next_id = 0;
-        // Construct map that converts old attirbute refs into new ones, where
-        // the new IDs are incresing using attribute ordering.
+        // Construct map that converts old attribute refs into new ones, where
+        // the new IDs are increasing using attribute ordering.
         let gc_map: HashMap<AttributeRef, AttributeRef> = ordered
             .iter()
             .map(|(_, attr_ref)| {

@@ -788,7 +788,7 @@ fn resolve_inheritance_attr(
 // Rust's type system is not advanced enough to know about partial mutable
 // borrowing of a reference.
 fn lookup_group_attributes_with_dependencies(
-    dependencies: &Vec<ResolvedDependency>,
+    dependencies: &[ResolvedDependency],
     local_index: &HashMap<String, Vec<UnresolvedAttribute>>,
     id: &str,
 ) -> Option<Vec<UnresolvedAttribute>> {
@@ -799,7 +799,7 @@ fn lookup_group_attributes_with_dependencies(
     // Now check dependencies in order.
     dependencies
         .iter()
-        .find_map(|d| d.lookup_group_atributes(id))
+        .find_map(|d| d.lookup_group_attributes(id))
 }
 
 /// This will sort the clean and sort the attribute catalog and registry.
@@ -961,7 +961,7 @@ mod tests {
             };
             assert!(
                 dependencies.is_empty(),
-                "Unable to handle dependnecies in resolution unit tests"
+                "Unable to handle dependencies in resolution unit tests"
             );
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry = resolve_registry_with_dependencies(
@@ -1013,7 +1013,7 @@ mod tests {
 
             // At this point, the normal behavior of this test is to pass.
             let mut observed_registry = observed_registry.expect("Failed to resolve the registry");
-            // Force registry URL to consistent stirng
+            // Force registry URL to consistent string
             observed_registry.registry_url = "https://127.0.0.1".to_owned();
             // Now sort groups so we don't get flaky tests.
             observed_registry.groups.sort_by_key(|g| g.id.to_owned());
@@ -1291,7 +1291,7 @@ groups:
         let mut rng = rng();
         attr_refs.shuffle(&mut rng);
 
-        // We only need to fille out the registry here.
+        // We only need to fill out the registry here.
         let ureg = UnresolvedRegistry {
             registry: Registry {
                 registry_url: "test".to_owned(),

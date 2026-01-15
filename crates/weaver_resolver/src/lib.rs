@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
-        /// Helper to load a specific repository and reoslve with the given include flag.
+        /// Helper to load a specific repository and resolve with the given include flag.
         fn check_semconv_load_and_resolve(registry_repo: RegistryRepo, include_unreferenced: bool) {
             let mut diag_msgs = DiagnosticMessages::empty();
             let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)

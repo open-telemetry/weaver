@@ -23,10 +23,10 @@ pub(crate) enum ResolvedDependency {
 
 impl ResolvedDependency {
     /// Creates unresolved attributes to fill out "ref" attributes when resolving a repository.
-    pub(crate) fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+    pub(crate) fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
         match self {
-            ResolvedDependency::V1(schema) => schema.lookup_group_atributes(id),
-            ResolvedDependency::V2(schema) => schema.lookup_group_atributes(id),
+            ResolvedDependency::V1(schema) => schema.lookup_group_attributes(id),
+            ResolvedDependency::V2(schema) => schema.lookup_group_attributes(id),
         }
     }
 }
@@ -180,11 +180,11 @@ impl ImportableDependency for Vec<ResolvedDependency> {
 /// Helper trait for abstracting over V1 and V2 schema.
 trait UnresolvedAttributeLookup {
     /// Looks up group attributes on this repo.
-    fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>>;
+    fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>>;
 }
 
 impl UnresolvedAttributeLookup for V1Schema {
-    fn lookup_group_atributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+    fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
         self.group(id).map(|g| {
             let attributes: Vec<UnresolvedAttribute> = g
                 .attributes
@@ -216,7 +216,7 @@ impl UnresolvedAttributeLookup for V1Schema {
 }
 
 impl UnresolvedAttributeLookup for V2Schema {
-    fn lookup_group_atributes(&self, _id: &str) -> Option<Vec<UnresolvedAttribute>> {
+    fn lookup_group_attributes(&self, _id: &str) -> Option<Vec<UnresolvedAttribute>> {
         // TODO - we need to lookup on all possible groups.
         todo!("Support V2 in resolution")
     }

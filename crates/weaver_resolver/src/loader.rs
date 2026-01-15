@@ -33,9 +33,9 @@ pub enum LoadedSemconvRegistry {
         /// The dependencies of this repository.
         dependencies: Vec<LoadedSemconvRegistry>,
     },
-    /// The semconv respository is already resolved and can be used as-is.
+    /// The semconv repository is already resolved and can be used as-is.
     Resolved(V1Schema),
-    /// The semconv respository is already resolved and can be used as-is.
+    /// The semconv repository is already resolved and can be used as-is.
     ResolvedV2(V2Schema),
 }
 
@@ -146,7 +146,7 @@ pub(crate) fn load_semconv_repository(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
 ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
-    // This method simply sets up the resolution state and delgates to the actual work.
+    // This method simply sets up the resolution state and delegates to the actual work.
     let mut visited_registries = HashSet::new();
     let mut dependency_chain = Vec::new();
     load_semconv_repository_recursive(
@@ -167,6 +167,15 @@ fn load_semconv_repository_recursive(
     visited_registries: &mut HashSet<String>,
     dependency_chain: &mut Vec<String>,
 ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+    // Make sure we don't go past our max dependency depth.
+    if max_dependency_depth == 0 {
+        return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+            error: format!(
+                "Maximum dependency depth reached for registry `{}`. Cannot load further dependencies.",
+                registry_repo.registry_path_repr()
+            ),
+        });
+    }
     let registry_id = registry_repo.id().to_string();
     // Check for circular dependency
     if visited_registries.contains(&registry_id) {
@@ -195,17 +204,6 @@ fn load_semconv_repository_recursive(
             for d in manifest.dependencies.iter() {
                 match RegistryRepo::try_new(&d.name, &d.registry_path) {
                     Ok(d_repo) => {
-                        // TODO - dependency chain should ONLY include current dependencies.
-
-                        // Make sure we don't go pat our max dependency depth.
-                        if max_dependency_depth <= 0 {
-                            return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
-                                error: format!(
-                                    "Maximum dependency depth reached for registry `{}`. Cannot load further dependencies.",
-                                    registry_repo.registry_path_repr()
-                                ),
-                            });
-                        }
                         // so we need to make sure the dependency chain only include direct dependencies of each other.
                         match load_semconv_repository_recursive(
                             d_repo,
@@ -364,7 +362,7 @@ mod tests {
     };
 
     #[test]
-    fn test_load_unresovled_registry_with_dependencies() -> Result<(), weaver_semconv::Error> {
+    fn test_load_unresolved_registry_with_dependencies() -> Result<(), weaver_semconv::Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
