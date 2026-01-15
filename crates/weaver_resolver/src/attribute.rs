@@ -36,12 +36,6 @@ pub struct AttributeWithGroupId {
 }
 
 impl AttributeCatalog {
-    /// Returns the given attribute from the catalog.
-    #[must_use]
-    pub fn get_attribute(&self, name: &str) -> Option<&AttributeWithGroupId> {
-        self.root_attributes.get(name)
-    }
-
     /// Returns an attribute from a reference.
     /// NOTE: this is inefficient and should only be used in tests.
     #[cfg(test)]

@@ -221,6 +221,12 @@ impl UnresolvedAttributeLookup for V2Schema {
     }
 }
 
+impl UnresolvedAttributeLookup for Vec<ResolvedDependency> {
+    fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+        self.iter().find_map(|d| d.lookup_group_attributes(id))
+    }
+}
+
 impl From<V1Schema> for ResolvedDependency {
     fn from(value: V1Schema) -> Self {
         ResolvedDependency::V1(value)
@@ -230,5 +236,99 @@ impl From<V1Schema> for ResolvedDependency {
 impl From<V2Schema> for ResolvedDependency {
     fn from(value: V2Schema) -> Self {
         ResolvedDependency::V2(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+    use std::error::Error;
+    use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+
+    use crate::dependency::{ResolvedDependency, UnresolvedAttributeLookup};
+
+    #[test]
+    fn test_lookup_group_attributes() -> Result<(), Box<dyn Error>> {
+        let d = ResolvedDependency::V1(example_v1_schema());
+        let result = d.lookup_group_attributes("a");
+        assert!(
+            result.is_some(),
+            "Should find group attributes for `a` on {d:?}"
+        );
+        if let Some(attrs) = result.as_ref() {
+            assert!(
+                !attrs.is_empty(),
+                "Should find attributes for group `a`, found none."
+            );
+            assert_eq!(attrs[0].spec.id(), "a.test");
+        }
+        let ds = vec![d];
+        let result2 = ds.lookup_group_attributes("a");
+        // Assert we get the same if we look across a vector vs. raw.
+        assert_eq!(
+            result.map(|a| a.iter().map(|a| a.spec.id()).collect_vec()),
+            result2.map(|a| a.iter().map(|a| a.spec.id()).collect_vec())
+        );
+        Ok(())
+    }
+
+    fn example_v1_schema() -> V1Schema {
+        V1Schema {
+            file_format: "resolved/1.0.0".to_owned(),
+            schema_url: "v1-example".to_owned(),
+            registry_id: "v1-example".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "v1-example".to_owned(),
+                groups: vec![weaver_resolved_schema::registry::Group {
+                    id: "a".to_owned(),
+                    r#type: weaver_semconv::group::GroupType::AttributeGroup,
+                    brief: Default::default(),
+                    note: Default::default(),
+                    prefix: Default::default(),
+                    extends: Default::default(),
+                    stability: Default::default(),
+                    deprecated: Default::default(),
+                    attributes: vec![weaver_resolved_schema::attribute::AttributeRef(0)],
+                    span_kind: Default::default(),
+                    events: Default::default(),
+                    metric_name: Default::default(),
+                    instrument: Default::default(),
+                    unit: Default::default(),
+                    name: Default::default(),
+                    lineage: Default::default(),
+                    display_name: Default::default(),
+                    body: Default::default(),
+                    annotations: Default::default(),
+                    entity_associations: Default::default(),
+                    visibility: Default::default(),
+                }],
+            },
+            catalog: weaver_resolved_schema::catalog::Catalog::from_attributes(vec![
+                weaver_resolved_schema::attribute::Attribute {
+                    name: "a.test".to_owned(),
+                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    brief: Default::default(),
+                    examples: Default::default(),
+                    tag: Default::default(),
+                    requirement_level: Default::default(),
+                    sampling_relevant: Default::default(),
+                    note: Default::default(),
+                    stability: Default::default(),
+                    deprecated: Default::default(),
+                    prefix: Default::default(),
+                    tags: Default::default(),
+                    annotations: Default::default(),
+                    value: Default::default(),
+                    role: Default::default(),
+                },
+            ]),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: vec![],
+            versions: None,
+            registry_manifest: None,
+        }
     }
 }
