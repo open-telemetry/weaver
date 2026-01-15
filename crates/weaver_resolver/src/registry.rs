@@ -6,7 +6,6 @@ use crate::attribute::AttributeCatalog;
 use crate::dependency::{ImportableDependency, ResolvedDependency};
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
-use globset::GlobSet;
 use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -17,12 +16,8 @@ use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{
-    GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
-};
-use weaver_semconv::manifest::RegistryManifest;
+use weaver_semconv::group::{GroupSpecWithProvenance, GroupType, ImportsWithProvenance};
 use weaver_semconv::provenance::Provenance;
-use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
@@ -181,213 +176,6 @@ pub(crate) fn resolve_registry_with_dependencies(
     WResult::OkWithNFEs(result, errors)
 }
 
-/// Resolves the semantic convention registry passed as argument and returns
-/// the resolved registry or an error if the resolution process failed.
-///
-/// The resolution process consists of the following steps:
-/// - Resolve all attribute references and apply the overrides when needed.
-/// - Resolve all the `extends` references.
-///
-/// # Arguments
-///
-/// * `attr_catalog` - The attribute catalog to use to resolve the attribute references.
-/// * `registry_url` - The URL of the registry.
-/// * `registry` - The semantic convention registry.
-/// * `include_unreferenced` - Whether to include unreferenced objects in the
-///   resolved registry.
-///
-/// # Returns
-///
-/// This function returns the resolved registry or an error if the resolution process
-/// failed.
-#[deprecated]
-pub fn resolve_semconv_registry(
-    attr_catalog: &mut AttributeCatalog,
-    registry_url: &str,
-    registry: &SemConvRegistry,
-    include_unreferenced: bool,
-) -> WResult<Registry, Error> {
-    let mut ureg = unresolved_registry_from_specs(registry_url, registry);
-
-    if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
-        return WResult::FatalErr(e);
-    }
-
-    if let Err(e) = resolve_extends_references(&mut ureg) {
-        return WResult::FatalErr(e);
-    }
-
-    if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog) {
-        return WResult::FatalErr(e);
-    }
-
-    // Sort the attribute internal references in each group.
-    // This is needed to ensure that the resolved registry is easy to compare
-    // in unit tests.
-    ureg.registry.groups = ureg
-        .groups
-        .into_iter()
-        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
-        .map(|mut g| {
-            g.group.attributes.sort();
-            g.group
-        })
-        .collect();
-
-    let mut errors = vec![];
-
-    let attr_name_index = attr_catalog.attribute_name_index();
-
-    // Other complementary checks.
-    // Check for duplicate group IDs.
-    check_uniqueness(
-        &ureg.registry,
-        &mut errors,
-        |group| Some(group.id.clone()),
-        |group_id, provenances| DuplicateGroupId {
-            group_id,
-            provenances,
-        },
-    );
-    // Check for duplicate metric names.
-    check_uniqueness(
-        &ureg.registry,
-        &mut errors,
-        |group| group.metric_name.clone(),
-        |metric_name, provenances| DuplicateMetricName {
-            metric_name,
-            provenances,
-        },
-    );
-    // Check for duplicate group names.
-    check_uniqueness(
-        &ureg.registry,
-        &mut errors,
-        |group| group.name.clone(),
-        |group_name, provenances| DuplicateGroupName {
-            group_name,
-            provenances,
-        },
-    );
-    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
-
-    if !include_unreferenced {
-        if let Err(e) = gc_unreferenced_objects(
-            registry.manifest(),
-            &mut ureg.registry,
-            &ureg.imports,
-            attr_catalog,
-        ) {
-            return WResult::FatalErr(e);
-        }
-    }
-
-    WResult::OkWithNFEs(ureg.registry, errors)
-}
-
-/// Garbage collect all the signals and attributes not defined or referenced in the
-/// current registry, i.e. telemetry objects only defined in a dependency and not
-/// referenced in the current registry.
-#[deprecated]
-fn gc_unreferenced_objects(
-    manifest: Option<&RegistryManifest>,
-    registry: &mut Registry,
-    all_imports: &[ImportsWithProvenance],
-    attr_catalog: &mut AttributeCatalog,
-) -> Result<(), Error> {
-    let build_globset = |wildcards: Option<&Vec<GroupWildcard>>| {
-        let mut builder = GlobSet::builder();
-        if let Some(wildcards_vec) = wildcards {
-            for wildcard in wildcards_vec.iter() {
-                _ = builder.add(wildcard.0.clone());
-            }
-        }
-        builder.build().map_err(|e| Error::InvalidWildcard {
-            error: e.to_string(),
-        })
-    };
-
-    // Filter imports to only include those from the current registry
-    let current_registry_imports: Vec<_> = all_imports
-        .iter()
-        .filter(|import| {
-            import.provenance.registry_id.as_ref()
-                == manifest.map(|m| m.name.as_str()).unwrap_or("")
-        })
-        .collect();
-
-    let metrics_imports_matcher = build_globset(
-        current_registry_imports
-            .iter()
-            .find_map(|i| i.imports.metrics.as_ref()),
-    )?;
-    let events_imports_matcher = build_globset(
-        current_registry_imports
-            .iter()
-            .find_map(|i| i.imports.events.as_ref()),
-    )?;
-    let entities_imports_matcher = build_globset(
-        current_registry_imports
-            .iter()
-            .find_map(|i| i.imports.entities.as_ref()),
-    )?;
-
-    if let Some(manifest) = manifest {
-        if !manifest.dependencies.is_empty() {
-            // This registry has dependencies.
-            let current_reg_id = manifest.name.clone();
-
-            // Remove all groups that are not defined in the current registry.
-            registry.groups.retain(|group| {
-                let ref_in_imports = match group.r#type {
-                    GroupType::Event => group
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
-                    GroupType::Metric => group.metric_name.as_ref().is_some_and(|metric_name| {
-                        metrics_imports_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::Entity => group
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
-                    _ => false,
-                };
-
-                if ref_in_imports {
-                    // This group is referenced in the `imports` section, so we keep it.
-                    true
-                } else if let Some(lineage) = &group.lineage {
-                    lineage.provenance().registry_id.as_ref() == current_reg_id
-                } else {
-                    // Groups without lineage should be garbage collected.
-                    false
-                }
-            });
-
-            // Collect all remaining attribute references
-            let mut attr_refs = HashSet::new();
-            registry.groups.iter().for_each(|group| {
-                group.attributes.iter().for_each(|attr| {
-                    _ = attr_refs.insert(*attr);
-                });
-            });
-
-            // Remove all attributes no longer referenced in the catalog and update all the
-            // attribute references in the registry.
-            let attr_refs_map = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
-            registry.groups.iter_mut().for_each(|group| {
-                group.attributes.iter_mut().for_each(|attr_ref| {
-                    *attr_ref = *attr_refs_map
-                        .get(attr_ref)
-                        .expect("Attribute reference not found in map");
-                });
-            });
-        }
-    }
-    Ok(())
-}
-
 /// Generic function to check for duplicate keys in the given registry.
 ///
 /// A key can be a group ID, a metric name, an event name, or any other key that is used
@@ -478,41 +266,6 @@ pub fn check_root_attribute_id_duplicates(
         })
         .collect();
     errors.extend(local_errors);
-}
-
-/// Creates a semantic convention registry from a set of semantic convention
-/// specifications.
-///
-/// This function creates an unresolved registry from the given semantic
-/// convention specifications and registry url.
-///
-/// Note: this function does not resolve references.
-///
-/// # Arguments
-///
-/// * `registry_url` - The URL of the registry.
-/// * `registry` - The semantic convention specifications.
-///
-/// # Returns
-///
-/// This function returns an unresolved registry containing the semantic
-/// convention specifications.
-fn unresolved_registry_from_specs(
-    registry_url: &str,
-    registry: &SemConvRegistry,
-) -> UnresolvedRegistry {
-    let groups = registry
-        .unresolved_group_with_provenance_iter()
-        .map(group_from_spec)
-        .collect();
-    let imports = registry.unresolved_imports_iter().collect::<Vec<_>>();
-
-    UnresolvedRegistry {
-        registry: Registry::new(registry_url),
-        groups,
-        imports,
-        dependencies: vec![],
-    }
 }
 
 /// Creates a group from a semantic convention group specification.
@@ -1104,19 +857,16 @@ mod tests {
     use weaver_common::result::WResult;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::canonicalize_json_string;
-    use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_resolved_schema::registry::Group;
     use weaver_resolved_schema::registry::Registry;
     use weaver_semconv::group::GroupType;
     use weaver_semconv::provenance::Provenance;
-    use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_repo::RegistryRepo;
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
     use crate::registry::resolve_registry_with_dependencies;
-    use crate::registry::resolve_semconv_registry;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
     use crate::LoadedSemconvRegistry;
@@ -1326,15 +1076,9 @@ mod tests {
     }
 
     fn create_registry_from_string(registry_spec: &str) -> WResult<Registry, crate::Error> {
-        let mut sc_specs = SemConvRegistry::new("default");
-        sc_specs
-            .add_semconv_spec_from_string(Provenance::new("main", "<str>"), registry_spec)
-            .into_result_failing_non_fatal()
+        let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
             .expect("Failed to load semconv spec");
-
-        let mut attr_catalog = AttributeCatalog::default();
-
-        resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs, false)
+        SchemaResolver::resolve(loaded, false).map(|schema| schema.registry)
     }
 
     #[test]

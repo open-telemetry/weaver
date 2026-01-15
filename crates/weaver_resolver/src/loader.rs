@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
+use weaver_semconv::registry::SemConvRegistry;
 
 use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::json_schema::JsonSchemaValidator;
-use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
@@ -38,6 +40,32 @@ pub enum LoadedSemconvRegistry {
 }
 
 impl LoadedSemconvRegistry {
+    /// Creates a loaded semconv registry from a single string.
+    #[cfg(test)]
+    pub fn create_from_string(spec: &str) -> Result<LoadedSemconvRegistry, crate::Error> {
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_semconv::provenance::Provenance;
+        let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
+        let repo =
+            RegistryRepo::try_new("default", &path).map_err(|e| crate::Error::InvalidUrl {
+                url: "test string".to_owned(),
+                error: format!("{e}"),
+            })?;
+        let provenance = Provenance::new("default", "<str>");
+        let spec_with_provenance = SemConvSpecWithProvenance::from_string(provenance, spec)
+            .into_result_failing_non_fatal()
+            .map_err(|e| crate::Error::InvalidUrl {
+                url: "test string".to_owned(),
+                error: format!("{e}"),
+            })?;
+        Ok(LoadedSemconvRegistry::Unresolved {
+            repo,
+            specs: vec![spec_with_provenance],
+            imports: vec![],
+            dependencies: vec![],
+        })
+    }
+
     /// Returns true if the repository is unresolved.
     #[must_use]
     pub fn is_unresolved(&self) -> bool {
@@ -52,19 +80,6 @@ impl LoadedSemconvRegistry {
             // TODO - are these correct?
             LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
             LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url,
-        }
-    }
-
-    /// Returns a SemConvRegistry of this loaded repository.
-    ///
-    /// Note: used for legacy stats checks, may be removed.
-    pub fn semconv_registry(&self) -> Result<Option<SemConvRegistry>, weaver_semconv::Error> {
-        match self {
-            LoadedSemconvRegistry::Unresolved { repo, specs, .. } => Ok(Some(
-                SemConvRegistry::from_semconv_specs(repo, specs.clone())?,
-            )),
-            LoadedSemconvRegistry::Resolved(_) => Ok(None),
-            LoadedSemconvRegistry::ResolvedV2(_) => Ok(None),
         }
     }
 
@@ -99,6 +114,26 @@ impl LoadedSemconvRegistry {
             }
             LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry_id.clone()],
             LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.registry_id.clone()],
+        }
+    }
+}
+
+impl Display for LoadedSemconvRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs: _,
+                imports: _,
+                dependencies,
+            } => write!(
+                f,
+                "{} - [{}]",
+                repo.id(),
+                dependencies.iter().map(|d| format!("{d}")).join(",")
+            ),
+            LoadedSemconvRegistry::Resolved(schema) => write!(f, "{}", schema.registry_id),
+            LoadedSemconvRegistry::ResolvedV2(schema) => write!(f, "{}", schema.registry_id),
         }
     }
 }
@@ -241,6 +276,7 @@ fn load_definition_repository(
                         return vec![].into_par_iter();
                     }
 
+                    // TODO - less confusing way to load semconv specs.
                     vec![SemConvRegistry::semconv_spec_from_file(
                         &registry_repo.id(),
                         entry.path(),

@@ -14,7 +14,6 @@ use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::{LoadedSemconvRegistry, SchemaResolver};
-use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
@@ -142,16 +141,6 @@ impl Loaded {
             }
         }
         Ok(())
-    }
-
-    /// Return a "raw" registry for the legacy V1 stats.
-    pub fn semconv_registry(&self) -> Result<SemConvRegistry, Error> {
-        // TODO - issue an error if we can't convert semconv registry.
-        match self.loaded.semconv_registry()? {
-            Some(r) => Ok(r),
-            // TODO - make abetter error.
-            None => todo!(),
-        }
     }
 }
 
@@ -485,32 +474,6 @@ fn init_policy_engine(
     }
 
     Ok(engine)
-}
-
-/// Loads the semantic convention specifications from a registry path.
-///
-/// # Arguments
-///
-/// * `registry_repo` - The registry repository.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of tuples with file names and `SemConvSpec` on success,
-/// or a `weaver_resolver::Error` on failure.
-pub(crate) fn load_semconv_specs(
-    registry_repo: &RegistryRepo,
-    follow_symlinks: bool,
-) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
-    SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks).inspect(
-        |semconv_specs, _| {
-            log_success(format!(
-                "`{}` semconv registry `{}` loaded ({} files)",
-                registry_repo.id(),
-                registry_repo.registry_path_repr(),
-                semconv_specs.len()
-            ));
-        },
-    )
 }
 
 /// Checks the policies of a semantic convention registry.

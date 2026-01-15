@@ -65,17 +65,16 @@ impl ResolvedSemconvRegistry {
         follow_symlinks: bool,
         include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let loaded = match SchemaResolver::load_semconv_repository(
-            registry_repo.clone(),
-            follow_symlinks,
-        ) {
-            WResult::Ok(semconv_specs) => semconv_specs,
-            WResult::OkWithNFEs(semconv_specs, errs) => {
-                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
-                semconv_specs
-            }
-            WResult::FatalErr(err) => return Err(err.into()),
-        };
+        let loaded =
+            match SchemaResolver::load_semconv_repository(registry_repo.clone(), follow_symlinks) {
+                WResult::Ok(semconv_specs) => semconv_specs,
+                WResult::OkWithNFEs(semconv_specs, errs) => {
+                    diag_msgs
+                        .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                    semconv_specs
+                }
+                WResult::FatalErr(err) => return Err(err.into()),
+            };
 
         let schema = match SchemaResolver::resolve(loaded, include_unreferenced) {
             WResult::Ok(schema) => schema,

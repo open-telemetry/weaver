@@ -36,8 +36,7 @@ fn test_cli_interface() {
     let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
         panic!("Failed to create the registry repo, error: {e}");
     });
-    let loaded = 
-        SchemaResolver::load_semconv_repository(registry_repo, false)
+    let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| {
@@ -48,14 +47,12 @@ fn test_cli_interface() {
     assert_eq!(log.error_count(), 0);
 
     // Resolve the official semantic convention registry.
-    let resolved_registry = SchemaResolver::resolve(
-        loaded,
-        false,
-    )
-    .into_result_failing_non_fatal()
-    .unwrap_or_else(|e| {
-        panic!("Failed to resolve the official semantic convention registry, error: {e}");
-    }).registry;
+    let resolved_registry = SchemaResolver::resolve(loaded, false)
+        .into_result_failing_non_fatal()
+        .unwrap_or_else(|e| {
+            panic!("Failed to resolve the official semantic convention registry, error: {e}");
+        })
+        .registry;
 
     // The number of semconv groups is fluctuating, so we can't check for a
     // specific number, but we can check if there are any groups at all.
