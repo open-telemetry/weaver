@@ -62,7 +62,6 @@ impl ImportableDependency for V1Schema {
         };
 
         // Filter imports to only include those from the current registry
-        // TODO - we shouldn't need to do anything because new reoslutions does this.
         let current_registry_imports: Vec<_> = imports.iter().collect();
 
         let metrics_imports_matcher = build_globset(
