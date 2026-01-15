@@ -8,11 +8,9 @@ use crate::tags::Tags;
 use crate::value::Value;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::ops::Not;
-use weaver_semconv::attribute::EnumEntriesSpec;
 #[cfg(test)]
 use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 use weaver_semconv::attribute::{

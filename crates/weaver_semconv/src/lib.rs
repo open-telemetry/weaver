@@ -408,7 +408,7 @@ impl Ord for YamlValue {
             (serde_yaml::Value::Null, serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
             (serde_yaml::Value::Null, serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
             (serde_yaml::Value::Bool(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_yaml::Value::Bool(l), serde_yaml::Value::Bool(r)) => l.cmp(&r),
+            (serde_yaml::Value::Bool(l), serde_yaml::Value::Bool(r)) => l.cmp(r),
             (serde_yaml::Value::Bool(_), serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
             (serde_yaml::Value::Bool(_), serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
             (serde_yaml::Value::Bool(_), serde_yaml::Value::Sequence(_)) => {
@@ -421,7 +421,7 @@ impl Ord for YamlValue {
                 std::cmp::Ordering::Greater
             }
             (serde_yaml::Value::Number(l), serde_yaml::Value::Number(r)) => {
-                l.partial_cmp(&r).unwrap_or(std::cmp::Ordering::Less)
+                l.partial_cmp(r).unwrap_or(std::cmp::Ordering::Less)
             }
             (serde_yaml::Value::Number(_), serde_yaml::Value::String(_)) => {
                 std::cmp::Ordering::Less
@@ -442,7 +442,7 @@ impl Ord for YamlValue {
             (serde_yaml::Value::String(_), serde_yaml::Value::Number(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::String(l), serde_yaml::Value::String(r)) => l.cmp(&r),
+            (serde_yaml::Value::String(l), serde_yaml::Value::String(r)) => l.cmp(r),
             (serde_yaml::Value::String(_), serde_yaml::Value::Sequence(_)) => {
                 std::cmp::Ordering::Less
             }

@@ -10,7 +10,7 @@ use crate::registry::resolve_registry_with_dependencies;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
+use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
 mod attribute;

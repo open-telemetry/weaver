@@ -131,13 +131,9 @@ impl Loaded {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<(), Error> {
         if let Some(policy_engine) = self.policy_engine.as_ref() {
-            match &self.loaded {
-                LoadedSemconvRegistry::Unresolved { specs, .. } => {
-                    check_policy(policy_engine, specs).capture_non_fatal_errors(diag_msgs)?;
-                }
-                // We can't check polices on resolved registries.
-                // TODO - Issue a warning of some such.
-                _ => (),
+            // Note: We can't check polices on resolved registries.
+            if let LoadedSemconvRegistry::Unresolved { specs, .. } = &self.loaded {
+                check_policy(policy_engine, specs).capture_non_fatal_errors(diag_msgs)?;
             }
         }
         Ok(())

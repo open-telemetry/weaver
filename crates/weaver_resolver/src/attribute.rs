@@ -85,7 +85,7 @@ impl AttributeCatalog {
         let mut ordered: Vec<(attribute::Attribute, AttributeRef)> = self
             .attribute_refs
             .iter()
-            .map(|(a, ar)| (a.clone(), ar.clone()))
+            .map(|(a, ar)| (a.clone(), *ar))
             .collect();
         ordered.sort_by(|(ln, _), (rn, _)| ln.cmp(rn));
         // assert_eq!(ordered.len(), self.attribute_refs.len());

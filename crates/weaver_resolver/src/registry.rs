@@ -819,7 +819,7 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
     for g in ureg.groups.iter_mut() {
         for a in g.group.attributes.iter_mut() {
             if let Some(ar) = mapping.get(a) {
-                *a = ar.clone();
+                *a = *ar;
             }
         }
     }
