@@ -7,7 +7,7 @@
       "brief": "This event represents an occurrence of a lifecycle transition on the Android platform.\n",
       "stability": "development",
       "attributes": [
-        1
+        0
       ],
       "name": "android.device.app.lifecycle",
       "lineage": {
@@ -61,10 +61,10 @@
       "brief": "An event that adds global attributes for reuse.\n",
       "stability": "development",
       "attributes": [
-        6,
-        7,
-        8,
-        9
+        1,
+        2,
+        3,
+        4
       ],
       "name": "browser.test.event_with_fields",
       "lineage": {
@@ -100,7 +100,7 @@
       "brief": "This document defines the log event used to report a client exception.\n",
       "stability": "development",
       "attributes": [
-        5
+        6
       ],
       "name": "client.exception.event",
       "lineage": {
@@ -256,9 +256,9 @@
       "brief": "This semantic convention defines the attributes used to represent a feature flag evaluation as an event.\n",
       "stability": "development",
       "attributes": [
-        2,
-        3,
-        4
+        14,
+        15,
+        16
       ],
       "name": "trace_feature_flag",
       "lineage": {
@@ -274,7 +274,7 @@
       "brief": "This event represents an occurrence of a lifecycle transition on the iOS platform.\n",
       "stability": "development",
       "attributes": [
-        0
+        17
       ],
       "name": "ios.device.app.lifecycle",
       "lineage": {
@@ -290,9 +290,9 @@
       "brief": "This document defines attributes for feature flag evaluations represented using Log Records.\n",
       "stability": "development",
       "attributes": [
-        2,
-        3,
-        4
+        14,
+        15,
+        16
       ],
       "name": "feature_flag",
       "lineage": {
@@ -340,7 +340,7 @@
       "brief": "brief",
       "stability": "development",
       "attributes": [
-        12
+        18
       ],
       "name": "some.event",
       "lineage": {
@@ -380,10 +380,10 @@
       "type": "attribute_group",
       "brief": "These attributes are used as references for the test below\n",
       "attributes": [
-        10,
-        11,
-        12,
-        13
+        18,
+        20,
+        21,
+        22
       ],
       "lineage": {
         "provenance": {
@@ -397,8 +397,8 @@
       "type": "attribute_group",
       "brief": "Client test attributes",
       "attributes": [
-        14,
-        15
+        5,
+        7
       ],
       "lineage": {
         "provenance": {
@@ -412,10 +412,10 @@
       "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report a single exception associated with a span or log.\n",
       "attributes": [
-        16,
-        17,
-        18,
-        19
+        8,
+        9,
+        11,
+        12
       ],
       "lineage": {
         "provenance": {
@@ -509,7 +509,7 @@
       "brief": "Simple example span event with an attribute\n",
       "stability": "development",
       "attributes": [
-        22
+        19
       ],
       "name": "test_evt.with_attr",
       "lineage": {
@@ -539,10 +539,10 @@
       "brief": "This document defines the attributes used to report a single exception associated with a span.\n",
       "stability": "development",
       "attributes": [
-        18,
-        19,
-        20,
-        21
+        8,
+        10,
+        11,
+        13
       ],
       "name": "exception",
       "lineage": {

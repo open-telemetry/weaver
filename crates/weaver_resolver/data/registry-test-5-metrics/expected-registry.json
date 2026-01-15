@@ -24,7 +24,7 @@
       "brief": "Number of invocation cold starts",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.coldstarts",
       "instrument": "counter",
@@ -53,7 +53,7 @@
       "brief": "Distribution of CPU usage per invocation",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.cpu_usage",
       "instrument": "histogram",
@@ -82,7 +82,7 @@
       "brief": "Number of invocation errors",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.errors",
       "instrument": "counter",
@@ -111,7 +111,7 @@
       "brief": "Measures the duration of the function's initialization, such as a cold start",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.init_duration",
       "instrument": "histogram",
@@ -140,7 +140,7 @@
       "brief": "Number of successful invocations",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.invocations",
       "instrument": "counter",
@@ -169,7 +169,7 @@
       "brief": "Measures the duration of the function's logic execution",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.invoke_duration",
       "instrument": "histogram",
@@ -198,7 +198,7 @@
       "brief": "Distribution of max memory usage per invocation",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.mem_usage",
       "instrument": "histogram",
@@ -227,7 +227,7 @@
       "brief": "Distribution of net I/O usage per invocation",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.net_io",
       "instrument": "histogram",
@@ -256,7 +256,7 @@
       "brief": "Number of invocation timeouts",
       "stability": "development",
       "attributes": [
-        0
+        3
       ],
       "metric_name": "faas.timeouts",
       "instrument": "counter",

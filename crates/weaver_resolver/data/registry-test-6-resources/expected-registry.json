@@ -7,11 +7,11 @@
       "brief": "The web browser in which the application represented by the resource is running. The `browser.*` attributes MUST be used only for resources that represent applications running in a web browser (regardless of whether running on a mobile or desktop device).\n",
       "stability": "stable",
       "attributes": [
+        0,
         1,
         2,
         3,
-        4,
-        5
+        4
       ],
       "lineage": {
         "provenance": {
@@ -39,7 +39,7 @@
       "type": "attribute_group",
       "brief": "Describes user-agent attributes.",
       "attributes": [
-        0
+        5
       ],
       "lineage": {
         "provenance": {

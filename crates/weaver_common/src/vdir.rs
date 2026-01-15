@@ -53,8 +53,8 @@ use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use tempfile::TempDir;
 
 /// The extension for a tar gz archive.

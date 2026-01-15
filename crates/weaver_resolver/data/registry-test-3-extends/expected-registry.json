@@ -6,14 +6,14 @@
       "type": "attribute_group",
       "brief": "HTTP Client attributes",
       "attributes": [
+        2,
         5,
+        12,
+        61,
+        64,
+        67,
         71,
-        72,
-        73,
-        74,
-        75,
-        76,
-        77
+        79
       ],
       "lineage": {
         "provenance": {
@@ -126,11 +126,11 @@
       "type": "attribute_group",
       "brief": "Describes HTTP attributes.",
       "attributes": [
-        71,
-        72,
-        73,
-        74,
-        75
+        2,
+        5,
+        12,
+        61,
+        64
       ],
       "lineage": {
         "provenance": {
@@ -206,15 +206,15 @@
       "type": "attribute_group",
       "brief": "HTTP Server attributes",
       "attributes": [
-        6,
-        71,
+        2,
+        5,
+        12,
+        14,
+        61,
+        64,
+        68,
         72,
-        73,
-        74,
-        75,
-        78,
-        79,
-        80
+        78
       ],
       "lineage": {
         "provenance": {
@@ -339,12 +339,12 @@
       "type": "attribute_group",
       "brief": "Common messaging attributes.",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        69,
-        70
+        0,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "lineage": {
         "provenance": {
@@ -431,14 +431,14 @@
       "type": "attribute_group",
       "brief": "Common messaging metrics attributes.",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "lineage": {
         "provenance": {
@@ -551,14 +551,14 @@
       "brief": "Measures the duration of deliver operation.",
       "stability": "development",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "metric_name": "messaging.deliver.duration",
       "instrument": "histogram",
@@ -674,14 +674,14 @@
       "brief": "Measures the number of delivered messages.",
       "stability": "development",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "metric_name": "messaging.deliver.messages",
       "instrument": "counter",
@@ -797,14 +797,14 @@
       "brief": "Measures the duration of publish operation.",
       "stability": "development",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "metric_name": "messaging.publish.duration",
       "instrument": "histogram",
@@ -920,14 +920,14 @@
       "brief": "Measures the number of published messages.",
       "stability": "development",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "metric_name": "messaging.publish.messages",
       "instrument": "counter",
@@ -1043,14 +1043,14 @@
       "brief": "Measures the duration of receive operation.",
       "stability": "development",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "metric_name": "messaging.receive.duration",
       "instrument": "histogram",
@@ -1166,14 +1166,14 @@
       "brief": "Measures the number of received messages.",
       "stability": "development",
       "attributes": [
-        17,
-        49,
-        50,
-        51,
-        67,
-        68,
-        69,
-        70
+        0,
+        19,
+        21,
+        46,
+        60,
+        63,
+        70,
+        73
       ],
       "metric_name": "messaging.receive.messages",
       "instrument": "counter",
@@ -1288,7 +1288,7 @@
       "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report an error.\n",
       "attributes": [
-        48
+        1
       ],
       "lineage": {
         "provenance": {
@@ -1302,15 +1302,15 @@
       "type": "attribute_group",
       "brief": "This document defines semantic convention attributes in the HTTP namespace.",
       "attributes": [
+        3,
+        4,
+        6,
         7,
         8,
         9,
         10,
         11,
-        12,
-        13,
-        14,
-        15
+        13
       ],
       "lineage": {
         "provenance": {
@@ -1324,10 +1324,11 @@
       "type": "attribute_group",
       "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
       "attributes": [
+        15,
+        16,
+        17,
         18,
-        19,
         20,
-        21,
         22,
         23,
         24,
@@ -1352,7 +1353,6 @@
         43,
         44,
         45,
-        46,
         47
       ],
       "lineage": {
@@ -1367,6 +1367,10 @@
       "type": "attribute_group",
       "brief": "These attributes may be used for any network related operation.\n",
       "attributes": [
+        48,
+        49,
+        50,
+        51,
         52,
         53,
         54,
@@ -1375,11 +1379,7 @@
         57,
         58,
         59,
-        60,
-        61,
         62,
-        63,
-        64,
         65,
         66
       ],
@@ -1395,11 +1395,11 @@
       "type": "attribute_group",
       "brief": "Attributes describing URL.",
       "attributes": [
-        0,
-        1,
-        2,
-        3,
-        4
+        74,
+        75,
+        76,
+        77,
+        80
       ],
       "lineage": {
         "provenance": {
@@ -1413,8 +1413,8 @@
       "type": "attribute_group",
       "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
       "attributes": [
-        16,
-        17
+        69,
+        73
       ],
       "lineage": {
         "provenance": {

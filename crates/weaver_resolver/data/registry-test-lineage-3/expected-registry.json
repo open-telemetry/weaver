@@ -7,7 +7,7 @@
       "brief": "host entity",
       "stability": "stable",
       "attributes": [
-        1,
+        0,
         2
       ],
       "name": "host",

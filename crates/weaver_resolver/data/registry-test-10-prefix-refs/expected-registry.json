@@ -7,8 +7,8 @@
       "brief": "Describes information about the client.",
       "prefix": "client",
       "attributes": [
-        2,
-        3
+        0,
+        2
       ],
       "lineage": {
         "provenance": {
@@ -37,8 +37,8 @@
       "brief": "Attributes describing geo.",
       "prefix": "geo",
       "attributes": [
-        0,
-        1
+        3,
+        5
       ],
       "lineage": {
         "provenance": {

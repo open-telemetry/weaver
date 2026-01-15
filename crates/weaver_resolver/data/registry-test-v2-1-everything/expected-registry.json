@@ -7,7 +7,7 @@
       "brief": "Duration of HTTP server requests.",
       "stability": "stable",
       "attributes": [
-        2,
+        1,
         3
       ],
       "metric_name": "http.server.request.duration",
@@ -52,7 +52,7 @@
       "brief": "<synthetic v2>",
       "attributes": [
         0,
-        1
+        2
       ],
       "lineage": {
         "provenance": {

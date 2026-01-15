@@ -80,9 +80,6 @@ impl AttributeCatalog {
         &mut self,
         attr_refs: HashSet<AttributeRef>,
     ) -> HashMap<AttributeRef, AttributeRef> {
-        if attr_refs.is_empty() {
-            panic!("Attempting to GC attribute references with no expected references! input: {attr_refs:?}");
-        }
         self.attribute_refs
             .retain(|_, attr_ref| attr_refs.contains(attr_ref));
         let mut ordered: Vec<(attribute::Attribute, AttributeRef)> = self
@@ -91,6 +88,7 @@ impl AttributeCatalog {
             .map(|(a, ar)| (a.clone(), ar.clone()))
             .collect();
         ordered.sort_by(|(ln, _), (rn, _)| ln.cmp(rn));
+        // assert_eq!(ordered.len(), self.attribute_refs.len());
         let mut next_id = 0;
         // Construct map that converts old attirbute refs into new ones, where
         // the new IDs are incresing using attribute ordering.
@@ -102,14 +100,11 @@ impl AttributeCatalog {
                 (*attr_ref, new_attr_ref)
             })
             .collect();
-
+        // assert_eq!(gc_map.len(), self.attribute_refs.len());
         // Remap the current catalog
         self.attribute_refs.values_mut().for_each(|attr_ref| {
             *attr_ref = gc_map[attr_ref];
         });
-        if gc_map.is_empty() {
-            panic!("")
-        }
         gc_map
     }
 

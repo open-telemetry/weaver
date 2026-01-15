@@ -137,9 +137,13 @@ pub(crate) fn resolve_registry_with_dependencies(
 
     // Now we do validations.
     let mut errors = vec![];
-    let attr_name_index = attr_catalog.attribute_name_index();
 
+    // Note: this will remove all the `groups` from UnresolvedRegistry and create
+    // a complete `Registry` that is returned.
+    //
+    // This will also "taint" that attribute catalog so it cannot be used for creating new attribute refs.
     let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg);
+    let attr_name_index = attr_catalog.attribute_name_index();
 
     // Other complementary checks.
     // Check for duplicate group IDs.
@@ -442,7 +446,6 @@ pub fn check_root_attribute_id_duplicates(
 ) {
     // Map to track groups by their root attribute ID.
     let mut groups_by_root_attr_id = HashMap::new();
-
     // Iterate over all groups in the registry that are of type `AttributeGroup`.
     registry
         .groups
@@ -465,7 +468,6 @@ pub fn check_root_attribute_id_duplicates(
                 }
             }
         });
-
     // Collect errors for attribute IDs that are found in multiple groups.
     let local_errors: Vec<_> = groups_by_root_attr_id
         .into_iter()
@@ -475,7 +477,6 @@ pub fn check_root_attribute_id_duplicates(
             group_ids,
         })
         .collect();
-
     errors.extend(local_errors);
 }
 
@@ -1062,8 +1063,8 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
         .flat_map(|g| g.group.attributes.iter().cloned())
         .collect();
     let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
-    for g in ureg.registry.groups.iter_mut() {
-        for a in g.attributes.iter_mut() {
+    for g in ureg.groups.iter_mut() {
+        for a in g.group.attributes.iter_mut() {
             if let Some(ar) = mapping.get(a) {
                 *a = ar.clone();
             }
