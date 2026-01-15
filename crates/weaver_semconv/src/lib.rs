@@ -670,8 +670,8 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::registry::SemConvRegistry;
-    use std::vec;
+    use crate::{registry::SemConvRegistry, YamlValue};
+    use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
     /// Load multiple semantic convention files in the semantic convention registry.
@@ -697,5 +697,24 @@ mod tests {
                 assert!(!output.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn test_yaml_comparison() -> Result<(), Box<dyn Error>> {
+        let boolean = YamlValue(serde_yaml::from_str("false")?);
+        let number = YamlValue(serde_yaml::from_str("5")?);
+        let string = YamlValue(serde_yaml::from_str("\"5\"")?);
+        let sequence = YamlValue(serde_yaml::from_str("- 1.0\n- \"hi\"")?);
+        let mapping = YamlValue(serde_yaml::from_str("x: one\ny: two")?);
+        let mut values = vec![
+            mapping.clone(),
+            sequence.clone(),
+            string.clone(),
+            number.clone(),
+            boolean.clone(),
+        ];
+        values.sort();
+        assert_eq!(values, vec![boolean, number, string, sequence, mapping]);
+        Ok(())
     }
 }
