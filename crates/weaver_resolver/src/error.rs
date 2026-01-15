@@ -198,7 +198,7 @@ impl Error {
 #[cfg(test)]
 mod tests {
     use crate::Error;
-    use weaver_common::{diagnostic::DiagnosticMessage, error::handle_errors};
+    use weaver_common::{diagnostic::DiagnosticMessages, error::handle_errors};
 
     #[test]
     fn test_weaver_error_api_allowed() {
@@ -209,7 +209,7 @@ mod tests {
     }
     #[test]
     fn test_diagnostic_message_api_conversion() {
-        let msg: DiagnosticMessage = Error::FailToResolveMetric {
+        let _: DiagnosticMessages = Error::FailToResolveMetric {
             r#ref: "test".to_owned(),
         }
         .into();
