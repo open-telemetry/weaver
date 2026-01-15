@@ -71,7 +71,7 @@ impl<'a> WeaverEngine<'a> {
     ) -> Result<Loaded, Error> {
         // TODO - avoid cloning the repo here.
         let loaded = SchemaResolver::load_semconv_repository(
-            repo.try_clone()?,
+            repo.clone(),
             self.registry_config.follow_symlinks,
         )
         .capture_non_fatal_errors(diag_msgs)?;

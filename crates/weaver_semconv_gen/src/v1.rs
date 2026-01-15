@@ -66,7 +66,7 @@ impl ResolvedSemconvRegistry {
         include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let loaded = match SchemaResolver::load_semconv_repository(
-            registry_repo.try_clone()?,
+            registry_repo.clone(),
             follow_symlinks,
         ) {
             WResult::Ok(semconv_specs) => semconv_specs,
