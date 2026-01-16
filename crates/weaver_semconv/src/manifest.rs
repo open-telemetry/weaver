@@ -161,7 +161,7 @@ mod tests {
                 .expect("Failed to load the registry configuration file.");
         assert_eq!(config.name, "vendor_acme");
         assert_eq!(config.version, "0.1.0");
-        assert_eq!(config.repository_url, "https://acme.com/schemas/");
+        assert_eq!(config.repository_url, "https://github.com/acme/semantic-conventions/");
     }
 
     #[test]
