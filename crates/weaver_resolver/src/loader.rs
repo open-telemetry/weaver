@@ -85,6 +85,7 @@ impl LoadedSemconvRegistry {
 
     /// Returns the depth of the dependency chain for this loaded repository.
     #[cfg(test)]
+    #[must_use]
     pub fn dependency_depth(&self) -> u32 {
         match self {
             LoadedSemconvRegistry::Unresolved { dependencies, .. } => {
@@ -101,6 +102,7 @@ impl LoadedSemconvRegistry {
 
     /// Returns all the registry ids in this loaded registry and its dependencies.
     #[cfg(test)]
+    #[must_use]
     pub fn registry_ids(&self) -> Vec<String> {
         match self {
             LoadedSemconvRegistry::Unresolved {
