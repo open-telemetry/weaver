@@ -18,7 +18,7 @@ use crate::{
 
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
-///registry_manifest: None,
+///
 /// This includes all registrys fully fleshed out and ready for codegen.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
