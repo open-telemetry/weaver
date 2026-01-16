@@ -3,6 +3,7 @@
 //! Translations from Weaver to Otel for attributes.
 
 use opentelemetry::{Array, KeyValue, Value};
+use weaver_common::ordered_float::OrderedF64;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::ValueSpec;
 use weaver_semconv::attribute::{
@@ -48,7 +49,7 @@ fn internal_get_attribute_name_value(
                 PrimitiveOrArrayTypeSpec::Double => match &examples {
                     Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
                     Some(Examples::Doubles(doubles)) => {
-                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                        Value::F64(f64::from(*doubles.first().unwrap_or(&OrderedF64(3.13))))
                     }
                     _ => Value::F64(3.13),
                 },
@@ -81,7 +82,7 @@ fn internal_get_attribute_name_value(
                     // Double-based examples
                     Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
                     Some(Examples::Doubles(doubles)) => {
-                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                        Value::F64(f64::from(*doubles.first().unwrap_or(&OrderedF64(3.13))))
                     }
                     Some(Examples::ListOfDoubles(list_of_doubles)) => Value::Array(Array::F64(
                         list_of_doubles
@@ -199,7 +200,7 @@ fn internal_get_attribute_name_value(
 mod tests {
     use super::*;
     use opentelemetry::{Array, KeyValue, Value};
-    use ordered_float::OrderedFloat;
+    use weaver_common::ordered_float::OrderedF64;
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::{
         AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -282,7 +283,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.double",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
-            Some(Examples::Double(OrderedFloat(3.15))),
+            Some(Examples::Double(OrderedF64(3.15))),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.double", 3.15));
@@ -293,10 +294,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.double",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
-            Some(Examples::Doubles(vec![
-                OrderedFloat(3.15),
-                OrderedFloat(2.71),
-            ])),
+            Some(Examples::Doubles(vec![OrderedF64(3.15), OrderedF64(2.71)])),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.double", 3.15));
@@ -409,10 +407,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.doubles",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
-            Some(Examples::Doubles(vec![
-                OrderedFloat(1.1),
-                OrderedFloat(2.2),
-            ])),
+            Some(Examples::Doubles(vec![OrderedF64(1.1), OrderedF64(2.2)])),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv.value, Value::Array(Array::F64(vec![1.1, 2.2])));
@@ -424,8 +419,8 @@ mod tests {
             "test.doubles",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
             Some(Examples::ListOfDoubles(vec![
-                vec![OrderedFloat(1.1), OrderedFloat(2.2)],
-                vec![OrderedFloat(3.3), OrderedFloat(4.4)],
+                vec![OrderedF64(1.1), OrderedF64(2.2)],
+                vec![OrderedF64(3.3), OrderedF64(4.4)],
             ])),
         );
         let kv = get_attribute_name_value(&attr);
@@ -560,7 +555,7 @@ mod tests {
                 members: vec![
                     EnumEntriesSpec {
                         id: "first".to_owned(),
-                        value: ValueSpec::Double(OrderedFloat(1.5)),
+                        value: ValueSpec::Double(OrderedF64(1.5)),
                         brief: None,
                         note: None,
                         stability: None,
@@ -569,7 +564,7 @@ mod tests {
                     },
                     EnumEntriesSpec {
                         id: "second".to_owned(),
-                        value: ValueSpec::Double(OrderedFloat(2.5)),
+                        value: ValueSpec::Double(OrderedF64(2.5)),
                         brief: None,
                         note: None,
                         stability: None,

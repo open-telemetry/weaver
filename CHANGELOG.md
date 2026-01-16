@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
 - Add support for diff schemas in `registry json-schema`([#1105](https://github.com/open-telemetry/weaver/pull/1105) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 Upgraded JSON schema generation to [2020-12 version of JSON Schema.](https://json-schema.org/draft/2020-12/schema) ([#1125](https://github.com/open-telemetry/weaver/pull/1125) by @jerbly)
+- New Experimental feature: `weaver registry mcp` MCP server for a registry with search, get and live_check tools. ([#1113](https://github.com/open-telemetry/weaver/pull/1113) by @jerbly)
 
 # [0.20.0] - 2025-12-11
 

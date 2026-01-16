@@ -5,8 +5,7 @@
 allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
-    "weaver_common::*",
-    "weaver_semconv::*",
-    "weaver_version::*",
+    "miette::protocol::Diagnostic",
+    "weaver_forge::v2::registry::ForgeResolvedRegistry",
     "schemars::JsonSchema",
 ]

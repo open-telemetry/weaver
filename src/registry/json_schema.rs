@@ -164,15 +164,12 @@ mod tests {
             let value = serde_json::from_str::<serde_json::Value>(&json_content)
                 .expect("Failed to parse JSON");
 
-            let definitions = value
+            let defs = value
                 .as_object()
                 .expect("Expected a JSON object")
-                .get("definitions");
+                .get("$defs");
 
-            assert!(
-                definitions.is_some(),
-                "Expected a 'definitions' key in the JSON schema"
-            );
+            assert!(defs.is_some(), "Expected a '$defs' key in the JSON schema");
         }
     }
 }

@@ -2,9 +2,9 @@
 
 //! Specification of a resolved value.
 
-use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_common::ordered_float::OrderedF64;
 
 /// The different types of values.
 #[derive(
@@ -21,7 +21,7 @@ pub enum Value {
     /// A double value.
     Double {
         /// The value
-        value: OrderedFloat<f64>,
+        value: OrderedF64,
     },
     /// A string value.
     String {
@@ -34,7 +34,7 @@ impl Value {
     /// Creates a double value from a f64.
     pub fn from_f64(value: f64) -> Self {
         Value::Double {
-            value: OrderedFloat(value),
+            value: OrderedF64(value),
         }
     }
 }
