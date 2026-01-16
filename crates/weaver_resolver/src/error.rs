@@ -206,6 +206,7 @@ mod tests {
             r#ref: "test".to_owned(),
         }];
         let result = handle_errors(errors);
+        assert!(result.is_err());
     }
     #[test]
     fn test_diagnostic_message_api_conversion() {
