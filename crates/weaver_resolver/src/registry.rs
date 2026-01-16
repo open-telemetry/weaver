@@ -110,7 +110,7 @@ pub(crate) fn resolve_registry_with_dependencies(
         dependencies,
     };
 
-    // Now we to the resolution.
+    // Now we do the resolution.
     if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
         return WResult::FatalErr(e);
     }
