@@ -163,7 +163,7 @@ mod tests {
         assert_eq!(config.version, "0.1.0");
         assert_eq!(
             config.repository_url,
-            "https://github.com/acme/semantic-conventions/"
+            "https://acme.com/schemas/"
         );
     }
 
