@@ -14,254 +14,6 @@ Kind: client
 ### Attributes
 
 
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.connection_string`
-
-The connection string used to connect to the database. It is recommended to remove embedded credentials.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: Server=(localdb)\v11.0;Integrated Security=true;
-  
-- Stability: Stable
-  
-
-#### Attribute `db.user`
-
-Username for accessing the database.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.jdbc.driver_classname`
-
-The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "org.postgresql.Driver",
-    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.address`
-
-Name of the database host.
-
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.peer.address`
-
-Peer address of the network connection - IP address or Unix domain socket name.
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.peer.port`
-
-Peer port number of the network connection.
-
-
-- Requirement Level: Optional
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    65123,
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.transport`
-
-[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
-
-
-
-The value SHOULD be normalized to lowercase.
-
-Consider always setting the transport when setting a port number, since
-a port number is ambiguous without knowing the transport. For example
-different processes could be listening on TCP port 12345 and UDP port 12345.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: Enum [tcp, udp, pipe, unix]
-- Examples: [
-    "tcp",
-    "udp",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.type`
-
-[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
-
-
-The value SHOULD be normalized to lowercase.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: Enum [ipv4, ipv6]
-- Examples: [
-    "ipv4",
-    "ipv6",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.instance.id`
-
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: mysql-e26b99z.example.com
-  
-- Stability: Stable
-  
-
 #### Attribute `db.cassandra.consistency_level`
 
 The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
@@ -378,55 +130,6 @@ This mirrors the db.sql.table attribute but references cassandra rather than sql
 - Stability: Stable
   
 
-#### Attribute `db.name`
-
-The keyspace name in Cassandra.
-
-
-
-For Cassandra the `db.name` should be set to the Cassandra keyspace name.
-
-- Requirement Level: Conditionally Required - If applicable.
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: [
-    "mykeyspace",
-]
-  
-- Stability: Stable
-  
-
-
-
-## Namespace Spans `cosmosdb`
-
-
-## Span `db.cosmosdb`
-
-Call-level attributes for Cosmos DB.
-
-Prefix: 
-Kind: client
-
-### Attributes
-
-
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.connection_string`
 
 The connection string used to connect to the database. It is recommended to remove embedded credentials.
@@ -443,21 +146,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -483,39 +183,19 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 
 #### Attribute `db.name`
 
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
+The keyspace name in Cassandra.
 
 
 
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
+For Cassandra the `db.name` should be set to the Cassandra keyspace name.
 
 - Requirement Level: Conditionally Required - If applicable.
   
-- Tag: call-level
+- Tag: call-level-tech-specific-cassandra
   
 - Type: string
 - Examples: [
-    "customers",
-    "main",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
+    "mykeyspace",
 ]
   
 - Stability: Stable
@@ -543,13 +223,44 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.statement`
 
-Name of the database host.
+The database statement being executed.
 
 
 
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+- Requirement Level: Optional
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "SELECT * FROM wuser_table",
+    "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
 
 - Requirement Level: Recommended
   
@@ -557,30 +268,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -666,18 +355,76 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
-#### Attribute `db.instance.id`
+#### Attribute `server.address`
 
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+Name of the database host.
 
 
 
-- Requirement Level: Optional
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
   
 - Tag: connection-level
   
 - Type: string
-- Examples: mysql-e26b99z.example.com
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+
+
+
+## Namespace Spans `cosmosdb`
+
+
+## Span `db.cosmosdb`
+
+Call-level attributes for Cosmos DB.
+
+Prefix: 
+Kind: client
+
+### Attributes
+
+
+#### Attribute `db.connection_string`
+
+The connection string used to connect to the database. It is recommended to remove embedded credentials.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: Server=(localdb)\v11.0;Integrated Security=true;
   
 - Stability: Stable
   
@@ -808,87 +555,18 @@ Cosmos DB sub status code.
 - Stability: Stable
   
 
-#### Attribute `user_agent.original`
+#### Attribute `db.instance.id`
 
-Full user-agent string is generated by Cosmos DB SDK
-
-
-The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
-   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
-   Default value is "NS".
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
-]
-  
-- Stability: Stable
-  
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-## Namespace Spans `couchdb`
-
-
-## Span `db.couchdb`
-
-Call-level attributes for CouchDB
-
-Prefix: 
-Kind: client
-
-### Attributes
-
-
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.connection_string`
-
-The connection string used to connect to the database. It is recommended to remove embedded credentials.
-
-
-
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: Server=(localdb)\v11.0;Integrated Security=true;
-  
-- Stability: Stable
-  
-
-#### Attribute `db.user`
-
-Username for accessing the database.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -933,6 +611,28 @@ In some SQL databases, the database name to be used is called "schema name". In 
 - Stability: Stable
   
 
+#### Attribute `db.operation`
+
+The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
+
+
+
+When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
+
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "findAndModify",
+    "HMSET",
+    "SELECT",
+]
+  
+- Stability: Stable
+  
+
 #### Attribute `db.statement`
 
 The database statement being executed.
@@ -947,6 +647,119 @@ The database statement being executed.
 - Examples: [
     "SELECT * FROM wuser_table",
     "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "readonly_user",
+    "reporting_user",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.peer.address`
+
+Peer address of the network connection - IP address or Unix domain socket name.
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.peer.port`
+
+Peer port number of the network connection.
+
+
+- Requirement Level: Optional
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    65123,
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.transport`
+
+[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
+
+
+
+The value SHOULD be normalized to lowercase.
+
+Consider always setting the transport when setting a port number, since
+a port number is ambiguous without knowing the transport. For example
+different processes could be listening on TCP port 12345 and UDP port 12345.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: Enum [tcp, udp, pipe, unix]
+- Examples: [
+    "tcp",
+    "udp",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.type`
+
+[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
+
+
+The value SHOULD be normalized to lowercase.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: Enum [ipv4, ipv6]
+- Examples: [
+    "ipv4",
+    "ipv6",
 ]
   
 - Stability: Stable
@@ -995,117 +808,22 @@ When observed from the client side, and when communicating through an intermedia
 - Stability: Stable
   
 
-#### Attribute `network.peer.address`
+#### Attribute `user_agent.original`
 
-Peer address of the network connection - IP address or Unix domain socket name.
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.peer.port`
-
-Peer port number of the network connection.
+Full user-agent string is generated by Cosmos DB SDK
 
 
-- Requirement Level: Optional
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    65123,
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.transport`
-
-[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
-
-
-
-The value SHOULD be normalized to lowercase.
-
-Consider always setting the transport when setting a port number, since
-a port number is ambiguous without knowing the transport. For example
-different processes could be listening on TCP port 12345 and UDP port 12345.
+The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
+   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
+   Default value is "NS".
 
 - Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: Enum [tcp, udp, pipe, unix]
-- Examples: [
-    "tcp",
-    "udp",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.type`
-
-[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
-
-
-The value SHOULD be normalized to lowercase.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: Enum [ipv4, ipv6]
-- Examples: [
-    "ipv4",
-    "ipv6",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.instance.id`
-
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: mysql-e26b99z.example.com
-  
-- Stability: Stable
-  
-
-#### Attribute `db.operation`
-
-The HTTP method + the target REST route.
-
-
-
-In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
   
 - Tag: call-level-tech-specific
   
 - Type: string
 - Examples: [
-    "GET /{db}/{docid}",
+    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
 ]
   
 - Stability: Stable
@@ -1113,32 +831,18 @@ In **CouchDB**, `db.operation` should be set to the HTTP method + the target RES
 
 
 
-## Namespace Spans `elasticsearch`
+## Namespace Spans `couchdb`
 
 
-## Span `db.elasticsearch`
+## Span `db.couchdb`
 
-Call-level attributes for Elasticsearch
+Call-level attributes for CouchDB
 
 Prefix: 
 Kind: client
 
 ### Attributes
 
-
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
 
 #### Attribute `db.connection_string`
 
@@ -1156,21 +860,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -1215,6 +916,78 @@ In some SQL databases, the database name to be used is called "schema name". In 
 - Stability: Stable
   
 
+#### Attribute `db.operation`
+
+The HTTP method + the target REST route.
+
+
+
+In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
+
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "GET /{db}/{docid}",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.statement`
+
+The database statement being executed.
+
+
+
+- Requirement Level: Optional
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "SELECT * FROM wuser_table",
+    "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "readonly_user",
+    "reporting_user",
+]
+  
+- Stability: Stable
+  
+
 #### Attribute `network.peer.address`
 
 Peer address of the network connection - IP address or Unix domain socket name.
@@ -1295,18 +1068,76 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
-#### Attribute `db.instance.id`
+#### Attribute `server.address`
 
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+Name of the database host.
 
 
 
-- Requirement Level: Optional
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
   
 - Tag: connection-level
   
 - Type: string
-- Examples: mysql-e26b99z.example.com
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+
+
+
+## Namespace Spans `elasticsearch`
+
+
+## Span `db.elasticsearch`
+
+Call-level attributes for Elasticsearch
+
+Prefix: 
+Kind: client
+
+### Attributes
+
+
+#### Attribute `db.connection_string`
+
+The connection string used to connect to the database. It is recommended to remove embedded credentials.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: Server=(localdb)\v11.0;Integrated Security=true;
   
 - Stability: Stable
   
@@ -1368,6 +1199,62 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
 - Stability: Stable
   
 
+#### Attribute `db.instance.id`
+
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+
+
+
+- Requirement Level: Optional
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: mysql-e26b99z.example.com
+  
+- Stability: Stable
+  
+
+#### Attribute `db.jdbc.driver_classname`
+
+The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "org.postgresql.Driver",
+    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.name`
+
+This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
+
+
+
+In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
+
+- Requirement Level: Conditionally Required - If applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "customers",
+    "main",
+]
+  
+- Stability: Stable
+  
+
 #### Attribute `db.operation`
 
 The endpoint identifier for the request.
@@ -1406,6 +1293,39 @@ The request body for a [search-type query](https://www.elastic.co/guide/en/elast
 - Stability: Stable
   
 
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "readonly_user",
+    "reporting_user",
+]
+  
+- Stability: Stable
+  
+
 #### Attribute `http.request.method`
 
 HTTP request method.
@@ -1435,6 +1355,86 @@ Tracing instrumentations that do so, MUST also set `http.request.method_original
     "GET",
     "POST",
     "HEAD",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.peer.address`
+
+Peer address of the network connection - IP address or Unix domain socket name.
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.peer.port`
+
+Peer port number of the network connection.
+
+
+- Requirement Level: Optional
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    65123,
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.transport`
+
+[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
+
+
+
+The value SHOULD be normalized to lowercase.
+
+Consider always setting the transport when setting a port number, since
+a port number is ambiguous without knowing the transport. For example
+different processes could be listening on TCP port 12345 and UDP port 12345.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: Enum [tcp, udp, pipe, unix]
+- Examples: [
+    "tcp",
+    "udp",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.type`
+
+[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
+
+
+The value SHOULD be normalized to lowercase.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: Enum [ipv4, ipv6]
+- Examples: [
+    "ipv4",
+    "ipv6",
 ]
   
 - Stability: Stable
@@ -1519,20 +1519,6 @@ Kind: client
 ### Attributes
 
 
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.connection_string`
 
 The connection string used to connect to the database. It is recommended to remove embedded credentials.
@@ -1549,21 +1535,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -1587,20 +1570,21 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 - Stability: Stable
   
 
-#### Attribute `db.statement`
+#### Attribute `db.name`
 
-The database statement being executed.
+The HBase namespace.
 
 
 
-- Requirement Level: Optional
+For HBase the `db.name` should be set to the HBase namespace.
+
+- Requirement Level: Conditionally Required - If applicable.
   
-- Tag: call-level
+- Tag: call-level-tech-specific
   
 - Type: string
 - Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
+    "mynamespace",
 ]
   
 - Stability: Stable
@@ -1628,13 +1612,44 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.statement`
 
-Name of the database host.
+The database statement being executed.
 
 
 
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+- Requirement Level: Optional
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "SELECT * FROM wuser_table",
+    "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
 
 - Requirement Level: Recommended
   
@@ -1642,30 +1657,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -1751,37 +1744,44 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
-#### Attribute `db.instance.id`
+#### Attribute `server.address`
 
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+Name of the database host.
 
 
 
-- Requirement Level: Optional
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
   
 - Tag: connection-level
   
 - Type: string
-- Examples: mysql-e26b99z.example.com
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
   
 - Stability: Stable
   
 
-#### Attribute `db.name`
+#### Attribute `server.port`
 
-The HBase namespace.
+Server port number.
 
 
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
 
-For HBase the `db.name` should be set to the HBase namespace.
-
-- Requirement Level: Conditionally Required - If applicable.
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
   
-- Tag: call-level-tech-specific
+- Tag: connection-level
   
-- Type: string
+- Type: int
 - Examples: [
-    "mynamespace",
+    80,
+    8080,
+    443,
 ]
   
 - Stability: Stable
@@ -1801,21 +1801,6 @@ Kind: client
 
 ### Attributes
 
-
-#### Attribute `http.response.status_code`
-
-[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
-
-
-- Requirement Level: Recommended
-  
-- Type: int
-- Examples: [
-    200,
-]
-  
-- Stability: Stable
-  
 
 #### Attribute `http.request.method`
 
@@ -1846,6 +1831,21 @@ Tracing instrumentations that do so, MUST also set `http.request.method_original
     "HEAD",
 ]
 - Sampling relevant: true
+  
+- Stability: Stable
+  
+
+#### Attribute `http.response.status_code`
+
+[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    200,
+]
   
 - Stability: Stable
   
@@ -1926,20 +1926,6 @@ Kind: client
 ### Attributes
 
 
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.connection_string`
 
 The connection string used to connect to the database. It is recommended to remove embedded credentials.
@@ -1956,21 +1942,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -1990,207 +1973,6 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
     "org.postgresql.Driver",
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
 ]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.name`
-
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
-
-
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-
-- Requirement Level: Conditionally Required - If applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "customers",
-    "main",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.address`
-
-Name of the database host.
-
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.peer.address`
-
-Peer address of the network connection - IP address or Unix domain socket name.
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.peer.port`
-
-Peer port number of the network connection.
-
-
-- Requirement Level: Optional
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    65123,
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.transport`
-
-[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
-
-
-
-The value SHOULD be normalized to lowercase.
-
-Consider always setting the transport when setting a port number, since
-a port number is ambiguous without knowing the transport. For example
-different processes could be listening on TCP port 12345 and UDP port 12345.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: Enum [tcp, udp, pipe, unix]
-- Examples: [
-    "tcp",
-    "udp",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `network.type`
-
-[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
-
-
-The value SHOULD be normalized to lowercase.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: Enum [ipv4, ipv6]
-- Examples: [
-    "ipv4",
-    "ipv6",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.instance.id`
-
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -2214,89 +1996,6 @@ The MongoDB collection being accessed within the database stated in `db.name`.
 - Stability: Stable
   
 
-
-
-## Namespace Spans `mssql`
-
-
-## Span `db.mssql`
-
-Connection-level attributes for Microsoft SQL Server
-
-Prefix: 
-Kind: client
-
-### Attributes
-
-
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.connection_string`
-
-The connection string used to connect to the database. It is recommended to remove embedded credentials.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: Server=(localdb)\v11.0;Integrated Security=true;
-  
-- Stability: Stable
-  
-
-#### Attribute `db.user`
-
-Username for accessing the database.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.jdbc.driver_classname`
-
-The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "org.postgresql.Driver",
-    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.name`
 
 This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
@@ -2313,25 +2012,6 @@ In some SQL databases, the database name to be used is called "schema name". In 
 - Examples: [
     "customers",
     "main",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
 ]
   
 - Stability: Stable
@@ -2359,13 +2039,44 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.statement`
 
-Name of the database host.
+The database statement being executed.
 
 
 
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+- Requirement Level: Optional
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "SELECT * FROM wuser_table",
+    "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
 
 - Requirement Level: Recommended
   
@@ -2373,30 +2084,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -2482,6 +2171,80 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
+#### Attribute `server.address`
+
+Name of the database host.
+
+
+
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+
+
+
+## Namespace Spans `mssql`
+
+
+## Span `db.mssql`
+
+Connection-level attributes for Microsoft SQL Server
+
+Prefix: 
+Kind: client
+
+### Attributes
+
+
+#### Attribute `db.connection_string`
+
+The connection string used to connect to the database. It is recommended to remove embedded credentials.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
+  
+
 #### Attribute `db.instance.id`
 
 An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
@@ -2494,6 +2257,25 @@ An identifier (address, unique name, or any other identifier) of the database in
   
 - Type: string
 - Examples: mysql-e26b99z.example.com
+  
+- Stability: Stable
+  
+
+#### Attribute `db.jdbc.driver_classname`
+
+The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "org.postgresql.Driver",
+    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+]
   
 - Stability: Stable
   
@@ -2516,89 +2298,6 @@ If setting a `db.mssql.instance_name`, `server.port` is no longer required (but 
 - Stability: Stable
   
 
-
-
-## Namespace Spans `other`
-
-
-## Span `db`
-
-This document defines the attributes used to perform database client calls.
-
-Prefix: 
-Kind: client
-
-### Attributes
-
-
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.connection_string`
-
-The connection string used to connect to the database. It is recommended to remove embedded credentials.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: Server=(localdb)\v11.0;Integrated Security=true;
-  
-- Stability: Stable
-  
-
-#### Attribute `db.user`
-
-Username for accessing the database.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.jdbc.driver_classname`
-
-The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "org.postgresql.Driver",
-    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.name`
 
 This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
@@ -2615,6 +2314,28 @@ In some SQL databases, the database name to be used is called "schema name". In 
 - Examples: [
     "customers",
     "main",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.operation`
+
+The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
+
+
+
+When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
+
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "findAndModify",
+    "HMSET",
+    "SELECT",
 ]
   
 - Stability: Stable
@@ -2639,35 +2360,25 @@ The database statement being executed.
 - Stability: Stable
   
 
-#### Attribute `db.operation`
+#### Attribute `db.system`
 
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
 
 
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+- Requirement Level: Required
   
-- Tag: call-level
+- Tag: connection-level
   
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
   
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.user`
 
-Name of the database host.
+Username for accessing the database.
 
 
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
 
 - Requirement Level: Recommended
   
@@ -2675,30 +2386,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -2784,50 +2473,63 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
-#### Attribute `db.instance.id`
+#### Attribute `server.address`
 
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+Name of the database host.
 
 
 
-- Requirement Level: Optional
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
   
 - Tag: connection-level
   
 - Type: string
-- Examples: mysql-e26b99z.example.com
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
   
 - Stability: Stable
   
 
 
 
-## Namespace Spans `redis`
+## Namespace Spans `other`
 
 
-## Span `db.redis`
+## Span `db`
 
-Call-level attributes for Redis
+This document defines the attributes used to perform database client calls.
 
 Prefix: 
 Kind: client
 
 ### Attributes
 
-
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
 
 #### Attribute `db.connection_string`
 
@@ -2845,21 +2547,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -2926,13 +2625,44 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.statement`
 
-Name of the database host.
+The database statement being executed.
 
 
 
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+- Requirement Level: Optional
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "SELECT * FROM wuser_table",
+    "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
 
 - Requirement Level: Recommended
   
@@ -2940,30 +2670,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -3049,6 +2757,80 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
+#### Attribute `server.address`
+
+Name of the database host.
+
+
+
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+
+
+
+## Namespace Spans `redis`
+
+
+## Span `db.redis`
+
+Call-level attributes for Redis
+
+Prefix: 
+Kind: client
+
+### Attributes
+
+
+#### Attribute `db.connection_string`
+
+The connection string used to connect to the database. It is recommended to remove embedded credentials.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
+  
+
 #### Attribute `db.instance.id`
 
 An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
@@ -3061,6 +2843,68 @@ An identifier (address, unique name, or any other identifier) of the database in
   
 - Type: string
 - Examples: mysql-e26b99z.example.com
+  
+- Stability: Stable
+  
+
+#### Attribute `db.jdbc.driver_classname`
+
+The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "org.postgresql.Driver",
+    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.name`
+
+This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
+
+
+
+In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
+
+- Requirement Level: Conditionally Required - If applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "customers",
+    "main",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.operation`
+
+The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
+
+
+
+When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
+
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "findAndModify",
+    "HMSET",
+    "SELECT",
+]
   
 - Stability: Stable
   
@@ -3105,21 +2949,6 @@ For **Redis**, the value provided for `db.statement` SHOULD correspond to the sy
 - Stability: Stable
   
 
-
-
-## Namespace Spans `sql`
-
-
-## Span `db.sql`
-
-Call-level attributes for SQL databases
-
-Prefix: 
-Kind: client
-
-### Attributes
-
-
 #### Attribute `db.system`
 
 An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
@@ -3130,22 +2959,6 @@ An identifier for the database management system (DBMS) product being used. See 
 - Tag: connection-level
   
 - Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.connection_string`
-
-The connection string used to connect to the database. It is recommended to remove embedded credentials.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: Server=(localdb)\v11.0;Integrated Security=true;
   
 - Stability: Stable
   
@@ -3164,130 +2977,6 @@ Username for accessing the database.
 - Examples: [
     "readonly_user",
     "reporting_user",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.jdbc.driver_classname`
-
-The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "org.postgresql.Driver",
-    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.name`
-
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
-
-
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-
-- Requirement Level: Conditionally Required - If applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "customers",
-    "main",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.address`
-
-Name of the database host.
-
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
 ]
   
 - Stability: Stable
@@ -3373,6 +3062,80 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
+#### Attribute `server.address`
+
+Name of the database host.
+
+
+
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+
+
+
+## Namespace Spans `sql`
+
+
+## Span `db.sql`
+
+Call-level attributes for SQL databases
+
+Prefix: 
+Kind: client
+
+### Attributes
+
+
+#### Attribute `db.connection_string`
+
+The connection string used to connect to the database. It is recommended to remove embedded credentials.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
+  
+
 #### Attribute `db.instance.id`
 
 An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
@@ -3385,6 +3148,68 @@ An identifier (address, unique name, or any other identifier) of the database in
   
 - Type: string
 - Examples: mysql-e26b99z.example.com
+  
+- Stability: Stable
+  
+
+#### Attribute `db.jdbc.driver_classname`
+
+The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "org.postgresql.Driver",
+    "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.name`
+
+This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
+
+
+
+In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
+
+- Requirement Level: Conditionally Required - If applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "customers",
+    "main",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.operation`
+
+The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
+
+
+
+When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
+
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "findAndModify",
+    "HMSET",
+    "SELECT",
+]
   
 - Stability: Stable
   
@@ -3404,6 +3229,181 @@ It is not recommended to attempt any client-side parsing of `db.statement` just 
 - Examples: [
     "public.users",
     "customers",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.statement`
+
+The database statement being executed.
+
+
+
+- Requirement Level: Optional
+  
+- Tag: call-level
+  
+- Type: string
+- Examples: [
+    "SELECT * FROM wuser_table",
+    "SET mykey \"WuValue\"",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "readonly_user",
+    "reporting_user",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.peer.address`
+
+Peer address of the network connection - IP address or Unix domain socket name.
+
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.peer.port`
+
+Peer port number of the network connection.
+
+
+- Requirement Level: Optional
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    65123,
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.transport`
+
+[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
+
+
+
+The value SHOULD be normalized to lowercase.
+
+Consider always setting the transport when setting a port number, since
+a port number is ambiguous without knowing the transport. For example
+different processes could be listening on TCP port 12345 and UDP port 12345.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: Enum [tcp, udp, pipe, unix]
+- Examples: [
+    "tcp",
+    "udp",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.type`
+
+[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
+
+
+The value SHOULD be normalized to lowercase.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: Enum [ipv4, ipv6]
+- Examples: [
+    "ipv4",
+    "ipv6",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.address`
+
+Name of the database host.
+
+
+
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Tag: connection-level
+  
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: connection-level
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
 ]
   
 - Stability: Stable

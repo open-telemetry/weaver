@@ -13,6 +13,30 @@
     },
     "brief": "Describes a class of error the operation ended with.\n",
     "examples": [
+      "amqp:decode-error",
+      "KAFKA_STORAGE_ERROR",
+      "channel-error"
+    ],
+    "requirement_level": {
+      "conditionally_required": "If and only if the messaging operation has failed."
+    },
+    "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
+    "stability": "stable"
+  },
+  {
+    "name": "error.type",
+    "type": {
+      "members": [
+        {
+          "id": "other",
+          "value": "_OTHER",
+          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
+          "stability": "stable"
+        }
+      ]
+    },
+    "brief": "Describes a class of error the operation ended with.\n",
+    "examples": [
       "timeout",
       "java.net.UnknownHostException",
       "server_certificate_invalid",
@@ -20,6 +44,31 @@
     ],
     "requirement_level": "recommended",
     "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
+    "stability": "stable"
+  },
+  {
+    "name": "error.type",
+    "type": {
+      "members": [
+        {
+          "id": "other",
+          "value": "_OTHER",
+          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
+          "stability": "stable"
+        }
+      ]
+    },
+    "brief": "Describes a class of error the operation ended with.\n",
+    "examples": [
+      "timeout",
+      "java.net.UnknownHostException",
+      "server_certificate_invalid",
+      "500"
+    ],
+    "requirement_level": {
+      "conditionally_required": "If request has ended with an error."
+    },
+    "note": "If the request fails with an error before response status code was sent or received,\n`error.type` SHOULD be set to exception type (its fully-qualified class name, if applicable)\nor a component-specific low cardinality error identifier.\n\nIf response status code was sent or received and status indicates an error according to [HTTP span status definition](/docs/http/http-spans.md),\n`error.type` SHOULD be set to the status code number (represented as a string), an exception type (if thrown) or a component-specific error identifier.\n\nThe `error.type` value SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low, but\ntelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time, when no\nadditional filters are applied.\n\nIf the request has completed successfully, instrumentations SHOULD NOT set `error.type`.\n",
     "stability": "stable"
   },
   {
@@ -45,6 +94,82 @@
     ],
     "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "http.request.method",
+    "type": {
+      "members": [
+        {
+          "id": "connect",
+          "value": "CONNECT",
+          "brief": "CONNECT method.",
+          "stability": "stable"
+        },
+        {
+          "id": "delete",
+          "value": "DELETE",
+          "brief": "DELETE method.",
+          "stability": "stable"
+        },
+        {
+          "id": "get",
+          "value": "GET",
+          "brief": "GET method.",
+          "stability": "stable"
+        },
+        {
+          "id": "head",
+          "value": "HEAD",
+          "brief": "HEAD method.",
+          "stability": "stable"
+        },
+        {
+          "id": "options",
+          "value": "OPTIONS",
+          "brief": "OPTIONS method.",
+          "stability": "stable"
+        },
+        {
+          "id": "patch",
+          "value": "PATCH",
+          "brief": "PATCH method.",
+          "stability": "stable"
+        },
+        {
+          "id": "post",
+          "value": "POST",
+          "brief": "POST method.",
+          "stability": "stable"
+        },
+        {
+          "id": "put",
+          "value": "PUT",
+          "brief": "PUT method.",
+          "stability": "stable"
+        },
+        {
+          "id": "trace",
+          "value": "TRACE",
+          "brief": "TRACE method.",
+          "stability": "stable"
+        },
+        {
+          "id": "other",
+          "value": "_OTHER",
+          "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
+          "stability": "stable"
+        }
+      ]
+    },
+    "brief": "HTTP request method.",
+    "examples": [
+      "GET",
+      "POST",
+      "HEAD"
+    ],
+    "requirement_level": "required",
+    "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
     "stability": "stable"
   },
   {
@@ -180,6 +305,18 @@
     "stability": "stable"
   },
   {
+    "name": "http.response.status_code",
+    "type": "int",
+    "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
+    "examples": [
+      200
+    ],
+    "requirement_level": {
+      "conditionally_required": "If and only if one was received/sent."
+    },
+    "stability": "stable"
+  },
+  {
     "name": "http.route",
     "type": "string",
     "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
@@ -188,6 +325,20 @@
       "{controller}/{action}/{id?}"
     ],
     "requirement_level": "recommended",
+    "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
+    "stability": "stable"
+  },
+  {
+    "name": "http.route",
+    "type": "string",
+    "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
+    "examples": [
+      "/users/:userID?",
+      "{controller}/{action}/{id?}"
+    ],
+    "requirement_level": {
+      "conditionally_required": "If and only if it's available"
+    },
     "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
     "stability": "stable"
   },
@@ -216,6 +367,13 @@
     "stability": "stable"
   },
   {
+    "name": "messaging.destination.anonymous",
+    "type": "boolean",
+    "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
@@ -224,6 +382,20 @@
       "MyTopic"
     ],
     "requirement_level": "recommended",
+    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "messaging.destination.name",
+    "type": "string",
+    "brief": "The message destination name",
+    "examples": [
+      "MyQueue",
+      "MyTopic"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+    },
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
     "stability": "stable"
   },
@@ -239,10 +411,16 @@
     "stability": "stable"
   },
   {
-    "name": "messaging.destination.anonymous",
-    "type": "boolean",
-    "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": "recommended",
+    "name": "messaging.destination.template",
+    "type": "string",
+    "brief": "Low cardinality representation of the messaging destination name",
+    "examples": [
+      "/customers/{customerId}"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if available."
+    },
+    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
     "stability": "stable"
   },
   {
@@ -269,6 +447,14 @@
     ],
     "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "messaging.gcp_pubsub.message.ordering_key",
+    "type": "string",
+    "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
+    "examples": "ordering_key",
+    "requirement_level": "recommended",
     "stability": "stable"
   },
   {
@@ -312,6 +498,15 @@
     "stability": "stable"
   },
   {
+    "name": "messaging.message.body.size",
+    "type": "int",
+    "brief": "The size of the message body in bytes.\n",
+    "examples": 1439,
+    "requirement_level": "recommended",
+    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
+    "stability": "stable"
+  },
+  {
     "name": "messaging.message.conversation_id",
     "type": "string",
     "brief": "The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called \"Correlation ID\".\n",
@@ -334,15 +529,6 @@
     "brief": "A value used by the messaging system as an identifier for the message, represented as a string.",
     "examples": "452a7c7c7c7048c2f887f61572b18fc2",
     "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.message.body.size",
-    "type": "int",
-    "brief": "The size of the message body in bytes.\n",
-    "examples": 1439,
-    "requirement_level": "recommended",
-    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
     "stability": "stable"
   },
   {
@@ -508,11 +694,73 @@
     "stability": "stable"
   },
   {
-    "name": "messaging.gcp_pubsub.message.ordering_key",
-    "type": "string",
-    "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
-    "examples": "ordering_key",
-    "requirement_level": "recommended",
+    "name": "messaging.system",
+    "type": {
+      "members": [
+        {
+          "id": "activemq",
+          "value": "activemq",
+          "brief": "Apache ActiveMQ",
+          "stability": "stable"
+        },
+        {
+          "id": "aws_sqs",
+          "value": "aws_sqs",
+          "brief": "Amazon Simple Queue Service (SQS)",
+          "stability": "stable"
+        },
+        {
+          "id": "azure_eventgrid",
+          "value": "azure_eventgrid",
+          "brief": "Azure Event Grid",
+          "stability": "stable"
+        },
+        {
+          "id": "azure_eventhubs",
+          "value": "azure_eventhubs",
+          "brief": "Azure Event Hubs",
+          "stability": "stable"
+        },
+        {
+          "id": "azure_servicebus",
+          "value": "azure_servicebus",
+          "brief": "Azure Service Bus",
+          "stability": "stable"
+        },
+        {
+          "id": "gcp_pubsub",
+          "value": "gcp_pubsub",
+          "brief": "Google Cloud Pub/Sub",
+          "stability": "stable"
+        },
+        {
+          "id": "jms",
+          "value": "jms",
+          "brief": "Java Message Service",
+          "stability": "stable"
+        },
+        {
+          "id": "kafka",
+          "value": "kafka",
+          "brief": "Apache Kafka",
+          "stability": "stable"
+        },
+        {
+          "id": "rabbitmq",
+          "value": "rabbitmq",
+          "brief": "RabbitMQ",
+          "stability": "stable"
+        },
+        {
+          "id": "rocketmq",
+          "value": "rocketmq",
+          "brief": "Apache RocketMQ",
+          "stability": "stable"
+        }
+      ]
+    },
+    "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
+    "requirement_level": "required",
     "stability": "stable"
   },
   {
@@ -791,6 +1039,29 @@
     "stability": "stable"
   },
   {
+    "name": "network.io.direction",
+    "type": {
+      "members": [
+        {
+          "id": "transmit",
+          "value": "transmit",
+          "stability": "stable"
+        },
+        {
+          "id": "receive",
+          "value": "receive",
+          "stability": "stable"
+        }
+      ]
+    },
+    "brief": "The network IO operation direction.",
+    "examples": [
+      "transmit"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
     "name": "network.local.address",
     "type": "string",
     "brief": "Local address of the network connection - IP address or Unix domain socket name.",
@@ -846,10 +1117,61 @@
     "stability": "stable"
   },
   {
+    "name": "network.protocol.name",
+    "type": "string",
+    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+    "examples": [
+      "amqp",
+      "mqtt"
+    ],
+    "tag": "connection-level",
+    "requirement_level": "recommended",
+    "note": "The value SHOULD be normalized to lowercase.",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.name",
+    "type": "string",
+    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+    "examples": [
+      "http",
+      "spdy"
+    ],
+    "requirement_level": {
+      "conditionally_required": "If not `http` and `network.protocol.version` is set."
+    },
+    "note": "The value SHOULD be normalized to lowercase.",
+    "stability": "stable"
+  },
+  {
     "name": "network.protocol.version",
     "type": "string",
     "brief": "Version of the protocol specified in `network.protocol.name`.",
     "examples": "3.1.1",
+    "requirement_level": "recommended",
+    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.version",
+    "type": "string",
+    "brief": "Version of the protocol specified in `network.protocol.name`.",
+    "examples": "3.1.1",
+    "tag": "connection-level",
+    "requirement_level": "recommended",
+    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.version",
+    "type": "string",
+    "brief": "Version of the protocol specified in `network.protocol.name`.",
+    "examples": [
+      "1.0",
+      "1.1",
+      "2",
+      "3"
+    ],
     "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
     "stability": "stable"
@@ -921,26 +1243,29 @@
     "stability": "stable"
   },
   {
-    "name": "network.io.direction",
-    "type": {
-      "members": [
-        {
-          "id": "transmit",
-          "value": "transmit",
-          "stability": "stable"
-        },
-        {
-          "id": "receive",
-          "value": "receive",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "The network IO operation direction.",
+    "name": "server.address",
+    "type": "string",
+    "brief": "Host identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
     "examples": [
-      "transmit"
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "required",
+    "note": "If an HTTP client request is explicitly made to an IP address, e.g. `http://x.x.x.x:8080`, then `server.address` SHOULD be the IP address `x.x.x.x`. A DNS lookup SHOULD NOT be used.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.address",
+    "type": "string",
+    "brief": "Name of the local HTTP server that received the request.\n",
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
     ],
     "requirement_level": "recommended",
+    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
     "stability": "stable"
   },
   {
@@ -957,6 +1282,49 @@
     "stability": "stable"
   },
   {
+    "name": "server.address",
+    "type": "string",
+    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": {
+      "conditionally_required": "If available."
+    },
+    "note": "This should be the IP/hostname of the broker (or other network-level peer) this specific message is sent to/received from.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.port",
+    "type": "int",
+    "brief": "Port identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": "required",
+    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.port",
+    "type": "int",
+    "brief": "Port of the local HTTP server that received the request.\n",
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": {
+      "conditionally_required": "If `server.address` is set."
+    },
+    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
+    "stability": "stable"
+  },
+  {
     "name": "server.port",
     "type": "int",
     "brief": "Server port number.",
@@ -970,13 +1338,11 @@
     "stability": "stable"
   },
   {
-    "name": "url.scheme",
+    "name": "url.fragment",
     "type": "string",
-    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+    "brief": "The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component",
     "examples": [
-      "https",
-      "ftp",
-      "telnet"
+      "SemConv"
     ],
     "requirement_level": "recommended",
     "stability": "stable"
@@ -1015,180 +1381,15 @@
     "stability": "stable"
   },
   {
-    "name": "url.fragment",
+    "name": "url.scheme",
     "type": "string",
-    "brief": "The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component",
-    "examples": [
-      "SemConv"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "http.request.method",
-    "type": {
-      "members": [
-        {
-          "id": "connect",
-          "value": "CONNECT",
-          "brief": "CONNECT method.",
-          "stability": "stable"
-        },
-        {
-          "id": "delete",
-          "value": "DELETE",
-          "brief": "DELETE method.",
-          "stability": "stable"
-        },
-        {
-          "id": "get",
-          "value": "GET",
-          "brief": "GET method.",
-          "stability": "stable"
-        },
-        {
-          "id": "head",
-          "value": "HEAD",
-          "brief": "HEAD method.",
-          "stability": "stable"
-        },
-        {
-          "id": "options",
-          "value": "OPTIONS",
-          "brief": "OPTIONS method.",
-          "stability": "stable"
-        },
-        {
-          "id": "patch",
-          "value": "PATCH",
-          "brief": "PATCH method.",
-          "stability": "stable"
-        },
-        {
-          "id": "post",
-          "value": "POST",
-          "brief": "POST method.",
-          "stability": "stable"
-        },
-        {
-          "id": "put",
-          "value": "PUT",
-          "brief": "PUT method.",
-          "stability": "stable"
-        },
-        {
-          "id": "trace",
-          "value": "TRACE",
-          "brief": "TRACE method.",
-          "stability": "stable"
-        },
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "HTTP request method.",
-    "examples": [
-      "GET",
-      "POST",
-      "HEAD"
-    ],
-    "requirement_level": "required",
-    "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.response.status_code",
-    "type": "int",
-    "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
-    "examples": [
-      200
-    ],
-    "requirement_level": {
-      "conditionally_required": "If and only if one was received/sent."
-    },
-    "stability": "stable"
-  },
-  {
-    "name": "error.type",
-    "type": {
-      "members": [
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "Describes a class of error the operation ended with.\n",
-    "examples": [
-      "timeout",
-      "java.net.UnknownHostException",
-      "server_certificate_invalid",
-      "500"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If request has ended with an error."
-    },
-    "note": "If the request fails with an error before response status code was sent or received,\n`error.type` SHOULD be set to exception type (its fully-qualified class name, if applicable)\nor a component-specific low cardinality error identifier.\n\nIf response status code was sent or received and status indicates an error according to [HTTP span status definition](/docs/http/http-spans.md),\n`error.type` SHOULD be set to the status code number (represented as a string), an exception type (if thrown) or a component-specific error identifier.\n\nThe `error.type` value SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low, but\ntelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time, when no\nadditional filters are applied.\n\nIf the request has completed successfully, instrumentations SHOULD NOT set `error.type`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
     "examples": [
       "http",
-      "spdy"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If not `http` and `network.protocol.version` is set."
-    },
-    "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": [
-      "1.0",
-      "1.1",
-      "2",
-      "3"
-    ],
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Host identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
+      "https"
     ],
     "requirement_level": "required",
-    "note": "If an HTTP client request is explicitly made to an IP address, e.g. `http://x.x.x.x:8080`, then `server.address` SHOULD be the IP address `x.x.x.x`. A DNS lookup SHOULD NOT be used.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "int",
-    "brief": "Port identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
-    "requirement_level": "required",
-    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+    "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
     "stability": "stable"
   },
   {
@@ -1203,216 +1404,15 @@
     "stability": "stable"
   },
   {
-    "name": "http.route",
-    "type": "string",
-    "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
-    "examples": [
-      "/users/:userID?",
-      "{controller}/{action}/{id?}"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If and only if it's available"
-    },
-    "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Name of the local HTTP server that received the request.\n",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "recommended",
-    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "int",
-    "brief": "Port of the local HTTP server that received the request.\n",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
-    "requirement_level": {
-      "conditionally_required": "If `server.address` is set."
-    },
-    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "stable"
-  },
-  {
     "name": "url.scheme",
     "type": "string",
     "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
     "examples": [
-      "http",
-      "https"
+      "https",
+      "ftp",
+      "telnet"
     ],
-    "requirement_level": "required",
-    "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.system",
-    "type": {
-      "members": [
-        {
-          "id": "activemq",
-          "value": "activemq",
-          "brief": "Apache ActiveMQ",
-          "stability": "stable"
-        },
-        {
-          "id": "aws_sqs",
-          "value": "aws_sqs",
-          "brief": "Amazon Simple Queue Service (SQS)",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_eventgrid",
-          "value": "azure_eventgrid",
-          "brief": "Azure Event Grid",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_eventhubs",
-          "value": "azure_eventhubs",
-          "brief": "Azure Event Hubs",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_servicebus",
-          "value": "azure_servicebus",
-          "brief": "Azure Service Bus",
-          "stability": "stable"
-        },
-        {
-          "id": "gcp_pubsub",
-          "value": "gcp_pubsub",
-          "brief": "Google Cloud Pub/Sub",
-          "stability": "stable"
-        },
-        {
-          "id": "jms",
-          "value": "jms",
-          "brief": "Java Message Service",
-          "stability": "stable"
-        },
-        {
-          "id": "kafka",
-          "value": "kafka",
-          "brief": "Apache Kafka",
-          "stability": "stable"
-        },
-        {
-          "id": "rabbitmq",
-          "value": "rabbitmq",
-          "brief": "RabbitMQ",
-          "stability": "stable"
-        },
-        {
-          "id": "rocketmq",
-          "value": "rocketmq",
-          "brief": "Apache RocketMQ",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": "required",
-    "stability": "stable"
-  },
-  {
-    "name": "error.type",
-    "type": {
-      "members": [
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "Describes a class of error the operation ended with.\n",
-    "examples": [
-      "amqp:decode-error",
-      "KAFKA_STORAGE_ERROR",
-      "channel-error"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If and only if the messaging operation has failed."
-    },
-    "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If available."
-    },
-    "note": "This should be the IP/hostname of the broker (or other network-level peer) this specific message is sent to/received from.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "amqp",
-      "mqtt"
-    ],
-    "tag": "connection-level",
     "requirement_level": "recommended",
-    "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": "3.1.1",
-    "tag": "connection-level",
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.name",
-    "type": "string",
-    "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
-    },
-    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.template",
-    "type": "string",
-    "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if available."
-    },
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
     "stability": "stable"
   }
 ]

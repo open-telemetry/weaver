@@ -6,23 +6,7 @@
       "type": "attribute_group",
       "brief": "Base level",
       "attributes": [
-        0
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-lineage-2/registry/groups.yaml"
-        }
-      }
-    },
-    {
-      "id": "registry.xyz",
-      "type": "attribute_group",
-      "brief": "Just a registry of attributes",
-      "attributes": [
-        1,
-        2,
-        3
+        7
       ],
       "lineage": {
         "provenance": {
@@ -36,8 +20,8 @@
       "type": "attribute_group",
       "brief": "Intermediate level",
       "attributes": [
-        4,
-        5
+        2,
+        8
       ],
       "lineage": {
         "provenance": {
@@ -62,15 +46,31 @@
       }
     },
     {
+      "id": "registry.xyz",
+      "type": "attribute_group",
+      "brief": "Just a registry of attributes",
+      "attributes": [
+        0,
+        3,
+        5
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-2/registry/groups.yaml"
+        }
+      }
+    },
+    {
       "id": "top.level",
       "type": "attribute_group",
       "brief": "Top level",
       "attributes": [
-        3,
+        1,
+        2,
         4,
-        6,
-        7,
-        8
+        5,
+        6
       ],
       "lineage": {
         "provenance": {

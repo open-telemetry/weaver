@@ -85,7 +85,7 @@
     "id": "device.app.lifecycle",
     "lineage": {
       "provenance": {
-        "path": "data/mobile-events.yaml",
+        "path": "data/registry/mobile-events.yaml",
         "registry_id": "default"
       }
     },
@@ -96,14 +96,6 @@
   },
   {
     "attributes": [
-      {
-        "brief": "A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.\n",
-        "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
-        "name": "exception.stacktrace",
-        "requirement_level": "recommended",
-        "stability": "stable",
-        "type": "string"
-      },
       {
         "annotations": {
           "collector": {
@@ -118,19 +110,6 @@
         "type": "boolean"
       },
       {
-        "brief": "The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.\n",
-        "examples": [
-          "java.net.ConnectException",
-          "OSError"
-        ],
-        "name": "exception.type",
-        "requirement_level": {
-          "conditionally_required": "Required if `exception.message` is not set, recommended otherwise."
-        },
-        "stability": "stable",
-        "type": "string"
-      },
-      {
         "brief": "The exception message.",
         "examples": [
           "Division by zero",
@@ -139,6 +118,27 @@
         "name": "exception.message",
         "requirement_level": {
           "conditionally_required": "Required if `exception.type` is not set, recommended otherwise."
+        },
+        "stability": "stable",
+        "type": "string"
+      },
+      {
+        "brief": "A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.\n",
+        "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
+        "name": "exception.stacktrace",
+        "requirement_level": "recommended",
+        "stability": "stable",
+        "type": "string"
+      },
+      {
+        "brief": "The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.\n",
+        "examples": [
+          "java.net.ConnectException",
+          "OSError"
+        ],
+        "name": "exception.type",
+        "requirement_level": {
+          "conditionally_required": "Required if `exception.message` is not set, recommended otherwise."
         },
         "stability": "stable",
         "type": "string"
@@ -198,7 +198,7 @@
         }
       },
       "provenance": {
-        "path": "data/trace-exception.yaml",
+        "path": "data/registry/trace-exception.yaml",
         "registry_id": "default"
       }
     },

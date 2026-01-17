@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     deprecated::Deprecated,
     group::GroupType,
+    manifest::RegistryManifest,
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
         CommonFields,
@@ -14,16 +15,19 @@ use weaver_semconv::{
 };
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
-use crate::v2::{
-    attribute::Attribute,
-    attribute_group::AttributeGroup,
-    catalog::{AttributeCatalog, Catalog},
-    entity::Entity,
-    metric::Metric,
-    refinements::Refinements,
-    registry::Registry,
-    span::{Span, SpanRefinement},
-    stats::Stats,
+use crate::{
+    v2::{
+        attribute::Attribute,
+        attribute_group::AttributeGroup,
+        catalog::{AttributeCatalog, Catalog},
+        entity::Entity,
+        metric::Metric,
+        refinements::Refinements,
+        registry::Registry,
+        span::{Span, SpanRefinement},
+        stats::Stats,
+    },
+    V2_RESOLVED_FILE_FORMAT,
 };
 
 pub mod attribute;
@@ -55,7 +59,9 @@ pub struct ResolvedTelemetrySchema {
     pub registry: Registry,
     /// Refinements for the registry
     pub refinements: Refinements,
-    // TODO - versions, dependencies and other options.
+    /// The manifest of the registry.
+    #[serde(skip_serializing)]
+    pub registry_manifest: Option<RegistryManifest>,
 }
 
 impl ResolvedTelemetrySchema {
@@ -123,13 +129,13 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
         Ok(ResolvedTelemetrySchema {
-            // TODO - bump file format?
-            file_format: value.file_format,
+            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: value.schema_url,
             registry_id: value.registry_id,
             attribute_catalog,
             registry,
             refinements,
+            registry_manifest: None,
         })
     }
 }
@@ -598,6 +604,7 @@ mod tests {
 
     use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
     use crate::v2::event::Event;
+    use crate::V1_RESOLVED_FILE_FORMAT;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
@@ -981,7 +988,7 @@ mod tests {
     #[test]
     fn test_try_from_v1_to_v2() {
         let v1_schema = crate::ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "my.schema.url".to_owned(),
             registry_id: "my-registry".to_owned(),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
@@ -999,7 +1006,7 @@ mod tests {
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();
         assert!(v2_schema.is_ok());
         let v2_schema = v2_schema.unwrap();
-        assert_eq!(v2_schema.file_format, "1.0.0");
+        assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(v2_schema.schema_url, "my.schema.url");
         assert_eq!(v2_schema.registry_id, "my-registry");
     }
@@ -1208,7 +1215,7 @@ mod tests {
     // create an empty schema for testing.
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
+            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "my.schema.url".to_owned(),
             registry_id: "main".to_owned(),
             attribute_catalog: vec![],
@@ -1226,6 +1233,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            registry_manifest: None,
         }
     }
 }

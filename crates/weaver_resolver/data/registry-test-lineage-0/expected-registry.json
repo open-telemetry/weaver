@@ -2,11 +2,13 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.server",
+      "id": "registry.network",
       "type": "attribute_group",
-      "brief": "Registry server",
+      "brief": "Registry network",
       "attributes": [
-        0
+        0,
+        2,
+        4
       ],
       "lineage": {
         "provenance": {
@@ -16,13 +18,11 @@
       }
     },
     {
-      "id": "registry.network",
+      "id": "registry.server",
       "type": "attribute_group",
-      "brief": "Registry network",
+      "brief": "Registry server",
       "attributes": [
-        1,
-        2,
-        3
+        5
       ],
       "lineage": {
         "provenance": {
@@ -36,9 +36,9 @@
       "type": "attribute_group",
       "brief": "Top level group",
       "attributes": [
+        1,
         3,
         4,
-        5,
         6
       ],
       "lineage": {

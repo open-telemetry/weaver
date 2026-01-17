@@ -6,7 +6,7 @@
       "type": "attribute_group",
       "brief": "Describes HTTP attributes.",
       "attributes": [
-        2
+        1
       ],
       "lineage": {
         "provenance": {
@@ -34,7 +34,7 @@
       "type": "attribute_group",
       "brief": "HTTP Server attributes",
       "attributes": [
-        2,
+        1,
         3
       ],
       "lineage": {
@@ -72,19 +72,23 @@
       }
     },
     {
-      "id": "metric_attributes.http.server",
-      "type": "attribute_group",
-      "brief": "HTTP server attributes",
+      "id": "metric.http.server.request.duration",
+      "type": "metric",
+      "brief": "Duration of HTTP server requests.",
+      "stability": "stable",
       "attributes": [
-        2,
-        4
+        1,
+        2
       ],
+      "metric_name": "http.server.request.duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": {
           "registry_id": "default",
           "path": "data/registry-test-8-http/registry/http.yaml"
         },
-        "extends_group": "attributes.http.server",
+        "extends_group": "metric_attributes.http.server",
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -114,23 +118,19 @@
       }
     },
     {
-      "id": "metric.http.server.request.duration",
-      "type": "metric",
-      "brief": "Duration of HTTP server requests.",
-      "stability": "stable",
+      "id": "metric_attributes.http.server",
+      "type": "attribute_group",
+      "brief": "HTTP server attributes",
       "attributes": [
-        2,
-        4
+        1,
+        2
       ],
-      "metric_name": "http.server.request.duration",
-      "instrument": "histogram",
-      "unit": "s",
       "lineage": {
         "provenance": {
           "registry_id": "default",
           "path": "data/registry-test-8-http/registry/http.yaml"
         },
-        "extends_group": "metric_attributes.http.server",
+        "extends_group": "attributes.http.server",
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -178,7 +178,7 @@
       "type": "attribute_group",
       "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
       "attributes": [
-        1
+        4
       ],
       "lineage": {
         "provenance": {

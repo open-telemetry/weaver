@@ -19,7 +19,6 @@ use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
@@ -45,13 +44,11 @@ fn main() {
     };
     let registry_repo =
         RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, true, FOLLOW_SYMLINKS)
+    let loaded = SchemaResolver::load_semconv_repository(registry_repo, FOLLOW_SYMLINKS)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
-        .unwrap_or_else(|e| process_error(&logger, e));
-    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
+    let schema = SchemaResolver::resolve(loaded, false)
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
 

@@ -142,7 +142,7 @@
               "locally_overridden_fields": [
                 "requirement_level"
               ],
-              "source_group": "registry.data.registry-http"
+              "source_group": "registry.data.registry.registry-http"
             },
             "http.response.status_code": {
               "inherited_fields": [
@@ -154,7 +154,7 @@
                 "examples",
                 "requirement_level"
               ],
-              "source_group": "registry.data.registry-http"
+              "source_group": "registry.data.registry.registry-http"
             },
             "server.address": {
               "inherited_fields": [
@@ -197,7 +197,7 @@
             "http.client.server_and_port"
           ],
           "provenance": {
-            "path": "data/http.yaml",
+            "path": "data/registry/http.yaml",
             "registry_id": "default"
           }
         },
@@ -219,7 +219,7 @@
         "instrument": "updowncounter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -236,7 +236,7 @@
         "instrument": "counter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -253,7 +253,7 @@
         "instrument": "counter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -270,7 +270,7 @@
         "instrument": "updowncounter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -287,7 +287,7 @@
         "instrument": "gauge",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -305,7 +305,7 @@
         "instrument": "counter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -318,18 +318,6 @@
       {
         "attributes": [
           {
-            "brief": "Name of the garbage collector.",
-            "examples": [
-              "G1 Young Generation",
-              "G1 Old Generation"
-            ],
-            "name": "jvm.gc.name",
-            "note": "Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).\n",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "string"
-          },
-          {
             "brief": "Name of the garbage collector action.",
             "examples": [
               "end of minor GC",
@@ -340,6 +328,18 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": "string"
+          },
+          {
+            "brief": "Name of the garbage collector.",
+            "examples": [
+              "G1 Young Generation",
+              "G1 Old Generation"
+            ],
+            "name": "jvm.gc.name",
+            "note": "Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).\n",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "string"
           }
         ],
         "brief": "Duration of JVM garbage collection actions.",
@@ -347,7 +347,7 @@
         "instrument": "histogram",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -359,6 +359,19 @@
       },
       {
         "attributes": [
+          {
+            "brief": "Name of the memory pool.",
+            "examples": [
+              "G1 Old Gen",
+              "G1 Eden space",
+              "G1 Survivor Space"
+            ],
+            "name": "jvm.memory.pool.name",
+            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "string"
+          },
           {
             "brief": "The type of memory.",
             "examples": [
@@ -400,19 +413,6 @@
                 }
               ]
             }
-          },
-          {
-            "brief": "Name of the memory pool.",
-            "examples": [
-              "G1 Old Gen",
-              "G1 Eden space",
-              "G1 Survivor Space"
-            ],
-            "name": "jvm.memory.pool.name",
-            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "string"
           }
         ],
         "brief": "Measure of memory committed.",
@@ -443,7 +443,7 @@
           },
           "extends_group": "attributes.jvm.memory",
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -467,7 +467,7 @@
         "instrument": "updowncounter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -479,6 +479,19 @@
       },
       {
         "attributes": [
+          {
+            "brief": "Name of the memory pool.",
+            "examples": [
+              "G1 Old Gen",
+              "G1 Eden space",
+              "G1 Survivor Space"
+            ],
+            "name": "jvm.memory.pool.name",
+            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "string"
+          },
           {
             "brief": "The type of memory.",
             "examples": [
@@ -520,19 +533,6 @@
                 }
               ]
             }
-          },
-          {
-            "brief": "Name of the memory pool.",
-            "examples": [
-              "G1 Old Gen",
-              "G1 Eden space",
-              "G1 Survivor Space"
-            ],
-            "name": "jvm.memory.pool.name",
-            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "string"
           }
         ],
         "brief": "Measure of max obtainable memory.",
@@ -563,7 +563,7 @@
           },
           "extends_group": "attributes.jvm.memory",
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -575,6 +575,44 @@
       },
       {
         "attributes": [
+          {
+            "brief": "Something deprecated.",
+            "deprecated": {
+              "note": "Use `jvm.memory.stable.attribute` instead.",
+              "reason": "obsoleted"
+            },
+            "name": "jvm.memory.deprecated.attribute",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "boolean"
+          },
+          {
+            "brief": "Something experimental.",
+            "name": "jvm.memory.experimental.attribute",
+            "requirement_level": "opt_in",
+            "stability": "development",
+            "type": "boolean"
+          },
+          {
+            "brief": "Name of the memory pool.",
+            "examples": [
+              "G1 Old Gen",
+              "G1 Eden space",
+              "G1 Survivor Space"
+            ],
+            "name": "jvm.memory.pool.name",
+            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "string"
+          },
+          {
+            "brief": "Something stable.",
+            "name": "jvm.memory.stable.attribute",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "boolean"
+          },
           {
             "brief": "The type of memory.",
             "examples": [
@@ -616,44 +654,6 @@
                 }
               ]
             }
-          },
-          {
-            "brief": "Name of the memory pool.",
-            "examples": [
-              "G1 Old Gen",
-              "G1 Eden space",
-              "G1 Survivor Space"
-            ],
-            "name": "jvm.memory.pool.name",
-            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "string"
-          },
-          {
-            "brief": "Something deprecated.",
-            "deprecated": {
-              "note": "Use `jvm.memory.stable.attribute` instead.",
-              "reason": "obsoleted"
-            },
-            "name": "jvm.memory.deprecated.attribute",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "boolean"
-          },
-          {
-            "brief": "Something experimental.",
-            "name": "jvm.memory.experimental.attribute",
-            "requirement_level": "opt_in",
-            "stability": "development",
-            "type": "boolean"
-          },
-          {
-            "brief": "Something stable.",
-            "name": "jvm.memory.stable.attribute",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "boolean"
           }
         ],
         "brief": "Measure of memory used.",
@@ -687,7 +687,7 @@
           },
           "extends_group": "attributes.jvm.memory",
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -699,6 +699,19 @@
       },
       {
         "attributes": [
+          {
+            "brief": "Name of the memory pool.",
+            "examples": [
+              "G1 Old Gen",
+              "G1 Eden space",
+              "G1 Survivor Space"
+            ],
+            "name": "jvm.memory.pool.name",
+            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
+            "requirement_level": "recommended",
+            "stability": "stable",
+            "type": "string"
+          },
           {
             "brief": "The type of memory.",
             "examples": [
@@ -740,19 +753,6 @@
                 }
               ]
             }
-          },
-          {
-            "brief": "Name of the memory pool.",
-            "examples": [
-              "G1 Old Gen",
-              "G1 Eden space",
-              "G1 Survivor Space"
-            ],
-            "name": "jvm.memory.pool.name",
-            "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
-            "requirement_level": "recommended",
-            "stability": "stable",
-            "type": "string"
           }
         ],
         "brief": "Measure of memory used, as measured after the most recent garbage collection event on this pool.",
@@ -783,7 +783,7 @@
           },
           "extends_group": "attributes.jvm.memory",
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },
@@ -858,7 +858,7 @@
         "instrument": "updowncounter",
         "lineage": {
           "provenance": {
-            "path": "data/jvm-metrics.yaml",
+            "path": "data/registry/jvm-metrics.yaml",
             "registry_id": "default"
           }
         },

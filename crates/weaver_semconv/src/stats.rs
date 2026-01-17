@@ -16,6 +16,4 @@ pub struct Stats {
     pub group_breakdown: HashMap<GroupType, usize>,
     /// Number of attributes.
     pub attribute_count: usize,
-    /// Number of metrics.
-    pub metric_count: usize,
 }

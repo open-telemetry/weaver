@@ -6,8 +6,8 @@
       "type": "attribute_group",
       "brief": "Common messaging metrics attributes.",
       "attributes": [
-        30,
-        31
+        4,
+        6
       ],
       "lineage": {
         "provenance": {
@@ -51,9 +51,7 @@
         1,
         2,
         3,
-        4,
         5,
-        6,
         7,
         8,
         9,
@@ -76,7 +74,9 @@
         26,
         27,
         28,
-        29
+        29,
+        30,
+        31
       ],
       "lineage": {
         "provenance": {

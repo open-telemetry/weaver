@@ -6,10 +6,14 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use weaver_resolved_schema::attribute;
 use weaver_resolved_schema::attribute::AttributeRef;
+use weaver_resolved_schema::attribute::{self};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::attribute::AttributeSpec;
+
+use crate::dependency::ResolvedDependency;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
 #[derive(Deserialize, Debug, Default, PartialEq)]
@@ -32,10 +36,13 @@ pub struct AttributeWithGroupId {
 }
 
 impl AttributeCatalog {
-    /// Returns the given attribute from the catalog.
-    #[must_use]
-    pub fn get_attribute(&self, name: &str) -> Option<&AttributeWithGroupId> {
-        self.root_attributes.get(name)
+    /// Returns an attribute from a reference.
+    /// NOTE: this is inefficient and should only be used in tests.
+    #[cfg(test)]
+    pub fn attribute(&self, ar: &AttributeRef) -> Option<attribute::Attribute> {
+        self.attribute_refs
+            .iter()
+            .find_map(|(a, r)| if ar == r { Some(a.clone()) } else { None })
     }
 
     /// Returns the reference of the given attribute or creates a new reference if the attribute
@@ -63,28 +70,34 @@ impl AttributeCatalog {
     ///
     /// Returns a map of old attribute refs to new attribute refs.
     #[must_use]
-    pub fn gc_unreferenced_attribute_refs(
+    pub fn gc_unreferenced_attribute_refs_and_sort(
         &mut self,
         attr_refs: HashSet<AttributeRef>,
     ) -> HashMap<AttributeRef, AttributeRef> {
         self.attribute_refs
             .retain(|_, attr_ref| attr_refs.contains(attr_ref));
-        let mut next_id = 0;
-        let gc_map: HashMap<AttributeRef, AttributeRef> = self
+        let mut ordered: Vec<(attribute::Attribute, AttributeRef)> = self
             .attribute_refs
-            .values()
-            .map(|attr_ref| {
+            .iter()
+            .map(|(a, ar)| (a.clone(), *ar))
+            .collect();
+        ordered.sort_by(|(ln, _), (rn, _)| ln.cmp(rn));
+        // assert_eq!(ordered.len(), self.attribute_refs.len());
+        let mut next_id = 0;
+        // Construct map that converts old attribute refs into new ones, where
+        // the new IDs are increasing using attribute ordering.
+        let gc_map: HashMap<AttributeRef, AttributeRef> = ordered
+            .iter()
+            .map(|(_, attr_ref)| {
                 let new_attr_ref = AttributeRef(next_id);
                 next_id += 1;
                 (*attr_ref, new_attr_ref)
             })
             .collect();
-
         // Remap the current catalog
         self.attribute_refs.values_mut().for_each(|attr_ref| {
             *attr_ref = gc_map[attr_ref];
         });
-
         gc_map
     }
 
@@ -103,12 +116,13 @@ impl AttributeCatalog {
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.
     /// Returns `None` if the attribute spec is a ref and it does not exist yet
     /// in the catalog.
-    pub fn resolve(
+    pub(crate) fn resolve(
         &mut self,
         group_id: &str,
         group_prefix: &str,
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
+        dependencies: &Vec<ResolvedDependency>,
     ) -> Option<AttributeRef> {
         match attr {
             AttributeSpec::Ref {
@@ -126,7 +140,14 @@ impl AttributeCatalog {
                 role,
             } => {
                 let name;
-                let root_attr = self.root_attributes.get(r#ref);
+                let mut root_attr: Option<&AttributeWithGroupId> = self.root_attributes.get(r#ref);
+                // If we fail to find an attribute, check dependencies first.
+                if root_attr.is_none() {
+                    if let Some(at) = dependencies.lookup_attribute(r#ref) {
+                        _ = self.root_attributes.insert(r#ref.to_owned(), at);
+                        root_attr = self.root_attributes.get(r#ref);
+                    }
+                }
                 if let Some(root_attr) = root_attr {
                     let mut attr_lineage = AttributeLineage::new(&root_attr.group_id);
 
@@ -241,6 +262,69 @@ impl AttributeCatalog {
     }
 }
 
+/// Helper trait for abstracting over V1 and V2 schema.
+trait AttributeLookup {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId>;
+}
+
+impl AttributeLookup for Vec<ResolvedDependency> {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        self.iter().find_map(|d| d.lookup_attribute(key))
+    }
+}
+
+impl AttributeLookup for ResolvedDependency {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        match self {
+            ResolvedDependency::V1(schema) => schema.lookup_attribute(key),
+            ResolvedDependency::V2(schema) => schema.lookup_attribute(key),
+        }
+    }
+}
+
+impl AttributeLookup for V1Schema {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        // TODO - fast lookup, not a table scan...
+        // Because of how the algorithm works, we need to looks across
+        // *all possible* groups for an attribute.
+        // Note: This *only* works with lineage and breaks otherwise.
+        let result = self.registry.groups.iter().find_map(|g| {
+            g.attributes
+                .iter()
+                .find_map(|ar| {
+                    self.catalog
+                        .attribute(ar)
+                        .filter(|a| a.name == key)
+                        .and_then(|a| {
+                            let lineage = g
+                                .lineage
+                                .as_ref()
+                                .and_then(|l| l.attribute(&a.name))
+                                .filter(|al| al.source_group == g.id);
+                            // We defined the attribute.
+                            if lineage.is_none() {
+                                Some(a.clone())
+                            } else {
+                                // We did not define the attribute.
+                                None
+                            }
+                        })
+                })
+                .map(|a| AttributeWithGroupId {
+                    attribute: a,
+                    group_id: g.id.to_owned(),
+                })
+        });
+        result
+    }
+}
+
+impl AttributeLookup for V2Schema {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+        todo!("Lookup {key} on v2 schema.")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,7 +347,7 @@ mod tests {
         _ = attr_refs.insert(AttributeRef(2));
         _ = attr_refs.insert(AttributeRef(4));
         _ = attr_refs.insert(AttributeRef(7));
-        let attr_ref_map = catalog.gc_unreferenced_attribute_refs(attr_refs);
+        let attr_ref_map = catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
 
         // We should have 3 attributes left in the catalog.
         // The resulting map should map the old attribute refs [2, 4, 7] to the new ones
@@ -329,7 +413,7 @@ mod tests {
         _ = attr_refs.insert(AttributeRef(3));
         _ = attr_refs.insert(AttributeRef(4));
         _ = attr_refs.insert(AttributeRef(5));
-        _ = catalog.gc_unreferenced_attribute_refs(attr_refs);
+        _ = catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
         let attr_names = catalog
             .attribute_name_index()
             .into_iter()

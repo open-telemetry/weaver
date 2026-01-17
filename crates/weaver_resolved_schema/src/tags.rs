@@ -16,7 +16,9 @@ use std::collections::BTreeMap;
 /// - semantic_type: first_name
 /// - owner:
 /// - provenance: browser_sensor
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[serde(transparent)]
 #[serde(deny_unknown_fields)]
 pub struct Tags {

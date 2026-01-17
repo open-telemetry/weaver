@@ -344,7 +344,7 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub(crate) fn from_string(
+    pub fn from_string(
         provenance: Provenance,
         spec: &str,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
