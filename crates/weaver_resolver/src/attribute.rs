@@ -94,7 +94,6 @@ impl AttributeCatalog {
                 (*attr_ref, new_attr_ref)
             })
             .collect();
-        // assert_eq!(gc_map.len(), self.attribute_refs.len());
         // Remap the current catalog
         self.attribute_refs.values_mut().for_each(|attr_ref| {
             *attr_ref = gc_map[attr_ref];

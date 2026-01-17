@@ -60,6 +60,7 @@ pub struct ResolvedTelemetrySchema {
     /// Refinements for the registry
     pub refinements: Refinements,
     /// The manifest of the registry.
+    #[serde(skip_serializing)]
     pub registry_manifest: Option<RegistryManifest>,
 }
 
