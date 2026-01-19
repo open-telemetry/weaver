@@ -314,7 +314,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
 
-        if report_mode && !args.no_stats {
+        if report_mode {
             samples.push(sample);
         } else if !no_output {
             // Only generate output if template rendering is enabled
@@ -330,8 +330,8 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         }
     }
 
-    // Only finalize and output stats if stats are enabled and output is enabled
-    if !args.no_stats && !no_output {
+    // Only finalize and output if output is enabled
+    if !no_output {
         stats.finalize();
         // Set the exit_code to a non-zero code if there are any violations
         if stats.has_violations() {
