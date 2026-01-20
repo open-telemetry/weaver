@@ -4,10 +4,11 @@
 //! - Comparing it to a semantic convention registry.
 //! - Running built-in and custom policies to provide advice on how to improve the telemetry.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Args;
+use serde::Serialize;
 use include_dir::{include_dir, Dir};
 
 use log::info;
@@ -73,6 +74,112 @@ impl From<String> for InputFormat {
     }
 }
 
+/// The output format for live_check results
+#[derive(Debug, Clone)]
+enum OutputFormat {
+    /// JSON format - pretty-printed using serde_json
+    Json,
+    /// YAML format - using serde_yaml
+    Yaml,
+    /// JSONL format - one compact JSON object per line
+    Jsonl,
+    /// Template-based format using the template engine
+    Template(String),
+}
+
+impl From<String> for OutputFormat {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "json" => OutputFormat::Json,
+            "yaml" => OutputFormat::Yaml,
+            "jsonl" => OutputFormat::Jsonl,
+            _ => OutputFormat::Template(s),
+        }
+    }
+}
+
+impl OutputFormat {
+    /// Returns true if this is a builtin format (not template-based)
+    fn is_builtin(&self) -> bool {
+        !matches!(self, OutputFormat::Template(_))
+    }
+
+    /// Returns the template name if this is a template format
+    fn template_name(&self) -> Option<&str> {
+        match self {
+            OutputFormat::Template(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    /// Serialize data to this format (for builtin formats only)
+    fn serialize<T: Serialize>(&self, data: &T) -> Result<String, Error> {
+        match self {
+            OutputFormat::Json => serde_json::to_string_pretty(data)
+                .map_err(|e| Error::OutputError { error: e.to_string() }),
+            OutputFormat::Yaml => serde_yaml::to_string(data)
+                .map_err(|e| Error::OutputError { error: e.to_string() }),
+            OutputFormat::Jsonl => serde_json::to_string(data)
+                .map_err(|e| Error::OutputError { error: e.to_string() }),
+            OutputFormat::Template(_) => Err(Error::OutputError {
+                error: "Cannot serialize with template format".to_string(),
+            }),
+        }
+    }
+
+    /// Write serialized content to output destination
+    fn write_output(
+        &self,
+        content: &str,
+        output: &Path,
+        directive: &OutputDirective,
+    ) -> Result<(), Error> {
+        match directive {
+            OutputDirective::Stdout => {
+                println!("{content}");
+                Ok(())
+            }
+            OutputDirective::File => {
+                let file_path = self.output_file_path(output);
+                // Create parent directory if it doesn't exist
+                if let Some(parent) = file_path.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| Error::OutputError {
+                        error: format!("Failed to create directory {}: {e}", parent.display()),
+                    })?;
+                }
+                std::fs::write(&file_path, content).map_err(|e| Error::OutputError {
+                    error: format!("Failed to write to {}: {e}", file_path.display()),
+                })
+            }
+            OutputDirective::Stderr => {
+                eprintln!("{content}");
+                Ok(())
+            }
+        }
+    }
+
+    /// Get the output file path for this format
+    fn output_file_path(&self, output_dir: &Path) -> PathBuf {
+        match self {
+            OutputFormat::Json => output_dir.join("live_check.json"),
+            OutputFormat::Yaml => output_dir.join("live_check.yaml"),
+            OutputFormat::Jsonl => output_dir.join("live_check.jsonl"),
+            OutputFormat::Template(_) => output_dir.to_path_buf(),
+        }
+    }
+
+    /// Serialize and write data in one step (convenience method)
+    fn serialize_and_write<T: Serialize>(
+        &self,
+        data: &T,
+        output: &Path,
+        directive: &OutputDirective,
+    ) -> Result<(), Error> {
+        let content = self.serialize(data)?;
+        self.write_output(&content, output, directive)
+    }
+}
+
 /// Parameters for the `registry live-check` sub-command
 #[derive(Debug, Args)]
 pub struct RegistryLiveCheckArgs {
@@ -96,9 +203,11 @@ pub struct RegistryLiveCheckArgs {
     #[arg(long, default_value = "json")]
     input_format: InputFormat,
 
-    /// Format used to render the report. Predefined formats are: ansi, json
+    /// Format used to render the report.
+    /// Builtin formats: json, yaml, jsonl (uses serde directly).
+    /// Other values are treated as template names (e.g., "ansi" uses ansi templates).
     #[arg(long, default_value = "ansi")]
-    format: String,
+    format: OutputFormat,
 
     /// Path to the directory where the templates are located.
     #[arg(long, default_value = "live_check_templates")]
@@ -221,12 +330,12 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
 
-    // Prepare the template engine (only if output is enabled)
-    let engine = if !no_output {
+    // Prepare the template engine (only if output is enabled and using template format)
+    let engine = if !no_output && !args.format.is_builtin() {
         let loader = EmbeddedFileLoader::try_new(
             &DEFAULT_LIVE_CHECK_TEMPLATES,
             args.templates.clone(),
-            &args.format,
+            args.format.template_name().unwrap_or("ansi"),
         )
         .map_err(|e| {
             DiagnosticMessages::from(Error::OutputError {
@@ -317,8 +426,12 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         if report_mode && !args.no_stats {
             samples.push(sample);
         } else if !no_output {
-            // Only generate output if template rendering is enabled
-            if let Some(ref engine) = engine {
+            // Output this sample immediately (streaming mode)
+            if args.format.is_builtin() {
+                args.format
+                    .serialize_and_write(&sample, output.as_path(), &output_directive)
+                    .map_err(DiagnosticMessages::from)?;
+            } else if let Some(ref engine) = engine {
                 engine
                     .generate(&sample, output.as_path(), &output_directive)
                     .map_err(|e| {
@@ -339,12 +452,33 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         }
 
         if report_mode {
-            // Package into a report
-            let report = LiveCheckReport {
-                statistics: stats,
-                samples,
-            };
-            if let Some(ref engine) = engine {
+            if args.format.is_builtin() {
+                if matches!(args.format, OutputFormat::Jsonl) {
+                    // JSONL: one line per sample, stats at end
+                    for sample in &samples {
+                        args.format
+                            .serialize_and_write(sample, output.as_path(), &output_directive)
+                            .map_err(DiagnosticMessages::from)?;
+                    }
+                    args.format
+                        .serialize_and_write(&stats, output.as_path(), &output_directive)
+                        .map_err(DiagnosticMessages::from)?;
+                } else {
+                    // JSON/YAML: full report structure
+                    let report = LiveCheckReport {
+                        statistics: stats,
+                        samples,
+                    };
+                    args.format
+                        .serialize_and_write(&report, output.as_path(), &output_directive)
+                        .map_err(DiagnosticMessages::from)?;
+                }
+            } else if let Some(ref engine) = engine {
+                // Template format
+                let report = LiveCheckReport {
+                    statistics: stats,
+                    samples,
+                };
                 engine
                     .generate(&report, output.as_path(), &output_directive)
                     .map_err(|e| {
@@ -354,8 +488,12 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
                     })?;
             }
         } else {
-            // Output the stats
-            if let Some(ref engine) = engine {
+            // Stats only (streaming mode finished)
+            if args.format.is_builtin() {
+                args.format
+                    .serialize_and_write(&stats, output.as_path(), &output_directive)
+                    .map_err(DiagnosticMessages::from)?;
+            } else if let Some(ref engine) = engine {
                 engine
                     .generate(&stats, output.as_path(), &output_directive)
                     .map_err(|e| {
