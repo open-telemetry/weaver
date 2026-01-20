@@ -1,4 +1,5 @@
 {% macro display_statistics(statistics) %}
+{% if statistics %}
 {{ ("Samples") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_entities }}
 {% if statistics.total_entities > 0 %}
@@ -32,6 +33,7 @@
 
 {{ ("Registry coverage") | ansi_blue | ansi_bold }}
   - entities seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
+{% endif %}
 {% endmacro %}
 
 {% macro display_advice(all_advice, indent=0) %}
