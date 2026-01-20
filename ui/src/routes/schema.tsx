@@ -1,8 +1,14 @@
-import { createRoute, useNavigate } from '@tanstack/react-router'
+import { createRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState, useEffect, useMemo } from 'react'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
 import { Route as RootRoute } from './__root'
+
+// Define the search params type for this route
+type SchemaSearch = {
+  schema?: string
+  type?: string
+}
 
 type SchemaProperty = {
   type?: string | string[]
@@ -48,30 +54,26 @@ export const Route = createRoute({
 
 function Schema() {
   const navigate = useNavigate()
-  
+  const search = useSearch({ from: '/schema' })
+
   const [schema, setSchema] = useState<Schema | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedDefinition, setSelectedDefinition] = useState<string | null>(null)
   const [showRoot, setShowRoot] = useState(true)
-  const [currentSchemaName, setCurrentSchemaName] = useState('ForgeRegistryV2')
-  const [searchParams, setSearchParams] = useState(new URLSearchParams(window.location.search))
 
   useEffect(() => {
     async function fetchSchema() {
       setLoading(true)
       setError(null)
 
-      const schemaParam = searchParams.get('schema') || 'ForgeRegistryV2'
-      setCurrentSchemaName(schemaParam)
+      const schemaParam = search.schema || 'ForgeRegistryV2'
 
       try {
         const response = await fetch(`/api/v1/schema/${schemaParam}`)
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const data = await response.json()
         setSchema(data)
-        setSelectedDefinition(null)
-        setShowRoot(true)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Unknown error')
       } finally {
@@ -80,30 +82,18 @@ function Schema() {
     }
 
     fetchSchema()
-  }, [searchParams])
+  }, [search.schema])
 
   useEffect(() => {
-    function updateFromURL() {
-      const typeParam = searchParams.get('type')
-      if (typeParam === 'root' || !typeParam) {
-        setShowRoot(true)
-        setSelectedDefinition(null)
-      } else {
-        setShowRoot(false)
-        setSelectedDefinition(typeParam)
-      }
+    const typeParam = search.type
+    if (typeParam === 'root' || !typeParam) {
+      setShowRoot(true)
+      setSelectedDefinition(null)
+    } else {
+      setShowRoot(false)
+      setSelectedDefinition(typeParam)
     }
-
-    updateFromURL()
-
-    const handlePopState = () => {
-      setSearchParams(new URLSearchParams(window.location.search))
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [searchParams])
+  }, [search.type])
 
   const definitions = useMemo(() => {
     if (!schema?.definitions) return []
@@ -111,23 +101,25 @@ function Schema() {
   }, [schema])
 
   function selectDefinition(name: string) {
-    setSelectedDefinition(name)
-    setShowRoot(false)
-    const url = new URL(window.location.href)
-    url.searchParams.set('type', name)
-    url.searchParams.set('schema', currentSchemaName)
-    window.history.pushState({}, '', url)
-    setSearchParams(url.searchParams)
+    navigate({
+      to: '/schema',
+      search: (prev: SchemaSearch) => ({
+        ...prev,
+        type: name,
+        schema: prev.schema || 'ForgeRegistryV2'
+      })
+    })
   }
 
   function selectRoot() {
-    setShowRoot(true)
-    setSelectedDefinition(null)
-    const url = new URL(window.location.href)
-    url.searchParams.set('type', 'root')
-    url.searchParams.set('schema', currentSchemaName)
-    window.history.pushState({}, '', url)
-    setSearchParams(url.searchParams)
+    navigate({
+      to: '/schema',
+      search: (prev: SchemaSearch) => ({
+        ...prev,
+        type: 'root',
+        schema: prev.schema || 'ForgeRegistryV2'
+      })
+    })
   }
 
   function formatType(prop: SchemaProperty, skipNull = false): string {

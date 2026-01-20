@@ -127,10 +127,10 @@ export function AppLayout() {
           <li>
             <button
               onClick={() => {
-                navigate({ to: '/' })
+                navigate({ to: '/search' })
                 closeSidebar()
               }}
-              className={isActive('/') && location.pathname === '/' ? 'active' : ''}
+              className={isActive('/search') ? 'active' : ''}
             >
               Search
             </button>
