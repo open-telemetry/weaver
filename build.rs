@@ -25,14 +25,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //         &["src/registry/otlp/proto"],
     //     )?;
 
-    // Build the React UI (ui-react/)
+    // Build the React UI (ui/)
     build_ui()?;
 
     Ok(())
 }
 
 fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
-    let ui_dir = std::path::Path::new("ui-react");
+    let ui_dir = std::path::Path::new("ui");
 
     // Get the npm command - on Windows it's npm.cmd, on Unix it's npm
     let npm_cmd = if cfg!(target_os = "windows") {
