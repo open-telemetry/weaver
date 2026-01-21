@@ -80,7 +80,7 @@ When working with Weaver, these schema and configuration references are essentia
 - **[Semantic Convention Schema Syntax](./schemas/semconv-syntax.md)** - Complete YAML syntax reference for defining semantic conventions
 - **[Semantic Convention JSON Schema](./schemas/semconv.schema.json)** - JSON Schema for validation and IDE support
 - **[Weaver Configuration (`weaver.yaml`)](./docs/weaver-config.md)** - Configuration file reference for code generation
-- **[Weaver Forge Documentation](/crates/weaver_forge/README.md)** - In-depth guide to Weaver's templating engine
+- **[Weaver Forge Documentation](./crates/weaver_forge/README.md)** - In-depth guide to Weaver's templating engine
 
 ## Examples and How-Tos
 

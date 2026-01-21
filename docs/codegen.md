@@ -2,7 +2,7 @@
 
 <kbd>weaver registry generate</kbd>
 
-|Quick Links | [weaver.yaml](weaver-config.md) | [Semconv Schema](../schemas/semconv-syntax.md) | [JQ Filters](/crates/weaver_forge/README.md#jq-filters-reference) | [Jinja Filters](/crates/weaver_forge/README.md#jinja-filters-reference) |
+|Quick Links | [weaver.yaml](weaver-config.md) | [Semconv Schema](../schemas/semconv-syntax.md) | [JQ Filters](../crates/weaver_forge/README.md#jq-filters-reference) | [Jinja Filters](../crates/weaver_forge/README.md#jinja-filters-reference) |
 |-|-|-|-|-|
 
 A core element of schema-first telemetry are the artifacts it enables:
@@ -12,7 +12,7 @@ A core element of schema-first telemetry are the artifacts it enables:
 
 >[!Note]
 >Weaver enables this using code-generation, powered by [minijinja](https://github.com/mitsuhiko/minijinja) (Jinja2-compatible templating) and [jaq](https://github.com/01mf02/jaq) (jq-compatible data processing).  
->Full documentation is available at [Weaver Forge](/crates/weaver_forge/README.md)
+>Full documentation is available at [Weaver Forge](../crates/weaver_forge/README.md)
 
 ## Learning Jinja Templates
 
@@ -22,12 +22,12 @@ If you're new to Jinja or need a refresher, these resources will help you get st
 - **[Jinja2 Tutorial - Loops and Conditionals](https://ttl255.com/jinja2-tutorial-part-2-loops-and-conditionals/)** - Practical tutorial with examples
 - **[MiniJinja Documentation](https://docs.rs/minijinja/latest/minijinja/)** - Rust implementation used by Weaver (mostly compatible with Jinja2)
 
-Weaver extends Jinja with custom filters and functions specifically designed for semantic convention generation. See the [Jinja Filters Reference](/crates/weaver_forge/README.md#jinja-filters-reference) for details.
+Weaver extends Jinja with custom filters and functions specifically designed for semantic convention generation. See the [Jinja Filters Reference](../crates/weaver_forge/README.md#jinja-filters-reference) for details.
 
 ## High-level overview
 
 >[!Tip]
->For a full tutorial, consider the [Step-by-Step Guide](/crates/weaver_forge/README.md#step-by-step-guide)
+>For a full tutorial, consider the [Step-by-Step Guide](../crates/weaver_forge/README.md#step-by-step-guide)
 
 Let's say we want to generate Markdown documentation for the metrics of our application or convention.
 With Weaver Forge, the following directory layout is used by default:
@@ -114,7 +114,7 @@ jinja --> file1
 jinja --> file2
 ```
 
-Weaver resolves the entire registry (http and grpc in this case) into a single document. This is passed to the [JQ filter](/crates/weaver_forge/README.md#jq-filters) `semconv_grouped_metrics`. This groups individual metrics by their root namespace (`http` or `grpc`)
+Weaver resolves the entire registry (http and grpc in this case) into a single document. This is passed to the [JQ filter](../crates/weaver_forge/README.md#jq-filters) `semconv_grouped_metrics`. This groups individual metrics by their root namespace (`http` or `grpc`)
 
 This output in turn is passed to the `metrics.md.j2` template, evaluated by the [minijinja](https://github.com/mitsuhiko/minijinja) templating engine. Because `application_mode` is set to `each`, the template is invoked for each group, so this yields a `http.md` and a separate `grpc.md`.
 
@@ -196,7 +196,7 @@ The `ctx` variable is the primary way your template accesses data:
 - **With `application_mode: single`**: `ctx` = the filter's complete output
 - **With `application_mode: each`**: `ctx` = one element from the filter's output array
 
-For more details on available filters, see the [JQ Filters Reference](/crates/weaver_forge/README.md#jq-filters-reference).
+For more details on available filters, see the [JQ Filters Reference](../crates/weaver_forge/README.md#jq-filters-reference).
 
 
 ## Tips and Tricks
@@ -244,6 +244,6 @@ file_name: "{{ctx.root_namespace | snake_case}}.md"
 - `map_text` - Map values using text_maps in weaver.yaml
 
 For a complete list of all filters, functions, and tests, see:
-- **[Jinja Filters Reference](/crates/weaver_forge/README.md#jinja-filters-reference)** - Complete filter documentation
-- **[Jinja Functions Reference](/crates/weaver_forge/README.md#jinja-functions-reference)** - Available functions
-- **[Source Code](https://github.com/open-telemetry/weaver/tree/main/crates/weaver_forge/src/extensions)** - Implementation details
+- **[Jinja Filters Reference](../crates/weaver_forge/README.md#jinja-filters-reference)** - Complete filter documentation
+- **[Jinja Functions Reference](../crates/weaver_forge/README.md#jinja-functions-reference)** - Available functions
+- **[Source Code](../../crates/weaver_forge/src/extensions)** - Implementation details
