@@ -195,6 +195,7 @@ impl AccumulatedSamples {
             attr_entry.add_example(&attr.value);
         }
 
+        // TODO: Span events are being deprecated in the future. Eventually we should remove this.
         for event in span.span_events {
             let event_entry = entry
                 .events
