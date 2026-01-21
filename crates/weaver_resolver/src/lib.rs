@@ -285,14 +285,7 @@ impl SchemaResolver {
         visited_registries: &mut HashSet<String>,
         dependency_chain: &mut Vec<String>,
     ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
-        // Define helper functions for filtering files.
-        fn is_hidden(entry: &DirEntry) -> bool {
-            entry
-                .file_name()
-                .to_str()
-                .map(|s| s.starts_with('.'))
-                .unwrap_or(false)
-        }
+        // Define helper function for filtering files.
         fn is_semantic_convention_file(entry: &DirEntry) -> bool {
             let path = entry.path();
             let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
@@ -331,7 +324,6 @@ impl SchemaResolver {
         let result = walkdir::WalkDir::new(local_path.clone())
             .follow_links(follow_symlinks)
             .into_iter()
-            .filter_entry(|e| !is_hidden(e))
             .par_bridge()
             .flat_map(|entry| {
                 match entry {

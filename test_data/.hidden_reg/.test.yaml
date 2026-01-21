@@ -1,0 +1,8 @@
+groups:
+  - id: test.group
+    type: span
+    brief: Minimal test group for issue 958
+    attributes:
+      - id: test.attr
+        type: string
+        brief: Test attribute
