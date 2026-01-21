@@ -338,7 +338,7 @@ impl AccumulatedSamples {
                 .values()
                 .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
+            attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
                 id: "resource".to_owned(),
@@ -357,7 +357,7 @@ impl AccumulatedSamples {
                 .values()
                 .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
+            attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
                 id: format!("span.{}", sanitize_id(&span.name)),
@@ -376,7 +376,7 @@ impl AccumulatedSamples {
                     .values()
                     .map(accumulated_to_attribute_spec)
                     .collect();
-                event_attributes.sort_by(|a, b| a.id().cmp(&b.id()));
+                event_attributes.sort_by_key(|a| a.id());
 
                 groups.push(GroupSpec {
                     id: format!("span_event.{}", sanitize_id(&event.name)),
@@ -397,7 +397,7 @@ impl AccumulatedSamples {
                 .values()
                 .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
+            attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
                 id: format!("metric.{}", sanitize_id(&metric.name)),
@@ -423,7 +423,7 @@ impl AccumulatedSamples {
                 .values()
                 .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
+            attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
                 id: format!("event.{}", sanitize_id(&event.name)),
@@ -748,9 +748,9 @@ mod tests {
     fn test_json_values_to_examples_single_double() {
         use weaver_common::ordered_float::OrderedF64;
 
-        let values = vec![json!(3.14)];
+        let values = vec![json!(2.71)];
         let result = json_values_to_examples(&values);
-        assert_eq!(result, Some(Examples::Double(OrderedF64(3.14))));
+        assert_eq!(result, Some(Examples::Double(OrderedF64(2.71))));
     }
 
     #[test]
@@ -1147,7 +1147,7 @@ mod tests {
                     AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
                 );
             }
-            _ => panic!("Expected AttributeSpec::Id"),
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
         }
     }
 
@@ -1165,7 +1165,7 @@ mod tests {
                     AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
                 );
             }
-            _ => panic!("Expected AttributeSpec::Id"),
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
         }
     }
 
@@ -1184,7 +1184,7 @@ mod tests {
             AttributeSpec::Id { examples, .. } => {
                 assert!(examples.is_some());
             }
-            _ => panic!("Expected AttributeSpec::Id"),
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
         }
     }
 
@@ -1198,7 +1198,7 @@ mod tests {
             AttributeSpec::Id { stability, .. } => {
                 assert_eq!(stability, Some(Stability::Development));
             }
-            _ => panic!("Expected AttributeSpec::Id"),
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
         }
     }
 }
