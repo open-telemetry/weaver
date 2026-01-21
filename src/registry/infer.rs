@@ -161,7 +161,11 @@ impl AccumulatedSamples {
             Sample::Metric(metric) => self.add_metric(metric),
             Sample::Log(log) => self.add_event(log.event_name, log.attributes),
             Sample::Attribute(attr) => self.add_resource_attribute(attr),
-            _ => {} // Ignore other sample types for now
+            other => {
+                // This shouldn't happen since we control when add_sample is called.
+                // Adding anyway just in case.
+                info!("Ignoring sample type {:?} - not yet supported", other);
+            }
         }
     }
 
