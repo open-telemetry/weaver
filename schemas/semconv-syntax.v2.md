@@ -169,13 +169,14 @@ and another example of an int enum attribute:
 Enum members have the following properties:
 
 - `id` - Required. Identifies the enum member within this enum.
+- `value` - Required. String, int, or boolean value of the enum entry.
 - `brief` - Optional. A short description of what this enum member represents.
 - `note` - Optional. A more elaborate description of the member.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the enum member.
 - `deprecated` - Optional. When present, marks the member as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Annotations are key-value pairs that provide additional information about the attribute. See [annotations](#annotations) for details.
 
-Enum attributes can only be of type `int` and `string`, the type is deduced from the value.
+Enum attributes can be of type `int`, `string`, or `boolean`, the type is deduced from the value.
 
 ##### Template type
 
@@ -468,7 +469,7 @@ An internal attribute group definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the attribute group.
 - `visibility` - Required. Must be set to `"internal"`.
-- `attributes` - Required. List of [attribute references](#attribute-reference) that belong to this group.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to this group.
 
 Example:
 
@@ -494,7 +495,7 @@ A public attribute group definition consists of the following properties:
 - `brief` - Required. A short description of what this attribute group represents.
 - `note` - Optional. A more elaborate description of the attribute group.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the attribute group definition.
-- `attributes` - List of [attribute references](#attribute-reference) that belong to this group.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to this group.
 - `deprecated` - Optional. When present, marks the attribute group as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the attribute group. See [annotations](#annotations) for details.
 
@@ -543,9 +544,20 @@ The following stability levels are supported: `stable`, `development`, `alpha`, 
 
 The `deprecated` field indicates that a component (attribute, metric, event, etc.) should no longer be used. It supports several deprecation reasons:
 
+All deprecation reasons have the following required properties:
+
+- `reason` - Required. The type of deprecation. Must be one of: `renamed`, `obsoleted`, `uncategorized`, or `unspecified`.
+- `note` - Required. Provides context about the deprecation.
+
+Additional properties depending on the reason:
+
 #### Rename
 
-Used when a component has been renamed, for example:
+Used when a component has been renamed. Requires an additional property:
+
+- `renamed_to` - Required. The new name of the telemetry object.
+
+Example:
 
 ```yaml
 attributes:
