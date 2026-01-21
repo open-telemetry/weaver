@@ -612,6 +612,11 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
 
 /// Infer a semantic convention registry from OTLP telemetry.
 pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+    log::warn!(
+        "The `registry infer` command is experimental and not yet stable. \
+        The generated schema format, command options, and output may change in future versions."
+    );
+
     info!("Weaver Registry Infer");
     info!(
         "Starting OTLP gRPC server on {}:{}",
