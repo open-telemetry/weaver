@@ -26,9 +26,12 @@ Weaver Forge is a component of OTEL Weaver that facilitates documentation and
 code generation from a semantic convention registry. It uses MiniJinja, a
 template engine compatible with Jinja2 syntax, which provides extensive
 customization options (refer to this [GitHub repository](https://github.com/mitsuhiko/minijinja)
-for more details). Some good references to start developing Jinja2 templages are 
-[1](https://ttl255.com/jinja2-tutorial-part-2-loops-and-conditionals/) and 
-[2](https://jinja.palletsprojects.com/en/stable/templates).
+for more details). 
+
+**New to Jinja?** These resources will help you get started:
+- [Official Jinja Template Documentation](https://jinja.palletsprojects.com/en/stable/templates) - Complete syntax reference
+- [Jinja2 Tutorial - Loops and Conditionals](https://ttl255.com/jinja2-tutorial-part-2-loops-and-conditionals/) - Practical tutorial with examples
+
 To streamline template creation for semantic conventions,
 additional filters, functions, tests, and naming conventions have been
 integrated with the standard Jinja logic.
@@ -485,8 +488,8 @@ compatibility extensions that are also enabled in Weaver.
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
 
-The following filters are available (the code for all available extension can be found 
-[here](./src/extensions)):
+The following filters are available (implementation can be found in the 
+[extensions source code](https://github.com/open-telemetry/weaver/tree/main/crates/weaver_forge/src/extensions)):
 
 - `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric
   (more details [here](#prometheus-filters)).
@@ -494,16 +497,16 @@ The following filters are available (the code for all available extension can be
   strategies with optional histogram/summary expansion (more details [here](#prometheus-filters)).
 - `prometheus_unit_name`: Converts OpenTelemetry units to Prometheus-compliant unit names (more
   details [here](#prometheus-filters)).
-- `lower_case`: Converts a string to lowercase.
-- `upper_case`: Converts a string to UPPERCASE.
-- `title_case`: Converts a string to TitleCase.
-- `pascal_case`: Converts a string to PascalCase.
-- `camel_case`: Converts a string to camelCase.
-- `snake_case`: Converts a string to snake_case.
-- `screaming_snake_case`: Converts a string to SCREAMING_SNAKE_CASE.
-- `kebab_case`: Converts a string to kebab-case.
-- `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
-- `capitalize_first`: Capitalizes the first letter of a string.
+- `lower_case`: Converts a string to lowercase ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `upper_case`: Converts a string to UPPERCASE ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `title_case`: Converts a string to TitleCase ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `pascal_case`: Converts a string to PascalCase ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `camel_case`: Converts a string to camelCase ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `snake_case`: Converts a string to snake_case ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `screaming_snake_case`: Converts a string to SCREAMING_SNAKE_CASE ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `kebab_case`: Converts a string to kebab-case ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
+- `capitalize_first`: Capitalizes the first letter of a string ([source](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/src/extensions/case.rs)).
 - `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are
   ignored, but . is meaningful).
 - `pascal_case_const`: Generates PascalCase constants which follow semantic convention namespacing rules (underscores
