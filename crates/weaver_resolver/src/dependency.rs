@@ -184,6 +184,8 @@ trait UnresolvedAttributeLookup {
 
 impl UnresolvedAttributeLookup for V1Schema {
     fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+        // TODO - We should try to reconstruct a map which can do the lookup of dependencies.
+        // This likely involves a different algorithm where we can allocate lookup hashes per-resolved repository.
         self.group(id).map(|g| {
             let attributes: Vec<UnresolvedAttribute> = g
                 .attributes
@@ -223,6 +225,10 @@ impl UnresolvedAttributeLookup for V2Schema {
 
 impl UnresolvedAttributeLookup for Vec<ResolvedDependency> {
     fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>> {
+        // TODO - this algorithm is only viable when we know there's only one dependency.
+        // Going forward we need to allow this method to find ambiguous imports and
+        // issue an error statement that allows resolving the ambiguity by using a
+        // dependency reference, e.g. `dep#id` vs just `id`.  Details TBD.
         self.iter().find_map(|d| d.lookup_group_attributes(id))
     }
 }

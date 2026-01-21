@@ -23,7 +23,6 @@ const MAX_DEPENDENCY_DEPTH: u32 = 10;
 pub enum LoadedSemconvRegistry {
     /// The semconv repository was unresolved and needs to be run through resolution.
     Unresolved {
-        // TODO - We need the imports here.
         /// The specification of this raw repository.
         repo: RegistryRepo,
         /// The raw definition schema for this repository.
@@ -196,13 +195,14 @@ fn load_semconv_repository_recursive(
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = manifest.resolved_schema_url.as_ref() {
-            todo!("Loading resolved telemetry schema ({resolved_url}) is currently unsupported.");
+            todo!("Loading resolved telemetry schema ({resolved_url}) is currently unsupported.\nSee https://github.com/open-telemetry/weaver/issues/1134");
         } else {
             if manifest.dependencies.len() > 1 {
                 todo!("Multiple dependencies is not supported yet.")
             }
             // Load dependencies.
             let mut loaded_dependencies = vec![];
+            let mut non_fatal_errors = vec![];
             for d in manifest.dependencies.iter() {
                 match RegistryRepo::try_new(&d.name, &d.registry_path) {
                     Ok(d_repo) => {
@@ -215,8 +215,10 @@ fn load_semconv_repository_recursive(
                             dependency_chain,
                         ) {
                             WResult::Ok(d) => loaded_dependencies.push(d),
-                            // TODO - Should we always ignore warnings on loaded dependencies?
-                            WResult::OkWithNFEs(d, _) => loaded_dependencies.push(d),
+                            WResult::OkWithNFEs(d, nfes) => {
+                                loaded_dependencies.push(d);
+                                non_fatal_errors.extend(nfes);
+                            }
                             WResult::FatalErr(err) => return WResult::FatalErr(err),
                         }
                     }
@@ -224,7 +226,9 @@ fn load_semconv_repository_recursive(
                 }
             }
             // Now load the raw repository.
+            // TODO - Allow ignoring dependency warnings - https://github.com/open-telemetry/weaver/issues/1126.
             load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
+                .extend_non_fatal_errors(non_fatal_errors)
         }
     } else {
         // This is a raw repository with *no* manifest.
