@@ -73,6 +73,15 @@ Further reading:
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
 - [Application Telemetry Schema OTEP](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
 
+## Schema and Configuration Reference
+
+When working with Weaver, these schema and configuration references are essential:
+
+- **[Semantic Convention Schema Syntax](./schemas/semconv-syntax.md)** - Complete YAML syntax reference for defining semantic conventions
+- **[Semantic Convention JSON Schema](./schemas/semconv.schema.json)** - JSON Schema for validation and IDE support
+- **[Weaver Configuration (`weaver.yaml`)](./docs/weaver-config.md)** - Configuration file reference for code generation
+- **[Weaver Forge Documentation](/crates/weaver_forge/README.md)** - In-depth guide to Weaver's templating engine
+
 ## Examples and How-Tos
 
 - [Weaver Examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) - Official OTel project showcasing weaver use cases through runnable examples.
