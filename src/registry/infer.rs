@@ -1148,10 +1148,8 @@ mod tests {
 
     #[test]
     fn test_accumulated_to_attribute_spec_preserves_type() {
-        let attr = AccumulatedAttribute::new(
-            "test.attr".to_owned(),
-            Some(PrimitiveOrArrayTypeSpec::Int),
-        );
+        let attr =
+            AccumulatedAttribute::new("test.attr".to_owned(), Some(PrimitiveOrArrayTypeSpec::Int));
 
         let spec = accumulated_to_attribute_spec(&attr);
 
