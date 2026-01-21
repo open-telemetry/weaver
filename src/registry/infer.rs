@@ -679,3 +679,523 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
         warnings: None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use weaver_semconv::group::SpanKindSpec;
+
+    // ============================================
+    // Tests for sanitize_id()
+    // ============================================
+    #[test]
+    fn test_sanitize_id_replaces_special_characters() {
+        assert_eq!(sanitize_id("http/request"), "http_request");
+        assert_eq!(sanitize_id("http request"), "http_request");
+        assert_eq!(sanitize_id("http-request"), "http_request");
+        assert_eq!(sanitize_id("http.request"), "http_request");
+    }
+
+    #[test]
+    fn test_sanitize_id_converts_to_lowercase() {
+        assert_eq!(sanitize_id("HTTP_REQUEST"), "http_request");
+        assert_eq!(sanitize_id("HttpRequest"), "httprequest");
+    }
+
+    #[test]
+    fn test_sanitize_id_trims_underscores() {
+        assert_eq!(sanitize_id("_http_request_"), "http_request");
+        assert_eq!(sanitize_id("/http/request/"), "http_request");
+        assert_eq!(sanitize_id("...test..."), "test");
+    }
+
+    // ============================================
+    // Tests for json_values_to_examples()
+    // ============================================
+
+    #[test]
+    fn test_json_values_to_examples_empty() {
+        let result = json_values_to_examples(&[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_json_values_to_examples_single_string() {
+        let values = vec![json!("hello")];
+        let result = json_values_to_examples(&values);
+        assert!(result.is_some());
+        // The Examples type should contain "hello"
+        let examples = result.unwrap();
+        assert_eq!(examples, Examples::String("hello".to_owned()));
+    }
+
+    #[test]
+    fn test_json_values_to_examples_single_int() {
+        let values = vec![json!(42)];
+        let result = json_values_to_examples(&values);
+        assert!(result.is_some());
+        let examples = result.unwrap();
+        assert_eq!(examples, Examples::Int(42));
+    }
+
+    #[test]
+    fn test_json_values_to_examples_single_double() {
+        use weaver_common::ordered_float::OrderedF64;
+
+        let values = vec![json!(3.14)];
+        let result = json_values_to_examples(&values);
+        assert_eq!(result, Some(Examples::Double(OrderedF64(3.14))));
+    }
+
+    #[test]
+    fn test_json_values_to_examples_single_bool() {
+        let values = vec![json!(true)];
+        let result = json_values_to_examples(&values);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), Examples::Bool(true));
+    }
+
+    #[test]
+    fn test_json_values_to_examples_multiple_strings() {
+        let values = vec![json!("hello"), json!("world")];
+        let result = json_values_to_examples(&values);
+        assert!(result.is_some());
+        let examples = result.unwrap();
+        assert_eq!(
+            examples,
+            Examples::Strings(vec!["hello".to_owned(), "world".to_owned()])
+        );
+    }
+
+    #[test]
+    fn test_json_values_to_examples_multiple_ints() {
+        let values = vec![json!(1), json!(2), json!(3)];
+        let result = json_values_to_examples(&values);
+        assert!(result.is_some());
+        let examples = result.unwrap();
+        assert_eq!(examples, Examples::Ints(vec![1, 2, 3]));
+    }
+
+    // ============================================
+    // Tests for AccumulatedAttribute
+    // ============================================
+
+    #[test]
+    fn test_accumulated_attribute_new() {
+        let attr = AccumulatedAttribute::new(
+            "test.attr".to_owned(),
+            Some(PrimitiveOrArrayTypeSpec::String),
+        );
+        assert_eq!(attr.name, "test.attr");
+        assert_eq!(attr.attr_type, Some(PrimitiveOrArrayTypeSpec::String));
+        assert!(attr.examples.is_empty());
+    }
+
+    #[test]
+    fn test_accumulated_attribute_add_example_respects_max() {
+        let mut attr =
+            AccumulatedAttribute::new("test".to_owned(), Some(PrimitiveOrArrayTypeSpec::Int));
+
+        // Add MAX_EXAMPLES + 2 unique values
+        for i in 0..(MAX_EXAMPLES + 2) {
+            attr.add_example(&Some(json!(i)));
+        }
+
+        // Should only have MAX_EXAMPLES
+        assert_eq!(attr.examples.len(), MAX_EXAMPLES);
+        // First MAX_EXAMPLES values should be preserved
+        for i in 0..MAX_EXAMPLES {
+            assert!(attr.examples.contains(&json!(i)));
+        }
+    }
+
+    #[test]
+    fn test_accumulated_attribute_add_example_deduplicates() {
+        let mut attr =
+            AccumulatedAttribute::new("test".to_owned(), Some(PrimitiveOrArrayTypeSpec::String));
+
+        // Add same value multiple times
+        attr.add_example(&Some(json!("duplicate")));
+        attr.add_example(&Some(json!("duplicate")));
+        attr.add_example(&Some(json!("duplicate")));
+
+        assert_eq!(attr.examples.len(), 1);
+        assert_eq!(attr.examples[0], json!("duplicate"));
+    }
+
+    #[test]
+    fn test_accumulated_attribute_add_example_ignores_none() {
+        let mut attr =
+            AccumulatedAttribute::new("test".to_owned(), Some(PrimitiveOrArrayTypeSpec::String));
+
+        attr.add_example(&None);
+        attr.add_example(&None);
+
+        assert!(attr.examples.is_empty());
+    }
+
+    // ============================================
+    // Tests for AccumulatedSamples
+    // ============================================
+
+    #[test]
+    fn test_accumulated_samples_new_is_empty() {
+        let acc = AccumulatedSamples::new();
+        assert!(acc.is_empty());
+        assert_eq!(acc.stats(), (0, 0, 0, 0));
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_resource_attribute() {
+        let mut acc = AccumulatedSamples::new();
+
+        let attr = SampleAttribute {
+            name: "service.name".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: Some(json!("my-service")),
+            live_check_result: None,
+        };
+
+        acc.add_resource_attribute(attr);
+
+        assert!(!acc.is_empty());
+        assert_eq!(acc.stats(), (1, 0, 0, 0));
+        assert!(acc.resources.contains_key("service.name"));
+
+        let accumulated = acc.resources.get("service.name").unwrap();
+        assert_eq!(accumulated.examples.len(), 1);
+        assert_eq!(accumulated.examples[0], json!("my-service"));
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_span() {
+        let mut acc = AccumulatedSamples::new();
+
+        let span = SampleSpan {
+            name: "GET /api/users".to_owned(),
+            kind: SpanKindSpec::Server,
+            status: None,
+            attributes: vec![SampleAttribute {
+                name: "http.method".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("GET")),
+                live_check_result: None,
+            }],
+            span_events: vec![],
+            span_links: vec![],
+            live_check_result: None,
+        };
+
+        acc.add_span(span);
+
+        assert_eq!(acc.stats(), (0, 1, 0, 0));
+        assert!(acc.spans.contains_key("GET /api/users"));
+
+        let accumulated_span = acc.spans.get("GET /api/users").unwrap();
+        assert_eq!(accumulated_span.kind, SpanKindSpec::Server);
+        assert!(accumulated_span.attributes.contains_key("http.method"));
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_span_with_events() {
+        let mut acc = AccumulatedSamples::new();
+
+        let span = SampleSpan {
+            name: "process".to_owned(),
+            kind: SpanKindSpec::Internal,
+            status: None,
+            attributes: vec![],
+            span_events: vec![SampleSpanEvent {
+                name: "exception".to_owned(),
+                attributes: vec![SampleAttribute {
+                    name: "exception.type".to_owned(),
+                    r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                    value: Some(json!("NullPointerException")),
+                    live_check_result: None,
+                }],
+                live_check_result: None,
+            }],
+            span_links: vec![],
+            live_check_result: None,
+        };
+
+        acc.add_span(span);
+
+        let accumulated_span = acc.spans.get("process").unwrap();
+        assert!(accumulated_span.events.contains_key("exception"));
+
+        let event = accumulated_span.events.get("exception").unwrap();
+        assert!(event.attributes.contains_key("exception.type"));
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_event_ignores_empty_name() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_event(
+            String::new(),
+            vec![SampleAttribute {
+                name: "attr".to_owned(),
+                r#type: None,
+                value: Some(json!("value")),
+                live_check_result: None,
+            }],
+        );
+
+        assert!(acc.events.is_empty());
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_event_with_name() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_event(
+            "user.login".to_owned(),
+            vec![SampleAttribute {
+                name: "user.id".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("user-123")),
+                live_check_result: None,
+            }],
+        );
+
+        assert_eq!(acc.stats(), (0, 0, 0, 1));
+        assert!(acc.events.contains_key("user.login"));
+    }
+
+    // ============================================
+    // Tests for to_semconv_spec()
+    // ============================================
+
+    #[test]
+    fn test_to_semconv_spec_empty_accumulator() {
+        let acc = AccumulatedSamples::new();
+        let registry = acc.to_semconv_spec();
+
+        assert!(registry.groups.is_empty());
+    }
+
+    #[test]
+    fn test_to_semconv_spec_with_resources() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_resource_attribute(SampleAttribute {
+            name: "service.name".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: Some(json!("test-service")),
+            live_check_result: None,
+        });
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.groups.len(), 1);
+        let group = &registry.groups[0];
+        assert_eq!(group.id, "resource");
+        assert_eq!(group.r#type, GroupType::Entity);
+        assert_eq!(group.stability, Some(Stability::Development));
+        assert_eq!(group.attributes.len(), 1);
+    }
+
+    #[test]
+    fn test_to_semconv_spec_with_span() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_span(SampleSpan {
+            name: "HTTP GET".to_owned(),
+            kind: SpanKindSpec::Client,
+            status: None,
+            attributes: vec![SampleAttribute {
+                name: "http.url".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("https://example.com")),
+                live_check_result: None,
+            }],
+            span_events: vec![],
+            span_links: vec![],
+            live_check_result: None,
+        });
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.groups.len(), 1);
+        let group = &registry.groups[0];
+        assert_eq!(group.id, "span.http_get");
+        assert_eq!(group.r#type, GroupType::Span);
+        assert_eq!(group.span_kind, Some(SpanKindSpec::Client));
+        assert_eq!(group.attributes.len(), 1);
+    }
+
+    #[test]
+    fn test_to_semconv_spec_with_metric() {
+        let mut acc = AccumulatedSamples::new();
+
+        let metric = SampleMetric {
+            name: "http.server.duration".to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
+            unit: "ms".to_owned(),
+            data_points: None,
+            live_check_result: None,
+        };
+
+        acc.add_metric(metric);
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.groups.len(), 1);
+        let group = &registry.groups[0];
+        assert_eq!(group.id, "metric.http_server_duration");
+        assert_eq!(group.r#type, GroupType::Metric);
+        assert_eq!(group.metric_name, Some("http.server.duration".to_owned()));
+        assert_eq!(group.instrument, Some(InstrumentSpec::Histogram));
+        assert_eq!(group.unit, Some("ms".to_owned()));
+    }
+
+    #[test]
+    fn test_to_semconv_spec_metric_empty_unit_is_none() {
+        let mut acc = AccumulatedSamples::new();
+
+        let metric = SampleMetric {
+            name: "custom.counter".to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::Counter),
+            unit: String::new(), // Empty unit
+            data_points: None,
+            live_check_result: None,
+        };
+
+        acc.add_metric(metric);
+
+        let registry = acc.to_semconv_spec();
+
+        let group = &registry.groups[0];
+        assert!(group.unit.is_none());
+    }
+
+    #[test]
+    fn test_to_semconv_spec_with_event() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_event(
+            "user.signup".to_owned(),
+            vec![SampleAttribute {
+                name: "user.email".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("test@example.com")),
+                live_check_result: None,
+            }],
+        );
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.groups.len(), 1);
+        let group = &registry.groups[0];
+        assert_eq!(group.id, "event.user_signup");
+        assert_eq!(group.r#type, GroupType::Event);
+        assert_eq!(group.name, Some("user.signup".to_owned()));
+    }
+
+    #[test]
+    fn test_to_semconv_spec_attributes_are_sorted() {
+        let mut acc = AccumulatedSamples::new();
+
+        // Add attributes in non-alphabetical order
+        acc.add_resource_attribute(SampleAttribute {
+            name: "z.attr".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: None,
+            live_check_result: None,
+        });
+        acc.add_resource_attribute(SampleAttribute {
+            name: "a.attr".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: None,
+            live_check_result: None,
+        });
+        acc.add_resource_attribute(SampleAttribute {
+            name: "m.attr".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: None,
+            live_check_result: None,
+        });
+
+        let registry = acc.to_semconv_spec();
+
+        let group = &registry.groups[0];
+        let attr_ids: Vec<_> = group.attributes.iter().map(|a| a.id()).collect();
+        assert_eq!(attr_ids, vec!["a.attr", "m.attr", "z.attr"]);
+    }
+
+    // ============================================
+    // Tests for accumulated_to_attribute_spec()
+    // ============================================
+
+    #[test]
+    fn test_accumulated_to_attribute_spec_defaults_to_string() {
+        let attr = AccumulatedAttribute::new("test.attr".to_owned(), None);
+
+        let spec = accumulated_to_attribute_spec(&attr);
+
+        match spec {
+            AttributeSpec::Id { r#type, .. } => {
+                assert_eq!(
+                    r#type,
+                    AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+                );
+            }
+            _ => panic!("Expected AttributeSpec::Id"),
+        }
+    }
+
+    #[test]
+    fn test_accumulated_to_attribute_spec_preserves_type() {
+        let attr = AccumulatedAttribute::new(
+            "test.attr".to_owned(),
+            Some(PrimitiveOrArrayTypeSpec::Int),
+        );
+
+        let spec = accumulated_to_attribute_spec(&attr);
+
+        match spec {
+            AttributeSpec::Id { r#type, .. } => {
+                assert_eq!(
+                    r#type,
+                    AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
+                );
+            }
+            _ => panic!("Expected AttributeSpec::Id"),
+        }
+    }
+
+    #[test]
+    fn test_accumulated_to_attribute_spec_includes_examples() {
+        let mut attr = AccumulatedAttribute::new(
+            "test.attr".to_owned(),
+            Some(PrimitiveOrArrayTypeSpec::String),
+        );
+        attr.add_example(&Some(json!("example1")));
+        attr.add_example(&Some(json!("example2")));
+
+        let spec = accumulated_to_attribute_spec(&attr);
+
+        match spec {
+            AttributeSpec::Id { examples, .. } => {
+                assert!(examples.is_some());
+            }
+            _ => panic!("Expected AttributeSpec::Id"),
+        }
+    }
+
+    #[test]
+    fn test_accumulated_to_attribute_spec_stability_is_development() {
+        let attr = AccumulatedAttribute::new("test.attr".to_owned(), None);
+
+        let spec = accumulated_to_attribute_spec(&attr);
+
+        match spec {
+            AttributeSpec::Id { stability, .. } => {
+                assert_eq!(stability, Some(Stability::Development));
+            }
+            _ => panic!("Expected AttributeSpec::Id"),
+        }
+    }
+}
