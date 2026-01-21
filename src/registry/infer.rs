@@ -16,8 +16,11 @@ use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::{SampleSpan, SampleSpanEvent};
 use weaver_live_check::Sample;
-use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
-use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+use weaver_semconv::attribute::{
+    AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
+};
+use weaver_semconv::group::{GroupSpec, GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::stability::Stability;
 
 use super::otlp::conversion::{
     otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
@@ -312,7 +315,11 @@ impl AccumulatedSamples {
         )
     }
 
-    fn to_registry_file(&self) -> RegistryFile {
+    /// Convert accumulated samples to a semconv-compatible registry file.
+    ///
+    /// This method produces `GroupSpec` instances from `weaver_semconv` which
+    /// ensures the output YAML follows the official semantic convention schema.
+    fn to_semconv_spec(&self) -> InferredRegistry {
         let mut groups = Vec::new();
 
         // Resource group
@@ -321,211 +328,162 @@ impl AccumulatedSamples {
         // We don't support entities yet, so all resource attributes are accumulated
         // into a single resource group.
         if !self.resources.is_empty() {
-            let mut attributes: Vec<YamlAttribute> = self
+            let mut attributes: Vec<AttributeSpec> = self
                 .resources
                 .values()
-                .map(|attr| YamlAttribute {
-                    id: attr.name.clone(),
-                    r#type: type_to_string(&attr.attr_type),
-                    brief: String::new(),
-                    examples: attr.examples.clone(),
-                })
+                .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id.cmp(&b.id));
+            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
 
-            groups.push(YamlGroup {
+            groups.push(GroupSpec {
                 id: "resource".to_owned(),
-                r#type: "resource".to_owned(),
+                r#type: GroupType::Entity,
                 brief: String::new(),
-                span_kind: None,
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
+                stability: Some(Stability::Development),
                 attributes,
+                ..Default::default()
             });
         }
 
         // Span groups
         for span in self.spans.values() {
-            let mut attributes: Vec<YamlAttribute> = span
+            let mut attributes: Vec<AttributeSpec> = span
                 .attributes
                 .values()
-                .map(|attr| YamlAttribute {
-                    id: attr.name.clone(),
-                    r#type: type_to_string(&attr.attr_type),
-                    brief: String::new(),
-                    examples: attr.examples.clone(),
-                })
+                .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id.cmp(&b.id));
+            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
 
-            groups.push(YamlGroup {
+            groups.push(GroupSpec {
                 id: format!("span.{}", sanitize_id(&span.name)),
-                r#type: "span".to_owned(),
+                r#type: GroupType::Span,
                 brief: String::new(),
-                span_kind: Some(span_kind_to_string(&span.kind)),
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
+                stability: Some(Stability::Development),
+                span_kind: Some(span.kind.clone()),
                 attributes,
+                ..Default::default()
             });
 
             // Span events as separate event groups
             for event in span.events.values() {
-                let mut event_attributes: Vec<YamlAttribute> = event
+                let mut event_attributes: Vec<AttributeSpec> = event
                     .attributes
                     .values()
-                    .map(|attr| YamlAttribute {
-                        id: attr.name.clone(),
-                        r#type: type_to_string(&attr.attr_type),
-                        brief: String::new(),
-                        examples: attr.examples.clone(),
-                    })
+                    .map(accumulated_to_attribute_spec)
                     .collect();
-                event_attributes.sort_by(|a, b| a.id.cmp(&b.id));
+                event_attributes.sort_by(|a, b| a.id().cmp(&b.id()));
 
-                groups.push(YamlGroup {
+                groups.push(GroupSpec {
                     id: format!("span_event.{}", sanitize_id(&event.name)),
-                    r#type: "event".to_owned(),
+                    r#type: GroupType::Event,
                     brief: String::new(),
-                    span_kind: None,
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
+                    stability: Some(Stability::Development),
                     name: Some(event.name.clone()),
                     attributes: event_attributes,
+                    ..Default::default()
                 });
             }
         }
 
         // Metric groups
         for metric in self.metrics.values() {
-            let mut attributes: Vec<YamlAttribute> = metric
+            let mut attributes: Vec<AttributeSpec> = metric
                 .attributes
                 .values()
-                .map(|attr| YamlAttribute {
-                    id: attr.name.clone(),
-                    r#type: type_to_string(&attr.attr_type),
-                    brief: String::new(),
-                    examples: attr.examples.clone(),
-                })
+                .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id.cmp(&b.id));
+            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
 
-            groups.push(YamlGroup {
+            groups.push(GroupSpec {
                 id: format!("metric.{}", sanitize_id(&metric.name)),
-                r#type: "metric".to_owned(),
+                r#type: GroupType::Metric,
                 brief: String::new(),
-                span_kind: None,
+                stability: Some(Stability::Development),
                 metric_name: Some(metric.name.clone()),
-                instrument: instrument_to_string(&metric.instrument),
+                instrument: metric.instrument.clone(),
                 unit: if metric.unit.is_empty() {
                     None
                 } else {
                     Some(metric.unit.clone())
                 },
-                name: None,
                 attributes,
+                ..Default::default()
             });
         }
 
         // Event groups (from logs)
         for event in self.events.values() {
-            let mut attributes: Vec<YamlAttribute> = event
+            let mut attributes: Vec<AttributeSpec> = event
                 .attributes
                 .values()
-                .map(|attr| YamlAttribute {
-                    id: attr.name.clone(),
-                    r#type: type_to_string(&attr.attr_type),
-                    brief: String::new(),
-                    examples: attr.examples.clone(),
-                })
+                .map(accumulated_to_attribute_spec)
                 .collect();
-            attributes.sort_by(|a, b| a.id.cmp(&b.id));
+            attributes.sort_by(|a, b| a.id().cmp(&b.id()));
 
-            groups.push(YamlGroup {
+            groups.push(GroupSpec {
                 id: format!("event.{}", sanitize_id(&event.name)),
-                r#type: "event".to_owned(),
+                r#type: GroupType::Event,
                 brief: String::new(),
-                span_kind: None,
-                metric_name: None,
-                instrument: None,
-                unit: None,
+                stability: Some(Stability::Development),
                 name: Some(event.name.clone()),
                 attributes,
+                ..Default::default()
             });
         }
 
-        RegistryFile { groups }
+        InferredRegistry { groups }
     }
 }
 
+/// Wrapper for serializing a list of GroupSpec as a semconv registry file.
+///
+/// Note: We use this wrapper instead of `SemConvSpecV1` directly because
+/// `SemConvSpecV1.groups` is `pub(crate)` in weaver_semconv.
+/// This wrapper produces the same YAML structure as a valid semconv file.
 #[derive(Serialize)]
-struct RegistryFile {
-    groups: Vec<YamlGroup>,
+struct InferredRegistry {
+    groups: Vec<GroupSpec>,
 }
 
-#[derive(Serialize)]
-struct YamlGroup {
-    id: String,
-    r#type: String,
-    brief: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    span_kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    metric_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    instrument: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unit: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    attributes: Vec<YamlAttribute>,
-}
+/// Convert an accumulated attribute to a weaver_semconv AttributeSpec.
+fn accumulated_to_attribute_spec(attr: &AccumulatedAttribute) -> AttributeSpec {
+    let attr_type = attr
+        .attr_type
+        .clone()
+        .unwrap_or(PrimitiveOrArrayTypeSpec::String);
 
-#[derive(Serialize)]
-struct YamlAttribute {
-    id: String,
-    r#type: String,
-    brief: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    examples: Vec<Value>,
-}
-
-fn type_to_string(t: &Option<PrimitiveOrArrayTypeSpec>) -> String {
-    match t {
-        Some(PrimitiveOrArrayTypeSpec::Boolean) => "boolean".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Int) => "int".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Double) => "double".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::String) => "string".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Booleans) => "boolean[]".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Ints) => "int[]".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Doubles) => "double[]".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Strings) => "string[]".to_owned(),
-        Some(PrimitiveOrArrayTypeSpec::Any) | None => "string".to_owned(),
+    AttributeSpec::Id {
+        id: attr.name.clone(),
+        r#type: AttributeType::PrimitiveOrArray(attr_type),
+        brief: Some(String::new()),
+        examples: json_values_to_examples(&attr.examples),
+        tag: None,
+        requirement_level: RequirementLevel::default(),
+        sampling_relevant: None,
+        note: String::new(),
+        stability: Some(Stability::Development),
+        deprecated: None,
+        annotations: None,
+        role: None,
     }
 }
 
-fn span_kind_to_string(kind: &SpanKindSpec) -> String {
-    match kind {
-        SpanKindSpec::Internal => "internal".to_owned(),
-        SpanKindSpec::Client => "client".to_owned(),
-        SpanKindSpec::Server => "server".to_owned(),
-        SpanKindSpec::Producer => "producer".to_owned(),
-        SpanKindSpec::Consumer => "consumer".to_owned(),
+/// Convert a vector of JSON values to the appropriate Examples type.
+///
+/// Uses serde to automatically match the JSON values to the correct Examples variant.
+fn json_values_to_examples(values: &[Value]) -> Option<Examples> {
+    if values.is_empty() {
+        return None;
     }
-}
 
-fn instrument_to_string(instrument: &Option<InstrumentSpec>) -> Option<String> {
-    instrument.as_ref().map(|i| match i {
-        InstrumentSpec::Counter => "counter".to_owned(),
-        InstrumentSpec::UpDownCounter => "updowncounter".to_owned(),
-        InstrumentSpec::Gauge => "gauge".to_owned(),
-        InstrumentSpec::Histogram => "histogram".to_owned(),
-    })
+    // Try to convert: if single value, try as single example; if multiple, try as array
+    if values.len() == 1 {
+        serde_json::from_value::<Examples>(values[0].clone()).ok()
+    } else {
+        // For multiple values, create an array and let serde figure out the type
+        let arr = Value::Array(values.to_vec());
+        serde_json::from_value::<Examples>(arr).ok()
+    }
 }
 
 fn sanitize_id(name: &str) -> String {
@@ -696,7 +654,7 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
         })?;
 
         // Generate YAML
-        let registry = accumulator.to_registry_file();
+        let registry = accumulator.to_semconv_spec();
         let yaml = serde_yaml::to_string(&registry).map_err(|e| {
             DiagnosticMessages::from(super::otlp::Error::OtlpError {
                 error: format!("Failed to serialize YAML: {}", e),
