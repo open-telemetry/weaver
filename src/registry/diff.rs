@@ -227,7 +227,13 @@ mod tests {
         };
 
         let cmd_result = semconv_registry(&registry_cmd);
-        assert_eq!(cmd_result.command_result.ok().unwrap().exit_code, 0);
+        assert_eq!(
+            cmd_result
+                .command_result
+                .expect("Command should complete successfully")
+                .exit_code,
+            0
+        );
 
         // Read the output file and check that it contains the expected JSON.
         let output_file = temp_dir.path().join("diff.json");

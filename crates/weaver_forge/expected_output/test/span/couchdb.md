@@ -11,20 +11,6 @@ Kind: client
 ### Attributes
 
 
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.connection_string`
 
 The connection string used to connect to the database. It is recommended to remove embedded credentials.
@@ -41,21 +27,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -100,6 +83,26 @@ In some SQL databases, the database name to be used is called "schema name". In 
 - Stability: Stable
   
 
+#### Attribute `db.operation`
+
+The HTTP method + the target REST route.
+
+
+
+In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
+
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "GET /{db}/{docid}",
+]
+  
+- Stability: Stable
+  
+
 #### Attribute `db.statement`
 
 The database statement being executed.
@@ -119,13 +122,25 @@ The database statement being executed.
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.system`
 
-Name of the database host.
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
 
 
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
 
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
 
 - Requirement Level: Recommended
   
@@ -133,30 +148,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -242,37 +235,44 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
-#### Attribute `db.instance.id`
+#### Attribute `server.address`
 
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+Name of the database host.
 
 
 
-- Requirement Level: Optional
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
   
 - Tag: connection-level
   
 - Type: string
-- Examples: mysql-e26b99z.example.com
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
   
 - Stability: Stable
   
 
-#### Attribute `db.operation`
+#### Attribute `server.port`
 
-The HTTP method + the target REST route.
+Server port number.
 
 
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
 
-In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
   
-- Tag: call-level-tech-specific
+- Tag: connection-level
   
-- Type: string
+- Type: int
 - Examples: [
-    "GET /{db}/{docid}",
+    80,
+    8080,
+    443,
 ]
   
 - Stability: Stable

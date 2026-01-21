@@ -12,7 +12,6 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;
-use weaver_semconv::registry::SemConvRegistry;
 
 /// Parameters for the `registry stats` sub-command
 #[derive(Debug, Args)]
@@ -68,7 +67,6 @@ fn display_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     };
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
     let loaded = weaver.load_main_definitions(&mut diag_msgs)?;
-    display_semconv_registry_stats(&loaded.semconv_registry()?);
 
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
     if !diag_msgs.is_empty() {
@@ -77,12 +75,6 @@ fn display_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
 
     display_schema_stats(resolved.resolved_schema());
     Ok(())
-}
-
-fn display_semconv_registry_stats(semconv_registry: &SemConvRegistry) {
-    let stats = semconv_registry.stats();
-    println!("Semantic Convention Registry Stats:");
-    println!("  - Total number of files: {}", stats.file_count);
 }
 
 fn display_schema_stats_v2(schema: &weaver_resolved_schema::v2::ResolvedTelemetrySchema) {

@@ -8,6 +8,7 @@
 //! In the future, this struct may be extended to include additional information
 //! such as the registry's owner, maintainers, and dependencies.
 
+use crate::stability::Stability;
 use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
@@ -22,6 +23,12 @@ use weaver_common::vdir::VirtualDirectoryPath;
 /// base url.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct RegistryManifest {
+    /// The file format for this registry.
+    ///
+    /// No value is assumed to be `definition/1.0.0`
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub file_format: Option<String>,
+
     /// The name of the registry. This name is used to define the package name.
     pub name: String,
 
@@ -30,18 +37,30 @@ pub struct RegistryManifest {
     /// This field can be used to provide additional context or information about the registry's
     /// purpose and contents.
     /// The format of the description is markdown.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
-    pub semconv_version: String,
+    #[serde(alias = "semconv_version")]
+    pub version: String,
 
     /// The base URL where the registry's schema files are hosted.
-    pub schema_base_url: String,
+    #[serde(alias = "schema_base_url")]
+    pub repository_url: String,
 
     /// List of the registry's dependencies.
     /// Note: In the current phase, we only support zero or one dependency.
     /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
-    pub dependencies: Option<Vec<Dependency>>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub dependencies: Vec<Dependency>,
+
+    /// The stability of this repository.
+    #[serde(default)]
+    pub stability: Stability,
+
+    /// The location of the resolved telemetry schema, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved_schema_url: Option<String>,
 }
 
 /// Represents a dependency of a semantic convention registry.
@@ -92,14 +111,14 @@ impl RegistryManifest {
             });
         }
 
-        if self.semconv_version.is_empty() {
+        if self.version.is_empty() {
             errors.push(InvalidRegistryManifest {
                 path: path.clone(),
                 error: "The registry version is required.".to_owned(),
             });
         }
 
-        if self.schema_base_url.is_empty() {
+        if self.repository_url.is_empty() {
             errors.push(InvalidRegistryManifest {
                 path: path.clone(),
                 error: "The registry schema base URL is required.".to_owned(),
@@ -141,8 +160,8 @@ mod tests {
             RegistryManifest::try_from_file("tests/test_data/valid_semconv_registry_manifest.yaml")
                 .expect("Failed to load the registry configuration file.");
         assert_eq!(config.name, "vendor_acme");
-        assert_eq!(config.semconv_version, "0.1.0");
-        assert_eq!(config.schema_base_url, "https://acme.com/schemas/");
+        assert_eq!(config.version, "0.1.0");
+        assert_eq!(config.repository_url, "https://acme.com/schemas/");
     }
 
     #[test]

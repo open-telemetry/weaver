@@ -6,7 +6,6 @@ use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
-use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
@@ -37,11 +36,6 @@ pub struct SemConvRegistry {
     ///
     /// This collection contains all the attributes defined in the semantic convention registry.
     attributes: HashMap<String, AttributeSpecWithProvenance>,
-
-    /// Metrics indexed by their respective id.
-    ///
-    /// This collection contains all the metrics defined in the semantic convention registry.
-    metrics: HashMap<String, MetricSpecWithProvenance>,
 
     /// The manifest of the semantic convention registry.
     manifest: Option<RegistryManifest>,
@@ -74,6 +68,7 @@ impl SemConvRegistry {
     /// # Errors
     ///
     /// If the registry path pattern is invalid.
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
     pub fn try_from_path_pattern(registry_id: &str, path_pattern: &str) -> WResult<Self, Error> {
         fn create_registry_or_fatal(
             registry_id: &str,
@@ -149,11 +144,14 @@ impl SemConvRegistry {
             }
 
             registry.set_manifest(RegistryManifest {
+                file_format: None,
                 name: registry_repo.id().as_ref().to_owned(),
                 description: None,
-                semconv_version,
-                schema_base_url: "".to_owned(),
-                dependencies: None,
+                version: semconv_version,
+                repository_url: "".to_owned(),
+                dependencies: vec![],
+                resolved_schema_url: None,
+                stability: crate::stability::Stability::Development,
             });
         } else {
             registry.manifest = registry_repo.manifest().cloned();
@@ -273,7 +271,6 @@ impl SemConvRegistry {
                     acc
                 }),
             attribute_count: self.attributes.len(),
-            metric_count: self.metrics.len(),
         }
     }
 }

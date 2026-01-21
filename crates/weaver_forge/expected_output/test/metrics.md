@@ -186,24 +186,6 @@ Stability: stable
 ### Attributes
 
 
-#### Attribute `jvm.gc.name`
-
-Name of the garbage collector.
-
-
-Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).
-
-- Requirement Level: Recommended
-  
-- Type: string
-- Examples: [
-    "G1 Young Generation",
-    "G1 Old Generation",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `jvm.gc.action`
 
 Name of the garbage collector action.
@@ -222,6 +204,24 @@ Garbage collector action is generally obtained via [GarbageCollectionNotificatio
 - Stability: Stable
   
   
+#### Attribute `jvm.gc.name`
+
+Name of the garbage collector.
+
+
+Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "G1 Young Generation",
+    "G1 Old Generation",
+]
+  
+- Stability: Stable
+  
+  
   
 ## Metric `jvm.memory.committed` 
 
@@ -232,22 +232,6 @@ Stability: stable
 ### Attributes
 
 
-#### Attribute `jvm.memory.type`
-
-The type of memory.
-
-
-- Requirement Level: Recommended
-  
-- Type: Enum [heap, non_heap, deprecated, experimental]
-- Examples: [
-    "heap",
-    "non_heap",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `jvm.memory.pool.name`
 
 Name of the memory pool.
@@ -262,6 +246,22 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
     "G1 Old Gen",
     "G1 Eden space",
     "G1 Survivor Space",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `jvm.memory.type`
+
+The type of memory.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [heap, non_heap, deprecated, experimental]
+- Examples: [
+    "heap",
+    "non_heap",
 ]
   
 - Stability: Stable
@@ -287,22 +287,6 @@ Stability: stable
 ### Attributes
 
 
-#### Attribute `jvm.memory.type`
-
-The type of memory.
-
-
-- Requirement Level: Recommended
-  
-- Type: Enum [heap, non_heap, deprecated, experimental]
-- Examples: [
-    "heap",
-    "non_heap",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `jvm.memory.pool.name`
 
 Name of the memory pool.
@@ -317,6 +301,22 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
     "G1 Old Gen",
     "G1 Eden space",
     "G1 Survivor Space",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `jvm.memory.type`
+
+The type of memory.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [heap, non_heap, deprecated, experimental]
+- Examples: [
+    "heap",
+    "non_heap",
 ]
   
 - Stability: Stable
@@ -332,41 +332,6 @@ Stability: stable
 ### Attributes
 
 
-#### Attribute `jvm.memory.type`
-
-The type of memory.
-
-
-- Requirement Level: Recommended
-  
-- Type: Enum [heap, non_heap, deprecated, experimental]
-- Examples: [
-    "heap",
-    "non_heap",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `jvm.memory.pool.name`
-
-Name of the memory pool.
-
-
-Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
-
-- Requirement Level: Recommended
-  
-- Type: string
-- Examples: [
-    "G1 Old Gen",
-    "G1 Eden space",
-    "G1 Survivor Space",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `jvm.memory.deprecated.attribute`
 
 Something deprecated.
@@ -392,6 +357,25 @@ Something experimental.
 - Stability: Development
   
   
+#### Attribute `jvm.memory.pool.name`
+
+Name of the memory pool.
+
+
+Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "G1 Old Gen",
+    "G1 Eden space",
+    "G1 Survivor Space",
+]
+  
+- Stability: Stable
+  
+  
 #### Attribute `jvm.memory.stable.attribute`
 
 Something stable.
@@ -404,16 +388,6 @@ Something stable.
 - Stability: Stable
   
   
-  
-## Metric `jvm.memory.used_after_last_gc` 
-
-Instrument: updowncounter
-Unit: By
-Stability: stable
-
-### Attributes
-
-
 #### Attribute `jvm.memory.type`
 
 The type of memory.
@@ -430,6 +404,16 @@ The type of memory.
 - Stability: Stable
   
   
+  
+## Metric `jvm.memory.used_after_last_gc` 
+
+Instrument: updowncounter
+Unit: By
+Stability: stable
+
+### Attributes
+
+
 #### Attribute `jvm.memory.pool.name`
 
 Name of the memory pool.
@@ -444,6 +428,22 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
     "G1 Old Gen",
     "G1 Eden space",
     "G1 Survivor Space",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `jvm.memory.type`
+
+The type of memory.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [heap, non_heap, deprecated, experimental]
+- Examples: [
+    "heap",
+    "non_heap",
 ]
   
 - Stability: Stable

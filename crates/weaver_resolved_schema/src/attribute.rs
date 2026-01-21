@@ -21,7 +21,9 @@ use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
 /// An attribute definition.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Attribute {
     /// Attribute name.
