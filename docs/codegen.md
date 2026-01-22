@@ -143,25 +143,28 @@ Your template receives everything:
 
 ### With a Filter
 
-When you **do specify a filter**, it transforms the data before passing it to the template:
+When you **do specify a filter**, it transforms the data before passing it to the template. Filters use JQ expressions to select and transform data:
 
 ```yaml
 templates:
   - template: "metrics.md.j2"
-    filter: semconv_grouped_metrics  # This filter groups metrics by namespace
+    filter: '.groups | map(select(.type == "metric"))'  # Select only metric groups
     application_mode: each
 ```
 
-Now `ctx` contains the output of the filter. For `semconv_grouped_metrics`, each invocation receives:
+Now `ctx` contains the output of the filter - each metric group object:
 ```jinja
-{# ctx now has root_namespace and metrics fields #}
-## {{ ctx.root_namespace }}
-{% for metric in ctx.metrics %}
-  - {{ metric.metric_name }}
+{# ctx is a single metric group #}
+## {{ ctx.id }}
+{{ ctx.brief }}
+{% for attr in ctx.attributes %}
+  - {{ attr.name }}
 {% endfor %}
 ```
 
-### Common Filters
+### Common Helper Filters
+
+For convenience, Weaver provides pre-built helper filters for common operations:
 
 - **`semconv_grouped_attributes`** - Groups attributes by root namespace (e.g., `http`, `db`)
 - **`semconv_grouped_metrics`** - Groups metrics by root namespace
