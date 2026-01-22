@@ -192,7 +192,6 @@ Loading dynamic configuration is a vector of attack, and concern for security. W
 | `live_check_templates/ansi` | stays in weaver |
 | `live_check_templates/json` | stays in weaver* |
 | `policies/live_check_advice` | Moves to `live_check/semconv`. Enforces semconv naming. |
-| `policies/` | Moves to `live_check/semconv`. |
 | `defaults/rego` | Removed when V2 syntax becomes default. |
 
 _*Note: Raw output formats like JSON, YAML, etc. supported by SERDE will move away from using JINJA extensions and be first class export formats over time_
