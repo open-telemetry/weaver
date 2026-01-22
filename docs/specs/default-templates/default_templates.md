@@ -13,7 +13,7 @@ Today, weaver provides a set of extension points via:
 - Policies: rego files
 - Templates: jinja and jq via `weaver.yaml`
 
-These are located in the `defaults` director and are loaded into weaver's binary via `include*!` macros within rust.
+These are located in the `defaults` directory and are loaded into weaver's binary via `include*!` macros within rust.
 
 While this gives us a baseline mechanism to offer a "batteries-loaded" weaver experience, it suffers from the following:
 
@@ -24,7 +24,7 @@ While this gives us a baseline mechanism to offer a "batteries-loaded" weaver ex
 Weaver also provides extension mechanisms for these capabilities:
 
 * Policies are loaded as raw `*.rego` files next to definition schemas. These will be enforced based on what `package` they declare.
-* Templates are loaded from template directories (those with a `weaver.yaml` file). This can reference *remote* directories via the same "virtual directory reference", e.g. `--template https://github.com/open-telemetry/opentelemetry-weaver-templates.git\java`
+* Templates are loaded from template directories (those with a `weaver.yaml` file). This can reference *remote* directories via the same "virtual directory reference", e.g. `--template https://github.com/open-telemetry/opentelemetry-weaver-packages.git\codegen/java`
 
 ## Requirments & Goals
 
@@ -42,12 +42,37 @@ We'd like to update weaver to allow the following:
 - Out of the box templates and policies can be referred to via "simple" names, e.g. how `ansi` works for diagnostic output today.
 - Weaver users are able to override out of the box defaults.
 
+## Example Usage
+
+This is an intended "use" for default templates in weaver.
+
+**weaver check**
+```bash
+weaver registry check \
+  -r my_registry
+  -p telemetry/semconv-style
+```
+
+**weaver generate**
+```bash
+weaver registry generate \
+  -r my_registry
+  --template code/java
+```
+
+**weaver live-check**
+```bash
+weaver registry live-check \
+  -r my_registry
+  -p live-check/force-schemas
+```
+
 ## Design Proposal
 
 The design relies on three key capabilities:
 
 - Expanding weaver's `VirtualDirectory` capabilities to support additional verification features on remote directories (archive downloads and git repositories).
-- Creation of a `opentelemetry-weaver-templates` repository for contributors to out of the box templates for weaver.
+- Creation of a `opentelemetry-weaver-packages` repository for contributors to out of the box extensions for weaver.
 - Updating weaver's release process to allow pulling in default templates.
   - Creation of a release configuration file that determines which templates, policies and JQ helpers will be loaded by default in weaver.
   - Updating the weaver build process to grab (and cache?) these templates.
@@ -61,15 +86,33 @@ new security / verification features.
 - ZIP - need the ability to verify signatures.
 - GIT - need the ability to reference specific commits.
 
+Additionally `weaver registry live-check` uses `-p` to represent a port to bind to vs. `-p` representing policies. This discrepency will be sorted out.
+
 ### Weaver Templates Repository
 
 - Creation of weaver templates repository
 - Each directory is a theme/name addressable distro 
-    - `codegen/java`, `codegen/go`, etc.
+    - `code/java`, `code/go`, etc.
     - `docs/markdown`, `docs/html`, etc.
-    - `checks/semconv`, `checks/backwards-compatibility`, etc.
-    - `diagnostics/ansi`, `diagnostics/gh-action`
+    - `live-check/semconv`, `telemetry/backwards-compatibility`, etc.
 - Each theme/name has different set of codeowners.
+- Initial set of top level directories:
+  - `templates`
+    - `docs`: Documentation generation
+    - `code`: Code generation for various languages.
+  - `policies`
+    - `live-check`: Policies to apply during `weaver registry live-check`.
+    - `telemetry`: Policies to apply during `weaver registry resolve|generate|check`
+
+Note: Initially policy packages can be combined, so we prefer "light-weight" or "small and composable" packages vs. large ones.
+For example, we envision something usage like:
+
+```bash
+weaver registry check \
+  -r my_repo \
+  --policies=telemetry/backwards-compatibility \
+  --policies=telemetry/semantic-conventions-style
+```
 
 ### Weaver Release Process
 
@@ -78,14 +121,14 @@ First, we create a configuration file for weaver for what to include in each rel
 ```yaml
 templates:
   codegen:
-    java: https://github.com/open-telemetry/opentelemetry-weaver-templates.git:<sha>\codegen/java
+    java: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\codegen/java
   docs:
-    markdown: https://github.com/open-telemetry/opentelemetry-weaver-templates.git:<sha>\docs/markdown
+    markdown: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\docs/markdown
 policies:
     checks:
-      semconv: https://github.com/open-telemetry/opentelemetry-weaver-templates.git:<sha>\checks/semconv
+      semconv: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\checks/semconv
     advice:
-      semconv: https://github.com/open-telemetry/opentelemetry-weaver-templates.git:<sha>\advice/semconv
+      semconv: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\advice/semconv
 jq:
   template:
     - defaults/jq/semconv.jq
@@ -131,3 +174,25 @@ Loading dynamic configuration is a vector of attack, and concern for security. W
 
 - Weaver should allow signature verification of packages it downloads as ZIP.
 - Weaver should use git HASH when resolving from git repositories.
+
+## Survey of Weaver's current built-ins
+
+| Package | Action |
+|--|--|
+| `diagnostic_templates/ansi` | stays in weaver |
+| `diagnostic_templates/gh_workflow_command` | stays in weaver |
+| `diagnostic_templates/json` | stays in weaver* |
+| `diff_templates/json` | stays in weaver* |
+| `diff_templates/ansi` | stays in weaver |
+| `diff_templates/ansi-stats` | stays in weaver |
+| `diff_templates/markdown` | removed* |
+| `diff_templates/yaml` | removed* |
+| `jq/advice.jq` | stays in weaver |
+| `jq/semconv.jq` | stays in weaver |
+| `live_check_templates/ansi` | stays in weaver |
+| `live_check_templates/json` | stays in weaver* |
+| `policies/live_check_advice` | Moves to `live_check/semconv`. Enforces semconv naming. |
+| `policies/` | Moves to `live_check/semconv`. |
+| `defaults/rego` | Removed when V2 syntax becomes default. |
+
+_*Note: Raw output formats like JSON, YAML, etc. supported by SERDE will move away from using JINJA extensions and be first class export formats over time_
