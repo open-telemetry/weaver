@@ -1,4 +1,4 @@
-# Semantic Convention YAML Language v2
+# Semantic Convention Definition Language v2
 
 **Status**: [Alpha][DocumentStatus]
 
@@ -7,7 +7,7 @@
 
 <!-- toc -->
 
-- [Semantic Convention YAML Language v2](#semantic-convention-yaml-language-v2)
+- [Semantic Convention Definition Language v2](#semantic-convention-definition-language-v2)
   - [Syntax](#syntax)
     - [`attributes` definition](#attributes-definition)
       - [Attribute Types](#attribute-types)
