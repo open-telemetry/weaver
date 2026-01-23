@@ -1,4 +1,4 @@
-version: "2"
+file_format: definition/2.0.0
 attributes:
   - key: my.attr
     type: string
