@@ -73,7 +73,7 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     if args.registry.v2 {
         let resolved_v2: ResolvedV2 = resolved.try_into()?;
         resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        apply_format(&args.format, &resolved_v2.template_schema())
+        apply_format(&args.format, &resolved_v2.resolved_schema())
             .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
             .and_then(|s| {
                 if let Some(ref path) = args.output {

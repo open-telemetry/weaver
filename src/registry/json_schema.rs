@@ -65,7 +65,7 @@ pub enum JsonSchemaType {
     /// The JSON schema of the V2 resolved registry.
     ResolvedRegistryV2,
     /// The JSON schema we send to Rego / Jinja.
-    ForgeRegistryV2,
+    MaterializedRegistryV2,
     /// The JSON schema of the diff
     Diff,
     /// The JSON schema of the diff V2
@@ -85,10 +85,10 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
         JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
         JsonSchemaType::SemconvDefinitionV2 => {
-            schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
+            schema_for!(weaver_semconv::v2::SemConvSpecV2)
         }
-        JsonSchemaType::ResolvedRegistryV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
-        JsonSchemaType::ForgeRegistryV2 => {
+        JsonSchemaType::ResolvedRegistryV2 => schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema),
+        JsonSchemaType::MaterializedRegistryV2 => {
             schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
         }
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
