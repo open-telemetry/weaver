@@ -26,9 +26,12 @@ Weaver Forge is a component of OTEL Weaver that facilitates documentation and
 code generation from a semantic convention registry. It uses MiniJinja, a
 template engine compatible with Jinja2 syntax, which provides extensive
 customization options (refer to this [GitHub repository](https://github.com/mitsuhiko/minijinja)
-for more details). Some good references to start developing Jinja2 templages are 
-[1](https://ttl255.com/jinja2-tutorial-part-2-loops-and-conditionals/) and 
-[2](https://jinja.palletsprojects.com/en/stable/templates).
+for more details). 
+
+**New to Jinja?** These resources will help you get started:
+- [Official Jinja Template Documentation](https://jinja.palletsprojects.com/en/stable/templates) - Complete syntax reference
+- [Jinja2 Tutorial - Loops and Conditionals](https://ttl255.com/jinja2-tutorial-part-2-loops-and-conditionals/) - Practical tutorial with examples
+
 To streamline template creation for semantic conventions,
 additional filters, functions, tests, and naming conventions have been
 integrated with the standard Jinja logic.
@@ -485,8 +488,8 @@ compatibility extensions that are also enabled in Weaver.
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
 
-The following filters are available (the code for all available extension can be found 
-[here](./src/extensions)):
+The following filters are available (implementation can be found in the 
+[extensions source code](./src/extensions)):
 
 - `prometheus_metric_name`: Generates a single Prometheus metric name from an OpenTelemetry metric
   (more details [here](#prometheus-filters)).
