@@ -26,12 +26,12 @@ Weaver also provides extension mechanisms for these capabilities:
 * Policies are loaded as raw `*.rego` files next to definition schemas. These will be enforced based on what `package` they declare.
 * Templates are loaded from template directories (those with a `weaver.yaml` file). This can reference *remote* directories via the same "virtual directory reference", e.g. `--template https://github.com/open-telemetry/opentelemetry-weaver-packages.git\codegen/java`
 
-## Requirments & Goals
+## Requirements & Goals
 
 We'd like to update weaver to allow the following:
 
 - Language, Policy and Documentation experts are able to contribute templates and policies independently of the main contribution of weaver.
-    - They can depend on a *stable* verion of weaver for development
+    - They can depend on a *stable* version of weaver for development
     - They can independently verify/test their templates.
     - They can independently release their templates.
 - Weaver can decide which versions of templates and policies to
@@ -86,7 +86,7 @@ new security / verification features.
 - ZIP - need the ability to verify signatures.
 - GIT - need the ability to reference specific commits.
 
-Additionally `weaver registry live-check` uses `-p` to represent a port to bind to vs. `-p` representing policies. This discrepency will be sorted out.
+Additionally `weaver registry live-check` uses `-p` to represent a port to bind to vs. `-p` representing policies. This discrepancy will be sorted out.
 
 ### Weaver Templates Repository
 
@@ -136,7 +136,7 @@ jq:
     - defaults/jq/advice.jq
 ```
 
-Ideally this document could be kept up-to-date by `rennovate` or some other dependency bot over time.
+Ideally this document could be kept up-to-date by `renovate` or some other dependency bot over time.
 
 Next, we create a `weaver_defaults` crate that is responsible for having the contents of this configuration file available to weaver.  This would resolve the config file *at build time*
 and offer an API to access the defaults. 
