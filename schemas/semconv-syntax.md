@@ -1,4 +1,4 @@
-# Semantic Convention YAML Language
+# Semantic Convention Definition Language
 
 First, the syntax with a pseudo [EBNF](https://en.wikipedia.org/wiki/Extended_Backus-Naur_form) grammar is presented.
 Then, the semantic of each field is described.
@@ -7,7 +7,7 @@ Then, the semantic of each field is described.
 
 <!-- toc -->
 
-- [Semantic Convention YAML Language](#semantic-convention-yaml-language)
+- [Semantic Convention Definition Language](#semantic-convention-definition-language)
   - [JSON Schema](#json-schema)
   - [Syntax](#syntax)
   - [Semantics](#semantics)
@@ -15,7 +15,7 @@ Then, the semantic of each field is described.
     - [Semantic Convention](#semantic-convention)
       - [Span semantic convention](#span-semantic-convention)
       - [Event semantic convention](#event-semantic-convention)
-      - [Event semantic convention example](#event-semantic-convention-example)
+        - [Event semantic convention example](#event-semantic-convention-example)
       - [Metric Group semantic convention](#metric-group-semantic-convention)
       - [Metric semantic convention](#metric-semantic-convention)
       - [Attribute group semantic convention](#attribute-group-semantic-convention)
@@ -24,6 +24,8 @@ Then, the semantic of each field is described.
       - [Examples (for examples)](#examples-for-examples)
       - [Ref](#ref)
       - [Type](#type)
+        - [Template type](#template-type)
+        - [Enumeration](#enumeration)
 
 <!-- tocstop -->
 
