@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //         &["src/registry/otlp/proto"],
     //     )?;
 
-    // Build the React UI (ui/)
+    // Build the UI
     build_ui()?;
 
     Ok(())
