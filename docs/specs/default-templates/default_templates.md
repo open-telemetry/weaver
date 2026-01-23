@@ -116,7 +116,7 @@ weaver registry check \
 
 ### Weaver Release Process
 
-First, we create a configuration file for weaver for what to include in each release:
+First, we create a configuration file for weaver for what to include in each release, e.g.
 
 ```yaml
 templates:
@@ -125,10 +125,10 @@ templates:
   docs:
     markdown: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\docs/markdown
 policies:
-    checks:
-      semconv: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\checks/semconv
-    advice:
-      semconv: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\advice/semconv
+    check:
+      semconv: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\check/semconv
+    live-check:
+      semconv: https://github.com/open-telemetry/opentelemetry-weaver-packages.git:<sha>\live-check/semconv
 jq:
   template:
     - defaults/jq/semconv.jq
@@ -138,7 +138,7 @@ jq:
 
 Ideally this document could be kept up-to-date by `rennovate` or some other dependency bot over time.
 
-Next, we create a `weaver_defualts` crate that is responsible for having the contents of this configuration file available to weaver.  This would resolve the config file *at build time*
+Next, we create a `weaver_defaults` crate that is responsible for having the contents of this configuration file available to weaver.  This would resolve the config file *at build time*
 and offer an API to access the defaults. 
 
 This API should:
