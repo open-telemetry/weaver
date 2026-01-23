@@ -45,7 +45,7 @@ This file provides human-readable documentation, but the JSON schema should be c
 
 ## Syntax
 
-A semantic convention file starts with `version: "2"` and may contain one or more of the following groups:
+A semantic convention file starts with `file_format: definition/2.0.0` and may contain one or more of the following groups:
 
 - `attributes`: Contains definitions of semantic attributes which may be applicable to all OpenTelemetry signals.
 - `entities`: Contains definitions of entities.
@@ -63,7 +63,7 @@ Attributes capture important details about different kinds of telemetry items. A
 Here's a simplified example of `server.address` and `server.port` attribute definitions:
 
 ```yaml
-version: "2"
+file_format: definition/2.0.0
 attributes:
   - key: server.address
     stability: development
