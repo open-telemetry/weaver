@@ -186,7 +186,7 @@ Loading dynamic configuration is a vector of attack, and concern for security. W
 | `diff_templates/ansi` | stays in weaver |
 | `diff_templates/ansi-stats` | stays in weaver |
 | `diff_templates/markdown` | removed* |
-| `diff_templates/yaml` | removed* |
+| `diff_templates/yaml` | stays in weaver* |
 | `jq/advice.jq` | stays in weaver |
 | `jq/semconv.jq` | stays in weaver |
 | `live_check_templates/ansi` | stays in weaver |
