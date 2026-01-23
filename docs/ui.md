@@ -10,7 +10,7 @@ It provides:
 - Markdown rendering (via `marked`)
 - RapiDoc for API documentation
 
-## React UI (`ui/`)
+## UI (`ui/`)
 
 UI built with React.
 
