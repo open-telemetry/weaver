@@ -1270,7 +1270,7 @@ mod tests {
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
-                registry_url: registry_url,
+                registry_url,
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
@@ -1281,7 +1281,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
-            registry_manifest: registry_manifest,
+            registry_manifest,
         }
     }
 }

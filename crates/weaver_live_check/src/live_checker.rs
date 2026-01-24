@@ -507,7 +507,7 @@ mod tests {
 
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
-            VersionedRegistry::V2(ForgeResolvedRegistry {
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
                 file_format: "materialized/2.0.0".to_owned(),
                 registry_url: "TEST".to_owned(),
                 registry: Registry {
@@ -610,7 +610,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
@@ -794,7 +794,7 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
                 file_format: "materialized/2.0.0".to_owned(),
                 registry_url: "TEST_METRICS".to_owned(),
                 registry: Registry {
@@ -844,7 +844,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST_METRICS".to_owned(),
@@ -1003,7 +1003,7 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
                 file_format: "materialized/2.0.0".to_owned(),
                 registry_url: "TEST".to_owned(),
 
@@ -1041,7 +1041,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
@@ -1519,7 +1519,7 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
                 file_format: "materialized/2.0.0".to_owned(),
                 registry_url: "TEST_EVENTS".to_owned(),
                 registry: Registry {
@@ -1595,7 +1595,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),

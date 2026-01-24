@@ -107,7 +107,7 @@ impl LoadedSemconvRegistry {
             LoadedSemconvRegistry::Unresolved {
                 repo, dependencies, ..
             } => {
-                let mut result = vec![repo.registry_path_repr().to_string()];
+                let mut result = vec![repo.registry_path_repr().to_owned()];
                 for d in dependencies {
                     result.extend(d.registry_urls());
                 }
