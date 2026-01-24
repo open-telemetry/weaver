@@ -22,21 +22,11 @@
     "registry": {
       "description": "The registry that this schema belongs to.",
       "$ref": "#/$defs/Registry"
-    },
-    "registry_id": {
-      "description": "The ID of the registry that this schema belongs to.",
-      "type": "string"
-    },
-    "schema_url": {
-      "description": "Schema URL that this file is published at.",
-      "type": "string"
     }
   },
   "additionalProperties": false,
   "required": [
     "file_format",
-    "schema_url",
-    "registry_id",
     "attribute_catalog",
     "registry",
     "refinements"

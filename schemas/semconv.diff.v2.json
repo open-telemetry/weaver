@@ -4,17 +4,23 @@
   "description": "A summary of schema changes between two versions of a schema.",
   "type": "object",
   "properties": {
-    "baseline_schema_url": {
-      "description": "The schema URL that the baseline schema is published at.",
-      "type": "string"
+    "baseline_version": {
+      "description": "The version of the baseline schema.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "file_format": {
       "description": "Version of the file structure.",
       "type": "string"
     },
-    "head_schema_url": {
-      "description": "The schema URL that the current (head) schema is published at.",
-      "type": "string"
+    "head_version": {
+      "description": "The version of the current (head) schema.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "registry": {
       "description": "Changes to the registry.",
@@ -23,8 +29,6 @@
   },
   "required": [
     "file_format",
-    "head_schema_url",
-    "baseline_schema_url",
     "registry"
   ],
   "$defs": {
