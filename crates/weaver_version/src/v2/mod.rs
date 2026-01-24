@@ -10,6 +10,14 @@ pub use crate::schema_changes::SchemaItemChange;
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SchemaChanges {
+    /// Version of the file structure.
+    pub file_format: String,
+    /// The version of the current (head) schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub head_version: Option<String>,
+    /// The version of the baseline schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseline_version: Option<String>,
     /// Changes to the registry.
     pub registry: RegistryChanges,
 }

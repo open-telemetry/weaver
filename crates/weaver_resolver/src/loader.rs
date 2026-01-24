@@ -77,8 +77,8 @@ impl LoadedSemconvRegistry {
         match self {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
             // TODO - are these correct?
-            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
-            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url,
+            LoadedSemconvRegistry::Resolved(schema) => &schema.registry.registry_url,
+            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.registry.registry_url,
         }
     }
 
@@ -102,19 +102,19 @@ impl LoadedSemconvRegistry {
     /// Returns all the registry ids in this loaded registry and its dependencies.
     #[cfg(test)]
     #[must_use]
-    pub fn registry_ids(&self) -> Vec<String> {
+    pub fn registry_urls(&self) -> Vec<String> {
         match self {
             LoadedSemconvRegistry::Unresolved {
                 repo, dependencies, ..
             } => {
-                let mut result = vec![repo.id().to_string()];
+                let mut result = vec![repo.registry_path_repr().to_string()];
                 for d in dependencies {
-                    result.extend(d.registry_ids());
+                    result.extend(d.registry_urls());
                 }
                 result
             }
-            LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry_id.clone()],
-            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.registry_id.clone()],
+            LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry.registry_url.clone()],
+            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.registry.registry_url.clone()],
         }
     }
 }
@@ -130,11 +130,15 @@ impl Display for LoadedSemconvRegistry {
             } => write!(
                 f,
                 "{} - [{}]",
-                repo.id(),
+                repo.registry_path_repr(),
                 dependencies.iter().map(|d| format!("{d}")).join(",")
             ),
-            LoadedSemconvRegistry::Resolved(schema) => write!(f, "{}", schema.registry_id),
-            LoadedSemconvRegistry::ResolvedV2(schema) => write!(f, "{}", schema.registry_id),
+            LoadedSemconvRegistry::Resolved(schema) => {
+                write!(f, "{}", schema.registry.registry_url)
+            }
+            LoadedSemconvRegistry::ResolvedV2(schema) => {
+                write!(f, "{}", schema.registry.registry_url)
+            }
         }
     }
 }
@@ -456,7 +460,7 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Circular dependency detected") && 
+                    error_msg.contains("Circular dependency detected") &&
                     error_msg.contains("registry_a") &&
                     error_msg.contains("registry_b"),
                     "Expected circular dependency error mentioning both registries, got: {error_msg}"

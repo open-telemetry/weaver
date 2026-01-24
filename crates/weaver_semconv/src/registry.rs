@@ -47,6 +47,7 @@ impl SemConvRegistry {
     /// # Arguments
     ///
     /// * `id` - The id of the semantic convention registry.
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
     pub fn new(id: &str) -> Self {
         SemConvRegistry {
             id: id.to_owned(),
@@ -116,6 +117,7 @@ impl SemConvRegistry {
     ///
     /// * `registry_repo` - The semantic convention registry.
     /// * `semconv_specs` - The list of semantic convention specs to load.
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
     pub fn from_semconv_specs(
         registry_repo: &RegistryRepo,
         semconv_specs: Vec<SemConvSpecWithProvenance>,
