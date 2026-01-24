@@ -20,8 +20,8 @@ pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 /// - Initialized from a Git archive
 #[derive(Default, Debug, Clone)]
 pub struct RegistryRepo {
-    // A unique identifier for the registry (e.g. main, baseline, etc.)
-    id: Arc<str>,
+    // A friendly name for the registry (e.g. main, baseline, etc.)
+    name: Option<Arc<str>>,
 
     // A virtual directory containing the registry.
     registry: VirtualDirectory,
@@ -34,27 +34,29 @@ impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `RegistryPath` object that
     /// specifies the location of the registry.
     pub fn try_new(
-        registry_id_if_no_manifest: &str,
+        registry_name_if_no_manifest: &str,
         registry_path: &VirtualDirectoryPath,
     ) -> Result<Self, Error> {
         let mut registry_repo = Self {
-            id: Arc::from(registry_id_if_no_manifest),
+            name: Some(Arc::from(registry_name_if_no_manifest)),
             registry: VirtualDirectory::try_new(registry_path)
                 .map_err(Error::VirtualDirectoryError)?,
             manifest: None,
         };
         if let Some(manifest) = registry_repo.manifest_path() {
             let registry_manifest = RegistryManifest::try_from_file(manifest)?;
-            registry_repo.id = Arc::from(registry_manifest.name.as_str());
+            registry_repo.name = Some(Arc::from(registry_manifest.name.as_str()));
             registry_repo.manifest = Some(registry_manifest);
         }
         Ok(registry_repo)
     }
 
-    /// Returns the unique identifier for the registry.
+    /// Returns registry name (or the registry path representation if no name is set).
     #[must_use]
-    pub fn id(&self) -> Arc<str> {
-        self.id.clone()
+    pub fn name(&self) -> Arc<str> {
+        self.name
+            .clone()
+            .unwrap_or_else(|| self.registry_path_repr().into())
     }
 
     /// Returns the local path to the semconv registry.

@@ -88,7 +88,7 @@ impl SchemaResolver {
                 WResult::FatalErr(e) => return WResult::FatalErr(e),
             }
         }
-        let registry_id: String = repo.id().to_string();
+        let registry_id: String = repo.name().to_string();
         let manifest = repo.manifest().cloned();
         let mut attr_catalog = AttributeCatalog::default();
         // TODO - Do something with non_fatal_errors if we need to.

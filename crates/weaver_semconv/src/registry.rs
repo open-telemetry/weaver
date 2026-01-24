@@ -127,7 +127,7 @@ impl SemConvRegistry {
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
+        let mut registry = SemConvRegistry::new(&registry_repo.name().as_ref());
 
         for spec in semconv_specs {
             registry.add_semconv_spec(spec);
@@ -147,7 +147,7 @@ impl SemConvRegistry {
 
             registry.set_manifest(RegistryManifest {
                 file_format: None,
-                name: registry_repo.id().as_ref().to_owned(),
+                name: registry_repo.name().as_ref().to_owned(),
                 description: None,
                 version: semconv_version,
                 repository_url: "".to_owned(),

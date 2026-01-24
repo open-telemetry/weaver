@@ -181,7 +181,7 @@ fn load_semconv_repository_recursive(
             ),
         });
     }
-    let registry_id = registry_repo.id().to_string();
+    let registry_id = registry_repo.name().to_string();
     // Check for circular dependency
     if visited_registries.contains(&registry_id) {
         dependency_chain.push(registry_id.clone());
@@ -286,7 +286,7 @@ fn load_definition_repository(
 
                     // TODO - less confusing way to load semconv specs.
                     vec![SemConvRegistry::semconv_spec_from_file(
-                        &registry_repo.id(),
+                        &registry_repo.name(),
                         entry.path(),
                         &unversioned_validator,
                         &versioned_validator,
@@ -388,7 +388,7 @@ mod tests {
             dependencies,
         } = loaded
         {
-            assert_eq!("acme", repo.id().as_ref());
+            assert_eq!("acme", repo.name().as_ref());
             assert_eq!(dependencies.len(), 1);
             assert_eq!(specs.len(), 1);
             assert_eq!(imports.len(), 1);
@@ -399,7 +399,7 @@ mod tests {
                 dependencies,
             }] = &dependencies.as_slice()
             {
-                assert_eq!("otel", repo.id().as_ref());
+                assert_eq!("otel", repo.name().as_ref());
                 assert_eq!(dependencies.len(), 0);
                 assert_eq!(specs.len(), 1);
                 assert_eq!(imports.len(), 0);
