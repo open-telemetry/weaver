@@ -74,31 +74,57 @@ impl From<String> for InputFormat {
     }
 }
 
-/// Runtime output format - handles all output generation
-enum OutputFormat {
+/// Output processor - handles all output generation with embedded config
+#[allow(clippy::large_enum_variant)]
+enum OutputProcessor {
     /// JSON format - pretty-printed using serde_json
-    Json,
+    Json {
+        path: PathBuf,
+        directive: OutputDirective,
+    },
     /// YAML format - using serde_yaml
-    Yaml,
+    Yaml {
+        path: PathBuf,
+        directive: OutputDirective,
+    },
     /// JSONL format - one compact JSON object per line
-    Jsonl,
+    Jsonl {
+        path: PathBuf,
+        directive: OutputDirective,
+    },
     /// Template-based format with embedded engine
-    Template(TemplateEngine),
+    Template {
+        engine: TemplateEngine,
+        path: PathBuf,
+        directive: OutputDirective,
+    },
     /// No output (--output=none)
     Mute,
 }
 
-impl OutputFormat {
-    /// Create an OutputFormat from format string, templates path, and output settings
-    fn new(format: &str, templates: PathBuf, no_output: bool) -> Result<Self, DiagnosticMessages> {
-        if no_output {
-            return Ok(OutputFormat::Mute);
+impl OutputProcessor {
+    /// Create an OutputProcessor from format string, templates path, and output option
+    fn new(
+        format: &str,
+        templates: PathBuf,
+        output: Option<&PathBuf>,
+    ) -> Result<Self, DiagnosticMessages> {
+        // Check if output is disabled (--output=none)
+        if output.is_some_and(|p| p.to_str() == Some("none")) {
+            return Ok(OutputProcessor::Mute);
         }
 
+        // Determine output path and directive
+        let (path, directive) = match output {
+            Some(p) => (p.clone(), OutputDirective::File),
+            None => (PathBuf::from("output"), OutputDirective::Stdout),
+        };
+
         match format.to_lowercase().as_str() {
-            "json" => Ok(OutputFormat::Json),
-            "yaml" => Ok(OutputFormat::Yaml),
-            "jsonl" => Ok(OutputFormat::Jsonl),
+            "mute" => Ok(OutputProcessor::Mute),
+            "json" => Ok(OutputProcessor::Json { path, directive }),
+            "yaml" => Ok(OutputProcessor::Yaml { path, directive }),
+            "jsonl" => Ok(OutputProcessor::Jsonl { path, directive }),
             template_name => {
                 let loader = EmbeddedFileLoader::try_new(
                     &DEFAULT_LIVE_CHECK_TEMPLATES,
@@ -120,46 +146,47 @@ impl OutputFormat {
                     })
                 })?;
                 let engine = TemplateEngine::try_new(config, loader, Params::default())?;
-                Ok(OutputFormat::Template(engine))
+                Ok(OutputProcessor::Template {
+                    engine,
+                    path,
+                    directive,
+                })
             }
         }
     }
 
     /// Generate output for data
-    fn generate<T: Serialize>(
-        &self,
-        data: &T,
-        output: &Path,
-        directive: &OutputDirective,
-    ) -> Result<(), Error> {
+    fn generate<T: Serialize>(&self, data: &T) -> Result<(), Error> {
         match self {
-            OutputFormat::Json => {
+            OutputProcessor::Json { path, directive } => {
                 let content =
                     serde_json::to_string_pretty(data).map_err(|e| Error::OutputError {
                         error: e.to_string(),
                     })?;
-                self.write_output(&content, output, directive)
+                Self::write_output(&content, path, directive, "live_check.json")
             }
-            OutputFormat::Yaml => {
+            OutputProcessor::Yaml { path, directive } => {
                 let content = serde_yaml::to_string(data).map_err(|e| Error::OutputError {
                     error: e.to_string(),
                 })?;
-                self.write_output(&content, output, directive)
+                Self::write_output(&content, path, directive, "live_check.yaml")
             }
-            OutputFormat::Jsonl => {
+            OutputProcessor::Jsonl { path, directive } => {
                 let content = serde_json::to_string(data).map_err(|e| Error::OutputError {
                     error: e.to_string(),
                 })?;
-                self.write_output(&content, output, directive)
+                Self::write_output(&content, path, directive, "live_check.jsonl")
             }
-            OutputFormat::Template(engine) => {
-                engine
-                    .generate(data, output, directive)
-                    .map_err(|e| Error::OutputError {
-                        error: e.to_string(),
-                    })
-            }
-            OutputFormat::Mute => Ok(()),
+            OutputProcessor::Template {
+                engine,
+                path,
+                directive,
+            } => engine
+                .generate(data, path, directive)
+                .map_err(|e| Error::OutputError {
+                    error: e.to_string(),
+                }),
+            OutputProcessor::Mute => Ok(()),
         }
     }
 
@@ -168,35 +195,34 @@ impl OutputFormat {
         &self,
         samples: Vec<Sample>,
         stats: LiveCheckStatistics,
-        output: &Path,
-        directive: &OutputDirective,
     ) -> Result<(), Error> {
         match self {
-            OutputFormat::Jsonl => {
+            OutputProcessor::Jsonl { .. } => {
                 // JSONL: one line per sample, stats at end
                 for sample in &samples {
-                    self.generate(sample, output, directive)?;
+                    self.generate(sample)?;
                 }
-                self.generate(&stats, output, directive)
+                self.generate(&stats)
             }
-            OutputFormat::Mute => Ok(()),
+            OutputProcessor::Mute => Ok(()),
             _ => {
                 // All other formats: output as a single report structure
                 let report = LiveCheckReport {
                     statistics: stats,
                     samples,
                 };
-                self.generate(&report, output, directive)
+                self.generate(&report)
             }
         }
     }
 
     /// Write content to output destination
+    #[allow(clippy::print_stderr)]
     fn write_output(
-        &self,
         content: &str,
-        output: &Path,
+        path: &Path,
         directive: &OutputDirective,
+        filename: &str,
     ) -> Result<(), Error> {
         match directive {
             OutputDirective::Stdout => {
@@ -204,7 +230,7 @@ impl OutputFormat {
                 Ok(())
             }
             OutputDirective::File => {
-                let file_path = self.output_file_path(output);
+                let file_path = path.join(filename);
                 if let Some(parent) = file_path.parent() {
                     std::fs::create_dir_all(parent).map_err(|e| Error::OutputError {
                         error: format!("Failed to create directory {}: {e}", parent.display()),
@@ -221,13 +247,14 @@ impl OutputFormat {
         }
     }
 
-    /// Get the output file path for this format
-    fn output_file_path(&self, output_dir: &Path) -> PathBuf {
+    /// Returns true if file output is being used
+    fn is_file_output(&self) -> bool {
         match self {
-            OutputFormat::Json => output_dir.join("live_check.json"),
-            OutputFormat::Yaml => output_dir.join("live_check.yaml"),
-            OutputFormat::Jsonl => output_dir.join("live_check.jsonl"),
-            OutputFormat::Template(_) | OutputFormat::Mute => output_dir.to_path_buf(),
+            OutputProcessor::Json { directive, .. } => *directive == OutputDirective::File,
+            OutputProcessor::Yaml { directive, .. } => *directive == OutputDirective::File,
+            OutputProcessor::Jsonl { directive, .. } => *directive == OutputDirective::File,
+            OutputProcessor::Template { directive, .. } => *directive == OutputDirective::File,
+            OutputProcessor::Mute => false,
         }
     }
 }
@@ -336,27 +363,9 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
-    let mut output = PathBuf::from("output");
 
-    // Determine if output is disabled (--output=none)
-    let no_output = args
-        .output
-        .as_ref()
-        .is_some_and(|p| p.to_str() == Some("none"));
-
-    let output_directive = if let Some(path_buf) = &args.output {
-        if no_output {
-            OutputDirective::Stdout // Will be ignored when Mute
-        } else {
-            output = path_buf.clone();
-            OutputDirective::File
-        }
-    } else {
-        OutputDirective::Stdout
-    };
-
-    // Create output format (handles Mute when no_output)
-    let format = OutputFormat::new(&args.format, args.templates.clone(), no_output)?;
+    // Create output processor (handles format, path, directive, and mute)
+    let output = OutputProcessor::new(&args.format, args.templates.clone(), args.output.as_ref())?;
 
     info!("Weaver Registry Live Check");
 
@@ -435,7 +444,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
 
-    let report_mode = if let OutputDirective::File = output_directive {
+    let report_mode = if output.is_file_output() {
         // File output forces report mode
         true
     } else {
@@ -457,9 +466,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
             samples.push(sample);
         } else {
             // Output this sample immediately (streaming mode)
-            format
-                .generate(&sample, output.as_path(), &output_directive)
-                .map_err(DiagnosticMessages::from)?;
+            output.generate(&sample).map_err(DiagnosticMessages::from)?;
         }
     }
 
@@ -472,14 +479,12 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         }
 
         if report_mode {
-            format
-                .generate_report(samples, stats, output.as_path(), &output_directive)
+            output
+                .generate_report(samples, stats)
                 .map_err(DiagnosticMessages::from)?;
         } else {
             // Stats only (streaming mode finished)
-            format
-                .generate(&stats, output.as_path(), &output_directive)
-                .map_err(DiagnosticMessages::from)?;
+            output.generate(&stats).map_err(DiagnosticMessages::from)?;
         }
     }
 
