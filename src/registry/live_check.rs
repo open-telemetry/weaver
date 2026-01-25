@@ -174,7 +174,7 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
 
 /// Generate output for a complete report - handles JSONL special case
 fn generate_report(
-    output: &OutputProcessor,
+    output: &mut OutputProcessor,
     samples: Vec<Sample>,
     stats: LiveCheckStatistics,
 ) -> Result<(), weaver_forge::error::Error> {
@@ -199,7 +199,7 @@ fn generate_report(
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let output = OutputProcessor::new(
+    let mut output = OutputProcessor::new(
         &args.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
@@ -298,6 +298,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     } else {
         LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
     };
+
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
@@ -310,20 +311,17 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         }
     }
 
-    // Finalize and output stats if stats are enabled
-    if !args.no_stats {
-        stats.finalize();
-        // Set the exit_code to a non-zero code if there are any violations
-        if stats.has_violations() {
-            exit_code = 1;
-        }
+    stats.finalize();
+    // Set the exit_code to a non-zero code if there are any violations
+    if stats.has_violations() {
+        exit_code = 1;
+    }
 
-        if report_mode {
-            generate_report(&output, samples, stats).map_err(DiagnosticMessages::from)?;
-        } else {
-            // Stats only (streaming mode finished)
-            output.generate(&stats).map_err(DiagnosticMessages::from)?;
-        }
+    if report_mode {
+        generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
+    } else {
+        // Stats only (streaming mode finished)
+        output.generate(&stats).map_err(DiagnosticMessages::from)?;
     }
 
     // Shutdown OTLP emitter to flush any pending log records

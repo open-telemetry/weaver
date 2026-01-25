@@ -2,7 +2,9 @@
 
 //! General-purpose output processor supporting builtin formats and templates.
 
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 
 use include_dir::Dir;
 use serde::Serialize;
@@ -23,6 +25,8 @@ pub enum OutputProcessor {
         path: PathBuf,
         /// Output directive (Stdout or File)
         directive: OutputDirective,
+        /// Open file handle (for file output)
+        file: Option<File>,
     },
     /// YAML format
     Yaml {
@@ -32,6 +36,8 @@ pub enum OutputProcessor {
         path: PathBuf,
         /// Output directive (Stdout or File)
         directive: OutputDirective,
+        /// Open file handle (for file output)
+        file: Option<File>,
     },
     /// JSONL format - compact, one object per line
     Jsonl {
@@ -41,6 +47,8 @@ pub enum OutputProcessor {
         path: PathBuf,
         /// Output directive (Stdout or File)
         directive: OutputDirective,
+        /// Open file handle (for file output)
+        file: Option<File>,
     },
     /// Template-based format
     Template {
@@ -89,16 +97,19 @@ impl OutputProcessor {
                 prefix,
                 path,
                 directive,
+                file: None,
             }),
             "yaml" => Ok(OutputProcessor::Yaml {
                 prefix,
                 path,
                 directive,
+                file: None,
             }),
             "jsonl" => Ok(OutputProcessor::Jsonl {
                 prefix,
                 path,
                 directive,
+                file: None,
             }),
             template_name => {
                 // Templates require embedded_templates and templates_path
@@ -120,41 +131,94 @@ impl OutputProcessor {
         }
     }
 
-    /// Generate output for serializable data
-    pub fn generate<T: Serialize>(&self, data: &T) -> Result<(), Error> {
+    /// Open/create the output file if not already open.
+    /// For stdout, this is a no-op. Idempotent - safe to call multiple times.
+    fn open(&mut self) -> Result<(), Error> {
         match self {
             OutputProcessor::Json {
                 prefix,
                 path,
                 directive,
+                file,
             } => {
-                let content =
-                    serde_json::to_string_pretty(data).map_err(|e| Error::SerializationError {
-                        error: e.to_string(),
-                    })?;
-                Self::write_output(&content, path, directive, &format!("{prefix}.json"))
+                if *directive == OutputDirective::File && file.is_none() {
+                    *file = Some(Self::create_file(path, &format!("{prefix}.json"))?);
+                }
+                Ok(())
             }
             OutputProcessor::Yaml {
                 prefix,
                 path,
                 directive,
+                file,
             } => {
-                let content =
-                    serde_yaml::to_string(data).map_err(|e| Error::SerializationError {
-                        error: e.to_string(),
-                    })?;
-                Self::write_output(&content, path, directive, &format!("{prefix}.yaml"))
+                if *directive == OutputDirective::File && file.is_none() {
+                    *file = Some(Self::create_file(path, &format!("{prefix}.yaml"))?);
+                }
+                Ok(())
             }
             OutputProcessor::Jsonl {
                 prefix,
                 path,
                 directive,
+                file,
+            } => {
+                if *directive == OutputDirective::File && file.is_none() {
+                    *file = Some(Self::create_file(path, &format!("{prefix}.jsonl"))?);
+                }
+                Ok(())
+            }
+            OutputProcessor::Template { .. } | OutputProcessor::Mute => Ok(()),
+        }
+    }
+
+    /// Create/truncate a file and return the handle
+    fn create_file(path: &std::path::Path, filename: &str) -> Result<File, Error> {
+        let file_path = path.join(filename);
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| Error::WriteGeneratedCodeFailed {
+                template: file_path.clone(),
+                error: format!("Failed to create directory: {e}"),
+            })?;
+        }
+        File::create(&file_path).map_err(|e| Error::WriteGeneratedCodeFailed {
+            template: file_path,
+            error: e.to_string(),
+        })
+    }
+
+    /// Generate output for serializable data.
+    /// For file output, lazily opens the file on first call.
+    #[allow(clippy::print_stdout)]
+    pub fn generate<T: Serialize>(&mut self, data: &T) -> Result<(), Error> {
+        self.open()?;
+        match self {
+            OutputProcessor::Json {
+                directive, file, ..
+            } => {
+                let content =
+                    serde_json::to_string_pretty(data).map_err(|e| Error::SerializationError {
+                        error: e.to_string(),
+                    })?;
+                Self::write_content(&content, directive, file)
+            }
+            OutputProcessor::Yaml {
+                directive, file, ..
+            } => {
+                let content =
+                    serde_yaml::to_string(data).map_err(|e| Error::SerializationError {
+                        error: e.to_string(),
+                    })?;
+                Self::write_content(&content, directive, file)
+            }
+            OutputProcessor::Jsonl {
+                directive, file, ..
             } => {
                 let content =
                     serde_json::to_string(data).map_err(|e| Error::SerializationError {
                         error: e.to_string(),
                     })?;
-                Self::write_output(&content, path, directive, &format!("{prefix}.jsonl"))
+                Self::write_line(&content, directive, file)
             }
             OutputProcessor::Template {
                 engine,
@@ -165,13 +229,12 @@ impl OutputProcessor {
         }
     }
 
-    /// Write content to output destination
+    /// Write content to stdout or file
     #[allow(clippy::print_stdout)]
-    fn write_output(
+    fn write_content(
         content: &str,
-        path: &Path,
         directive: &OutputDirective,
-        filename: &str,
+        file: &mut Option<File>,
     ) -> Result<(), Error> {
         match directive {
             OutputDirective::Stdout => {
@@ -179,21 +242,39 @@ impl OutputProcessor {
                 Ok(())
             }
             OutputDirective::File => {
-                let file_path = path.join(filename);
-                if let Some(parent) = file_path.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| {
-                        Error::WriteGeneratedCodeFailed {
-                            template: file_path.clone(),
-                            error: format!("Failed to create directory: {e}"),
-                        }
-                    })?;
-                }
-                std::fs::write(&file_path, content).map_err(|e| Error::WriteGeneratedCodeFailed {
-                    template: file_path.clone(),
+                let f = file.as_mut().ok_or_else(|| Error::SerializationError {
+                    error: "File not opened. Call open() before generate().".to_owned(),
+                })?;
+                write!(f, "{content}").map_err(|e| Error::SerializationError {
                     error: e.to_string(),
                 })
             }
-            // Stderr is not reachable via OutputProcessor::new() but kept for exhaustiveness
+            OutputDirective::Stderr => {
+                unreachable!("OutputProcessor does not support Stderr directive")
+            }
+        }
+    }
+
+    /// Write a line to stdout or file (for JSONL)
+    #[allow(clippy::print_stdout)]
+    fn write_line(
+        content: &str,
+        directive: &OutputDirective,
+        file: &mut Option<File>,
+    ) -> Result<(), Error> {
+        match directive {
+            OutputDirective::Stdout => {
+                println!("{content}");
+                Ok(())
+            }
+            OutputDirective::File => {
+                let f = file.as_mut().ok_or_else(|| Error::SerializationError {
+                    error: "File not opened. Call open() before generate().".to_owned(),
+                })?;
+                writeln!(f, "{content}").map_err(|e| Error::SerializationError {
+                    error: e.to_string(),
+                })
+            }
             OutputDirective::Stderr => {
                 unreachable!("OutputProcessor does not support Stderr directive")
             }
@@ -302,7 +383,7 @@ mod tests {
     fn test_generate_json_to_file() {
         let temp_dir = TempDir::new().unwrap();
         let output_path = temp_dir.path().to_path_buf();
-        let output =
+        let mut output =
             OutputProcessor::new("json", "myprefix", None, None, Some(&output_path)).unwrap();
 
         output.generate(&test_data()).unwrap();
@@ -318,7 +399,7 @@ mod tests {
     fn test_generate_yaml_to_file() {
         let temp_dir = TempDir::new().unwrap();
         let output_path = temp_dir.path().to_path_buf();
-        let output =
+        let mut output =
             OutputProcessor::new("yaml", "myprefix", None, None, Some(&output_path)).unwrap();
 
         output.generate(&test_data()).unwrap();
@@ -334,7 +415,7 @@ mod tests {
     fn test_generate_jsonl_to_file() {
         let temp_dir = TempDir::new().unwrap();
         let output_path = temp_dir.path().to_path_buf();
-        let output =
+        let mut output =
             OutputProcessor::new("jsonl", "myprefix", None, None, Some(&output_path)).unwrap();
 
         output.generate(&test_data()).unwrap();
@@ -342,13 +423,36 @@ mod tests {
         let file_path = output_path.join("myprefix.jsonl");
         assert!(file_path.exists());
         let content = fs::read_to_string(&file_path).unwrap();
-        // JSONL should be compact (no pretty printing)
-        assert!(!content.contains('\n') || content.trim().lines().count() == 1);
+        // JSONL should be compact, one line
+        assert_eq!(content.trim().lines().count(), 1);
+    }
+
+    #[test]
+    fn test_jsonl_multiple_lines() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_path = temp_dir.path().to_path_buf();
+        let mut output =
+            OutputProcessor::new("jsonl", "myprefix", None, None, Some(&output_path)).unwrap();
+
+        output.generate(&test_data()).unwrap();
+        output
+            .generate(&TestData {
+                name: "second".to_owned(),
+                value: 99,
+            })
+            .unwrap();
+
+        let file_path = output_path.join("myprefix.jsonl");
+        let content = fs::read_to_string(&file_path).unwrap();
+        // Should have 2 lines
+        assert_eq!(content.trim().lines().count(), 2);
+        assert!(content.contains("\"name\":\"test\""));
+        assert!(content.contains("\"name\":\"second\""));
     }
 
     #[test]
     fn test_mute_generate_does_nothing() {
-        let output = OutputProcessor::Mute;
+        let mut output = OutputProcessor::Mute;
         // Should succeed without doing anything
         assert!(output.generate(&test_data()).is_ok());
         assert!(!output.is_file_output());
@@ -364,6 +468,7 @@ mod tests {
             prefix: "test".to_owned(),
             path: PathBuf::new(),
             directive: OutputDirective::Stdout,
+            file: None,
         };
         assert!(!json_stdout.is_file_output());
 
@@ -372,6 +477,7 @@ mod tests {
             prefix: "test".to_owned(),
             path: PathBuf::new(),
             directive: OutputDirective::File,
+            file: None,
         };
         assert!(json_file.is_file_output());
     }
