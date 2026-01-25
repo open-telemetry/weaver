@@ -215,6 +215,13 @@ pub enum Error {
         error: String,
     },
 
+    /// Failed to serialize data.
+    #[error("Serialization failed: {error}")]
+    SerializationError {
+        /// Error message.
+        error: String,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),

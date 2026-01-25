@@ -41,8 +41,11 @@ pub mod file_loader;
 mod filter;
 mod formats;
 pub mod jq;
+pub mod output_processor;
 pub mod registry;
 pub mod v2;
+
+pub use output_processor::OutputProcessor;
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
@@ -71,7 +74,7 @@ pub const COMMENT_START: &str = "{#";
 pub const COMMEND_END: &str = "#}";
 
 /// Enumeration defining where the output of program execution should be directed.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OutputDirective {
     /// Write the generated content to the standard output.
     Stdout,
