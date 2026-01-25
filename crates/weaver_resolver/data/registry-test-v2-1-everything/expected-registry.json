@@ -2,27 +2,12 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.data.registry-test-v2-1-everything.registry.http",
-      "type": "attribute_group",
-      "brief": "<synthetic v2>",
-      "attributes": [
-        0,
-        1
-      ],
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-v2-1-everything/registry/http.yaml"
-        }
-      }
-    },
-    {
       "id": "metric.http.server.request.duration",
       "type": "metric",
       "brief": "Duration of HTTP server requests.",
       "stability": "stable",
       "attributes": [
-        2,
+        1,
         3
       ],
       "metric_name": "http.server.request.duration",
@@ -58,6 +43,21 @@
               "requirement_level"
             ]
           }
+        }
+      }
+    },
+    {
+      "id": "registry.data.registry-test-v2-1-everything.registry.http",
+      "type": "attribute_group",
+      "brief": "<synthetic v2>",
+      "attributes": [
+        0,
+        2
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-1-everything/registry/http.yaml"
         }
       }
     }

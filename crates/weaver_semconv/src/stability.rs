@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 /// The level of stability for a definition. Defined in [OTEP-232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md)
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Stability {
@@ -25,6 +27,13 @@ pub enum Stability {
     Beta,
     /// A release candidate definition.
     ReleaseCandidate,
+}
+
+/// We provide a default for legacy repositories that did not specify a stability.
+impl Default for Stability {
+    fn default() -> Self {
+        Stability::Development
+    }
 }
 
 /// Implements a human readable display for the stability.

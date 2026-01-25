@@ -450,7 +450,7 @@ mod tests {
 
     fn test_registry() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: "v2/resolved".to_owned(),
+            file_format: "resolved/2.0.0".to_owned(),
             schema_url: "todo/1.0.0".to_owned(),
             registry_id: "main".to_owned(),
             attribute_catalog: vec![Attribute {
@@ -570,6 +570,7 @@ mod tests {
                     },
                 }],
             },
+            registry_manifest: None,
         }
     }
 }

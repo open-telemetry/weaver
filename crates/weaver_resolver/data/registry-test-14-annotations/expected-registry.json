@@ -6,8 +6,8 @@
       "type": "attribute_group",
       "brief": "Attributes",
       "attributes": [
-        0,
-        1
+        1,
+        2
       ],
       "lineage": {
         "provenance": {
@@ -16,10 +16,10 @@
         }
       },
       "annotations": {
-        "privacy_sensitivity": "PII",
         "code_generation": {
           "exclude": true
-        }
+        },
+        "privacy_sensitivity": "PII"
       }
     },
     {
@@ -27,7 +27,7 @@
       "type": "attribute_group",
       "brief": "Attributes",
       "attributes": [
-        2
+        0
       ],
       "lineage": {
         "provenance": {

@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use weaver_common::ordered_float::OrderedF64;
 
 /// The different types of values.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[serde(tag = "type")]
 #[must_use]
 pub enum Value {

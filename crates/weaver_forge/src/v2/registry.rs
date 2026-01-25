@@ -563,6 +563,7 @@ mod tests {
                     },
                 }],
             },
+            registry_manifest: None,
         };
 
         let forge_registry =
@@ -644,6 +645,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            registry_manifest: None,
         };
 
         let result = ForgeResolvedRegistry::try_from(resolved_schema);

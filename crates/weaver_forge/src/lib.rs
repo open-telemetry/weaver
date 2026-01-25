@@ -755,9 +755,10 @@ mod tests {
     use globset::Glob;
     use serde::Serialize;
 
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::diff_dir;
-    use weaver_resolver::SchemaResolver;
-    use weaver_semconv::registry::SemConvRegistry;
+    use weaver_resolver::{LoadedSemconvRegistry, SchemaResolver};
+    use weaver_semconv::registry_repo::RegistryRepo;
 
     use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};
     use crate::debug::print_dedup_errors;
@@ -772,7 +773,13 @@ mod tests {
         ignore_non_fatal_errors: bool,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let registry_id = "default";
-        let registry_result = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml");
+        let path: VirtualDirectoryPath = "data/registry"
+            .try_into()
+            .expect("Invalid virtual directory path string");
+        let repo =
+            RegistryRepo::try_new(registry_id, &path).expect("Failed to construct repository");
+        let registry_result = SchemaResolver::load_semconv_repository(repo, false);
+        // SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml");
         let registry = if ignore_non_fatal_errors {
             registry_result
                 .into_result_with_non_fatal()
@@ -789,14 +796,14 @@ mod tests {
     fn prepare_test_with_registry(
         target: &str,
         cli_params: Params,
-        mut registry: SemConvRegistry,
+        registry: LoadedSemconvRegistry,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
         let engine = TemplateEngine::try_new(config, loader, cli_params)
             .expect("Failed to create template engine");
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
+        let schema = SchemaResolver::resolve(registry, false)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
@@ -967,11 +974,16 @@ mod tests {
         engine.target_config.templates = Some(templates);
 
         let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+        let path: VirtualDirectoryPath = "data/registry"
+            .try_into()
+            .expect("Invalid virtual directory path string");
+        let repo =
+            RegistryRepo::try_new(registry_id, &path).expect("Failed to construct repository");
+        let loaded = SchemaResolver::load_semconv_repository(repo, false)
             .into_result_with_non_fatal()
             .expect("Failed to load registry")
             .0;
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
+        let schema = SchemaResolver::resolve(loaded, false)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
@@ -1092,14 +1104,17 @@ mod tests {
     #[test]
     fn test_comment_format() {
         let registry_id = "default";
-        let registry = SemConvRegistry::try_from_path_pattern(
-            registry_id,
-            "data/mini_registry_for_comments/*.yaml",
-        )
-        .into_result_failing_non_fatal()
-        .expect("Failed to load registry");
+        let path: VirtualDirectoryPath = "data/mini_registry_for_comments"
+            .try_into()
+            .expect("Invalid virtual directory path string");
+        let repo =
+            RegistryRepo::try_new(registry_id, &path).expect("Failed to construct repository");
+        let loaded = SchemaResolver::load_semconv_repository(repo, false)
+            .into_result_with_non_fatal()
+            .expect("Failed to load registry")
+            .0;
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test_with_registry("comment_format", Params::default(), registry);
+            prepare_test_with_registry("comment_format", Params::default(), loaded);
 
         engine
             .generate(

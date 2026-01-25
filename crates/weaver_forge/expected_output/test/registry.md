@@ -5,7 +5,7 @@ Url:
 # Attribute Groups
 
 - [attributes.jvm.memory](attribute_group/attributes_jvm_memory.md)
-- [registry.data.registry-http](attribute_group/registry_data_registry_http.md)
+- [registry.data.registry.registry-http](attribute_group/registry_data_registry_registry_http.md)
 - [registry.db](attribute_group/registry_db.md)
 - [registry.exception](attribute_group/registry_exception.md)
 - [registry.network](attribute_group/registry_network.md)

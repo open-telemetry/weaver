@@ -11,21 +11,6 @@ Kind: client
 ### Attributes
 
 
-#### Attribute `http.response.status_code`
-
-[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
-
-
-- Requirement Level: Recommended
-  
-- Type: int
-- Examples: [
-    200,
-]
-  
-- Stability: Stable
-  
-
 #### Attribute `http.request.method`
 
 HTTP request method.
@@ -55,6 +40,21 @@ Tracing instrumentations that do so, MUST also set `http.request.method_original
     "HEAD",
 ]
 - Sampling relevant: true
+  
+- Stability: Stable
+  
+
+#### Attribute `http.response.status_code`
+
+[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    200,
+]
   
 - Stability: Stable
   

@@ -509,7 +509,7 @@ impl GroupLineage {
 
     /// Returns the attribute lineage.
     #[must_use]
-    pub(crate) fn attribute(&self, attr_id: &str) -> Option<&AttributeLineage> {
+    pub fn attribute(&self, attr_id: &str) -> Option<&AttributeLineage> {
         self.attributes.get(attr_id)
     }
 

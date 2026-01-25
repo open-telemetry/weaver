@@ -11,20 +11,6 @@ Kind: client
 ### Attributes
 
 
-#### Attribute `db.system`
-
-An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-
-
-- Requirement Level: Required
-  
-- Tag: connection-level
-  
-- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
-  
-- Stability: Stable
-  
-
 #### Attribute `db.connection_string`
 
 The connection string used to connect to the database. It is recommended to remove embedded credentials.
@@ -41,21 +27,18 @@ The connection string used to connect to the database. It is recommended to remo
 - Stability: Stable
   
 
-#### Attribute `db.user`
+#### Attribute `db.instance.id`
 
-Username for accessing the database.
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
 
 
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: connection-level
   
 - Type: string
-- Examples: [
-    "readonly_user",
-    "reporting_user",
-]
+- Examples: mysql-e26b99z.example.com
   
 - Stability: Stable
   
@@ -122,13 +105,65 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
 - Stability: Stable
   
 
-#### Attribute `server.address`
+#### Attribute `db.redis.database_index`
 
-Name of the database host.
+The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.
 
 
 
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+- Requirement Level: Conditionally Required - If other than the default database (`0`).
+  
+- Tag: call-level-tech-specific
+  
+- Type: int
+- Examples: [
+    0,
+    1,
+    15,
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.statement`
+
+The full syntax of the Redis CLI command.
+
+
+
+For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
+
+- Requirement Level: Optional
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "HMSET myhash field1 'Hello' field2 'World'",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.system`
+
+An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Tag: connection-level
+  
+- Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, azure.cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
+  
+
+#### Attribute `db.user`
+
+Username for accessing the database.
+
+
 
 - Requirement Level: Recommended
   
@@ -136,30 +171,8 @@ When observed from the client side, and when communicating through an intermedia
   
 - Type: string
 - Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
+    "readonly_user",
+    "reporting_user",
 ]
   
 - Stability: Stable
@@ -245,57 +258,44 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
 
-#### Attribute `db.instance.id`
+#### Attribute `server.address`
 
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+Name of the database host.
 
 
 
-- Requirement Level: Optional
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
   
 - Tag: connection-level
   
 - Type: string
-- Examples: mysql-e26b99z.example.com
-  
-- Stability: Stable
-  
-
-#### Attribute `db.redis.database_index`
-
-The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.
-
-
-
-- Requirement Level: Conditionally Required - If other than the default database (`0`).
-  
-- Tag: call-level-tech-specific
-  
-- Type: int
 - Examples: [
-    0,
-    1,
-    15,
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
 ]
   
 - Stability: Stable
   
 
-#### Attribute `db.statement`
+#### Attribute `server.port`
 
-The full syntax of the Redis CLI command.
+Server port number.
 
 
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
 
-For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
-
-- Requirement Level: Optional
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
   
-- Tag: call-level-tech-specific
+- Tag: connection-level
   
-- Type: string
+- Type: int
 - Examples: [
-    "HMSET myhash field1 'Hello' field2 'World'",
+    80,
+    8080,
+    443,
 ]
   
 - Stability: Stable

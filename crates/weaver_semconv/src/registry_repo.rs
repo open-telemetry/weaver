@@ -18,7 +18,7 @@ pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 /// - A simple wrapper around a local directory
 /// - Initialized from a Git repository
 /// - Initialized from a Git archive
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct RegistryRepo {
     // A unique identifier for the registry (e.g. main, baseline, etc.)
     id: Arc<str>,

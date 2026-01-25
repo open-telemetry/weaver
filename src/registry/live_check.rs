@@ -302,7 +302,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
 
-        if report_mode && !args.no_stats {
+        if report_mode {
             samples.push(sample);
         } else {
             // Output this sample immediately (streaming mode)
