@@ -58,7 +58,6 @@ pub enum OutputProcessor {
 impl OutputProcessor {
     /// Create an OutputProcessor from format string and configuration
     ///
-    /// # Arguments
     /// * `format` - Format name: "json", "yaml", "jsonl", "mute", or a template name
     /// * `prefix` - Base filename prefix (e.g., "live_check" -> "live_check.json")
     /// * `embedded_templates` - Embedded template directory (required only for template formats)

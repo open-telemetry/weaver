@@ -199,7 +199,6 @@ fn generate_report(
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    // Create output processor (handles format, path, directive, and mute)
     let output = OutputProcessor::new(
         &args.format,
         "live_check",
