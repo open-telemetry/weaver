@@ -270,11 +270,11 @@ impl OutputProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Serialize;
+    use serde::{Deserialize, Serialize};
     use std::fs;
     use tempfile::TempDir;
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct TestData {
         name: String,
         value: i32,
@@ -319,53 +319,60 @@ mod tests {
     }
 
     #[test]
-    fn test_all_builtin_formats_to_file() {
-        let formats = [
-            ("json", BuiltinFormat::Json, "json"),
-            ("yaml", BuiltinFormat::Yaml, "yaml"),
-            ("jsonl", BuiltinFormat::Jsonl, "jsonl"),
-        ];
-        for (name, expected_format, ext) in formats {
-            let temp_dir = TempDir::new().unwrap();
-            let path = temp_dir.path().to_path_buf();
-            let mut output = OutputProcessor::new(name, "test", None, None, Some(&path))
-                .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
-            assert_eq!(output.builtin_format(), Some(expected_format), "{name}");
-            assert!(output.is_file_output(), "{name}");
+    fn test_json_format_to_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().to_path_buf();
+        let mut output = OutputProcessor::new("json", "test", None, None, Some(&path)).unwrap();
+        assert_eq!(output.builtin_format(), Some(BuiltinFormat::Json));
+        assert!(output.is_file_output());
 
-            output
-                .generate(&test_data())
-                .unwrap_or_else(|e| panic!("Failed to generate {name}: {e}"));
+        output.generate(&test_data()).unwrap();
 
-            let file_path = path.join(format!("test.{ext}"));
-            assert!(file_path.exists(), "{name}: file should exist");
-            let content = fs::read_to_string(&file_path)
-                .unwrap_or_else(|e| panic!("Failed to read {name}: {e}"));
-            assert!(content.contains("test"), "{name}: should contain test data");
-            assert!(content.contains("42"), "{name}: should contain value");
-        }
+        let file_path = path.join("test.json");
+        let content = fs::read_to_string(&file_path).unwrap();
+        let parsed: TestData = serde_json::from_str(&content).unwrap();
+        assert_eq!(parsed, test_data());
     }
 
     #[test]
-    fn test_jsonl_multiple_lines() {
+    fn test_yaml_format_to_file() {
         let temp_dir = TempDir::new().unwrap();
-        let output_path = temp_dir.path().to_path_buf();
-        let mut output =
-            OutputProcessor::new("jsonl", "myprefix", None, None, Some(&output_path)).unwrap();
+        let path = temp_dir.path().to_path_buf();
+        let mut output = OutputProcessor::new("yaml", "test", None, None, Some(&path)).unwrap();
+        assert_eq!(output.builtin_format(), Some(BuiltinFormat::Yaml));
+        assert!(output.is_file_output());
 
         output.generate(&test_data()).unwrap();
-        output
-            .generate(&TestData {
-                name: "second".to_owned(),
-                value: 99,
-            })
-            .unwrap();
 
-        let file_path = output_path.join("myprefix.jsonl");
+        let file_path = path.join("test.yaml");
         let content = fs::read_to_string(&file_path).unwrap();
-        assert_eq!(content.trim().lines().count(), 2);
-        assert!(content.contains("\"name\":\"test\""));
-        assert!(content.contains("\"name\":\"second\""));
+        let parsed: TestData = serde_yaml::from_str(&content).unwrap();
+        assert_eq!(parsed, test_data());
+    }
+
+    #[test]
+    fn test_jsonl_format_to_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().to_path_buf();
+        let mut output = OutputProcessor::new("jsonl", "test", None, None, Some(&path)).unwrap();
+        assert_eq!(output.builtin_format(), Some(BuiltinFormat::Jsonl));
+        assert!(output.is_file_output());
+
+        let second = TestData {
+            name: "second".to_owned(),
+            value: 99,
+        };
+        output.generate(&test_data()).unwrap();
+        output.generate(&second).unwrap();
+
+        let file_path = path.join("test.jsonl");
+        let content = fs::read_to_string(&file_path).unwrap();
+        let lines: Vec<&str> = content.trim().lines().collect();
+        assert_eq!(lines.len(), 2);
+        let parsed_first: TestData = serde_json::from_str(lines[0]).unwrap();
+        let parsed_second: TestData = serde_json::from_str(lines[1]).unwrap();
+        assert_eq!(parsed_first, test_data());
+        assert_eq!(parsed_second, second);
     }
 
     #[test]
