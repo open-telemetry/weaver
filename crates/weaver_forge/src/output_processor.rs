@@ -440,9 +440,14 @@ mod tests {
     fn test_template_format_to_file() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_path_buf();
-        let mut output =
-            OutputProcessor::new("simple", "test", Some(&EMBEDDED_TEMPLATES), None, Some(&path))
-                .unwrap();
+        let mut output = OutputProcessor::new(
+            "simple",
+            "test",
+            Some(&EMBEDDED_TEMPLATES),
+            None,
+            Some(&path),
+        )
+        .unwrap();
         assert!(output.builtin_format().is_none());
         assert!(output.is_file_output());
 
