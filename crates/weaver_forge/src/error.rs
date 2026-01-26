@@ -222,6 +222,15 @@ pub enum Error {
         error: String,
     },
 
+    /// Output file operation failed.
+    #[error("Output file `{path}` failed: {error}")]
+    OutputFileError {
+        /// File path.
+        path: PathBuf,
+        /// Error message.
+        error: String,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),

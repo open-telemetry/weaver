@@ -179,11 +179,14 @@ fn generate_report(
     stats: LiveCheckStatistics,
 ) -> Result<(), weaver_forge::error::Error> {
     // Special JSONL handling: one line per sample, stats at end
-    if matches!(output, OutputProcessor::Jsonl { .. }) {
+    if output.builtin_format() == Some(weaver_forge::output_processor::BuiltinFormat::Jsonl) {
         for sample in &samples {
             output.generate(sample)?;
         }
-        output.generate(&stats)
+        match stats {
+            LiveCheckStatistics::Cumulative(_) => output.generate(&stats),
+            LiveCheckStatistics::Disabled(_) => Ok(()),
+        }
     } else if matches!(output, OutputProcessor::Mute) {
         Ok(())
     } else {

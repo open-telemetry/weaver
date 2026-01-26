@@ -14,34 +14,62 @@ use crate::error::Error;
 use crate::file_loader::EmbeddedFileLoader;
 use crate::{OutputDirective, TemplateEngine};
 
+/// Builtin serialization formats
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuiltinFormat {
+    /// JSON - pretty-printed
+    Json,
+    /// YAML
+    Yaml,
+    /// JSONL - compact JSON, one object per line
+    Jsonl,
+}
+
+impl BuiltinFormat {
+    /// File extension for this format
+    fn extension(&self) -> &'static str {
+        match self {
+            BuiltinFormat::Json => "json",
+            BuiltinFormat::Yaml => "yaml",
+            BuiltinFormat::Jsonl => "jsonl",
+        }
+    }
+
+    /// Serialize data to string
+    fn serialize<T: Serialize>(&self, data: &T) -> Result<String, Error> {
+        match self {
+            BuiltinFormat::Json => {
+                serde_json::to_string_pretty(data).map_err(|e| Error::SerializationError {
+                    error: e.to_string(),
+                })
+            }
+            BuiltinFormat::Yaml => {
+                serde_yaml::to_string(data).map_err(|e| Error::SerializationError {
+                    error: e.to_string(),
+                })
+            }
+            BuiltinFormat::Jsonl => {
+                serde_json::to_string(data).map_err(|e| Error::SerializationError {
+                    error: e.to_string(),
+                })
+            }
+        }
+    }
+
+    /// Whether this format appends a newline after each generate call
+    fn is_line_oriented(&self) -> bool {
+        matches!(self, BuiltinFormat::Jsonl)
+    }
+}
+
 /// Output processor - handles output generation with builtin formats or templates
 #[allow(clippy::large_enum_variant)]
 pub enum OutputProcessor {
-    /// JSON format - pretty-printed
-    Json {
+    /// Builtin format (JSON, YAML, JSONL)
+    Builtin {
+        /// The serialization format
+        format: BuiltinFormat,
         /// Filename prefix (e.g., "live_check" -> "live_check.json")
-        prefix: String,
-        /// Output path
-        path: PathBuf,
-        /// Output directive (Stdout or File)
-        directive: OutputDirective,
-        /// Open file handle (for file output)
-        file: Option<File>,
-    },
-    /// YAML format
-    Yaml {
-        /// Filename prefix (e.g., "live_check" -> "live_check.yaml")
-        prefix: String,
-        /// Output path
-        path: PathBuf,
-        /// Output directive (Stdout or File)
-        directive: OutputDirective,
-        /// Open file handle (for file output)
-        file: Option<File>,
-    },
-    /// JSONL format - compact, one object per line
-    Jsonl {
-        /// Filename prefix (e.g., "live_check" -> "live_check.jsonl")
         prefix: String,
         /// Output path
         path: PathBuf,
@@ -89,30 +117,30 @@ impl OutputProcessor {
             None => (PathBuf::from("output"), OutputDirective::Stdout),
         };
 
-        let prefix = prefix.to_owned();
-
         match format.to_lowercase().as_str() {
             "mute" => Ok(OutputProcessor::Mute),
-            "json" => Ok(OutputProcessor::Json {
-                prefix,
+            "json" => Ok(OutputProcessor::Builtin {
+                format: BuiltinFormat::Json,
+                prefix: prefix.to_owned(),
                 path,
                 directive,
                 file: None,
             }),
-            "yaml" => Ok(OutputProcessor::Yaml {
-                prefix,
+            "yaml" => Ok(OutputProcessor::Builtin {
+                format: BuiltinFormat::Yaml,
+                prefix: prefix.to_owned(),
                 path,
                 directive,
                 file: None,
             }),
-            "jsonl" => Ok(OutputProcessor::Jsonl {
-                prefix,
+            "jsonl" => Ok(OutputProcessor::Builtin {
+                format: BuiltinFormat::Jsonl,
+                prefix: prefix.to_owned(),
                 path,
                 directive,
                 file: None,
             }),
             template_name => {
-                // Templates require embedded_templates and templates_path
                 let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
                     template_dir: PathBuf::from(template_name),
                     error: "Template format requires embedded_templates parameter".to_owned(),
@@ -132,93 +160,51 @@ impl OutputProcessor {
     }
 
     /// Open/create the output file if not already open.
-    /// For stdout, this is a no-op. Idempotent - safe to call multiple times.
     fn open(&mut self) -> Result<(), Error> {
-        match self {
-            OutputProcessor::Json {
-                prefix,
-                path,
-                directive,
-                file,
-            } => {
-                if *directive == OutputDirective::File && file.is_none() {
-                    *file = Some(Self::create_file(path, &format!("{prefix}.json"))?);
-                }
-                Ok(())
+        if let OutputProcessor::Builtin {
+            format,
+            prefix,
+            path,
+            directive,
+            file,
+        } = self
+        {
+            if *directive == OutputDirective::File && file.is_none() {
+                let filename = format!("{}.{}", prefix, format.extension());
+                *file = Some(Self::create_file(path, &filename)?);
             }
-            OutputProcessor::Yaml {
-                prefix,
-                path,
-                directive,
-                file,
-            } => {
-                if *directive == OutputDirective::File && file.is_none() {
-                    *file = Some(Self::create_file(path, &format!("{prefix}.yaml"))?);
-                }
-                Ok(())
-            }
-            OutputProcessor::Jsonl {
-                prefix,
-                path,
-                directive,
-                file,
-            } => {
-                if *directive == OutputDirective::File && file.is_none() {
-                    *file = Some(Self::create_file(path, &format!("{prefix}.jsonl"))?);
-                }
-                Ok(())
-            }
-            OutputProcessor::Template { .. } | OutputProcessor::Mute => Ok(()),
         }
+        Ok(())
     }
 
     /// Create/truncate a file and return the handle
     fn create_file(path: &std::path::Path, filename: &str) -> Result<File, Error> {
         let file_path = path.join(filename);
         if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| Error::WriteGeneratedCodeFailed {
-                template: file_path.clone(),
+            std::fs::create_dir_all(parent).map_err(|e| Error::OutputFileError {
+                path: file_path.clone(),
                 error: format!("Failed to create directory: {e}"),
             })?;
         }
-        File::create(&file_path).map_err(|e| Error::WriteGeneratedCodeFailed {
-            template: file_path,
+        File::create(&file_path).map_err(|e| Error::OutputFileError {
+            path: file_path,
             error: e.to_string(),
         })
     }
 
     /// Generate output for serializable data.
-    /// For file output, lazily opens the file on first call.
     #[allow(clippy::print_stdout)]
     pub fn generate<T: Serialize>(&mut self, data: &T) -> Result<(), Error> {
         self.open()?;
         match self {
-            OutputProcessor::Json {
-                directive, file, ..
+            OutputProcessor::Builtin {
+                format,
+                directive,
+                file,
+                ..
             } => {
-                let content =
-                    serde_json::to_string_pretty(data).map_err(|e| Error::SerializationError {
-                        error: e.to_string(),
-                    })?;
-                Self::write_content(&content, directive, file)
-            }
-            OutputProcessor::Yaml {
-                directive, file, ..
-            } => {
-                let content =
-                    serde_yaml::to_string(data).map_err(|e| Error::SerializationError {
-                        error: e.to_string(),
-                    })?;
-                Self::write_content(&content, directive, file)
-            }
-            OutputProcessor::Jsonl {
-                directive, file, ..
-            } => {
-                let content =
-                    serde_json::to_string(data).map_err(|e| Error::SerializationError {
-                        error: e.to_string(),
-                    })?;
-                Self::write_line(&content, directive, file)
+                let content = format.serialize(data)?;
+                Self::write(&content, directive, file, format.is_line_oriented())
             }
             OutputProcessor::Template {
                 engine,
@@ -231,10 +217,11 @@ impl OutputProcessor {
 
     /// Write content to stdout or file
     #[allow(clippy::print_stdout)]
-    fn write_content(
+    fn write(
         content: &str,
         directive: &OutputDirective,
         file: &mut Option<File>,
+        with_newline: bool,
     ) -> Result<(), Error> {
         match directive {
             OutputDirective::Stdout => {
@@ -243,35 +230,14 @@ impl OutputProcessor {
             }
             OutputDirective::File => {
                 let f = file.as_mut().ok_or_else(|| Error::SerializationError {
-                    error: "File not opened. Call open() before generate().".to_owned(),
+                    error: "File not opened".to_owned(),
                 })?;
-                write!(f, "{content}").map_err(|e| Error::SerializationError {
-                    error: e.to_string(),
-                })
-            }
-            OutputDirective::Stderr => {
-                unreachable!("OutputProcessor does not support Stderr directive")
-            }
-        }
-    }
-
-    /// Write a line to stdout or file (for JSONL)
-    #[allow(clippy::print_stdout)]
-    fn write_line(
-        content: &str,
-        directive: &OutputDirective,
-        file: &mut Option<File>,
-    ) -> Result<(), Error> {
-        match directive {
-            OutputDirective::Stdout => {
-                println!("{content}");
-                Ok(())
-            }
-            OutputDirective::File => {
-                let f = file.as_mut().ok_or_else(|| Error::SerializationError {
-                    error: "File not opened. Call open() before generate().".to_owned(),
-                })?;
-                writeln!(f, "{content}").map_err(|e| Error::SerializationError {
+                if with_newline {
+                    writeln!(f, "{content}")
+                } else {
+                    write!(f, "{content}")
+                }
+                .map_err(|e| Error::SerializationError {
                     error: e.to_string(),
                 })
             }
@@ -285,11 +251,18 @@ impl OutputProcessor {
     #[must_use]
     pub fn is_file_output(&self) -> bool {
         match self {
-            OutputProcessor::Json { directive, .. }
-            | OutputProcessor::Yaml { directive, .. }
-            | OutputProcessor::Jsonl { directive, .. }
+            OutputProcessor::Builtin { directive, .. }
             | OutputProcessor::Template { directive, .. } => *directive == OutputDirective::File,
             OutputProcessor::Mute => false,
+        }
+    }
+
+    /// Returns the builtin format if this is a builtin processor
+    #[must_use]
+    pub fn builtin_format(&self) -> Option<BuiltinFormat> {
+        match self {
+            OutputProcessor::Builtin { format, .. } => Some(*format),
+            _ => None,
         }
     }
 }
@@ -332,7 +305,8 @@ mod tests {
         let output = OutputProcessor::new("json", "test", None, None, None).unwrap();
         assert!(matches!(
             output,
-            OutputProcessor::Json {
+            OutputProcessor::Builtin {
+                format: BuiltinFormat::Json,
                 directive: OutputDirective::Stdout,
                 ..
             }
@@ -345,7 +319,8 @@ mod tests {
         let output = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
         assert!(matches!(
             output,
-            OutputProcessor::Yaml {
+            OutputProcessor::Builtin {
+                format: BuiltinFormat::Yaml,
                 directive: OutputDirective::Stdout,
                 ..
             }
@@ -357,7 +332,8 @@ mod tests {
         let output = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
         assert!(matches!(
             output,
-            OutputProcessor::Jsonl {
+            OutputProcessor::Builtin {
+                format: BuiltinFormat::Jsonl,
                 directive: OutputDirective::Stdout,
                 ..
             }
@@ -371,7 +347,8 @@ mod tests {
         let output = OutputProcessor::new("json", "test", None, None, Some(&output_path)).unwrap();
         assert!(matches!(
             output,
-            OutputProcessor::Json {
+            OutputProcessor::Builtin {
+                format: BuiltinFormat::Json,
                 directive: OutputDirective::File,
                 ..
             }
@@ -423,7 +400,6 @@ mod tests {
         let file_path = output_path.join("myprefix.jsonl");
         assert!(file_path.exists());
         let content = fs::read_to_string(&file_path).unwrap();
-        // JSONL should be compact, one line
         assert_eq!(content.trim().lines().count(), 1);
     }
 
@@ -444,7 +420,6 @@ mod tests {
 
         let file_path = output_path.join("myprefix.jsonl");
         let content = fs::read_to_string(&file_path).unwrap();
-        // Should have 2 lines
         assert_eq!(content.trim().lines().count(), 2);
         assert!(content.contains("\"name\":\"test\""));
         assert!(content.contains("\"name\":\"second\""));
@@ -453,48 +428,49 @@ mod tests {
     #[test]
     fn test_mute_generate_does_nothing() {
         let mut output = OutputProcessor::Mute;
-        // Should succeed without doing anything
         assert!(output.generate(&test_data()).is_ok());
         assert!(!output.is_file_output());
     }
 
     #[test]
     fn test_is_file_output() {
-        // Mute is not file output
         assert!(!OutputProcessor::Mute.is_file_output());
 
-        // Stdout variants are not file output
-        let json_stdout = OutputProcessor::Json {
+        let builtin_stdout = OutputProcessor::Builtin {
+            format: BuiltinFormat::Json,
             prefix: "test".to_owned(),
             path: PathBuf::new(),
             directive: OutputDirective::Stdout,
             file: None,
         };
-        assert!(!json_stdout.is_file_output());
+        assert!(!builtin_stdout.is_file_output());
 
-        // File variants are file output
-        let json_file = OutputProcessor::Json {
+        let builtin_file = OutputProcessor::Builtin {
+            format: BuiltinFormat::Json,
             prefix: "test".to_owned(),
             path: PathBuf::new(),
             directive: OutputDirective::File,
             file: None,
         };
-        assert!(json_file.is_file_output());
+        assert!(builtin_file.is_file_output());
     }
 
     #[test]
     fn test_format_case_insensitive() {
-        // JSON in various cases
         assert!(matches!(
             OutputProcessor::new("JSON", "test", None, None, None),
-            Ok(OutputProcessor::Json { .. })
+            Ok(OutputProcessor::Builtin {
+                format: BuiltinFormat::Json,
+                ..
+            })
         ));
         assert!(matches!(
             OutputProcessor::new("Json", "test", None, None, None),
-            Ok(OutputProcessor::Json { .. })
+            Ok(OutputProcessor::Builtin {
+                format: BuiltinFormat::Json,
+                ..
+            })
         ));
-
-        // MUTE in various cases
         assert!(matches!(
             OutputProcessor::new("MUTE", "test", None, None, None),
             Ok(OutputProcessor::Mute)
@@ -503,8 +479,21 @@ mod tests {
 
     #[test]
     fn test_template_format_requires_embedded_templates() {
-        // Unknown format treated as template name - should fail without embedded_templates
         let result = OutputProcessor::new("ansi", "test", None, None, None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_builtin_format_accessor() {
+        let json = OutputProcessor::new("json", "test", None, None, None).unwrap();
+        assert_eq!(json.builtin_format(), Some(BuiltinFormat::Json));
+
+        let yaml = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
+        assert_eq!(yaml.builtin_format(), Some(BuiltinFormat::Yaml));
+
+        let jsonl = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
+        assert_eq!(jsonl.builtin_format(), Some(BuiltinFormat::Jsonl));
+
+        assert_eq!(OutputProcessor::Mute.builtin_format(), None);
     }
 }
