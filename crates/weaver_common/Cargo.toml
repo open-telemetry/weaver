@@ -23,6 +23,7 @@ once_cell.workspace = true
 schemars.workspace = true
 ureq.workspace = true
 log.workspace = true
+url.workspace = true
 
 tempfile.workspace = true
 dirs = "6.0.0"

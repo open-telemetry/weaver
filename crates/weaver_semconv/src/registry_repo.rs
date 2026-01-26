@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use crate::manifest::RegistryManifest;
 use crate::Error;
-use weaver_common::log_info;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
+use weaver_common::{get_path_type, log_info};
 
 /// The name of the registry manifest file.
 pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
@@ -80,11 +80,18 @@ impl RegistryRepo {
 
     /// Returns the resolved schema URL, if available in the manifest.
     #[must_use]
-    pub fn resolved_schema_url(&self) -> Option<&String> {
-        // TODO - Do we need to make the URL *relative* to our registry path?
-        self.manifest
-            .as_ref()
-            .and_then(|m| m.resolved_schema_url.as_ref())
+    pub fn resolved_schema_url(&self) -> Option<String> {
+        let manifest_path = self.manifest_path()?;
+        let manifest = self.manifest.as_ref()?;
+        let resolved_url = manifest.resolved_schema_url.as_ref()?;
+        match get_path_type(resolved_url) {
+            weaver_common::PathType::RelativePath => {
+                // Fix up relative paths to be absolute.
+                let parent = manifest_path.parent()?.to_path_buf();
+                Some(format!("{}", parent.join(resolved_url).display()))
+            }
+            _ => Some(resolved_url.to_owned()),
+        }
     }
 
     /// Returns the path to the `registry_manifest.yaml` file (if any).
@@ -143,5 +150,44 @@ mod tests {
         drop(repo);
         // The local folder should not be deleted.
         assert!(repo_path.exists());
+    }
+
+    #[test]
+    fn test_resolved_registry_path() {
+        // A RegistryRepo created from a local folder.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "tests/published_repository/resolved/1.0.0".to_owned(),
+        };
+        let repo =
+            RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
+        let Some(manifest) = repo.manifest() else {
+            panic!("Did not resolve manifest for repo: {repo:?}");
+        };
+        assert_eq!(manifest.name, "resolved");
+
+        let Some(resolved_path) = repo.resolved_schema_url() else {
+            panic!(
+                "Should find a resolved schema path from manfiest in {}",
+                repo.registry_path_repr()
+            );
+        };
+        assert_eq!(
+            "tests/published_repository/resolved/resolved_1.0.0.yaml",
+            resolved_path
+        );
+
+        // Now make sure a different repository with full URL works too.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "tests/published_repository/resolved/2.0.0".to_owned(),
+        };
+        let repo =
+            RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
+        let Some(resolved_path) = repo.resolved_schema_url() else {
+            panic!(
+                "Should find a resolved schema path from manfiest in {}",
+                repo.registry_path_repr()
+            );
+        };
+        assert_eq!("https://github.com/open-telemetry/weaver.git\\creates/weaver_semconv/tests/published_respository/resolved/resolved_2.0.0", resolved_path);
     }
 }
