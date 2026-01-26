@@ -1,0 +1,42 @@
+> set file_name = ctx.event_namespace | snake_case <
+{{- template.set_file_name("events/" ~ file_name ~ ".md") -}}
+# Events: `{{ ctx.event_namespace }}`
+
+This document describes the `{{ ctx.event_namespace }}` events.
+
+> for event in ctx.events <
+## `{{ event.id }}`
+
+{{ event.brief | default("") | trim }}
+
+> if event.note <
+{{ event.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+> if event.name <
+| Event Name | `{{ event.name }}` |
+> endif <
+> if event.stability <
+| Stability | {{ event.stability | capitalize }} |
+> endif <
+> if event.deprecated <
+| Deprecated | {{ event.deprecated.note }} |
+> endif <
+
+> if event.attributes <
+### Attributes
+
+| Attribute | Type | Required | Description |
+|-----------|------|----------|-------------|
+> for attr in event.attributes <
+> if attr.type is mapping <
+| `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> else <
+| `{{ attr.name }}` | `{{ attr.type }}` | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> endif <
+> endfor <
+
+> endif <
+> endfor <

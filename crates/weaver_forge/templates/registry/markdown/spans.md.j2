@@ -1,0 +1,42 @@
+> set file_name = ctx.root_namespace | snake_case <
+{{- template.set_file_name("spans/" ~ file_name ~ ".md") -}}
+# Spans: `{{ ctx.root_namespace }}`
+
+This document describes the `{{ ctx.root_namespace }}` spans.
+
+> for span in ctx.spans <
+## `{{ span.id }}`
+
+{{ span.brief | default("") | trim }}
+
+> if span.note <
+{{ span.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+> if span.span_kind <
+| Span Kind | {{ span.span_kind }} |
+> endif <
+> if span.stability <
+| Stability | {{ span.stability | capitalize }} |
+> endif <
+> if span.deprecated <
+| Deprecated | {{ span.deprecated.note }} |
+> endif <
+
+> if span.attributes <
+### Attributes
+
+| Attribute | Type | Required | Description |
+|-----------|------|----------|-------------|
+> for attr in span.attributes <
+> if attr.type is mapping <
+| `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> else <
+| `{{ attr.name }}` | `{{ attr.type }}` | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> endif <
+> endfor <
+
+> endif <
+> endfor <

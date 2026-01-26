@@ -1,0 +1,41 @@
+# Resources
+
+This document describes the resource semantic conventions.
+
+> for grouped_resources in ctx <
+## Namespace: `{{ grouped_resources.root_namespace }}`
+
+> for resource in grouped_resources.resources <
+### `{{ resource.id }}`
+
+{{ resource.brief | default("") | trim }}
+
+> if resource.note <
+{{ resource.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+> if resource.stability <
+| Stability | {{ resource.stability | capitalize }} |
+> endif <
+> if resource.deprecated <
+| Deprecated | {{ resource.deprecated.note }} |
+> endif <
+
+> if resource.attributes <
+#### Attributes
+
+| Attribute | Type | Required | Description |
+|-----------|------|----------|-------------|
+> for attr in resource.attributes <
+> if attr.type is mapping <
+| `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> else <
+| `{{ attr.name }}` | `{{ attr.type }}` | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> endif <
+> endfor <
+
+> endif <
+> endfor <
+> endfor <

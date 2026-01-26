@@ -1,0 +1,43 @@
+> set file_name = ctx.root_namespace | snake_case <
+{{- template.set_file_name("metrics/" ~ file_name ~ ".md") -}}
+# Metrics: `{{ ctx.root_namespace }}`
+
+This document describes the `{{ ctx.root_namespace }}` metrics.
+
+> for metric in ctx.metrics <
+## `{{ metric.metric_name }}`
+
+{{ metric.brief | default("") | trim }}
+
+> if metric.note <
+{{ metric.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+| Instrument | {{ metric.instrument }} |
+> if metric.unit <
+| Unit | `{{ metric.unit }}` |
+> endif <
+> if metric.stability <
+| Stability | {{ metric.stability | capitalize }} |
+> endif <
+> if metric.deprecated <
+| Deprecated | {{ metric.deprecated.note }} |
+> endif <
+
+> if metric.attributes <
+### Attributes
+
+| Attribute | Type | Required | Description |
+|-----------|------|----------|-------------|
+> for attr in metric.attributes <
+> if attr.type is mapping <
+| `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> else <
+| `{{ attr.name }}` | `{{ attr.type }}` | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
+> endif <
+> endfor <
+
+> endif <
+> endfor <

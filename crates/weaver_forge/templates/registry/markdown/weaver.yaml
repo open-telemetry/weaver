@@ -1,0 +1,46 @@
+# Weaver configuration for markdown documentation generation
+# Usage: weaver registry generate --templates <path> markdown <output>
+
+# Whitespace control settings for cleaner template output
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+templates:
+  # Attributes documentation (one file per namespace)
+  - template: attributes.md.j2
+    filter: semconv_grouped_attributes
+    application_mode: each
+
+  # Metrics documentation (one file per namespace)
+  - template: metrics.md.j2
+    filter: semconv_grouped_metrics
+    application_mode: each
+
+  # Spans documentation (one file per namespace)
+  - template: spans.md.j2
+    filter: >
+      semconv_signal("span"; {})
+      | group_by(.root_namespace)
+      | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
+    application_mode: each
+
+  # Events documentation (one file per namespace)
+  - template: events.md.j2
+    filter: >
+      .groups
+      | map(select(.type == "event"))
+      | map(. + {
+          event_namespace: (if .id | index(".") then (.id | split(".") | .[0:-1] | join(".")) else "other" end)
+        })
+      | group_by(.event_namespace)
+      | map({ event_namespace: .[0].event_namespace, events: . | sort_by(.id) })
+    application_mode: each
+
+  # Resources documentation
+  - template: resources.md.j2
+    filter: >
+      semconv_signal("resource"; {})
+      | group_by(.root_namespace)
+      | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
+    application_mode: single

@@ -1,0 +1,56 @@
+> set file_name = ctx.root_namespace | snake_case <
+{{- template.set_file_name("attributes/" ~ file_name ~ ".md") -}}
+# Attributes: `{{ ctx.root_namespace }}`
+
+This document describes the `{{ ctx.root_namespace }}` attributes.
+
+> for attribute in ctx.attributes <
+## `{{ attribute.name | default("UNNAMED") }}`
+
+{{ attribute.brief | default("") | trim }}
+
+> if attribute.note <
+{{ attribute.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+> if attribute.type is mapping <
+| Type | Enum: `{{ attribute.type.members | map(attribute="value") | join("`, `") }}`|
+> else <
+| Type | `{{ attribute.type }}` |
+> endif <
+> if attribute.requirement_level == "required" <
+| Requirement Level | **Required** |
+> elif attribute.requirement_level.conditionally_required <
+| Requirement Level | Conditionally Required: {{ attribute.requirement_level.conditionally_required }} |
+> elif attribute.requirement_level == "recommended" <
+| Requirement Level | Recommended |
+> else <
+| Requirement Level | Optional |
+> endif <
+> if attribute.stability <
+| Stability | {{ attribute.stability | capitalize }} |
+> endif <
+> if attribute.deprecated <
+| Deprecated | {{ attribute.deprecated.note }} |
+> endif <
+> if attribute.examples <
+> if attribute.examples is sequence <
+| Examples | `{{ attribute.examples | join("`, `") }}` |
+> else <
+| Examples | `{{ attribute.examples }}` |
+> endif <
+> endif <
+
+> if attribute.type is mapping and attribute.type.members <
+### Enum Values
+
+| Value | Description | Stability |
+|-------|-------------|-----------|
+> for member in attribute.type.members <
+| `{{ member.value }}` | {{ member.brief | default("-") | trim }} | {{ member.stability | default("-") | capitalize }} |
+> endfor <
+
+> endif <
+> endfor <
