@@ -305,7 +305,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
-
+        //TODO: Check for violations and set exit_code here for no-stats mode
         if report_mode {
             samples.push(sample);
         } else {
