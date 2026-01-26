@@ -13,6 +13,26 @@ use weaver_semconv::provenance::Provenance;
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
+    /// There was an issue resolving definition schema.
+    #[error(transparent)]
+    FailToResolveDefinition(#[from] weaver_semconv::Error),
+
+    /// We discovered a circular dependnecy we cannot resolve.
+    #[error("Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain}")]
+    CircularDependency {
+        /// The registry that depends on itself.
+        registry_id: String,
+        /// A string representing the dependency chain.
+        chain: String,
+    },
+
+    /// We've reached the maximum dependency depth for this registry.
+    #[error("Maximum dependency depth reached for registry `{registry}`. Cannot load further dependencies.")]
+    MaximumDependencyDepth {
+        /// The registry which has too many dependencies.
+        registry: String,
+    },
+
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
     #[diagnostic(help("Check the URL and try again."))]

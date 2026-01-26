@@ -932,19 +932,23 @@ mod tests {
                 test_dir.contains("prefix")
                     && matches!(
                         e,
-                        weaver_semconv::Error::InvalidGroupUsesPrefix {
-                            path_or_url: _,
-                            group_id: _
-                        }
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::InvalidGroupUsesPrefix {
+                                path_or_url: _,
+                                group_id: _
+                            }
+                        )
                     )
             })
             .ignore(|e| {
                 matches!(
                     e,
-                    weaver_semconv::Error::UnstableFileVersion {
-                        version: _,
-                        provenance: _,
-                    }
+                    crate::Error::FailToResolveDefinition(
+                        weaver_semconv::Error::UnstableFileVersion {
+                            version: _,
+                            provenance: _,
+                        }
+                    )
                 )
             })
             .into_result_failing_non_fatal()

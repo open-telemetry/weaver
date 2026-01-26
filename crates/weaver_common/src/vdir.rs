@@ -132,17 +132,17 @@ pub enum VirtualDirectoryPath {
 
 impl VirtualDirectoryPath {
     /// Converts a virtual directory path by manipulating the "sub folder".
-    /// 
+    ///
     /// Returning an empty string means no sub_folder will be used in resulting path.
-    /// 
+    ///
     /// Sub folder will be modified as follows:
-    /// 
+    ///
     /// - LocalFolder: will see the entire path
     /// - others: will see the path inside the archive or empty string if none.
     pub fn map_sub_folder<F: FnOnce(String) -> String>(self, f: F) -> VirtualDirectoryPath {
         match self {
             LocalFolder { path } => LocalFolder { path: f(path) },
-            LocalArchive { path, sub_folder } => LocalArchive { 
+            LocalArchive { path, sub_folder } => LocalArchive {
                 path,
                 sub_folder: {
                     let result = f(sub_folder.unwrap_or("".to_string()));
@@ -151,9 +151,9 @@ impl VirtualDirectoryPath {
                     } else {
                         Some(result)
                     }
-                }
+                },
             },
-            RemoteArchive { url, sub_folder } => RemoteArchive { 
+            RemoteArchive { url, sub_folder } => RemoteArchive {
                 url,
                 sub_folder: {
                     let result = f(sub_folder.unwrap_or("".to_string()));
@@ -162,9 +162,13 @@ impl VirtualDirectoryPath {
                     } else {
                         Some(result)
                     }
-                }
+                },
             },
-            GitRepo { url, refspec, sub_folder } => GitRepo { 
+            GitRepo {
+                url,
+                refspec,
+                sub_folder,
+            } => GitRepo {
                 url,
                 refspec,
                 sub_folder: {
@@ -174,7 +178,7 @@ impl VirtualDirectoryPath {
                     } else {
                         Some(result)
                     }
-                }
+                },
             },
         }
     }
@@ -743,7 +747,9 @@ impl VirtualDirectory {
     /// Returns the original `VirtualDirectoryRef` that was used to create this `VirtualDirectory`.
     #[must_use]
     pub fn vdir_path(&self) -> VirtualDirectoryPath {
-        self.vdir_path_str().try_into().expect("VirtualDirectory should not have invalid `vdir_path`.")
+        self.vdir_path_str()
+            .try_into()
+            .expect("VirtualDirectory should not have invalid `vdir_path`.")
     }
 
     /// Creates and returns a new temporary directory within `.weaver/vdir_cache`.
