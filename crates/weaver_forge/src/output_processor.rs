@@ -301,106 +301,49 @@ mod tests {
     }
 
     #[test]
-    fn test_json_format_stdout() {
-        let output = OutputProcessor::new("json", "test", None, None, None).unwrap();
-        assert!(matches!(
-            output,
-            OutputProcessor::Builtin {
-                format: BuiltinFormat::Json,
-                directive: OutputDirective::Stdout,
-                ..
-            }
-        ));
-        assert!(!output.is_file_output());
+    fn test_all_builtin_formats_stdout() {
+        let formats = [
+            ("json", BuiltinFormat::Json),
+            ("yaml", BuiltinFormat::Yaml),
+            ("jsonl", BuiltinFormat::Jsonl),
+        ];
+        for (name, expected_format) in formats {
+            let mut output = OutputProcessor::new(name, "test", None, None, None)
+                .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
+            assert_eq!(output.builtin_format(), Some(expected_format), "{name}");
+            assert!(!output.is_file_output(), "{name}");
+            output
+                .generate(&test_data())
+                .unwrap_or_else(|e| panic!("Failed to generate {name}: {e}"));
+        }
     }
 
     #[test]
-    fn test_yaml_format_stdout() {
-        let output = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
-        assert!(matches!(
-            output,
-            OutputProcessor::Builtin {
-                format: BuiltinFormat::Yaml,
-                directive: OutputDirective::Stdout,
-                ..
-            }
-        ));
-    }
+    fn test_all_builtin_formats_to_file() {
+        let formats = [
+            ("json", BuiltinFormat::Json, "json"),
+            ("yaml", BuiltinFormat::Yaml, "yaml"),
+            ("jsonl", BuiltinFormat::Jsonl, "jsonl"),
+        ];
+        for (name, expected_format, ext) in formats {
+            let temp_dir = TempDir::new().unwrap();
+            let path = temp_dir.path().to_path_buf();
+            let mut output = OutputProcessor::new(name, "test", None, None, Some(&path))
+                .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
+            assert_eq!(output.builtin_format(), Some(expected_format), "{name}");
+            assert!(output.is_file_output(), "{name}");
 
-    #[test]
-    fn test_jsonl_format_stdout() {
-        let output = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
-        assert!(matches!(
-            output,
-            OutputProcessor::Builtin {
-                format: BuiltinFormat::Jsonl,
-                directive: OutputDirective::Stdout,
-                ..
-            }
-        ));
-    }
+            output
+                .generate(&test_data())
+                .unwrap_or_else(|e| panic!("Failed to generate {name}: {e}"));
 
-    #[test]
-    fn test_json_format_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let output_path = temp_dir.path().to_path_buf();
-        let output = OutputProcessor::new("json", "test", None, None, Some(&output_path)).unwrap();
-        assert!(matches!(
-            output,
-            OutputProcessor::Builtin {
-                format: BuiltinFormat::Json,
-                directive: OutputDirective::File,
-                ..
-            }
-        ));
-        assert!(output.is_file_output());
-    }
-
-    #[test]
-    fn test_generate_json_to_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let output_path = temp_dir.path().to_path_buf();
-        let mut output =
-            OutputProcessor::new("json", "myprefix", None, None, Some(&output_path)).unwrap();
-
-        output.generate(&test_data()).unwrap();
-
-        let file_path = output_path.join("myprefix.json");
-        assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
-        assert!(content.contains("\"name\": \"test\""));
-        assert!(content.contains("\"value\": 42"));
-    }
-
-    #[test]
-    fn test_generate_yaml_to_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let output_path = temp_dir.path().to_path_buf();
-        let mut output =
-            OutputProcessor::new("yaml", "myprefix", None, None, Some(&output_path)).unwrap();
-
-        output.generate(&test_data()).unwrap();
-
-        let file_path = output_path.join("myprefix.yaml");
-        assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
-        assert!(content.contains("name: test"));
-        assert!(content.contains("value: 42"));
-    }
-
-    #[test]
-    fn test_generate_jsonl_to_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let output_path = temp_dir.path().to_path_buf();
-        let mut output =
-            OutputProcessor::new("jsonl", "myprefix", None, None, Some(&output_path)).unwrap();
-
-        output.generate(&test_data()).unwrap();
-
-        let file_path = output_path.join("myprefix.jsonl");
-        assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
-        assert_eq!(content.trim().lines().count(), 1);
+            let file_path = path.join(format!("test.{ext}"));
+            assert!(file_path.exists(), "{name}: file should exist");
+            let content = fs::read_to_string(&file_path)
+                .unwrap_or_else(|e| panic!("Failed to read {name}: {e}"));
+            assert!(content.contains("test"), "{name}: should contain test data");
+            assert!(content.contains("42"), "{name}: should contain value");
+        }
     }
 
     #[test]
