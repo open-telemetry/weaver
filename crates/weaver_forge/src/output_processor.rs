@@ -270,9 +270,12 @@ impl OutputProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use include_dir::{include_dir, Dir};
     use serde::{Deserialize, Serialize};
     use std::fs;
     use tempfile::TempDir;
+
+    static EMBEDDED_TEMPLATES: Dir<'_> = include_dir!("crates/weaver_forge/templates");
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct TestData {
@@ -431,6 +434,24 @@ mod tests {
     fn test_template_format_requires_embedded_templates() {
         let result = OutputProcessor::new("ansi", "test", None, None, None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_template_format_to_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().to_path_buf();
+        let mut output =
+            OutputProcessor::new("simple", "test", Some(&EMBEDDED_TEMPLATES), None, Some(&path))
+                .unwrap();
+        assert!(output.builtin_format().is_none());
+        assert!(output.is_file_output());
+
+        output.generate(&test_data()).unwrap();
+
+        let file_path = path.join("output.txt");
+        let content = fs::read_to_string(&file_path).unwrap();
+        assert!(content.contains("test"), "should contain name");
+        assert!(content.contains("42"), "should contain value");
     }
 
     #[test]
