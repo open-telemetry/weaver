@@ -157,7 +157,7 @@ impl JsonSchemaValidator {
                 ),
 
             ValidationErrorKind::AnyOf { context} =>
-                format!("The following YAML snippet does not match any of the allowed schemas.\n{}", self.build_variant_error_message(&context, indent)),
+                format!("The following YAML snippet does not match any of the allowed schemas.\n{}", self.build_variant_error_message(context, indent)),
 
             ValidationErrorKind::BacktrackLimitExceeded { error: e } =>
                 format!("Regex match failed: backtrack limit exceeded ({e})"),
