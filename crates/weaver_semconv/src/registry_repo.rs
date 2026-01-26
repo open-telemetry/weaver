@@ -15,9 +15,12 @@ use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
 /// A semantic convention registry repository that can be:
-/// - A simple wrapper around a local directory
-/// - Initialized from a Git repository
-/// - Initialized from a Git archive
+/// - A definition repository, which is one of:
+///   - A simple wrapper around a local directory
+///   - Initialized from a Git repository
+///   - Initialized from a Git archive
+/// - A published repository, which is a manifest file
+///   that denotes where to find aspects of the registry.
 #[derive(Default, Debug, Clone)]
 pub struct RegistryRepo {
     // A unique identifier for the registry (e.g. main, baseline, etc.)
@@ -75,9 +78,23 @@ impl RegistryRepo {
         self.manifest.as_ref()
     }
 
+    /// Returns the resolved schema URL, if available in the manifest.
+    #[must_use]
+    pub fn resolved_schema_url(&self) -> Option<&String> {
+        // TODO - Do we need to make the URL *relative* to our registry path?
+        self.manifest
+            .as_ref()
+            .and_then(|m| m.resolved_schema_url.as_ref())
+    }
+
     /// Returns the path to the `registry_manifest.yaml` file (if any).
     #[must_use]
     pub fn manifest_path(&self) -> Option<PathBuf> {
+        // First check to see if we're pointing at a manifest.
+        if self.registry.path().is_file() {
+            // The VirtualDirectory *is* the registry.
+            return Some(self.registry.path().to_path_buf());
+        }
         let manifest_path = self.registry.path().join(REGISTRY_MANIFEST);
         if manifest_path.exists() {
             log_info(format!(
