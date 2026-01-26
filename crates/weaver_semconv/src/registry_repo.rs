@@ -69,7 +69,7 @@ impl RegistryRepo {
     /// Returns the registry path textual representation.
     #[must_use]
     pub fn registry_path_repr(&self) -> &str {
-        self.registry.vdir_path()
+        self.registry.vdir_path_str()
     }
 
     /// Returns the registry manifest specified in the registry repo.
@@ -80,17 +80,24 @@ impl RegistryRepo {
 
     /// Returns the resolved schema URL, if available in the manifest.
     #[must_use]
-    pub fn resolved_schema_url(&self) -> Option<String> {
-        let manifest_path = self.manifest_path()?;
+    pub fn resolved_schema_url(&self) -> Option<VirtualDirectoryPath> {
         let manifest = self.manifest.as_ref()?;
-        let resolved_url = manifest.resolved_schema_url.as_ref()?;
+        let resolved_url: &str = manifest.resolved_schema_url.as_ref()?;
         match get_path_type(resolved_url) {
             weaver_common::PathType::RelativePath => {
-                // Fix up relative paths to be absolute.
-                let parent = manifest_path.parent()?.to_path_buf();
-                Some(format!("{}", parent.join(resolved_url).display()))
+                let vdir_was_manifest_file = self.manifest_path()?.is_file();
+                Some(self.registry.vdir_path().map_sub_folder(|path| {
+                    if vdir_was_manifest_file {
+                        match Path::new(&path).parent() {
+                            Some(parent) => format!("{}", parent.join(resolved_url).display()),
+                            None => format!(""),
+                        }
+                    } else {
+                        format!("{}", Path::new(&path).join(resolved_url).display())
+                    }
+                }))
             }
-            _ => Some(resolved_url.to_owned()),
+            _ => resolved_url.try_into().ok(),
         }
     }
 
@@ -173,7 +180,7 @@ mod tests {
         };
         assert_eq!(
             "tests/published_repository/resolved/resolved_1.0.0.yaml",
-            resolved_path
+            format!("{resolved_path}")
         );
 
         // Now make sure a different repository with full URL works too.
@@ -188,6 +195,6 @@ mod tests {
                 repo.registry_path_repr()
             );
         };
-        assert_eq!("https://github.com/open-telemetry/weaver.git\\creates/weaver_semconv/tests/published_respository/resolved/resolved_2.0.0", resolved_path);
+        assert_eq!("https://github.com/open-telemetry/weaver.git\\creates/weaver_semconv/tests/published_respository/resolved/resolved_2.0.0", format!("{resolved_path}"));
     }
 }

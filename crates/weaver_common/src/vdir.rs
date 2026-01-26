@@ -130,6 +130,56 @@ pub enum VirtualDirectoryPath {
     },
 }
 
+impl VirtualDirectoryPath {
+    /// Converts a virtual directory path by manipulating the "sub folder".
+    /// 
+    /// Returning an empty string means no sub_folder will be used in resulting path.
+    /// 
+    /// Sub folder will be modified as follows:
+    /// 
+    /// - LocalFolder: will see the entire path
+    /// - others: will see the path inside the archive or empty string if none.
+    pub fn map_sub_folder<F: FnOnce(String) -> String>(self, f: F) -> VirtualDirectoryPath {
+        match self {
+            LocalFolder { path } => LocalFolder { path: f(path) },
+            LocalArchive { path, sub_folder } => LocalArchive { 
+                path,
+                sub_folder: {
+                    let result = f(sub_folder.unwrap_or("".to_string()));
+                    if result.is_empty() {
+                        None
+                    } else {
+                        Some(result)
+                    }
+                }
+            },
+            RemoteArchive { url, sub_folder } => RemoteArchive { 
+                url,
+                sub_folder: {
+                    let result = f(sub_folder.unwrap_or("".to_string()));
+                    if result.is_empty() {
+                        None
+                    } else {
+                        Some(result)
+                    }
+                }
+            },
+            GitRepo { url, refspec, sub_folder } => GitRepo { 
+                url,
+                refspec,
+                sub_folder: {
+                    let result = f(sub_folder.unwrap_or("".to_string()));
+                    if result.is_empty() {
+                        None
+                    } else {
+                        Some(result)
+                    }
+                }
+            },
+        }
+    }
+}
+
 /// Enables parsing a [`VirtualDirectoryPath`] from a string representation.
 ///
 /// This implementation allows easy deserialization from strings (e.g. configuration files, command-line arguments).
@@ -686,8 +736,14 @@ impl VirtualDirectory {
 
     /// Returns the original string representation that was used to create this `VirtualDirectory`.
     #[must_use]
-    pub fn vdir_path(&self) -> &str {
+    pub fn vdir_path_str(&self) -> &str {
         &self.vdir_path
+    }
+
+    /// Returns the original `VirtualDirectoryRef` that was used to create this `VirtualDirectory`.
+    #[must_use]
+    pub fn vdir_path(&self) -> VirtualDirectoryPath {
+        self.vdir_path_str().try_into().expect("VirtualDirectory should not have invalid `vdir_path`.")
     }
 
     /// Creates and returns a new temporary directory within `.weaver/vdir_cache`.
