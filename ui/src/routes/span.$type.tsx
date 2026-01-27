@@ -1,6 +1,6 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { getSpan } from '../lib/api'
+import { getSpan, type SpanAttribute, type SpanResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
@@ -12,34 +12,9 @@ export const Route = createRoute({
   component: SpanDetail,
 })
 
-interface SpanAttribute {
-  key: string
-  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> }
-  brief?: string
-  requirement_level:
-    | 'required'
-    | 'recommended'
-    | 'opt_in'
-    | { conditionally_required?: string }
-  sampling_relevant?: boolean
-}
-
-interface SpanData {
-  type: string
-  stability?: string
-  deprecated?: {
-    note?: string
-    renamed_to?: string
-  } | boolean
-  brief?: string
-  note?: string
-  kind?: string
-  attributes?: SpanAttribute[]
-}
-
 function SpanDetail() {
   const { type } = Route.useParams()
-  const [data, setData] = useState<SpanData | null>(null)
+  const [data, setData] = useState<SpanResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -47,9 +22,9 @@ function SpanDetail() {
     let isMounted = true
 
     getSpan(type)
-      .then((responseData: unknown) => {
+      .then((responseData) => {
         if (isMounted) {
-          setData(responseData as SpanData)
+          setData(responseData)
         }
       })
       .catch((err: unknown) => {

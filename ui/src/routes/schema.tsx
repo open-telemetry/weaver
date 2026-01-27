@@ -2,42 +2,12 @@ import { createRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState, useEffect, useMemo } from 'react'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
+import { getSchema, type SchemaProperty, type SchemaResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 
 type SchemaSearch = {
   schema?: string
   type?: string
-}
-
-type SchemaProperty = {
-  type?: string | string[]
-  $ref?: string
-  items?: SchemaProperty
-  additionalProperties?: SchemaProperty
-  enum?: unknown[]
-  description?: string
-  required?: string[]
-}
-
-type SchemaDefinition = {
-  description?: string
-  type?: string
-  properties?: Record<string, SchemaProperty>
-  required?: string[]
-  enum?: unknown[]
-  oneOf?: SchemaProperty[]
-  anyOf?: SchemaProperty[]
-}
-
-type Schema = {
-  title?: string
-  description?: string
-  type?: string
-  properties?: Record<string, SchemaProperty>
-  required?: string[]
-  oneOf?: SchemaProperty[]
-  anyOf?: SchemaProperty[]
-  definitions?: Record<string, SchemaDefinition>
 }
 
 type TypePart = {
@@ -55,7 +25,7 @@ function Schema() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/schema' })
 
-  const [schema, setSchema] = useState<Schema | null>(null)
+  const [schema, setSchema] = useState<SchemaResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedDefinition, setSelectedDefinition] = useState<string | null>(null)
@@ -69,9 +39,7 @@ function Schema() {
       const schemaParam = search.schema || 'ForgeRegistryV2'
 
       try {
-        const response = await fetch(`/api/v1/schema/${schemaParam}`)
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json()
+        const data = await getSchema(schemaParam)
         setSchema(data)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Unknown error')

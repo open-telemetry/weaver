@@ -1,6 +1,6 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { getEvent } from '../lib/api'
+import { getEvent, type EventAttribute, type EventResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
@@ -11,29 +11,6 @@ export const Route = createRoute({
   path: 'event/$name',
   component: EventDetail,
 })
-
-interface EventAttribute {
-  key: string
-  type: string
-  brief?: string
-  requirement_level:
-    | 'required'
-    | 'recommended'
-    | 'opt_in'
-    | { conditionally_required?: string }
-}
-
-interface EventData {
-  name: string
-  stability?: string
-  deprecated?: {
-    note?: string
-    renamed_to?: string
-  } | boolean
-  brief?: string
-  note?: string
-  attributes?: EventAttribute[]
-}
 
 function formatRequirementLevel(requirement_level: EventAttribute['requirement_level']): { label: string; badgeClass: string } {
   if (typeof requirement_level === 'string') {
@@ -60,7 +37,7 @@ function formatType(type: EventAttribute['type']): string {
 
 function EventDetail() {
   const { name } = Route.useParams()
-  const [data, setData] = useState<EventData | null>(null)
+  const [data, setData] = useState<EventResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -68,9 +45,9 @@ function EventDetail() {
     let isMounted = true
 
     getEvent(name)
-      .then((responseData: unknown) => {
+      .then((responseData) => {
         if (isMounted) {
-          setData(responseData as EventData)
+          setData(responseData)
         }
       })
       .catch((err: unknown) => {
