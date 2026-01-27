@@ -1,6 +1,6 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { getMetric } from '../lib/api'
+import { getMetric, type MetricAttribute, type MetricResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
@@ -11,32 +11,6 @@ export const Route = createRoute({
   path: 'metric/$name',
   component: MetricDetail,
 })
-
-interface MetricAttribute {
-  key: string
-  'r#type': string | { members: Array<{ value?: string; id?: string; brief?: string }> }
-  brief?: string
-  requirement_level:
-    | 'required'
-    | 'recommended'
-    | 'opt_in'
-    | { conditionally_required?: string }
-}
-
-interface MetricData {
-  name: string
-  stability?: string
-  deprecated?: {
-    note?: string
-    renamed_to?: string
-  } | boolean
-  brief?: string
-  note?: string
-  instrument: string
-  unit: string
-  attributes?: MetricAttribute[]
-  entity_associations?: string[]
-}
 
 function formatRequirementLevel(requirement_level: MetricAttribute['requirement_level']): { label: string; badgeClass: string } {
   if (typeof requirement_level === 'string') {
@@ -67,7 +41,7 @@ function formatType(type: MetricAttribute['r#type']): string {
 
 function MetricDetail() {
   const { name } = Route.useParams()
-  const [data, setData] = useState<MetricData | null>(null)
+  const [data, setData] = useState<MetricResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -75,9 +49,9 @@ function MetricDetail() {
     let isMounted = true
 
     getMetric(name)
-      .then((responseData: unknown) => {
+      .then((responseData) => {
         if (isMounted) {
-          setData(responseData as MetricData)
+          setData(responseData)
         }
       })
       .catch((err: unknown) => {

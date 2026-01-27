@@ -1,6 +1,6 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { getAttribute } from '../lib/api'
+import { getAttribute, type AttributeResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
@@ -12,20 +12,7 @@ export const Route = createRoute({
   component: AttributeDetail,
 })
 
-interface AttributeData {
-  key: string
-  stability?: string
-  deprecated?: {
-    note?: string
-    renamed_to?: string
-  } | boolean
-  brief?: string
-  note?: string
-  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> }
-  examples?: unknown[]
-}
-
-function formatType(type: AttributeData['type']): string {
+function formatType(type: AttributeResponse['type']): string {
   if (typeof type === 'string') return type
   if (type && typeof type === 'object' && 'members' in type) {
     return `enum { ${type.members.map(m => m.value || m.id).join(', ')} }`
@@ -35,7 +22,7 @@ function formatType(type: AttributeData['type']): string {
 
 function AttributeDetail() {
   const { key } = Route.useParams()
-  const [data, setData] = useState<AttributeData | null>(null)
+  const [data, setData] = useState<AttributeResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -43,9 +30,9 @@ function AttributeDetail() {
     let isMounted = true
 
     getAttribute(key)
-      .then((responseData: unknown) => {
+      .then((responseData) => {
         if (isMounted) {
-          setData(responseData as AttributeData)
+          setData(responseData)
         }
       })
       .catch((err: unknown) => {
