@@ -41,7 +41,6 @@ export function AppLayout() {
       />
 
       <div className="drawer-content flex flex-col">
-        {/* Navbar */}
         <div className="navbar bg-base-200 sticky top-0 z-10">
           <div className="flex-none lg:hidden">
             <label htmlFor="sidebar" className="btn btn-square btn-ghost">
@@ -109,13 +108,11 @@ export function AppLayout() {
           </div>
         </div>
 
-        {/* Main content */}
         <main className="flex-1 p-6">
           <Outlet />
         </main>
       </div>
 
-      {/* Sidebar */}
       <div className="drawer-side">
         <label
           htmlFor="sidebar"
