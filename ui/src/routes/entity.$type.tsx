@@ -1,6 +1,6 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { getEntity } from '../lib/api'
+import { getEntity, type EntityAttribute, type EntityResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
@@ -12,25 +12,6 @@ export const Route = createRoute({
   component: EntityDetail,
 })
 
-interface EntityAttribute {
-  key: string
-  'r#type': string | { members: Array<{ value?: string; id?: string; brief?: string }> }
-  brief?: string
-}
-
-interface EntityData {
-  type: string
-  stability?: string
-  deprecated?: {
-    note?: string
-    renamed_to?: string
-  } | boolean
-  brief?: string
-  note?: string
-  identity?: EntityAttribute[]
-  description?: EntityAttribute[]
-}
-
 function formatType(type: EntityAttribute['r#type']): string {
   if (typeof type === 'string') return type
   if (type && typeof type === 'object' && 'members' in type) {
@@ -41,7 +22,7 @@ function formatType(type: EntityAttribute['r#type']): string {
 
 function EntityDetail() {
   const { type } = Route.useParams()
-  const [data, setData] = useState<EntityData | null>(null)
+  const [data, setData] = useState<EntityResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -49,9 +30,9 @@ function EntityDetail() {
     let isMounted = true
 
     getEntity(type)
-      .then((responseData: unknown) => {
+      .then((responseData) => {
         if (isMounted) {
-          setData(responseData as EntityData)
+          setData(responseData)
         }
       })
       .catch((err: unknown) => {
