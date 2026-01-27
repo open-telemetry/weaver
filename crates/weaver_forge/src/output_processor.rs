@@ -437,6 +437,15 @@ mod tests {
     }
 
     #[test]
+    fn test_template_format_stdout() {
+        let mut output =
+            OutputProcessor::new("simple", "test", Some(&EMBEDDED_TEMPLATES), None, None).unwrap();
+        assert!(output.builtin_format().is_none());
+        assert!(!output.is_file_output());
+        output.generate(&test_data()).unwrap();
+    }
+
+    #[test]
     fn test_template_format_to_file() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_path_buf();
