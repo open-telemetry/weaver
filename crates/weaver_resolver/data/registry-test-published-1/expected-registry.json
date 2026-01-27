@@ -44,6 +44,39 @@
       "entity_associations": [
         "imported.entity.a"
       ]
+    },
+    {
+      "id": "span.my-span",
+      "type": "span",
+      "brief": "a fun span",
+      "note": "my fun span",
+      "stability": "beta",
+      "attributes": [
+        0
+      ],
+      "span_kind": "client",
+      "name": "my-span",
+      "lineage": {
+        "provenance": {
+          "registry_id": "acme",
+          "path": "data/registry-test-published-1/registry/main.yaml"
+        },
+        "attributes": {
+          "a": {
+            "source_group": "v2_dependency.published",
+            "inherited_fields": [
+              "annotations",
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      },
+      "entity_associations": [
+        "imported.entity.a"
+      ]
     }
   ]
 }

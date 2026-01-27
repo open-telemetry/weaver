@@ -388,6 +388,8 @@ impl ImportableDependency for Vec<ResolvedDependency> {
 /// Helper trait for abstracting over V1 and V2 schema.
 trait UnresolvedAttributeLookup {
     /// Looks up group attributes on this repo.
+    /// id: The group id to find
+    /// return: The set of attributes the group defined, or None if the group was not found.
     fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>>;
 }
 
