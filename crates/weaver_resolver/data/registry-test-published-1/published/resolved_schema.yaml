@@ -1,0 +1,21 @@
+file_format: resolved/2.0.0
+schema_url: http://todo
+registry_id: published
+attribute_catalog:
+- key: a
+  type: string
+  brief: test a
+  stability: stable
+registry:
+  registry_url: todo-why?
+  attributes:
+    - 0
+  attribute_groups:
+  spans:
+  metrics:
+  events:
+  entities:
+refinements:
+  spans:
+  metrics:
+  events:

@@ -4,10 +4,10 @@
 
 use globset::GlobSet;
 use serde::Deserialize;
-use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 
 use crate::{attribute::AttributeCatalog, Error};
@@ -49,18 +49,6 @@ impl ImportableDependency for V1Schema {
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        let build_globset = |wildcards: Option<&Vec<GroupWildcard>>| {
-            let mut builder = GlobSet::builder();
-            if let Some(wildcards_vec) = wildcards {
-                for wildcard in wildcards_vec.iter() {
-                    _ = builder.add(wildcard.0.clone());
-                }
-            }
-            builder.build().map_err(|e| Error::InvalidWildcard {
-                error: e.to_string(),
-            })
-        };
-
         // Filter imports to only include those from the current registry
         let current_registry_imports: Vec<_> = imports.iter().collect();
 
@@ -133,11 +121,56 @@ impl ImportableDependency for V1Schema {
 impl ImportableDependency for V2Schema {
     fn import_groups(
         &self,
-        _imports: &[ImportsWithProvenance],
-        _include_all: bool,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
         _attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        todo!("Support V2 schema dependency resolution.")
+        let mut result = vec![];
+        // We default to importing from refinements.
+        // This is the closest to V1 ref syntax we have.
+        // let metrics_imports_matcher =
+        //     build_globset(imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
+        // result.extend(
+        //     self.registry
+        //         .metrics
+        //         .iter()
+        //         .filter(|m| include_all || metrics_imports_matcher.is_match(m.name.as_ref()))
+        //         .map(|m| Group {
+        //             id: m.id().to_string(),
+        //             r#type: weaver_semconv::group::GroupType::Metric,
+        //             brief: m.common.brief,
+        //             note: m.common.note,
+        //             prefix: "".to_string(),
+        //             extends: None,
+        //             stability: Some(m.common.stability),
+        //             deprecated: m.common.deprecated,
+        //             attributes: m
+        //                 .attributes
+        //                 .iter()
+        //                 .map(|ar| {
+        //                     // TODO - errors.
+        //                     let attr = self.attribute_catalog.attribute(&ar.base);
+        //                     attr
+        //                 })
+        //                 .collect(),
+        //             span_kind: None,
+        //             events: vec![],
+        //             metric_name: Some(m.name.to_string()),
+        //             instrument: Some(m.instrument),
+        //             unit: Some(m.unit),
+        //             name: None,
+        //             // TODO - fill this out.
+        //             lineage: None,
+        //             display_name: None,
+        //             body: None,
+        //             annotations: Some(m.common.annotations),
+        //             entity_associations: m.entity_associations,
+        //             visibility: None,
+        //         }),
+        // );
+        // self.refinements.events
+        // todo!("Support V2 schema dependency resolution.")
+        Ok(result)
     }
 }
 
@@ -243,6 +276,19 @@ impl From<V2Schema> for ResolvedDependency {
     fn from(value: V2Schema) -> Self {
         ResolvedDependency::V2(value)
     }
+}
+
+// Constructs a globset from a set of wildcards.
+fn build_globset(wildcards: Option<&Vec<GroupWildcard>>) -> Result<GlobSet, Error> {
+    let mut builder = GlobSet::builder();
+    if let Some(wildcards_vec) = wildcards {
+        for wildcard in wildcards_vec.iter() {
+            _ = builder.add(wildcard.0.clone());
+        }
+    }
+    builder.build().map_err(|e| Error::InvalidWildcard {
+        error: e.to_string(),
+    })
 }
 
 #[cfg(test)]

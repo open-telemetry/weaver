@@ -85,7 +85,8 @@ impl RegistryRepo {
         let resolved_url: &str = manifest.resolved_schema_url.as_ref()?;
         match get_path_type(resolved_url) {
             weaver_common::PathType::RelativePath => {
-                let vdir_was_manifest_file = self.manifest_path()?.is_file();
+                // WE need to undersand if the manifest URL is the same as the registry URL.
+                let vdir_was_manifest_file = self.manifest_path()? == self.registry.path();
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
@@ -196,5 +197,22 @@ mod tests {
             );
         };
         assert_eq!("https://github.com/open-telemetry/weaver.git\\creates/weaver_semconv/tests/published_respository/resolved/resolved_2.0.0", format!("{resolved_path}"));
+
+        // Now make sure when we publish a directory, we can find relative files in it.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "tests/published_repository/3.0.0".to_owned(),
+        };
+        let repo =
+            RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
+        let Some(resolved_path) = repo.resolved_schema_url() else {
+            panic!(
+                "Should find a resolved schema path from manfiest in {}",
+                repo.registry_path_repr()
+            );
+        };
+        assert_eq!(
+            "tests/published_repository/3.0.0/resolved_schema.yaml",
+            format!("{resolved_path}")
+        );
     }
 }
