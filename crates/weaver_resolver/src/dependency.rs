@@ -194,7 +194,157 @@ impl ImportableDependency for V2Schema {
                 }),
         );
 
-        // TODO - other imports.
+        // Now event imports.
+        let events_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.events.as_ref()))?;
+        result.extend(
+            self.registry
+                .events
+                .iter()
+                .filter(|e| {
+                    let event_name: &str = &e.name;
+                    include_all || events_imports_matcher.is_match(event_name)
+                })
+                .map(|e| Group {
+                    id: e.id().to_string(),
+                    r#type: weaver_semconv::group::GroupType::Event,
+                    brief: e.common.brief.clone(),
+                    note: e.common.note.clone(),
+                    prefix: "".to_string(),
+                    extends: None,
+                    stability: Some(e.common.stability.clone()),
+                    deprecated: e.common.deprecated.clone(),
+                    attributes: e
+                        .attributes
+                        .iter()
+                        .map(|ar| {
+                            // TODO - this should be non-panic errors.
+                            let attr = self
+                                .attribute_catalog
+                                .attribute(&ar.base)
+                                .expect("Unable to find attr on catalog, invalid registry!");
+                            attribute_catalog.attribute_ref(Attribute {
+                                name: attr.key.clone(),
+                                r#type: attr.r#type.clone(),
+                                brief: attr.common.brief.clone(),
+                                examples: attr.examples.clone(),
+                                tag: None,
+                                requirement_level: ar.requirement_level.clone(),
+                                sampling_relevant: None,
+                                note: attr.common.note.clone(),
+                                stability: Some(attr.common.stability.clone()),
+                                deprecated: attr.common.deprecated.clone(),
+                                prefix: false,
+                                tags: None,
+                                annotations: Some(attr.common.annotations.clone()),
+                                value: None,
+                                role: None,
+                            })
+                        })
+                        .collect(),
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some(e.name.to_string()),
+                    // TODO - fill this out.
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    annotations: Some(e.common.annotations.clone()),
+                    entity_associations: e.entity_associations.clone(),
+                    visibility: None,
+                }),
+        );
+
+        // Now Entity imports.
+        let entities_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.entities.as_ref()))?;
+        result.extend(
+            self.registry
+                .entities
+                .iter()
+                .filter(|e| {
+                    let entity_type: &str = &e.r#type;
+                    include_all || entities_imports_matcher.is_match(entity_type)
+                })
+                .map(|e| {
+                    let mut attributes = vec![];
+                    for ar in e.identity.iter() {
+                        // TODO - this should be non-panic errors.
+                        let attr = self
+                            .attribute_catalog
+                            .attribute(&ar.base)
+                            .expect("Unable to find attr on catalog, invalid registry!");
+                        attributes.push(attribute_catalog.attribute_ref(Attribute {
+                            name: attr.key.clone(),
+                            r#type: attr.r#type.clone(),
+                            brief: attr.common.brief.clone(),
+                            examples: attr.examples.clone(),
+                            tag: None,
+                            requirement_level: ar.requirement_level.clone(),
+                            sampling_relevant: None,
+                            note: attr.common.note.clone(),
+                            stability: Some(attr.common.stability.clone()),
+                            deprecated: attr.common.deprecated.clone(),
+                            prefix: false,
+                            tags: None,
+                            annotations: Some(attr.common.annotations.clone()),
+                            value: None,
+                            role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
+                        }));
+                    }
+                    for ar in e.description.iter() {
+                        // TODO - this should be non-panic errors.
+                        let attr = self
+                            .attribute_catalog
+                            .attribute(&ar.base)
+                            .expect("Unable to find attr on catalog, invalid registry!");
+                        attributes.push(attribute_catalog.attribute_ref(Attribute {
+                            name: attr.key.clone(),
+                            r#type: attr.r#type.clone(),
+                            brief: attr.common.brief.clone(),
+                            examples: attr.examples.clone(),
+                            tag: None,
+                            requirement_level: ar.requirement_level.clone(),
+                            sampling_relevant: None,
+                            note: attr.common.note.clone(),
+                            stability: Some(attr.common.stability.clone()),
+                            deprecated: attr.common.deprecated.clone(),
+                            prefix: false,
+                            tags: None,
+                            annotations: Some(attr.common.annotations.clone()),
+                            value: None,
+                            role: Some(weaver_semconv::attribute::AttributeRole::Descriptive),
+                        }));
+                    }
+                    Group {
+                        id: e.id().to_string(),
+                        r#type: weaver_semconv::group::GroupType::Event,
+                        brief: e.common.brief.clone(),
+                        note: e.common.note.clone(),
+                        prefix: "".to_string(),
+                        extends: None,
+                        stability: Some(e.common.stability.clone()),
+                        deprecated: e.common.deprecated.clone(),
+                        attributes,
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some(e.r#type.to_string()),
+                        // TODO - fill this out.
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: Some(e.common.annotations.clone()),
+                        entity_associations: vec![],
+                        visibility: None,
+                    }
+                }),
+        );
 
         Ok(result)
     }

@@ -2,6 +2,33 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
+      "id": "imported.entity.a",
+      "type": "event",
+      "brief": "a fun entity",
+      "note": "an entity note",
+      "stability": "stable",
+      "attributes": [
+        1
+      ],
+      "name": "imported.entity.a",
+      "annotations": {}
+    },
+    {
+      "id": "imported.event.a",
+      "type": "event",
+      "brief": "a fun event",
+      "note": "an event note",
+      "stability": "stable",
+      "attributes": [
+        2
+      ],
+      "name": "imported.event.a",
+      "annotations": {},
+      "entity_associations": [
+        "imported.entity.a"
+      ]
+    },
+    {
       "id": "imported.metric.a",
       "type": "metric",
       "brief": "a fun metric",
@@ -15,7 +42,7 @@
       "unit": "s",
       "annotations": {},
       "entity_associations": [
-        "service"
+        "imported.entity.a"
       ]
     }
   ]

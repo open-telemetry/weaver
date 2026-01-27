@@ -7,6 +7,23 @@
       "requirement_level": "required",
       "stability": "stable",
       "annotations": {}
+    },
+    {
+      "name": "a",
+      "type": "string",
+      "brief": "test a",
+      "requirement_level": "required",
+      "stability": "stable",
+      "annotations": {},
+      "role": "identifying"
+    },
+    {
+      "name": "a",
+      "type": "string",
+      "brief": "test a",
+      "requirement_level": "recommended",
+      "stability": "stable",
+      "annotations": {}
     }
   ]
 }

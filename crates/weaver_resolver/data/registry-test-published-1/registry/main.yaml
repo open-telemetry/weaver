@@ -2,3 +2,8 @@ version: '2'
 imports:
   metrics:
     - imported.*
+  events:
+    - imported.*
+  entities:
+    - imported.*
+  
