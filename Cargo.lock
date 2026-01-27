@@ -5508,6 +5508,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "tempfile",
  "textwrap",
  "thiserror 2.0.18",
  "utoipa",
