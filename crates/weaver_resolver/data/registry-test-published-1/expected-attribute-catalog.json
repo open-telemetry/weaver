@@ -1,1 +1,12 @@
-{}
+{
+  "attributes": [
+    {
+      "name": "a",
+      "type": "string",
+      "brief": "test a",
+      "requirement_level": "required",
+      "stability": "stable",
+      "annotations": {}
+    }
+  ]
+}

@@ -13,9 +13,32 @@ registry:
   attribute_groups:
   spans:
   metrics:
+    - name: imported.metric.a
+      instrument: histogram
+      unit: s
+      attributes:
+      - base: 0
+        requirement_level: required
+      entity_associations:
+      - service
+      brief: a fun metric
+      note: a metric note
+      stability: stable
   events:
   entities:
 refinements:
   spans:
   metrics:
+  - id: imported.metric.a
+    name: imported.metric.a
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 0
+      requirement_level: required
+    entity_associations:
+    - service
+    brief: a fun metric
+    note: a metric note
+    stability: stable
   events:

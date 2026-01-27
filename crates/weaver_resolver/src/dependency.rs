@@ -4,7 +4,9 @@
 
 use globset::GlobSet;
 use serde::Deserialize;
+use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
+use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
@@ -123,53 +125,77 @@ impl ImportableDependency for V2Schema {
         &self,
         imports: &[ImportsWithProvenance],
         include_all: bool,
-        _attribute_catalog: &mut AttributeCatalog,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         let mut result = vec![];
-        // We default to importing from refinements.
+
+        // First import metrics.  These are *by name* and come from the registry.
         // This is the closest to V1 ref syntax we have.
-        // let metrics_imports_matcher =
-        //     build_globset(imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
-        // result.extend(
-        //     self.registry
-        //         .metrics
-        //         .iter()
-        //         .filter(|m| include_all || metrics_imports_matcher.is_match(m.name.as_ref()))
-        //         .map(|m| Group {
-        //             id: m.id().to_string(),
-        //             r#type: weaver_semconv::group::GroupType::Metric,
-        //             brief: m.common.brief,
-        //             note: m.common.note,
-        //             prefix: "".to_string(),
-        //             extends: None,
-        //             stability: Some(m.common.stability),
-        //             deprecated: m.common.deprecated,
-        //             attributes: m
-        //                 .attributes
-        //                 .iter()
-        //                 .map(|ar| {
-        //                     // TODO - errors.
-        //                     let attr = self.attribute_catalog.attribute(&ar.base);
-        //                     attr
-        //                 })
-        //                 .collect(),
-        //             span_kind: None,
-        //             events: vec![],
-        //             metric_name: Some(m.name.to_string()),
-        //             instrument: Some(m.instrument),
-        //             unit: Some(m.unit),
-        //             name: None,
-        //             // TODO - fill this out.
-        //             lineage: None,
-        //             display_name: None,
-        //             body: None,
-        //             annotations: Some(m.common.annotations),
-        //             entity_associations: m.entity_associations,
-        //             visibility: None,
-        //         }),
-        // );
-        // self.refinements.events
-        // todo!("Support V2 schema dependency resolution.")
+        let metrics_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
+        result.extend(
+            self.registry
+                .metrics
+                .iter()
+                .filter(|m| {
+                    let metric_name: &str = &m.name;
+                    include_all || metrics_imports_matcher.is_match(metric_name)
+                })
+                .map(|m| Group {
+                    id: m.id().to_string(),
+                    r#type: weaver_semconv::group::GroupType::Metric,
+                    brief: m.common.brief.clone(),
+                    note: m.common.note.clone(),
+                    prefix: "".to_string(),
+                    extends: None,
+                    stability: Some(m.common.stability.clone()),
+                    deprecated: m.common.deprecated.clone(),
+                    attributes: m
+                        .attributes
+                        .iter()
+                        .map(|ar| {
+                            // TODO - this should be non-panic errors.
+                            let attr = self
+                                .attribute_catalog
+                                .attribute(&ar.base)
+                                .expect("Unable to find attr on catalog, invalid registry!");
+                            attribute_catalog.attribute_ref(Attribute {
+                                name: attr.key.clone(),
+                                r#type: attr.r#type.clone(),
+                                brief: attr.common.brief.clone(),
+                                examples: attr.examples.clone(),
+                                tag: None,
+                                requirement_level: ar.requirement_level.clone(),
+                                sampling_relevant: None,
+                                note: attr.common.note.clone(),
+                                stability: Some(attr.common.stability.clone()),
+                                deprecated: attr.common.deprecated.clone(),
+                                prefix: false,
+                                tags: None,
+                                annotations: Some(attr.common.annotations.clone()),
+                                value: None,
+                                role: None,
+                            })
+                        })
+                        .collect(),
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some(m.name.to_string()),
+                    instrument: Some(m.instrument.clone()),
+                    unit: Some(m.unit.clone()),
+                    name: None,
+                    // TODO - fill this out.
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    annotations: Some(m.common.annotations.clone()),
+                    entity_associations: m.entity_associations.clone(),
+                    visibility: None,
+                }),
+        );
+
+        // TODO - other imports.
+
         Ok(result)
     }
 }

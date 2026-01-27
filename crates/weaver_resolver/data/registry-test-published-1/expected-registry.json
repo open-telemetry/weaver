@@ -1,4 +1,22 @@
 {
   "registry_url": "https://127.0.0.1",
-  "groups": []
+  "groups": [
+    {
+      "id": "imported.metric.a",
+      "type": "metric",
+      "brief": "a fun metric",
+      "note": "a metric note",
+      "stability": "stable",
+      "attributes": [
+        0
+      ],
+      "metric_name": "imported.metric.a",
+      "instrument": "histogram",
+      "unit": "s",
+      "annotations": {},
+      "entity_associations": [
+        "service"
+      ]
+    }
+  ]
 }
