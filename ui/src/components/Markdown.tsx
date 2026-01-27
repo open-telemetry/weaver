@@ -9,13 +9,11 @@ export function Markdown({ content }: MarkdownProps) {
   const [html, setHtml] = useState('')
 
   useEffect(() => {
-    // Configure marked for safe rendering (same as Svelte)
     marked.setOptions({
       breaks: true,
       gfm: true,
     })
     
-    // Render markdown to HTML synchronously
     const renderedHtml = typeof content === 'string' ? marked(content || '') : ''
     setHtml(renderedHtml)
   }, [content])

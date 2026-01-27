@@ -4,7 +4,6 @@ import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
 import { Route as RootRoute } from './__root'
 
-// Define the search params type for this route
 type SchemaSearch = {
   schema?: string
   type?: string
