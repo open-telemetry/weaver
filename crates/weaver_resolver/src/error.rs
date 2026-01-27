@@ -15,6 +15,7 @@ use weaver_semconv::provenance::Provenance;
 pub enum Error {
     /// There was an issue resolving definition schema.
     #[error(transparent)]
+    #[diagnostic(transparent)]
     FailToResolveDefinition(#[from] weaver_semconv::Error),
 
     /// We discovered a circular dependnecy we cannot resolve.
