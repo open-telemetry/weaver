@@ -172,14 +172,14 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
     ]
 }
 
-/// Generate output for a complete report - handles JSONL special case
+/// Generate output for a complete report - handles line-oriented special case
 fn generate_report(
     output: &mut OutputProcessor,
     samples: Vec<Sample>,
     stats: LiveCheckStatistics,
 ) -> Result<(), weaver_forge::error::Error> {
-    // Special JSONL handling: one line per sample, stats at end
-    if output.builtin_format() == Some(weaver_forge::output_processor::BuiltinFormat::Jsonl) {
+    // Special handling: one line per sample, stats at end
+    if output.is_line_oriented() {
         for sample in &samples {
             output.generate(sample)?;
         }
@@ -187,8 +187,6 @@ fn generate_report(
             LiveCheckStatistics::Cumulative(_) => output.generate(&stats),
             LiveCheckStatistics::Disabled(_) => Ok(()),
         }
-    } else if matches!(output, OutputProcessor::Mute) {
-        Ok(())
     } else {
         let report = LiveCheckReport {
             statistics: stats,

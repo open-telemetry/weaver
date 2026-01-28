@@ -257,13 +257,17 @@ impl OutputProcessor {
         }
     }
 
-    /// Returns the builtin format if this is a builtin processor
+    /// Returns true if this format is line-oriented (supports multiple generate calls,
+    /// one item per line). Currently only JSONL has this behavior.
     #[must_use]
-    pub fn builtin_format(&self) -> Option<BuiltinFormat> {
-        match self {
-            OutputProcessor::Builtin { format, .. } => Some(*format),
-            _ => None,
-        }
+    pub fn is_line_oriented(&self) -> bool {
+        matches!(
+            self,
+            OutputProcessor::Builtin {
+                format: BuiltinFormat::Jsonl,
+                ..
+            }
+        )
     }
 }
 
@@ -305,15 +309,10 @@ mod tests {
 
     #[test]
     fn test_all_builtin_formats_stdout() {
-        let formats = [
-            ("json", BuiltinFormat::Json),
-            ("yaml", BuiltinFormat::Yaml),
-            ("jsonl", BuiltinFormat::Jsonl),
-        ];
-        for (name, expected_format) in formats {
+        let formats = ["json", "yaml", "jsonl"];
+        for name in formats {
             let mut output = OutputProcessor::new(name, "test", None, None, None)
                 .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
-            assert_eq!(output.builtin_format(), Some(expected_format), "{name}");
             assert!(!output.is_file_output(), "{name}");
             output
                 .generate(&test_data())
@@ -326,7 +325,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new("json", "test", None, None, Some(&path)).unwrap();
-        assert_eq!(output.builtin_format(), Some(BuiltinFormat::Json));
+        assert!(!output.is_line_oriented());
         assert!(output.is_file_output());
 
         output.generate(&test_data()).unwrap();
@@ -342,7 +341,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new("yaml", "test", None, None, Some(&path)).unwrap();
-        assert_eq!(output.builtin_format(), Some(BuiltinFormat::Yaml));
+        assert!(!output.is_line_oriented());
         assert!(output.is_file_output());
 
         output.generate(&test_data()).unwrap();
@@ -358,7 +357,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new("jsonl", "test", None, None, Some(&path)).unwrap();
-        assert_eq!(output.builtin_format(), Some(BuiltinFormat::Jsonl));
+        assert!(output.is_line_oriented());
         assert!(output.is_file_output());
 
         let second = TestData {
@@ -440,7 +439,7 @@ mod tests {
     fn test_template_format_stdout() {
         let mut output =
             OutputProcessor::new("simple", "test", Some(&EMBEDDED_TEMPLATES), None, None).unwrap();
-        assert!(output.builtin_format().is_none());
+        assert!(!output.is_line_oriented());
         assert!(!output.is_file_output());
         output.generate(&test_data()).unwrap();
     }
@@ -457,7 +456,7 @@ mod tests {
             Some(&path),
         )
         .unwrap();
-        assert!(output.builtin_format().is_none());
+        assert!(!output.is_line_oriented());
         assert!(output.is_file_output());
 
         output.generate(&test_data()).unwrap();
@@ -469,16 +468,16 @@ mod tests {
     }
 
     #[test]
-    fn test_builtin_format_accessor() {
+    fn test_is_line_oriented() {
         let json = OutputProcessor::new("json", "test", None, None, None).unwrap();
-        assert_eq!(json.builtin_format(), Some(BuiltinFormat::Json));
+        assert!(!json.is_line_oriented());
 
         let yaml = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
-        assert_eq!(yaml.builtin_format(), Some(BuiltinFormat::Yaml));
+        assert!(!yaml.is_line_oriented());
 
         let jsonl = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
-        assert_eq!(jsonl.builtin_format(), Some(BuiltinFormat::Jsonl));
+        assert!(jsonl.is_line_oriented());
 
-        assert_eq!(OutputProcessor::Mute.builtin_format(), None);
+        assert!(!OutputProcessor::Mute.is_line_oriented());
     }
 }
