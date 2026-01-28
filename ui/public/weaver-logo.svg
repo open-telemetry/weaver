@@ -1,0 +1,40 @@
+<svg viewBox="20 60 160 80" xmlns="http://www.w3.org/2000/svg">
+  
+  <!-- Glow filter for better visibility -->
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- BOTTOM LAYER: Blue thread - starts top, ends bottom -->
+  <path d="M30,70 Q100,70 170,130" 
+        stroke="#3b82f6" 
+        stroke-width="10" 
+        fill="none" 
+        stroke-linecap="round"
+        filter="url(#glow)"/>
+  
+  <!-- MIDDLE LAYER: Orange thread - starts bottom, ends top -->
+  <path d="M30,130 Q100,130 170,70" 
+        stroke="#f59e0b" 
+        stroke-width="10" 
+        fill="none" 
+        stroke-linecap="round"
+        filter="url(#glow)"/>
+  
+  <!-- TOP LAYER: Green thread - waves through middle -->
+  <path d="M30,100 Q70,80 100,100 Q130,120 170,100" 
+        stroke="#10b981" 
+        stroke-width="10" 
+        fill="none" 
+        stroke-linecap="round"
+        filter="url(#glow)"/>
+  
+
+  
+</svg>
