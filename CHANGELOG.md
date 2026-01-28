@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - 💥 BREAKING CHANGE 💥 Upgraded JSON schema generation to [2020-12 version of JSON Schema.](https://json-schema.org/draft/2020-12/schema) ([#1125](https://github.com/open-telemetry/weaver/pull/1125) by @jerbly)
 - New Experimental feature: `weaver registry mcp` MCP server for a registry with search, get and live_check tools. ([#1113](https://github.com/open-telemetry/weaver/pull/1113) by @jerbly)
 - Fix ([#1133](https://github.com/open-telemetry/weaver/issues/1133)) - Live-check: correctly handle `--no-stats` in report mode. ([#1142](https://github.com/open-telemetry/weaver/pull/1142) by @jerbly)
+- 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2.0.0` for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
 
 # [0.20.0] - 2025-12-11
 

@@ -36,13 +36,13 @@ impl JsonSchemaValidator {
         Self::new_for::<SemConvSpec>()
     }
 
-    /// Creates a new JSON schema validator that ONLY works when `version` is not specified.
+    /// Creates a new JSON schema validator that ONLY works when `file_format` is not specified.
     #[must_use]
     pub fn new_unversioned() -> Self {
         Self::new_for::<SemConvSpecV1>()
     }
 
-    /// Creates a new JSON schema validator that ONLY works when `version` is specified.
+    /// Creates a new JSON schema validator that ONLY works when `file_format` is specified.
     #[must_use]
     pub fn new_versioned() -> Self {
         Self::new_for::<Versioned>()

@@ -7,7 +7,7 @@ deserialization support for YAML files adhering to the semantic convention regis
 serialization and deserialization of the data model making it easy to read and write YAML, JSON, and other formats
 supported by the Serde ecosystem.
 
-For more details on the syntax and semantics, see the [semantic convention YAML language](/schemas/semconv-syntax.md)
+For more details on the syntax and semantics, see the [semantic convention Definition language](/schemas/semconv-syntax.md)
 documentation.
 
 For a formal definition of the allowed syntax, see the [JSON schema](/schemas/semconv.schema.json).
