@@ -16,9 +16,9 @@ Duration of HTTP client requests.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `http.request.method` | Enum | No | HTTP request method. |
-| `http.response.status_code` | `int` | No | [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6). |
 | `server.address` | `string` | **Yes** | Some HTTP specific description |
 | `server.port` | `int` | **Yes** | Some HTTP specific description |
+| `http.request.method` | Enum | No | HTTP request method. |
+| `http.response.status_code` | `int` | No | [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6). |
 | `url.scheme` | `string` | No | The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol. |
 

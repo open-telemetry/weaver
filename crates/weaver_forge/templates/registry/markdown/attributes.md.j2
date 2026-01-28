@@ -1,10 +1,8 @@
-> set file_name = ctx.root_namespace | snake_case <
-{{- template.set_file_name("attributes/" ~ file_name ~ ".md") -}}
 # Attributes: `{{ ctx.root_namespace }}`
 
 This document describes the `{{ ctx.root_namespace }}` attributes.
 
-> for attribute in ctx.attributes <
+> for attribute in ctx.attributes | attribute_sort <
 ## `{{ attribute.name | default("UNNAMED") }}`
 
 {{ attribute.brief | default("") | trim }}

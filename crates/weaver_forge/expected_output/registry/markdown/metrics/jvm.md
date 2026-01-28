@@ -78,8 +78,8 @@ Duration of JVM garbage collection actions.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `jvm.gc.name` | `string` | No | Name of the garbage collector. |
 | `jvm.gc.action` | `string` | No | Name of the garbage collector action. |
+| `jvm.gc.name` | `string` | No | Name of the garbage collector. |
 
 ## `jvm.memory.committed`
 
@@ -95,8 +95,8 @@ Measure of memory committed.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `jvm.memory.type` | Enum | No | The type of memory. |
 | `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
+| `jvm.memory.type` | Enum | No | The type of memory. |
 
 ## `jvm.memory.deprecated`
 
@@ -123,8 +123,8 @@ Measure of max obtainable memory.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `jvm.memory.type` | Enum | No | The type of memory. |
 | `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
+| `jvm.memory.type` | Enum | No | The type of memory. |
 
 ## `jvm.memory.used`
 
@@ -140,11 +140,11 @@ Measure of memory used.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `jvm.memory.type` | Enum | No | The type of memory. |
-| `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
 | `jvm.memory.deprecated.attribute` | `boolean` | No | Something deprecated. |
-| `jvm.memory.experimental.attribute` | `boolean` | No | Something experimental. |
+| `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
 | `jvm.memory.stable.attribute` | `boolean` | No | Something stable. |
+| `jvm.memory.type` | Enum | No | The type of memory. |
+| `jvm.memory.experimental.attribute` | `boolean` | No | Something experimental. |
 
 ## `jvm.memory.used_after_last_gc`
 
@@ -160,8 +160,8 @@ Measure of memory used, as measured after the most recent garbage collection eve
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `jvm.memory.type` | Enum | No | The type of memory. |
 | `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
+| `jvm.memory.type` | Enum | No | The type of memory. |
 
 ## `jvm.thread.count`
 

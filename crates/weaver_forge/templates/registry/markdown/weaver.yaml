@@ -6,10 +6,12 @@ templates:
   - template: attributes.md.j2
     filter: semconv_grouped_attributes
     application_mode: each
+    file_name: "attributes/{{ ctx.root_namespace | snake_case }}.md"
 
   - template: metrics.md.j2
     filter: semconv_grouped_metrics
     application_mode: each
+    file_name: "metrics/{{ ctx.root_namespace | snake_case }}.md"
 
   - template: spans.md.j2
     filter: >
@@ -17,6 +19,7 @@ templates:
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
     application_mode: each
+    file_name: "spans/{{ ctx.root_namespace | snake_case }}.md"
 
   - template: events.md.j2
     filter: >
@@ -28,6 +31,7 @@ templates:
       | group_by(.event_namespace)
       | map({ event_namespace: .[0].event_namespace, events: . | sort_by(.id) })
     application_mode: each
+    file_name: "events/{{ ctx.event_namespace | snake_case }}.md"
 
   - template: resources.md.j2
     filter: >
@@ -35,3 +39,4 @@ templates:
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
     application_mode: single
+    file_name: "resources.md"

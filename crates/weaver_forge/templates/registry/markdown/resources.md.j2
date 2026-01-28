@@ -28,7 +28,7 @@ This document describes the resource semantic conventions.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-> for attr in resource.attributes <
+> for attr in resource.attributes | attribute_sort <
 > if attr.type is mapping <
 | `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
 > else <

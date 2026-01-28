@@ -1,5 +1,3 @@
-> set file_name = ctx.root_namespace | snake_case <
-{{- template.set_file_name("spans/" ~ file_name ~ ".md") -}}
 # Spans: `{{ ctx.root_namespace }}`
 
 This document describes the `{{ ctx.root_namespace }}` spans.
@@ -30,7 +28,7 @@ This document describes the `{{ ctx.root_namespace }}` spans.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-> for attr in span.attributes <
+> for attr in span.attributes | attribute_sort <
 > if attr.type is mapping <
 | `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
 > else <
