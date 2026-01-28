@@ -145,7 +145,7 @@ impl VirtualDirectoryPath {
             LocalArchive { path, sub_folder } => LocalArchive {
                 path,
                 sub_folder: {
-                    let result = f(sub_folder.unwrap_or("".to_string()));
+                    let result = f(sub_folder.unwrap_or("".to_owned()));
                     if result.is_empty() {
                         None
                     } else {
@@ -156,7 +156,7 @@ impl VirtualDirectoryPath {
             RemoteArchive { url, sub_folder } => RemoteArchive {
                 url,
                 sub_folder: {
-                    let result = f(sub_folder.unwrap_or("".to_string()));
+                    let result = f(sub_folder.unwrap_or("".to_owned()));
                     if result.is_empty() {
                         None
                     } else {
@@ -172,7 +172,7 @@ impl VirtualDirectoryPath {
                 url,
                 refspec,
                 sub_folder: {
-                    let result = f(sub_folder.unwrap_or("".to_string()));
+                    let result = f(sub_folder.unwrap_or("".to_owned()));
                     if result.is_empty() {
                         None
                     } else {
