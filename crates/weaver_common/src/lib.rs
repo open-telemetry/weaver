@@ -17,6 +17,7 @@ use miette::Diagnostic;
 use paris::formatter::colorize_string;
 use serde::Serialize;
 use std::io::Write;
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -294,4 +295,37 @@ pub fn warn_flare<T: std::fmt::Display>(message: T) -> String {
 /// Logs a warning message as warn
 pub fn log_warn<T: std::fmt::Display>(message: T) {
     log::warn!("{}", warn_flare(message));
+}
+
+/// Types of path strings we can support.
+pub enum PathType {
+    /// A URL path, like http://server/
+    URL,
+    /// A relative path, like ../some-file
+    RelativePath,
+    /// An absolute path, like /my/file/location
+    AbsolutePath,
+    /// Weaver-special.  A reference to a file
+    /// in a git repo or other.
+    WeaverPath,
+}
+
+/// Returns the type of path we're dealing with.
+#[must_use]
+pub fn get_path_type(input: &str) -> PathType {
+    match url::Url::parse(input) {
+        Ok(_) => PathType::URL,
+        Err(url::ParseError::RelativeUrlWithoutBase) => {
+            let test_path = Path::new(input);
+            if test_path.is_absolute() {
+                PathType::AbsolutePath
+            } else {
+                PathType::RelativePath
+            }
+        }
+        // TODO - we can learn more from error, we may be able
+        // to determine if this is a git-relative path or
+        // in-archive file reference.
+        Err(_) => PathType::WeaverPath,
+    }
 }

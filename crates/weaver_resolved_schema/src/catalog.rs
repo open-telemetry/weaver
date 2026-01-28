@@ -15,12 +15,12 @@ use weaver_semconv::stability::Stability;
 /// Attribute references are used to refer to attributes in the catalog.
 ///
 /// Note : In the future, this catalog could be extended with other entities.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 #[must_use]
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) attributes: Vec<Attribute>,
 }
 
