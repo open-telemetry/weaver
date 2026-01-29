@@ -543,6 +543,7 @@ mod tests {
 
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
+            file_format: "materialized/2.0.0".to_owned(),
             registry_url: "test".to_owned(),
             registry: Registry {
                 attributes: vec![

@@ -118,7 +118,7 @@ pub enum VersionedRegistry {
     /// v1 ResolvedRegistry
     V1(ResolvedRegistry),
     /// v2 ForgeResolvedRegistry
-    V2(ForgeResolvedRegistry),
+    V2(Box<ForgeResolvedRegistry>),
 }
 
 /// Versioned enum for the attribute

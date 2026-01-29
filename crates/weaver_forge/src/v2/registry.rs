@@ -16,6 +16,9 @@ use crate::{
     },
 };
 
+/// Version string denoting V2 materialized schema.
+pub(crate) const V2_MATERIALIZED_FILE_FORMAT: &str = "materialized/2.0.0";
+
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
 ///
@@ -23,10 +26,11 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ForgeResolvedRegistry {
+    /// Version of the file structure.
+    pub file_format: String,
     /// The semantic convention registry url.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
-    // TODO - Attribute Groups
     /// The signals defined in this registry.
     pub registry: Registry,
     /// The set of refinments defined in this registry.
@@ -413,7 +417,8 @@ impl ForgeResolvedRegistry {
         }
 
         Ok(Self {
-            registry_url: schema.schema_url.clone(),
+            file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
+            registry_url: schema.registry.registry_url,
             registry: Registry {
                 attributes,
                 attribute_groups,
@@ -448,8 +453,6 @@ mod tests {
     fn test_try_from_resolved_schema() {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/schema".to_owned(),
-            registry_id: "my-registry".to_owned(),
             attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -612,9 +615,7 @@ mod tests {
     #[test]
     fn test_try_from_resolved_schema_with_missing_attribute() {
         let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/schema".to_owned(),
-            registry_id: "my-registry".to_owned(),
+            file_format: "resolved/2.0.0".to_owned(),
             attribute_catalog: vec![],
             registry: v2::registry::Registry {
                 registry_url: "https://example.com/registry".to_owned(),

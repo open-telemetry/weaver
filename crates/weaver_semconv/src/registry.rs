@@ -47,6 +47,7 @@ impl SemConvRegistry {
     /// # Arguments
     ///
     /// * `id` - The id of the semantic convention registry.
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
     pub fn new(id: &str) -> Self {
         SemConvRegistry {
             id: id.to_owned(),
@@ -116,6 +117,7 @@ impl SemConvRegistry {
     ///
     /// * `registry_repo` - The semantic convention registry.
     /// * `semconv_specs` - The list of semantic convention specs to load.
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
     pub fn from_semconv_specs(
         registry_repo: &RegistryRepo,
         semconv_specs: Vec<SemConvSpecWithProvenance>,
@@ -125,7 +127,7 @@ impl SemConvRegistry {
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
+        let mut registry = SemConvRegistry::new(registry_repo.name().as_ref());
 
         for spec in semconv_specs {
             registry.add_semconv_spec(spec);
@@ -145,7 +147,7 @@ impl SemConvRegistry {
 
             registry.set_manifest(RegistryManifest {
                 file_format: None,
-                name: registry_repo.id().as_ref().to_owned(),
+                name: registry_repo.name().as_ref().to_owned(),
                 description: None,
                 version: semconv_version,
                 repository_url: "".to_owned(),

@@ -27,7 +27,7 @@ use crate::{
         span::{Span, SpanRefinement},
         stats::Stats,
     },
-    V2_RESOLVED_FILE_FORMAT,
+    V2_DIFF_FILE_FORMAT, V2_RESOLVED_FILE_FORMAT,
 };
 
 pub mod attribute;
@@ -49,10 +49,6 @@ pub mod stats;
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
     pub file_format: String,
-    /// Schema URL that this file is published at.
-    pub schema_url: String,
-    /// The ID of the registry that this schema belongs to.
-    pub registry_id: String,
     /// Catalog of attributes. Note: this will include duplicates for the same key.
     pub attribute_catalog: Vec<Attribute>,
     /// The registry that this schema belongs to.
@@ -60,7 +56,7 @@ pub struct ResolvedTelemetrySchema {
     /// Refinements for the registry
     pub refinements: Refinements,
     /// The manifest of the registry.
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     pub registry_manifest: Option<RegistryManifest>,
 }
 
@@ -79,6 +75,12 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         // TODO - get manifests
         SchemaChanges {
+            file_format: V2_DIFF_FILE_FORMAT.to_owned(),
+            head_version: self.registry_manifest.as_ref().map(|m| m.version.clone()),
+            baseline_version: baseline_schema
+                .registry_manifest
+                .as_ref()
+                .map(|m| m.version.clone()),
             registry: self.registry_diff(baseline_schema),
         }
     }
@@ -130,12 +132,10 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
             convert_v1_to_v2(value.catalog, value.registry)?;
         Ok(ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: value.schema_url,
-            registry_id: value.registry_id,
             attribute_catalog,
             registry,
             refinements,
-            registry_manifest: None,
+            registry_manifest: value.registry_manifest,
         })
     }
 }
@@ -612,6 +612,44 @@ mod tests {
 
     use super::*;
 
+    fn baseline_registry_url() -> String {
+        "http://github.com/acme/semconv/v1.0.0/schema.yaml".to_owned()
+    }
+
+    fn head_registry_url() -> String {
+        "http://github.com/acme/semconv/v2.0.0/schema.yaml".to_owned()
+    }
+
+    fn head_manifest() -> Option<RegistryManifest> {
+        Some(RegistryManifest {
+            file_format: Some("2.0.0".to_owned()),
+            name: "acme".to_owned(),
+            description: None,
+            version: "2.0.0".to_owned(),
+            repository_url: "https://github.com/acme/semconv".to_owned(),
+            resolved_schema_url: Some(
+                "https://github.com/acme/semconv/tags/2.0.0/schema.yaml".to_owned(),
+            ),
+            stability: Stability::Stable,
+            dependencies: vec![],
+        })
+    }
+
+    fn baseline_manifest() -> Option<RegistryManifest> {
+        Some(RegistryManifest {
+            file_format: Some("1.0.0".to_owned()),
+            name: "acme".to_owned(),
+            description: None,
+            version: "1.0.0".to_owned(),
+            repository_url: "https://github.com/acme/semconv".to_owned(),
+            resolved_schema_url: Some(
+                "https://github.com/acme/semconv/tags/1.0.0/schema.yaml".to_owned(),
+            ),
+            stability: Stability::Stable,
+            dependencies: vec![],
+        })
+    }
+
     #[test]
     fn test_convert_span_v1_to_v2() {
         let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
@@ -993,7 +1031,7 @@ mod tests {
             registry_id: "my-registry".to_owned(),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
             registry: crate::registry::Registry {
-                registry_url: "my.schema.url".to_owned(),
+                registry_url: "my.registry.url".to_owned(),
                 groups: vec![],
             },
             instrumentation_library: None,
@@ -1007,13 +1045,15 @@ mod tests {
         assert!(v2_schema.is_ok());
         let v2_schema = v2_schema.unwrap();
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
-        assert_eq!(v2_schema.schema_url, "my.schema.url");
-        assert_eq!(v2_schema.registry_id, "my-registry");
+        assert_eq!(
+            v2_schema.registry.registry_url,
+            "my.registry.url".to_owned()
+        );
     }
 
     #[test]
     fn no_diff() {
-        let mut baseline = empty_v2_schema();
+        let mut baseline = empty_v2_schema("./baseline".to_owned(), None);
         baseline.attribute_catalog.push(AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -1031,11 +1071,13 @@ mod tests {
         baseline.registry.attributes.push(AttributeRef(0));
         let changes = baseline.diff(&baseline);
         assert!(changes.is_empty());
+        assert!(changes.head_version.is_none());
+        assert!(changes.baseline_version.is_none());
     }
 
     #[test]
     fn attribute_diff() {
-        let mut baseline = empty_v2_schema();
+        let mut baseline = empty_v2_schema(baseline_registry_url(), baseline_manifest());
         baseline.attribute_catalog.push(AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -1051,7 +1093,7 @@ mod tests {
             },
         });
         baseline.registry.attributes.push(AttributeRef(0));
-        let mut latest = empty_v2_schema();
+        let mut latest = empty_v2_schema(head_registry_url(), head_manifest());
         latest.attribute_catalog.push(AttributeV2 {
             key: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -1087,6 +1129,8 @@ mod tests {
         latest.registry.attributes.push(AttributeRef(1));
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
+        assert_eq!(diff.head_version, Some("2.0.0".to_owned()));
+        assert_eq!(diff.baseline_version, Some("1.0.0".to_owned()));
         for attr_change in diff.registry.attribute_changes.iter() {
             match attr_change {
                 SchemaItemChange::Renamed {
@@ -1109,7 +1153,7 @@ mod tests {
     #[test]
     fn v2_detect_metric_removed() {
         // Test a user changing a metric name but not using deprecated field.
-        let mut baseline = empty_v2_schema();
+        let mut baseline = empty_v2_schema(baseline_registry_url(), baseline_manifest());
         baseline.registry.metrics.push(Metric {
             name: "http".to_owned().into(),
             instrument: weaver_semconv::group::InstrumentSpec::UpDownCounter,
@@ -1118,7 +1162,7 @@ mod tests {
             entity_associations: vec![],
             common: CommonFields::default(),
         });
-        let mut latest = empty_v2_schema();
+        let mut latest = empty_v2_schema(head_registry_url(), head_manifest());
         latest.registry.metrics.push(Metric {
             name: "http.renamed".to_owned().into(),
             instrument: weaver_semconv::group::InstrumentSpec::UpDownCounter,
@@ -1129,6 +1173,9 @@ mod tests {
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
+        assert_eq!(diff.file_format, V2_DIFF_FILE_FORMAT);
+        assert_eq!(diff.head_version, Some("2.0.0".to_owned()));
+        assert_eq!(diff.baseline_version, Some("1.0.0".to_owned()));
         for change in diff.registry.metric_changes.iter() {
             match change {
                 SchemaItemChange::Added { name } => {
@@ -1145,14 +1192,14 @@ mod tests {
     #[test]
     fn v2_detect_entity_uncategorized_deprecation() {
         // Test a user deprecating an entity with unknown change type.
-        let mut baseline = empty_v2_schema();
+        let mut baseline = empty_v2_schema(baseline_registry_url(), baseline_manifest());
         baseline.registry.entities.push(Entity {
             common: CommonFields::default(),
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
         });
-        let mut latest = empty_v2_schema();
+        let mut latest = empty_v2_schema(head_registry_url(), head_manifest());
         latest.registry.entities.push(Entity {
             common: CommonFields {
                 deprecated: Some(Deprecated::Uncategorized {
@@ -1180,14 +1227,14 @@ mod tests {
     #[test]
     fn v2_detect_event_obsoleted() {
         // Test a user obsoleting an event.
-        let mut baseline = empty_v2_schema();
+        let mut baseline = empty_v2_schema(baseline_registry_url(), baseline_manifest());
         baseline.registry.events.push(Event {
             common: CommonFields::default(),
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
         });
-        let mut latest = empty_v2_schema();
+        let mut latest = empty_v2_schema(head_registry_url(), head_manifest());
         latest.registry.events.push(Event {
             name: "test.event".to_owned().into(),
             attributes: vec![],
@@ -1213,16 +1260,17 @@ mod tests {
     }
 
     // create an empty schema for testing.
-    fn empty_v2_schema() -> ResolvedTelemetrySchema {
+    fn empty_v2_schema(
+        registry_url: String,
+        registry_manifest: Option<RegistryManifest>,
+    ) -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: "my.schema.url".to_owned(),
-            registry_id: "main".to_owned(),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
-                registry_url: "todo".to_owned(),
+                registry_url,
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
@@ -1233,7 +1281,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
-            registry_manifest: None,
+            registry_manifest,
         }
     }
 }

@@ -267,7 +267,7 @@ mod test {
         }];
         let registry = Registry {
             attribute_groups: vec![],
-            registry_url: "https://opentelemetry.io/schemas/1.23.0".to_owned(),
+            registry_url: "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.42.0.zip[model]".to_owned(),
             spans: vec![Span {
                 r#type: "test.span".to_owned().into(),
                 kind: SpanKindSpec::Client,

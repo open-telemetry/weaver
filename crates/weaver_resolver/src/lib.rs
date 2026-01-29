@@ -88,7 +88,7 @@ impl SchemaResolver {
                 WResult::FatalErr(e) => return WResult::FatalErr(e),
             }
         }
-        let registry_id: String = repo.id().to_string();
+        let registry_id: String = repo.name().to_string();
         let manifest = repo.manifest().cloned();
         let mut attr_catalog = AttributeCatalog::default();
         // TODO - Do something with non_fatal_errors if we need to.
@@ -263,18 +263,18 @@ mod tests {
                 );
 
                 // Verify we have specs from all three registries
-                let registry_ids = loaded.registry_ids();
+                let registry_urls = loaded.registry_urls();
 
                 assert!(
-                    registry_ids.contains(&"app".to_owned()),
+                    registry_urls.contains(&"data/multi-registry/app_registry".to_owned()),
                     "Missing app registry specs"
                 );
                 assert!(
-                    registry_ids.contains(&"acme".to_owned()),
+                    registry_urls.contains(&"data/multi-registry/custom_registry".to_owned()),
                     "Missing acme registry specs"
                 );
                 assert!(
-                    registry_ids.contains(&"otel".to_owned()),
+                    registry_urls.contains(&"data/multi-registry/otel_registry".to_owned()),
                     "Missing otel registry specs"
                 );
 
