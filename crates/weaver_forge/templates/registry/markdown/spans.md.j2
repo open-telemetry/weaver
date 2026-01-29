@@ -1,3 +1,4 @@
+> import "_macros.j2" as macros <
 # Spans: `{{ ctx.root_namespace }}`
 
 This document describes the `{{ ctx.root_namespace }}` spans.
@@ -26,14 +27,10 @@ This document describes the `{{ ctx.root_namespace }}` spans.
 > if span.attributes <
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
 > for attr in span.attributes | attribute_sort <
-> if attr.type is mapping <
-| `{{ attr.name }}` | Enum | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
-> else <
-| `{{ attr.name }}` | `{{ attr.type }}` | > if attr.requirement_level == "required" <**Yes**> elif attr.requirement_level.conditionally_required <Conditional> else <No> endif < | {{ attr.brief | default("") | trim | replace("\n", " ") }} |
-> endif <
+| `{{ attr.name }}` | {{ macros.attribute_type(attr) }} | {{ macros.requirement_level(attr.requirement_level) }} | {{ macros.brief_inline(attr.brief) }} |
 > endfor <
 
 > endif <

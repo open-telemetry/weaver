@@ -1,0 +1,16 @@
+{#- Helper macros for markdown documentation templates -#}
+
+{#- Formats a brief description for inline use in tables -#}
+> macro brief_inline(text) <
+{{ text | default("") | trim | replace("\n", " ") }}
+> endmacro <
+
+{#- Formats the requirement level for display -#}
+> macro requirement_level(level) <
+> if level == "required" <Required> elif level.conditionally_required <Conditionally Required - {{ level.conditionally_required }}> elif level.recommended <Recommended - {{ level.recommended }}> elif level == "recommended" <Recommended> elif level.opt_in <Opt-In - {{ level.opt_in }}> elif level == "opt_in" <Opt-In> else <{{ level }}> endif <
+> endmacro <
+
+{#- Formats the attribute type for display -#}
+> macro attribute_type(attr) <
+> if attr.type is mapping <Enum> else <`{{ attr.type }}`> endif <
+> endmacro <

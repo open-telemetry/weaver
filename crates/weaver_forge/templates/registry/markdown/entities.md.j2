@@ -1,0 +1,38 @@
+> import "_macros.j2" as macros <
+# Entities
+
+This document describes the entity semantic conventions.
+
+> for grouped_entities in ctx <
+## Namespace: `{{ grouped_entities.root_namespace }}`
+
+> for entity in grouped_entities.entities <
+### `{{ entity.id }}`
+
+{{ entity.brief | default("") | trim }}
+
+> if entity.note <
+{{ entity.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+> if entity.stability <
+| Stability | {{ entity.stability | capitalize }} |
+> endif <
+> if entity.deprecated <
+| Deprecated | {{ entity.deprecated.note }} |
+> endif <
+
+> if entity.attributes <
+#### Attributes
+
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+> for attr in entity.attributes | attribute_sort <
+| `{{ attr.name }}` | {{ macros.attribute_type(attr) }} | {{ macros.requirement_level(attr.requirement_level) }} | {{ macros.brief_inline(attr.brief) }} |
+> endfor <
+
+> endif <
+> endfor <
+> endfor <

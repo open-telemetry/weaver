@@ -13,11 +13,16 @@ HTTP client span
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `http.request.method` | Enum | **Yes** | HTTP request method. |
-| `server.address` | `string` | **Yes** | Some HTTP specific description |
-| `server.port` | `int` | **Yes** | Some HTTP specific description |
-| `url.full` | `string` | **Yes** | Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986) |
-| `http.response.status_code` | `int` | No | [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6). |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `http.request.method` | Enum | Required | HTTP request method.
+ |
+| `server.address` | `string` | Required | Some HTTP specific description
+ |
+| `server.port` | `int` | Required | Some HTTP specific description
+ |
+| `url.full` | `string` | Required | Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)
+ |
+| `http.response.status_code` | `int` | Recommended | [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
+ |
 

@@ -3,9 +3,9 @@
 This document describes the `{{ ctx.root_namespace }}` attributes.
 
 > for attribute in ctx.attributes | attribute_sort <
-## `{{ attribute.name | default("UNNAMED") }}`
+## `{{ attribute.name }}`
 
-{{ attribute.brief | default("") | trim }}
+{{ attribute.brief | trim }}
 
 > if attribute.note <
 {{ attribute.note | trim }}

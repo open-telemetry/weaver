@@ -26,17 +26,17 @@ templates:
       .groups
       | map(select(.type == "event"))
       | map(. + {
-          event_namespace: (if .id | index(".") then (.id | split(".") | .[0:-1] | join(".")) else "other" end)
+          root_namespace: (if .id | index(".") then (.id | split(".") | .[0:-1] | join(".")) else "other" end)
         })
-      | group_by(.event_namespace)
-      | map({ event_namespace: .[0].event_namespace, events: . | sort_by(.id) })
+      | group_by(.root_namespace)
+      | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.id) })
     application_mode: each
-    file_name: "events/{{ ctx.event_namespace | snake_case }}.md"
+    file_name: "events/{{ ctx.root_namespace | snake_case }}.md"
 
-  - template: resources.md.j2
+  - template: entities.md.j2
     filter: >
       semconv_signal("resource"; {})
       | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
+      | map({ root_namespace: .[0].root_namespace, entities: . | sort_by(.id) })
     application_mode: single
-    file_name: "resources.md"
+    file_name: "entities.md"

@@ -76,10 +76,12 @@ Duration of JVM garbage collection actions.
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jvm.gc.action` | `string` | No | Name of the garbage collector action. |
-| `jvm.gc.name` | `string` | No | Name of the garbage collector. |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `jvm.gc.action` | `string` | Recommended | Name of the garbage collector action.
+ |
+| `jvm.gc.name` | `string` | Recommended | Name of the garbage collector.
+ |
 
 ## `jvm.memory.committed`
 
@@ -93,10 +95,12 @@ Measure of memory committed.
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
-| `jvm.memory.type` | Enum | No | The type of memory. |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `jvm.memory.pool.name` | `string` | Recommended | Name of the memory pool.
+ |
+| `jvm.memory.type` | Enum | Recommended | The type of memory.
+ |
 
 ## `jvm.memory.deprecated`
 
@@ -121,10 +125,12 @@ Measure of max obtainable memory.
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
-| `jvm.memory.type` | Enum | No | The type of memory. |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `jvm.memory.pool.name` | `string` | Recommended | Name of the memory pool.
+ |
+| `jvm.memory.type` | Enum | Recommended | The type of memory.
+ |
 
 ## `jvm.memory.used`
 
@@ -138,13 +144,18 @@ Measure of memory used.
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jvm.memory.deprecated.attribute` | `boolean` | No | Something deprecated. |
-| `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
-| `jvm.memory.stable.attribute` | `boolean` | No | Something stable. |
-| `jvm.memory.type` | Enum | No | The type of memory. |
-| `jvm.memory.experimental.attribute` | `boolean` | No | Something experimental. |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `jvm.memory.deprecated.attribute` | `boolean` | Recommended | Something deprecated.
+ |
+| `jvm.memory.pool.name` | `string` | Recommended | Name of the memory pool.
+ |
+| `jvm.memory.stable.attribute` | `boolean` | Recommended | Something stable.
+ |
+| `jvm.memory.type` | Enum | Recommended | The type of memory.
+ |
+| `jvm.memory.experimental.attribute` | `boolean` | Opt-In | Something experimental.
+ |
 
 ## `jvm.memory.used_after_last_gc`
 
@@ -158,10 +169,12 @@ Measure of memory used, as measured after the most recent garbage collection eve
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jvm.memory.pool.name` | `string` | No | Name of the memory pool. |
-| `jvm.memory.type` | Enum | No | The type of memory. |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `jvm.memory.pool.name` | `string` | Recommended | Name of the memory pool.
+ |
+| `jvm.memory.type` | Enum | Recommended | The type of memory.
+ |
 
 ## `jvm.thread.count`
 
@@ -175,8 +188,10 @@ Number of executing platform threads.
 
 ### Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jvm.thread.daemon` | `boolean` | No | Whether the thread is daemon or not. |
-| `jvm.thread.state` | Enum | No | State of the thread. |
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `jvm.thread.daemon` | `boolean` | Recommended | Whether the thread is daemon or not.
+ |
+| `jvm.thread.state` | Enum | Recommended | State of the thread.
+ |
 
