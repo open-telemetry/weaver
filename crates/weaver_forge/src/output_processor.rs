@@ -16,7 +16,7 @@ use crate::{OutputDirective, TemplateEngine};
 
 /// Builtin serialization formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BuiltinFormat {
+enum BuiltinFormat {
     /// JSON - pretty-printed
     Json,
     /// YAML
@@ -56,43 +56,44 @@ impl BuiltinFormat {
         }
     }
 
-    /// Whether this format appends a newline after each generate call
+    /// Whether this format is intended to make output line by line through multiple generate calls e.g., JSONL.
     fn is_line_oriented(&self) -> bool {
         matches!(self, BuiltinFormat::Jsonl)
     }
 }
 
-/// Output processor - handles output generation with builtin formats or templates
-#[allow(clippy::large_enum_variant)]
-pub enum OutputProcessor {
-    /// Builtin format (JSON, YAML, JSONL)
+/// Template output configuration
+struct TemplateOutput {
+    engine: TemplateEngine,
+    path: PathBuf,
+    directive: OutputDirective,
+}
+
+/// Internal enum for output processor variants
+enum OutputKind {
+    /// Builtin format e.g., JSON, YAML, JSONL
     Builtin {
-        /// The serialization format
         format: BuiltinFormat,
-        /// Filename prefix (e.g., "live_check" -> "live_check.json")
         prefix: String,
-        /// Output path
         path: PathBuf,
-        /// Output directive (Stdout or File)
         directive: OutputDirective,
-        /// Open file handle (for file output)
         file: Option<File>,
     },
     /// Template-based format
-    Template {
-        /// Template engine
-        engine: TemplateEngine,
-        /// Output path
-        path: PathBuf,
-        /// Output directive (Stdout or File)
-        directive: OutputDirective,
-    },
+    Template(Box<TemplateOutput>),
     /// No output
     Mute,
 }
 
+/// Output processor — handles output generation with builtin formats or templates.
+// This is a public struct wrapping a private enum, providing encapsulation
+// while keeping the generic `generate<T: Serialize>` method.
+pub struct OutputProcessor {
+    kind: OutputKind,
+}
+
 impl OutputProcessor {
-    /// Create an OutputProcessor from format string and configuration
+    /// Create an OutputProcessor from format string and configuration.
     ///
     /// * `format` - Format name: "json", "yaml", "jsonl", "mute", or a template name
     /// * `prefix` - Base filename prefix (e.g., "live_check" -> "live_check.json")
@@ -108,7 +109,9 @@ impl OutputProcessor {
     ) -> Result<Self, Error> {
         // Check for mute output
         if output.is_some_and(|p| p.to_str() == Some("none")) {
-            return Ok(OutputProcessor::Mute);
+            return Ok(Self {
+                kind: OutputKind::Mute,
+            });
         }
 
         // Determine output path and directive
@@ -117,29 +120,29 @@ impl OutputProcessor {
             None => (PathBuf::from("output"), OutputDirective::Stdout),
         };
 
-        match format.to_lowercase().as_str() {
-            "mute" => Ok(OutputProcessor::Mute),
-            "json" => Ok(OutputProcessor::Builtin {
+        let kind = match format.to_lowercase().as_str() {
+            "mute" => OutputKind::Mute,
+            "json" => OutputKind::Builtin {
                 format: BuiltinFormat::Json,
                 prefix: prefix.to_owned(),
                 path,
                 directive,
                 file: None,
-            }),
-            "yaml" => Ok(OutputProcessor::Builtin {
+            },
+            "yaml" => OutputKind::Builtin {
                 format: BuiltinFormat::Yaml,
                 prefix: prefix.to_owned(),
                 path,
                 directive,
                 file: None,
-            }),
-            "jsonl" => Ok(OutputProcessor::Builtin {
+            },
+            "jsonl" => OutputKind::Builtin {
                 format: BuiltinFormat::Jsonl,
                 prefix: prefix.to_owned(),
                 path,
                 directive,
                 file: None,
-            }),
+            },
             template_name => {
                 let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
                     template_dir: PathBuf::from(template_name),
@@ -150,110 +153,47 @@ impl OutputProcessor {
                 let loader = EmbeddedFileLoader::try_new(embedded, templates, template_name)?;
                 let config = WeaverConfig::try_from_loader(&loader)?;
                 let engine = TemplateEngine::try_new(config, loader, Params::default())?;
-                Ok(OutputProcessor::Template {
+                OutputKind::Template(Box::new(TemplateOutput {
                     engine,
                     path,
                     directive,
-                })
+                }))
             }
-        }
-    }
+        };
 
-    /// Open/create the output file if not already open.
-    fn open(&mut self) -> Result<(), Error> {
-        if let OutputProcessor::Builtin {
-            format,
-            prefix,
-            path,
-            directive,
-            file,
-        } = self
-        {
-            if *directive == OutputDirective::File && file.is_none() {
-                let filename = format!("{}.{}", prefix, format.extension());
-                *file = Some(Self::create_file(path, &filename)?);
-            }
-        }
-        Ok(())
-    }
-
-    /// Create/truncate a file and return the handle
-    fn create_file(path: &std::path::Path, filename: &str) -> Result<File, Error> {
-        let file_path = path.join(filename);
-        if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| Error::OutputFileError {
-                path: file_path.clone(),
-                error: format!("Failed to create directory: {e}"),
-            })?;
-        }
-        File::create(&file_path).map_err(|e| Error::OutputFileError {
-            path: file_path,
-            error: e.to_string(),
-        })
+        Ok(Self { kind })
     }
 
     /// Generate output for serializable data.
-    #[allow(clippy::print_stdout)]
     pub fn generate<T: Serialize>(&mut self, data: &T) -> Result<(), Error> {
-        self.open()?;
-        match self {
-            OutputProcessor::Builtin {
+        match &mut self.kind {
+            OutputKind::Builtin {
                 format,
-                directive,
-                file,
-                ..
-            } => {
-                let content = format.serialize(data)?;
-                Self::write(&content, directive, file, format.is_line_oriented())
-            }
-            OutputProcessor::Template {
-                engine,
+                prefix,
                 path,
                 directive,
-            } => engine.generate(data, path, directive),
-            OutputProcessor::Mute => Ok(()),
-        }
-    }
-
-    /// Write content to stdout or file
-    #[allow(clippy::print_stdout)]
-    fn write(
-        content: &str,
-        directive: &OutputDirective,
-        file: &mut Option<File>,
-        with_newline: bool,
-    ) -> Result<(), Error> {
-        match directive {
-            OutputDirective::Stdout => {
-                println!("{content}");
-                Ok(())
-            }
-            OutputDirective::File => {
-                let f = file.as_mut().ok_or_else(|| Error::SerializationError {
-                    error: "File not opened".to_owned(),
-                })?;
-                if with_newline {
-                    writeln!(f, "{content}")
-                } else {
-                    write!(f, "{content}")
+                file,
+            } => {
+                // Open file if needed
+                if *directive == OutputDirective::File && file.is_none() {
+                    let filename = format!("{}.{}", prefix, format.extension());
+                    *file = Some(create_file(path, &filename)?);
                 }
-                .map_err(|e| Error::SerializationError {
-                    error: e.to_string(),
-                })
+                let content = format.serialize(data)?;
+                write_content(&content, directive, file, format.is_line_oriented())
             }
-            OutputDirective::Stderr => {
-                unreachable!("OutputProcessor does not support Stderr directive")
-            }
+            OutputKind::Template(t) => t.engine.generate(data, &t.path, &t.directive),
+            OutputKind::Mute => Ok(()),
         }
     }
 
-    /// Returns true if file output is being used
+    /// Returns true if file output is being used.
     #[must_use]
     pub fn is_file_output(&self) -> bool {
-        match self {
-            OutputProcessor::Builtin { directive, .. }
-            | OutputProcessor::Template { directive, .. } => *directive == OutputDirective::File,
-            OutputProcessor::Mute => false,
+        match &self.kind {
+            OutputKind::Builtin { directive, .. } => *directive == OutputDirective::File,
+            OutputKind::Template(t) => t.directive == OutputDirective::File,
+            OutputKind::Mute => false,
         }
     }
 
@@ -262,12 +202,59 @@ impl OutputProcessor {
     #[must_use]
     pub fn is_line_oriented(&self) -> bool {
         matches!(
-            self,
-            OutputProcessor::Builtin {
+            &self.kind,
+            OutputKind::Builtin {
                 format: BuiltinFormat::Jsonl,
                 ..
             }
         )
+    }
+}
+
+/// Create/truncate a file and return the handle.
+fn create_file(path: &std::path::Path, filename: &str) -> Result<File, Error> {
+    let file_path = path.join(filename);
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| Error::OutputFileError {
+            path: file_path.clone(),
+            error: format!("Failed to create directory: {e}"),
+        })?;
+    }
+    File::create(&file_path).map_err(|e| Error::OutputFileError {
+        path: file_path,
+        error: e.to_string(),
+    })
+}
+
+/// Write content to stdout or file.
+#[allow(clippy::print_stdout)]
+fn write_content(
+    content: &str,
+    directive: &OutputDirective,
+    file: &mut Option<File>,
+    with_newline: bool,
+) -> Result<(), Error> {
+    match directive {
+        OutputDirective::Stdout => {
+            println!("{content}");
+            Ok(())
+        }
+        OutputDirective::File => {
+            let f = file.as_mut().ok_or_else(|| Error::SerializationError {
+                error: "File not opened".to_owned(),
+            })?;
+            if with_newline {
+                writeln!(f, "{content}")
+            } else {
+                write!(f, "{content}")
+            }
+            .map_err(|e| Error::SerializationError {
+                error: e.to_string(),
+            })
+        }
+        OutputDirective::Stderr => {
+            unreachable!("OutputProcessor does not support Stderr directive")
+        }
     }
 }
 
@@ -296,15 +283,17 @@ mod tests {
 
     #[test]
     fn test_mute_format() {
-        let output = OutputProcessor::new("mute", "test", None, None, None);
-        assert!(matches!(output, Ok(OutputProcessor::Mute)));
+        let output = OutputProcessor::new("mute", "test", None, None, None).unwrap();
+        assert!(!output.is_file_output());
+        assert!(!output.is_line_oriented());
     }
 
     #[test]
     fn test_mute_via_output_none() {
         let none_path = PathBuf::from("none");
-        let output = OutputProcessor::new("json", "test", None, None, Some(&none_path));
-        assert!(matches!(output, Ok(OutputProcessor::Mute)));
+        let output = OutputProcessor::new("json", "test", None, None, Some(&none_path)).unwrap();
+        assert!(!output.is_file_output());
+        assert!(!output.is_line_oriented());
     }
 
     #[test]
@@ -379,54 +368,44 @@ mod tests {
 
     #[test]
     fn test_mute_generate_does_nothing() {
-        let mut output = OutputProcessor::Mute;
+        let mut output = OutputProcessor::new("mute", "test", None, None, None).unwrap();
         assert!(output.generate(&test_data()).is_ok());
         assert!(!output.is_file_output());
     }
 
     #[test]
     fn test_is_file_output() {
-        assert!(!OutputProcessor::Mute.is_file_output());
+        // Mute is not file output
+        let mute = OutputProcessor::new("mute", "test", None, None, None).unwrap();
+        assert!(!mute.is_file_output());
 
-        let builtin_stdout = OutputProcessor::Builtin {
-            format: BuiltinFormat::Json,
-            prefix: "test".to_owned(),
-            path: PathBuf::new(),
-            directive: OutputDirective::Stdout,
-            file: None,
-        };
-        assert!(!builtin_stdout.is_file_output());
+        // Stdout (no output path) is not file output
+        let stdout = OutputProcessor::new("json", "test", None, None, None).unwrap();
+        assert!(!stdout.is_file_output());
 
-        let builtin_file = OutputProcessor::Builtin {
-            format: BuiltinFormat::Json,
-            prefix: "test".to_owned(),
-            path: PathBuf::new(),
-            directive: OutputDirective::File,
-            file: None,
-        };
-        assert!(builtin_file.is_file_output());
+        // File output path is file output
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().to_path_buf();
+        let file = OutputProcessor::new("json", "test", None, None, Some(&path)).unwrap();
+        assert!(file.is_file_output());
     }
 
     #[test]
     fn test_format_case_insensitive() {
-        assert!(matches!(
-            OutputProcessor::new("JSON", "test", None, None, None),
-            Ok(OutputProcessor::Builtin {
-                format: BuiltinFormat::Json,
-                ..
-            })
-        ));
-        assert!(matches!(
-            OutputProcessor::new("Json", "test", None, None, None),
-            Ok(OutputProcessor::Builtin {
-                format: BuiltinFormat::Json,
-                ..
-            })
-        ));
-        assert!(matches!(
-            OutputProcessor::new("MUTE", "test", None, None, None),
-            Ok(OutputProcessor::Mute)
-        ));
+        // JSON (uppercase) should create a valid non-line-oriented processor
+        let json_upper = OutputProcessor::new("JSON", "test", None, None, None).unwrap();
+        assert!(!json_upper.is_line_oriented());
+        assert!(!json_upper.is_file_output());
+
+        // Json (mixed case) should also work
+        let json_mixed = OutputProcessor::new("Json", "test", None, None, None).unwrap();
+        assert!(!json_mixed.is_line_oriented());
+        assert!(!json_mixed.is_file_output());
+
+        // MUTE (uppercase) should create a mute processor
+        let mute = OutputProcessor::new("MUTE", "test", None, None, None).unwrap();
+        assert!(!mute.is_file_output());
+        assert!(!mute.is_line_oriented());
     }
 
     #[test]
@@ -478,6 +457,7 @@ mod tests {
         let jsonl = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
         assert!(jsonl.is_line_oriented());
 
-        assert!(!OutputProcessor::Mute.is_line_oriented());
+        let mute = OutputProcessor::new("mute", "test", None, None, None).unwrap();
+        assert!(!mute.is_line_oriented());
     }
 }
