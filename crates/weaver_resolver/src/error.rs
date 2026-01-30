@@ -18,7 +18,7 @@ pub enum Error {
     #[diagnostic(transparent)]
     FailToResolveDefinition(#[from] weaver_semconv::Error),
 
-    /// We discovered a circular dependnecy we cannot resolve.
+    /// We discovered a circular dependency we cannot resolve.
     #[error("Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain}")]
     CircularDependency {
         /// The registry that depends on itself.

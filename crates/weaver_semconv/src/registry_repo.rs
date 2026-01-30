@@ -85,13 +85,13 @@ impl RegistryRepo {
         let resolved_url: &str = manifest.resolved_schema_url.as_ref()?;
         match get_path_type(resolved_url) {
             weaver_common::PathType::RelativePath => {
-                // WE need to undersand if the manifest URL is the same as the registry URL.
+                // We need to understand if the manifest URL is the same as the registry URL.
                 let vdir_was_manifest_file = self.manifest_path()? == self.registry.path();
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
                             Some(parent) => format!("{}/{resolved_url}", parent.display()),
-                            None => format!(""),
+                            None => "".to_owned(),
                         }
                     } else {
                         format!("{path}/{resolved_url}")
@@ -175,7 +175,7 @@ mod tests {
 
         let Some(resolved_path) = repo.resolved_schema_url() else {
             panic!(
-                "Should find a resolved schema path from manfiest in {}",
+                "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
             );
         };
@@ -192,7 +192,7 @@ mod tests {
             RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_url() else {
             panic!(
-                "Should find a resolved schema path from manfiest in {}",
+                "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
             );
         };
@@ -206,7 +206,7 @@ mod tests {
             RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_url() else {
             panic!(
-                "Should find a resolved schema path from manfiest in {}",
+                "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
             );
         };

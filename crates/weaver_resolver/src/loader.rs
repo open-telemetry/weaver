@@ -244,7 +244,7 @@ fn load_resolved_repository(path: &VirtualDirectoryPath) -> WResult<LoadedSemcon
     }
 }
 
-/// Reads a serialzied object with serde from the given virtual directory path.
+/// Reads a serialized object with serde from the given virtual directory path.
 fn from_vdir<T: serde::de::DeserializeOwned>(f: &VirtualDirectoryPath) -> Result<T, Error> {
     let path = VirtualDirectory::try_new(f).map_err(|e| Error::InvalidUrl {
         url: format!("{f}"),
@@ -256,7 +256,7 @@ fn from_vdir<T: serde::de::DeserializeOwned>(f: &VirtualDirectoryPath) -> Result
     let reader = std::io::BufReader::new(file);
     Ok(
         serde_yaml::from_reader(reader).map_err(|e| Error::ConversionError {
-            message: format!("Unable to read reoslved schema: {e}"),
+            message: format!("Unable to read resolved schema: {e}"),
         })?,
     )
 }
