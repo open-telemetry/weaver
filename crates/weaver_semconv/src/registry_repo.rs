@@ -90,11 +90,11 @@ impl RegistryRepo {
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
-                            Some(parent) => format!("{}", parent.join(resolved_url).display()),
+                            Some(parent) => format!("{}/{resolved_url}", parent.display()),
                             None => format!(""),
                         }
                     } else {
-                        format!("{}", Path::new(&path).join(resolved_url).display())
+                        format!("{path}/{resolved_url}")
                     }
                 }))
             }
