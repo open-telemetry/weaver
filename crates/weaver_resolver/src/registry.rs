@@ -866,7 +866,6 @@ mod tests {
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
-    use crate::registry::resolve_registry_with_dependencies;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
     use crate::LoadedSemconvRegistry;
@@ -954,21 +953,8 @@ mod tests {
             .into_result_failing_non_fatal()
             .expect("Failed to load semconv specs");
 
-            // TODO - We need to resolve dependencies.
+            // We need to resolve dependencies.
             let schema = SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal();
-
-            // let mut attr_catalog = AttributeCatalog::default();
-            // let observed_registry = resolve_registry_with_dependencies(
-            //     &mut attr_catalog,
-            //     repo,
-            //     specs,
-            //     imports,
-            //     vec![],
-            //     false,
-            // )
-            // .into_result_failing_non_fatal();
-            // // Check that the resolved attribute catalog matches the expected attribute catalog.
-            // let observed_attr_catalog = attr_catalog.drain_attributes();
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
@@ -978,8 +964,7 @@ mod tests {
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
                 let observed_errors = serde_json::to_string(&schema).unwrap();
-                // TODO - Write observed errors.
-
+                // Write observed errors.
                 assert_eq!(
                     canonicalize_json_string(&observed_errors).unwrap(),
                     canonicalize_json_string(&expected_errors).unwrap(),
