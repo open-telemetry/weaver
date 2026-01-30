@@ -142,11 +142,11 @@ impl ImportableDependency for V2Schema {
                     include_all || metrics_imports_matcher.is_match(metric_name)
                 })
                 .map(|m| Group {
-                    id: m.id().to_string(),
+                    id: m.id().to_owned(),
                     r#type: weaver_semconv::group::GroupType::Metric,
                     brief: m.common.brief.clone(),
                     note: m.common.note.clone(),
-                    prefix: "".to_string(),
+                    prefix: "".to_owned(),
                     extends: None,
                     stability: Some(m.common.stability.clone()),
                     deprecated: m.common.deprecated.clone(),
@@ -206,11 +206,11 @@ impl ImportableDependency for V2Schema {
                     include_all || events_imports_matcher.is_match(event_name)
                 })
                 .map(|e| Group {
-                    id: e.id().to_string(),
+                    id: e.id().to_owned(),
                     r#type: weaver_semconv::group::GroupType::Event,
                     brief: e.common.brief.clone(),
                     note: e.common.note.clone(),
-                    prefix: "".to_string(),
+                    prefix: "".to_owned(),
                     extends: None,
                     stability: Some(e.common.stability.clone()),
                     deprecated: e.common.deprecated.clone(),
@@ -320,11 +320,11 @@ impl ImportableDependency for V2Schema {
                         }));
                     }
                     Group {
-                        id: e.id().to_string(),
+                        id: e.id().to_owned(),
                         r#type: weaver_semconv::group::GroupType::Event,
                         brief: e.common.brief.clone(),
                         note: e.common.note.clone(),
-                        prefix: "".to_string(),
+                        prefix: "".to_owned(),
                         extends: None,
                         stability: Some(e.common.stability.clone()),
                         deprecated: e.common.deprecated.clone(),

@@ -254,11 +254,9 @@ fn from_vdir<T: serde::de::DeserializeOwned>(f: &VirtualDirectoryPath) -> Result
         path: path.path().to_path_buf(),
     })?;
     let reader = std::io::BufReader::new(file);
-    Ok(
-        serde_yaml::from_reader(reader).map_err(|e| Error::ConversionError {
-            message: format!("Unable to read resolved schema: {e}"),
-        })?,
-    )
+    serde_yaml::from_reader(reader).map_err(|e| Error::ConversionError {
+        message: format!("Unable to read resolved schema: {e}"),
+    })
 }
 
 /// Loads a "raw" repository (composed of the original definition).
@@ -375,7 +373,7 @@ fn load_definition_repository(
         },
         non_fatal_errors
             .into_iter()
-            .map(|e| Error::FailToResolveDefinition(e))
+            .map(Error::FailToResolveDefinition)
             .collect(),
     )
 }
