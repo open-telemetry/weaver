@@ -28,12 +28,10 @@ tempfile.workspace = true
 dirs = "6.0.0"
 gix = { version = "0.78.0", default-features = false, features = [
     "comfort",
-    "blocking-http-transport-reqwest-native-tls",
+    "blocking-http-transport-reqwest-rust-tls",
     "max-performance-safe",
     "worktree-mutation",
 ] }
-# Required for cross-compiling to musl targets (aws-lc-rs in rustls has C23/musl incompatibility)
-openssl = { version = "0.10", features = ["vendored"] }
 flate2 = "1.1.4"
 tar = "0.4.43"
 zip = "5.1.1"
