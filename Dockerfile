@@ -32,13 +32,15 @@ COPY cross-arch-build.sh /build/cross-arch-build.sh
 # Build weaver
 RUN ./cross-arch-build.sh
 
-# The runtime image
-FROM docker.io/alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+# The runtime image - using Debian slim instead of Alpine (glibc vs musl)
+# This avoids aws-lc-sys cross-compilation issues with musl
+FROM docker.io/debian:bookworm-slim
 LABEL maintainer="The OpenTelemetry Authors"
-RUN addgroup weaver \
-  && adduser \
-  --ingroup weaver \
-  --disabled-password \
+RUN groupadd weaver \
+  && useradd \
+  --gid weaver \
+  --no-create-home \
+  --shell /bin/false \
   weaver
 WORKDIR /home/weaver
 COPY --from=weaver-build --chown=weaver:weaver /build/weaver /weaver/weaver
