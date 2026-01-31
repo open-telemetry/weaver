@@ -39,11 +39,12 @@ LABEL maintainer="The OpenTelemetry Authors"
 RUN groupadd weaver \
   && useradd \
   --gid weaver \
-  --no-create-home \
+  --create-home \
   --shell /bin/false \
-  weaver
+  weaver \
+  && mkdir -p /home/weaver/target \
+  && chown -R weaver:weaver /home/weaver
 WORKDIR /home/weaver
 COPY --from=weaver-build --chown=weaver:weaver /build/weaver /weaver/weaver
 USER weaver
-RUN mkdir /home/weaver/target
 ENTRYPOINT ["/weaver/weaver"]
