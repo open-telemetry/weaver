@@ -34,7 +34,8 @@ RUN ./cross-arch-build.sh
 
 # The runtime image - using Debian slim instead of Alpine (glibc vs musl)
 # This avoids aws-lc-sys cross-compilation issues with musl
-FROM docker.io/debian:bookworm-slim
+# Using trixie (Debian 13) to match glibc version in rust:1.93.0 builder
+FROM docker.io/debian:trixie-slim
 LABEL maintainer="The OpenTelemetry Authors"
 RUN groupadd weaver \
   && useradd \
