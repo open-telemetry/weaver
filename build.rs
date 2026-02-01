@@ -5,7 +5,8 @@
 use std::{
     ffi::OsStr,
     path::Path,
-    process::{Command, ExitStatus}, time::SystemTime,
+    process::{Command, ExitStatus},
+    time::SystemTime,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,16 +40,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn is_ui_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
     // If any output directories don't exist, rebuild.
     if !dir.join("dist").exists() {
-        return Ok(true)
+        return Ok(true);
     }
     if !dir.join("node_modules").exists() {
-        return Ok(true)
+        return Ok(true);
     }
     // If our lock file is out of date with our package file, we need to rebuild.
     let lock_timestamp = dir.join("package-lock.json").metadata()?.modified()?;
     let package_timestamp = dir.join("package.json").metadata()?.modified()?;
     if package_timestamp > lock_timestamp {
-        return Ok(true)
+        return Ok(true);
     }
     // Now check source files. This may be a bit expensive, as we continuously check last modified.
     let last_build = dir.join("dist/index.html").metadata()?.modified()?;
@@ -77,7 +78,7 @@ fn build_ui() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if UI is out of date before running.
     if !is_ui_stale(ui_dir)? {
-        return Ok(())
+        return Ok(());
     }
 
     // Get the npm command - on Windows it's npm.cmd, on Unix it's npm
@@ -147,18 +148,19 @@ impl NpmRunner {
             NpmRunner::NpmExec(npm) => Command::new(npm).args(cmd).current_dir(dir).status()?,
             NpmRunner::Docker => {
                 Command::new("docker")
-                .arg("run")
-                .arg("--rm")
-                .arg("-v")
-                .arg(".:/app")
-                .arg("-w")
-                .arg("/app")
-                // TODO - This version should get pulled from somewhere.
-                .arg("node:lts-alpine")
-                .arg("npm")
-                .args(cmd)
-                .current_dir(dir)
-                .status()?},
+                    .arg("run")
+                    .arg("--rm")
+                    .arg("-v")
+                    .arg(".:/app")
+                    .arg("-w")
+                    .arg("/app")
+                    // TODO - This version should get pulled from somewhere.
+                    .arg("node:lts-alpine")
+                    .arg("npm")
+                    .args(cmd)
+                    .current_dir(dir)
+                    .status()?
+            }
         };
         Ok(result)
     }
