@@ -95,6 +95,7 @@ weaver_version = { path = "crates/weaver_version" }
 
 clap = { version = "4.5.41", features = ["derive"] }
 clap_complete = "4.5.55"
+clap-markdown = "0.1"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
