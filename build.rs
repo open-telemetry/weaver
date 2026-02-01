@@ -36,6 +36,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn timestamp(dir: walkdir::DirEntry) -> Result<SystemTime, Box<dyn std::error::Error>> {
+    let md = dir.metadata()?;
+    Ok(md.modified()?)
+}
+
 /// Helper function to determine if NPM project is out of date.
 fn is_ui_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
     // If any output directories don't exist, rebuild.
@@ -53,20 +58,10 @@ fn is_ui_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
     }
     // Now check source files. This may be a bit expensive, as we continuously check last modified.
     let last_build = dir.join("dist/index.html").metadata()?.modified()?;
-    let mut last_source_time: Option<SystemTime> = None;
     for entry in walkdir::WalkDir::new(dir.join("src")) {
-        if let Ok(entry) = entry {
-            if let Ok(metadata) = entry.metadata() {
-                if let Ok(modified_time) = metadata.modified() {
-                    if last_source_time.map(|t| modified_time > t).unwrap_or(true) {
-                        last_source_time = Some(modified_time);
-                    }
-                }
-            }
+        if timestamp(entry?)? > last_build {
+            return Ok(true);
         }
-    }
-    if let Some(time) = last_source_time {
-        return Ok(time > last_build);
     }
     Ok(false)
 }
