@@ -129,7 +129,7 @@ enum NpmRunner {
 }
 
 impl NpmRunner {
-    // Retruns true if this is a valid way to run NPM.
+    // Returns true if this is a valid way to run NPM.
     fn check_valid(&self) -> bool {
         match self {
             NpmRunner::NpmExec(npm_cmd) => Command::new(npm_cmd).arg("--version").output().is_ok(),
