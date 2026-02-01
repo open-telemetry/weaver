@@ -57,10 +57,8 @@ fn is_ui_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
     for entry in walkdir::WalkDir::new(dir.join("src")) {
         if let Ok(entry) = entry {
             if let Ok(metadata) = entry.metadata() {
-                // Get the modification time for the current file/directory
                 if let Ok(modified_time) = metadata.modified() {
-                    // Update latest_time if the current file is newer
-                    if last_source_time.is_none() || modified_time > last_source_time.unwrap() {
+                    if last_source_time.map(|t| modified_time > t).unwrap_or(true) {
                         last_source_time = Some(modified_time);
                     }
                 }
