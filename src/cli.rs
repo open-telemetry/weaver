@@ -49,6 +49,9 @@ pub enum Commands {
     Completion(CompletionCommand),
     /// Start the API server (Experimental)
     Serve(ServeCommand),
+    /// Generate markdown help documentation
+    #[command(hide = true)]
+    MarkdownHelp,
 }
 
 #[derive(Args)]
