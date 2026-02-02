@@ -26,9 +26,7 @@ use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::pattern::Pattern;
-use convert_case::Converter;
-use convert_case::{pattern, Boundary};
+use convert_case::{Boundary, Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
@@ -373,57 +371,57 @@ impl CaseConvention {
             // For all case converters, we do not consider digits
             // as boundaries.
             Converter::new()
-                .remove_boundary(Boundary::DIGIT_LOWER)
-                .remove_boundary(Boundary::DIGIT_UPPER)
-                .remove_boundary(Boundary::UPPER_DIGIT)
-                .remove_boundary(Boundary::LOWER_DIGIT)
+                .remove_boundary(Boundary::DigitLower)
+                .remove_boundary(Boundary::DigitUpper)
+                .remove_boundary(Boundary::UpperDigit)
+                .remove_boundary(Boundary::LowerDigit)
                 .set_pattern(pattern)
-                .set_delim(delim)
+                .set_delimiter(delim)
         }
 
         let text = text.replace('.', "_");
         match self {
             CaseConvention::LowerCase => LOWER_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::lowercase, " ").add_boundary(Boundary::SPACE)
+                    new_converter(Pattern::Lowercase, " ").add_boundary(Boundary::Space)
                 })
                 .convert(&text),
             CaseConvention::UpperCase => UPPER_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::uppercase, " ").add_boundary(Boundary::SPACE)
+                    new_converter(Pattern::Uppercase, " ").add_boundary(Boundary::Space)
                 })
                 .convert(&text),
             CaseConvention::TitleCase => TITLE_CASE
-                .get_or_init(|| new_converter(pattern::capital, " ").add_boundary(Boundary::SPACE))
+                .get_or_init(|| new_converter(Pattern::Capital, " ").add_boundary(Boundary::Space))
                 .convert(&text),
             CaseConvention::PascalCase => PASCAL_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::capital, "").add_boundary(Boundary::LOWER_UPPER)
+                    new_converter(Pattern::Capital, "").add_boundary(Boundary::LowerUpper)
                 })
                 .convert(&text),
             CaseConvention::CamelCase => CAMEL_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::camel, "").add_boundary(Boundary::LOWER_UPPER)
+                    new_converter(Pattern::Camel, "").add_boundary(Boundary::LowerUpper)
                 })
                 .convert(&text),
             CaseConvention::SnakeCase => SNAKE_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::lowercase, "_").add_boundary(Boundary::UNDERSCORE)
+                    new_converter(Pattern::Lowercase, "_").add_boundary(Boundary::Underscore)
                 })
                 .convert(&text),
             CaseConvention::ScreamingSnakeCase => SCREAMING_SNAKE_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::uppercase, "_").add_boundary(Boundary::UNDERSCORE)
+                    new_converter(Pattern::Uppercase, "_").add_boundary(Boundary::Underscore)
                 })
                 .convert(&text),
             CaseConvention::KebabCase => KEBAB_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::lowercase, "-").add_boundary(Boundary::HYPHEN)
+                    new_converter(Pattern::Lowercase, "-").add_boundary(Boundary::Hyphen)
                 })
                 .convert(&text),
             CaseConvention::ScreamingKebabCase => SCREAMING_KEBAB_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::uppercase, "-").add_boundary(Boundary::HYPHEN)
+                    new_converter(Pattern::Uppercase, "-").add_boundary(Boundary::Hyphen)
                 })
                 .convert(&text),
         }
