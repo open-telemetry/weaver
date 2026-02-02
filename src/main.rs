@@ -149,6 +149,14 @@ fn run_command(cli: &Cli) -> ExitDirectives {
                 warnings: None,
             };
         }
+        Some(Commands::MarkdownHelp) => {
+            // Generate: cargo run -- --quiet markdown-help > docs/usage.md
+            clap_markdown::print_help_markdown::<Cli>();
+            return ExitDirectives {
+                exit_code: 0,
+                warnings: None,
+            };
+        }
         None => {
             return ExitDirectives {
                 exit_code: 0,

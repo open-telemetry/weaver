@@ -140,28 +140,28 @@ pub async fn run_server(
         // Health check
         .route("/health", get(handlers::health))
         // Schemas
-        .route("/api/v1/schema/*name", get(handlers::get_schema))
+        .route("/api/v1/schema/{name}", get(handlers::get_schema))
         // Registry stats
         .route("/api/v1/registry/stats", get(handlers::get_registry_stats))
         // Individual resources
         .route(
-            "/api/v1/registry/attribute/*key",
+            "/api/v1/registry/attribute/{key}",
             get(handlers::get_registry_attribute),
         )
         .route(
-            "/api/v1/registry/metric/*name",
+            "/api/v1/registry/metric/{name}",
             get(handlers::get_registry_metric),
         )
         .route(
-            "/api/v1/registry/span/*type",
+            "/api/v1/registry/span/{type}",
             get(handlers::get_registry_span),
         )
         .route(
-            "/api/v1/registry/event/*name",
+            "/api/v1/registry/event/{name}",
             get(handlers::get_registry_event),
         )
         .route(
-            "/api/v1/registry/entity/*type",
+            "/api/v1/registry/entity/{type}",
             get(handlers::get_registry_entity),
         )
         // Search

@@ -174,7 +174,7 @@ impl JsonSchemaValidator {
             ValidationErrorKind::ContentMediaType { content_media_type } =>
                 format!("Value {} does not conform to the required contentMediaType: '{}'.", error.instance(), content_media_type),
 
-            ValidationErrorKind::Custom { message } =>
+            ValidationErrorKind::Custom { message, keyword: _ } =>
                 format!("Custom validation error: {message}"),
 
             ValidationErrorKind::Enum { options } =>

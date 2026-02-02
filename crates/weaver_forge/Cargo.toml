@@ -27,7 +27,6 @@ minijinja = { version = "2.12.0", features = [
     "macros",
 ] }
 minijinja-contrib = { version = "2.12.0", features = ["pycompat"] }
-convert_case = "0.8.0"
 jaq-core = "2.2.1"
 jaq-std = "2.1.2"
 jaq-json = { version = "1.1.3", features = ["serde_json"] }
@@ -36,6 +35,7 @@ regex = "1.11.3"
 markdown = "=1.0.0"
 textwrap = "0.16.2"
 
+convert_case.workspace = true
 itertools.workspace = true
 thiserror.workspace = true
 serde.workspace = true
@@ -58,3 +58,4 @@ openapi = ["utoipa"]
 opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
 opentelemetry-stdout.workspace = true
+tempfile.workspace = true
