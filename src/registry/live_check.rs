@@ -13,9 +13,7 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
-use weaver_forge::config::{Params, WeaverConfig};
-use weaver_forge::file_loader::EmbeddedFileLoader;
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::OutputProcessor;
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
@@ -26,7 +24,7 @@ use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{
     CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
-    LiveCheckStatistics, VersionedRegistry,
+    LiveCheckStatistics, Sample, VersionedRegistry,
 };
 
 use crate::registry::{PolicyArgs, RegistryArgs};
@@ -96,7 +94,9 @@ pub struct RegistryLiveCheckArgs {
     #[arg(long, default_value = "json")]
     input_format: InputFormat,
 
-    /// Format used to render the report. Predefined formats are: ansi, json
+    /// Format used to render the report.
+    /// Builtin formats: json, yaml, jsonl (uses serde directly).
+    /// Other values are treated as template names (e.g., "ansi" uses ansi templates).
     #[arg(long, default_value = "ansi")]
     format: String,
 
@@ -172,28 +172,41 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
     ]
 }
 
+/// Generate output for a complete report - handles line-oriented special case
+fn generate_report(
+    output: &mut OutputProcessor,
+    samples: Vec<Sample>,
+    stats: LiveCheckStatistics,
+) -> Result<(), weaver_forge::error::Error> {
+    // Special handling: one line per sample, stats at end
+    if output.is_line_oriented() {
+        for sample in &samples {
+            output.generate(sample)?;
+        }
+        match stats {
+            LiveCheckStatistics::Cumulative(_) => output.generate(&stats),
+            LiveCheckStatistics::Disabled(_) => Ok(()),
+        }
+    } else {
+        let report = LiveCheckReport {
+            statistics: stats,
+            samples,
+        };
+        output.generate(&report)
+    }
+}
+
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
-    let mut output = PathBuf::from("output");
 
-    // Check if output is disabled (--output=none)
-    let no_output = args
-        .output
-        .as_ref()
-        .map(|p| p.to_str() == Some("none"))
-        .unwrap_or(false);
-
-    let output_directive = if let Some(path_buf) = &args.output {
-        if no_output {
-            OutputDirective::Stdout // Will be ignored when no_output is true
-        } else {
-            output = path_buf.clone();
-            OutputDirective::File
-        }
-    } else {
-        OutputDirective::Stdout
-    };
+    let mut output = OutputProcessor::new(
+        &args.format,
+        "live_check",
+        Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
+        Some(args.templates.clone()),
+        args.output.as_ref(),
+    )?;
 
     info!("Weaver Registry Live Check");
 
@@ -220,30 +233,6 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         &args.advice_preprocessor,
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
-
-    // Prepare the template engine (only if output is enabled)
-    let engine = if !no_output {
-        let loader = EmbeddedFileLoader::try_new(
-            &DEFAULT_LIVE_CHECK_TEMPLATES,
-            args.templates.clone(),
-            &args.format,
-        )
-        .map_err(|e| {
-            DiagnosticMessages::from(Error::OutputError {
-                error: format!(
-                    "Failed to create the embedded file loader for the live check templates: {e}"
-                ),
-            })
-        })?;
-        let config = WeaverConfig::try_from_loader(&loader).map_err(|e| {
-            DiagnosticMessages::from(Error::OutputError {
-                error: format!("Failed to load `defaults/live_check_templates/weaver.yaml`: {e}"),
-            })
-        })?;
-        Some(TemplateEngine::try_new(config, loader, Params::default())?)
-    } else {
-        None
-    };
 
     // Prepare the ingester
     let ingester = match (&args.input_source, &args.input_format) {
@@ -296,7 +285,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
 
-    let report_mode = if let OutputDirective::File = output_directive {
+    let report_mode = if output.is_file_output() {
         // File output forces report mode
         true
     } else {
@@ -310,61 +299,30 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     } else {
         LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
     };
+
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
-
+        //TODO: Check for violations and set exit_code here for no-stats mode
         if report_mode {
             samples.push(sample);
-        } else if !no_output {
-            // Only generate output if template rendering is enabled
-            if let Some(ref engine) = engine {
-                engine
-                    .generate(&sample, output.as_path(), &output_directive)
-                    .map_err(|e| {
-                        DiagnosticMessages::from(Error::OutputError {
-                            error: e.to_string(),
-                        })
-                    })?;
-            }
+        } else {
+            // Output this sample immediately (streaming mode)
+            output.generate(&sample).map_err(DiagnosticMessages::from)?;
         }
     }
 
-    // Only finalize and output if output is enabled
-    if !no_output {
-        stats.finalize();
-        // Set the exit_code to a non-zero code if there are any violations
-        if stats.has_violations() {
-            exit_code = 1;
-        }
+    stats.finalize();
+    // Set the exit_code to a non-zero code if there are any violations
+    if stats.has_violations() {
+        exit_code = 1;
+    }
 
-        if report_mode {
-            // Package into a report
-            let report = LiveCheckReport {
-                statistics: stats,
-                samples,
-            };
-            if let Some(ref engine) = engine {
-                engine
-                    .generate(&report, output.as_path(), &output_directive)
-                    .map_err(|e| {
-                        DiagnosticMessages::from(Error::OutputError {
-                            error: e.to_string(),
-                        })
-                    })?;
-            }
-        } else {
-            // Output the stats
-            if let Some(ref engine) = engine {
-                engine
-                    .generate(&stats, output.as_path(), &output_directive)
-                    .map_err(|e| {
-                        DiagnosticMessages::from(Error::OutputError {
-                            error: e.to_string(),
-                        })
-                    })?;
-            }
-        }
+    if report_mode {
+        generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
+    } else {
+        // Stats only (streaming mode finished)
+        output.generate(&stats).map_err(DiagnosticMessages::from)?;
     }
 
     // Shutdown OTLP emitter to flush any pending log records

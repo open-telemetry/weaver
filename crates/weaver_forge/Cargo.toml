@@ -58,3 +58,4 @@ openapi = ["utoipa"]
 opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
 opentelemetry-stdout.workspace = true
+tempfile.workspace = true
