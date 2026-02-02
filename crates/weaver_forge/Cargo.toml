@@ -27,7 +27,7 @@ minijinja = { version = "2.12.0", features = [
     "macros",
 ] }
 minijinja-contrib = { version = "2.12.0", features = ["pycompat"] }
-convert_case = "0.8.0"
+convert_case = "0.11.0"
 jaq-core = "2.2.1"
 jaq-std = "2.1.2"
 jaq-json = { version = "1.1.3", features = ["serde_json"] }
