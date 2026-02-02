@@ -4,11 +4,11 @@ WORKDIR /build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 
-# Install Node.js for building UI
+# Install Node.js and musl build dependencies
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=24
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
-  apt-get install -y nodejs
+  apt-get install -y nodejs musl-tools musl-dev perl wget
 
 # Copy UI package files first for better layer caching
 COPY ui/package.json ui/package-lock.json /build/ui/
