@@ -43,6 +43,7 @@ url = "2.5.4"
 ureq = "3.1.4"
 regex = "1.11.3"
 rayon = "1.11.0"
+openssl = { version = "0.10", features = ["vendored"] }
 walkdir = "2.5.0"
 anyhow = "1.0.100"
 itertools = "0.14.0"
@@ -95,6 +96,7 @@ weaver_version = { path = "crates/weaver_version" }
 
 clap = { version = "4.5.41", features = ["derive"] }
 clap_complete = "4.5.55"
+clap-markdown = "0.1"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
