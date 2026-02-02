@@ -11,7 +11,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 assert_cmd = "2.0.17"
-gix = { version = "0.73.0", default-features = false, features = [
+gix = { version = "0.78.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
