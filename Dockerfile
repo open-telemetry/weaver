@@ -32,20 +32,16 @@ COPY cross-arch-build.sh /build/cross-arch-build.sh
 # Build weaver
 RUN ./cross-arch-build.sh
 
-# The runtime image - using Debian slim instead of Alpine (glibc vs musl)
-# This avoids aws-lc-sys cross-compilation issues with musl
-# Using trixie (Debian 13) to match glibc version in rust:1.93.0 builder
-FROM docker.io/debian:trixie-slim
+# The runtime image
+FROM docker.io/alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
 LABEL maintainer="The OpenTelemetry Authors"
-RUN groupadd weaver \
-  && useradd \
-  --gid weaver \
-  --create-home \
-  --shell /bin/false \
-  weaver \
-  && mkdir -p /home/weaver/target \
-  && chown -R weaver:weaver /home/weaver
+RUN addgroup weaver \
+  && adduser \
+  --ingroup weaver \
+  --disabled-password \
+  weaver
 WORKDIR /home/weaver
 COPY --from=weaver-build --chown=weaver:weaver /build/weaver /weaver/weaver
 USER weaver
+RUN mkdir /home/weaver/target
 ENTRYPOINT ["/weaver/weaver"]
