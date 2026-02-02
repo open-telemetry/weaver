@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# Unreleased
+# [0.21.0] - 2026-02-02
 
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
 - Add support for diff schemas in `registry json-schema`([#1105](https://github.com/open-telemetry/weaver/pull/1105) by @lmolkova)
@@ -147,7 +147,6 @@ What's changed
   the semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. While the
   text-based `deprecated` field is still supported for compatibility reasons, future semantic conventions should use the
   new `deprecated` structured format. ([#400](https://github.com/open-telemetry/weaver/pull/400/) by @lquerel).
-
   - The `deprecated` field is now a structured field defining the precise reason for deprecation. The semantic
     conventions must be updated to adopt this new format.
   - The changes related to the `deprecated` field (i.e., string → struct) also have a potential impact on certain
