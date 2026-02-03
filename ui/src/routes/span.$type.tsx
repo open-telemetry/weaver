@@ -104,7 +104,7 @@ function SpanDetail() {
             </button>
             <span className="badge badge-outline">Span</span>
             <span className="badge badge-lg badge-secondary">{data.kind || 'internal'}</span>
-            <StabilityBadge stability={data.stability as any} />
+            <StabilityBadge stability={data.stability} />
             {data.deprecated && (
               <span className="badge badge-warning">deprecated</span>
             )}

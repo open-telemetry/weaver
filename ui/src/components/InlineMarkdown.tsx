@@ -1,5 +1,5 @@
 import { marked } from 'marked'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
 interface InlineMarkdownProps {
   content: string
@@ -7,31 +7,25 @@ interface InlineMarkdownProps {
 }
 
 export function InlineMarkdown({ content, className = '' }: InlineMarkdownProps) {
-  const [html, setHtml] = useState('')
+  const html = useMemo(() => {
+    if (!content || typeof content !== 'string') return ''
 
-  useEffect(() => {
-    const renderInlineMarkdown = (text: string) => {
-      if (!text || typeof text !== 'string') return ''
+    try {
+      const result = marked.parse(content, {
+        async: false,
+        breaks: false,
+        gfm: true,
+      })
 
-      try {
-        const result = marked.parse(text, {
-          async: false,
-          breaks: false,
-          gfm: true,
-        })
-
-        if (typeof result === 'string') {
-          return result.replace(/<\/?p>/g, '')
-        }
-
-        return ''
-      } catch (e) {
-        console.error('Markdown rendering error:', e)
-        return text
+      if (typeof result === 'string') {
+        return result.replace(/<\/?p>/g, '')
       }
-    }
 
-    setHtml(renderInlineMarkdown(content))
+      return ''
+    } catch (e) {
+      console.error('Markdown rendering error:', e)
+      return content
+    }
   }, [content])
 
   const spanClassName = className ? `inline-markdown ${className}` : 'inline-markdown'

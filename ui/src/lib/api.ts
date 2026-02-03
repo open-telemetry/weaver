@@ -24,7 +24,7 @@ export interface RegistryCounts {
 
 export interface AttributeResponse {
   key: string;
-  stability?: string;
+  stability?: StabilityFilter;
   deprecated?: {
     note?: string;
     renamed_to?: string;
@@ -48,7 +48,7 @@ export interface MetricAttribute {
 
 export interface MetricResponse {
   name: string;
-  stability?: string;
+  stability?: StabilityFilter;
   deprecated?: {
     note?: string;
     renamed_to?: string;
@@ -75,7 +75,7 @@ export interface SpanAttribute {
 
 export interface SpanResponse {
   type: string;
-  stability?: string;
+  stability?: StabilityFilter;
   deprecated?: {
     note?: string;
     renamed_to?: string;
@@ -99,7 +99,7 @@ export interface EventAttribute {
 
 export interface EventResponse {
   name: string;
-  stability?: string;
+  stability?: StabilityFilter;
   deprecated?: {
     note?: string;
     renamed_to?: string;
@@ -117,7 +117,7 @@ export interface EntityAttribute {
 
 export interface EntityResponse {
   type: string;
-  stability?: string;
+  stability?: StabilityFilter;
   deprecated?: {
     note?: string;
     renamed_to?: string;

@@ -103,7 +103,7 @@ function MetricDetail() {
               )}
             </button>
             <span className="badge badge-outline">Metric</span>
-            <StabilityBadge stability={data.stability as any} />
+            <StabilityBadge stability={data.stability} />
             {data.deprecated && (
               <span className="badge badge-warning">deprecated</span>
             )}
