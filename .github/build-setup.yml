@@ -1,0 +1,11 @@
+# Custom build setup steps for cargo-dist.
+# These steps are injected into the release workflow via the
+# github-build-setup option in dist-workspace.toml.
+# See: https://opensource.axo.dev/cargo-dist/book/ci/customizing.html
+
+- name: Setup Node.js
+  uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+  with:
+    node-version-file: '.nvmrc'
+    cache: 'npm'
+    cache-dependency-path: ui/package-lock.json

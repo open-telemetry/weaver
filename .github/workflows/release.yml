@@ -131,6 +131,12 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
+      - name: "Setup Node.js"
+        uses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238"
+        with:
+          "cache": "npm"
+          "cache-dependency-path": "ui/package-lock.json"
+          "node-version-file": ".nvmrc"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest
