@@ -10,7 +10,7 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "msi"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Which actions to run on pull requests
 pr-run-mode = "plan"
 # Whether to install an updater program
@@ -19,9 +19,5 @@ install-updater = false
 install-path = "CARGO_HOME"
 # Whether to enable GitHub Attestations
 github-attestations = true
-github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc = "windows-2025", aarch64-unknown-linux-musl = "ubuntu-24.04-arm", aarch64-unknown-linux-gnu = "ubuntu-24.04-arm" }
+github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc = "windows-2025", aarch64-unknown-linux-gnu = "ubuntu-24.04-arm" }
 github-build-setup = "../build-setup.yml"
-
-[dist.dependencies.apt]
-musl-tools = '*'
-musl-dev = '*'
