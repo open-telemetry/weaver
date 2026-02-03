@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# [0.21.1] - 2026-02-02
+# [0.21.2] - 2026-02-03
 
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
 - Add support for diff schemas in `registry json-schema`([#1105](https://github.com/open-telemetry/weaver/pull/1105) by @lmolkova)
