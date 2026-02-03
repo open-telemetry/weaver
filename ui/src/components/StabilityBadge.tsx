@@ -1,10 +1,13 @@
-type StabilityLevel = 'stable' | 'development' | 'alpha' | 'beta' | 'release_candidate' | 'deprecated'
+import type { StabilityFilter } from '../lib/api'
+
+export type StabilityLevel = Exclude<StabilityFilter, null>
 
 interface StabilityBadgeProps {
-  stability: StabilityLevel
+  stability?: StabilityLevel | null
 }
 
 export function StabilityBadge({ stability }: StabilityBadgeProps) {
+  if (!stability) return null
   const badgeClass = {
     'stable': 'badge-success',
     'development': 'badge-warning', 

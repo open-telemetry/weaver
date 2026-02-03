@@ -15,15 +15,14 @@ export const Route = createRoute({
 
 function ApiDocs() {
   const rapidocRef = useRef<HTMLElement | null>(null)
-  const [currentTheme, setCurrentTheme] = useState<Theme>('light')
-  const themeRef = useRef<Theme>('light')
+  const [currentTheme, setCurrentTheme] = useState<Theme>(() => {
+    if (typeof document === 'undefined') return 'light'
+    const savedTheme = document.documentElement.getAttribute('data-theme')
+    return savedTheme === 'dark' ? 'dark' : 'light'
+  })
+  const themeRef = useRef<Theme>(currentTheme)
 
-  const applyTheme = (theme: Theme) => {
-    if (themeRef.current !== theme) {
-      themeRef.current = theme
-      setCurrentTheme(theme)
-    }
-
+  const applyThemeToDoc = (theme: Theme) => {
     const rapidocElement = rapidocRef.current
     if (!rapidocElement) return
 
@@ -42,9 +41,6 @@ function ApiDocs() {
 
   useEffect(() => {
     document.title = 'API Documentation - Weaver'
-    const initialTheme =
-      (document.documentElement.getAttribute('data-theme') as Theme | null) || 'light'
-    applyTheme(initialTheme)
   }, [])
 
   useEffect(() => {
@@ -63,9 +59,9 @@ function ApiDocs() {
       for (const mutation of mutations) {
         if (mutation.attributeName === 'data-theme') {
           const newTheme =
-            (document.documentElement.getAttribute('data-theme') as Theme | null) || 'light'
+            document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
           if (newTheme !== themeRef.current) {
-            applyTheme(newTheme)
+            setCurrentTheme(newTheme)
           }
         }
       }
@@ -74,6 +70,11 @@ function ApiDocs() {
     observer.observe(document.documentElement, { attributes: true })
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    themeRef.current = currentTheme
+    applyThemeToDoc(currentTheme)
+  }, [currentTheme])
 
   return (
     <div className="api-docs-container">

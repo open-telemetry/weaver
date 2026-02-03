@@ -1,21 +1,18 @@
 import { marked } from 'marked'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
 interface MarkdownProps {
   content: string
 }
 
 export function Markdown({ content }: MarkdownProps) {
-  const [html, setHtml] = useState('')
-
-  useEffect(() => {
+  const html = useMemo(() => {
     marked.setOptions({
       breaks: true,
       gfm: true,
     })
-    
-    const renderedHtml = typeof content === 'string' ? marked(content || '') : ''
-    setHtml(renderedHtml)
+
+    return typeof content === 'string' ? marked(content || '') : ''
   }, [content])
 
   if (!content) return null
