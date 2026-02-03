@@ -20,14 +20,8 @@ install-path = "CARGO_HOME"
 # Whether to enable GitHub Attestations
 github-attestations = true
 github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc = "windows-2025", aarch64-unknown-linux-musl = "ubuntu-24.04-arm", aarch64-unknown-linux-gnu = "ubuntu-24.04-arm" }
+github-build-setup = "../build-setup.yml"
 
 [dist.dependencies.apt]
-nodejs = '24.*'
 musl-tools = '*'
 musl-dev = '*'
-
-[dist.dependencies.homebrew]
-node = '24'
-
-[dist.dependencies.chocolatey]
-nodejs = '24.*'
