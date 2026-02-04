@@ -61,37 +61,10 @@ pub struct RegistryInferArgs {
     inactivity_timeout: u64,
 }
 
-/// Accumulated attribute with examples
-#[derive(Debug, Clone)]
-struct AccumulatedAttribute {
-    name: String,
-    attr_type: Option<PrimitiveOrArrayTypeSpec>,
-    examples: Vec<Value>,
-}
-
-impl AccumulatedAttribute {
-    fn new(name: String, attr_type: Option<PrimitiveOrArrayTypeSpec>) -> Self {
-        Self {
-            name,
-            attr_type,
-            examples: Vec::new(),
-        }
-    }
-
-    fn add_example(&mut self, value: &Option<Value>) {
-        if let Some(v) = value {
-            if self.examples.len() < MAX_EXAMPLES && !self.examples.contains(v) {
-                self.examples.push(v.clone());
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 struct AccumulatedSpan {
     name: String,
     kind: SpanKindSpec,
-    attributes: HashMap<String, AccumulatedAttribute>,
+    attributes: HashMap<String, AttributeSpec>,
     events: HashMap<String, AccumulatedEvent>,
 }
 
@@ -106,12 +79,11 @@ impl AccumulatedSpan {
     }
 }
 
-#[derive(Debug, Clone)]
 struct AccumulatedMetric {
     name: String,
     instrument: InstrumentSpec,
     unit: String,
-    attributes: HashMap<String, AccumulatedAttribute>,
+    attributes: HashMap<String, AttributeSpec>,
 }
 
 impl AccumulatedMetric {
@@ -125,10 +97,9 @@ impl AccumulatedMetric {
     }
 }
 
-#[derive(Debug, Clone)]
 struct AccumulatedEvent {
     name: String,
-    attributes: HashMap<String, AccumulatedAttribute>,
+    attributes: HashMap<String, AttributeSpec>,
 }
 
 impl AccumulatedEvent {
@@ -140,10 +111,9 @@ impl AccumulatedEvent {
     }
 }
 
-/// Main accumulator for all samples
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct AccumulatedSamples {
-    resources: HashMap<String, AccumulatedAttribute>,
+    resources: HashMap<String, AttributeSpec>,
     spans: HashMap<String, AccumulatedSpan>,
     metrics: HashMap<String, AccumulatedMetric>,
     events: HashMap<String, AccumulatedEvent>,
@@ -160,7 +130,7 @@ impl AccumulatedSamples {
             Sample::Span(span) => self.add_span(span),
             Sample::Metric(metric) => self.add_metric(metric),
             Sample::Log(log) => self.add_event(log.event_name, log.attributes),
-            Sample::Attribute(attr) => self.add_resource_attribute(attr),
+            Sample::Attribute(attr) => accumulate_attribute(&mut self.resources, attr),
             other => {
                 // This shouldn't happen since we control when add_sample is called.
                 // Adding anyway just in case.
@@ -171,16 +141,8 @@ impl AccumulatedSamples {
 
     fn add_resource(&mut self, resource: SampleResource) {
         for attr in resource.attributes {
-            self.add_resource_attribute(attr);
+            accumulate_attribute(&mut self.resources, attr);
         }
-    }
-
-    fn add_resource_attribute(&mut self, attr: SampleAttribute) {
-        let entry = self
-            .resources
-            .entry(attr.name.clone())
-            .or_insert_with(|| AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone()));
-        entry.add_example(&attr.value);
     }
 
     fn add_span(&mut self, span: SampleSpan) {
@@ -190,13 +152,7 @@ impl AccumulatedSamples {
             .or_insert_with(|| AccumulatedSpan::new(span.name.clone(), span.kind.clone()));
 
         for attr in span.attributes {
-            let attr_entry = entry
-                .attributes
-                .entry(attr.name.clone())
-                .or_insert_with(|| {
-                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
-                });
-            attr_entry.add_example(&attr.value);
+            accumulate_attribute(&mut entry.attributes, attr);
         }
 
         // TODO: Span events are being deprecated in the future. Eventually we should remove this.
@@ -207,13 +163,7 @@ impl AccumulatedSamples {
                 .or_insert_with(|| AccumulatedEvent::new(event.name.clone()));
 
             for attr in event.attributes {
-                let attr_entry = event_entry
-                    .attributes
-                    .entry(attr.name.clone())
-                    .or_insert_with(|| {
-                        AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
-                    });
-                attr_entry.add_example(&attr.value);
+                accumulate_attribute(&mut event_entry.attributes, attr);
             }
         }
     }
@@ -235,48 +185,21 @@ impl AccumulatedSamples {
                 DataPoints::Number(points) => {
                     for point in points {
                         for attr in point.attributes {
-                            let attr_entry = entry
-                                .attributes
-                                .entry(attr.name.clone())
-                                .or_insert_with(|| {
-                                    AccumulatedAttribute::new(
-                                        attr.name.clone(),
-                                        attr.r#type.clone(),
-                                    )
-                                });
-                            attr_entry.add_example(&attr.value);
+                            accumulate_attribute(&mut entry.attributes, attr);
                         }
                     }
                 }
                 DataPoints::Histogram(points) => {
                     for point in points {
                         for attr in point.attributes {
-                            let attr_entry = entry
-                                .attributes
-                                .entry(attr.name.clone())
-                                .or_insert_with(|| {
-                                    AccumulatedAttribute::new(
-                                        attr.name.clone(),
-                                        attr.r#type.clone(),
-                                    )
-                                });
-                            attr_entry.add_example(&attr.value);
+                            accumulate_attribute(&mut entry.attributes, attr);
                         }
                     }
                 }
                 DataPoints::ExponentialHistogram(points) => {
                     for point in points {
                         for attr in point.attributes {
-                            let attr_entry = entry
-                                .attributes
-                                .entry(attr.name.clone())
-                                .or_insert_with(|| {
-                                    AccumulatedAttribute::new(
-                                        attr.name.clone(),
-                                        attr.r#type.clone(),
-                                    )
-                                });
-                            attr_entry.add_example(&attr.value);
+                            accumulate_attribute(&mut entry.attributes, attr);
                         }
                     }
                 }
@@ -295,13 +218,7 @@ impl AccumulatedSamples {
             .or_insert_with(|| AccumulatedEvent::new(event_name));
 
         for attr in attributes {
-            let attr_entry = entry
-                .attributes
-                .entry(attr.name.clone())
-                .or_insert_with(|| {
-                    AccumulatedAttribute::new(attr.name.clone(), attr.r#type.clone())
-                });
-            attr_entry.add_example(&attr.value);
+            accumulate_attribute(&mut entry.attributes, attr);
         }
     }
 
@@ -334,11 +251,8 @@ impl AccumulatedSamples {
         // We don't support entities yet, so all resource attributes are accumulated
         // into a single resource group.
         if !self.resources.is_empty() {
-            let mut attributes: Vec<AttributeSpec> = self
-                .resources
-                .values()
-                .map(accumulated_to_attribute_spec)
-                .collect();
+            let mut attributes: Vec<AttributeSpec> =
+                self.resources.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -353,11 +267,8 @@ impl AccumulatedSamples {
 
         // Span groups
         for span in self.spans.values() {
-            let mut attributes: Vec<AttributeSpec> = span
-                .attributes
-                .values()
-                .map(accumulated_to_attribute_spec)
-                .collect();
+            let mut attributes: Vec<AttributeSpec> =
+                span.attributes.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -372,11 +283,8 @@ impl AccumulatedSamples {
 
             // Span events as separate event groups
             for event in span.events.values() {
-                let mut event_attributes: Vec<AttributeSpec> = event
-                    .attributes
-                    .values()
-                    .map(accumulated_to_attribute_spec)
-                    .collect();
+                let mut event_attributes: Vec<AttributeSpec> =
+                    event.attributes.values().cloned().collect();
                 event_attributes.sort_by_key(|a| a.id());
 
                 groups.push(GroupSpec {
@@ -393,11 +301,8 @@ impl AccumulatedSamples {
 
         // Metric groups
         for metric in self.metrics.values() {
-            let mut attributes: Vec<AttributeSpec> = metric
-                .attributes
-                .values()
-                .map(accumulated_to_attribute_spec)
-                .collect();
+            let mut attributes: Vec<AttributeSpec> =
+                metric.attributes.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -419,11 +324,8 @@ impl AccumulatedSamples {
 
         // Event groups (from logs)
         for event in self.events.values() {
-            let mut attributes: Vec<AttributeSpec> = event
-                .attributes
-                .values()
-                .map(accumulated_to_attribute_spec)
-                .collect();
+            let mut attributes: Vec<AttributeSpec> =
+                event.attributes.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -451,18 +353,20 @@ struct InferredRegistry {
     groups: Vec<GroupSpec>,
 }
 
-/// Convert an accumulated attribute to a weaver_semconv AttributeSpec.
-fn accumulated_to_attribute_spec(attr: &AccumulatedAttribute) -> AttributeSpec {
-    let attr_type = attr
-        .attr_type
+/// Create a new AttributeSpec from a SampleAttribute.
+fn attribute_spec_from_sample(sample: &SampleAttribute) -> AttributeSpec {
+    let attr_type = sample
+        .r#type
         .clone()
         .unwrap_or(PrimitiveOrArrayTypeSpec::String);
 
+    let examples = sample.value.as_ref().and_then(|v| add_example(None, v));
+
     AttributeSpec::Id {
-        id: attr.name.clone(),
+        id: sample.name.clone(),
         r#type: AttributeType::PrimitiveOrArray(attr_type),
         brief: Some(String::new()),
-        examples: json_values_to_examples(&attr.examples),
+        examples,
         tag: None,
         requirement_level: RequirementLevel::default(),
         sampling_relevant: None,
@@ -474,21 +378,143 @@ fn accumulated_to_attribute_spec(attr: &AccumulatedAttribute) -> AttributeSpec {
     }
 }
 
-/// Convert a vector of JSON values to the appropriate Examples type.
+/// Update an AttributeSpec's examples with a new value.
+fn update_attribute_example(attr: &mut AttributeSpec, value: &Option<Value>) {
+    if let Some(v) = value {
+        if let AttributeSpec::Id { examples, .. } = attr {
+            *examples = add_example(examples.take(), v);
+        }
+    }
+}
+
+/// Get or create an attribute in a HashMap, updating examples if it exists.
+fn accumulate_attribute(
+    attributes: &mut HashMap<String, AttributeSpec>,
+    sample: SampleAttribute,
+) {
+    match attributes.entry(sample.name.clone()) {
+        std::collections::hash_map::Entry::Occupied(mut entry) => {
+            update_attribute_example(entry.get_mut(), &sample.value);
+        }
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            let _ = entry.insert(attribute_spec_from_sample(&sample));
+        }
+    }
+}
+
+/// Add an example value to an existing Examples, handling type promotion and deduplication.
 ///
-/// Uses serde to automatically match the JSON values to the correct Examples variant.
-fn json_values_to_examples(values: &[Value]) -> Option<Examples> {
-    if values.is_empty() {
-        return None;
+/// This function accumulates examples directly into the `Examples` type:
+/// - If `current` is `None`, creates a new single-value `Examples`
+/// - If `current` is a single value and new value is same type, promotes to array variant
+/// - If `current` is already an array, appends while deduplicating
+/// - On type mismatch, returns `current` unchanged
+fn add_example(current: Option<Examples>, value: &Value) -> Option<Examples> {
+    use weaver_common::ordered_float::OrderedF64;
+
+    // Null values don't add anything
+    if value.is_null() {
+        return current;
     }
 
-    // Try to convert: if single value, try as single example; if multiple, try as array
-    if values.len() == 1 {
-        serde_json::from_value::<Examples>(values[0].clone()).ok()
-    } else {
-        // For multiple values, create an array and let serde figure out the type
-        let arr = Value::Array(values.to_vec());
-        serde_json::from_value::<Examples>(arr).ok()
+    match current {
+        None => {
+            // Create new single-value Examples from the JSON value
+            match value {
+                Value::Bool(b) => Some(Examples::Bool(*b)),
+                Value::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        Some(Examples::Int(i))
+                    } else if let Some(f) = n.as_f64() {
+                        Some(Examples::Double(OrderedF64(f)))
+                    } else {
+                        None
+                    }
+                }
+                Value::String(s) => Some(Examples::String(s.clone())),
+                // Objects and arrays are not supported as example values
+                Value::Array(_) | Value::Object(_) | Value::Null => None,
+            }
+        }
+        Some(examples) => Some(add_to_existing_examples(examples, value)),
+    }
+}
+
+/// Add a value to existing Examples, handling promotion from single to array.
+fn add_to_existing_examples(examples: Examples, value: &Value) -> Examples {
+    use weaver_common::ordered_float::OrderedF64;
+
+    match (examples, value) {
+        // Bool: single -> array promotion
+        (Examples::Bool(existing), Value::Bool(new)) => {
+            if existing == *new {
+                Examples::Bool(existing)
+            } else {
+                Examples::Bools(vec![existing, *new])
+            }
+        }
+        // Bool array: append
+        (Examples::Bools(mut vec), Value::Bool(new)) => {
+            if vec.len() < MAX_EXAMPLES && !vec.contains(new) {
+                vec.push(*new);
+            }
+            Examples::Bools(vec)
+        }
+
+        // Int: single -> array promotion
+        (Examples::Int(existing), Value::Number(n)) if n.as_i64().is_some() => {
+            let new = n.as_i64().unwrap();
+            if existing == new {
+                Examples::Int(existing)
+            } else {
+                Examples::Ints(vec![existing, new])
+            }
+        }
+        // Int array: append
+        (Examples::Ints(mut vec), Value::Number(n)) if n.as_i64().is_some() => {
+            let new = n.as_i64().unwrap();
+            if vec.len() < MAX_EXAMPLES && !vec.contains(&new) {
+                vec.push(new);
+            }
+            Examples::Ints(vec)
+        }
+
+        // Double: single -> array promotion
+        (Examples::Double(existing), Value::Number(n)) if n.as_f64().is_some() => {
+            let new = OrderedF64(n.as_f64().unwrap());
+            if existing == new {
+                Examples::Double(existing)
+            } else {
+                Examples::Doubles(vec![existing, new])
+            }
+        }
+        // Double array: append
+        (Examples::Doubles(mut vec), Value::Number(n)) if n.as_f64().is_some() => {
+            let new = OrderedF64(n.as_f64().unwrap());
+            if vec.len() < MAX_EXAMPLES && !vec.contains(&new) {
+                vec.push(new);
+            }
+            Examples::Doubles(vec)
+        }
+
+        // String: single -> array promotion
+        (Examples::String(existing), Value::String(new)) => {
+            if existing == *new {
+                Examples::String(existing)
+            } else {
+                Examples::Strings(vec![existing, new.clone()])
+            }
+        }
+        // String array: append
+        (Examples::Strings(mut vec), Value::String(new)) => {
+            if vec.len() < MAX_EXAMPLES && !vec.contains(new) {
+                vec.push(new.clone());
+            }
+            Examples::Strings(vec)
+        }
+
+        // Type mismatch or unsupported: return unchanged
+        (examples, _) => examples,
     }
 }
 
@@ -698,6 +724,101 @@ mod tests {
     use weaver_semconv::group::SpanKindSpec;
 
     // ============================================
+    // Tests for add_example()
+    // ============================================
+
+    #[test]
+    fn test_add_example_null_value_returns_current() {
+        // Starting with None
+        let result = add_example(None, &Value::Null);
+        assert!(result.is_none());
+
+        // Starting with existing examples
+        let current = Some(Examples::String("existing".to_owned()));
+        let result = add_example(current.clone(), &Value::Null);
+        assert_eq!(result, current);
+    }
+
+    #[test]
+    fn test_add_example_first_string_creates_single() {
+        let result = add_example(None, &json!("hello"));
+        assert_eq!(result, Some(Examples::String("hello".to_owned())));
+    }
+
+    #[test]
+    fn test_add_example_first_int_creates_single() {
+        let result = add_example(None, &json!(42));
+        assert_eq!(result, Some(Examples::Int(42)));
+    }
+
+    #[test]
+    fn test_add_example_first_double_creates_single() {
+        use weaver_common::ordered_float::OrderedF64;
+
+        let result = add_example(None, &json!(3.14));
+        assert_eq!(result, Some(Examples::Double(OrderedF64(3.14))));
+    }
+
+    #[test]
+    fn test_add_example_first_bool_creates_single() {
+        let result = add_example(None, &json!(true));
+        assert_eq!(result, Some(Examples::Bool(true)));
+    }
+
+    #[test]
+    fn test_add_example_second_string_creates_array() {
+        let current = Some(Examples::String("first".to_owned()));
+        let result = add_example(current, &json!("second"));
+        assert_eq!(
+            result,
+            Some(Examples::Strings(vec![
+                "first".to_owned(),
+                "second".to_owned()
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_add_example_deduplicates_in_array() {
+        let current = Some(Examples::Strings(vec!["a".to_owned(), "b".to_owned()]));
+        let result = add_example(current, &json!("a"));
+        // Should not add duplicate
+        assert_eq!(
+            result,
+            Some(Examples::Strings(vec!["a".to_owned(), "b".to_owned()]))
+        );
+    }
+
+    #[test]
+    fn test_add_example_respects_max_limit() {
+        // MAX_EXAMPLES is 5, so start with 5 and try to add a 6th
+        let current = Some(Examples::Ints(vec![1, 2, 3, 4, 5]));
+        let result = add_example(current.clone(), &json!(6));
+        // Should not add beyond max
+        assert_eq!(result, current);
+    }
+
+    #[test]
+    fn test_add_example_type_mismatch_returns_current() {
+        // String examples, trying to add int
+        let current = Some(Examples::String("text".to_owned()));
+        let result = add_example(current.clone(), &json!(42));
+        assert_eq!(result, current);
+
+        // Int examples, trying to add string
+        let current = Some(Examples::Int(42));
+        let result = add_example(current.clone(), &json!("text"));
+        assert_eq!(result, current);
+    }
+
+    #[test]
+    fn test_add_example_type_mismatch_array_returns_current() {
+        let current = Some(Examples::Strings(vec!["a".to_owned()]));
+        let result = add_example(current.clone(), &json!(123));
+        assert_eq!(result, current);
+    }
+
+    // ============================================
     // Tests for sanitize_id()
     // ============================================
     #[test]
@@ -722,128 +843,123 @@ mod tests {
     }
 
     // ============================================
-    // Tests for json_values_to_examples()
+    // Tests for attribute_spec_from_sample()
     // ============================================
 
     #[test]
-    fn test_json_values_to_examples_empty() {
-        let result = json_values_to_examples(&[]);
-        assert!(result.is_none());
-    }
+    fn test_attribute_spec_from_sample_creates_correct_spec() {
+        let sample = SampleAttribute {
+            name: "test.attr".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: Some(json!("example")),
+            live_check_result: None,
+        };
 
-    #[test]
-    fn test_json_values_to_examples_single_string() {
-        let values = vec![json!("hello")];
-        let result = json_values_to_examples(&values);
-        assert!(result.is_some());
-        // The Examples type should contain "hello"
-        let examples = result.unwrap();
-        assert_eq!(examples, Examples::String("hello".to_owned()));
-    }
+        let spec = attribute_spec_from_sample(&sample);
 
-    #[test]
-    fn test_json_values_to_examples_single_int() {
-        let values = vec![json!(42)];
-        let result = json_values_to_examples(&values);
-        assert!(result.is_some());
-        let examples = result.unwrap();
-        assert_eq!(examples, Examples::Int(42));
-    }
-
-    #[test]
-    fn test_json_values_to_examples_single_double() {
-        use weaver_common::ordered_float::OrderedF64;
-
-        let values = vec![json!(2.71)];
-        let result = json_values_to_examples(&values);
-        assert_eq!(result, Some(Examples::Double(OrderedF64(2.71))));
-    }
-
-    #[test]
-    fn test_json_values_to_examples_single_bool() {
-        let values = vec![json!(true)];
-        let result = json_values_to_examples(&values);
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), Examples::Bool(true));
-    }
-
-    #[test]
-    fn test_json_values_to_examples_multiple_strings() {
-        let values = vec![json!("hello"), json!("world")];
-        let result = json_values_to_examples(&values);
-        assert!(result.is_some());
-        let examples = result.unwrap();
-        assert_eq!(
-            examples,
-            Examples::Strings(vec!["hello".to_owned(), "world".to_owned()])
-        );
-    }
-
-    #[test]
-    fn test_json_values_to_examples_multiple_ints() {
-        let values = vec![json!(1), json!(2), json!(3)];
-        let result = json_values_to_examples(&values);
-        assert!(result.is_some());
-        let examples = result.unwrap();
-        assert_eq!(examples, Examples::Ints(vec![1, 2, 3]));
-    }
-
-    // ============================================
-    // Tests for AccumulatedAttribute
-    // ============================================
-
-    #[test]
-    fn test_accumulated_attribute_new() {
-        let attr = AccumulatedAttribute::new(
-            "test.attr".to_owned(),
-            Some(PrimitiveOrArrayTypeSpec::String),
-        );
-        assert_eq!(attr.name, "test.attr");
-        assert_eq!(attr.attr_type, Some(PrimitiveOrArrayTypeSpec::String));
-        assert!(attr.examples.is_empty());
-    }
-
-    #[test]
-    fn test_accumulated_attribute_add_example_respects_max() {
-        let mut attr =
-            AccumulatedAttribute::new("test".to_owned(), Some(PrimitiveOrArrayTypeSpec::Int));
-
-        // Add MAX_EXAMPLES + 2 unique values
-        for i in 0..(MAX_EXAMPLES + 2) {
-            attr.add_example(&Some(json!(i)));
-        }
-
-        // Should only have MAX_EXAMPLES
-        assert_eq!(attr.examples.len(), MAX_EXAMPLES);
-        // First MAX_EXAMPLES values should be preserved
-        for i in 0..MAX_EXAMPLES {
-            assert!(attr.examples.contains(&json!(i)));
+        match spec {
+            AttributeSpec::Id {
+                id,
+                r#type,
+                examples,
+                stability,
+                ..
+            } => {
+                assert_eq!(id, "test.attr");
+                assert_eq!(
+                    r#type,
+                    AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+                );
+                assert_eq!(examples, Some(Examples::String("example".to_owned())));
+                assert_eq!(stability, Some(Stability::Development));
+            }
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
         }
     }
 
     #[test]
-    fn test_accumulated_attribute_add_example_deduplicates() {
-        let mut attr =
-            AccumulatedAttribute::new("test".to_owned(), Some(PrimitiveOrArrayTypeSpec::String));
+    fn test_attribute_spec_from_sample_no_examples_when_no_value() {
+        let sample = SampleAttribute {
+            name: "test.attr".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::Int),
+            value: None,
+            live_check_result: None,
+        };
 
-        // Add same value multiple times
-        attr.add_example(&Some(json!("duplicate")));
-        attr.add_example(&Some(json!("duplicate")));
-        attr.add_example(&Some(json!("duplicate")));
+        let spec = attribute_spec_from_sample(&sample);
 
-        assert_eq!(attr.examples.len(), 1);
-        assert_eq!(attr.examples[0], json!("duplicate"));
+        match spec {
+            AttributeSpec::Id { examples, .. } => {
+                assert!(examples.is_none());
+            }
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
+        }
+    }
+
+    // ============================================
+    // Tests for accumulate_attribute()
+    // ============================================
+
+    #[test]
+    fn test_accumulate_attribute_creates_new() {
+        let mut attributes: HashMap<String, AttributeSpec> = HashMap::new();
+
+        let sample = SampleAttribute {
+            name: "test.attr".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: Some(json!("value1")),
+            live_check_result: None,
+        };
+
+        accumulate_attribute(&mut attributes, sample);
+
+        assert_eq!(attributes.len(), 1);
+        assert!(attributes.contains_key("test.attr"));
     }
 
     #[test]
-    fn test_accumulated_attribute_add_example_ignores_none() {
-        let mut attr =
-            AccumulatedAttribute::new("test".to_owned(), Some(PrimitiveOrArrayTypeSpec::String));
+    fn test_accumulate_attribute_updates_examples() {
+        let mut attributes: HashMap<String, AttributeSpec> = HashMap::new();
 
-        attr.add_example(&None);
-        attr.add_example(&None);
+        // Add first sample
+        accumulate_attribute(
+            &mut attributes,
+            SampleAttribute {
+                name: "test.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("value1")),
+                live_check_result: None,
+            },
+        );
 
-        assert!(attr.examples.is_empty());
+        // Add second sample with same name
+        accumulate_attribute(
+            &mut attributes,
+            SampleAttribute {
+                name: "test.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("value2")),
+                live_check_result: None,
+            },
+        );
+
+        // Should still have only 1 attribute
+        assert_eq!(attributes.len(), 1);
+
+        // But examples should be updated
+        let attr = attributes.get("test.attr").unwrap();
+        match attr {
+            AttributeSpec::Id { examples, .. } => {
+                assert_eq!(
+                    *examples,
+                    Some(Examples::Strings(vec![
+                        "value1".to_owned(),
+                        "value2".to_owned()
+                    ]))
+                );
+            }
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
+        }
     }
 
     // ============================================
@@ -858,25 +974,32 @@ mod tests {
     }
 
     #[test]
-    fn test_accumulated_samples_add_resource_attribute() {
+    fn test_accumulated_samples_add_resource() {
         let mut acc = AccumulatedSamples::new();
 
-        let attr = SampleAttribute {
-            name: "service.name".to_owned(),
-            r#type: Some(PrimitiveOrArrayTypeSpec::String),
-            value: Some(json!("my-service")),
+        let resource = SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("my-service")),
+                live_check_result: None,
+            }],
             live_check_result: None,
         };
 
-        acc.add_resource_attribute(attr);
+        acc.add_resource(resource);
 
         assert!(!acc.is_empty());
         assert_eq!(acc.stats(), (1, 0, 0, 0));
         assert!(acc.resources.contains_key("service.name"));
 
-        let accumulated = acc.resources.get("service.name").unwrap();
-        assert_eq!(accumulated.examples.len(), 1);
-        assert_eq!(accumulated.examples[0], json!("my-service"));
+        let attr_spec = acc.resources.get("service.name").unwrap();
+        match attr_spec {
+            AttributeSpec::Id { examples, .. } => {
+                assert_eq!(*examples, Some(Examples::String("my-service".to_owned())));
+            }
+            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
+        }
     }
 
     #[test]
@@ -991,12 +1114,15 @@ mod tests {
     fn test_to_semconv_spec_with_resources() {
         let mut acc = AccumulatedSamples::new();
 
-        acc.add_resource_attribute(SampleAttribute {
-            name: "service.name".to_owned(),
-            r#type: Some(PrimitiveOrArrayTypeSpec::String),
-            value: Some(json!("test-service")),
-            live_check_result: None,
-        });
+        accumulate_attribute(
+            &mut acc.resources,
+            SampleAttribute {
+                name: "service.name".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("test-service")),
+                live_check_result: None,
+            },
+        );
 
         let registry = acc.to_semconv_spec();
 
@@ -1110,24 +1236,33 @@ mod tests {
         let mut acc = AccumulatedSamples::new();
 
         // Add attributes in non-alphabetical order
-        acc.add_resource_attribute(SampleAttribute {
-            name: "z.attr".to_owned(),
-            r#type: Some(PrimitiveOrArrayTypeSpec::String),
-            value: None,
-            live_check_result: None,
-        });
-        acc.add_resource_attribute(SampleAttribute {
-            name: "a.attr".to_owned(),
-            r#type: Some(PrimitiveOrArrayTypeSpec::String),
-            value: None,
-            live_check_result: None,
-        });
-        acc.add_resource_attribute(SampleAttribute {
-            name: "m.attr".to_owned(),
-            r#type: Some(PrimitiveOrArrayTypeSpec::String),
-            value: None,
-            live_check_result: None,
-        });
+        accumulate_attribute(
+            &mut acc.resources,
+            SampleAttribute {
+                name: "z.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: None,
+                live_check_result: None,
+            },
+        );
+        accumulate_attribute(
+            &mut acc.resources,
+            SampleAttribute {
+                name: "a.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: None,
+                live_check_result: None,
+            },
+        );
+        accumulate_attribute(
+            &mut acc.resources,
+            SampleAttribute {
+                name: "m.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: None,
+                live_check_result: None,
+            },
+        );
 
         let registry = acc.to_semconv_spec();
 
@@ -1136,75 +1271,4 @@ mod tests {
         assert_eq!(attr_ids, vec!["a.attr", "m.attr", "z.attr"]);
     }
 
-    // ============================================
-    // Tests for accumulated_to_attribute_spec()
-    // ============================================
-
-    #[test]
-    fn test_accumulated_to_attribute_spec_defaults_to_string() {
-        let attr = AccumulatedAttribute::new("test.attr".to_owned(), None);
-
-        let spec = accumulated_to_attribute_spec(&attr);
-
-        match spec {
-            AttributeSpec::Id { r#type, .. } => {
-                assert_eq!(
-                    r#type,
-                    AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
-                );
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
-    }
-
-    #[test]
-    fn test_accumulated_to_attribute_spec_preserves_type() {
-        let attr =
-            AccumulatedAttribute::new("test.attr".to_owned(), Some(PrimitiveOrArrayTypeSpec::Int));
-
-        let spec = accumulated_to_attribute_spec(&attr);
-
-        match spec {
-            AttributeSpec::Id { r#type, .. } => {
-                assert_eq!(
-                    r#type,
-                    AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
-                );
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
-    }
-
-    #[test]
-    fn test_accumulated_to_attribute_spec_includes_examples() {
-        let mut attr = AccumulatedAttribute::new(
-            "test.attr".to_owned(),
-            Some(PrimitiveOrArrayTypeSpec::String),
-        );
-        attr.add_example(&Some(json!("example1")));
-        attr.add_example(&Some(json!("example2")));
-
-        let spec = accumulated_to_attribute_spec(&attr);
-
-        match spec {
-            AttributeSpec::Id { examples, .. } => {
-                assert!(examples.is_some());
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
-    }
-
-    #[test]
-    fn test_accumulated_to_attribute_spec_stability_is_development() {
-        let attr = AccumulatedAttribute::new("test.attr".to_owned(), None);
-
-        let spec = accumulated_to_attribute_spec(&attr);
-
-        match spec {
-            AttributeSpec::Id { stability, .. } => {
-                assert_eq!(stability, Some(Stability::Development));
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
-    }
 }
