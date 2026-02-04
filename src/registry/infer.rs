@@ -251,8 +251,7 @@ impl AccumulatedSamples {
         // We don't support entities yet, so all resource attributes are accumulated
         // into a single resource group.
         if !self.resources.is_empty() {
-            let mut attributes: Vec<AttributeSpec> =
-                self.resources.values().cloned().collect();
+            let mut attributes: Vec<AttributeSpec> = self.resources.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -267,8 +266,7 @@ impl AccumulatedSamples {
 
         // Span groups
         for span in self.spans.values() {
-            let mut attributes: Vec<AttributeSpec> =
-                span.attributes.values().cloned().collect();
+            let mut attributes: Vec<AttributeSpec> = span.attributes.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -301,8 +299,7 @@ impl AccumulatedSamples {
 
         // Metric groups
         for metric in self.metrics.values() {
-            let mut attributes: Vec<AttributeSpec> =
-                metric.attributes.values().cloned().collect();
+            let mut attributes: Vec<AttributeSpec> = metric.attributes.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -324,8 +321,7 @@ impl AccumulatedSamples {
 
         // Event groups (from logs)
         for event in self.events.values() {
-            let mut attributes: Vec<AttributeSpec> =
-                event.attributes.values().cloned().collect();
+            let mut attributes: Vec<AttributeSpec> = event.attributes.values().cloned().collect();
             attributes.sort_by_key(|a| a.id());
 
             groups.push(GroupSpec {
@@ -388,10 +384,7 @@ fn update_attribute_example(attr: &mut AttributeSpec, value: &Option<Value>) {
 }
 
 /// Get or create an attribute in a HashMap, updating examples if it exists.
-fn accumulate_attribute(
-    attributes: &mut HashMap<String, AttributeSpec>,
-    sample: SampleAttribute,
-) {
+fn accumulate_attribute(attributes: &mut HashMap<String, AttributeSpec>, sample: SampleAttribute) {
     match attributes.entry(sample.name.clone()) {
         std::collections::hash_map::Entry::Occupied(mut entry) => {
             update_attribute_example(entry.get_mut(), &sample.value);
@@ -422,15 +415,10 @@ fn add_example(current: Option<Examples>, value: &Value) -> Option<Examples> {
             // Create new single-value Examples from the JSON value
             match value {
                 Value::Bool(b) => Some(Examples::Bool(*b)),
-                Value::Number(n) => {
-                    if let Some(i) = n.as_i64() {
-                        Some(Examples::Int(i))
-                    } else if let Some(f) = n.as_f64() {
-                        Some(Examples::Double(OrderedF64(f)))
-                    } else {
-                        None
-                    }
-                }
+                Value::Number(n) => n
+                    .as_i64()
+                    .map(Examples::Int)
+                    .or_else(|| n.as_f64().map(|f| Examples::Double(OrderedF64(f)))),
                 Value::String(s) => Some(Examples::String(s.clone())),
                 // Objects and arrays are not supported as example values
                 Value::Array(_) | Value::Object(_) | Value::Null => None,
@@ -462,37 +450,34 @@ fn add_to_existing_examples(examples: Examples, value: &Value) -> Examples {
         }
 
         // Int: single -> array promotion
-        (Examples::Int(existing), Value::Number(n)) if n.as_i64().is_some() => {
-            let new = n.as_i64().unwrap();
-            if existing == new {
-                Examples::Int(existing)
-            } else {
-                Examples::Ints(vec![existing, new])
-            }
-        }
+        (Examples::Int(existing), Value::Number(n)) => match n.as_i64() {
+            Some(new) if existing == new => Examples::Int(existing),
+            Some(new) => Examples::Ints(vec![existing, new]),
+            None => Examples::Int(existing),
+        },
         // Int array: append
-        (Examples::Ints(mut vec), Value::Number(n)) if n.as_i64().is_some() => {
-            let new = n.as_i64().unwrap();
-            if vec.len() < MAX_EXAMPLES && !vec.contains(&new) {
-                vec.push(new);
+        (Examples::Ints(mut vec), Value::Number(n)) => {
+            if let Some(new) = n.as_i64() {
+                if vec.len() < MAX_EXAMPLES && !vec.contains(&new) {
+                    vec.push(new);
+                }
             }
             Examples::Ints(vec)
         }
 
         // Double: single -> array promotion
-        (Examples::Double(existing), Value::Number(n)) if n.as_f64().is_some() => {
-            let new = OrderedF64(n.as_f64().unwrap());
-            if existing == new {
-                Examples::Double(existing)
-            } else {
-                Examples::Doubles(vec![existing, new])
-            }
-        }
+        (Examples::Double(existing), Value::Number(n)) => match n.as_f64() {
+            Some(f) if existing == OrderedF64(f) => Examples::Double(existing),
+            Some(f) => Examples::Doubles(vec![existing, OrderedF64(f)]),
+            None => Examples::Double(existing),
+        },
         // Double array: append
-        (Examples::Doubles(mut vec), Value::Number(n)) if n.as_f64().is_some() => {
-            let new = OrderedF64(n.as_f64().unwrap());
-            if vec.len() < MAX_EXAMPLES && !vec.contains(&new) {
-                vec.push(new);
+        (Examples::Doubles(mut vec), Value::Number(n)) => {
+            if let Some(f) = n.as_f64() {
+                let new = OrderedF64(f);
+                if vec.len() < MAX_EXAMPLES && !vec.contains(&new) {
+                    vec.push(new);
+                }
             }
             Examples::Doubles(vec)
         }
