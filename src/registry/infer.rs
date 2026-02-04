@@ -519,10 +519,16 @@ fn add_to_existing_examples(examples: Examples, value: &Value) -> Examples {
 }
 
 fn sanitize_id(name: &str) -> String {
-    name.replace(['/', ' ', '-', '.'], "_")
-        .to_lowercase()
-        .trim_matches('_')
-        .to_owned()
+    use convert_case::{Case, Casing};
+    // Split by dots first (namespace separator), then apply snake_case to each segment
+    name.split('.')
+        .map(|segment| {
+            // Replace other separators with spaces so Case::Snake can handle them
+            let segment = segment.replace(['/', '-'], " ");
+            segment.to_case(Case::Snake)
+        })
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSamples) -> bool {
@@ -826,20 +832,25 @@ mod tests {
         assert_eq!(sanitize_id("http/request"), "http_request");
         assert_eq!(sanitize_id("http request"), "http_request");
         assert_eq!(sanitize_id("http-request"), "http_request");
-        assert_eq!(sanitize_id("http.request"), "http_request");
+        assert_eq!(sanitize_id("http.request"), "http.request");
     }
 
     #[test]
     fn test_sanitize_id_converts_to_lowercase() {
         assert_eq!(sanitize_id("HTTP_REQUEST"), "http_request");
-        assert_eq!(sanitize_id("HttpRequest"), "httprequest");
+        // Case::Snake properly splits camelCase
+        assert_eq!(sanitize_id("HttpRequest"), "http_request");
     }
 
     #[test]
-    fn test_sanitize_id_trims_underscores() {
-        assert_eq!(sanitize_id("_http_request_"), "http_request");
-        assert_eq!(sanitize_id("/http/request/"), "http_request");
-        assert_eq!(sanitize_id("...test..."), "test");
+    fn test_sanitize_id_preserves_dots_as_namespace_separator() {
+        // Dots are preserved as namespace separators
+        assert_eq!(sanitize_id("http.server.duration"), "http.server.duration");
+        // Each segment is snake_cased independently
+        assert_eq!(
+            sanitize_id("HttpServer.RequestDuration"),
+            "http_server.request_duration"
+        );
     }
 
     // ============================================
@@ -1181,7 +1192,7 @@ mod tests {
 
         assert_eq!(registry.groups.len(), 1);
         let group = &registry.groups[0];
-        assert_eq!(group.id, "metric.http_server_duration");
+        assert_eq!(group.id, "metric.http.server.duration");
         assert_eq!(group.r#type, GroupType::Metric);
         assert_eq!(group.metric_name, Some("http.server.duration".to_owned()));
         assert_eq!(group.instrument, Some(InstrumentSpec::Histogram));
@@ -1226,7 +1237,7 @@ mod tests {
 
         assert_eq!(registry.groups.len(), 1);
         let group = &registry.groups[0];
-        assert_eq!(group.id, "event.user_signup");
+        assert_eq!(group.id, "event.user.signup");
         assert_eq!(group.r#type, GroupType::Event);
         assert_eq!(group.name, Some("user.signup".to_owned()));
     }
@@ -1270,5 +1281,4 @@ mod tests {
         let attr_ids: Vec<_> = group.attributes.iter().map(|a| a.id()).collect();
         assert_eq!(attr_ids, vec!["a.attr", "m.attr", "z.attr"]);
     }
-
 }

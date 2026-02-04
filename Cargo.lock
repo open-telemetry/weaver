@@ -5611,6 +5611,7 @@ dependencies = [
  "clap",
  "clap-markdown",
  "clap_complete",
+ "convert_case",
  "env_logger",
  "include_dir",
  "itertools 0.14.0",
