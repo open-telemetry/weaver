@@ -109,13 +109,13 @@ impl AccumulatedSpan {
 #[derive(Debug, Clone)]
 struct AccumulatedMetric {
     name: String,
-    instrument: Option<InstrumentSpec>,
+    instrument: InstrumentSpec,
     unit: String,
     attributes: HashMap<String, AccumulatedAttribute>,
 }
 
 impl AccumulatedMetric {
-    fn new(name: String, instrument: Option<InstrumentSpec>, unit: String) -> Self {
+    fn new(name: String, instrument: InstrumentSpec, unit: String) -> Self {
         Self {
             name,
             instrument,
@@ -219,9 +219,10 @@ impl AccumulatedSamples {
     }
 
     fn add_metric(&mut self, metric: SampleMetric) {
+        // Skip unsupported instrument types (e.g., Summary, Unspecified) - we can't infer a schema for them
         let instrument = match &metric.instrument {
-            SampleInstrument::Supported(i) => Some(i.clone()),
-            SampleInstrument::Unsupported(_) => None,
+            SampleInstrument::Supported(i) => i.clone(),
+            SampleInstrument::Unsupported(_) => return,
         };
 
         let entry = self.metrics.entry(metric.name.clone()).or_insert_with(|| {
@@ -405,7 +406,7 @@ impl AccumulatedSamples {
                 brief: String::new(),
                 stability: Some(Stability::Development),
                 metric_name: Some(metric.name.clone()),
-                instrument: metric.instrument.clone(),
+                instrument: Some(metric.instrument.clone()),
                 unit: if metric.unit.is_empty() {
                     None
                 } else {
