@@ -63,8 +63,9 @@ function Schema() {
   }, [search.type])
 
   const definitions = useMemo(() => {
-    if (!schema?.definitions) return []
-    return Object.keys(schema.definitions).sort()
+    if (!schema?.definitions && !schema?.$defs) return []
+    const defs = schema.definitions || schema.$defs || {}
+    return Object.keys(defs).sort()
   }, [schema])
 
   function selectDefinition(name: string) {
@@ -95,12 +96,12 @@ function Schema() {
     if (hasArrayType && prop.items) {
       if (prop.items.type === 'array' && prop.items.items) {
         const innerType = prop.items.items.$ref
-          ? prop.items.items.$ref.replace('#/definitions/', '')
+          ? prop.items.items.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
           : prop.items.items.type || 'any'
         return `array of array of ${innerType}`
       }
       const itemType = prop.items.$ref
-        ? prop.items.$ref.replace('#/definitions/', '')
+        ? prop.items.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
         : prop.items.type || 'any'
       if (Array.isArray(prop.type) && prop.type.length >1) {
         const otherTypes = prop.type.filter(t => t !== 'array' && (!skipNull || t !== 'null'))
@@ -115,7 +116,7 @@ function Schema() {
                          (Array.isArray(prop.type) && prop.type.includes('object'))
     if (hasObjectType && prop.additionalProperties) {
       const valueType = prop.additionalProperties.$ref
-        ? prop.additionalProperties.$ref.replace('#/definitions/', '')
+        ? prop.additionalProperties.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
         : prop.additionalProperties.type || 'any'
       if (Array.isArray(prop.type) && prop.type.length > 1) {
         const otherTypes = prop.type.filter(t => t !== 'object' && (!skipNull || t !== 'null'))
@@ -131,20 +132,20 @@ function Schema() {
       return types.join(' | ')
     }
     if (prop.type) return prop.type
-    if (prop.$ref) return prop.$ref.replace('#/definitions/', '')
+    if (prop.$ref) return prop.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
     if (prop.allOf) {
       if (prop.allOf.length === 1 && prop.allOf[0].$ref) {
-        return prop.allOf[0].$ref.replace('#/definitions/', '')
+        return prop.allOf[0].$ref.replace('#/definitions/', '').replace('#/$defs/', '')
       }
-      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'object').join(' & ')
+      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '').replace('#/$defs/', '') : t.type || 'object').join(' & ')
     }
     if (prop.anyOf) {
-      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null')
+      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '').replace('#/$defs/', '') : t.type || 'null')
       const filtered = skipNull ? types.filter(t => t !== 'null') : types
       return filtered.join(' | ')
     }
     if (prop.oneOf) {
-      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '') : t.type || 'null')
+      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '').replace('#/$defs/', '') : t.type || 'null')
       const filtered = skipNull ? types.filter(t => t !== 'null') : types
       return filtered.join(' | ')
     }
@@ -158,7 +159,8 @@ function Schema() {
     if (typeStr.startsWith('array of ')) return false
     if (typeStr.startsWith('map of ')) return false
     if (typeStr.includes(' | ')) return false
-    return schema?.definitions && schema.definitions[typeStr] !== undefined
+    const defs = schema?.definitions || schema?.$defs || {}
+    return defs[typeStr] !== undefined
   }
 
   function parseTypeString(typeStr: string): TypePart[] {
@@ -507,9 +509,9 @@ function Schema() {
               </div>
             </div>
           </div>
-        ) : selectedDefinition && schema?.definitions[selectedDefinition] ? (
+        ) : selectedDefinition && ((schema?.definitions || schema?.$defs || {})[selectedDefinition]) ? (
           (() => {
-            const def = schema.definitions[selectedDefinition]
+            const def = (schema.definitions || schema.$defs || {})[selectedDefinition]
             return (
               <div className="space-y-6">
                 <div>

@@ -157,6 +157,7 @@ export interface SchemaResponse {
   oneOf?: SchemaProperty[];
   anyOf?: SchemaProperty[];
   definitions?: Record<string, SchemaDefinition>;
+  $defs?: Record<string, SchemaDefinition>;
 }
 
 export interface SearchResult {
