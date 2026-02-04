@@ -746,8 +746,8 @@ mod tests {
     fn test_add_example_first_double_creates_single() {
         use weaver_common::ordered_float::OrderedF64;
 
-        let result = add_example(None, &json!(3.14));
-        assert_eq!(result, Some(Examples::Double(OrderedF64(3.14))));
+        let result = add_example(None, &json!(1.5));
+        assert_eq!(result, Some(Examples::Double(OrderedF64(1.5))));
     }
 
     #[test]
