@@ -169,6 +169,9 @@ groups:
       - id: auction.id
         type: int
         brief: The id of the auction.
+      - id: auction.name
+        type: string
+        brief: The name of the auction.
       - ref: error.type  # References attribute from dependency
 
   - id: metric.auction.bid.count
@@ -178,6 +181,7 @@ groups:
     unit: "{bid}"
     attributes:
       - ref: auction.id
+      - ref: auction.name
       - ref: error.type  # References attribute from dependency
 
 imports:
