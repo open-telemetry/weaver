@@ -50,6 +50,8 @@ The `registry_path` can be:
 - An absolute path: `/path/to/otel/registry`
 - A URL with optional archive path: `https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.37.0.zip[model]`
 
+> **Note**: Currently, Weaver supports zero or one direct dependency per registry. However, transitive dependencies (dependencies of dependencies) are fully supported, allowing you to create multi-level registry hierarchies. See [issue #604](https://github.com/open-telemetry/weaver/issues/604) for tracking multiple direct dependencies support.
+
 ### Example: Three-Level Registry Hierarchy
 
 Here's a practical example showing how registries can form a dependency chain:
@@ -505,11 +507,14 @@ weaver registry generate [--include-unreferenced] <registry-path> <template>
 # Validate a registry
 weaver registry check [--include-unreferenced] <registry-path>
 
-# Search in a registry
-weaver registry search [--include-unreferenced] <registry-path> <query>
-
 # Update resolved schema
 weaver registry update-markdown [--include-unreferenced] <registry-path>
+
+# Calculate statistics on a registry
+weaver registry stats [--include-unreferenced] <registry-path>
+
+# Generate diff between registry versions
+weaver registry diff [--include-unreferenced] <baseline-path> <head-path>
 ```
 
 ## See Also
