@@ -406,20 +406,6 @@ groups:
       - ref: app.custom.field     # Custom attribute
 ```
 
-### Use Case 3: Testing Registries
-
-When testing, you can create isolated test registries:
-
-```yaml
-# test_data/test_registry/registry_manifest.yaml
-name: test
-version: 0.1.0
-repository_url: https://test.local/
-dependencies:
-  - name: base
-    registry_path: ../base_registry
-```
-
 ## Best Practices
 
 1. **Version Dependencies Explicitly**: Use specific version tags in URLs rather than `main` or `latest`
