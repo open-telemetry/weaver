@@ -1,1418 +1,1420 @@
-[
-  {
-    "name": "error.type",
-    "type": {
-      "members": [
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "Describes a class of error the operation ended with.\n",
-    "examples": [
-      "amqp:decode-error",
-      "KAFKA_STORAGE_ERROR",
-      "channel-error"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If and only if the messaging operation has failed."
-    },
-    "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
-    "stability": "stable"
-  },
-  {
-    "name": "error.type",
-    "type": {
-      "members": [
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "Describes a class of error the operation ended with.\n",
-    "examples": [
-      "timeout",
-      "java.net.UnknownHostException",
-      "server_certificate_invalid",
-      "500"
-    ],
-    "requirement_level": "recommended",
-    "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
-    "stability": "stable"
-  },
-  {
-    "name": "error.type",
-    "type": {
-      "members": [
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "Describes a class of error the operation ended with.\n",
-    "examples": [
-      "timeout",
-      "java.net.UnknownHostException",
-      "server_certificate_invalid",
-      "500"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If request has ended with an error."
-    },
-    "note": "If the request fails with an error before response status code was sent or received,\n`error.type` SHOULD be set to exception type (its fully-qualified class name, if applicable)\nor a component-specific low cardinality error identifier.\n\nIf response status code was sent or received and status indicates an error according to [HTTP span status definition](/docs/http/http-spans.md),\n`error.type` SHOULD be set to the status code number (represented as a string), an exception type (if thrown) or a component-specific error identifier.\n\nThe `error.type` value SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low, but\ntelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time, when no\nadditional filters are applied.\n\nIf the request has completed successfully, instrumentations SHOULD NOT set `error.type`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.request.body.size",
-    "type": "int",
-    "brief": "The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.\n",
-    "examples": 3495,
-    "requirement_level": "recommended",
-    "stability": "development"
-  },
-  {
-    "name": "http.request.header",
-    "type": "template[string[]]",
-    "brief": "HTTP request headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
-    "examples": [
-      [
-        "application/json"
+{
+  "attributes": [
+    {
+      "name": "error.type",
+      "type": {
+        "members": [
+          {
+            "id": "other",
+            "value": "_OTHER",
+            "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "Describes a class of error the operation ended with.\n",
+      "examples": [
+        "amqp:decode-error",
+        "KAFKA_STORAGE_ERROR",
+        "channel-error"
       ],
-      [
-        "1.2.3.4",
-        "1.2.3.5"
-      ]
-    ],
-    "requirement_level": "recommended",
-    "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.request.method",
-    "type": {
-      "members": [
-        {
-          "id": "connect",
-          "value": "CONNECT",
-          "brief": "CONNECT method.",
-          "stability": "stable"
-        },
-        {
-          "id": "delete",
-          "value": "DELETE",
-          "brief": "DELETE method.",
-          "stability": "stable"
-        },
-        {
-          "id": "get",
-          "value": "GET",
-          "brief": "GET method.",
-          "stability": "stable"
-        },
-        {
-          "id": "head",
-          "value": "HEAD",
-          "brief": "HEAD method.",
-          "stability": "stable"
-        },
-        {
-          "id": "options",
-          "value": "OPTIONS",
-          "brief": "OPTIONS method.",
-          "stability": "stable"
-        },
-        {
-          "id": "patch",
-          "value": "PATCH",
-          "brief": "PATCH method.",
-          "stability": "stable"
-        },
-        {
-          "id": "post",
-          "value": "POST",
-          "brief": "POST method.",
-          "stability": "stable"
-        },
-        {
-          "id": "put",
-          "value": "PUT",
-          "brief": "PUT method.",
-          "stability": "stable"
-        },
-        {
-          "id": "trace",
-          "value": "TRACE",
-          "brief": "TRACE method.",
-          "stability": "stable"
-        },
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
-          "stability": "stable"
-        }
-      ]
+      "requirement_level": {
+        "conditionally_required": "If and only if the messaging operation has failed."
+      },
+      "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
+      "stability": "stable"
     },
-    "brief": "HTTP request method.",
-    "examples": [
-      "GET",
-      "POST",
-      "HEAD"
-    ],
-    "requirement_level": "required",
-    "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.request.method",
-    "type": {
-      "members": [
-        {
-          "id": "connect",
-          "value": "CONNECT",
-          "brief": "CONNECT method.",
-          "stability": "stable"
-        },
-        {
-          "id": "delete",
-          "value": "DELETE",
-          "brief": "DELETE method.",
-          "stability": "stable"
-        },
-        {
-          "id": "get",
-          "value": "GET",
-          "brief": "GET method.",
-          "stability": "stable"
-        },
-        {
-          "id": "head",
-          "value": "HEAD",
-          "brief": "HEAD method.",
-          "stability": "stable"
-        },
-        {
-          "id": "options",
-          "value": "OPTIONS",
-          "brief": "OPTIONS method.",
-          "stability": "stable"
-        },
-        {
-          "id": "patch",
-          "value": "PATCH",
-          "brief": "PATCH method.",
-          "stability": "stable"
-        },
-        {
-          "id": "post",
-          "value": "POST",
-          "brief": "POST method.",
-          "stability": "stable"
-        },
-        {
-          "id": "put",
-          "value": "PUT",
-          "brief": "PUT method.",
-          "stability": "stable"
-        },
-        {
-          "id": "trace",
-          "value": "TRACE",
-          "brief": "TRACE method.",
-          "stability": "stable"
-        },
-        {
-          "id": "other",
-          "value": "_OTHER",
-          "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "HTTP request method.",
-    "examples": [
-      "GET",
-      "POST",
-      "HEAD"
-    ],
-    "requirement_level": "recommended",
-    "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.request.method_original",
-    "type": "string",
-    "brief": "Original HTTP method sent by the client in the request line.",
-    "examples": [
-      "GeT",
-      "ACL",
-      "foo"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "http.request.resend_count",
-    "type": "int",
-    "brief": "The ordinal number of request resending attempt (for any reason, including redirects).\n",
-    "examples": 3,
-    "requirement_level": "recommended",
-    "note": "The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.response.body.size",
-    "type": "int",
-    "brief": "The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.\n",
-    "examples": 3495,
-    "requirement_level": "recommended",
-    "stability": "development"
-  },
-  {
-    "name": "http.response.header",
-    "type": "template[string[]]",
-    "brief": "HTTP response headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
-    "examples": [
-      [
-        "application/json"
+    {
+      "name": "error.type",
+      "type": {
+        "members": [
+          {
+            "id": "other",
+            "value": "_OTHER",
+            "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "Describes a class of error the operation ended with.\n",
+      "examples": [
+        "timeout",
+        "java.net.UnknownHostException",
+        "server_certificate_invalid",
+        "500"
       ],
-      [
-        "abc",
-        "def"
-      ]
-    ],
-    "requirement_level": "recommended",
-    "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nUsers MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "http.response.status_code",
-    "type": "int",
-    "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
-    "examples": [
-      200
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "http.response.status_code",
-    "type": "int",
-    "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
-    "examples": [
-      200
-    ],
-    "requirement_level": {
-      "conditionally_required": "If and only if one was received/sent."
+      "requirement_level": "recommended",
+      "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not\n\nAnd something more.",
+      "stability": "stable"
     },
-    "stability": "stable"
-  },
-  {
-    "name": "http.route",
-    "type": "string",
-    "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
-    "examples": [
-      "/users/:userID?",
-      "{controller}/{action}/{id?}"
-    ],
-    "requirement_level": "recommended",
-    "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "stable"
-  },
-  {
-    "name": "http.route",
-    "type": "string",
-    "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
-    "examples": [
-      "/users/:userID?",
-      "{controller}/{action}/{id?}"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If and only if it's available"
-    },
-    "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.batch.message_count",
-    "type": "int",
-    "brief": "The number of messages sent, received, or processed in the scope of the batching operation.",
-    "examples": [
-      0,
-      1,
-      2
-    ],
-    "requirement_level": "recommended",
-    "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.client_id",
-    "type": "string",
-    "brief": "A unique identifier for the client that consumes or produces a message.\n",
-    "examples": [
-      "client-5",
-      "myhost@8742@s8083jm"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.anonymous",
-    "type": "boolean",
-    "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.name",
-    "type": "string",
-    "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
-    "requirement_level": "recommended",
-    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.name",
-    "type": "string",
-    "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
-    },
-    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.template",
-    "type": "string",
-    "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
-    "requirement_level": "recommended",
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.template",
-    "type": "string",
-    "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if available."
-    },
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.temporary",
-    "type": "boolean",
-    "brief": "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination_publish.anonymous",
-    "type": "boolean",
-    "brief": "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination_publish.name",
-    "type": "string",
-    "brief": "The name of the original destination the message was published to",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
-    "requirement_level": "recommended",
-    "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.gcp_pubsub.message.ordering_key",
-    "type": "string",
-    "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
-    "examples": "ordering_key",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.kafka.consumer.group",
-    "type": "string",
-    "brief": "Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.\n",
-    "examples": "my-group",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.kafka.destination.partition",
-    "type": "int",
-    "brief": "Partition the message is sent to.\n",
-    "examples": 2,
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.kafka.message.key",
-    "type": "string",
-    "brief": "Message keys in Kafka are used for grouping alike messages to ensure they're processed on the same partition. They differ from `messaging.message.id` in that they're not unique. If the key is `null`, the attribute MUST NOT be set.\n",
-    "examples": "myKey",
-    "requirement_level": "recommended",
-    "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.kafka.message.offset",
-    "type": "int",
-    "brief": "The offset of a record in the corresponding Kafka partition.\n",
-    "examples": 42,
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.kafka.message.tombstone",
-    "type": "boolean",
-    "brief": "A boolean that is true if the message is a tombstone.",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.message.body.size",
-    "type": "int",
-    "brief": "The size of the message body in bytes.\n",
-    "examples": 1439,
-    "requirement_level": "recommended",
-    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.message.conversation_id",
-    "type": "string",
-    "brief": "The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called \"Correlation ID\".\n",
-    "examples": "MyConversationId",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.message.envelope.size",
-    "type": "int",
-    "brief": "The size of the message body and metadata in bytes.\n",
-    "examples": 2738,
-    "requirement_level": "recommended",
-    "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.message.id",
-    "type": "string",
-    "brief": "A value used by the messaging system as an identifier for the message, represented as a string.",
-    "examples": "452a7c7c7c7048c2f887f61572b18fc2",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.operation",
-    "type": {
-      "members": [
-        {
-          "id": "publish",
-          "value": "publish",
-          "brief": "One or more messages are provided for publishing to an intermediary. If a single message is published, the context of the \"Publish\" span can be used as the creation context and no \"Create\" span needs to be created.\n",
-          "stability": "stable"
-        },
-        {
-          "id": "create",
-          "value": "create",
-          "brief": "A message is created. \"Create\" spans always refer to a single message and are used to provide a unique creation context for messages in batch publishing scenarios.\n",
-          "stability": "stable"
-        },
-        {
-          "id": "receive",
-          "value": "receive",
-          "brief": "One or more messages are requested by a consumer. This operation refers to pull-based scenarios, where consumers explicitly call methods of messaging SDKs to receive messages.\n",
-          "stability": "stable"
-        },
-        {
-          "id": "deliver",
-          "value": "deliver",
-          "brief": "One or more messages are passed to a consumer. This operation refers to push-based scenarios, where consumer register callbacks which get called by messaging SDKs.\n",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "A string identifying the kind of messaging operation.\n",
-    "requirement_level": "recommended",
-    "note": "If a custom value is used, it MUST be of low cardinality.",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rabbitmq.destination.routing_key",
-    "type": "string",
-    "brief": "RabbitMQ message routing key.\n",
-    "examples": "myKey",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.client_group",
-    "type": "string",
-    "brief": "Name of the RocketMQ producer/consumer group that is handling the message. The client type is identified by the SpanKind.\n",
-    "examples": "myConsumerGroup",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.consumption_model",
-    "type": {
-      "members": [
-        {
-          "id": "clustering",
-          "value": "clustering",
-          "brief": "Clustering consumption model",
-          "stability": "stable"
-        },
-        {
-          "id": "broadcasting",
-          "value": "broadcasting",
-          "brief": "Broadcasting consumption model",
-          "stability": "stable"
-        }
-      ]
-    },
-    "brief": "Model of message consumption. This only applies to consumer spans.\n",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.message.delay_time_level",
-    "type": "int",
-    "brief": "The delay time level for delay message, which determines the message delay time.\n",
-    "examples": 3,
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.message.delivery_timestamp",
-    "type": "int",
-    "brief": "The timestamp in milliseconds that the delay message is expected to be delivered to consumer.\n",
-    "examples": 1665987217045,
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.message.group",
-    "type": "string",
-    "brief": "It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.\n",
-    "examples": "myMessageGroup",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.message.keys",
-    "type": "string[]",
-    "brief": "Key(s) of message, another way to mark message besides message id.\n",
-    "examples": [
-      [
-        "keyA"
+    {
+      "name": "error.type",
+      "type": {
+        "members": [
+          {
+            "id": "other",
+            "value": "_OTHER",
+            "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "Describes a class of error the operation ended with.\n",
+      "examples": [
+        "timeout",
+        "java.net.UnknownHostException",
+        "server_certificate_invalid",
+        "500"
       ],
-      [
-        "keyB"
-      ]
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.message.tag",
-    "type": "string",
-    "brief": "The secondary classifier of message besides topic.\n",
-    "examples": "tagA",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.message.type",
-    "type": {
-      "members": [
-        {
-          "id": "normal",
-          "value": "normal",
-          "brief": "Normal message",
-          "stability": "stable"
-        },
-        {
-          "id": "fifo",
-          "value": "fifo",
-          "brief": "FIFO message",
-          "stability": "stable"
-        },
-        {
-          "id": "delay",
-          "value": "delay",
-          "brief": "Delay message",
-          "stability": "stable"
-        },
-        {
-          "id": "transaction",
-          "value": "transaction",
-          "brief": "Transaction message",
-          "stability": "stable"
-        }
-      ]
+      "requirement_level": {
+        "conditionally_required": "If request has ended with an error."
+      },
+      "note": "If the request fails with an error before response status code was sent or received,\n`error.type` SHOULD be set to exception type (its fully-qualified class name, if applicable)\nor a component-specific low cardinality error identifier.\n\nIf response status code was sent or received and status indicates an error according to [HTTP span status definition](/docs/http/http-spans.md),\n`error.type` SHOULD be set to the status code number (represented as a string), an exception type (if thrown) or a component-specific error identifier.\n\nThe `error.type` value SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low, but\ntelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time, when no\nadditional filters are applied.\n\nIf the request has completed successfully, instrumentations SHOULD NOT set `error.type`.\n",
+      "stability": "stable"
     },
-    "brief": "Type of message.\n",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.rocketmq.namespace",
-    "type": "string",
-    "brief": "Namespace of RocketMQ resources, resources in different namespaces are individual.\n",
-    "examples": "myNamespace",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.system",
-    "type": {
-      "members": [
-        {
-          "id": "activemq",
-          "value": "activemq",
-          "brief": "Apache ActiveMQ",
-          "stability": "stable"
-        },
-        {
-          "id": "aws_sqs",
-          "value": "aws_sqs",
-          "brief": "Amazon Simple Queue Service (SQS)",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_eventgrid",
-          "value": "azure_eventgrid",
-          "brief": "Azure Event Grid",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_eventhubs",
-          "value": "azure_eventhubs",
-          "brief": "Azure Event Hubs",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_servicebus",
-          "value": "azure_servicebus",
-          "brief": "Azure Service Bus",
-          "stability": "stable"
-        },
-        {
-          "id": "gcp_pubsub",
-          "value": "gcp_pubsub",
-          "brief": "Google Cloud Pub/Sub",
-          "stability": "stable"
-        },
-        {
-          "id": "jms",
-          "value": "jms",
-          "brief": "Java Message Service",
-          "stability": "stable"
-        },
-        {
-          "id": "kafka",
-          "value": "kafka",
-          "brief": "Apache Kafka",
-          "stability": "stable"
-        },
-        {
-          "id": "rabbitmq",
-          "value": "rabbitmq",
-          "brief": "RabbitMQ",
-          "stability": "stable"
-        },
-        {
-          "id": "rocketmq",
-          "value": "rocketmq",
-          "brief": "Apache RocketMQ",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.request.body.size",
+      "type": "int",
+      "brief": "The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.\n",
+      "examples": 3495,
+      "requirement_level": "recommended",
+      "stability": "development"
     },
-    "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": "required",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.system",
-    "type": {
-      "members": [
-        {
-          "id": "activemq",
-          "value": "activemq",
-          "brief": "Apache ActiveMQ",
-          "stability": "stable"
-        },
-        {
-          "id": "aws_sqs",
-          "value": "aws_sqs",
-          "brief": "Amazon Simple Queue Service (SQS)",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_eventgrid",
-          "value": "azure_eventgrid",
-          "brief": "Azure Event Grid",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_eventhubs",
-          "value": "azure_eventhubs",
-          "brief": "Azure Event Hubs",
-          "stability": "stable"
-        },
-        {
-          "id": "azure_servicebus",
-          "value": "azure_servicebus",
-          "brief": "Azure Service Bus",
-          "stability": "stable"
-        },
-        {
-          "id": "gcp_pubsub",
-          "value": "gcp_pubsub",
-          "brief": "Google Cloud Pub/Sub",
-          "stability": "stable"
-        },
-        {
-          "id": "jms",
-          "value": "jms",
-          "brief": "Java Message Service",
-          "stability": "stable"
-        },
-        {
-          "id": "kafka",
-          "value": "kafka",
-          "brief": "Apache Kafka",
-          "stability": "stable"
-        },
-        {
-          "id": "rabbitmq",
-          "value": "rabbitmq",
-          "brief": "RabbitMQ",
-          "stability": "stable"
-        },
-        {
-          "id": "rocketmq",
-          "value": "rocketmq",
-          "brief": "Apache RocketMQ",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.request.header",
+      "type": "template[string[]]",
+      "brief": "HTTP request headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
+      "examples": [
+        [
+          "application/json"
+        ],
+        [
+          "1.2.3.4",
+          "1.2.3.5"
+        ]
+      ],
+      "requirement_level": "recommended",
+      "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
+      "stability": "stable"
     },
-    "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.carrier.icc",
-    "type": "string",
-    "brief": "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.",
-    "examples": "DE",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.carrier.mcc",
-    "type": "string",
-    "brief": "The mobile carrier country code.",
-    "examples": "310",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.carrier.mnc",
-    "type": "string",
-    "brief": "The mobile carrier network code.",
-    "examples": "001",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.carrier.name",
-    "type": "string",
-    "brief": "The name of the mobile carrier.",
-    "examples": "sprint",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.connection.subtype",
-    "type": {
-      "members": [
-        {
-          "id": "gprs",
-          "value": "gprs",
-          "brief": "GPRS",
-          "stability": "stable"
-        },
-        {
-          "id": "edge",
-          "value": "edge",
-          "brief": "EDGE",
-          "stability": "stable"
-        },
-        {
-          "id": "umts",
-          "value": "umts",
-          "brief": "UMTS",
-          "stability": "stable"
-        },
-        {
-          "id": "cdma",
-          "value": "cdma",
-          "brief": "CDMA",
-          "stability": "stable"
-        },
-        {
-          "id": "evdo_0",
-          "value": "evdo_0",
-          "brief": "EVDO Rel. 0",
-          "stability": "stable"
-        },
-        {
-          "id": "evdo_a",
-          "value": "evdo_a",
-          "brief": "EVDO Rev. A",
-          "stability": "stable"
-        },
-        {
-          "id": "cdma2000_1xrtt",
-          "value": "cdma2000_1xrtt",
-          "brief": "CDMA2000 1XRTT",
-          "stability": "stable"
-        },
-        {
-          "id": "hsdpa",
-          "value": "hsdpa",
-          "brief": "HSDPA",
-          "stability": "stable"
-        },
-        {
-          "id": "hsupa",
-          "value": "hsupa",
-          "brief": "HSUPA",
-          "stability": "stable"
-        },
-        {
-          "id": "hspa",
-          "value": "hspa",
-          "brief": "HSPA",
-          "stability": "stable"
-        },
-        {
-          "id": "iden",
-          "value": "iden",
-          "brief": "IDEN",
-          "stability": "stable"
-        },
-        {
-          "id": "evdo_b",
-          "value": "evdo_b",
-          "brief": "EVDO Rev. B",
-          "stability": "stable"
-        },
-        {
-          "id": "lte",
-          "value": "lte",
-          "brief": "LTE",
-          "stability": "stable"
-        },
-        {
-          "id": "ehrpd",
-          "value": "ehrpd",
-          "brief": "EHRPD",
-          "stability": "stable"
-        },
-        {
-          "id": "hspap",
-          "value": "hspap",
-          "brief": "HSPAP",
-          "stability": "stable"
-        },
-        {
-          "id": "gsm",
-          "value": "gsm",
-          "brief": "GSM",
-          "stability": "stable"
-        },
-        {
-          "id": "td_scdma",
-          "value": "td_scdma",
-          "brief": "TD-SCDMA",
-          "stability": "stable"
-        },
-        {
-          "id": "iwlan",
-          "value": "iwlan",
-          "brief": "IWLAN",
-          "stability": "stable"
-        },
-        {
-          "id": "nr",
-          "value": "nr",
-          "brief": "5G NR (New Radio)",
-          "stability": "stable"
-        },
-        {
-          "id": "nrnsa",
-          "value": "nrnsa",
-          "brief": "5G NRNSA (New Radio Non-Standalone)",
-          "stability": "stable"
-        },
-        {
-          "id": "lte_ca",
-          "value": "lte_ca",
-          "brief": "LTE CA",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.request.method",
+      "type": {
+        "members": [
+          {
+            "id": "connect",
+            "value": "CONNECT",
+            "brief": "CONNECT method.",
+            "stability": "stable"
+          },
+          {
+            "id": "delete",
+            "value": "DELETE",
+            "brief": "DELETE method.",
+            "stability": "stable"
+          },
+          {
+            "id": "get",
+            "value": "GET",
+            "brief": "GET method.",
+            "stability": "stable"
+          },
+          {
+            "id": "head",
+            "value": "HEAD",
+            "brief": "HEAD method.",
+            "stability": "stable"
+          },
+          {
+            "id": "options",
+            "value": "OPTIONS",
+            "brief": "OPTIONS method.",
+            "stability": "stable"
+          },
+          {
+            "id": "patch",
+            "value": "PATCH",
+            "brief": "PATCH method.",
+            "stability": "stable"
+          },
+          {
+            "id": "post",
+            "value": "POST",
+            "brief": "POST method.",
+            "stability": "stable"
+          },
+          {
+            "id": "put",
+            "value": "PUT",
+            "brief": "PUT method.",
+            "stability": "stable"
+          },
+          {
+            "id": "trace",
+            "value": "TRACE",
+            "brief": "TRACE method.",
+            "stability": "stable"
+          },
+          {
+            "id": "other",
+            "value": "_OTHER",
+            "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "HTTP request method.",
+      "examples": [
+        "GET",
+        "POST",
+        "HEAD"
+      ],
+      "requirement_level": "required",
+      "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
+      "stability": "stable"
     },
-    "brief": "This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.",
-    "examples": "LTE",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.connection.type",
-    "type": {
-      "members": [
-        {
-          "id": "wifi",
-          "value": "wifi",
-          "stability": "stable"
-        },
-        {
-          "id": "wired",
-          "value": "wired",
-          "stability": "stable"
-        },
-        {
-          "id": "cell",
-          "value": "cell",
-          "stability": "stable"
-        },
-        {
-          "id": "unavailable",
-          "value": "unavailable",
-          "stability": "stable"
-        },
-        {
-          "id": "unknown",
-          "value": "unknown",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.request.method",
+      "type": {
+        "members": [
+          {
+            "id": "connect",
+            "value": "CONNECT",
+            "brief": "CONNECT method.",
+            "stability": "stable"
+          },
+          {
+            "id": "delete",
+            "value": "DELETE",
+            "brief": "DELETE method.",
+            "stability": "stable"
+          },
+          {
+            "id": "get",
+            "value": "GET",
+            "brief": "GET method.",
+            "stability": "stable"
+          },
+          {
+            "id": "head",
+            "value": "HEAD",
+            "brief": "HEAD method.",
+            "stability": "stable"
+          },
+          {
+            "id": "options",
+            "value": "OPTIONS",
+            "brief": "OPTIONS method.",
+            "stability": "stable"
+          },
+          {
+            "id": "patch",
+            "value": "PATCH",
+            "brief": "PATCH method.",
+            "stability": "stable"
+          },
+          {
+            "id": "post",
+            "value": "POST",
+            "brief": "POST method.",
+            "stability": "stable"
+          },
+          {
+            "id": "put",
+            "value": "PUT",
+            "brief": "PUT method.",
+            "stability": "stable"
+          },
+          {
+            "id": "trace",
+            "value": "TRACE",
+            "brief": "TRACE method.",
+            "stability": "stable"
+          },
+          {
+            "id": "other",
+            "value": "_OTHER",
+            "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "HTTP request method.",
+      "examples": [
+        "GET",
+        "POST",
+        "HEAD"
+      ],
+      "requirement_level": "recommended",
+      "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
+      "stability": "stable"
     },
-    "brief": "The internet connection type.",
-    "examples": "wifi",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.io.direction",
-    "type": {
-      "members": [
-        {
-          "id": "transmit",
-          "value": "transmit",
-          "stability": "stable"
-        },
-        {
-          "id": "receive",
-          "value": "receive",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.request.method_original",
+      "type": "string",
+      "brief": "Original HTTP method sent by the client in the request line.",
+      "examples": [
+        "GeT",
+        "ACL",
+        "foo"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
     },
-    "brief": "The network IO operation direction.",
-    "examples": [
-      "transmit"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.local.address",
-    "type": "string",
-    "brief": "Local address of the network connection - IP address or Unix domain socket name.",
-    "examples": [
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.local.port",
-    "type": "int",
-    "brief": "Local port number of the network connection.",
-    "examples": [
-      65123
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.peer.address",
-    "type": "string",
-    "brief": "Peer address of the network connection - IP address or Unix domain socket name.",
-    "examples": [
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.peer.port",
-    "type": "int",
-    "brief": "Peer port number of the network connection.",
-    "examples": [
-      65123
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "amqp",
-      "http",
-      "mqtt"
-    ],
-    "requirement_level": "recommended",
-    "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "amqp",
-      "mqtt"
-    ],
-    "tag": "connection-level",
-    "requirement_level": "recommended",
-    "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "http",
-      "spdy"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If not `http` and `network.protocol.version` is set."
+    {
+      "name": "http.request.resend_count",
+      "type": "int",
+      "brief": "The ordinal number of request resending attempt (for any reason, including redirects).\n",
+      "examples": 3,
+      "requirement_level": "recommended",
+      "note": "The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).\n",
+      "stability": "stable"
     },
-    "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": "3.1.1",
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": "3.1.1",
-    "tag": "connection-level",
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": [
-      "1.0",
-      "1.1",
-      "2",
-      "3"
-    ],
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "network.transport",
-    "type": {
-      "members": [
-        {
-          "id": "tcp",
-          "value": "tcp",
-          "brief": "TCP",
-          "stability": "stable"
-        },
-        {
-          "id": "udp",
-          "value": "udp",
-          "brief": "UDP",
-          "stability": "stable"
-        },
-        {
-          "id": "pipe",
-          "value": "pipe",
-          "brief": "Named or anonymous pipe.",
-          "stability": "stable"
-        },
-        {
-          "id": "unix",
-          "value": "unix",
-          "brief": "Unix domain socket",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.response.body.size",
+      "type": "int",
+      "brief": "The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.\n",
+      "examples": 3495,
+      "requirement_level": "recommended",
+      "stability": "development"
     },
-    "brief": "[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).\n",
-    "examples": [
-      "tcp",
-      "udp"
-    ],
-    "requirement_level": "recommended",
-    "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "network.type",
-    "type": {
-      "members": [
-        {
-          "id": "ipv4",
-          "value": "ipv4",
-          "brief": "IPv4",
-          "stability": "stable"
-        },
-        {
-          "id": "ipv6",
-          "value": "ipv6",
-          "brief": "IPv6",
-          "stability": "stable"
-        }
-      ]
+    {
+      "name": "http.response.header",
+      "type": "template[string[]]",
+      "brief": "HTTP response headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
+      "examples": [
+        [
+          "application/json"
+        ],
+        [
+          "abc",
+          "def"
+        ]
+      ],
+      "requirement_level": "recommended",
+      "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nUsers MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
+      "stability": "stable"
     },
-    "brief": "[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.",
-    "examples": [
-      "ipv4",
-      "ipv6"
-    ],
-    "requirement_level": "recommended",
-    "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Host identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "required",
-    "note": "If an HTTP client request is explicitly made to an IP address, e.g. `http://x.x.x.x:8080`, then `server.address` SHOULD be the IP address `x.x.x.x`. A DNS lookup SHOULD NOT be used.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Name of the local HTTP server that received the request.\n",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "recommended",
-    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "recommended",
-    "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": {
-      "conditionally_required": "If available."
+    {
+      "name": "http.response.status_code",
+      "type": "int",
+      "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
+      "examples": [
+        200
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
     },
-    "note": "This should be the IP/hostname of the broker (or other network-level peer) this specific message is sent to/received from.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "int",
-    "brief": "Port identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
-    "requirement_level": "required",
-    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "int",
-    "brief": "Port of the local HTTP server that received the request.\n",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
-    "requirement_level": {
-      "conditionally_required": "If `server.address` is set."
+    {
+      "name": "http.response.status_code",
+      "type": "int",
+      "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
+      "examples": [
+        200
+      ],
+      "requirement_level": {
+        "conditionally_required": "If and only if one was received/sent."
+      },
+      "stability": "stable"
     },
-    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "int",
-    "brief": "Server port number.",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
-    "requirement_level": "recommended",
-    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "url.fragment",
-    "type": "string",
-    "brief": "The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component",
-    "examples": [
-      "SemConv"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "url.full",
-    "type": "string",
-    "brief": "Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)",
-    "examples": [
-      "https://www.foo.bar/search?q=OpenTelemetry#SemConv",
-      "//localhost"
-    ],
-    "requirement_level": "recommended",
-    "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "url.path",
-    "type": "string",
-    "brief": "The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component",
-    "examples": [
-      "/search"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "url.query",
-    "type": "string",
-    "brief": "The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component",
-    "examples": [
-      "q=OpenTelemetry"
-    ],
-    "requirement_level": "recommended",
-    "note": "Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.",
-    "stability": "stable"
-  },
-  {
-    "name": "url.scheme",
-    "type": "string",
-    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "http",
-      "https"
-    ],
-    "requirement_level": "required",
-    "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
-    "stability": "stable"
-  },
-  {
-    "name": "url.scheme",
-    "type": "string",
-    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "http",
-      "https"
-    ],
-    "requirement_level": "opt_in",
-    "stability": "stable"
-  },
-  {
-    "name": "url.scheme",
-    "type": "string",
-    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "https",
-      "ftp",
-      "telnet"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  }
-]
+    {
+      "name": "http.route",
+      "type": "string",
+      "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
+      "examples": [
+        "/users/:userID?",
+        "{controller}/{action}/{id?}"
+      ],
+      "requirement_level": "recommended",
+      "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
+      "stability": "stable"
+    },
+    {
+      "name": "http.route",
+      "type": "string",
+      "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
+      "examples": [
+        "/users/:userID?",
+        "{controller}/{action}/{id?}"
+      ],
+      "requirement_level": {
+        "conditionally_required": "If and only if it's available"
+      },
+      "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.batch.message_count",
+      "type": "int",
+      "brief": "The number of messages sent, received, or processed in the scope of the batching operation.",
+      "examples": [
+        0,
+        1,
+        2
+      ],
+      "requirement_level": "recommended",
+      "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.client_id",
+      "type": "string",
+      "brief": "A unique identifier for the client that consumes or produces a message.\n",
+      "examples": [
+        "client-5",
+        "myhost@8742@s8083jm"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination.anonymous",
+      "type": "boolean",
+      "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination.name",
+      "type": "string",
+      "brief": "The message destination name",
+      "examples": [
+        "MyQueue",
+        "MyTopic"
+      ],
+      "requirement_level": "recommended",
+      "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination.name",
+      "type": "string",
+      "brief": "The message destination name",
+      "examples": [
+        "MyQueue",
+        "MyTopic"
+      ],
+      "requirement_level": {
+        "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+      },
+      "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination.template",
+      "type": "string",
+      "brief": "Low cardinality representation of the messaging destination name",
+      "examples": [
+        "/customers/{customerId}"
+      ],
+      "requirement_level": "recommended",
+      "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination.template",
+      "type": "string",
+      "brief": "Low cardinality representation of the messaging destination name",
+      "examples": [
+        "/customers/{customerId}"
+      ],
+      "requirement_level": {
+        "conditionally_required": "if available."
+      },
+      "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination.temporary",
+      "type": "boolean",
+      "brief": "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination_publish.anonymous",
+      "type": "boolean",
+      "brief": "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.destination_publish.name",
+      "type": "string",
+      "brief": "The name of the original destination the message was published to",
+      "examples": [
+        "MyQueue",
+        "MyTopic"
+      ],
+      "requirement_level": "recommended",
+      "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.gcp_pubsub.message.ordering_key",
+      "type": "string",
+      "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
+      "examples": "ordering_key",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.kafka.consumer.group",
+      "type": "string",
+      "brief": "Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.\n",
+      "examples": "my-group",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.kafka.destination.partition",
+      "type": "int",
+      "brief": "Partition the message is sent to.\n",
+      "examples": 2,
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.kafka.message.key",
+      "type": "string",
+      "brief": "Message keys in Kafka are used for grouping alike messages to ensure they're processed on the same partition. They differ from `messaging.message.id` in that they're not unique. If the key is `null`, the attribute MUST NOT be set.\n",
+      "examples": "myKey",
+      "requirement_level": "recommended",
+      "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.kafka.message.offset",
+      "type": "int",
+      "brief": "The offset of a record in the corresponding Kafka partition.\n",
+      "examples": 42,
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.kafka.message.tombstone",
+      "type": "boolean",
+      "brief": "A boolean that is true if the message is a tombstone.",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.message.body.size",
+      "type": "int",
+      "brief": "The size of the message body in bytes.\n",
+      "examples": 1439,
+      "requirement_level": "recommended",
+      "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.message.conversation_id",
+      "type": "string",
+      "brief": "The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called \"Correlation ID\".\n",
+      "examples": "MyConversationId",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.message.envelope.size",
+      "type": "int",
+      "brief": "The size of the message body and metadata in bytes.\n",
+      "examples": 2738,
+      "requirement_level": "recommended",
+      "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.message.id",
+      "type": "string",
+      "brief": "A value used by the messaging system as an identifier for the message, represented as a string.",
+      "examples": "452a7c7c7c7048c2f887f61572b18fc2",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.operation",
+      "type": {
+        "members": [
+          {
+            "id": "publish",
+            "value": "publish",
+            "brief": "One or more messages are provided for publishing to an intermediary. If a single message is published, the context of the \"Publish\" span can be used as the creation context and no \"Create\" span needs to be created.\n",
+            "stability": "stable"
+          },
+          {
+            "id": "create",
+            "value": "create",
+            "brief": "A message is created. \"Create\" spans always refer to a single message and are used to provide a unique creation context for messages in batch publishing scenarios.\n",
+            "stability": "stable"
+          },
+          {
+            "id": "receive",
+            "value": "receive",
+            "brief": "One or more messages are requested by a consumer. This operation refers to pull-based scenarios, where consumers explicitly call methods of messaging SDKs to receive messages.\n",
+            "stability": "stable"
+          },
+          {
+            "id": "deliver",
+            "value": "deliver",
+            "brief": "One or more messages are passed to a consumer. This operation refers to push-based scenarios, where consumer register callbacks which get called by messaging SDKs.\n",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "A string identifying the kind of messaging operation.\n",
+      "requirement_level": "recommended",
+      "note": "If a custom value is used, it MUST be of low cardinality.",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rabbitmq.destination.routing_key",
+      "type": "string",
+      "brief": "RabbitMQ message routing key.\n",
+      "examples": "myKey",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.client_group",
+      "type": "string",
+      "brief": "Name of the RocketMQ producer/consumer group that is handling the message. The client type is identified by the SpanKind.\n",
+      "examples": "myConsumerGroup",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.consumption_model",
+      "type": {
+        "members": [
+          {
+            "id": "clustering",
+            "value": "clustering",
+            "brief": "Clustering consumption model",
+            "stability": "stable"
+          },
+          {
+            "id": "broadcasting",
+            "value": "broadcasting",
+            "brief": "Broadcasting consumption model",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "Model of message consumption. This only applies to consumer spans.\n",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.message.delay_time_level",
+      "type": "int",
+      "brief": "The delay time level for delay message, which determines the message delay time.\n",
+      "examples": 3,
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.message.delivery_timestamp",
+      "type": "int",
+      "brief": "The timestamp in milliseconds that the delay message is expected to be delivered to consumer.\n",
+      "examples": 1665987217045,
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.message.group",
+      "type": "string",
+      "brief": "It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.\n",
+      "examples": "myMessageGroup",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.message.keys",
+      "type": "string[]",
+      "brief": "Key(s) of message, another way to mark message besides message id.\n",
+      "examples": [
+        [
+          "keyA"
+        ],
+        [
+          "keyB"
+        ]
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.message.tag",
+      "type": "string",
+      "brief": "The secondary classifier of message besides topic.\n",
+      "examples": "tagA",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.message.type",
+      "type": {
+        "members": [
+          {
+            "id": "normal",
+            "value": "normal",
+            "brief": "Normal message",
+            "stability": "stable"
+          },
+          {
+            "id": "fifo",
+            "value": "fifo",
+            "brief": "FIFO message",
+            "stability": "stable"
+          },
+          {
+            "id": "delay",
+            "value": "delay",
+            "brief": "Delay message",
+            "stability": "stable"
+          },
+          {
+            "id": "transaction",
+            "value": "transaction",
+            "brief": "Transaction message",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "Type of message.\n",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.rocketmq.namespace",
+      "type": "string",
+      "brief": "Namespace of RocketMQ resources, resources in different namespaces are individual.\n",
+      "examples": "myNamespace",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.system",
+      "type": {
+        "members": [
+          {
+            "id": "activemq",
+            "value": "activemq",
+            "brief": "Apache ActiveMQ",
+            "stability": "stable"
+          },
+          {
+            "id": "aws_sqs",
+            "value": "aws_sqs",
+            "brief": "Amazon Simple Queue Service (SQS)",
+            "stability": "stable"
+          },
+          {
+            "id": "azure_eventgrid",
+            "value": "azure_eventgrid",
+            "brief": "Azure Event Grid",
+            "stability": "stable"
+          },
+          {
+            "id": "azure_eventhubs",
+            "value": "azure_eventhubs",
+            "brief": "Azure Event Hubs",
+            "stability": "stable"
+          },
+          {
+            "id": "azure_servicebus",
+            "value": "azure_servicebus",
+            "brief": "Azure Service Bus",
+            "stability": "stable"
+          },
+          {
+            "id": "gcp_pubsub",
+            "value": "gcp_pubsub",
+            "brief": "Google Cloud Pub/Sub",
+            "stability": "stable"
+          },
+          {
+            "id": "jms",
+            "value": "jms",
+            "brief": "Java Message Service",
+            "stability": "stable"
+          },
+          {
+            "id": "kafka",
+            "value": "kafka",
+            "brief": "Apache Kafka",
+            "stability": "stable"
+          },
+          {
+            "id": "rabbitmq",
+            "value": "rabbitmq",
+            "brief": "RabbitMQ",
+            "stability": "stable"
+          },
+          {
+            "id": "rocketmq",
+            "value": "rocketmq",
+            "brief": "Apache RocketMQ",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
+      "requirement_level": "required",
+      "stability": "stable"
+    },
+    {
+      "name": "messaging.system",
+      "type": {
+        "members": [
+          {
+            "id": "activemq",
+            "value": "activemq",
+            "brief": "Apache ActiveMQ",
+            "stability": "stable"
+          },
+          {
+            "id": "aws_sqs",
+            "value": "aws_sqs",
+            "brief": "Amazon Simple Queue Service (SQS)",
+            "stability": "stable"
+          },
+          {
+            "id": "azure_eventgrid",
+            "value": "azure_eventgrid",
+            "brief": "Azure Event Grid",
+            "stability": "stable"
+          },
+          {
+            "id": "azure_eventhubs",
+            "value": "azure_eventhubs",
+            "brief": "Azure Event Hubs",
+            "stability": "stable"
+          },
+          {
+            "id": "azure_servicebus",
+            "value": "azure_servicebus",
+            "brief": "Azure Service Bus",
+            "stability": "stable"
+          },
+          {
+            "id": "gcp_pubsub",
+            "value": "gcp_pubsub",
+            "brief": "Google Cloud Pub/Sub",
+            "stability": "stable"
+          },
+          {
+            "id": "jms",
+            "value": "jms",
+            "brief": "Java Message Service",
+            "stability": "stable"
+          },
+          {
+            "id": "kafka",
+            "value": "kafka",
+            "brief": "Apache Kafka",
+            "stability": "stable"
+          },
+          {
+            "id": "rabbitmq",
+            "value": "rabbitmq",
+            "brief": "RabbitMQ",
+            "stability": "stable"
+          },
+          {
+            "id": "rocketmq",
+            "value": "rocketmq",
+            "brief": "Apache RocketMQ",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.carrier.icc",
+      "type": "string",
+      "brief": "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.",
+      "examples": "DE",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.carrier.mcc",
+      "type": "string",
+      "brief": "The mobile carrier country code.",
+      "examples": "310",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.carrier.mnc",
+      "type": "string",
+      "brief": "The mobile carrier network code.",
+      "examples": "001",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.carrier.name",
+      "type": "string",
+      "brief": "The name of the mobile carrier.",
+      "examples": "sprint",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.connection.subtype",
+      "type": {
+        "members": [
+          {
+            "id": "gprs",
+            "value": "gprs",
+            "brief": "GPRS",
+            "stability": "stable"
+          },
+          {
+            "id": "edge",
+            "value": "edge",
+            "brief": "EDGE",
+            "stability": "stable"
+          },
+          {
+            "id": "umts",
+            "value": "umts",
+            "brief": "UMTS",
+            "stability": "stable"
+          },
+          {
+            "id": "cdma",
+            "value": "cdma",
+            "brief": "CDMA",
+            "stability": "stable"
+          },
+          {
+            "id": "evdo_0",
+            "value": "evdo_0",
+            "brief": "EVDO Rel. 0",
+            "stability": "stable"
+          },
+          {
+            "id": "evdo_a",
+            "value": "evdo_a",
+            "brief": "EVDO Rev. A",
+            "stability": "stable"
+          },
+          {
+            "id": "cdma2000_1xrtt",
+            "value": "cdma2000_1xrtt",
+            "brief": "CDMA2000 1XRTT",
+            "stability": "stable"
+          },
+          {
+            "id": "hsdpa",
+            "value": "hsdpa",
+            "brief": "HSDPA",
+            "stability": "stable"
+          },
+          {
+            "id": "hsupa",
+            "value": "hsupa",
+            "brief": "HSUPA",
+            "stability": "stable"
+          },
+          {
+            "id": "hspa",
+            "value": "hspa",
+            "brief": "HSPA",
+            "stability": "stable"
+          },
+          {
+            "id": "iden",
+            "value": "iden",
+            "brief": "IDEN",
+            "stability": "stable"
+          },
+          {
+            "id": "evdo_b",
+            "value": "evdo_b",
+            "brief": "EVDO Rev. B",
+            "stability": "stable"
+          },
+          {
+            "id": "lte",
+            "value": "lte",
+            "brief": "LTE",
+            "stability": "stable"
+          },
+          {
+            "id": "ehrpd",
+            "value": "ehrpd",
+            "brief": "EHRPD",
+            "stability": "stable"
+          },
+          {
+            "id": "hspap",
+            "value": "hspap",
+            "brief": "HSPAP",
+            "stability": "stable"
+          },
+          {
+            "id": "gsm",
+            "value": "gsm",
+            "brief": "GSM",
+            "stability": "stable"
+          },
+          {
+            "id": "td_scdma",
+            "value": "td_scdma",
+            "brief": "TD-SCDMA",
+            "stability": "stable"
+          },
+          {
+            "id": "iwlan",
+            "value": "iwlan",
+            "brief": "IWLAN",
+            "stability": "stable"
+          },
+          {
+            "id": "nr",
+            "value": "nr",
+            "brief": "5G NR (New Radio)",
+            "stability": "stable"
+          },
+          {
+            "id": "nrnsa",
+            "value": "nrnsa",
+            "brief": "5G NRNSA (New Radio Non-Standalone)",
+            "stability": "stable"
+          },
+          {
+            "id": "lte_ca",
+            "value": "lte_ca",
+            "brief": "LTE CA",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.",
+      "examples": "LTE",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.connection.type",
+      "type": {
+        "members": [
+          {
+            "id": "wifi",
+            "value": "wifi",
+            "stability": "stable"
+          },
+          {
+            "id": "wired",
+            "value": "wired",
+            "stability": "stable"
+          },
+          {
+            "id": "cell",
+            "value": "cell",
+            "stability": "stable"
+          },
+          {
+            "id": "unavailable",
+            "value": "unavailable",
+            "stability": "stable"
+          },
+          {
+            "id": "unknown",
+            "value": "unknown",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "The internet connection type.",
+      "examples": "wifi",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.io.direction",
+      "type": {
+        "members": [
+          {
+            "id": "transmit",
+            "value": "transmit",
+            "stability": "stable"
+          },
+          {
+            "id": "receive",
+            "value": "receive",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "The network IO operation direction.",
+      "examples": [
+        "transmit"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.local.address",
+      "type": "string",
+      "brief": "Local address of the network connection - IP address or Unix domain socket name.",
+      "examples": [
+        "10.1.2.80",
+        "/tmp/my.sock"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.local.port",
+      "type": "int",
+      "brief": "Local port number of the network connection.",
+      "examples": [
+        65123
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.peer.address",
+      "type": "string",
+      "brief": "Peer address of the network connection - IP address or Unix domain socket name.",
+      "examples": [
+        "10.1.2.80",
+        "/tmp/my.sock"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.peer.port",
+      "type": "int",
+      "brief": "Peer port number of the network connection.",
+      "examples": [
+        65123
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.name",
+      "type": "string",
+      "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+      "examples": [
+        "amqp",
+        "http",
+        "mqtt"
+      ],
+      "requirement_level": "recommended",
+      "note": "The value SHOULD be normalized to lowercase.",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.name",
+      "type": "string",
+      "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+      "examples": [
+        "amqp",
+        "mqtt"
+      ],
+      "tag": "connection-level",
+      "requirement_level": "recommended",
+      "note": "The value SHOULD be normalized to lowercase.",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.name",
+      "type": "string",
+      "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+      "examples": [
+        "http",
+        "spdy"
+      ],
+      "requirement_level": {
+        "conditionally_required": "If not `http` and `network.protocol.version` is set."
+      },
+      "note": "The value SHOULD be normalized to lowercase.",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.version",
+      "type": "string",
+      "brief": "Version of the protocol specified in `network.protocol.name`.",
+      "examples": "3.1.1",
+      "requirement_level": "recommended",
+      "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.version",
+      "type": "string",
+      "brief": "Version of the protocol specified in `network.protocol.name`.",
+      "examples": "3.1.1",
+      "tag": "connection-level",
+      "requirement_level": "recommended",
+      "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.version",
+      "type": "string",
+      "brief": "Version of the protocol specified in `network.protocol.name`.",
+      "examples": [
+        "1.0",
+        "1.1",
+        "2",
+        "3"
+      ],
+      "requirement_level": "recommended",
+      "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "network.transport",
+      "type": {
+        "members": [
+          {
+            "id": "tcp",
+            "value": "tcp",
+            "brief": "TCP",
+            "stability": "stable"
+          },
+          {
+            "id": "udp",
+            "value": "udp",
+            "brief": "UDP",
+            "stability": "stable"
+          },
+          {
+            "id": "pipe",
+            "value": "pipe",
+            "brief": "Named or anonymous pipe.",
+            "stability": "stable"
+          },
+          {
+            "id": "unix",
+            "value": "unix",
+            "brief": "Unix domain socket",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).\n",
+      "examples": [
+        "tcp",
+        "udp"
+      ],
+      "requirement_level": "recommended",
+      "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "network.type",
+      "type": {
+        "members": [
+          {
+            "id": "ipv4",
+            "value": "ipv4",
+            "brief": "IPv4",
+            "stability": "stable"
+          },
+          {
+            "id": "ipv6",
+            "value": "ipv6",
+            "brief": "IPv6",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.",
+      "examples": [
+        "ipv4",
+        "ipv6"
+      ],
+      "requirement_level": "recommended",
+      "note": "The value SHOULD be normalized to lowercase.",
+      "stability": "stable"
+    },
+    {
+      "name": "server.address",
+      "type": "string",
+      "brief": "Host identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
+      "examples": [
+        "example.com",
+        "10.1.2.80",
+        "/tmp/my.sock"
+      ],
+      "requirement_level": "required",
+      "note": "If an HTTP client request is explicitly made to an IP address, e.g. `http://x.x.x.x:8080`, then `server.address` SHOULD be the IP address `x.x.x.x`. A DNS lookup SHOULD NOT be used.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "server.address",
+      "type": "string",
+      "brief": "Name of the local HTTP server that received the request.\n",
+      "examples": [
+        "example.com",
+        "10.1.2.80",
+        "/tmp/my.sock"
+      ],
+      "requirement_level": "recommended",
+      "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
+      "stability": "stable"
+    },
+    {
+      "name": "server.address",
+      "type": "string",
+      "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+      "examples": [
+        "example.com",
+        "10.1.2.80",
+        "/tmp/my.sock"
+      ],
+      "requirement_level": "recommended",
+      "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "server.address",
+      "type": "string",
+      "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+      "examples": [
+        "example.com",
+        "10.1.2.80",
+        "/tmp/my.sock"
+      ],
+      "requirement_level": {
+        "conditionally_required": "If available."
+      },
+      "note": "This should be the IP/hostname of the broker (or other network-level peer) this specific message is sent to/received from.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "server.port",
+      "type": "int",
+      "brief": "Port identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
+      "examples": [
+        80,
+        8080,
+        443
+      ],
+      "requirement_level": "required",
+      "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "server.port",
+      "type": "int",
+      "brief": "Port of the local HTTP server that received the request.\n",
+      "examples": [
+        80,
+        8080,
+        443
+      ],
+      "requirement_level": {
+        "conditionally_required": "If `server.address` is set."
+      },
+      "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
+      "stability": "stable"
+    },
+    {
+      "name": "server.port",
+      "type": "int",
+      "brief": "Server port number.",
+      "examples": [
+        80,
+        8080,
+        443
+      ],
+      "requirement_level": "recommended",
+      "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "url.fragment",
+      "type": "string",
+      "brief": "The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component",
+      "examples": [
+        "SemConv"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "url.full",
+      "type": "string",
+      "brief": "Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)",
+      "examples": [
+        "https://www.foo.bar/search?q=OpenTelemetry#SemConv",
+        "//localhost"
+      ],
+      "requirement_level": "recommended",
+      "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "url.path",
+      "type": "string",
+      "brief": "The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component",
+      "examples": [
+        "/search"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "url.query",
+      "type": "string",
+      "brief": "The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component",
+      "examples": [
+        "q=OpenTelemetry"
+      ],
+      "requirement_level": "recommended",
+      "note": "Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.",
+      "stability": "stable"
+    },
+    {
+      "name": "url.scheme",
+      "type": "string",
+      "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+      "examples": [
+        "http",
+        "https"
+      ],
+      "requirement_level": "required",
+      "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
+      "stability": "stable"
+    },
+    {
+      "name": "url.scheme",
+      "type": "string",
+      "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+      "examples": [
+        "http",
+        "https"
+      ],
+      "requirement_level": "opt_in",
+      "stability": "stable"
+    },
+    {
+      "name": "url.scheme",
+      "type": "string",
+      "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+      "examples": [
+        "https",
+        "ftp",
+        "telnet"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    }
+  ]
+}

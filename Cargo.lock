@@ -5704,6 +5704,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "ureq",
+ "url",
  "walkdir",
  "zip",
 ]
@@ -5855,6 +5856,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror 2.0.18",
  "walkdir",
  "weaver_common",

@@ -1,79 +1,81 @@
-[
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "Network protocol name",
-    "examples": [
-      "http",
-      "spdy"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.name2",
-    "type": "string",
-    "brief": "Network protocol name",
-    "examples": [
-      "http",
-      "spdy"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Network protocol version",
-    "examples": [
-      "1.0",
-      "2.0"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Network protocol version",
-    "examples": [
-      "1.0",
-      "2.0"
-    ],
-    "requirement_level": "opt_in",
-    "stability": "stable"
-  },
-  {
-    "name": "network.type",
-    "type": "string",
-    "brief": "Network type",
-    "examples": [
-      "ipv4",
-      "ipv6"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "string",
-    "brief": "Server port",
-    "examples": [
-      "80",
-      "443"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "server.port",
-    "type": "string",
-    "brief": "Server port",
-    "examples": [
-      "80",
-      "443"
-    ],
-    "requirement_level": "opt_in",
-    "stability": "stable"
-  }
-]
+{
+  "attributes": [
+    {
+      "name": "network.protocol.name",
+      "type": "string",
+      "brief": "Network protocol name",
+      "examples": [
+        "http",
+        "spdy"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.name2",
+      "type": "string",
+      "brief": "Network protocol name",
+      "examples": [
+        "http",
+        "spdy"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.version",
+      "type": "string",
+      "brief": "Network protocol version",
+      "examples": [
+        "1.0",
+        "2.0"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "network.protocol.version",
+      "type": "string",
+      "brief": "Network protocol version",
+      "examples": [
+        "1.0",
+        "2.0"
+      ],
+      "requirement_level": "opt_in",
+      "stability": "stable"
+    },
+    {
+      "name": "network.type",
+      "type": "string",
+      "brief": "Network type",
+      "examples": [
+        "ipv4",
+        "ipv6"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "server.port",
+      "type": "string",
+      "brief": "Server port",
+      "examples": [
+        "80",
+        "443"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "server.port",
+      "type": "string",
+      "brief": "Server port",
+      "examples": [
+        "80",
+        "443"
+      ],
+      "requirement_level": "opt_in",
+      "stability": "stable"
+    }
+  ]
+}

@@ -32,6 +32,8 @@ pub mod tags;
 pub mod v2;
 pub mod value;
 
+pub use error::Error;
+
 /// The registry ID for the OpenTelemetry semantic conventions.
 /// This ID is reserved and should not be used by any other registry.
 pub const OTEL_REGISTRY_ID: &str = "OTEL";

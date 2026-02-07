@@ -321,7 +321,35 @@ impl AttributeLookup for V1Schema {
 
 impl AttributeLookup for V2Schema {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
-        todo!("Lookup {key} on v2 schema.")
+        let fake_group_id = format!("v2_dependency.{}", self.registry_id);
+        self.attribute_catalog.iter().find_map(|attr| {
+            if attr.key == key {
+                Some(AttributeWithGroupId {
+                    attribute: attribute::Attribute {
+                        name: attr.key.clone(),
+                        r#type: attr.r#type.clone(),
+                        brief: attr.common.brief.clone(),
+                        examples: attr.examples.clone(),
+                        tag: None,
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                        sampling_relevant: None,
+                        note: attr.common.note.clone(),
+                        stability: Some(attr.common.stability.clone()),
+                        deprecated: attr.common.deprecated.clone(),
+                        prefix: false,
+                        tags: None,
+                        annotations: Some(attr.common.annotations.clone()),
+                        value: None,
+                        role: None,
+                    },
+                    group_id: fake_group_id.clone(),
+                })
+            } else {
+                None
+            }
+        })
     }
 }
 
