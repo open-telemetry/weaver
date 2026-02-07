@@ -448,16 +448,7 @@ dependencies:
      Adds vendor-specific attributes for auction systems.
    ```
 
-4. **Test Both Modes**: Test your schema both with and without `--include-unreferenced`
-   ```bash
-   # Ensure minimal schema resolves correctly
-   weaver registry resolve model/
-
-   # Verify all dependencies are accessible
-   weaver registry resolve --include-unreferenced model/
-   ```
-
-5. **Structure by Concern**: Split definitions across multiple files
+4. **Structure by Concern**: Split definitions across multiple files
    ```
    model/
      registry_manifest.yaml
