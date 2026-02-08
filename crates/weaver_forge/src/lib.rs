@@ -326,6 +326,72 @@ impl TemplateEngine {
         Ok(result)
     }
 
+    /// Generate artifacts from a serializable context and return the rendered
+    /// output as a String instead of writing to files or stdout.
+    ///
+    /// This is useful when the output needs to be captured (e.g., for HTTP responses).
+    pub fn generate_to_string<T: Serialize>(&self, context: &T) -> Result<String, Error> {
+        let files = self.file_loader.all_files();
+        let tmpl_matcher = self.target_config.template_matcher()?;
+
+        let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+            error: e.to_string(),
+        })?;
+
+        let mut results = Vec::new();
+        for file_to_process in files {
+            for template in tmpl_matcher.matches(file_to_process.clone()) {
+                let yaml_params = Self::init_params(template.params.clone())?;
+                let params = Self::prepare_jq_context(&yaml_params)?;
+                let filter = Filter::new(template.filter.as_str());
+                let filtered_result = filter.apply(context.clone(), &params)?;
+
+                match template.application_mode {
+                    ApplicationMode::Single => {
+                        let is_empty = filtered_result.is_null()
+                            || (filtered_result.is_array()
+                                && filtered_result.as_array().expect("is_array").is_empty());
+                        if !is_empty {
+                            let output = self.evaluate_template_to_string(
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()?,
+                                &yaml_params,
+                                &file_to_process,
+                            )?;
+                            results.push(output);
+                        }
+                    }
+                    ApplicationMode::Each => {
+                        if let serde_json::Value::Array(values) = &filtered_result {
+                            for value in values {
+                                let output = self.evaluate_template_to_string(
+                                    NewContext { ctx: value }.try_into()?,
+                                    &yaml_params,
+                                    &file_to_process,
+                                )?;
+                                results.push(output);
+                            }
+                        } else {
+                            let output = self.evaluate_template_to_string(
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()?,
+                                &yaml_params,
+                                &file_to_process,
+                            )?;
+                            results.push(output);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results.join(""))
+    }
+
     /// Generate artifacts from a serializable context and a template directory,
     /// in parallel.
     ///
@@ -624,6 +690,49 @@ impl TemplateEngine {
             }
         }
         Ok(())
+    }
+
+    /// Evaluate a template and return the rendered output as a String.
+    fn evaluate_template_to_string(
+        &self,
+        ctx: serde_json::Value,
+        params: &BTreeMap<String, serde_yaml::Value>,
+        template_path: &Path,
+    ) -> Result<String, Error> {
+        let mut engine = self.template_engine()?;
+
+        engine.add_global(
+            "params",
+            Value::from_object(ParamsObject::new(params.clone())),
+        );
+
+        let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
+            template: template_path.to_path_buf(),
+            error: "".to_owned(),
+        })?;
+
+        let template_object = TemplateObject {
+            file_name: Arc::new(Mutex::new(String::new())),
+        };
+        engine.add_global("template", Value::from_object(template_object));
+
+        let template = engine.get_template(template_file).map_err(|e| {
+            let templates = engine
+                .templates()
+                .map(|(name, _)| name.to_owned())
+                .collect::<Vec<_>>();
+            let error = format!("{e}. Available templates: {templates:?}");
+            InvalidTemplateFile {
+                template: template_file.into(),
+                error,
+            }
+        })?;
+
+        template.render(ctx).map_err(|e| TemplateEvaluationFailed {
+            template: template_path.to_path_buf(),
+            error_id: e.to_string(),
+            error: error_summary(e),
+        })
     }
 
     /// Create a new template engine based on the target configuration.

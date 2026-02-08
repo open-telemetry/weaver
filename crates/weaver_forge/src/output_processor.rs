@@ -187,6 +187,29 @@ impl OutputProcessor {
         }
     }
 
+    /// Serialize/render data to a String without writing to stdout/file.
+    pub fn generate_to_string<T: Serialize>(&self, data: &T) -> Result<String, Error> {
+        match &self.kind {
+            OutputKind::Builtin { format, .. } => format.serialize(data),
+            OutputKind::Template(t) => t.engine.generate_to_string(data),
+            OutputKind::Mute => Ok(String::new()),
+        }
+    }
+
+    /// Returns the MIME content type for the configured format.
+    #[must_use]
+    pub fn content_type(&self) -> &'static str {
+        match &self.kind {
+            OutputKind::Builtin { format, .. } => match format {
+                BuiltinFormat::Json => "application/json",
+                BuiltinFormat::Yaml => "text/yaml",
+                BuiltinFormat::Jsonl => "application/x-ndjson",
+            },
+            OutputKind::Template(_) => "text/plain",
+            OutputKind::Mute => "text/plain",
+        }
+    }
+
     /// Returns true if file output is being used.
     #[must_use]
     pub fn is_file_output(&self) -> bool {
@@ -459,5 +482,64 @@ mod tests {
 
         let mute = OutputProcessor::new("mute", "test", None, None, None).unwrap();
         assert!(!mute.is_line_oriented());
+    }
+
+    #[test]
+    fn test_generate_to_string_json() {
+        let output = OutputProcessor::new("json", "test", None, None, None).unwrap();
+        let result = output.generate_to_string(&test_data()).unwrap();
+        let parsed: TestData = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed, test_data());
+    }
+
+    #[test]
+    fn test_generate_to_string_yaml() {
+        let output = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
+        let result = output.generate_to_string(&test_data()).unwrap();
+        let parsed: TestData = serde_yaml::from_str(&result).unwrap();
+        assert_eq!(parsed, test_data());
+    }
+
+    #[test]
+    fn test_generate_to_string_jsonl() {
+        let output = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
+        let result = output.generate_to_string(&test_data()).unwrap();
+        let parsed: TestData = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed, test_data());
+    }
+
+    #[test]
+    fn test_generate_to_string_mute() {
+        let output = OutputProcessor::new("mute", "test", None, None, None).unwrap();
+        let result = output.generate_to_string(&test_data()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_generate_to_string_template() {
+        let output =
+            OutputProcessor::new("simple", "test", Some(&EMBEDDED_TEMPLATES), None, None).unwrap();
+        let result = output.generate_to_string(&test_data()).unwrap();
+        assert!(result.contains("test"), "should contain name");
+        assert!(result.contains("42"), "should contain value");
+    }
+
+    #[test]
+    fn test_content_type() {
+        let json = OutputProcessor::new("json", "test", None, None, None).unwrap();
+        assert_eq!(json.content_type(), "application/json");
+
+        let yaml = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
+        assert_eq!(yaml.content_type(), "text/yaml");
+
+        let jsonl = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
+        assert_eq!(jsonl.content_type(), "application/x-ndjson");
+
+        let template =
+            OutputProcessor::new("simple", "test", Some(&EMBEDDED_TEMPLATES), None, None).unwrap();
+        assert_eq!(template.content_type(), "text/plain");
+
+        let mute = OutputProcessor::new("mute", "test", None, None, None).unwrap();
+        assert_eq!(mute.content_type(), "text/plain");
     }
 }
