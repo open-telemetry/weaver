@@ -127,11 +127,11 @@ Imports are organized by signal type:
 
 ### Wildcard Patterns
 
-You can use wildcards to import multiple signals at once:
+You can use wildcards to import multiple definitions at once:
 
-- `example.*` - Imports all signals with names starting with `example.`
-- `gcp.*` - Imports all signals with names starting with `gcp.`
-- `session.start` - Imports only the specific `session.start` signal
+- `example.*` - Imports all definitions of the corresponding signal type with names starting with `example.`
+- `gcp.*` - Imports all definitions of the corresponding signal type with names starting with `gcp.`
+- `session.start` - Imports only the specific `session.start` signal definition
 
 ### How Imports Work
 
