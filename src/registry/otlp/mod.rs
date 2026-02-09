@@ -25,7 +25,11 @@ use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use axum::extract::State;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinSet;
@@ -325,6 +329,68 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut Jo
     }
 }
 
+/// Shared state for the admin HTTP handler.
+#[derive(Clone)]
+struct AdminState {
+    stop_tx: mpsc::Sender<OtlpRequest>,
+    report_sender: AdminReportSender,
+    shutdown_tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+}
+
+/// GET /health — returns a simple JSON status.
+async fn health_handler() -> impl IntoResponse {
+    Json(serde_json::json!({"status": "ready"}))
+}
+
+/// POST /stop — sends a stop signal, waits for the report, then responds.
+async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
+    let (tx, rx) = oneshot::channel::<(String, String)>();
+    {
+        let mut slot = state
+            .report_sender
+            .lock()
+            .expect("Report sender lock poisoned");
+        *slot = Some(tx);
+    }
+
+    let _ = state
+        .stop_tx
+        .send(OtlpRequest::Stop(StopSignal::AdminStop))
+        .await;
+
+    let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+        Ok(Ok((content_type, body))) => (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, content_type)],
+            body,
+        )
+            .into_response(),
+        Ok(Err(_)) => {
+            // Channel dropped — report generation failed
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Report generation failed"})),
+            )
+                .into_response()
+        }
+        Err(_) => {
+            // Timeout
+            (
+                StatusCode::GATEWAY_TIMEOUT,
+                Json(serde_json::json!({"error": "Timed out waiting for report"})),
+            )
+                .into_response()
+        }
+    };
+
+    // Signal the server to shut down after the response is built
+    if let Some(shutdown_tx) = state.shutdown_tx.lock().expect("Shutdown lock poisoned").take() {
+        let _ = shutdown_tx.send(());
+    }
+
+    response
+}
+
 /// Spawn a minimal HTTP server that handles admin endpoints (/health, /stop).
 ///
 /// Note: All the tasks created in this function are recorded into a
@@ -342,107 +408,24 @@ async fn spawn_http_admin_handler(
 
     match TcpListener::bind(addr).await {
         Ok(listener) => {
+            let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+            let state = AdminState {
+                stop_tx,
+                report_sender,
+                shutdown_tx: Arc::new(Mutex::new(Some(shutdown_tx))),
+            };
+
+            let app = Router::new()
+                .route("/health", get(health_handler))
+                .route("/stop", post(stop_handler))
+                .with_state(state);
+
             let _ = tasks.spawn(async move {
-                let mut stop_signal_received = false;
-                while !stop_signal_received {
-                    match listener.accept().await {
-                        Ok((mut socket, _)) => {
-                            let mut buffer = [0; 1024];
-                            if let Ok(n) = socket.read(&mut buffer).await {
-                                let request = String::from_utf8_lossy(&buffer[..n]);
-
-                                // Parse the request - very basic HTTP parsing
-                                let lines: Vec<&str> = request.lines().collect();
-                                if let Some(first_line) = lines.first() {
-                                    let parts: Vec<&str> = first_line.split_whitespace().collect();
-                                    if parts.len() >= 2
-                                        && parts[0] == "GET"
-                                        && parts[1] == "/health"
-                                    {
-                                        // Health endpoint — does not stop the server
-                                        let body = r#"{"status":"ready"}"#;
-                                        let response = format!(
-                                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                                            body.len(),
-                                            body
-                                        );
-                                        let _ = socket.write_all(response.as_bytes()).await.ok();
-                                    } else if parts.len() >= 2
-                                        && parts[0] == "POST"
-                                        && parts[1] == "/stop"
-                                    {
-                                        // Create a oneshot channel for the report
-                                        let (tx, rx) = oneshot::channel::<(String, String)>();
-
-                                        // Store the sender so the main thread can send the report
-                                        {
-                                            let mut slot = report_sender
-                                                .lock()
-                                                .expect("Report sender lock poisoned");
-                                            *slot = Some(tx);
-                                        }
-
-                                        // Send stop signal
-                                        let _ = stop_tx
-                                            .send(OtlpRequest::Stop(StopSignal::AdminStop))
-                                            .await
-                                            .ok();
-
-                                        // Wait for the report with a 60-second timeout
-                                        let response =
-                                            match tokio::time::timeout(
-                                                Duration::from_secs(60),
-                                                rx,
-                                            )
-                                            .await
-                                            {
-                                                Ok(Ok((content_type, body))) => {
-                                                    format!(
-                                                        "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
-                                                        content_type,
-                                                        body.len(),
-                                                        body
-                                                    )
-                                                }
-                                                Ok(Err(_)) => {
-                                                    // Channel dropped — report generation failed
-                                                    let body =
-                                                        r#"{"error":"Report generation failed"}"#;
-                                                    format!(
-                                                        "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                                                        body.len(),
-                                                        body
-                                                    )
-                                                }
-                                                Err(_) => {
-                                                    // Timeout
-                                                    let body = r#"{"error":"Timed out waiting for report"}"#;
-                                                    format!(
-                                                        "HTTP/1.1 504 Gateway Timeout\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                                                        body.len(),
-                                                        body
-                                                    )
-                                                }
-                                            };
-
-                                        let _ = socket.write_all(response.as_bytes()).await.ok();
-                                        stop_signal_received = true;
-                                    } else {
-                                        // Send HTTP 404 Not Found for any other request
-                                        let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found";
-                                        let _ = socket.write_all(response.as_bytes()).await.ok();
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            stop_tx
-                                .send(OtlpRequest::Error(Error::HttpAdminError {error: format!("Failed to accept HTTP connection: {e}")}))
-                                .await
-                                .expect("Failed to send an OtlpRequest::Error");
-                        }
-                    }
-                }
+                let _ = axum::serve(listener, app)
+                    .with_graceful_shutdown(async {
+                        let _ = shutdown_rx.await;
+                    })
+                    .await;
             });
         }
         Err(e) => {

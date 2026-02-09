@@ -120,6 +120,7 @@ pub struct RegistryLiveCheckArgs {
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the report is printed to stdout.
     /// Use "none" to disable all template output rendering (useful when emitting OTLP logs).
+    /// Use "http" to send the report as the response to the /stop request on the admin port.
     #[arg(short, long)]
     output: Option<PathBuf>,
 

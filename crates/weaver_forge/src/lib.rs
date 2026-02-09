@@ -352,13 +352,14 @@ impl TemplateEngine {
                             || (filtered_result.is_array()
                                 && filtered_result.as_array().expect("is_array").is_empty());
                         if !is_empty {
-                            let output = self.evaluate_template_to_string(
+                            let (output, _) = self.render_template(
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
                                 .try_into()?,
                                 &yaml_params,
                                 &file_to_process,
+                                None,
                             )?;
                             results.push(output);
                         }
@@ -366,21 +367,23 @@ impl TemplateEngine {
                     ApplicationMode::Each => {
                         if let serde_json::Value::Array(values) = &filtered_result {
                             for value in values {
-                                let output = self.evaluate_template_to_string(
+                                let (output, _) = self.render_template(
                                     NewContext { ctx: value }.try_into()?,
                                     &yaml_params,
                                     &file_to_process,
+                                    None,
                                 )?;
                                 results.push(output);
                             }
                         } else {
-                            let output = self.evaluate_template_to_string(
+                            let (output, _) = self.render_template(
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
                                 .try_into()?,
                                 &yaml_params,
                                 &file_to_process,
+                                None,
                             )?;
                             results.push(output);
                         }
@@ -604,17 +607,16 @@ impl TemplateEngine {
         }
     }
 
-    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
-    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
-    fn evaluate_template(
+    /// Set up a Jinja engine, render a template, and return the output string
+    /// along with the `TemplateObject` (which may have been mutated by the
+    /// template to override the file name).
+    fn render_template(
         &self,
         ctx: serde_json::Value,
-        file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
         template_path: &Path,
-        output_directive: &OutputDirective,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
+        file_path_config: Option<&String>,
+    ) -> Result<(String, TemplateObject), Error> {
         let mut engine = self.template_engine()?;
 
         // Add the Weaver parameters to the template context
@@ -625,7 +627,7 @@ impl TemplateEngine {
 
         // Pre-determine the file path for the generated file based on the template file path
         // if defined, otherwise use the default file path based on the template file name.
-        let file_path = match file_path {
+        let file_path = match file_path_config {
             Some(file_path) => {
                 engine
                     .render_str(file_path, ctx.clone())
@@ -670,12 +672,29 @@ impl TemplateEngine {
         })?;
 
         let output = template
-            .render(ctx.clone())
+            .render(ctx)
             .map_err(|e| TemplateEvaluationFailed {
                 template: template_path.to_path_buf(),
                 error_id: e.to_string(),
                 error: error_summary(e),
             })?;
+
+        Ok((output, template_object))
+    }
+
+    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
+    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
+    fn evaluate_template(
+        &self,
+        ctx: serde_json::Value,
+        file_path: Option<&String>,
+        params: &BTreeMap<String, serde_yaml::Value>,
+        template_path: &Path,
+        output_directive: &OutputDirective,
+        output_dir: &Path,
+    ) -> Result<(), Error> {
+        let (output, template_object) =
+            self.render_template(ctx, params, template_path, file_path)?;
         match output_directive {
             OutputDirective::Stdout => {
                 println!("{output}");
@@ -690,49 +709,6 @@ impl TemplateEngine {
             }
         }
         Ok(())
-    }
-
-    /// Evaluate a template and return the rendered output as a String.
-    fn evaluate_template_to_string(
-        &self,
-        ctx: serde_json::Value,
-        params: &BTreeMap<String, serde_yaml::Value>,
-        template_path: &Path,
-    ) -> Result<String, Error> {
-        let mut engine = self.template_engine()?;
-
-        engine.add_global(
-            "params",
-            Value::from_object(ParamsObject::new(params.clone())),
-        );
-
-        let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
-            template: template_path.to_path_buf(),
-            error: "".to_owned(),
-        })?;
-
-        let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(String::new())),
-        };
-        engine.add_global("template", Value::from_object(template_object));
-
-        let template = engine.get_template(template_file).map_err(|e| {
-            let templates = engine
-                .templates()
-                .map(|(name, _)| name.to_owned())
-                .collect::<Vec<_>>();
-            let error = format!("{e}. Available templates: {templates:?}");
-            InvalidTemplateFile {
-                template: template_file.into(),
-                error,
-            }
-        })?;
-
-        template.render(ctx).map_err(|e| TemplateEvaluationFailed {
-            template: template_path.to_path_buf(),
-            error_id: e.to_string(),
-            error: error_summary(e),
-        })
     }
 
     /// Create a new template engine based on the target configuration.
