@@ -272,6 +272,11 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
                 inactivity_timeout: args.inactivity_timeout,
             };
             let (iter, sender) = otlp.ingest_otlp()?;
+            if is_http_output {
+                sender
+                    .expect_report
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+            }
             admin_report_sender = Some(sender);
             iter
         }
@@ -344,7 +349,8 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
     if is_http_output {
         let admin_waiting = admin_report_sender.as_ref().is_some_and(|s| {
-            s.lock()
+            s.sender
+                .lock()
                 .expect("Failed to acquire lock on admin report sender")
                 .is_some()
         });
@@ -382,8 +388,9 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
                     .generate_to_string(&report)
                     .map_err(DiagnosticMessages::from)?
             };
-            if let Some(sender_arc) = admin_report_sender.take() {
-                if let Some(sender) = sender_arc
+            if let Some(report) = admin_report_sender.take() {
+                if let Some(sender) = report
+                    .sender
                     .lock()
                     .expect("Failed to acquire lock on admin report sender")
                     .take()

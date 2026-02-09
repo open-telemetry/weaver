@@ -28,6 +28,7 @@ use miette::Diagnostic;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
@@ -40,8 +41,16 @@ use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 /// Channel for sending the formatted report back to the /stop HTTP handler.
-/// Tuple is (content_type, body).
-pub type AdminReportSender = Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>;
+///
+/// When `expect_report` is set to `true`, the `/stop` handler will wait for
+/// the report to be sent through the oneshot channel before responding.
+/// When `false`, `/stop` returns 200 immediately (the default).
+#[derive(Clone)]
+pub struct AdminReportSender {
+    pub sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
+    /// Set to `true` to have `/stop` wait and return the report as its response body.
+    pub expect_report: Arc<AtomicBool>,
+}
 
 /// Expose the OTLP gRPC services.
 /// See the build.rs file for more information.
@@ -211,7 +220,10 @@ pub fn listen_otlp_requests(
     // Create a watch channel for the last activity timestamp
     let (activity_tx, activity_rx) = watch::channel(Instant::now());
     // Create the admin report sender for /stop response back-channel
-    let report_sender: AdminReportSender = Arc::new(Mutex::new(None));
+    let report_sender = AdminReportSender {
+        sender: Arc::new(Mutex::new(None)),
+        expect_report: Arc::new(AtomicBool::new(false)),
+    };
     let logs_service = LogsServiceImpl {
         tx: tx.clone(),
         activity_tx: activity_tx.clone(),
@@ -333,7 +345,10 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut Jo
 #[derive(Clone)]
 struct AdminState {
     stop_tx: mpsc::Sender<OtlpRequest>,
-    report_sender: AdminReportSender,
+    report_sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
+    /// When true, `/stop` waits for a report to be sent back through `report_sender`.
+    /// When false, `/stop` returns 200 immediately.
+    expect_report: Arc<AtomicBool>,
     shutdown_tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
@@ -342,55 +357,78 @@ async fn health_handler() -> impl IntoResponse {
     Json(serde_json::json!({"status": "ready"}))
 }
 
-/// POST /stop — sends a stop signal, waits for the report, then responds.
+/// POST /stop — sends a stop signal. If `--output=http` was set, waits for
+/// the report and returns it as the response body; otherwise returns 200
+/// immediately.
 async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
-    let (tx, rx) = oneshot::channel::<(String, String)>();
-    {
-        let mut slot = state
-            .report_sender
+    let wait_for_report = state.expect_report.load(Ordering::Relaxed);
+
+    if wait_for_report {
+        let (tx, rx) = oneshot::channel::<(String, String)>();
+        {
+            let mut slot = state
+                .report_sender
+                .lock()
+                .expect("Report sender lock poisoned");
+            *slot = Some(tx);
+        }
+
+        let _ = state
+            .stop_tx
+            .send(OtlpRequest::Stop(StopSignal::AdminStop))
+            .await;
+
+        let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+            Ok(Ok((content_type, body))) => {
+                (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
+            }
+            Ok(Err(_)) => {
+                // Channel dropped — report generation failed
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": "Report generation failed"})),
+                )
+                    .into_response()
+            }
+            Err(_) => {
+                // Timeout
+                (
+                    StatusCode::GATEWAY_TIMEOUT,
+                    Json(serde_json::json!({"error": "Timed out waiting for report"})),
+                )
+                    .into_response()
+            }
+        };
+
+        // Signal the server to shut down after the response is built
+        if let Some(shutdown_tx) = state
+            .shutdown_tx
             .lock()
-            .expect("Report sender lock poisoned");
-        *slot = Some(tx);
+            .expect("Shutdown lock poisoned")
+            .take()
+        {
+            let _ = shutdown_tx.send(());
+        }
+
+        response
+    } else {
+        let _ = state
+            .stop_tx
+            .send(OtlpRequest::Stop(StopSignal::AdminStop))
+            .await;
+
+        // Signal the server to shut down
+        if let Some(shutdown_tx) = state
+            .shutdown_tx
+            .lock()
+            .expect("Shutdown lock poisoned")
+            .take()
+        {
+            let _ = shutdown_tx.send(());
+        }
+
+        StatusCode::OK.into_response()
     }
-
-    let _ = state
-        .stop_tx
-        .send(OtlpRequest::Stop(StopSignal::AdminStop))
-        .await;
-
-    let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
-        Ok(Ok((content_type, body))) => {
-            (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
-        }
-        Ok(Err(_)) => {
-            // Channel dropped — report generation failed
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Report generation failed"})),
-            )
-                .into_response()
-        }
-        Err(_) => {
-            // Timeout
-            (
-                StatusCode::GATEWAY_TIMEOUT,
-                Json(serde_json::json!({"error": "Timed out waiting for report"})),
-            )
-                .into_response()
-        }
-    };
-
-    // Signal the server to shut down after the response is built
-    if let Some(shutdown_tx) = state
-        .shutdown_tx
-        .lock()
-        .expect("Shutdown lock poisoned")
-        .take()
-    {
-        let _ = shutdown_tx.send(());
-    }
-
-    response
 }
 
 /// Spawn a minimal HTTP server that handles admin endpoints (/health, /stop).
@@ -413,7 +451,8 @@ async fn spawn_http_admin_handler(
             let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
             let state = AdminState {
                 stop_tx,
-                report_sender,
+                report_sender: report_sender.sender.clone(),
+                expect_report: report_sender.expect_report.clone(),
                 shutdown_tx: Arc::new(Mutex::new(Some(shutdown_tx))),
             };
 
@@ -668,13 +707,16 @@ mod tests {
     }
 
     #[test]
-    fn test_http_stop_endpoint() {
+    fn test_http_stop_endpoint_with_report() {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_secs(5);
 
         let (mut receiver, report_sender) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+
+        // Enable report-via-HTTP mode (simulates --output http)
+        report_sender.expect_report.store(true, Ordering::Relaxed);
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));
@@ -692,7 +734,7 @@ mod tests {
         match receiver.next() {
             Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {
                 // Send a report back through the channel
-                if let Some(sender) = report_sender.lock().unwrap().take() {
+                if let Some(sender) = report_sender.sender.lock().unwrap().take() {
                     let _ = sender.send(("text/plain".into(), "test report".into()));
                 }
             }
@@ -709,6 +751,41 @@ mod tests {
         );
         let body = response.into_body().read_to_string().unwrap();
         assert_eq!(body, "test report");
+    }
+
+    #[test]
+    fn test_http_stop_endpoint_immediate() {
+        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
+        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let inactivity_timeout = Duration::from_secs(5);
+
+        let (mut receiver, _report_sender) =
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+
+        // expect_report defaults to false — /stop should return 200 immediately
+
+        // Give the server a little time to finish binding the port.
+        thread::sleep(Duration::from_millis(200));
+
+        let url = format!("http://127.0.0.1:{admin_port}/stop");
+        let response = ureq::post(&url)
+            .send("")
+            .expect("HTTP POST to /stop failed");
+        assert_eq!(
+            response.status(),
+            200,
+            "Stop endpoint returned non-200 status"
+        );
+        let body = response.into_body().read_to_string().unwrap();
+        assert!(body.is_empty(), "Expected empty body, got: {body}");
+
+        // Should still receive the stop signal
+        match receiver.next() {
+            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {}
+            other => {
+                panic!("Expected OtlpRequest::Stop, got {other:?}");
+            }
+        }
     }
 
     #[test]

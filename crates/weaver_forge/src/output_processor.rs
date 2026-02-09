@@ -202,7 +202,7 @@ impl OutputProcessor {
         match &self.kind {
             OutputKind::Builtin { format, .. } => match format {
                 BuiltinFormat::Json => "application/json",
-                BuiltinFormat::Yaml => "text/yaml",
+                BuiltinFormat::Yaml => "application/yaml",
                 BuiltinFormat::Jsonl => "application/x-ndjson",
             },
             OutputKind::Template(_) => "text/plain",
@@ -530,7 +530,7 @@ mod tests {
         assert_eq!(json.content_type(), "application/json");
 
         let yaml = OutputProcessor::new("yaml", "test", None, None, None).unwrap();
-        assert_eq!(yaml.content_type(), "text/yaml");
+        assert_eq!(yaml.content_type(), "application/yaml");
 
         let jsonl = OutputProcessor::new("jsonl", "test", None, None, None).unwrap();
         assert_eq!(jsonl.content_type(), "application/x-ndjson");
