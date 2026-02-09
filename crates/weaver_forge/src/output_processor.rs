@@ -526,14 +526,14 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_template_each_array() {
-        let output =
-            OutputProcessor::new("each_test", "test", Some(&EMBEDDED_TEMPLATES), None, None)
-                .unwrap();
-
         #[derive(Serialize)]
         struct Items {
             items: Vec<TestData>,
         }
+
+        let output =
+            OutputProcessor::new("each_test", "test", Some(&EMBEDDED_TEMPLATES), None, None)
+                .unwrap();
 
         let data = Items {
             items: vec![
@@ -568,15 +568,15 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_template_each_non_array() {
-        let output =
-            OutputProcessor::new("each_test", "test", Some(&EMBEDDED_TEMPLATES), None, None)
-                .unwrap();
-
         // When the filter returns a non-array, each mode renders it as a single item
         #[derive(Serialize)]
         struct Items {
             items: TestData,
         }
+
+        let output =
+            OutputProcessor::new("each_test", "test", Some(&EMBEDDED_TEMPLATES), None, None)
+                .unwrap();
 
         let data = Items {
             items: TestData {
