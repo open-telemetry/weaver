@@ -138,7 +138,7 @@ You can use wildcards to import multiple definitions at once:
 When you import a signal definition:
 
 1. The signal definition from the dependency is included in your resolved schema
-2. Any attributes referenced by that signal are also included
+2. Any attributes referenced by that definition are also included
 3. The imported signals can be referenced using `ref` in your custom definitions
 
 ### Example: Referencing Imported Definitions
@@ -156,6 +156,7 @@ metrics:
   - name: example.counter
     instrument: counter
     unit: "1"
+    brief: Example counter metric
     attributes:
       - ref: error.type
 ```
@@ -175,6 +176,7 @@ metrics:
   - name: auction.bid.count
     instrument: counter
     unit: "{bid}"
+    brief: Count of auction bids
     attributes:
       - ref: auction.id
       - ref: auction.name
@@ -185,26 +187,10 @@ imports:
     - example.*  # Imports example.counter metric from dependency
 ```
 
-**Application Registry** (`app_registry/app_registry.yaml`):
-```yaml
-version: "2"
-attributes:
-  - key: app.name
-    type: string
-    brief: Name of the application.
-
-spans:
-  - name: app.example
-    brief: Example application span
-    attributes:
-      - ref: app.name
-      - ref: error.type     # References from transitive dependency (otel)
-      - ref: auction.name   # References from direct dependency (custom)
-
-imports:
-  metrics:
-    - example.*  # Imports from transitive dependencies
-```
+In this example:
+- The `custom` registry imports the `example.counter` metric from the `otel` registry
+- The `error.type` attribute is available because it's referenced by the imported metric
+- Custom metrics can reference both local attributes (`auction.id`, `auction.name`) and imported attributes (`error.type`)
 
 ## The `--include-unreferenced` Flag
 
