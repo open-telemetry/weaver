@@ -13,7 +13,7 @@ A **multi-registry** setup consists of:
 1. **Base registries** - Upstream registries that provide foundational definitions (attributes, metrics, events, entities)
 2. **Dependent registries** - Your custom registries that build upon and reference definitions from base registries
 3. **Registry manifest** - A `registry_manifest.yaml` file that declares dependencies between registries
-4. **Imports** - Declarations in your schema files that specify which groups from dependencies you want to include
+4. **Imports** - Declarations in your schema files that specify which signals from dependencies you want to include
 
 ## Registry Manifest
 
@@ -35,7 +35,7 @@ dependencies:
 
 - **name**: Unique identifier for your registry
 - **version**: Semantic version of your registry (also called `semconv_version`)
-- **repository_url**: Base URL where schema files are hosted (also called `schema_base_url`)
+- **repository_url**: Base URL where schema files are hosted
 
 ### Declaring Dependencies
 
@@ -61,7 +61,8 @@ Here's a practical example showing how registries can form a dependency chain:
 name: otel
 description: OpenTelemetry base definitions
 version: 1.0.0
-repository_url: https://opentelemetry.io/schemas/
+repository_url: https://github.com/open-telemetry/semantic-conventions
+resolved_schema_url: https://opentelemetry.io/schemas/1.42.0
 ```
 
 **Vendor Registry** (`acme_registry/registry_manifest.yaml`):
@@ -72,7 +73,7 @@ version: 0.1.0
 repository_url: https://acme.com/schemas/
 dependencies:
   - name: otel
-    registry_path: ../otel_registry
+    registry_path: https://opentelemetry.io/schemas/1.42.0
 ```
 
 **Application Registry** (`app_registry/registry_manifest.yaml`):
@@ -93,17 +94,19 @@ In this setup:
 
 ## Using Imports
 
-The `imports` section in your schema files specifies which groups from dependent registries you want to include. This allows you to selectively pull in only the definitions you need.
+The `imports` section in your schema files specifies which signals from dependent registries you want to include. This allows you to selectively pull in only the definitions you need.
 
 ### Import Syntax
 
-Add an `imports` section at the top level of your YAML schema file (alongside `groups`):
+Add an `imports` section at the top level of your YAML schema file (alongside `attributes`, `metrics`, `events`, etc.):
 
 ```yaml
-groups:
-  - id: my.custom.group
-    type: attribute_group
-    # ... group definition ...
+version: "2"
+attributes:
+  - key: my.custom.attribute
+    type: string
+    brief: My custom attribute
+    # ... attribute definition ...
 
 imports:
   metrics:
@@ -124,36 +127,33 @@ Imports are organized by signal type:
 
 ### Wildcard Patterns
 
-You can use wildcards to import multiple groups at once:
+You can use wildcards to import multiple signals at once:
 
-- `example.*` - Imports all groups with names starting with `example.`
-- `gcp.*` - Imports all groups with names starting with `gcp.`
-- `session.start` - Imports only the specific `session.start` group
+- `example.*` - Imports all signals with names starting with `example.`
+- `gcp.*` - Imports all signals with names starting with `gcp.`
+- `session.start` - Imports only the specific `session.start` signal
 
 ### How Imports Work
 
-When you import a group:
+When you import a signal definition:
 
-1. The group definition from the dependency is included in your resolved schema
-2. Any attributes referenced by that group are also included
-3. The imported groups can be referenced using `ref` in your custom definitions
+1. The signal definition from the dependency is included in your resolved schema
+2. Any attributes referenced by that signal are also included
+3. The imported signals can be referenced using `ref` in your custom definitions
 
 ### Example: Referencing Imported Definitions
 
 **Base Registry** (`otel_registry/otel_registry.yaml`):
 ```yaml
-groups:
-  - id: otel.registry
-    type: attribute_group
-    attributes:
-      - id: error.type
-        type: string
-        brief: The error type.
-        stability: stable
+version: "2"
+attributes:
+  - key: error.type
+    type: string
+    brief: The error type.
+    stability: stable
 
-  - id: metric.example.counter
-    type: metric
-    metric_name: example.counter
+metrics:
+  - name: example.counter
     instrument: counter
     unit: "1"
     attributes:
@@ -162,21 +162,17 @@ groups:
 
 **Custom Registry** (`custom_registry/custom_registry.yaml`):
 ```yaml
-groups:
-  - id: shared.attributes
-    type: attribute_group
-    attributes:
-      - id: auction.id
-        type: int
-        brief: The id of the auction.
-      - id: auction.name
-        type: string
-        brief: The name of the auction.
-      - ref: error.type  # References attribute from dependency
+version: "2"
+attributes:
+  - key: auction.id
+    type: int
+    brief: The id of the auction.
+  - key: auction.name
+    type: string
+    brief: The name of the auction.
 
-  - id: metric.auction.bid.count
-    type: metric
-    metric_name: auction.bid.count
+metrics:
+  - name: auction.bid.count
     instrument: counter
     unit: "{bid}"
     attributes:
@@ -186,18 +182,22 @@ groups:
 
 imports:
   metrics:
-    - example.*  # Imports metric.example.counter from dependency
+    - example.*  # Imports example.counter metric from dependency
 ```
 
 **Application Registry** (`app_registry/app_registry.yaml`):
 ```yaml
-groups:
-  - id: app.example
-    type: attribute_group
+version: "2"
+attributes:
+  - key: app.name
+    type: string
+    brief: Name of the application.
+
+spans:
+  - name: app.example
+    brief: Example application span
     attributes:
-      - id: app.name
-        type: string
-        brief: Name of the application.
+      - ref: app.name
       - ref: error.type     # References from transitive dependency (otel)
       - ref: auction.name   # References from direct dependency (custom)
 
@@ -231,7 +231,7 @@ weaver registry resolve --include-unreferenced my_registry/
 
 In this mode:
 - ✅ All definitions from dependencies are included, regardless of references
-- ✅ This includes attributes, groups, metrics, events, and entities
+- ✅ This includes attributes, metrics, events, and entities
 - ⚠️ Results in a larger resolved schema
 
 ### When to Use Each Mode
@@ -252,28 +252,33 @@ In this mode:
 Consider this dependency structure where the `otel` registry has:
 
 ```yaml
-groups:
-  - id: otel.registry
-    attributes:
-      - id: error.type  # Referenced in custom registry
+version: "2"
+attributes:
+  - key: error.type  # Referenced in custom registry
+    type: string
+    brief: The error type
 
-  - id: otel.unused
-    attributes:
-      - id: unused      # NOT referenced anywhere
+  - key: unused      # NOT referenced anywhere
+    type: string
+    brief: Unused attribute
 
-  - id: metric.example.counter  # Listed in imports
+metrics:
+  - name: example.counter  # Listed in imports
+    instrument: counter
 
-  - id: event.session.end  # NOT listed in imports
+events:
+  - name: session.end  # NOT listed in imports
+    brief: Session end event
 ```
 
 **Without `--include-unreferenced`:**
 - ✅ `error.type` attribute (referenced via `ref`)
-- ✅ `metric.example.counter` (specified in `imports`)
-- ❌ `otel.unused` group (not referenced)
-- ❌ `event.session.end` (not in imports)
+- ✅ `example.counter` metric (specified in `imports`)
+- ❌ `unused` attribute (not referenced)
+- ❌ `session.end` event (not in imports)
 
 **With `--include-unreferenced`:**
-- ✅ All groups and attributes included, even `otel.unused` and `event.session.end`
+- ✅ All signals and attributes included, even `unused` and `session.end`
 
 ## Real-World Example: OpenTelemetry Semantic Conventions
 
@@ -298,18 +303,13 @@ dependencies:
 **File**: `model/attributes.yaml`
 
 ```yaml
-groups:
-  - id: registry.example
-    type: attribute_group
-    brief: Custom application attributes
-    attributes:
-      - id: example.message
-        type: string
-        brief: A simple message
-        stability: development
-        examples: ["Hello, World!"]
-      - ref: host.name      # Reference from OTel
-      - ref: host.arch      # Reference from OTel
+version: "2"
+attributes:
+  - key: example.message
+    type: string
+    brief: A simple message
+    stability: development
+    examples: ["Hello, World!"]
 ```
 
 ### 3. Define Custom Signals
@@ -317,23 +317,22 @@ groups:
 **File**: `model/signals.yaml`
 
 ```yaml
-groups:
-  - id: span.example_message
-    type: span
+version: "2"
+spans:
+  - name: example_message
     stability: development
     brief: This span represents a simple message.
     span_kind: client
     attributes:
       - ref: example.message
         requirement_level: required
-      - ref: host.name
+      - ref: host.name         # Reference from OTel
         requirement_level: required
-      - ref: host.arch
+      - ref: host.arch         # Reference from OTel
         requirement_level: required
 
-  - id: metric.example_counter
-    type: metric
-    metric_name: example.counter
+metrics:
+  - name: example.counter
     stability: development
     brief: A counter of messages processed.
     instrument: counter
@@ -373,15 +372,11 @@ dependencies:
 
 ```yaml
 # vendor_registry/extensions.yaml
-groups:
-  - id: registry.cloud_vendor
-    type: attribute_group
-    attributes:
-      - id: cloud.vendor.region
-        type: string
-        brief: Vendor-specific region identifier
-      - ref: cloud.platform  # From OTel
-      - ref: cloud.region    # From OTel
+version: "2"
+attributes:
+  - key: cloud.vendor.region
+    type: string
+    brief: Vendor-specific region identifier
 ```
 
 ### Use Case 2: Application-Specific Metrics
@@ -390,15 +385,19 @@ Applications can import specific metrics they use:
 
 ```yaml
 # app/model/app_metrics.yaml
+version: "2"
 imports:
   metrics:
     - http.server.*
     - db.client.*
 
-groups:
-  - id: metric.app.requests
-    type: metric
-    metric_name: app.requests.total
+attributes:
+  - key: app.custom.field
+    type: string
+    brief: Custom application field
+
+metrics:
+  - name: app.requests.total
     instrument: counter
     unit: "1"
     attributes:
@@ -457,8 +456,8 @@ groups:
 
 **Causes**:
 1. The attribute is not defined in any dependency
-2. The attribute's group is not imported
-3. The attribute exists but its group is garbage collected
+2. The signal containing the attribute is not imported
+3. The attribute exists but the signal is garbage collected
 
 **Solutions**:
 - Add the attribute to an `imports` section
