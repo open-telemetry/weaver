@@ -130,6 +130,17 @@ pub enum VirtualDirectoryPath {
     },
 }
 
+// Helper to allow mapping an Option<String> via a function that works with empty strings.
+// Empty is replaced with None and vice versa.
+fn map_option<F: FnOnce(String) -> String>(opt: Option<String>, f: F) -> Option<String> {
+    let result = f(opt.unwrap_or_default());
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
 impl VirtualDirectoryPath {
     /// Converts a virtual directory path by manipulating the "sub folder".
     ///
@@ -144,25 +155,11 @@ impl VirtualDirectoryPath {
             LocalFolder { path } => LocalFolder { path: f(path) },
             LocalArchive { path, sub_folder } => LocalArchive {
                 path,
-                sub_folder: {
-                    let result = f(sub_folder.unwrap_or("".to_owned()));
-                    if result.is_empty() {
-                        None
-                    } else {
-                        Some(result)
-                    }
-                },
+                sub_folder: map_option(sub_folder, f),
             },
             RemoteArchive { url, sub_folder } => RemoteArchive {
                 url,
-                sub_folder: {
-                    let result = f(sub_folder.unwrap_or("".to_owned()));
-                    if result.is_empty() {
-                        None
-                    } else {
-                        Some(result)
-                    }
-                },
+                sub_folder: map_option(sub_folder, f),
             },
             GitRepo {
                 url,
@@ -171,14 +168,7 @@ impl VirtualDirectoryPath {
             } => GitRepo {
                 url,
                 refspec,
-                sub_folder: {
-                    let result = f(sub_folder.unwrap_or("".to_owned()));
-                    if result.is_empty() {
-                        None
-                    } else {
-                        Some(result)
-                    }
-                },
+                sub_folder: map_option(sub_folder, f),
             },
         }
     }

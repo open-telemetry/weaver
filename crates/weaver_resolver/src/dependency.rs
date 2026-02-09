@@ -10,6 +10,7 @@ use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
+use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 
 use crate::{attribute::AttributeCatalog, Error};
@@ -120,6 +121,31 @@ impl ImportableDependency for V1Schema {
     }
 }
 
+/// Converts a V2 attribute (with no requirement level) to a v1 attribute.
+fn convert_v2_attribute(
+    attr: &weaver_resolved_schema::v2::attribute::Attribute,
+    requirement_level: RequirementLevel,
+    role: Option<AttributeRole>,
+) -> Attribute {
+    Attribute {
+        name: attr.key.clone(),
+        r#type: attr.r#type.clone(),
+        brief: attr.common.brief.clone(),
+        examples: attr.examples.clone(),
+        tag: None,
+        requirement_level,
+        sampling_relevant: None,
+        note: attr.common.note.clone(),
+        stability: Some(attr.common.stability.clone()),
+        deprecated: attr.common.deprecated.clone(),
+        prefix: false,
+        tags: None,
+        annotations: Some(attr.common.annotations.clone()),
+        value: None,
+        role,
+    }
+}
+
 impl ImportableDependency for V2Schema {
     fn import_groups(
         &self,
@@ -159,23 +185,11 @@ impl ImportableDependency for V2Schema {
                                 .attribute_catalog
                                 .attribute(&ar.base)
                                 .expect("Unable to find attr on catalog, invalid registry!");
-                            attribute_catalog.attribute_ref(Attribute {
-                                name: attr.key.clone(),
-                                r#type: attr.r#type.clone(),
-                                brief: attr.common.brief.clone(),
-                                examples: attr.examples.clone(),
-                                tag: None,
-                                requirement_level: ar.requirement_level.clone(),
-                                sampling_relevant: None,
-                                note: attr.common.note.clone(),
-                                stability: Some(attr.common.stability.clone()),
-                                deprecated: attr.common.deprecated.clone(),
-                                prefix: false,
-                                tags: None,
-                                annotations: Some(attr.common.annotations.clone()),
-                                value: None,
-                                role: None,
-                            })
+                            attribute_catalog.attribute_ref(convert_v2_attribute(
+                                attr,
+                                ar.requirement_level.clone(),
+                                None,
+                            ))
                         })
                         .collect(),
                     span_kind: None,
@@ -223,23 +237,11 @@ impl ImportableDependency for V2Schema {
                                 .attribute_catalog
                                 .attribute(&ar.base)
                                 .expect("Unable to find attr on catalog, invalid registry!");
-                            attribute_catalog.attribute_ref(Attribute {
-                                name: attr.key.clone(),
-                                r#type: attr.r#type.clone(),
-                                brief: attr.common.brief.clone(),
-                                examples: attr.examples.clone(),
-                                tag: None,
-                                requirement_level: ar.requirement_level.clone(),
-                                sampling_relevant: None,
-                                note: attr.common.note.clone(),
-                                stability: Some(attr.common.stability.clone()),
-                                deprecated: attr.common.deprecated.clone(),
-                                prefix: false,
-                                tags: None,
-                                annotations: Some(attr.common.annotations.clone()),
-                                value: None,
-                                role: None,
-                            })
+                            attribute_catalog.attribute_ref(convert_v2_attribute(
+                                attr,
+                                ar.requirement_level.clone(),
+                                None,
+                            ))
                         })
                         .collect(),
                     span_kind: None,
@@ -277,23 +279,11 @@ impl ImportableDependency for V2Schema {
                             .attribute_catalog
                             .attribute(&ar.base)
                             .expect("Unable to find attr on catalog, invalid registry!");
-                        attributes.push(attribute_catalog.attribute_ref(Attribute {
-                            name: attr.key.clone(),
-                            r#type: attr.r#type.clone(),
-                            brief: attr.common.brief.clone(),
-                            examples: attr.examples.clone(),
-                            tag: None,
-                            requirement_level: ar.requirement_level.clone(),
-                            sampling_relevant: None,
-                            note: attr.common.note.clone(),
-                            stability: Some(attr.common.stability.clone()),
-                            deprecated: attr.common.deprecated.clone(),
-                            prefix: false,
-                            tags: None,
-                            annotations: Some(attr.common.annotations.clone()),
-                            value: None,
-                            role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
-                        }));
+                        attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                            attr,
+                            ar.requirement_level.clone(),
+                            Some(AttributeRole::Identifying),
+                        )));
                     }
                     for ar in e.description.iter() {
                         // TODO - this should be non-panic errors.
@@ -301,27 +291,15 @@ impl ImportableDependency for V2Schema {
                             .attribute_catalog
                             .attribute(&ar.base)
                             .expect("Unable to find attr on catalog, invalid registry!");
-                        attributes.push(attribute_catalog.attribute_ref(Attribute {
-                            name: attr.key.clone(),
-                            r#type: attr.r#type.clone(),
-                            brief: attr.common.brief.clone(),
-                            examples: attr.examples.clone(),
-                            tag: None,
-                            requirement_level: ar.requirement_level.clone(),
-                            sampling_relevant: None,
-                            note: attr.common.note.clone(),
-                            stability: Some(attr.common.stability.clone()),
-                            deprecated: attr.common.deprecated.clone(),
-                            prefix: false,
-                            tags: None,
-                            annotations: Some(attr.common.annotations.clone()),
-                            value: None,
-                            role: Some(weaver_semconv::attribute::AttributeRole::Descriptive),
-                        }));
+                        attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                            attr,
+                            ar.requirement_level.clone(),
+                            Some(AttributeRole::Descriptive),
+                        )));
                     }
                     Group {
                         id: e.id().to_owned(),
-                        r#type: weaver_semconv::group::GroupType::Event,
+                        r#type: weaver_semconv::group::GroupType::Entity,
                         brief: e.common.brief.clone(),
                         note: e.common.note.clone(),
                         prefix: "".to_owned(),

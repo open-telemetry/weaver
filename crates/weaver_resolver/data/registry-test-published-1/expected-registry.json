@@ -3,7 +3,7 @@
   "groups": [
     {
       "id": "imported.entity.a",
-      "type": "event",
+      "type": "entity",
       "brief": "a fun entity",
       "note": "an entity note",
       "stability": "stable",
