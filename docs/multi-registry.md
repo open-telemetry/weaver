@@ -62,7 +62,7 @@ name: otel
 description: OpenTelemetry base definitions
 version: 1.0.0
 repository_url: https://github.com/open-telemetry/semantic-conventions
-resolved_schema_url: https://opentelemetry.io/schemas/1.42.0
+resolved_schema_url: https://opentelemetry.io/schemas/1.42.0/resolved_schema.yaml
 ```
 
 **Vendor Registry** (`acme_registry/registry_manifest.yaml`):
@@ -194,89 +194,27 @@ In this example:
 
 ## The `--include-unreferenced` Flag
 
-By default, Weaver performs **garbage collection** on definitions from dependency registries. This means only definitions that are explicitly referenced (via `ref` or `imports`) are included in the final resolved schema.
+By default, Weaver performs **garbage collection** on definitions from dependency registries. Only definitions that are explicitly referenced (via `ref` or `imports`) are included in the final resolved schema.
 
-The `--include-unreferenced` flag changes this behavior to include **all** definitions from dependencies, whether they're referenced or not.
-
-### Default Behavior (Without `--include-unreferenced`)
+The `--include-unreferenced` flag includes **all** definitions from dependencies:
 
 ```bash
-weaver registry resolve my_registry/
+# Default: only referenced definitions
+weaver registry resolve model/
+
+# Include all definitions from dependencies
+weaver registry resolve --include-unreferenced model/
 ```
 
-In this mode:
-- ✅ Definitions that are directly referenced via `ref` are included
-- ✅ Groups specified in `imports` are included
-- ❌ Unreferenced definitions from dependencies are **excluded**
+Use `--include-unreferenced` when exploring dependencies or generating comprehensive documentation. Use the default mode for production schemas to keep them minimal.
 
-### With `--include-unreferenced`
+## Working with OpenTelemetry Semantic Conventions
 
-```bash
-weaver registry resolve --include-unreferenced my_registry/
-```
-
-In this mode:
-- ✅ All definitions from dependencies are included, regardless of references
-- ✅ This includes attributes, metrics, events, and entities
-- ⚠️ Results in a larger resolved schema
-
-### When to Use Each Mode
-
-**Use default mode (without flag)** when:
-- You want a minimal schema with only used definitions
-- You're generating code and want to avoid unused definitions
-- You want to reduce the size of your resolved schema
-
-**Use `--include-unreferenced`** when:
-- You need complete visibility into all available definitions
-- You're exploring or documenting what's available in dependencies
-- You're building tooling that needs to know about all possible definitions
-- You want to generate comprehensive documentation
-
-### Example Impact
-
-Consider this dependency structure where the `otel` registry has:
+To use the official OpenTelemetry Semantic Conventions as a dependency:
 
 ```yaml
-version: "2"
-attributes:
-  - key: error.type  # Referenced in custom registry
-    type: string
-    brief: The error type
-
-  - key: unused      # NOT referenced anywhere
-    type: string
-    brief: Unused attribute
-
-metrics:
-  - name: example.counter  # Listed in imports
-    instrument: counter
-
-events:
-  - name: session.end  # NOT listed in imports
-    brief: Session end event
-```
-
-**Without `--include-unreferenced`:**
-- ✅ `error.type` attribute (referenced via `ref`)
-- ✅ `example.counter` metric (specified in `imports`)
-- ❌ `unused` attribute (not referenced)
-- ❌ `session.end` event (not in imports)
-
-**With `--include-unreferenced`:**
-- ✅ All signals and attributes included, even `unused` and `session.end`
-
-## Real-World Example: OpenTelemetry Semantic Conventions
-
-Here's how to create a custom registry that depends on the official OpenTelemetry Semantic Conventions:
-
-### 1. Create Registry Manifest
-
-**File**: `model/registry_manifest.yaml`
-
-```yaml
+# model/registry_manifest.yaml
 name: my-custom-telemetry
-description: Custom telemetry for my application
 version: 1.0.0
 repository_url: https://my-app.example.com/schemas/
 dependencies:
@@ -284,149 +222,43 @@ dependencies:
     registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.37.0.zip[model]
 ```
 
-### 2. Define Custom Attributes
-
-**File**: `model/attributes.yaml`
+Then reference OTel attributes in your custom definitions:
 
 ```yaml
+# model/signals.yaml
 version: "2"
 attributes:
   - key: example.message
     type: string
     brief: A simple message
-    stability: development
-    examples: ["Hello, World!"]
-```
 
-### 3. Define Custom Signals
-
-**File**: `model/signals.yaml`
-
-```yaml
-version: "2"
 spans:
   - name: example_message
-    stability: development
     brief: This span represents a simple message.
     span_kind: client
     attributes:
       - ref: example.message
-        requirement_level: required
       - ref: host.name         # Reference from OTel
-        requirement_level: required
       - ref: host.arch         # Reference from OTel
-        requirement_level: required
-
-metrics:
-  - name: example.counter
-    stability: development
-    brief: A counter of messages processed.
-    instrument: counter
-    unit: "1"
-    attributes:
-      - ref: host.name
-        requirement_level: required
-      - ref: host.arch
-        requirement_level: required
-```
-
-### 4. Resolve the Schema
-
-```bash
-# Minimal schema (only referenced definitions)
-weaver registry resolve model/
-
-# Full schema (all definitions from OTel)
-weaver registry resolve --include-unreferenced model/
 ```
 
 ## Common Use Cases
 
-### Use Case 1: Vendor Extensions
+**Vendor Extensions**: Cloud providers can extend OTel with vendor-specific attributes
 
-A cloud provider can extend OTel definitions with vendor-specific attributes:
+**Application-Specific Telemetry**: Applications can import and use specific metrics/events from OTel while adding custom definitions
 
-```yaml
-# vendor_registry/registry_manifest.yaml
-name: cloud-vendor
-version: 1.0.0
-repository_url: https://vendor.cloud/schemas/
-dependencies:
-  - name: otel
-    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.37.0.zip[model]
-```
-
-```yaml
-# vendor_registry/extensions.yaml
-version: "2"
-attributes:
-  - key: cloud.vendor.region
-    type: string
-    brief: Vendor-specific region identifier
-```
-
-### Use Case 2: Application-Specific Metrics
-
-Applications can import specific metrics they use:
-
-```yaml
-# app/model/app_metrics.yaml
-version: "2"
-imports:
-  metrics:
-    - http.server.*
-    - db.client.*
-
-attributes:
-  - key: app.custom.field
-    type: string
-    brief: Custom application field
-
-metrics:
-  - name: app.requests.total
-    instrument: counter
-    unit: "1"
-    attributes:
-      - ref: http.request.method  # From imported http metrics
-      - ref: app.custom.field     # Custom attribute
-```
+**Testing**: Create isolated test registries for validating instrumentation
 
 ## Best Practices
 
 1. **Version Dependencies Explicitly**: Use specific version tags in URLs rather than `main` or `latest`
-   ```yaml
-   registry_path: https://github.com/org/repo/archive/refs/tags/v1.2.3.zip[model]
-   ```
 
 2. **Use Wildcard Imports Judiciously**: Prefer specific imports over wildcards when you know exactly what you need
-   ```yaml
-   # Specific - better for minimal schemas
-   imports:
-     events:
-       - session.start
-       - session.end
-
-   # Wildcard - better for exploratory work
-   imports:
-     events:
-       - session.*
-   ```
 
 3. **Document Your Dependencies**: Add clear descriptions in your registry manifest
-   ```yaml
-   description: |
-     Custom telemetry extending OTel v1.37.0.
-     Adds vendor-specific attributes for auction systems.
-   ```
 
-4. **Structure by Concern**: Split definitions across multiple files
-   ```
-   model/
-     registry_manifest.yaml
-     attributes.yaml    # Custom attributes
-     metrics.yaml       # Custom metrics
-     spans.yaml         # Custom spans
-   ```
+4. **Structure by Concern**: Split definitions across multiple files (e.g., `attributes.yaml`, `metrics.yaml`, `spans.yaml`)
 
 ## Troubleshooting
 
@@ -461,27 +293,20 @@ metrics:
 
 ## Command Reference
 
-All Weaver commands that work with registries support the `--include-unreferenced` flag:
+Common registry commands:
 
 ```bash
 # Resolve a registry
-weaver registry resolve [--include-unreferenced] <registry-path>
+weaver registry resolve <registry-path>
 
 # Generate code from a registry
-weaver registry generate [--include-unreferenced] <registry-path> <template>
+weaver registry generate <registry-path> <template>
 
 # Validate a registry
-weaver registry check [--include-unreferenced] <registry-path>
-
-# Update resolved schema
-weaver registry update-markdown [--include-unreferenced] <registry-path>
-
-# Calculate statistics on a registry
-weaver registry stats [--include-unreferenced] <registry-path>
-
-# Generate diff between registry versions
-weaver registry diff [--include-unreferenced] <baseline-path> <head-path>
+weaver registry check <registry-path>
 ```
+
+Most commands support the `--include-unreferenced` flag to include all dependency definitions.
 
 ## See Also
 
