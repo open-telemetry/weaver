@@ -671,13 +671,11 @@ impl TemplateEngine {
             }
         })?;
 
-        let output = template
-            .render(ctx)
-            .map_err(|e| TemplateEvaluationFailed {
-                template: template_path.to_path_buf(),
-                error_id: e.to_string(),
-                error: error_summary(e),
-            })?;
+        let output = template.render(ctx).map_err(|e| TemplateEvaluationFailed {
+            template: template_path.to_path_buf(),
+            error_id: e.to_string(),
+            error: error_summary(e),
+        })?;
 
         Ok((output, template_object))
     }

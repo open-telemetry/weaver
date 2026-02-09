@@ -5,6 +5,11 @@
 pub mod conversion;
 pub mod otlp_ingester;
 
+use axum::extract::State;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -25,11 +30,6 @@ use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use axum::extract::State;
-use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
-use axum::routing::{get, post};
-use axum::{Json, Router};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinSet;
@@ -359,12 +359,9 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
         .await;
 
     let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
-        Ok(Ok((content_type, body))) => (
-            StatusCode::OK,
-            [(header::CONTENT_TYPE, content_type)],
-            body,
-        )
-            .into_response(),
+        Ok(Ok((content_type, body))) => {
+            (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
+        }
         Ok(Err(_)) => {
             // Channel dropped — report generation failed
             (
@@ -384,7 +381,12 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
     };
 
     // Signal the server to shut down after the response is built
-    if let Some(shutdown_tx) = state.shutdown_tx.lock().expect("Shutdown lock poisoned").take() {
+    if let Some(shutdown_tx) = state
+        .shutdown_tx
+        .lock()
+        .expect("Shutdown lock poisoned")
+        .take()
+    {
         let _ = shutdown_tx.send(());
     }
 
