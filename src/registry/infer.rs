@@ -26,6 +26,7 @@ use super::otlp::conversion::{
     otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
     span_kind_from_otlp_kind, status_from_otlp_status,
 };
+use super::otlp::grpc_stubs::proto::resource::v1::Resource;
 use super::otlp::{listen_otlp_requests, OtlpRequest};
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -516,22 +517,27 @@ fn sanitize_id(name: &str) -> String {
         .join(".")
 }
 
+/// Accumulates resource attributes from an OTLP Resource into the accumulator.
+fn accumulate_resource(resource: Option<Resource>, accumulator: &mut AccumulatedSamples) {
+    if let Some(resource) = resource {
+        let mut sample_resource = SampleResource {
+            attributes: Vec::new(),
+            live_check_result: None,
+        };
+        for attribute in resource.attributes {
+            sample_resource
+                .attributes
+                .push(sample_attribute_from_key_value(&attribute));
+        }
+        accumulator.add_sample(Sample::Resource(sample_resource));
+    }
+}
+
 fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSamples) -> bool {
     match request {
         OtlpRequest::Logs(logs) => {
             for resource_log in logs.resource_logs {
-                if let Some(resource) = resource_log.resource {
-                    let mut sample_resource = SampleResource {
-                        attributes: Vec::new(),
-                        live_check_result: None,
-                    };
-                    for attribute in resource.attributes {
-                        sample_resource
-                            .attributes
-                            .push(sample_attribute_from_key_value(&attribute));
-                    }
-                    accumulator.add_sample(Sample::Resource(sample_resource));
-                }
+                accumulate_resource(resource_log.resource, accumulator);
 
                 for scope_log in resource_log.scope_logs {
                     for log_record in scope_log.log_records {
@@ -544,18 +550,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
         }
         OtlpRequest::Metrics(metrics) => {
             for resource_metric in metrics.resource_metrics {
-                if let Some(resource) = resource_metric.resource {
-                    let mut sample_resource = SampleResource {
-                        attributes: Vec::new(),
-                        live_check_result: None,
-                    };
-                    for attribute in resource.attributes {
-                        sample_resource
-                            .attributes
-                            .push(sample_attribute_from_key_value(&attribute));
-                    }
-                    accumulator.add_sample(Sample::Resource(sample_resource));
-                }
+                accumulate_resource(resource_metric.resource, accumulator);
 
                 for scope_metric in resource_metric.scope_metrics {
                     for metric in scope_metric.metrics {
@@ -568,18 +563,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
         }
         OtlpRequest::Traces(trace) => {
             for resource_span in trace.resource_spans {
-                if let Some(resource) = resource_span.resource {
-                    let mut sample_resource = SampleResource {
-                        attributes: Vec::new(),
-                        live_check_result: None,
-                    };
-                    for attribute in resource.attributes {
-                        sample_resource
-                            .attributes
-                            .push(sample_attribute_from_key_value(&attribute));
-                    }
-                    accumulator.add_sample(Sample::Resource(sample_resource));
-                }
+                accumulate_resource(resource_span.resource, accumulator);
 
                 for scope_span in resource_span.scope_spans {
                     for span in scope_span.spans {
