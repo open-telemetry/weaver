@@ -29,10 +29,10 @@ pub enum SemConvSpec {
 #[serde(tag = "file_format")]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
-    #[serde(rename = "definition/1.0.0")]
+    #[serde(rename = "definition/1")]
     V1(SemConvSpecV1),
     /// Version 2 of the semantic convention schema.
-    #[serde(rename = "definition/2.0.0")]
+    #[serde(rename = "definition/2")]
     V2(SemConvSpecV2),
 }
 
@@ -309,7 +309,7 @@ impl SemConvSpecWithProvenance {
             WResult::Ok(spec) => {
                 if spec.is_v2() {
                     let nfe = Error::UnstableFileVersion {
-                        file_format: "definition/2.0.0".to_owned(),
+                        file_format: "definition/2".to_owned(),
                         provenance: spec.provenance.path.clone(),
                     };
                     WResult::with_non_fatal_errors(spec, vec![nfe])
@@ -321,7 +321,7 @@ impl SemConvSpecWithProvenance {
                 if spec.is_v2() {
                     let mut nfes = errs;
                     nfes.push(Error::UnstableFileVersion {
-                        file_format: "definition/2.0.0".to_owned(),
+                        file_format: "definition/2".to_owned(),
                         provenance: spec.provenance.path.clone(),
                     });
                     WResult::OkWithNFEs(spec, nfes)
@@ -665,7 +665,7 @@ mod tests {
         }));
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
-            r#"file_format: definition/2.0.0
+            r#"file_format: definition/2
 attributes:
 - key: test.key
   type: int
@@ -690,9 +690,9 @@ attributes:
                 examples: "example1""#,
         );
         assert!(matches!(raw, SemConvSpec::NoVersion(_)));
-        let v1 = parse_versioned(r#"file_format: 'definition/1.0.0'"#);
+        let v1 = parse_versioned(r#"file_format: 'definition/1'"#);
         assert!(matches!(v1, SemConvSpec::WithVersion(Versioned::V1 { .. })));
-        let v2 = parse_versioned("file_format: 'definition/2.0.0'");
+        let v2 = parse_versioned("file_format: 'definition/2'");
         assert!(matches!(v2, SemConvSpec::WithVersion(Versioned::V2 { .. })));
     }
 
@@ -700,7 +700,7 @@ attributes:
     fn test_semconv_spec_with_provenance_from_string_v2() {
         // let provenance = Provenance::new("main", "my_string");
         let spec = r#"
-        file_format: 'definition/2.0.0'
+        file_format: 'definition/2'
         attributes:
         - key: "attr1"
           stability: "stable"

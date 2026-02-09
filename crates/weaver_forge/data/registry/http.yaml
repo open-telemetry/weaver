@@ -1,4 +1,4 @@
-file_format: definition/2.0.0
+file_format: definition/2
 attribute_groups:
   - id: http.client.server_and_port
     visibility: internal
