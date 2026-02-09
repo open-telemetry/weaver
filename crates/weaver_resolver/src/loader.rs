@@ -247,7 +247,7 @@ fn load_resolved_repository(path: &VirtualDirectoryPath) -> WResult<LoadedSemcon
 /// Reads a serialized object with serde from the given virtual directory path.
 fn from_vdir<T: serde::de::DeserializeOwned>(f: &VirtualDirectoryPath) -> Result<T, Error> {
     let path = VirtualDirectory::try_new(f).map_err(|e| Error::InvalidUrl {
-        url: format!("{f}"),
+        url: f.to_string(),
         error: format!("Invalid weaver path reference: {e}"),
     })?;
     let file = std::fs::File::open(path.path()).map_err(|_| Error::InvalidSchemaPath {
