@@ -525,6 +525,73 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_to_string_template_each_array() {
+        let output =
+            OutputProcessor::new("each_test", "test", Some(&EMBEDDED_TEMPLATES), None, None)
+                .unwrap();
+
+        #[derive(Serialize)]
+        struct Items {
+            items: Vec<TestData>,
+        }
+
+        let data = Items {
+            items: vec![
+                TestData {
+                    name: "a".to_owned(),
+                    value: 1,
+                },
+                TestData {
+                    name: "b".to_owned(),
+                    value: 2,
+                },
+                TestData {
+                    name: "c".to_owned(),
+                    value: 3,
+                },
+            ],
+        };
+        let result = output.generate_to_string(&data).unwrap();
+        assert!(
+            result.contains("a=1"),
+            "should contain first item: {result}"
+        );
+        assert!(
+            result.contains("b=2"),
+            "should contain second item: {result}"
+        );
+        assert!(
+            result.contains("c=3"),
+            "should contain third item: {result}"
+        );
+    }
+
+    #[test]
+    fn test_generate_to_string_template_each_non_array() {
+        let output =
+            OutputProcessor::new("each_test", "test", Some(&EMBEDDED_TEMPLATES), None, None)
+                .unwrap();
+
+        // When the filter returns a non-array, each mode renders it as a single item
+        #[derive(Serialize)]
+        struct Items {
+            items: TestData,
+        }
+
+        let data = Items {
+            items: TestData {
+                name: "solo".to_owned(),
+                value: 99,
+            },
+        };
+        let result = output.generate_to_string(&data).unwrap();
+        assert!(
+            result.contains("solo=99"),
+            "should contain the single item: {result}"
+        );
+    }
+
+    #[test]
     fn test_content_type() {
         let json = OutputProcessor::new("json", "test", None, None, None).unwrap();
         assert_eq!(json.content_type(), "application/json");
