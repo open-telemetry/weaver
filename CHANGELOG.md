@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2' for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
+
 # [0.21.2] - 2026-02-03
 
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)

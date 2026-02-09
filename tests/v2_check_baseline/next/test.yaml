@@ -1,4 +1,4 @@
-version: "2"
+file_format: definition/2
 attributes:
   - key: my.attr
     type: string
@@ -37,7 +37,7 @@ metrics:
     stability: stable
 spans:
   - type: my.span
-    name: 
+    name:
       note: Some name pattern
     kind: client
     attributes:
