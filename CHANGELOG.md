@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- New feature ([#1153](https://github.com/open-telemetry/weaver/issues/1153)) - Live-check now has a `/health` endpoint that can be used in long-running scenarios to confirm readiness and liveness of the live-check server. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+- New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+
 # [0.21.2] - 2026-02-03
 
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
