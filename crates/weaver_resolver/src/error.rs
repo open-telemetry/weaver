@@ -167,6 +167,15 @@ pub enum Error {
         error: String,
     },
 
+    /// We
+    #[error("Invalid registry: {registry_id}. Unable to find attribute by index: {attribute_ref}")]
+    InvalidRegistryAttributeRef {
+        /// The registry with the issue.
+        registry_id: String,
+        /// The attribute index that does not exist in the registry.
+        attribute_ref: u32,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
