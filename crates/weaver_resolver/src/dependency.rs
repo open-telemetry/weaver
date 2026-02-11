@@ -175,7 +175,7 @@ impl ImportableDependency for V2Schema {
                     attr,
                     ar.requirement_level.clone(),
                     None,
-                )))
+                )));
             }
             result.push(Group {
                 id: m.id().to_owned(),
@@ -222,7 +222,7 @@ impl ImportableDependency for V2Schema {
                     attr,
                     ar.requirement_level.clone(),
                     None,
-                )))
+                )));
             }
             result.push(Group {
                 id: e.id().to_owned(),
