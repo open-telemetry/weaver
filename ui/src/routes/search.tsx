@@ -4,6 +4,7 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import { InlineMarkdown } from '../components/InlineMarkdown'
@@ -13,6 +14,7 @@ import type { SearchResponse, SearchResult, StabilityFilter, TypeFilter } from '
 import { Route as RootRoute } from './__root'
 
 const itemsPerPage = 50
+const searchDebounceMs = 250
 const typeOptions: TypeFilter[] = ['all', 'attribute', 'metric', 'span', 'event', 'entity']
 const stabilityOptions: Array<Exclude<StabilityFilter, null>> = [
   'stable',
@@ -55,6 +57,9 @@ function Search() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const searchAbortRef = useRef<AbortController | null>(null)
+  const requestVersionRef = useRef(0)
+  const debounceTimeoutRef = useRef<number | null>(null)
 
   const totalPages = results ? Math.ceil(results.total / itemsPerPage) : 0
 
@@ -88,6 +93,12 @@ function Search() {
       setLoading(true)
       setError(null)
 
+      requestVersionRef.current += 1
+      const requestVersion = requestVersionRef.current
+      searchAbortRef.current?.abort()
+      const controller = new AbortController()
+      searchAbortRef.current = controller
+
       try {
         const normalizedQuery = nextQuery.trim() || null
         const response = await search(
@@ -95,8 +106,10 @@ function Search() {
           nextType,
           nextStability,
           itemsPerPage,
-          nextOffset
+          nextOffset,
+          { signal: controller.signal }
         )
+        if (requestVersion !== requestVersionRef.current) return
         setResults(response)
         updateURL({
           query: nextQuery,
@@ -105,9 +118,12 @@ function Search() {
           currentPage: nextPage,
         })
       } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (requestVersion !== requestVersionRef.current) return
         setError(err instanceof Error ? err.message : 'Unknown error')
         setResults(null)
       } finally {
+        if (requestVersion !== requestVersionRef.current) return
         setLoading(false)
       }
     },
@@ -138,15 +154,32 @@ function Search() {
     }
   }, [initialized, location.search, performSearch])
 
+  useEffect(() => {
+    return () => {
+      searchAbortRef.current?.abort()
+      if (debounceTimeoutRef.current !== null) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const handleQueryInput = (event: ChangeEvent<HTMLInputElement>) => {
     const nextQuery = event.target.value
     setQuery(nextQuery)
     setCurrentPage(1)
-    void performSearch({ query: nextQuery, currentPage: 1 })
+    if (debounceTimeoutRef.current !== null) {
+      window.clearTimeout(debounceTimeoutRef.current)
+    }
+    debounceTimeoutRef.current = window.setTimeout(() => {
+      void performSearch({ query: nextQuery, currentPage: 1 })
+    }, searchDebounceMs)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
+      if (debounceTimeoutRef.current !== null) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
       const nextQuery = event.currentTarget.value
       setQuery(nextQuery)
       setCurrentPage(1)
