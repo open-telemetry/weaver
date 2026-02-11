@@ -1,5 +1,6 @@
 import { marked } from 'marked'
 import { useMemo } from 'react'
+import DOMPurify from 'dompurify'
 
 interface MarkdownProps {
   content: string
@@ -12,7 +13,10 @@ export function Markdown({ content }: MarkdownProps) {
       gfm: true,
     })
 
-    return typeof content === 'string' ? marked(content || '') : ''
+    if (typeof content !== 'string') return ''
+
+    const rendered = marked(content || '')
+    return DOMPurify.sanitize(rendered)
   }, [content])
 
   if (!content) return null

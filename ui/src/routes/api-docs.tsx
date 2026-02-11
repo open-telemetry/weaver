@@ -1,11 +1,9 @@
 import { createRoute } from '@tanstack/react-router'
 import { createElement, useEffect, useRef, useState } from 'react'
+import 'rapidoc'
 import { Route as RootRoute } from './__root'
 
 type Theme = 'light' | 'dark'
-
-const RAPIDOC_SCRIPT_SRC = 'https://unpkg.com/rapidoc/dist/rapidoc-min.js'
-const RAPIDOC_SCRIPT_ATTR = 'data-rapidoc-script'
 
 export const Route = createRoute({
   getParentRoute: () => RootRoute,
@@ -41,17 +39,6 @@ function ApiDocs() {
 
   useEffect(() => {
     document.title = 'API Documentation - Weaver'
-  }, [])
-
-  useEffect(() => {
-    const existingScript = document.querySelector(`script[${RAPIDOC_SCRIPT_ATTR}]`)
-    if (!existingScript) {
-      const script = document.createElement('script')
-      script.type = 'module'
-      script.src = RAPIDOC_SCRIPT_SRC
-      script.setAttribute(RAPIDOC_SCRIPT_ATTR, 'true')
-      document.head.appendChild(script)
-    }
   }, [])
 
   useEffect(() => {

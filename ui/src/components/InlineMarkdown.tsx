@@ -1,5 +1,6 @@
 import { marked } from 'marked'
 import { useMemo } from 'react'
+import DOMPurify from 'dompurify'
 
 interface InlineMarkdownProps {
   content: string
@@ -18,7 +19,7 @@ export function InlineMarkdown({ content, className = '' }: InlineMarkdownProps)
       })
 
       if (typeof result === 'string') {
-        return result.replace(/<\/?p>/g, '')
+        return DOMPurify.sanitize(result).replace(/<\/?p>/g, '')
       }
 
       return ''
