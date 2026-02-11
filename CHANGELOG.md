@@ -4,11 +4,17 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- New feature ([#1153](https://github.com/open-telemetry/weaver/issues/1153)) - Live-check now has a `/health` endpoint that can be used in long-running scenarios to confirm readiness and liveness of the live-check server. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+- New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+
+# [0.21.2] - 2026-02-03
+
 - New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
 - Add support for diff schemas in `registry json-schema`([#1105](https://github.com/open-telemetry/weaver/pull/1105) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Upgraded JSON schema generation to [2020-12 version of JSON Schema.](https://json-schema.org/draft/2020-12/schema) ([#1125](https://github.com/open-telemetry/weaver/pull/1125) by @jerbly)
 - New Experimental feature: `weaver registry mcp` MCP server for a registry with search, get and live_check tools. ([#1113](https://github.com/open-telemetry/weaver/pull/1113) by @jerbly)
 - Fix ([#1133](https://github.com/open-telemetry/weaver/issues/1133)) - Live-check: correctly handle `--no-stats` in report mode. ([#1142](https://github.com/open-telemetry/weaver/pull/1142) by @jerbly)
+- Feature ([#1132](https://github.com/open-telemetry/weaver/issues/1132)) - Live-check: builtin output rendering for json, jsonl and yaml. ([#1157](https://github.com/open-telemetry/weaver/pull/1157) by @jerbly)
 
 # [0.20.0] - 2025-12-11
 
@@ -146,7 +152,6 @@ What's changed
   the semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. While the
   text-based `deprecated` field is still supported for compatibility reasons, future semantic conventions should use the
   new `deprecated` structured format. ([#400](https://github.com/open-telemetry/weaver/pull/400/) by @lquerel).
-
   - The `deprecated` field is now a structured field defining the precise reason for deprecation. The semantic
     conventions must be updated to adopt this new format.
   - The changes related to the `deprecated` field (i.e., string → struct) also have a potential impact on certain
