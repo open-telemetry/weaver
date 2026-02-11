@@ -12,7 +12,9 @@
   "dependencies": {
     "@tanstack/react-router": "^1.146.0",
     "@tanstack/react-router-devtools": "^1.146.0",
+    "dompurify": "^3.3.1",
     "marked": "^17.0.1",
+    "rapidoc": "^9.3.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
