@@ -2,17 +2,13 @@ import { createRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState, useEffect, useMemo } from 'react'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
-import { getSchema, type SchemaProperty, type SchemaResponse } from '../lib/api'
+import { getSchema, type SchemaResponse } from '../lib/api'
+import { formatSchemaType, parseSchemaTypeString } from '../lib/schemaType'
 import { Route as RootRoute } from './__root'
 
 type SchemaSearch = {
   schema?: string
   type?: string
-}
-
-type TypePart = {
-  text: string
-  isClickable: boolean
 }
 
 export const Route = createRoute({
@@ -90,68 +86,6 @@ function Schema() {
     })
   }
 
-  function formatType(prop: SchemaProperty, skipNull = false): string {
-    const hasArrayType = prop.type === 'array' ||
-                         (Array.isArray(prop.type) && prop.type.includes('array'))
-    if (hasArrayType && prop.items) {
-      if (prop.items.type === 'array' && prop.items.items) {
-        const innerType = prop.items.items.$ref
-          ? prop.items.items.$ref.replace('#/$defs/', '')
-          : prop.items.items.type || 'any'
-        return `array of array of ${innerType}`
-      }
-      const itemType = prop.items.$ref
-        ? prop.items.$ref.replace('#/$defs/', '')
-        : prop.items.type || 'any'
-      if (Array.isArray(prop.type) && prop.type.length >1) {
-        const otherTypes = prop.type.filter(t => t !== 'array' && (!skipNull || t !== 'null'))
-        if (otherTypes.length > 0) {
-          return `array of ${itemType} | ${otherTypes.join(' | ')}`
-        }
-      }
-      return `array of ${itemType}`
-    }
-
-    const hasObjectType = prop.type === 'object' ||
-                         (Array.isArray(prop.type) && prop.type.includes('object'))
-    if (hasObjectType && prop.additionalProperties) {
-      const valueType = prop.additionalProperties.$ref
-        ? prop.additionalProperties.$ref.replace('#/$defs/', '')
-        : prop.additionalProperties.type || 'any'
-      if (Array.isArray(prop.type) && prop.type.length > 1) {
-        const otherTypes = prop.type.filter(t => t !== 'object' && (!skipNull || t !== 'null'))
-        if (otherTypes.length > 0) {
-          return `map of ${valueType} | ${otherTypes.join(' | ')}`
-        }
-      }
-      return `map of ${valueType}`
-    }
-
-    if (Array.isArray(prop.type)) {
-      const types = skipNull ? prop.type.filter(t => t !== 'null') : prop.type
-      return types.join(' | ')
-    }
-    if (prop.type) return prop.type
-    if (prop.$ref) return prop.$ref.replace('#/$defs/', '')
-    if (prop.allOf) {
-      if (prop.allOf.length === 1 && prop.allOf[0].$ref) {
-        return prop.allOf[0].$ref.replace('#/$defs/', '')
-      }
-      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'object').join(' & ')
-    }
-    if (prop.anyOf) {
-      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'null')
-      const filtered = skipNull ? types.filter(t => t !== 'null') : types
-      return filtered.join(' | ')
-    }
-    if (prop.oneOf) {
-      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'null')
-      const filtered = skipNull ? types.filter(t => t !== 'null') : types
-      return filtered.join(' | ')
-    }
-    return 'unknown'
-  }
-
   function isDefinitionRef(typeStr: string): boolean {
     if (!typeStr || typeStr === 'unknown') return false
     const simpleTypes = ['string', 'number', 'boolean', 'object', 'array', 'null', 'integer', 'any']
@@ -161,67 +95,6 @@ function Schema() {
     if (typeStr.includes(' | ')) return false
     const defs = schema?.$defs || {}
     return defs[typeStr] !== undefined
-  }
-
-  function parseTypeString(typeStr: string): TypePart[] {
-    if (!typeStr) return []
-
-    if (typeStr.includes(' | ')) {
-      const parts = typeStr.split(' | ')
-      const result: TypePart[] = []
-
-      parts.forEach((part, index) => {
-        const trimmedPart = part.trim()
-
-        if (trimmedPart.startsWith('map of ')) {
-          const valueType = trimmedPart.slice(7)
-          result.push({ text: 'map of ', isClickable: false })
-          result.push({ text: valueType, isClickable: isDefinitionRef(valueType) })
-        } else if (trimmedPart.startsWith('array of array of ')) {
-          const innerType = trimmedPart.slice(18)
-          result.push({ text: 'array of array of ', isClickable: false })
-          result.push({ text: innerType, isClickable: isDefinitionRef(innerType) })
-        } else if (trimmedPart.startsWith('array of ')) {
-          const innerType = trimmedPart.slice(9)
-          result.push({ text: 'array of ', isClickable: false })
-          result.push({ text: innerType, isClickable: isDefinitionRef(innerType) })
-        } else {
-          result.push({ text: trimmedPart, isClickable: isDefinitionRef(trimmedPart) })
-        }
-
-        if (index < parts.length - 1) {
-          result.push({ text: ' | ', isClickable: false })
-        }
-      })
-
-      return result
-    }
-
-    if (typeStr.startsWith('array of array of ')) {
-      const innerType = typeStr.slice(18)
-      return [
-        { text: 'array of array of ', isClickable: false },
-        { text: innerType, isClickable: isDefinitionRef(innerType) }
-      ]
-    }
-
-    if (typeStr.startsWith('array of ')) {
-      const innerType = typeStr.slice(9)
-      return [
-        { text: 'array of ', isClickable: false },
-        { text: innerType, isClickable: isDefinitionRef(innerType) }
-      ]
-    }
-
-    if (typeStr.startsWith('map of ')) {
-      const valueType = typeStr.slice(7)
-      return [
-        { text: 'map of ', isClickable: false },
-        { text: valueType, isClickable: isDefinitionRef(valueType) }
-      ]
-    }
-
-    return [{ text: typeStr, isClickable: isDefinitionRef(typeStr) }]
   }
 
   return (
@@ -303,8 +176,8 @@ function Schema() {
                 <h3 className="text-lg font-bold mb-3">{schema.oneOf ? 'One Of' : 'Any Of'}</h3>
                 <div className="space-y-2">
                   {(schema.oneOf || schema.anyOf)!.map((variant, idx) => {
-                    const variantType = formatType(variant)
-                    const variantParts = parseTypeString(variantType)
+                    const variantType = formatSchemaType(variant)
+                    const variantParts = parseSchemaTypeString(variantType, isDefinitionRef)
                     return (
                       <div key={idx} className="card bg-base-200">
                         <div className="card-body p-4">
@@ -350,8 +223,8 @@ function Schema() {
                                 <tbody>
                                   {Object.entries(variant.properties).map(([propName, propDef]) => {
                                     const isRequired = variant.required?.includes(propName)
-                                    const typeStr = formatType(propDef, !isRequired)
-                                    const typeParts = parseTypeString(typeStr)
+                                    const typeStr = formatSchemaType(propDef, !isRequired)
+                                    const typeParts = parseSchemaTypeString(typeStr, isDefinitionRef)
                                     return (
                                       <tr key={propName}>
                                         <td>
@@ -440,8 +313,8 @@ function Schema() {
                     <tbody>
                       {Object.entries(schema.properties).map(([propName, propDef]) => {
                         const isRequired = schema.required?.includes(propName)
-                        const typeStr = formatType(propDef, !isRequired)
-                        const typeParts = parseTypeString(typeStr)
+                        const typeStr = formatSchemaType(propDef, !isRequired)
+                        const typeParts = parseSchemaTypeString(typeStr, isDefinitionRef)
                         return (
                           <tr key={propName}>
                             <td>
@@ -555,8 +428,8 @@ function Schema() {
                         <tbody>
                           {Object.entries(def.properties).map(([propName, propDef]) => {
                             const isRequired = def.required?.includes(propName)
-                            const typeStr = formatType(propDef, !isRequired)
-                            const typeParts = parseTypeString(typeStr)
+                            const typeStr = formatSchemaType(propDef, !isRequired)
+                            const typeParts = parseSchemaTypeString(typeStr, isDefinitionRef)
                             return (
                               <tr key={propName}>
                                 <td>
@@ -621,8 +494,8 @@ function Schema() {
                     <h3 className="text-lg font-bold mb-3">{def.oneOf ? 'One Of' : 'Any Of'}</h3>
                     <div className="space-y-2">
                       {(def.oneOf || def.anyOf)!.map((variant, idx) => {
-                        const variantType = formatType(variant)
-                        const variantParts = parseTypeString(variantType)
+                        const variantType = formatSchemaType(variant)
+                        const variantParts = parseSchemaTypeString(variantType, isDefinitionRef)
                         return (
                           <div key={idx} className="card bg-base-200">
                             <div className="card-body p-4">
@@ -668,8 +541,8 @@ function Schema() {
                                     <tbody>
                                       {Object.entries(variant.properties).map(([propName, propDef]) => {
                                         const isRequired = variant.required?.includes(propName)
-                                        const typeStr = formatType(propDef, !isRequired)
-                                        const typeParts = parseTypeString(typeStr)
+                                        const typeStr = formatSchemaType(propDef, !isRequired)
+                                        const typeParts = parseSchemaTypeString(typeStr, isDefinitionRef)
                                         return (
                                           <tr key={propName}>
                                             <td>

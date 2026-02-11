@@ -1,10 +1,11 @@
 import { createRoute, Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
 import { getSpan, type SpanAttribute, type SpanResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
+import { useResourceFetch } from '../hooks/useResourceFetch'
 
 export const Route = createRoute({
   getParentRoute: () => RootRoute,
@@ -14,36 +15,8 @@ export const Route = createRoute({
 
 function SpanDetail() {
   const { type } = Route.useParams()
-  const [data, setData] = useState<SpanResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    let isMounted = true
-
-    getSpan(type)
-      .then((responseData) => {
-        if (isMounted) {
-          setData(responseData)
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Unknown error')
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [type])
-
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
+  const { data, error } = useResourceFetch<SpanResponse>(type, getSpan)
+  const { copied, copyToClipboard } = useCopyToClipboard()
 
   function formatRequirementLevel(requirement_level: SpanAttribute['requirement_level']): { label: string; badgeClass: string } {
     if (typeof requirement_level === 'string') {
