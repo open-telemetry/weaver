@@ -1,10 +1,11 @@
 import { createRoute, Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
 import { getAttribute, type AttributeResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
+import { useResourceFetch } from '../hooks/useResourceFetch'
 
 export const Route = createRoute({
   getParentRoute: () => RootRoute,
@@ -22,36 +23,8 @@ function formatType(type: AttributeResponse['type']): string {
 
 function AttributeDetail() {
   const { key } = Route.useParams()
-  const [data, setData] = useState<AttributeResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    let isMounted = true
-
-    getAttribute(key)
-      .then((responseData) => {
-        if (isMounted) {
-          setData(responseData)
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Unknown error')
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [key])
-
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
+  const { data, error } = useResourceFetch<AttributeResponse>(key, getAttribute)
+  const { copied, copyToClipboard } = useCopyToClipboard()
 
   return (
     <div className="space-y-4">
