@@ -32,6 +32,9 @@ export function AppLayout() {
 
   return (
     <div className="drawer lg:drawer-open">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-base-100 focus:px-3 focus:py-2">
+        Skip to content
+      </a>
       <input
         id="sidebar"
         type="checkbox"
@@ -43,7 +46,7 @@ export function AppLayout() {
       <div className="drawer-content flex flex-col">
         <div className="navbar bg-base-200 sticky top-0 z-10">
           <div className="flex-none lg:hidden">
-            <label htmlFor="sidebar" className="btn btn-square btn-ghost">
+            <label htmlFor="sidebar" className="btn btn-square btn-ghost" aria-label="Toggle navigation menu">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -72,6 +75,7 @@ export function AppLayout() {
               className="btn btn-ghost btn-circle"
               onClick={toggleTheme}
               title="Toggle theme"
+              aria-label="Toggle theme"
             >
               {theme === 'light' ? (
                 <svg
@@ -108,7 +112,7 @@ export function AppLayout() {
           </div>
         </div>
 
-        <main className="flex-1 p-6">
+        <main id="main-content" className="flex-1 p-6">
           <Outlet />
         </main>
       </div>
