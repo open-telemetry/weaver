@@ -156,7 +156,6 @@ export interface SchemaResponse {
   required?: string[];
   oneOf?: SchemaProperty[];
   anyOf?: SchemaProperty[];
-  definitions?: Record<string, SchemaDefinition>;
   $defs?: Record<string, SchemaDefinition>;
 }
 
