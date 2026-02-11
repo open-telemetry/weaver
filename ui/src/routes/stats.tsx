@@ -74,7 +74,7 @@ function Stats() {
       <h1 className="text-3xl font-bold">Registry Stats</h1>
 
       {error ? (
-        <div className="alert alert-error">
+        <div className="alert alert-error" role="alert">
           <span>Error loading registry stats: {error}</span>
         </div>
       ) : !stats ? (

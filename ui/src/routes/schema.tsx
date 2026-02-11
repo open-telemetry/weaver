@@ -232,7 +232,7 @@ function Schema() {
             <span className="loading loading-spinner loading-lg"></span>
           </div>
         ) : error ? (
-          <div className="alert alert-error">
+          <div className="alert alert-error" role="alert">
             <span>Error: {error}</span>
           </div>
         ) : schema ? (

@@ -266,8 +266,9 @@ function Search() {
         disabled={currentPage === 1}
         onClick={() => handlePageChange(currentPage - 1)}
         type="button"
+        aria-label="Previous page"
       >
-        «
+        <span aria-hidden="true">«</span>
       </button>
       <button className="join-item btn btn-sm" type="button">
         Page {currentPage} of {totalPages}
@@ -277,8 +278,9 @@ function Search() {
         disabled={currentPage === totalPages}
         onClick={() => handlePageChange(currentPage + 1)}
         type="button"
+        aria-label="Next page"
       >
-        »
+        <span aria-hidden="true">»</span>
       </button>
     </div>
   )
@@ -320,7 +322,7 @@ function Search() {
       </div>
 
       {error ? (
-        <div className="alert alert-error">
+        <div className="alert alert-error" role="alert">
           <span>Error: {error}</span>
         </div>
       ) : results ? (
@@ -338,7 +340,7 @@ function Search() {
           </div>
 
           {results.results.length === 0 ? (
-            <div className="alert">
+            <div className="alert" role="alert">
               <span>No results found. Try a different search term or filter.</span>
             </div>
           ) : (
