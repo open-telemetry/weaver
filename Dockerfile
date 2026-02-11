@@ -1,14 +1,12 @@
 # The build image
-FROM --platform=$BUILDPLATFORM docker.io/rust:1.92.0@sha256:f58923369ba295ae1f60bc49d03f2c955a5c93a0b7d49acfb2b2a65bebaf350d AS weaver-build
+FROM docker.io/rust:1.93.0@sha256:e35d0f677e0e0be6f4b4f93bf16e6f93ab4f427dc440a0ef12511026f8b7d7e3 AS weaver-build
 WORKDIR /build
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
 
-# Install Node.js for building UI
+# Install Node.js and musl build dependencies
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=24
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
-  apt-get install -y nodejs
+  apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
 COPY ui/package.json ui/package-lock.json /build/ui/
@@ -33,7 +31,7 @@ COPY cross-arch-build.sh /build/cross-arch-build.sh
 RUN ./cross-arch-build.sh
 
 # The runtime image
-FROM docker.io/alpine:3.23.2@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
+FROM docker.io/alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \

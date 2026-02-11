@@ -26,7 +26,7 @@ eula = false
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.20.0"
+version = "0.21.2"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -43,6 +43,7 @@ url = "2.5.4"
 ureq = "3.1.4"
 regex = "1.11.3"
 rayon = "1.11.0"
+openssl = { version = "0.10", features = ["vendored"] }
 walkdir = "2.5.0"
 anyhow = "1.0.100"
 itertools = "0.14.0"
@@ -63,7 +64,7 @@ opentelemetry-stdout = { version = "0.31.0", features = [
 ] }
 tokio = { version = "1.47.1", features = ["full"] }
 rouille = "3.6.2"
-convert_case = "0.7.1"
+convert_case = "0.11"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.9.2"
@@ -95,6 +96,7 @@ weaver_version = { path = "crates/weaver_version" }
 
 clap = { version = "4.5.41", features = ["derive"] }
 clap_complete = "4.5.55"
+clap-markdown = "0.1"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
@@ -109,7 +111,7 @@ tonic = { version = "0.14.1", default-features = false, features = [
 tonic-prost = "0.14.1"
 env_logger = "0.11.8"
 chrono = "0.4.41"
-axum = "0.7"
+axum = "0.8"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 mime_guess = "2.0"
 utoipa = { workspace = true, features = ["axum_extras"] }
