@@ -26,6 +26,12 @@ export function AppLayout() {
     return location.pathname.startsWith(path)
   }
 
+  const activeSchema = (() => {
+    if (!isActive('/schema')) return null
+    const schemaParam = new URLSearchParams(location.search).get('schema')
+    return schemaParam || 'ForgeRegistryV2'
+  })()
+
   const closeSidebar = () => {
     setIsOpen(false)
   }
@@ -155,7 +161,7 @@ export function AppLayout() {
                 closeSidebar()
               }}
               className={
-                isActive('/schema') && location.pathname.includes('ForgeRegistryV2') ? 'active' : ''
+                activeSchema === 'ForgeRegistryV2' ? 'active' : ''
               }
             >
               ForgeRegistryV2
@@ -168,7 +174,7 @@ export function AppLayout() {
                 closeSidebar()
               }}
               className={
-                isActive('/schema') && location.pathname.includes('SemconvDefinitionV2')
+                activeSchema === 'SemconvDefinitionV2'
                   ? 'active'
                   : ''
               }
@@ -183,7 +189,7 @@ export function AppLayout() {
                 closeSidebar()
               }}
               className={
-                isActive('/schema') && location.pathname.includes('LiveCheckSample') ? 'active' : ''
+                activeSchema === 'LiveCheckSample' ? 'active' : ''
               }
             >
               LiveCheckSample
