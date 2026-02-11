@@ -65,12 +65,12 @@ repository_url: https://github.com/open-telemetry/semantic-conventions
 resolved_schema_url: https://opentelemetry.io/schemas/1.42.0/resolved_schema.yaml
 ```
 
-**Vendor Registry** (`acme_registry/registry_manifest.yaml`):
+**Company A Shared Registry** (`company_a_registry/registry_manifest.yaml`):
 ```yaml
-name: acme
-description: Acme vendor-specific definitions
+name: company-a-shared
+description: Company A shared telemetry definitions
 version: 0.1.0
-repository_url: https://acme.com/schemas/
+repository_url: https://company-a.example.com/schemas/
 dependencies:
   - name: otel
     registry_path: https://opentelemetry.io/schemas/1.42.0
@@ -79,18 +79,18 @@ dependencies:
 **Application Registry** (`app_registry/registry_manifest.yaml`):
 ```yaml
 name: app
-description: Application-specific telemetry
+description: Application-specific telemetry for Company A
 version: 0.1.0
-repository_url: https://app.com/schemas/
+repository_url: https://app.company-a.example.com/schemas/
 dependencies:
-  - name: acme
-    registry_path: ../acme_registry
+  - name: company-a-shared
+    registry_path: ../company_a_registry
 ```
 
 In this setup:
-- The `app` registry depends on `acme`
-- The `acme` registry depends on `otel`
-- The `app` registry can use definitions from both `acme` and `otel` (transitive dependencies are supported)
+- The `app` registry depends on `company-a-shared`
+- The `company-a-shared` registry depends on `otel`
+- The `app` registry can use definitions from both `company-a-shared` and `otel` (transitive dependencies are supported)
 
 ## Using Imports
 
@@ -206,7 +206,18 @@ weaver registry resolve model/
 weaver registry resolve --include-unreferenced model/
 ```
 
-Use `--include-unreferenced` when exploring dependencies or generating comprehensive documentation. Use the default mode for production schemas to keep them minimal.
+### When to Use Each Mode
+
+**Use default mode (without flag)** when:
+- You want a minimal schema with only used definitions
+- You're generating code and want to avoid unused definitions
+- You want to reduce the size of your resolved schema
+
+**Use `--include-unreferenced`** when:
+- You need complete visibility into all available definitions
+- You're exploring or documenting what's available in dependencies
+- You're building tooling that needs to know about all possible definitions
+- You want to generate comprehensive documentation
 
 ## Working with OpenTelemetry Semantic Conventions
 
@@ -244,11 +255,54 @@ spans:
 
 ## Common Use Cases
 
-**Vendor Extensions**: Cloud providers can extend OTel with vendor-specific attributes
+### Use Case 1: Vendor Extensions
 
-**Application-Specific Telemetry**: Applications can import and use specific metrics/events from OTel while adding custom definitions
+A cloud provider can extend OTel definitions with vendor-specific attributes:
 
-**Testing**: Create isolated test registries for validating instrumentation
+```yaml
+# vendor_registry/registry_manifest.yaml
+name: cloud-vendor
+version: 1.0.0
+repository_url: https://vendor.cloud/schemas/
+dependencies:
+  - name: otel
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.37.0.zip[model]
+```
+
+```yaml
+# vendor_registry/extensions.yaml
+version: "2"
+attributes:
+  - key: cloud.vendor.region
+    type: string
+    brief: Vendor-specific region identifier
+```
+
+### Use Case 2: Application-Specific Metrics
+
+Applications can import specific metrics they use:
+
+```yaml
+# app/model/app_metrics.yaml
+version: "2"
+imports:
+  metrics:
+    - http.server.*
+    - db.client.*
+
+attributes:
+  - key: app.custom.field
+    type: string
+    brief: Custom application field
+
+metrics:
+  - name: app.requests.total
+    instrument: counter
+    unit: "1"
+    attributes:
+      - ref: http.request.method  # From imported http metrics
+      - ref: app.custom.field     # Custom attribute
+```
 
 ## Best Practices
 
@@ -300,7 +354,7 @@ Common registry commands:
 weaver registry resolve <registry-path>
 
 # Generate code from a registry
-weaver registry generate <registry-path> <template>
+weaver registry generate [--include-unreferenced] <registry-path> <template>
 
 # Validate a registry
 weaver registry check <registry-path>
