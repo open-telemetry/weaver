@@ -222,7 +222,8 @@ export async function search(
   type: TypeFilter = 'all',
   stability: StabilityFilter = null,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  options?: { signal?: AbortSignal }
 ): Promise<SearchResponse> {
   const searchParams = new URLSearchParams();
   if (query) searchParams.set('q', query);
@@ -230,7 +231,9 @@ export async function search(
   if (stability) searchParams.set('stability', stability);
   if (limit) searchParams.set('limit', limit.toString());
   if (offset) searchParams.set('offset', offset.toString());
-  return fetchJSON<SearchResponse>(`${BASE_URL}/registry/search?${searchParams.toString()}`);
+  return fetchJSON<SearchResponse>(`${BASE_URL}/registry/search?${searchParams.toString()}`, {
+    signal: options?.signal,
+  });
 }
 
 export async function getSchema(name: string): Promise<SchemaResponse> {
