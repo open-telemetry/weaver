@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react'
 import { InlineMarkdown } from '../components/InlineMarkdown'
+import { Pagination } from '../components/Pagination'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { search } from '../lib/api'
 import type { SearchResponse, SearchResult, StabilityFilter, TypeFilter } from '../lib/api'
@@ -259,32 +260,6 @@ function Search() {
     }
   }
 
-  const renderPagination = () => (
-    <div className="join">
-      <button
-        className="join-item btn btn-sm"
-        disabled={currentPage === 1}
-        onClick={() => handlePageChange(currentPage - 1)}
-        type="button"
-        aria-label="Previous page"
-      >
-        <span aria-hidden="true">«</span>
-      </button>
-      <button className="join-item btn btn-sm" type="button">
-        Page {currentPage} of {totalPages}
-      </button>
-      <button
-        className="join-item btn btn-sm"
-        disabled={currentPage === totalPages}
-        onClick={() => handlePageChange(currentPage + 1)}
-        type="button"
-        aria-label="Next page"
-      >
-        <span aria-hidden="true">»</span>
-      </button>
-    </div>
-  )
-
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Search</h1>
@@ -336,7 +311,14 @@ function Search() {
               )}
             </p>
 
-            {totalPages > 1 ? renderPagination() : null}
+            {totalPages > 1 ? (
+              <Pagination
+                total={results.total}
+                limit={itemsPerPage}
+                offset={(currentPage - 1) * itemsPerPage}
+                onPageChange={(newOffset) => handlePageChange(Math.floor(newOffset / itemsPerPage) + 1)}
+              />
+            ) : null}
           </div>
 
           {results.results.length === 0 ? (
@@ -380,7 +362,14 @@ function Search() {
           )}
 
           {totalPages > 1 ? (
-            <div className="flex justify-center mt-4">{renderPagination()}</div>
+            <div className="flex justify-center mt-4">
+              <Pagination
+                total={results.total}
+                limit={itemsPerPage}
+                offset={(currentPage - 1) * itemsPerPage}
+                onPageChange={(newOffset) => handlePageChange(Math.floor(newOffset / itemsPerPage) + 1)}
+              />
+            </div>
           ) : null}
         </>
       ) : !loading ? (

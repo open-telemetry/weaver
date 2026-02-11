@@ -50,8 +50,9 @@ export function Pagination({ total, limit, offset, onPageChange }: PaginationPro
         disabled={currentPage === 1}
         onClick={() => goToPage(currentPage - 1)}
         type="button"
+        aria-label="Previous page"
       >
-        «
+        <span aria-hidden="true">«</span>
       </button>
 
       {visiblePages[0] > 1 && (
@@ -61,7 +62,7 @@ export function Pagination({ total, limit, offset, onPageChange }: PaginationPro
           </button>
           {visiblePages[0] > 2 && (
             <button className="join-item btn btn-sm btn-disabled" type="button">
-              ...
+              <span aria-hidden="true">...</span>
             </button>
           )}
         </>
@@ -82,7 +83,7 @@ export function Pagination({ total, limit, offset, onPageChange }: PaginationPro
         <>
           {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
             <button className="join-item btn btn-sm btn-disabled" type="button">
-              ...
+              <span aria-hidden="true">...</span>
             </button>
           )}
           <button
@@ -100,8 +101,9 @@ export function Pagination({ total, limit, offset, onPageChange }: PaginationPro
         disabled={currentPage === totalPages}
         onClick={() => goToPage(currentPage + 1)}
         type="button"
+        aria-label="Next page"
       >
-        »
+        <span aria-hidden="true">»</span>
       </button>
     </div>
   )
