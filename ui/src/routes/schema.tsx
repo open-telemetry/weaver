@@ -63,8 +63,8 @@ function Schema() {
   }, [search.type])
 
   const definitions = useMemo(() => {
-    if (!schema?.definitions && !schema?.$defs) return []
-    const defs = schema.definitions || schema.$defs || {}
+    if (!schema?.$defs) return []
+    const defs = schema.$defs
     return Object.keys(defs).sort()
   }, [schema])
 
@@ -96,12 +96,12 @@ function Schema() {
     if (hasArrayType && prop.items) {
       if (prop.items.type === 'array' && prop.items.items) {
         const innerType = prop.items.items.$ref
-          ? prop.items.items.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
+          ? prop.items.items.$ref.replace('#/$defs/', '')
           : prop.items.items.type || 'any'
         return `array of array of ${innerType}`
       }
       const itemType = prop.items.$ref
-        ? prop.items.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
+        ? prop.items.$ref.replace('#/$defs/', '')
         : prop.items.type || 'any'
       if (Array.isArray(prop.type) && prop.type.length >1) {
         const otherTypes = prop.type.filter(t => t !== 'array' && (!skipNull || t !== 'null'))
@@ -116,7 +116,7 @@ function Schema() {
                          (Array.isArray(prop.type) && prop.type.includes('object'))
     if (hasObjectType && prop.additionalProperties) {
       const valueType = prop.additionalProperties.$ref
-        ? prop.additionalProperties.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
+        ? prop.additionalProperties.$ref.replace('#/$defs/', '')
         : prop.additionalProperties.type || 'any'
       if (Array.isArray(prop.type) && prop.type.length > 1) {
         const otherTypes = prop.type.filter(t => t !== 'object' && (!skipNull || t !== 'null'))
@@ -132,20 +132,20 @@ function Schema() {
       return types.join(' | ')
     }
     if (prop.type) return prop.type
-    if (prop.$ref) return prop.$ref.replace('#/definitions/', '').replace('#/$defs/', '')
+    if (prop.$ref) return prop.$ref.replace('#/$defs/', '')
     if (prop.allOf) {
       if (prop.allOf.length === 1 && prop.allOf[0].$ref) {
-        return prop.allOf[0].$ref.replace('#/definitions/', '').replace('#/$defs/', '')
+        return prop.allOf[0].$ref.replace('#/$defs/', '')
       }
-      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '').replace('#/$defs/', '') : t.type || 'object').join(' & ')
+      return prop.allOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'object').join(' & ')
     }
     if (prop.anyOf) {
-      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '').replace('#/$defs/', '') : t.type || 'null')
+      const types = prop.anyOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'null')
       const filtered = skipNull ? types.filter(t => t !== 'null') : types
       return filtered.join(' | ')
     }
     if (prop.oneOf) {
-      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/definitions/', '').replace('#/$defs/', '') : t.type || 'null')
+      const types = prop.oneOf.map(t => t.$ref ? t.$ref.replace('#/$defs/', '') : t.type || 'null')
       const filtered = skipNull ? types.filter(t => t !== 'null') : types
       return filtered.join(' | ')
     }
@@ -159,7 +159,7 @@ function Schema() {
     if (typeStr.startsWith('array of ')) return false
     if (typeStr.startsWith('map of ')) return false
     if (typeStr.includes(' | ')) return false
-    const defs = schema?.definitions || schema?.$defs || {}
+    const defs = schema?.$defs || {}
     return defs[typeStr] !== undefined
   }
 
@@ -509,9 +509,9 @@ function Schema() {
               </div>
             </div>
           </div>
-        ) : selectedDefinition && ((schema?.definitions || schema?.$defs || {})[selectedDefinition]) ? (
+        ) : selectedDefinition && ((schema?.$defs || {})[selectedDefinition]) ? (
           (() => {
-            const def = (schema.definitions || schema.$defs || {})[selectedDefinition]
+            const def = (schema.$defs || {})[selectedDefinition]
             return (
               <div className="space-y-6">
                 <div>
