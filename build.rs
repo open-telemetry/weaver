@@ -2,10 +2,7 @@
 
 //! A build script to generate the gRPC OTLP receiver API (client and server stubs.
 
-use std::{
-    path::Path,
-    time::SystemTime,
-};
+use std::{path::Path, time::SystemTime};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The gRPC OTLP Receiver is vendored in `src/otlp_receiver/receiver` to avoid
@@ -77,7 +74,9 @@ fn check_ui() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if UI is out of date before running.
     if is_ui_stale(ui_dir)? {
-        return Err("Weaver UI is out of date. Please run `pnpm build` in the `ui` directory.".into());
+        return Err(
+            "Weaver UI is out of date. Please run `pnpm build` in the `ui` directory.".into(),
+        );
     }
 
     // Check if we need to install packages.
