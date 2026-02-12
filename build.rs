@@ -43,7 +43,7 @@ fn is_package_lock_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>>
     if package_timestamp > lock_timestamp {
         return Ok(true);
     }
-    return Ok(false);
+    Ok(false)
 }
 
 /// Helper function to determine if NPM project is out of date.
