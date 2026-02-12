@@ -14,3 +14,9 @@
     node-version-file: '.nvmrc'
     cache: 'pnpm'
     cache-dependency-path: ui/package-lock.json
+- name: Install UI dependencies
+  run: pnpm install --frozen-lockfile
+  working-directory: ./ui
+- name: Build UI
+  run: pnpm build
+  working-directory: ./ui
