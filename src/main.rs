@@ -23,7 +23,6 @@ use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
 
 mod cli;
 mod diagnostic;
-mod format;
 mod registry;
 mod serve;
 mod weaver;

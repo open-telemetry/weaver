@@ -6,13 +6,11 @@
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::{Args, ValueEnum};
 use log::info;
-use miette::Diagnostic;
 use schemars::schema_for;
-use serde::Serialize;
-use serde_json::to_string_pretty;
-use std::{io::Write, path::PathBuf};
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use std::path::PathBuf;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpec;
 
 /// Parameters for the `registry json-schema` sub-command
@@ -30,27 +28,6 @@ pub struct RegistryJsonSchemaArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-}
-
-/// An error that can occur while generating a JSON Schema.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
-#[non_exhaustive]
-pub enum Error {
-    /// The serialization of the JSON schema failed.
-    #[error("The serialization of the JSON schema failed. Error: {error}")]
-    SerializationError {
-        /// The error that occurred.
-        error: String,
-    },
-
-    /// Writing to the file failed.
-    #[error("Writing to the file ‘{file}’ failed for the following reason: {error}")]
-    WriteError {
-        /// The path to the output file.
-        file: PathBuf,
-        /// The error that occurred.
-        error: String,
-    },
 }
 
 /// The type of JSON schema to generate.
@@ -72,12 +49,6 @@ pub enum JsonSchemaType {
     DiffV2,
 }
 
-impl From<Error> for DiagnosticMessages {
-    fn from(error: Error) -> Self {
-        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
-    }
-}
-
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
 /// file or print it to stdout.
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
@@ -95,25 +66,18 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
     };
 
-    let json_schema_str =
-        to_string_pretty(&json_schema).map_err(|e| Error::SerializationError {
-            error: e.to_string(),
-        })?;
-
-    if let Some(output) = &args.output {
-        info!("Writing JSON schema to `{}`", output.display());
-        std::fs::write(output, json_schema_str).map_err(|e| Error::WriteError {
-            file: output.clone(),
-            error: e.to_string(),
-        })?;
-    } else {
-        std::io::stdout()
-            .write_all(json_schema_str.as_bytes())
-            .map_err(|e| Error::WriteError {
-                file: PathBuf::from("stdout"),
-                error: e.to_string(),
-            })?;
-    }
+    let target = match &args.output {
+        Some(p) => {
+            info!("Writing JSON schema to `{}`", p.display());
+            OutputTarget::File(p.clone())
+        }
+        None => OutputTarget::Stdout,
+    };
+    let mut output = OutputProcessor::new("json", "json_schema", None, None, target)
+        .map_err(DiagnosticMessages::from)?;
+    output
+        .generate(&json_schema)
+        .map_err(DiagnosticMessages::from)?;
 
     Ok(ExitDirectives {
         exit_code: 0,

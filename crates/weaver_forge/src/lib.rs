@@ -45,7 +45,7 @@ pub mod output_processor;
 pub mod registry;
 pub mod v2;
 
-pub use output_processor::OutputProcessor;
+pub use output_processor::{OutputProcessor, OutputTarget};
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";

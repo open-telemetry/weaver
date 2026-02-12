@@ -8,7 +8,9 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use itertools::Itertools;
 use log::info;
+use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;
@@ -19,6 +21,17 @@ pub struct RegistryStatsArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
     registry: RegistryArgs,
+
+    /// Output format for the stats.
+    /// Use "text" for the default human-readable output.
+    /// Other formats: json, yaml, jsonl, mute.
+    #[arg(long, default_value = "text")]
+    format: String,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// If not specified, the stats are printed to stdout.
+    #[arg(short, long)]
+    output: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -33,9 +46,9 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
     );
 
     if args.registry.v2 {
-        display_v2(args)?;
+        compute_v2(args)?;
     } else {
-        display_v1(args)?;
+        compute_v1(args)?;
     }
 
     Ok(ExitDirectives {
@@ -44,7 +57,7 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
     })
 }
 
-fn display_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
+fn compute_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy_config = PolicyArgs {
         policies: vec![],
@@ -54,11 +67,20 @@ fn display_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let resolved_v2: ResolvedV2 = resolved.try_into()?;
-    display_schema_stats_v2(resolved_v2.resolved_schema());
+
+    if args.format.eq_ignore_ascii_case("text") {
+        display_schema_stats_v2(resolved_v2.resolved_schema());
+    } else {
+        let stats = resolved_v2.resolved_schema().stats();
+        let target = OutputTarget::from_optional_dir(args.output.as_ref());
+        let mut output = OutputProcessor::new(&args.format, "stats", None, None, target)
+            .map_err(DiagnosticMessages::from)?;
+        output.generate(&stats).map_err(DiagnosticMessages::from)?;
+    }
     Ok(())
 }
 
-fn display_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
+fn compute_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy_config = PolicyArgs {
         policies: vec![],
@@ -73,7 +95,15 @@ fn display_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
         return Err(diag_msgs);
     }
 
-    display_schema_stats(resolved.resolved_schema());
+    if args.format.eq_ignore_ascii_case("text") {
+        display_schema_stats(resolved.resolved_schema());
+    } else {
+        let stats = resolved.resolved_schema().stats();
+        let target = OutputTarget::from_optional_dir(args.output.as_ref());
+        let mut output = OutputProcessor::new(&args.format, "stats", None, None, target)
+            .map_err(DiagnosticMessages::from)?;
+        output.generate(&stats).map_err(DiagnosticMessages::from)?;
+    }
     Ok(())
 }
 
