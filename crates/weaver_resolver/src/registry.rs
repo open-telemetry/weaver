@@ -866,7 +866,6 @@ mod tests {
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
-    use crate::registry::resolve_registry_with_dependencies;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
     use crate::LoadedSemconvRegistry;
@@ -932,60 +931,40 @@ mod tests {
                 test_dir.contains("prefix")
                     && matches!(
                         e,
-                        weaver_semconv::Error::InvalidGroupUsesPrefix {
-                            path_or_url: _,
-                            group_id: _
-                        }
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::InvalidGroupUsesPrefix {
+                                path_or_url: _,
+                                group_id: _
+                            }
+                        )
                     )
             })
             .ignore(|e| {
                 matches!(
                     e,
-                    weaver_semconv::Error::UnstableFileVersion {
-                        version: _,
-                        provenance: _,
-                    }
+                    crate::Error::FailToResolveDefinition(
+                        weaver_semconv::Error::UnstableFileVersion {
+                            version: _,
+                            provenance: _,
+                        }
+                    )
                 )
             })
             .into_result_failing_non_fatal()
             .expect("Failed to load semconv specs");
 
-            let LoadedSemconvRegistry::Unresolved {
-                repo,
-                specs,
-                imports,
-                dependencies,
-            } = loaded
-            else {
-                panic!("Should have loaded an unresolved registry")
-            };
-            assert!(
-                dependencies.is_empty(),
-                "Unable to handle dependencies in resolution unit tests"
-            );
-            let mut attr_catalog = AttributeCatalog::default();
-            let observed_registry = resolve_registry_with_dependencies(
-                &mut attr_catalog,
-                repo,
-                specs,
-                imports,
-                vec![],
-                false,
-            )
-            .into_result_failing_non_fatal();
-            // Check that the resolved attribute catalog matches the expected attribute catalog.
-            let observed_attr_catalog = attr_catalog.drain_attributes();
+            // We need to resolve dependencies.
+            let schema = SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal();
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
             let expected_errors_file = format!("{test_dir}/expected-errors.json");
             if PathBuf::from(&expected_errors_file).exists() {
-                assert!(observed_registry.is_err(), "This test is expected to fail");
+                assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
-                let observed_errors = serde_json::to_string(&observed_registry).unwrap();
-                // TODO - Write observed errors.
-
+                let observed_errors = serde_json::to_string(&schema).unwrap();
+                // Write observed errors.
                 assert_eq!(
                     canonicalize_json_string(&observed_errors).unwrap(),
                     canonicalize_json_string(&expected_errors).unwrap(),
@@ -996,20 +975,15 @@ mod tests {
                 continue;
             }
 
+            let observed_schema = schema.expect("Failed to resolve the registry");
+            let observed_attr_catalog = observed_schema.catalog;
+
             // At this point, the normal behavior of this test is to pass.
-            let mut observed_registry = observed_registry.expect("Failed to resolve the registry");
+            let mut observed_registry = observed_schema.registry;
             // Force registry URL to consistent string
             observed_registry.registry_url = "https://127.0.0.1".to_owned();
             // Now sort groups so we don't get flaky tests.
             observed_registry.groups.sort_by_key(|g| g.id.to_owned());
-
-            // Load the expected registry and attribute catalog.
-            let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
-            let expected_attr_catalog: Vec<Attribute> = serde_json::from_reader(
-                std::fs::File::open(expected_attr_catalog_file)
-                    .expect("Failed to open expected attribute catalog"),
-            )
-            .expect("Failed to deserialize expected attribute catalog");
 
             // Write observed output.
             let observed_attr_catalog_file = OpenOptions::new()
@@ -1020,6 +994,16 @@ mod tests {
                 .expect("Failed to open observed output file");
             serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
                 .expect("Failed to write observed output.");
+
+            // Load the expected registry and attribute catalog.
+            let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
+            let expected_attr_catalog: weaver_resolved_schema::catalog::Catalog =
+                serde_json::from_reader(
+                    std::fs::File::open(expected_attr_catalog_file)
+                        .expect("Failed to open expected attribute catalog"),
+                )
+                .expect("Failed to deserialize expected attribute catalog");
+
             // Compare values
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,

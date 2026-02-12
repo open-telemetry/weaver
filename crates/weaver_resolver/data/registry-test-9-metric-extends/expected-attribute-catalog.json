@@ -1,41 +1,43 @@
-[
-  {
-    "name": "jvm.memory.pool.name",
-    "type": "string",
-    "brief": "Name of the memory pool.",
-    "examples": [
-      "G1 Old Gen",
-      "G1 Eden space",
-      "G1 Survivor Space"
-    ],
-    "requirement_level": "recommended",
-    "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
-    "stability": "stable"
-  },
-  {
-    "name": "jvm.memory.type",
-    "type": {
-      "members": [
-        {
-          "id": "heap",
-          "value": "heap",
-          "brief": "Heap memory.",
-          "stability": "stable"
-        },
-        {
-          "id": "non_heap",
-          "value": "non_heap",
-          "brief": "Non-heap memory",
-          "stability": "stable"
-        }
-      ]
+{
+  "attributes": [
+    {
+      "name": "jvm.memory.pool.name",
+      "type": "string",
+      "brief": "Name of the memory pool.",
+      "examples": [
+        "G1 Old Gen",
+        "G1 Eden space",
+        "G1 Survivor Space"
+      ],
+      "requirement_level": "recommended",
+      "note": "Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).\n",
+      "stability": "stable"
     },
-    "brief": "The type of memory.",
-    "examples": [
-      "heap",
-      "non_heap"
-    ],
-    "requirement_level": "recommended",
-    "stability": "stable"
-  }
-]
+    {
+      "name": "jvm.memory.type",
+      "type": {
+        "members": [
+          {
+            "id": "heap",
+            "value": "heap",
+            "brief": "Heap memory.",
+            "stability": "stable"
+          },
+          {
+            "id": "non_heap",
+            "value": "non_heap",
+            "brief": "Non-heap memory",
+            "stability": "stable"
+          }
+        ]
+      },
+      "brief": "The type of memory.",
+      "examples": [
+        "heap",
+        "non_heap"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    }
+  ]
+}
