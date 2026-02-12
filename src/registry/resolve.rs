@@ -70,10 +70,7 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     }
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
 
-    let target = match &args.output {
-        Some(p) => OutputTarget::File(p.clone()),
-        None => OutputTarget::Stdout,
-    };
+    let target = OutputTarget::from_optional_file(args.output.as_ref());
     let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
         .map_err(DiagnosticMessages::from)?;
 

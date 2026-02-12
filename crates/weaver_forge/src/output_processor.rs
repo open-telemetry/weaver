@@ -38,6 +38,16 @@ impl OutputTarget {
             Some(p) => OutputTarget::Directory(p.clone()),
         }
     }
+
+    /// Convert from the common CLI pattern for single-file output:
+    /// `None` = stdout, `Some(path)` = write directly to that file.
+    #[must_use]
+    pub fn from_optional_file(path: Option<&PathBuf>) -> Self {
+        match path {
+            None => OutputTarget::Stdout,
+            Some(p) => OutputTarget::File(p.clone()),
+        }
+    }
 }
 
 /// Builtin serialization formats
@@ -52,6 +62,16 @@ enum BuiltinFormat {
 }
 
 impl BuiltinFormat {
+    /// Try to parse a format name (already lowercased) into a builtin format.
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "json" => Some(BuiltinFormat::Json),
+            "yaml" => Some(BuiltinFormat::Yaml),
+            "jsonl" => Some(BuiltinFormat::Jsonl),
+            _ => None,
+        }
+    }
+
     /// File extension for this format
     fn extension(&self) -> &'static str {
         match self {
@@ -138,41 +158,30 @@ impl OutputProcessor {
             });
         }
 
-        let kind = match format.to_lowercase().as_str() {
-            "mute" => OutputKind::Mute,
-            "json" => OutputKind::Builtin {
-                format: BuiltinFormat::Json,
+        let format_lower = format.to_lowercase();
+        let kind = if format_lower == "mute" {
+            OutputKind::Mute
+        } else if let Some(builtin) = BuiltinFormat::from_name(&format_lower) {
+            OutputKind::Builtin {
+                format: builtin,
                 prefix: prefix.to_owned(),
                 target: output,
                 file: None,
-            },
-            "yaml" => OutputKind::Builtin {
-                format: BuiltinFormat::Yaml,
-                prefix: prefix.to_owned(),
-                target: output,
-                file: None,
-            },
-            "jsonl" => OutputKind::Builtin {
-                format: BuiltinFormat::Jsonl,
-                prefix: prefix.to_owned(),
-                target: output,
-                file: None,
-            },
-            template_name => {
-                let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
-                    template_dir: PathBuf::from(template_name),
-                    error: "Template format requires embedded_templates parameter".to_owned(),
-                })?;
-                let templates = templates_path.unwrap_or_default();
-
-                let loader = EmbeddedFileLoader::try_new(embedded, templates, template_name)?;
-                let config = WeaverConfig::try_from_loader(&loader)?;
-                let engine = TemplateEngine::try_new(config, loader, Params::default())?;
-                OutputKind::Template(Box::new(TemplateOutput {
-                    engine,
-                    target: output,
-                }))
             }
+        } else {
+            let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
+                template_dir: PathBuf::from(&format_lower),
+                error: "Template format requires embedded_templates parameter".to_owned(),
+            })?;
+            let templates = templates_path.unwrap_or_default();
+
+            let loader = EmbeddedFileLoader::try_new(embedded, templates, &format_lower)?;
+            let config = WeaverConfig::try_from_loader(&loader)?;
+            let engine = TemplateEngine::try_new(config, loader, Params::default())?;
+            OutputKind::Template(Box::new(TemplateOutput {
+                engine,
+                target: output,
+            }))
         };
 
         Ok(Self { kind })
@@ -751,6 +760,20 @@ mod tests {
         assert!(matches!(
             OutputTarget::from_optional_dir(Some(&dir_path)),
             OutputTarget::Directory(_)
+        ));
+    }
+
+    #[test]
+    fn test_from_optional_file() {
+        assert!(matches!(
+            OutputTarget::from_optional_file(None),
+            OutputTarget::Stdout
+        ));
+
+        let file_path = PathBuf::from("/tmp/output.json");
+        assert!(matches!(
+            OutputTarget::from_optional_file(Some(&file_path)),
+            OutputTarget::File(_)
         ));
     }
 }
