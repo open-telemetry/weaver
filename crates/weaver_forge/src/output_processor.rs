@@ -91,8 +91,7 @@ impl BuiltinFormat {
 /// Template output configuration
 struct TemplateOutput {
     engine: TemplateEngine,
-    path: PathBuf,
-    directive: OutputDirective,
+    target: OutputTarget,
 }
 
 /// Internal enum for output processor variants
@@ -101,11 +100,8 @@ enum OutputKind {
     Builtin {
         format: BuiltinFormat,
         prefix: String,
-        path: PathBuf,
-        directive: OutputDirective,
+        target: OutputTarget,
         file: Option<File>,
-        /// When true, `path` is the exact file path (not a directory).
-        direct_file: bool,
     },
     /// Template-based format
     Template(Box<TemplateOutput>),
@@ -142,39 +138,25 @@ impl OutputProcessor {
             });
         }
 
-        // Determine output path and directive
-        let (path, directive, direct_file) = match &output {
-            OutputTarget::File(p) => (p.clone(), OutputDirective::File, true),
-            OutputTarget::Directory(p) => (p.clone(), OutputDirective::File, false),
-            OutputTarget::Stdout => (PathBuf::from("output"), OutputDirective::Stdout, false),
-            OutputTarget::Mute => unreachable!(),
-        };
-
         let kind = match format.to_lowercase().as_str() {
             "mute" => OutputKind::Mute,
             "json" => OutputKind::Builtin {
                 format: BuiltinFormat::Json,
                 prefix: prefix.to_owned(),
-                path,
-                directive,
+                target: output,
                 file: None,
-                direct_file,
             },
             "yaml" => OutputKind::Builtin {
                 format: BuiltinFormat::Yaml,
                 prefix: prefix.to_owned(),
-                path,
-                directive,
+                target: output,
                 file: None,
-                direct_file,
             },
             "jsonl" => OutputKind::Builtin {
                 format: BuiltinFormat::Jsonl,
                 prefix: prefix.to_owned(),
-                path,
-                directive,
+                target: output,
                 file: None,
-                direct_file,
             },
             template_name => {
                 let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
@@ -188,8 +170,7 @@ impl OutputProcessor {
                 let engine = TemplateEngine::try_new(config, loader, Params::default())?;
                 OutputKind::Template(Box::new(TemplateOutput {
                     engine,
-                    path,
-                    directive,
+                    target: output,
                 }))
             }
         };
@@ -203,24 +184,32 @@ impl OutputProcessor {
             OutputKind::Builtin {
                 format,
                 prefix,
-                path,
-                directive,
+                target,
                 file,
-                direct_file,
             } => {
-                // Open file if needed
-                if *directive == OutputDirective::File && file.is_none() {
-                    if *direct_file {
-                        *file = Some(create_direct_file(path)?);
-                    } else {
-                        let filename = format!("{}.{}", prefix, format.extension());
-                        *file = Some(create_file(path, &filename)?);
+                if file.is_none() {
+                    match target {
+                        OutputTarget::File(p) => *file = Some(open_file(p)?),
+                        OutputTarget::Directory(p) => {
+                            let name = format!("{}.{}", prefix, format.extension());
+                            *file = Some(open_file(&p.join(name))?);
+                        }
+                        _ => {} // Stdout — no file needed
                     }
                 }
                 let content = format.serialize(data)?;
-                write_content(&content, directive, file, format.is_line_oriented())
+                write_content(&content, file, format.is_line_oriented())
             }
-            OutputKind::Template(t) => t.engine.generate(data, &t.path, &t.directive),
+            OutputKind::Template(t) => {
+                let (path, directive) = match &t.target {
+                    OutputTarget::Stdout => (PathBuf::from("output"), OutputDirective::Stdout),
+                    OutputTarget::File(p) | OutputTarget::Directory(p) => {
+                        (p.clone(), OutputDirective::File)
+                    }
+                    OutputTarget::Mute => unreachable!(),
+                };
+                t.engine.generate(data, &path, &directive)
+            }
             OutputKind::Mute => Ok(()),
         }
     }
@@ -252,8 +241,12 @@ impl OutputProcessor {
     #[must_use]
     pub fn is_file_output(&self) -> bool {
         match &self.kind {
-            OutputKind::Builtin { directive, .. } => *directive == OutputDirective::File,
-            OutputKind::Template(t) => t.directive == OutputDirective::File,
+            OutputKind::Builtin { target, .. } => {
+                matches!(target, OutputTarget::File(_) | OutputTarget::Directory(_))
+            }
+            OutputKind::Template(t) => {
+                matches!(t.target, OutputTarget::File(_) | OutputTarget::Directory(_))
+            }
             OutputKind::Mute => false,
         }
     }
@@ -272,23 +265,8 @@ impl OutputProcessor {
     }
 }
 
-/// Create/truncate a file inside a directory and return the handle.
-fn create_file(path: &std::path::Path, filename: &str) -> Result<File, Error> {
-    let file_path = path.join(filename);
-    if let Some(parent) = file_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| Error::OutputFileError {
-            path: file_path.clone(),
-            error: format!("Failed to create directory: {e}"),
-        })?;
-    }
-    File::create(&file_path).map_err(|e| Error::OutputFileError {
-        path: file_path,
-        error: e.to_string(),
-    })
-}
-
-/// Create/truncate a file at the exact path and return the handle.
-fn create_direct_file(path: &std::path::Path) -> Result<File, Error> {
+/// Create parent directories and open/truncate a file at the given path.
+fn open_file(path: &std::path::Path) -> Result<File, Error> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| Error::OutputFileError {
             path: path.to_path_buf(),
@@ -301,35 +279,22 @@ fn create_direct_file(path: &std::path::Path) -> Result<File, Error> {
     })
 }
 
-/// Write content to stdout or file.
+/// Write content to stdout (if `file` is `None`) or to the open file.
 #[allow(clippy::print_stdout)]
-fn write_content(
-    content: &str,
-    directive: &OutputDirective,
-    file: &mut Option<File>,
-    with_newline: bool,
-) -> Result<(), Error> {
-    match directive {
-        OutputDirective::Stdout => {
+fn write_content(content: &str, file: &mut Option<File>, with_newline: bool) -> Result<(), Error> {
+    match file {
+        None => {
             println!("{content}");
             Ok(())
         }
-        OutputDirective::File => {
-            let f = file.as_mut().ok_or_else(|| Error::SerializationError {
-                error: "File not opened".to_owned(),
-            })?;
-            if with_newline {
-                writeln!(f, "{content}")
-            } else {
-                write!(f, "{content}")
-            }
-            .map_err(|e| Error::SerializationError {
-                error: e.to_string(),
-            })
+        Some(f) => if with_newline {
+            writeln!(f, "{content}")
+        } else {
+            write!(f, "{content}")
         }
-        OutputDirective::Stderr => {
-            unreachable!("OutputProcessor does not support Stderr directive")
-        }
+        .map_err(|e| Error::SerializationError {
+            error: e.to_string(),
+        }),
     }
 }
 
