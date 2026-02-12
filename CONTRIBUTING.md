@@ -18,6 +18,8 @@ Run `cargo test --all` to run the tests.
 
 Run `cargo build` to build a local binary for any additional tests. The resulting binary will be placed in the `./output` directory.
 
+NOTE: You will need to run `pnpm build` in the `ui` directory prior to running any `cargo` commands.
+
 **Run `just` before any push to pre-validate all the steps performed by CI.**
 
 ### How to send Pull Request
