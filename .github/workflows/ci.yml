@@ -49,6 +49,9 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
       - name: Build UI
         run: pnpm build
         working-directory: ./ui
@@ -102,6 +105,9 @@ jobs:
           else
             echo "Correct toolchain $CURRENT_TOOLCHAIN is installed and active"
           fi
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
       - name: Build UI
         run: pnpm build
         working-directory: ./ui
@@ -148,6 +154,9 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
       - name: Build UI
         run: pnpm build
         working-directory: ./ui
@@ -234,6 +243,9 @@ jobs:
         run: cargo install sarif-fmt --locked
       - name: Install protoc
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
       - name: Build UI
         run: pnpm build
         working-directory: ./ui
