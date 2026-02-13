@@ -31,7 +31,7 @@ fn test_cli_interface() {
     let registry_path = VirtualDirectoryPath::GitRepo {
         url: SEMCONV_REGISTRY_URL.to_owned(),
         sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
-        refspec: None,
+        refspec: Some(String::from("main")),
     };
 
     let schema_url: Option<SchemaUrl> = Some(

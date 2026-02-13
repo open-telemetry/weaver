@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add support for git references in the registry url ([#182](https://github.com/open-telemetry/weaver/issues/182) by @sebasnabas)
 - New feature ([#1153](https://github.com/open-telemetry/weaver/issues/1153)) - Live-check now has a `/health` endpoint that can be used in long-running scenarios to confirm readiness and liveness of the live-check server. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
 - New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
 - Unified output handling across all registry subcommands. Builtin output formats (json, yaml, jsonl) are now available in `registry stats`, `registry diff`, and `registry resolve`. `registry stats` also supports `--templates` for custom text output templates. ([#1200](https://github.com/open-telemetry/weaver/pull/1200) by @jerbly)

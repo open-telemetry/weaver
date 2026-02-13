@@ -83,7 +83,7 @@ The process exits with a code of 0 if the registry validation is successful.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -138,7 +138,7 @@ The process exits with a code of 0 if the generation is successful.
 * `-c`, `--config <CONFIG>` — List of `weaver.yaml` configuration files to use. When there is a conflict, the last one will override the previous ones for the keys that are defined in both
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -180,7 +180,7 @@ The process exits with a code of 0 if the resolution is successful.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -192,16 +192,9 @@ The process exits with a code of 0 if the resolution is successful.
 
   Default value: `false`
 * `-o`, `--output <OUTPUT>` — Output file to write the resolved schema to If not specified, the resolved schema is printed to stdout
-* `-f`, `--format <FORMAT>` — Output format for the resolved schema If not specified, the resolved schema is printed in YAML format Supported formats: yaml, json Default format: yaml Example: `--format json`
+* `-f`, `--format <FORMAT>` — Output format for the resolved schema Supported formats: yaml, json, jsonl, mute Default format: yaml Example: `--format json`
 
   Default value: `yaml`
-
-  Possible values:
-  - `yaml`:
-    YAML format
-  - `json`:
-    JSON format
-
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
 * `--skip-policies` — Skip the policy checks
 
@@ -231,7 +224,7 @@ DEPRECATED - Searches a registry. This command is deprecated and will be removed
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -260,7 +253,7 @@ Calculate a set of general statistics on a semantic convention registry
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -268,6 +261,13 @@ Calculate a set of general statistics on a semantic convention registry
 * `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
 
   Default value: `false`
+* `--format <FORMAT>` — Output format for the stats. Predefined formats are: text, json, yaml, jsonl, mute
+
+  Default value: `text`
+* `--templates <TEMPLATES>` — Path to the directory where the stats templates are located
+
+  Default value: `stats_templates`
+* `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the stats are printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
 
   Default value: `ansi`
@@ -290,7 +290,7 @@ Update markdown files that contain markers indicating the templates used to upda
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -372,7 +372,7 @@ This diff can then be rendered in multiple formats:
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -381,10 +381,10 @@ This diff can then be rendered in multiple formats:
 
   Default value: `false`
 * `--baseline-registry <BASELINE_REGISTRY>` — Parameters to specify the baseline semantic convention registry
-* `--diff-format <DIFF_FORMAT>` — Format used to render the schema changes. Predefined formats are: ansi, json, and markdown
+* `--format <FORMAT>` — Format used to render the schema changes. Predefined formats are: ansi, json, and markdown
 
   Default value: `ansi`
-* `--diff-template <DIFF_TEMPLATE>` — Path to the directory where the schema changes templates are located
+* `--templates <TEMPLATES>` — Path to the directory where the schema changes templates are located
 
   Default value: `diff_templates`
 * `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the diff report is printed to stdout
@@ -408,7 +408,7 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -447,7 +447,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -475,7 +475,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 * `--input-format <INPUT_FORMAT>` — The format of the input telemetry. (Not required for OTLP). text | json
 
   Default value: `json`
-* `--format <FORMAT>` — Format used to render the report. Predefined formats are: ansi, json
+* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl (uses serde directly). Other values are treated as template names (e.g., "ansi" uses ansi templates)
 
   Default value: `ansi`
 * `--templates <TEMPLATES>` — Path to the directory where the templates are located
@@ -489,7 +489,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 * `--no-stats` — Disable statistics accumulation. This is useful for long-running live check sessions. Typically combined with --emit-otlp-logs and --output=none
 
   Default value: `false`
-* `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the report is printed to stdout. Use "none" to disable all template output rendering (useful when emitting OTLP logs)
+* `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the report is printed to stdout. Use "none" to disable all template output rendering (useful when emitting OTLP logs). Use "http" to send the report as the response to the /stop request on the admin port
 * `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
 
   Default value: `0.0.0.0`
@@ -532,7 +532,7 @@ The server communicates over stdio using JSON-RPC.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -616,7 +616,7 @@ Start the API server (Experimental)
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
