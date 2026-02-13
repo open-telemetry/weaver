@@ -9,19 +9,75 @@ use crate::v2::SemConvSpecV2;
 use crate::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde::de;
 use std::fs::File;
 use std::path::Path;
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](/schemas/semconv-syntax.md)
 /// A semconv file either follows file_format 1 or 2.  Default is file_format 1.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum SemConvSpec {
     /// Semantic convention specification that includes a file_format tag.
     WithVersion(Versioned),
     /// Semantic convention specification that does NOT include a file_format tag.
     NoVersion(SemConvSpecV1),
+}
+
+impl<'de> Deserialize<'de> for SemConvSpec {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_yaml::Value::deserialize(deserializer)?;
+        let mut mapping = match value {
+            serde_yaml::Value::Mapping(mapping) => mapping,
+            other => {
+                let v1 = serde_yaml::from_value::<SemConvSpecV1>(other)
+                    .map_err(de::Error::custom)?;
+                return Ok(SemConvSpec::NoVersion(v1));
+            }
+        };
+
+        let file_format_key = serde_yaml::Value::String("file_format".to_owned());
+        let version_key = serde_yaml::Value::String("version".to_owned());
+
+        // log warning if version is used instead of file_format
+        // version is supported for backward compatibility, we should eventually
+        // remove it, but for now we support both.
+        let version_used = mapping.contains_key(&version_key);
+        if version_used {
+            log::warn!("The 'version' field is deprecated and will be removed in a future version. Please use 'file_format: definition/2' instead.");
+        }
+
+
+        let file_format = mapping
+            .get(&file_format_key)
+            .and_then(|v| v.as_str());
+        let version = mapping.get(&version_key).and_then(|v| v.as_str());
+
+        let is_v2 = matches!(file_format, Some("definition/2")) || matches!(version, Some("2"));
+        let is_v1 = matches!(file_format, Some("definition/1")) || matches!(version, Some("1"));
+
+        _ = mapping.remove(&file_format_key);
+        _ = mapping.remove(&version_key);
+
+        let cleaned = serde_yaml::Value::Mapping(mapping);
+        if is_v2 {
+            let v2 = serde_yaml::from_value::<SemConvSpecV2>(cleaned)
+                .map_err(de::Error::custom)?;
+            Ok(SemConvSpec::WithVersion(Versioned::V2(v2)))
+        } else if is_v1 {
+            let v1 = serde_yaml::from_value::<SemConvSpecV1>(cleaned)
+                .map_err(de::Error::custom)?;
+            Ok(SemConvSpec::WithVersion(Versioned::V1(v1)))
+        } else {
+            let v1 = serde_yaml::from_value::<SemConvSpecV1>(cleaned)
+                .map_err(de::Error::custom)?;
+            Ok(SemConvSpec::NoVersion(v1))
+        }
+    }
 }
 
 /// A versioned semantic convention file.
@@ -269,7 +325,7 @@ impl SemConvSpecWithProvenance {
                         // TODO - Check if we should use versioned or unversioned validator.
                         if yaml_value
                             .as_mapping()
-                            .and_then(|m| m.get("file_format"))
+                            .and_then(|m| m.get("file_format").or_else(|| m.get("version")))
                             .map(|v| v.is_string())
                             .unwrap_or(false)
                         {
