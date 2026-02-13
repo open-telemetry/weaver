@@ -25,12 +25,16 @@ use weaver_common::vdir::VirtualDirectoryPath;
 pub struct RegistryManifest {
     /// The file format for this registry.
     ///
-    /// No value is assumed to be `definition/1.0.0`
+    /// No value is assumed to be `manifest/2.0.0`
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub file_format: Option<String>,
 
-    /// The name of the registry. This name is used to define the package name.
-    pub name: String,
+    /// The schema URL for this registry.
+    /// This URL is populated before registry is published and is used as
+    /// a unique identifier of the registry. It MUST follow OTel schema URL format, which is:
+    /// `http[s]://server[:port]/path/<version>`.
+    /// See https://github.com/open-telemetry/opentelemetry-specification/blob/v1.53.0/specification/schemas/README.md#schema-url for more details.
+    pub schema_url: Option<String>,
 
     /// An optional description of the registry.
     ///
@@ -41,12 +45,18 @@ pub struct RegistryManifest {
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
-    #[serde(alias = "semconv_version")]
-    pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[deprecated(
+        note = "The `version` field is deprecated. The registry version should be specified in the `schema_url` field, which is required and serves as a unique identifier for the registry."
+    )]
+    pub semconv_version: Option<String>,
 
     /// The base URL where the registry's schema files are hosted.
-    #[serde(alias = "schema_base_url")]
-    pub repository_url: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[deprecated(
+        note = "The `schema_base_url` field is deprecated. The registry schema URL should be specified in the `schema_url` field, which is required and serves as a unique identifier for the registry."
+    )]
+    pub schema_base_url: Option<String>,
 
     /// List of the registry's dependencies.
     /// Note: In the current phase, we only support zero or one dependency.
@@ -60,7 +70,7 @@ pub struct RegistryManifest {
 
     /// The location of the resolved telemetry schema, if available.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolved_schema_url: Option<String>,
+    pub resolved_schema_uri: Option<String>,
 }
 
 /// Represents a dependency of a semantic convention registry.
@@ -94,7 +104,7 @@ impl RegistryManifest {
             error: e.to_string(),
         })?;
         let reader = std::io::BufReader::new(file);
-        let manifest: RegistryManifest =
+        let mut manifest: RegistryManifest =
             serde_yaml::from_reader(reader).map_err(|e| InvalidRegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
@@ -102,36 +112,93 @@ impl RegistryManifest {
 
         manifest.validate(manifest_path_buf.clone())?;
 
+        // If the schema URL is not provided, populate it using deprecated schema_base_url and semconv_version
+        // validation would fail if they were not provided
+        if manifest.schema_url.is_none() {
+            manifest.schema_url = Some(format!(
+                "{}/{}",
+                manifest.schema_base_url.clone().unwrap_or_default(),
+                manifest.semconv_version.clone().unwrap_or_default()
+            ));
+        }
+
         Ok(manifest)
     }
 
     fn validate(&self, path: PathBuf) -> Result<(), Error> {
         let mut errors = vec![];
 
-        if self.name.is_empty() {
-            errors.push(InvalidRegistryManifest {
-                path: path.clone(),
-                error: "The registry name is required.".to_owned(),
-            });
-        }
+        let schema_url_empty = self.schema_url.as_ref().map_or(true, |url| url.is_empty());
+        let schema_base_url_empty = self.schema_base_url.as_ref().map_or(true, |url| url.is_empty());
+        let semconv_version_empty = self.semconv_version.as_ref().map_or(true, |v| v.is_empty());
 
-        if self.version.is_empty() {
-            errors.push(InvalidRegistryManifest {
-                path: path.clone(),
-                error: "The registry version is required.".to_owned(),
-            });
-        }
-
-        if self.repository_url.is_empty() {
-            errors.push(InvalidRegistryManifest {
-                path: path.clone(),
-                error: "The registry schema base URL is required.".to_owned(),
-            });
+        if schema_url_empty {
+            if schema_base_url_empty || semconv_version_empty {
+                errors.push(InvalidRegistryManifest {
+                    path: path.clone(),
+                    error: "The registry schema URL is required.".to_owned(),
+                });
+            } else {
+                // schema_base_url should be a valid absolute URL, otherwise push an error to the list.
+                if let Err(e) = url::Url::parse(self.schema_base_url.as_ref().unwrap()) {
+                    errors.push(InvalidRegistryManifest {
+                        path: path.clone(),
+                        error: format!("Invalid schema base URL: {}", e),
+                    });
+                }
+            }
+        } else {
+            // validate the resolved schema URL: it must be a valid absolute URI with at least one path segment
+            match url::Url::parse(self.schema_url.as_ref().unwrap()) {
+                Ok(parsed_url) => {
+                    if parsed_url.path_segments().map(|c| c.count()).unwrap_or(0) == 0 {
+                        errors.push(InvalidRegistryManifest {
+                            path: path.clone(),
+                            error: "The registry schema URL must have at least one path segment.".to_owned(),
+                        });
+                    }
+                }
+                Err(e) => {
+                    errors.push(InvalidRegistryManifest {
+                        path: path.clone(),
+                        error: format!("Invalid schema URL: {}", e),
+                    });
+                }
+            }
         }
 
         handle_errors(errors)?;
-
         Ok(())
+    }
+
+    /// Returns the registry name, which is derived from the schema URL.
+    /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
+    /// the registry name would be `opentelemetry.io/schemas/sub-component`
+    pub fn name(&self) -> String {
+        let schema_url = self.schema_url.as_ref().expect("schema_url was validated");
+        let parsed_url = url::Url::parse(schema_url).expect("schema_url was validated");
+        let authority = parsed_url.host_str().unwrap_or_default();
+        let path = parsed_url.path().trim_matches('/');
+        let mut segments: Vec<&str> = path.split('/').collect();
+        if !segments.is_empty() {
+            _ = segments.pop();
+        }
+        format!("{}/{}", authority, segments.join("/"))
+    }
+
+    /// Returns the registry version, which is derived from the schema URL.
+    /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
+    /// the registry version would be `1.0.0`
+    pub fn version(&self) -> String {
+        let schema_url = self.schema_url.as_ref().expect("schema_url was validated");
+        let parsed_url = url::Url::parse(schema_url).expect("schema_url was validated");
+        parsed_url
+            .path()
+            .trim_matches('/')
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .to_string()
     }
 }
 
@@ -163,9 +230,8 @@ mod tests {
         let config =
             RegistryManifest::try_from_file("tests/test_data/valid_semconv_registry_manifest.yaml")
                 .expect("Failed to load the registry configuration file.");
-        assert_eq!(config.name, "vendor_acme");
-        assert_eq!(config.version, "0.1.0");
-        assert_eq!(config.repository_url, "https://acme.com/schemas/");
+        assert_eq!(config.name(), "vendor_acme");
+        assert_eq!(config.version(), "0.1.0");
     }
 
     #[test]

@@ -9,10 +9,16 @@ use std::sync::Arc;
 use crate::manifest::RegistryManifest;
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
-use weaver_common::{get_path_type, log_info};
+use weaver_common::{get_path_type, log_info, log_warn};
+
+/// The name of the legacy registry manifest file.
+#[deprecated(
+    note = "The registry manifest file is renamed to `manifest.yaml`."
+)]
+pub const LEGACY_REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
 /// The name of the registry manifest file.
-pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
+pub const REGISTRY_MANIFEST: &str = "manifest.yaml";
 
 /// A semantic convention registry repository that can be:
 /// - A definition repository, which is one of:
@@ -48,7 +54,7 @@ impl RegistryRepo {
         };
         if let Some(manifest) = registry_repo.manifest_path() {
             let registry_manifest = RegistryManifest::try_from_file(manifest)?;
-            registry_repo.id = Arc::from(registry_manifest.name.as_str());
+            registry_repo.id = Arc::from(registry_manifest.name().as_str());
             registry_repo.manifest = Some(registry_manifest);
         }
         Ok(registry_repo)
@@ -78,27 +84,27 @@ impl RegistryRepo {
         self.manifest.as_ref()
     }
 
-    /// Returns the resolved schema URL, if available in the manifest.
+    /// Returns the resolved schema URI, if available in the manifest.
     #[must_use]
-    pub fn resolved_schema_url(&self) -> Option<VirtualDirectoryPath> {
+    pub fn resolved_schema_uri(&self) -> Option<VirtualDirectoryPath> {
         let manifest = self.manifest.as_ref()?;
-        let resolved_url: &str = manifest.resolved_schema_url.as_ref()?;
-        match get_path_type(resolved_url) {
+        let resolved_uri: &str = manifest.resolved_schema_uri.as_ref()?;
+        match get_path_type(resolved_uri) {
             weaver_common::PathType::RelativePath => {
-                // We need to understand if the manifest URL is the same as the registry URL.
+                // We need to understand if the manifest URI is the same as the registry URI.
                 let vdir_was_manifest_file = self.manifest_path()? == self.registry.path();
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
-                            Some(parent) => format!("{}/{resolved_url}", parent.display()),
+                            Some(parent) => format!("{}/{resolved_uri}", parent.display()),
                             None => "".to_owned(),
                         }
                     } else {
-                        format!("{path}/{resolved_url}")
+                        format!("{path}/{resolved_uri}")
                     }
                 }))
             }
-            _ => resolved_url.try_into().ok(),
+            _ => resolved_uri.try_into().ok(),
         }
     }
 
@@ -111,12 +117,20 @@ impl RegistryRepo {
             return Some(self.registry.path().to_path_buf());
         }
         let manifest_path = self.registry.path().join(REGISTRY_MANIFEST);
+        let legacy_path = self.registry.path().join(LEGACY_REGISTRY_MANIFEST);
         if manifest_path.exists() {
             log_info(format!(
                 "Found registry manifest: {}",
                 manifest_path.display()
             ));
             Some(manifest_path)
+        } else if legacy_path.exists() {
+            log_warn(format!(
+                "Found registry manifest: {}. Please rename file to {}, as the old name is deprecated and won't be supported in future versions.",
+                legacy_path.display(),
+                REGISTRY_MANIFEST
+            ));
+            Some(legacy_path)
         } else {
             log_info(format!(
                 "No registry manifest found: {}",
@@ -124,6 +138,12 @@ impl RegistryRepo {
             ));
             None
         }
+    }
+
+    /// Returns the registry schema URL, if available in the manifest.
+    #[must_use]
+    pub fn schema_url(&self) -> Option<String> {
+        self.manifest.as_ref().and_then(|manifest| manifest.schema_url.clone())
     }
 }
 
@@ -171,9 +191,9 @@ mod tests {
         let Some(manifest) = repo.manifest() else {
             panic!("Did not resolve manifest for repo: {repo:?}");
         };
-        assert_eq!(manifest.name, "resolved");
+        assert_eq!(manifest.name(), "resolved");
 
-        let Some(resolved_path) = repo.resolved_schema_url() else {
+        let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
@@ -190,7 +210,7 @@ mod tests {
         };
         let repo =
             RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
-        let Some(resolved_path) = repo.resolved_schema_url() else {
+        let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
@@ -204,7 +224,7 @@ mod tests {
         };
         let repo =
             RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
-        let Some(resolved_path) = repo.resolved_schema_url() else {
+        let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()

@@ -145,12 +145,12 @@ impl SemConvRegistry {
 
             registry.set_manifest(RegistryManifest {
                 file_format: None,
-                name: registry_repo.id().as_ref().to_owned(),
-                description: None,
-                version: semconv_version,
-                repository_url: "".to_owned(),
+                schema_url: registry_repo.manifest().and_then(|m| Some(m.schema_url.clone())).unwrap_or_default(),
+                schema_base_url: registry_repo.manifest().and_then(|m| m.schema_base_url.clone()),
+                semconv_version: registry_repo.manifest().and_then(|m| m.semconv_version.clone()),
+                description: registry_repo.manifest().and_then(|m| m.description.clone()),
                 dependencies: vec![],
-                resolved_schema_url: None,
+                resolved_schema_uri: None,
                 stability: crate::stability::Stability::Development,
             });
         } else {

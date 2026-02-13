@@ -14,7 +14,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::json_schema::JsonSchemaValidator;
-use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
+use weaver_semconv::registry_repo::{LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST, RegistryRepo};
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
 use crate::Error;
@@ -192,7 +192,7 @@ fn load_semconv_repository_recursive(
 
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
-        if let Some(resolved_url) = registry_repo.resolved_schema_url() {
+        if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
             load_resolved_repository(&resolved_url)
         } else {
             if manifest.dependencies.len() > 1 {
@@ -281,6 +281,7 @@ fn load_definition_repository(
             && (extension == "yaml" || extension == "yml")
             && file_name != "schema-next.yaml"
             && file_name != REGISTRY_MANIFEST
+            && file_name != LEGACY_REGISTRY_MANIFEST
     }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
@@ -481,7 +482,7 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Circular dependency detected") && 
+                    error_msg.contains("Circular dependency detected") &&
                     error_msg.contains("registry_a") &&
                     error_msg.contains("registry_b"),
                     "Expected circular dependency error mentioning both registries, got: {error_msg}"
