@@ -17,7 +17,7 @@ use weaver_common::MemLog;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry_repo::RegistryRepo;
 
@@ -56,18 +56,19 @@ fn main() {
         .unwrap_or_else(|e| process_error(&logger, e));
     let config = WeaverConfig::try_from_path("./templates/registry/rust")
         .unwrap_or_else(|e| process_error(&logger, e));
-    let engine = TemplateEngine::try_new(config, loader, Params::default())
-        .unwrap_or_else(|e| process_error(&logger, e));
     let template_registry =
         ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
             .unwrap_or_else(|e| process_error(&logger, e));
     let target_dir: PathBuf = target_dir.into();
-    engine
-        .generate(
-            &template_registry,
-            target_dir.as_path(),
-            &OutputDirective::File,
-        )
+    let mut output = OutputProcessor::from_template_config(
+        config,
+        loader,
+        Params::default(),
+        OutputTarget::Directory(target_dir.clone()),
+    )
+    .unwrap_or_else(|e| process_error(&logger, e));
+    output
+        .generate(&template_registry)
         .unwrap_or_else(|e| process_error(&logger, e));
 
     print_logs(&logger);

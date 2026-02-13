@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::config::{Params, WeaverConfig};
 use crate::error::Error;
-use crate::file_loader::EmbeddedFileLoader;
+use crate::file_loader::{EmbeddedFileLoader, FileLoader};
 use crate::{OutputDirective, TemplateEngine};
 
 /// Specifies where output should be written.
@@ -187,6 +187,54 @@ impl OutputProcessor {
         };
 
         Ok(Self { kind })
+    }
+
+    /// Create an OutputProcessor from an explicit template configuration.
+    ///
+    /// Use this when you already have a `WeaverConfig`, a `FileLoader`, and `Params`
+    /// (e.g. the `registry generate` and `registry update-markdown` commands).
+    ///
+    /// * `config` - Weaver configuration (loaded from `weaver.yaml`).
+    /// * `loader` - File loader for templates.
+    /// * `params` - CLI/template parameters.
+    /// * `output` - Where to write output.
+    pub fn from_template_config(
+        config: WeaverConfig,
+        loader: impl FileLoader + Send + Sync + 'static,
+        params: Params,
+        output: OutputTarget,
+    ) -> Result<Self, Error> {
+        if matches!(output, OutputTarget::Mute) {
+            return Ok(Self {
+                kind: OutputKind::Mute,
+            });
+        }
+        let engine = TemplateEngine::try_new(config, loader, params)?;
+        Ok(Self {
+            kind: OutputKind::Template(Box::new(TemplateOutput {
+                engine,
+                target: output,
+            })),
+        })
+    }
+
+    /// Generate a template snippet from serializable context and a snippet identifier.
+    ///
+    /// Only valid for `Template` variants. Returns an error for `Builtin` and `Mute`.
+    pub fn generate_snippet<T: Serialize>(
+        &self,
+        context: &T,
+        filter: &str,
+        snippet_id: String,
+    ) -> Result<String, Error> {
+        match &self.kind {
+            OutputKind::Template(t) => t.engine.generate_snippet(context, filter, snippet_id),
+            OutputKind::Builtin { .. } | OutputKind::Mute => Err(Error::InvalidTemplateDir {
+                template_dir: PathBuf::from("(not a template)"),
+                error: "generate_snippet is only supported for template-based OutputProcessor"
+                    .to_owned(),
+            }),
+        }
     }
 
     /// Generate output for serializable data.

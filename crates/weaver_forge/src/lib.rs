@@ -75,7 +75,7 @@ pub const COMMEND_END: &str = "#}";
 
 /// Enumeration defining where the output of program execution should be directed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OutputDirective {
+pub(crate) enum OutputDirective {
     /// Write the generated content to the standard output.
     Stdout,
     /// Write the generated content to the standard error.
@@ -170,7 +170,7 @@ pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_j
 
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
-pub struct TemplateEngine {
+pub(crate) struct TemplateEngine {
     /// File loader used by the engine.
     file_loader: Arc<dyn FileLoader + Send + Sync + 'static>,
 
@@ -212,7 +212,7 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 
 impl TemplateEngine {
     /// Create a new template engine for the given Weaver config.
-    pub fn try_new(
+    pub(crate) fn try_new(
         mut config: WeaverConfig,
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
@@ -285,7 +285,7 @@ impl TemplateEngine {
     /// * `context` - The context to use when generating snippets.
     /// * `filter` - The jq filter expression to use.
     /// * `snippet_id` - The template to use when rendering the snippet.
-    pub fn generate_snippet<T: Serialize>(
+    pub(crate) fn generate_snippet<T: Serialize>(
         &self,
         context: &T,
         filter: &str,
@@ -330,7 +330,7 @@ impl TemplateEngine {
     /// output as a String instead of writing to files or stdout.
     ///
     /// This is useful when the output needs to be captured (e.g., for HTTP responses).
-    pub fn generate_to_string<T: Serialize>(&self, context: &T) -> Result<String, Error> {
+    pub(crate) fn generate_to_string<T: Serialize>(&self, context: &T) -> Result<String, Error> {
         let files = self.file_loader.all_files();
         let tmpl_matcher = self.target_config.template_matcher()?;
 
@@ -407,7 +407,7 @@ impl TemplateEngine {
     ///
     /// * `Ok(())` if the artifacts were generated successfully.
     /// * `Err(error)` if an error occurred during the generation of the artifacts.
-    pub fn generate<T: Serialize>(
+    pub(crate) fn generate<T: Serialize>(
         &self,
         context: &T,
         output_dir: &Path,
