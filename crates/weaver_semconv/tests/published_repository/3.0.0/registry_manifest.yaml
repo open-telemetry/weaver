@@ -4,4 +4,4 @@ description: Test repository that has been resolved.
 version: 3.0.0
 repository_url: https://github.com/open-telemetry/weaver.git
 stability: stable
-resolved_schema_url: resolved_schema.yaml
+resolved_schema_uri: resolved_schema.yaml
