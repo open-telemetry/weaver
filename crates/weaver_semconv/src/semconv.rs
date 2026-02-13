@@ -8,8 +8,8 @@ use crate::provenance::Provenance;
 use crate::v2::SemConvSpecV2;
 use crate::Error;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde::de;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
 use weaver_common::result::WResult;
@@ -34,8 +34,8 @@ impl<'de> Deserialize<'de> for SemConvSpec {
         let mut mapping = match value {
             serde_yaml::Value::Mapping(mapping) => mapping,
             other => {
-                let v1 = serde_yaml::from_value::<SemConvSpecV1>(other)
-                    .map_err(de::Error::custom)?;
+                let v1 =
+                    serde_yaml::from_value::<SemConvSpecV1>(other).map_err(de::Error::custom)?;
                 return Ok(SemConvSpec::NoVersion(v1));
             }
         };
@@ -51,10 +51,7 @@ impl<'de> Deserialize<'de> for SemConvSpec {
             log::warn!("The 'version' field is deprecated and will be removed in a future version. Please use 'file_format: definition/2' instead.");
         }
 
-
-        let file_format = mapping
-            .get(&file_format_key)
-            .and_then(|v| v.as_str());
+        let file_format = mapping.get(&file_format_key).and_then(|v| v.as_str());
         let version = mapping.get(&version_key).and_then(|v| v.as_str());
 
         let is_v2 = matches!(file_format, Some("definition/2")) || matches!(version, Some("2"));
@@ -65,16 +62,13 @@ impl<'de> Deserialize<'de> for SemConvSpec {
 
         let cleaned = serde_yaml::Value::Mapping(mapping);
         if is_v2 {
-            let v2 = serde_yaml::from_value::<SemConvSpecV2>(cleaned)
-                .map_err(de::Error::custom)?;
+            let v2 = serde_yaml::from_value::<SemConvSpecV2>(cleaned).map_err(de::Error::custom)?;
             Ok(SemConvSpec::WithVersion(Versioned::V2(v2)))
         } else if is_v1 {
-            let v1 = serde_yaml::from_value::<SemConvSpecV1>(cleaned)
-                .map_err(de::Error::custom)?;
+            let v1 = serde_yaml::from_value::<SemConvSpecV1>(cleaned).map_err(de::Error::custom)?;
             Ok(SemConvSpec::WithVersion(Versioned::V1(v1)))
         } else {
-            let v1 = serde_yaml::from_value::<SemConvSpecV1>(cleaned)
-                .map_err(de::Error::custom)?;
+            let v1 = serde_yaml::from_value::<SemConvSpecV1>(cleaned).map_err(de::Error::custom)?;
             Ok(SemConvSpec::NoVersion(v1))
         }
     }

@@ -1,4 +1,4 @@
-file_format: definition/2
+version: "2"
 attributes:
   - key: http.request.body.size
     type: int
