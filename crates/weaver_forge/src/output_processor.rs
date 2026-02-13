@@ -19,6 +19,8 @@ use crate::{OutputDirective, TemplateEngine};
 pub enum OutputTarget {
     /// Write to stdout.
     Stdout,
+    /// Write to stderr.
+    Stderr,
     /// Write directly to this file path.
     File(PathBuf),
     /// Create `{prefix}.{ext}` inside this directory.
@@ -203,15 +205,17 @@ impl OutputProcessor {
                             let name = format!("{}.{}", prefix, format.extension());
                             *file = Some(open_file(&p.join(name))?);
                         }
-                        _ => {} // Stdout — no file needed
+                        _ => {} // Stdout/Stderr — no file needed
                     }
                 }
+                let use_stderr = matches!(target, OutputTarget::Stderr);
                 let content = format.serialize(data)?;
-                write_content(&content, file, format.is_line_oriented())
+                write_content(&content, file, format.is_line_oriented(), use_stderr)
             }
             OutputKind::Template(t) => {
                 let (path, directive) = match &t.target {
                     OutputTarget::Stdout => (PathBuf::from("output"), OutputDirective::Stdout),
+                    OutputTarget::Stderr => (PathBuf::from("output"), OutputDirective::Stderr),
                     OutputTarget::File(p) | OutputTarget::Directory(p) => {
                         (p.clone(), OutputDirective::File)
                     }
@@ -288,12 +292,21 @@ fn open_file(path: &std::path::Path) -> Result<File, Error> {
     })
 }
 
-/// Write content to stdout (if `file` is `None`) or to the open file.
-#[allow(clippy::print_stdout)]
-fn write_content(content: &str, file: &mut Option<File>, with_newline: bool) -> Result<(), Error> {
+/// Write content to stdout/stderr (if `file` is `None`) or to the open file.
+#[allow(clippy::print_stdout, clippy::print_stderr)]
+fn write_content(
+    content: &str,
+    file: &mut Option<File>,
+    with_newline: bool,
+    use_stderr: bool,
+) -> Result<(), Error> {
     match file {
         None => {
-            println!("{content}");
+            if use_stderr {
+                eprintln!("{content}");
+            } else {
+                println!("{content}");
+            }
             Ok(())
         }
         Some(f) => if with_newline {
@@ -775,5 +788,33 @@ mod tests {
             OutputTarget::from_optional_file(Some(&file_path)),
             OutputTarget::File(_)
         ));
+    }
+
+    #[test]
+    fn test_all_builtin_formats_stderr() {
+        let formats = ["json", "yaml", "jsonl"];
+        for name in formats {
+            let mut output = OutputProcessor::new(name, "test", None, None, OutputTarget::Stderr)
+                .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
+            assert!(!output.is_file_output(), "{name}");
+            output
+                .generate(&test_data())
+                .unwrap_or_else(|e| panic!("Failed to generate {name}: {e}"));
+        }
+    }
+
+    #[test]
+    fn test_template_format_stderr() {
+        let mut output = OutputProcessor::new(
+            "simple",
+            "test",
+            Some(&EMBEDDED_TEMPLATES),
+            None,
+            OutputTarget::Stderr,
+        )
+        .unwrap();
+        assert!(!output.is_line_oriented());
+        assert!(!output.is_file_output());
+        output.generate(&test_data()).unwrap();
     }
 }
