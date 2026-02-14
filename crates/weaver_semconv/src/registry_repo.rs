@@ -6,15 +6,13 @@ use std::default::Default;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::manifest::RegistryManifest;
+use crate::manifest::{RegistryManifest, SchemaUrl};
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{get_path_type, log_info, log_warn};
 
 /// The name of the legacy registry manifest file.
-#[deprecated(
-    note = "The registry manifest file is renamed to `manifest.yaml`."
-)]
+#[deprecated(note = "The registry manifest file is renamed to `manifest.yaml`.")]
 pub const LEGACY_REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
 /// The name of the registry manifest file.
@@ -29,8 +27,11 @@ pub const REGISTRY_MANIFEST: &str = "manifest.yaml";
 ///   that denotes where to find aspects of the registry.
 #[derive(Default, Debug, Clone)]
 pub struct RegistryRepo {
-    // A unique identifier for the registry (e.g. main, baseline, etc.)
-    id: Arc<str>,
+    // A unique identifier for the registry (e.g. opentelemetry.io/schemas/sub-component).
+    name: Arc<str>,
+
+    // Registry version
+    version: Arc<str>,
 
     // A virtual directory containing the registry.
     registry: VirtualDirectory,
@@ -40,30 +41,73 @@ pub struct RegistryRepo {
 }
 
 impl RegistryRepo {
-    /// Creates a new `RegistryRepo` from a `RegistryPath` object that
+    /// Creates a new `RegistryRepo` from a name, version, and `RegistryPath` object that
     /// specifies the location of the registry.
+    /// If there is no manifest, name and version must be provided.
     pub fn try_new(
-        registry_id_if_no_manifest: &str,
+        name: Option<&str>,
+        version: Option<&str>,
         registry_path: &VirtualDirectoryPath,
     ) -> Result<Self, Error> {
-        let mut registry_repo = Self {
-            id: Arc::from(registry_id_if_no_manifest),
-            registry: VirtualDirectory::try_new(registry_path)
-                .map_err(Error::VirtualDirectoryError)?,
-            manifest: None,
-        };
-        if let Some(manifest) = registry_repo.manifest_path() {
-            let registry_manifest = RegistryManifest::try_from_file(manifest)?;
-            registry_repo.id = Arc::from(registry_manifest.name().as_str());
-            registry_repo.manifest = Some(registry_manifest);
+        let registry =
+            VirtualDirectory::try_new(registry_path).map_err(Error::VirtualDirectoryError)?;
+        let mut manifest = None;
+        let mut registry_name = None;
+        let mut registry_version = None;
+        // Try to load manifest
+        if let Some(manifest_path) = {
+            // We need a temporary RegistryRepo to call manifest_path
+            let temp_repo = Self {
+                name: Arc::from(""),
+                version: Arc::from(""),
+                registry: registry.clone(),
+                manifest: None,
+            };
+            temp_repo.manifest_path()
+        } {
+            let registry_manifest = RegistryManifest::try_from_file(manifest_path)?;
+            registry_name = Some(Arc::from(registry_manifest.name().as_str()));
+            registry_version = Some(Arc::from(registry_manifest.version().as_str()));
+            manifest = Some(registry_manifest);
+        } else {
+            // No manifest, require name and version
+            let name = name.ok_or_else(|| Error::InvalidRegistryManifest {
+                path: registry.path().to_path_buf(),
+                error: "Registry name must be provided if no manifest is present.".to_string(),
+            })?;
+            let version = version.ok_or_else(|| Error::InvalidRegistryManifest {
+                path: registry.path().to_path_buf(),
+                error: "Registry version must be provided if no manifest is present.".to_string(),
+            })?;
+            registry_name = Some(Arc::from(name));
+            registry_version = Some(Arc::from(version));
         }
-        Ok(registry_repo)
+        Ok(Self {
+            name: registry_name.unwrap(),
+            version: registry_version.unwrap(),
+            registry,
+            manifest,
+        })
     }
 
-    /// Returns the unique identifier for the registry.
+    /// Returns the registry name (from manifest if present, otherwise top-level field).
     #[must_use]
-    pub fn id(&self) -> Arc<str> {
-        self.id.clone()
+    pub fn name(&self) -> Arc<str> {
+        if let Some(manifest) = &self.manifest {
+            Arc::from(manifest.name())
+        } else {
+            self.name.clone()
+        }
+    }
+
+    /// Returns the registry version (from manifest if present, otherwise top-level field).
+    #[must_use]
+    pub fn version(&self) -> Arc<str> {
+        if let Some(manifest) = &self.manifest {
+            Arc::from(manifest.version())
+        } else {
+            self.version.clone()
+        }
     }
 
     /// Returns the local path to the semconv registry.
@@ -142,8 +186,14 @@ impl RegistryRepo {
 
     /// Returns the registry schema URL, if available in the manifest.
     #[must_use]
-    pub fn schema_url(&self) -> Option<String> {
-        self.manifest.as_ref().and_then(|manifest| manifest.schema_url.clone())
+    pub fn schema_url(&self) -> SchemaUrl {
+        // TODO: we should never have a registry without a schema URL at this point
+        // but not sure how to do it in terms of API design
+        // but for now we can just panic if we don't find a schema URL
+        self.manifest
+            .as_ref()
+            .and_then(|manifest| manifest.schema_url.clone())
+            .expect("Schema URL must have been provided")
     }
 }
 
@@ -167,7 +217,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = RegistryRepo::try_new("main", &registry_path).unwrap();
+        let repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(
@@ -186,8 +236,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/resolved/1.0.0".to_owned(),
         };
-        let repo =
-            RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
+        let repo = RegistryRepo::try_new(None, None, &registry_path)
+            .expect("Failed to load test repository.");
         let Some(manifest) = repo.manifest() else {
             panic!("Did not resolve manifest for repo: {repo:?}");
         };
@@ -208,8 +258,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/resolved/2.0.0".to_owned(),
         };
-        let repo =
-            RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
+        let repo = RegistryRepo::try_new(None, None, &registry_path)
+            .expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
@@ -222,8 +272,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/3.0.0".to_owned(),
         };
-        let repo =
-            RegistryRepo::try_new("main", &registry_path).expect("Failed to load test repository.");
+        let repo = RegistryRepo::try_new(None, None, &registry_path)
+            .expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",

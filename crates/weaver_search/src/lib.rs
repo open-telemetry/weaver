@@ -478,6 +478,7 @@ mod tests {
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+    use weaver_semconv::manifest::SchemaUrl;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;
@@ -543,7 +544,7 @@ mod tests {
 
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
-            registry_url: "test".to_owned(),
+            schema_url: SchemaUrl("https://example.com/schemas/1.2.3".to_owned()),
             registry: Registry {
                 attributes: vec![
                     make_attribute("http.request.method", "HTTP request method", "", false),

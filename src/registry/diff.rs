@@ -101,8 +101,13 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     info!("Checking registry `{}`", args.registry.registry);
 
     let registry_path = args.registry.registry.clone();
-    let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
+    let main_registry_repo =
+        RegistryRepo::try_new(Some("acme/schemas/semconv"), Some("1.0.0"), &registry_path)?;
+    let baseline_registry_repo = RegistryRepo::try_new(
+        Some("acme/schemas/semconv"),
+        Some("2.0.0"),
+        &args.baseline_registry,
+    )?;
 
     let main = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     let baseline = weaver.load_definitions(baseline_registry_repo, &mut diag_msgs)?;

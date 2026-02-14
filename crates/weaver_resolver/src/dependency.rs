@@ -167,7 +167,7 @@ impl ImportableDependency for V2Schema {
             for ar in m.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().clone(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -214,7 +214,7 @@ impl ImportableDependency for V2Schema {
             for ar in e.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().clone(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -262,7 +262,7 @@ impl ImportableDependency for V2Schema {
                 // TODO - this should be non-panic errors.
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().clone(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -276,7 +276,7 @@ impl ImportableDependency for V2Schema {
                 // TODO - this should be non-panic errors.
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().clone(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -439,6 +439,7 @@ mod tests {
     use itertools::Itertools;
     use std::error::Error;
     use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+    use weaver_semconv::manifest::SchemaUrl;
 
     use crate::dependency::{ResolvedDependency, UnresolvedAttributeLookup};
 
@@ -470,8 +471,7 @@ mod tests {
     fn example_v1_schema() -> V1Schema {
         V1Schema {
             file_format: "resolved/1.0.0".to_owned(),
-            schema_url: "v1-example".to_owned(),
-            registry_id: "v1-example".to_owned(),
+            schema_url: SchemaUrl("http://test/schemas/1.0.0".to_owned()),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
                 groups: vec![weaver_resolved_schema::registry::Group {
