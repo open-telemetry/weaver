@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
-use weaver_semconv::manifest::{RegistryManifest, SchemaUrl};
+use weaver_semconv::manifest::RegistryManifest;
 use weaver_version::schema_changes::{SchemaChanges, SchemaItemChange, SchemaItemType};
 use weaver_version::Versions;
 
@@ -51,8 +51,10 @@ pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0.0";
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
     pub file_format: String,
-    /// Schema URL that this file is or will be published at.
-    pub schema_url: SchemaUrl,
+    /// Schema URL that this file is published at.
+    pub schema_url: String,
+    /// The ID of the registry that this schema belongs to.
+    pub registry_id: String,
     /// The registry that this schema belongs to.
     pub registry: Registry,
     /// Catalog of unique items that are shared across multiple registries
@@ -77,8 +79,7 @@ pub struct ResolvedTelemetrySchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub versions: Option<Versions>,
     /// The manifest of the registry.
-    #[serde(skip)]
-    pub manifest: Option<RegistryManifest>,
+    pub registry_manifest: Option<RegistryManifest>,
 }
 
 /// Statistics on a resolved telemetry schema.
@@ -93,18 +94,18 @@ pub struct Stats {
 
 impl ResolvedTelemetrySchema {
     /// Create a new resolved telemetry schema.
-    pub fn new<S: AsRef<str>>(schema_url: S, registry_url: S) -> Self {
+    pub fn new<S: AsRef<str>>(schema_url: S, registry_id: S, registry_url: S) -> Self {
         Self {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
-            // TODO: is it correct?
-            schema_url: SchemaUrl::new(schema_url.as_ref().to_owned()),
+            schema_url: schema_url.as_ref().to_owned(),
+            registry_id: registry_id.as_ref().to_owned(),
             registry: Registry::new(registry_url),
             catalog: Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: vec![],
             versions: None,
-            manifest: None,
+            registry_manifest: None,
         }
     }
 
@@ -295,13 +296,13 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         let mut changes = SchemaChanges::new();
 
-        if let Some(ref manifest) = self.manifest {
+        if let Some(ref manifest) = self.registry_manifest {
             changes.set_head_manifest(weaver_version::schema_changes::RegistryManifest {
                 semconv_version: manifest.version().clone(),
             });
         }
 
-        if let Some(ref manifest) = baseline_schema.manifest {
+        if let Some(ref manifest) = baseline_schema.registry_manifest {
             changes.set_baseline_manifest(weaver_version::schema_changes::RegistryManifest {
                 semconv_version: manifest.version().clone(),
             });
@@ -538,7 +539,7 @@ mod tests {
 
     #[test]
     fn no_diff() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "group1",
             [
@@ -555,7 +556,7 @@ mod tests {
 
     #[test]
     fn detect_2_added_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -564,7 +565,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -583,7 +584,7 @@ mod tests {
 
     #[test]
     fn detect_2_deprecated_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -597,7 +598,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -644,7 +645,7 @@ mod tests {
 
     #[test]
     fn detect_2_renamed_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("http://test/schemas/1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("http://test/schemas/1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -658,7 +659,7 @@ mod tests {
         // 2 new attributes are added: attr2_bis and attr3_bis
         // attr2 is renamed attr2_bis
         // attr3 is renamed attr3_bis
-        let mut latest_schema = ResolvedTelemetrySchema::new("http://test/schemas/2.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("http://test/schemas/2.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -692,7 +693,7 @@ mod tests {
 
     #[test]
     fn detect_2_attributes_renamed_to_the_same_existing_attribute() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -704,7 +705,7 @@ mod tests {
         );
         prior_schema.add_attribute_group("group2", [Attribute::string("attr5", "brief", "note")]);
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -731,7 +732,7 @@ mod tests {
 
     #[test]
     fn detect_2_attributes_renamed_to_the_same_new_attribute() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -742,7 +743,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -775,7 +776,7 @@ mod tests {
     /// However, detecting this case is useful for identifying a violation of the process.
     #[test]
     fn detect_2_removed_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -786,7 +787,7 @@ mod tests {
             ],
         );
 
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -804,9 +805,9 @@ mod tests {
     // TODO add many more group diff checks for various capabilities.
     #[test]
     fn detect_metric_name_change() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("http://test/schemas/1.0", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("http://test/schemas/1.0", "", "");
         prior_schema.add_metric_group("metrics.cpu.time", "cpu.time", [], None);
-        let mut latest_schema = ResolvedTelemetrySchema::new("http://test/schemas/2.0", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("http://test/schemas/2.0", "", "");
         latest_schema.add_metric_group(
             "metrics.cpu.time",
             "cpu.time",

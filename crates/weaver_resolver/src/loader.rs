@@ -79,7 +79,7 @@ impl LoadedSemconvRegistry {
         match self {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
             // TODO - are these correct?
-            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url.url,
+            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
             LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url.url,
         }
     }
@@ -115,7 +115,7 @@ impl LoadedSemconvRegistry {
                 }
                 result
             }
-            LoadedSemconvRegistry::Resolved(schema) => vec![schema.schema_url.name().to_owned()],
+            LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry_id.to_owned()],
             LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.schema_url.name().to_owned()],
         }
     }

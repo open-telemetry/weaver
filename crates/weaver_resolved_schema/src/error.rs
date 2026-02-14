@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound};
+use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -24,6 +24,16 @@ pub enum Error {
     EventNameNotFound {
         /// Group id.
         group_id: String,
+    },
+
+    /// Cannot convert from V1 to V2 schema due to invalid schema URL.
+    #[error("Failed to convert from V1 to V2 schema, invalid schema URL: {url}, error: {error}")]
+    InvalidSchemaUrl {
+        /// The invalid schema URL.
+        url: String,
+
+        /// The error message from the URL validation.
+        error: String,
     },
 
     /// A generic container for multiple errors.
@@ -53,6 +63,7 @@ impl Error {
                     CompoundError(errors) => errors,
                     e @ AttributeNotFound { .. } => vec![e],
                     e @ EventNameNotFound { .. } => vec![e],
+                    e @ InvalidSchemaUrl { .. } => vec![e],
                 })
                 .collect(),
         )

@@ -118,14 +118,15 @@ impl SchemaResolver {
 
             ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),
-                schema_url,
+                schema_url: schema_url.url.clone(),
+                registry_id: schema_url.name().to_owned(),
                 registry: resolved_registry,
                 catalog,
                 resource: None,
                 instrumentation_library: None,
                 dependencies: vec![],
                 versions: None, // ToDo LQ: Implement this!
-                manifest,
+                registry_manifest: manifest,
             }
         })
     }
