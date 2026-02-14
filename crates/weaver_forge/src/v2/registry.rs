@@ -560,8 +560,7 @@ mod tests {
                         common: CommonFields::default(),
                     },
                 }],
-            },
-            registry_manifest: None,
+            }
         };
 
         let forge_registry =
@@ -640,8 +639,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
-            },
-            registry_manifest: None,
+            }
         };
 
         let result = ForgeResolvedRegistry::try_from(resolved_schema);

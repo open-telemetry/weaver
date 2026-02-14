@@ -57,9 +57,6 @@ pub struct ResolvedTelemetrySchema {
     pub registry: Registry,
     /// Refinements for the registry
     pub refinements: Refinements,
-    /// The manifest of the registry.
-    #[serde(skip)]
-    pub manifest: Option<RegistryManifest>,
 }
 
 impl ResolvedTelemetrySchema {
@@ -131,8 +128,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
             schema_url: value.schema_url,
             attribute_catalog,
             registry,
-            refinements,
-            registry_manifest: None,
+            refinements
         })
     }
 }
@@ -995,7 +991,7 @@ mod tests {
             resource: None,
             dependencies: vec![],
             versions: None,
-            registry_manifest: None,
+            manifest: None,
         };
 
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();
@@ -1227,8 +1223,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
-            },
-            registry_manifest: None,
+            }
         }
     }
 }

@@ -286,6 +286,7 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
+    use crate::manifest::SchemaUrl;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
@@ -394,7 +395,7 @@ mod tests {
             path: "data".to_owned(),
         };
         let registry_repo =
-            RegistryRepo::try_new(Some("test"), Some("1.0.0"), &registry_path).unwrap();
+            RegistryRepo::try_new(Some(SchemaUrl("https://test/42".to_owned())), &registry_path).unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);

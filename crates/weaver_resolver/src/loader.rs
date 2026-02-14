@@ -48,7 +48,7 @@ impl LoadedSemconvRegistry {
         use weaver_common::vdir::VirtualDirectoryPath;
         use weaver_semconv::provenance::Provenance;
         let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
-        let repo = RegistryRepo::try_new(Some("default"), Some("1.0.0"), &path).map_err(|e| {
+        let repo = RegistryRepo::try_new(None, &path).map_err(|e| {
             Error::InvalidUrl {
                 url: "test string".to_owned(),
                 error: format!("{e}"),
@@ -204,18 +204,7 @@ fn load_semconv_repository_recursive(
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors = vec![];
             for d in manifest.dependencies.iter() {
-                let registry_path = d.registry_path.clone().unwrap_or_else(|| {
-                    // If no registry path is provided, we assume it's the same as the parent registry.
-                    VirtualDirectoryPath::RemoteArchive {
-                        url: d.schema_url.to_string(),
-                        sub_folder: None,
-                    }
-                });
-                match RegistryRepo::try_new(
-                    Some(&d.schema_url.name()),
-                    Some(&d.schema_url.version()),
-                    &registry_path,
-                ) {
+                match RegistryRepo::try_new_dependency(&d) {
                     Ok(d_repo) => {
                         // so we need to make sure the dependency chain only include direct dependencies of each other.
                         match load_semconv_repository_recursive(
@@ -411,7 +400,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
         let mut diag_msgs = DiagnosticMessages::empty();
         let loaded = load_semconv_repository(registry_repo, false)
             .capture_non_fatal_errors(&mut diag_msgs)?;
@@ -453,7 +442,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(Some("app"), Some("1.0.0"), &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
         let mut visited_registries = HashSet::new();
@@ -488,7 +477,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/circular-registry-test/registry_a".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(Some("registry_a"), Some(""), &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
         let result = load_semconv_repository(registry_repo, true);
 
         match result {

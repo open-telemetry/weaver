@@ -128,14 +128,14 @@ pub struct RegistryManifest {
     pub description: Option<String>,
 
     /// The version of the registry which will be used to define the semconv package version.
-    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[serde(default, skip_serializing)]
     #[deprecated(
         note = "The `version` field is deprecated. The registry version should be specified in the `schema_url` field, which is required and serves as a unique identifier for the registry."
     )]
     pub semconv_version: Option<String>,
 
     /// The base URL where the registry's schema files are hosted.
-    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[serde(default, skip_serializing)]
     #[deprecated(
         note = "The `schema_base_url` field is deprecated. The registry schema URL should be specified in the `schema_url` field, which is required and serves as a unique identifier for the registry."
     )]
@@ -157,7 +157,7 @@ pub struct RegistryManifest {
 }
 
 /// Represents a dependency of a semantic convention registry as defined in YAML.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct Dependency {
     /// The schema URL for the dependency (required).
     /// It must follow OTel schema URL format, which is: `http[s]://server[:port]/path/<version>`.
@@ -175,6 +175,48 @@ pub struct Dependency {
     /// - A directory containing the raw definition.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub registry_path: Option<VirtualDirectoryPath>,
+
+    /// This field is deprecated and should not be used.
+    /// The registry name should be derived from the `schema_url` field,
+    /// which serves as a unique identifier for the dependency registry
+    /// and includes registry version.
+    #[deprecated(
+        note = "The `name` field is deprecated. The registry name should be derived from the `schema_url` field, which serves as a unique identifier for the dependency registry."
+    )]
+    #[serde(default, skip_serializing)] // we can read, but won't write this field
+    pub name: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for Dependency {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct DependencyHelper {
+            name: Option<String>,
+            schema_url: Option<SchemaUrl>,
+            registry_path: Option<VirtualDirectoryPath>,
+        }
+
+        let helper = DependencyHelper::deserialize(deserializer)?;
+
+        let schema_url = match (helper.schema_url, helper.name) {
+            (Some(url), _) => url,
+            (None, Some(name)) => SchemaUrl(format!("{}/unknown", name)),
+            (None, None) => {
+                return Err(serde::de::Error::custom(
+                    "Either 'schema_url' or 'name' must be provided for a dependency"
+                ))
+            }
+        };
+
+        Ok(Dependency {
+            schema_url,
+            registry_path: helper.registry_path,
+            name: None,
+        })
+    }
 }
 
 impl RegistryManifest {

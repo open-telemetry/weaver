@@ -568,8 +568,7 @@ mod tests {
                         common: CommonFields::default(),
                     },
                 }],
-            },
-            registry_manifest: None,
+            }
         }
     }
 }

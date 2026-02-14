@@ -102,10 +102,9 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
 
     let registry_path = args.registry.registry.clone();
     let main_registry_repo =
-        RegistryRepo::try_new(Some("acme/schemas/semconv"), Some("1.0.0"), &registry_path)?;
+        RegistryRepo::try_new(None, &registry_path)?;
     let baseline_registry_repo = RegistryRepo::try_new(
-        Some("acme/schemas/semconv"),
-        Some("2.0.0"),
+        None,
         &args.baseline_registry,
     )?;
 

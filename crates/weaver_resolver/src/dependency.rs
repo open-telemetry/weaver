@@ -523,7 +523,7 @@ mod tests {
             instrumentation_library: None,
             dependencies: vec![],
             versions: None,
-            registry_manifest: None,
+            manifest: None,
         }
     }
 }

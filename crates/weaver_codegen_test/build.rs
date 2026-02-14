@@ -42,7 +42,7 @@ fn main() {
     let registry_path = VirtualDirectoryPath::LocalFolder {
         path: SEMCONV_REGISTRY_PATH.into(),
     };
-    let registry_repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path)
+    let registry_repo = RegistryRepo::try_new(None, &registry_path)
         .unwrap_or_else(|e| process_error(&logger, e));
     let loaded = SchemaResolver::load_semconv_repository(registry_repo, FOLLOW_SYMLINKS)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))

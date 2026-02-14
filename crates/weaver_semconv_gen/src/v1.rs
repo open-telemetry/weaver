@@ -198,7 +198,7 @@ mod tests {
             path: "data".to_owned(),
         };
         let mut diag_msgs = DiagnosticMessages::empty();
-        let registry_repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
         let generator = SnippetGenerator::try_from_registry_repo(
             &registry_repo,
             template,
