@@ -33,9 +33,14 @@ fn test_cli_interface() {
         sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
         refspec: None,
     };
-    let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
-        panic!("Failed to create the registry repo, error: {e}");
-    });
+
+    let registry_name = "opentelemetry.io/schemas";
+    let registry_version = "1.40.0";
+    let registry_repo =
+        RegistryRepo::try_new(Some(registry_name), Some(registry_version), &registry_path)
+            .unwrap_or_else(|e| {
+                panic!("Failed to create the registry repo, error: {e}");
+            });
     let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()

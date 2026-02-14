@@ -3,6 +3,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
+use weaver_semconv::manifest::SchemaUrl;
 
 use crate::{
     error::Error,
@@ -24,8 +25,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct ForgeResolvedRegistry {
     /// The semantic convention registry url.
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub registry_url: String,
+    pub schema_url: SchemaUrl,
     // TODO - Attribute Groups
     /// The signals defined in this registry.
     pub registry: Registry,
@@ -413,7 +413,7 @@ impl ForgeResolvedRegistry {
         }
 
         Ok(Self {
-            registry_url: schema.schema_url.clone(),
+            schema_url: schema.schema_url.clone(),
             registry: Registry {
                 attributes,
                 attribute_groups,
@@ -448,8 +448,7 @@ mod tests {
     fn test_try_from_resolved_schema() {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/schema".to_owned(),
-            registry_id: "my-registry".to_owned(),
+            schema_url: SchemaUrl("https://example.com/schema".to_owned()),
             attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -457,7 +456,6 @@ mod tests {
                 common: CommonFields::default(),
             }],
             registry: v2::registry::Registry {
-                registry_url: "https://example.com/registry".to_owned(),
                 attributes: vec![attribute::AttributeRef(0)],
                 spans: vec![span::Span {
                     r#type: SignalId::from("my-span".to_owned()),
@@ -613,11 +611,9 @@ mod tests {
     fn test_try_from_resolved_schema_with_missing_attribute() {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/schema".to_owned(),
-            registry_id: "my-registry".to_owned(),
+            schema_url: SchemaUrl("https://example.com/schema".to_owned()),
             attribute_catalog: vec![],
             registry: v2::registry::Registry {
-                registry_url: "https://example.com/registry".to_owned(),
                 attributes: vec![], // No attributes - This is the logic bug.
                 spans: vec![span::Span {
                     r#type: SignalId::from("my-span".to_owned()),

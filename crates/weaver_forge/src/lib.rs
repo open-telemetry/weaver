@@ -856,11 +856,12 @@ mod tests {
         ignore_non_fatal_errors: bool,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let registry_id = "default";
+        let registry_version = "1.0.0";
         let path: VirtualDirectoryPath = "data/registry"
             .try_into()
             .expect("Invalid virtual directory path string");
-        let repo =
-            RegistryRepo::try_new(registry_id, &path).expect("Failed to construct repository");
+        let repo = RegistryRepo::try_new(Some(registry_id), Some(registry_version), &path)
+            .expect("Failed to construct repository");
         let registry_result = SchemaResolver::load_semconv_repository(repo, false);
         // SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml");
         let registry = if ignore_non_fatal_errors {
@@ -1060,8 +1061,9 @@ mod tests {
         let path: VirtualDirectoryPath = "data/registry"
             .try_into()
             .expect("Invalid virtual directory path string");
-        let repo =
-            RegistryRepo::try_new(registry_id, &path).expect("Failed to construct repository");
+        let registry_version = "1.0.0";
+        let repo = RegistryRepo::try_new(Some(registry_id), Some(registry_version), &path)
+            .expect("Failed to construct repository");
         let loaded = SchemaResolver::load_semconv_repository(repo, false)
             .into_result_with_non_fatal()
             .expect("Failed to load registry")
@@ -1190,8 +1192,9 @@ mod tests {
         let path: VirtualDirectoryPath = "data/mini_registry_for_comments"
             .try_into()
             .expect("Invalid virtual directory path string");
-        let repo =
-            RegistryRepo::try_new(registry_id, &path).expect("Failed to construct repository");
+        let registry_version = "1.0.0";
+        let repo = RegistryRepo::try_new(Some(registry_id), Some(registry_version), &path)
+            .expect("Failed to construct repository");
         let loaded = SchemaResolver::load_semconv_repository(repo, false)
             .into_result_with_non_fatal()
             .expect("Failed to load registry")

@@ -185,7 +185,6 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
@@ -194,6 +193,10 @@ mod tests {
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
         YamlValue,
+    };
+    use weaver_semconv::{
+        manifest::SchemaUrl,
+        v2::{span::SpanName, CommonFields},
     };
 
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -508,7 +511,7 @@ mod tests {
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
+                schema_url: SchemaUrl("https://example.com/schemas/1.2.3".to_owned()),
                 registry: Registry {
                     attributes: vec![
                         V2Attribute {
@@ -794,7 +797,7 @@ mod tests {
             };
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_METRICS".to_owned(),
+                schema_url: SchemaUrl("https://example.com/schemas/1.2.3".to_owned()),
                 registry: Registry {
                     attributes: vec![memory_state_attr.clone()],
                     attribute_groups: vec![],
@@ -1002,8 +1005,7 @@ mod tests {
             };
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
-
+                schema_url: SchemaUrl("https://example.com/schemas/1.2.3".to_owned()),
                 registry: Registry {
                     attributes: vec![custom_string_attr.clone()],
                     attribute_groups: vec![],
@@ -1517,7 +1519,7 @@ mod tests {
             };
 
             VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_EVENTS".to_owned(),
+                schema_url: SchemaUrl("https://example.com/schemas/1.2.3".to_owned()),
                 registry: Registry {
                     attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
                     attribute_groups: vec![],

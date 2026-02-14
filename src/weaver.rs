@@ -58,7 +58,8 @@ impl<'a> WeaverEngine<'a> {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Loaded, Error> {
         let registry_path = &self.registry_config.registry;
-        let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+        let main_registry_repo =
+            RegistryRepo::try_new(Some("unknown"), Some("unknown"), registry_path)?;
         self.load_definitions(main_registry_repo, diag_msgs)
     }
 

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     deprecated::Deprecated,
     group::GroupType,
-    manifest::RegistryManifest,
+    manifest::{RegistryManifest, SchemaUrl},
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
         CommonFields,
@@ -50,9 +50,7 @@ pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
     pub file_format: String,
     /// Schema URL that this file is published at.
-    pub schema_url: String,
-    /// The ID of the registry that this schema belongs to.
-    pub registry_id: String,
+    pub schema_url: SchemaUrl,
     /// Catalog of attributes. Note: this will include duplicates for the same key.
     pub attribute_catalog: Vec<Attribute>,
     /// The registry that this schema belongs to.
@@ -60,8 +58,8 @@ pub struct ResolvedTelemetrySchema {
     /// Refinements for the registry
     pub refinements: Refinements,
     /// The manifest of the registry.
-    #[serde(skip_serializing)]
-    pub registry_manifest: Option<RegistryManifest>,
+    #[serde(skip)]
+    pub manifest: Option<RegistryManifest>,
 }
 
 impl ResolvedTelemetrySchema {
@@ -131,7 +129,6 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
         Ok(ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: value.schema_url,
-            registry_id: value.registry_id,
             attribute_catalog,
             registry,
             refinements,
@@ -505,7 +502,6 @@ pub fn convert_v1_to_v2(
     }
 
     let v2_registry = Registry {
-        registry_url: r.registry_url,
         attributes,
         spans,
         metrics,
@@ -989,11 +985,10 @@ mod tests {
     fn test_try_from_v1_to_v2() {
         let v1_schema = crate::ResolvedTelemetrySchema {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: "my.schema.url".to_owned(),
-            registry_id: "my-registry".to_owned(),
+            schema_url: SchemaUrl("http://test/schemas/1.0.0".to_owned()),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
             registry: crate::registry::Registry {
-                registry_url: "my.schema.url".to_owned(),
+                registry_url: "http://test/schemas/1.0".to_owned(),
                 groups: vec![],
             },
             instrumentation_library: None,
@@ -1007,8 +1002,10 @@ mod tests {
         assert!(v2_schema.is_ok());
         let v2_schema = v2_schema.unwrap();
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
-        assert_eq!(v2_schema.schema_url, "my.schema.url");
-        assert_eq!(v2_schema.registry_id, "my-registry");
+        assert_eq!(
+            v2_schema.schema_url,
+            SchemaUrl("http://test/schemas/1.0.0".to_owned())
+        );
     }
 
     #[test]
@@ -1216,13 +1213,11 @@ mod tests {
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: "my.schema.url".to_owned(),
-            registry_id: "main".to_owned(),
+            schema_url: SchemaUrl("http://test/schemas/1.0".to_owned()),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
-                registry_url: "todo".to_owned(),
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],

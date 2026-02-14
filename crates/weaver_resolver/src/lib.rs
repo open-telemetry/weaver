@@ -3,6 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::manifest::SchemaUrl;
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
@@ -88,8 +89,20 @@ impl SchemaResolver {
                 WResult::FatalErr(e) => return WResult::FatalErr(e),
             }
         }
-        let registry_id: String = repo.id().to_string();
         let manifest = repo.manifest().cloned();
+        let schema_url = if let Some(m) = manifest.as_ref() {
+            match m.schema_url.clone() {
+                Some(url) => url,
+                None => {
+                    return WResult::FatalErr(Error::FailToResolveSchemaUrl {});
+                }
+            }
+        } else {
+            match SchemaUrl::from_name_version(&repo.name(), &repo.version()) {
+                Ok(url) => url,
+                Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
+            }
+        };
         let mut attr_catalog = AttributeCatalog::default();
         // TODO - Do something with non_fatal_errors if we need to.
         resolve_registry_with_dependencies(
@@ -105,8 +118,7 @@ impl SchemaResolver {
 
             ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),
-                schema_url: "".to_owned(),
-                registry_id,
+                schema_url: schema_url,
                 registry: resolved_registry,
                 catalog,
                 resource: None,
@@ -235,7 +247,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path)?;
         // test with the `include_unreferenced` flag set to false
         check_semconv_load_and_resolve(registry_repo.clone(), false);
         // test with the `include_unreferenced` flag set to true
@@ -249,7 +261,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, None, &registry_path)?;
         let result = SchemaResolver::load_semconv_repository(registry_repo, true);
 
         match result {
@@ -263,19 +275,22 @@ mod tests {
                 );
 
                 // Verify we have specs from all three registries
-                let registry_ids = loaded.registry_ids();
+                let registry_names = loaded.registry_names();
 
                 assert!(
-                    registry_ids.contains(&"app".to_owned()),
-                    "Missing app registry specs"
+                    registry_names.contains(&"app.com/schemas".to_owned()),
+                    "Missing app registry specs, available registries: {:?}",
+                    registry_names
                 );
                 assert!(
-                    registry_ids.contains(&"acme".to_owned()),
-                    "Missing acme registry specs"
+                    registry_names.contains(&"acme.com/schemas".to_owned()),
+                    "Missing acme registry specs, available registries: {:?}",
+                    registry_names
                 );
                 assert!(
-                    registry_ids.contains(&"otel".to_owned()),
-                    "Missing otel registry specs"
+                    registry_names.contains(&"opentelemetry.io/schemas".to_owned()),
+                    "Missing otel registry specs, available registries: {:?}",
+                    registry_names
                 );
 
                 // Now test the resolved registry content

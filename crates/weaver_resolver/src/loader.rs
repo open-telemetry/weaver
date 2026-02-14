@@ -14,7 +14,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::json_schema::JsonSchemaValidator;
-use weaver_semconv::registry_repo::{LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST, RegistryRepo};
+use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
 use crate::Error;
@@ -48,9 +48,11 @@ impl LoadedSemconvRegistry {
         use weaver_common::vdir::VirtualDirectoryPath;
         use weaver_semconv::provenance::Provenance;
         let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
-        let repo = RegistryRepo::try_new("default", &path).map_err(|e| Error::InvalidUrl {
-            url: "test string".to_owned(),
-            error: format!("{e}"),
+        let repo = RegistryRepo::try_new(Some("default"), Some("1.0.0"), &path).map_err(|e| {
+            Error::InvalidUrl {
+                url: "test string".to_owned(),
+                error: format!("{e}"),
+            }
         })?;
         let provenance = Provenance::new("default", "<str>");
         let spec_with_provenance = SemConvSpecWithProvenance::from_string(provenance, spec)
@@ -79,8 +81,8 @@ impl LoadedSemconvRegistry {
         match self {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
             // TODO - are these correct?
-            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
-            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url,
+            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url.0,
+            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url.0,
         }
     }
 
@@ -104,19 +106,19 @@ impl LoadedSemconvRegistry {
     /// Returns all the registry ids in this loaded registry and its dependencies.
     #[cfg(test)]
     #[must_use]
-    pub fn registry_ids(&self) -> Vec<String> {
+    pub fn registry_names(&self) -> Vec<String> {
         match self {
             LoadedSemconvRegistry::Unresolved {
                 repo, dependencies, ..
             } => {
-                let mut result = vec![repo.id().to_string()];
+                let mut result = vec![repo.name().to_string()];
                 for d in dependencies {
-                    result.extend(d.registry_ids());
+                    result.extend(d.registry_names());
                 }
                 result
             }
-            LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry_id.clone()],
-            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.registry_id.clone()],
+            LoadedSemconvRegistry::Resolved(schema) => vec![schema.schema_url.name().clone()],
+            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.schema_url.name().clone()],
         }
     }
 }
@@ -132,11 +134,11 @@ impl Display for LoadedSemconvRegistry {
             } => write!(
                 f,
                 "{} - [{}]",
-                repo.id(),
+                repo.schema_url(),
                 dependencies.iter().map(|d| format!("{d}")).join(",")
             ),
-            LoadedSemconvRegistry::Resolved(schema) => write!(f, "{}", schema.registry_id),
-            LoadedSemconvRegistry::ResolvedV2(schema) => write!(f, "{}", schema.registry_id),
+            LoadedSemconvRegistry::Resolved(schema) => write!(f, "{}", schema.schema_url),
+            LoadedSemconvRegistry::ResolvedV2(schema) => write!(f, "{}", schema.schema_url),
         }
     }
 }
@@ -173,22 +175,22 @@ fn load_semconv_repository_recursive(
     // Make sure we don't go past our max dependency depth.
     if max_dependency_depth == 0 {
         return WResult::FatalErr(Error::MaximumDependencyDepth {
-            registry: registry_repo.registry_path_repr().to_owned(),
+            registry_name: registry_repo.registry_path_repr().to_owned(),
         });
     }
-    let registry_id = registry_repo.id().to_string();
+    let registry_name = registry_repo.name().to_string();
     // Check for circular dependency
-    if visited_registries.contains(&registry_id) {
-        dependency_chain.push(registry_id.clone());
+    if visited_registries.contains(&registry_name) {
+        dependency_chain.push(registry_name.clone());
         let chain_str = dependency_chain.join(" → ");
         return WResult::FatalErr(Error::CircularDependency {
-            registry_id,
+            registry_name: registry_name.clone(),
             chain: chain_str,
         });
     }
     // Add current registry to visited set and dependency chain
-    let _ = visited_registries.insert(registry_id.clone());
-    dependency_chain.push(registry_id.clone());
+    let _ = visited_registries.insert(registry_name.clone());
+    dependency_chain.push(registry_name.clone());
 
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
@@ -202,7 +204,18 @@ fn load_semconv_repository_recursive(
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors = vec![];
             for d in manifest.dependencies.iter() {
-                match RegistryRepo::try_new(&d.name, &d.registry_path) {
+                let registry_path = d.registry_path.clone().unwrap_or_else(|| {
+                    // If no registry path is provided, we assume it's the same as the parent registry.
+                    VirtualDirectoryPath::RemoteArchive {
+                        url: d.schema_url.to_string(),
+                        sub_folder: None,
+                    }
+                });
+                match RegistryRepo::try_new(
+                    Some(&d.schema_url.name()),
+                    Some(&d.schema_url.version()),
+                    &registry_path,
+                ) {
                     Ok(d_repo) => {
                         // so we need to make sure the dependency chain only include direct dependencies of each other.
                         match load_semconv_repository_recursive(
@@ -305,7 +318,7 @@ fn load_definition_repository(
 
                     // TODO - less confusing way to load semconv specs.
                     vec![SemConvRegistry::semconv_spec_from_file(
-                        &registry_repo.id(),
+                        &registry_repo.name(),
                         entry.path(),
                         &unversioned_validator,
                         &versioned_validator,
@@ -398,7 +411,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path)?;
         let mut diag_msgs = DiagnosticMessages::empty();
         let loaded = load_semconv_repository(registry_repo, false)
             .capture_non_fatal_errors(&mut diag_msgs)?;
@@ -410,7 +423,7 @@ mod tests {
             dependencies,
         } = loaded
         {
-            assert_eq!("acme", repo.id().as_ref());
+            assert_eq!("acme.com/schemas", repo.name().as_ref());
             assert_eq!(dependencies.len(), 1);
             assert_eq!(specs.len(), 1);
             assert_eq!(imports.len(), 1);
@@ -421,7 +434,7 @@ mod tests {
                 dependencies,
             }] = &dependencies.as_slice()
             {
-                assert_eq!("otel", repo.id().as_ref());
+                assert_eq!("opentelemetry.io/schemas", repo.name().as_ref());
                 assert_eq!(dependencies.len(), 0);
                 assert_eq!(specs.len(), 1);
                 assert_eq!(imports.len(), 0);
@@ -440,7 +453,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(Some("app"), Some("1.0.0"), &registry_path)?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
         let mut visited_registries = HashSet::new();
@@ -475,7 +488,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/circular-registry-test/registry_a".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("registry_a", &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(Some("registry_a"), Some(""), &registry_path)?;
         let result = load_semconv_repository(registry_repo, true);
 
         match result {

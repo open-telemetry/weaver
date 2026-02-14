@@ -125,7 +125,7 @@ impl SemConvRegistry {
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
+        let mut registry = SemConvRegistry::new(registry_repo.name().as_ref());
 
         for spec in semconv_specs {
             registry.add_semconv_spec(spec);
@@ -145,9 +145,16 @@ impl SemConvRegistry {
 
             registry.set_manifest(RegistryManifest {
                 file_format: None,
-                schema_url: registry_repo.manifest().and_then(|m| Some(m.schema_url.clone())).unwrap_or_default(),
-                schema_base_url: registry_repo.manifest().and_then(|m| m.schema_base_url.clone()),
-                semconv_version: registry_repo.manifest().and_then(|m| m.semconv_version.clone()),
+                schema_url: registry_repo
+                    .manifest()
+                    .and_then(|m| Some(m.schema_url.clone()))
+                    .unwrap_or_default(),
+                schema_base_url: registry_repo
+                    .manifest()
+                    .and_then(|m| m.schema_base_url.clone()),
+                semconv_version: registry_repo
+                    .manifest()
+                    .and_then(|m| m.semconv_version.clone()),
                 description: registry_repo.manifest().and_then(|m| m.description.clone()),
                 dependencies: vec![],
                 resolved_schema_uri: None,
@@ -386,7 +393,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("test", &registry_path).unwrap();
+        let registry_repo =
+            RegistryRepo::try_new(Some("test"), Some("1.0.0"), &registry_path).unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);
