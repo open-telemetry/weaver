@@ -788,7 +788,7 @@ mod tests {
 
         let jsonl =
             OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout).unwrap();
-        assert_eq!(jsonl.content_type(), "application/x-ndjson");
+        assert_eq!(jsonl.content_type(), "application/jsonl");
 
         let template = OutputProcessor::new(
             "simple",
