@@ -14,7 +14,7 @@ use std::io::Write;
 use registry::semconv_registry;
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
 use weaver_common::log_error;
-use weaver_forge::output_processor::{OutputProcessor, OutputTarget};
+use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::cli::{Cli, Commands};
 use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
