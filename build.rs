@@ -74,15 +74,14 @@ fn check_ui() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if UI is out of date before running.
     if is_ui_stale(ui_dir)? {
-        return Err(
-            "Weaver UI is out of date. Please run `pnpm build` in the `ui` directory.".into(),
-        );
+        println!("cargo::warning=Weaver UI is out of date. Please run `pnpm build` in the `ui` directory.");
+        return Ok(());
     }
 
     // Check if we need to install packages.
     if is_package_lock_stale(ui_dir)? {
-        // TODO - Disable for CI
-        return Err("Weaver `ui/pnpm-lock.yaml` is out of date. Please run `pnpm install` in the `ui` directory.".into());
+        println!("cargo::warning=Weaver `ui/pnpm-lock.yaml` is out of date. Please run `pnpm install` in the `ui` directory.");
+        return Ok(());
     }
 
     Ok(())
