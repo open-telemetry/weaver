@@ -43,7 +43,7 @@ impl SchemaResolver {
                 dependencies,
             } => Self::resolve_registry(repo, specs, imports, dependencies, include_unreferenced),
             LoadedSemconvRegistry::Resolved(resolved_telemetry_schema) => {
-                WResult::Ok(resolved_telemetry_schema)
+                WResult::Ok(*resolved_telemetry_schema)
             }
             LoadedSemconvRegistry::ResolvedV2(_) => {
                 todo!("Converting V2 schema back into V1 is unsupported")
@@ -69,7 +69,7 @@ impl SchemaResolver {
                         .push(Self::resolve(d, include_unreferenced).map(|s| s.into()));
                 }
                 LoadedSemconvRegistry::Resolved(schema) => {
-                    opt_resolved_dependencies.push(WResult::Ok(schema.into()));
+                    opt_resolved_dependencies.push(WResult::Ok((*schema).into()));
                 }
                 LoadedSemconvRegistry::ResolvedV2(schema) => {
                     opt_resolved_dependencies.push(WResult::Ok(schema.into()));
@@ -118,14 +118,14 @@ impl SchemaResolver {
 
             ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),
-                schema_url: schema_url,
+                schema_url,
                 registry: resolved_registry,
                 catalog,
                 resource: None,
                 instrumentation_library: None,
                 dependencies: vec![],
                 versions: None, // ToDo LQ: Implement this!
-                manifest: manifest,
+                manifest,
             }
         })
     }

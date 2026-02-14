@@ -57,8 +57,7 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     let mut diag_msgs = DiagnosticMessages::empty();
     let weaver = WeaverEngine::new(&args.registry, &args.policy);
     let registry_path = &args.registry.registry;
-    let main_registry_repo =
-        RegistryRepo::try_new(None, registry_path)?;
+    let main_registry_repo = RegistryRepo::try_new(None, registry_path)?;
 
     let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     // TODO - only do this in weaver check?

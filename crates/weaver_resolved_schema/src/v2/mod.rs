@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     deprecated::Deprecated,
     group::GroupType,
-    manifest::{RegistryManifest, SchemaUrl},
+    manifest::SchemaUrl,
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
         CommonFields,
@@ -128,7 +128,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
             schema_url: value.schema_url,
             attribute_catalog,
             registry,
-            refinements
+            refinements,
         })
     }
 }
@@ -981,7 +981,7 @@ mod tests {
     fn test_try_from_v1_to_v2() {
         let v1_schema = crate::ResolvedTelemetrySchema {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: SchemaUrl("http://test/schemas/1.0.0".to_owned()),
+            schema_url: SchemaUrl::new("http://test/schemas/1.0.0".to_owned()),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
             registry: crate::registry::Registry {
                 registry_url: "http://test/schemas/1.0".to_owned(),
@@ -1000,7 +1000,7 @@ mod tests {
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(
             v2_schema.schema_url,
-            SchemaUrl("http://test/schemas/1.0.0".to_owned())
+            SchemaUrl::new("http://test/schemas/1.0.0".to_owned())
         );
     }
 
@@ -1209,7 +1209,7 @@ mod tests {
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: SchemaUrl("http://test/schemas/1.0".to_owned()),
+            schema_url: SchemaUrl::new("http://test/schemas/1.0".to_owned()),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],
@@ -1223,7 +1223,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
-            }
+            },
         }
     }
 }
