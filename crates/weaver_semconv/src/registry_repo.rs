@@ -45,7 +45,11 @@ impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `Dependency` object that specifies the schema URL and path.
     pub fn try_new_dependency(dependency: &Dependency) -> Result<Self, Error> {
         let path = dependency.registry_path.clone().unwrap_or_else(|| {
+<<<<<<< HEAD
             // If no registry path is provided, we assume it's the same schema_url.
+=======
+            // If no registry path is provided, we assume it's the same as the parent registry.
+>>>>>>> 29d557b8e0a646adaea280c641888f9685d41124
             VirtualDirectoryPath::RemoteArchive {
                 url: dependency.schema_url.to_string(),
                 sub_folder: None,
