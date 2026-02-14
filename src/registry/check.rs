@@ -43,7 +43,7 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
 
     // Initialize the baseline registry if provided.
     let baseline = if let Some(br) = args.baseline_registry.as_ref() {
-        let registry_repo = RegistryRepo::try_new(Some("baseline"), Some("1.0.0"), br)?;
+        let registry_repo = RegistryRepo::try_new(None, br)?;
         // ignore warnings.
         let mut ignored = DiagnosticMessages::empty();
         let loaded = weaver.load_definitions(registry_repo, &mut ignored)?;

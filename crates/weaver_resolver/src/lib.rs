@@ -125,7 +125,7 @@ impl SchemaResolver {
                 instrumentation_library: None,
                 dependencies: vec![],
                 versions: None, // ToDo LQ: Implement this!
-                registry_manifest: manifest,
+                manifest: manifest,
             }
         })
     }
@@ -247,7 +247,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
         // test with the `include_unreferenced` flag set to false
         check_semconv_load_and_resolve(registry_repo.clone(), false);
         // test with the `include_unreferenced` flag set to true
@@ -261,7 +261,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(None, None, &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
         let result = SchemaResolver::load_semconv_repository(registry_repo, true);
 
         match result {

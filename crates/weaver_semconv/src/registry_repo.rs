@@ -6,7 +6,7 @@ use std::default::Default;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::manifest::{RegistryManifest, SchemaUrl};
+use crate::manifest::{Dependency, RegistryManifest, SchemaUrl};
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{get_path_type, log_info, log_warn};
@@ -41,12 +41,26 @@ pub struct RegistryRepo {
 }
 
 impl RegistryRepo {
-    /// Creates a new `RegistryRepo` from a name, version, and `RegistryPath` object that
+    /// Creates a new `RegistryRepo` from a `Dependency` object that specifies the schema URL and path.
+    pub fn try_new_dependency(
+        dependency: &Dependency,
+    ) -> Result<Self, Error> {
+        let path = dependency.registry_path.clone().unwrap_or_else(|| {
+                    // If no registry path is provided, we assume it's the same as the parent registry.
+                    VirtualDirectoryPath::RemoteArchive {
+                        url: dependency.schema_url.to_string(),
+                        sub_folder: None,
+                    }
+                });
+        Self::try_new(Some(dependency.schema_url.clone()), &path)
+    }
+
+    /// Creates a new `RegistryRepo` from a schema URL and `RegistryPath` object that
     /// specifies the location of the registry.
-    /// If there is no manifest, name and version must be provided.
+    /// If there is no manifest and schema URL is not provided, registry
+    /// name and version are set to "unknown".
     pub fn try_new(
-        name: Option<&str>,
-        version: Option<&str>,
+        schema_url: Option<SchemaUrl>,
         registry_path: &VirtualDirectoryPath,
     ) -> Result<Self, Error> {
         let registry =
@@ -66,25 +80,17 @@ impl RegistryRepo {
             temp_repo.manifest_path()
         } {
             let registry_manifest = RegistryManifest::try_from_file(manifest_path)?;
-            registry_name = Some(Arc::from(registry_manifest.name().as_str()));
-            registry_version = Some(Arc::from(registry_manifest.version().as_str()));
+            registry_name = Some(registry_manifest.name());
+            registry_version = Some(registry_manifest.version());
             manifest = Some(registry_manifest);
         } else {
             // No manifest, require name and version
-            let name = name.ok_or_else(|| Error::InvalidRegistryManifest {
-                path: registry.path().to_path_buf(),
-                error: "Registry name must be provided if no manifest is present.".to_string(),
-            })?;
-            let version = version.ok_or_else(|| Error::InvalidRegistryManifest {
-                path: registry.path().to_path_buf(),
-                error: "Registry version must be provided if no manifest is present.".to_string(),
-            })?;
-            registry_name = Some(Arc::from(name));
-            registry_version = Some(Arc::from(version));
+            registry_name = schema_url.as_ref().map(|url| url.name()).or(Some("unknown".to_owned()));
+            registry_version = schema_url.as_ref().map(|url| url.version()).or(Some("unknown".to_owned()));
         }
         Ok(Self {
-            name: registry_name.unwrap(),
-            version: registry_version.unwrap(),
+            name: registry_name.unwrap().into(),
+            version: registry_version.unwrap().into(),
             registry,
             manifest,
         })
@@ -217,7 +223,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = RegistryRepo::try_new(Some("main"), Some("1.0.0"), &registry_path).unwrap();
+        let repo = RegistryRepo::try_new(None, &registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(
@@ -236,7 +242,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/resolved/1.0.0".to_owned(),
         };
-        let repo = RegistryRepo::try_new(None, None, &registry_path)
+        let repo = RegistryRepo::try_new(None, &registry_path)
             .expect("Failed to load test repository.");
         let Some(manifest) = repo.manifest() else {
             panic!("Did not resolve manifest for repo: {repo:?}");
@@ -258,7 +264,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/resolved/2.0.0".to_owned(),
         };
-        let repo = RegistryRepo::try_new(None, None, &registry_path)
+        let repo = RegistryRepo::try_new(None, &registry_path)
             .expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
@@ -272,7 +278,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/3.0.0".to_owned(),
         };
-        let repo = RegistryRepo::try_new(None, None, &registry_path)
+        let repo = RegistryRepo::try_new(None, &registry_path)
             .expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(

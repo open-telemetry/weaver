@@ -104,7 +104,7 @@ impl ResolvedTelemetrySchema {
             instrumentation_library: None,
             dependencies: vec![],
             versions: None,
-            registry_manifest: None,
+            manifest: None,
         }
     }
 
@@ -295,13 +295,13 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         let mut changes = SchemaChanges::new();
 
-        if let Some(ref manifest) = self.registry_manifest {
+        if let Some(ref manifest) = self.manifest {
             changes.set_head_manifest(weaver_version::schema_changes::RegistryManifest {
                 semconv_version: manifest.version().clone(),
             });
         }
 
-        if let Some(ref manifest) = baseline_schema.registry_manifest {
+        if let Some(ref manifest) = baseline_schema.manifest {
             changes.set_baseline_manifest(weaver_version::schema_changes::RegistryManifest {
                 semconv_version: manifest.version().clone(),
             });
