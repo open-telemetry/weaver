@@ -851,7 +851,7 @@ mod tests {
     use std::error::Error;
     use std::fs::OpenOptions;
     use std::path::PathBuf;
-    use weaver_semconv::manifest::SchemaUrl;
+    use weaver_semconv::schema_url::SchemaUrl;
 
     use glob::glob;
     use serde::Serialize;

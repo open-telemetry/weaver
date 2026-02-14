@@ -64,7 +64,8 @@ impl LiveChecker {
                         }
                     }
                     for attribute in &group.attributes {
-                        let attribute_rc = Rc::new(VersionedAttribute::V1(Box::new(attribute.clone())));
+                        let attribute_rc =
+                            Rc::new(VersionedAttribute::V1(Box::new(attribute.clone())));
                         match attribute.r#type {
                             AttributeType::Template(_) => {
                                 templates_by_length
@@ -195,7 +196,7 @@ mod tests {
         YamlValue,
     };
     use weaver_semconv::{
-        manifest::SchemaUrl,
+        schema_url::SchemaUrl,
         v2::{span::SpanName, CommonFields},
     };
 

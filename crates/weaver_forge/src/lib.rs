@@ -841,8 +841,8 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::diff_dir;
     use weaver_resolver::{LoadedSemconvRegistry, SchemaResolver};
-    use weaver_semconv::manifest::SchemaUrl;
     use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::schema_url::SchemaUrl;
 
     use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};
     use crate::debug::print_dedup_errors;

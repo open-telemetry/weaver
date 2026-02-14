@@ -3,7 +3,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
-use weaver_semconv::manifest::SchemaUrl;
+use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
     error::Error,

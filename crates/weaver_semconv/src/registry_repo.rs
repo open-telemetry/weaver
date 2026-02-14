@@ -6,7 +6,8 @@ use std::default::Default;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::manifest::{Dependency, RegistryManifest, SchemaUrl};
+use crate::manifest::{Dependency, RegistryManifest};
+use crate::schema_url::SchemaUrl;
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{get_path_type, log_info, log_warn};

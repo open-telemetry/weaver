@@ -268,7 +268,7 @@ mod tests {
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
-        manifest::SchemaUrl,
+        schema_url::SchemaUrl,
         stability::Stability,
     };
 

@@ -8,143 +8,15 @@
 //! In the future, this struct may be extended to include additional information
 //! such as the registry's owner, maintainers, and dependencies.
 
+use crate::schema_url::SchemaUrl;
 use crate::stability::Stability;
 use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
-use std::sync::OnceLock;
 use weaver_common::error::handle_errors;
 use weaver_common::vdir::VirtualDirectoryPath;
-
-/// Represents the schema URL of a registry, which serves as a unique identifier for the registry
-/// along with its version.
-#[derive(Debug, Clone, JsonSchema)]
-pub struct SchemaUrl {
-    /// The schema URL string.
-    pub url: String,
-    #[serde(skip)]
-    #[schemars(skip)]
-    name: OnceLock<String>,
-    #[serde(skip)]
-    #[schemars(skip)]
-    version: OnceLock<String>,
-}
-
-impl SchemaUrl {
-    /// Create a new SchemaUrl from a string.
-    #[must_use]
-    pub fn new(url: String) -> Self {
-        Self {
-            url,
-            name: OnceLock::new(),
-            version: OnceLock::new(),
-        }
-    }
-
-    /// Get the URL as a string.
-    pub fn as_str(&self) -> &str {
-        &self.url
-    }
-
-    /// Validate the schema URL format.
-    pub fn validate(&self) -> Result<(), String> {
-        let parsed = url::Url::parse(&self.url).map_err(|e| format!("Invalid schema URL: {e}"))?;
-        if parsed.path_segments().map(|c| c.count()).unwrap_or(0) == 0 {
-            return Err("The schema URL must have at least one path segment.".to_owned());
-        }
-        Ok(())
-    }
-
-    /// Returns the registry name, derived from the schema URL.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        self.name.get_or_init(|| {
-            let parsed_url = url::Url::parse(&self.url).expect("schema_url must be valid");
-            let path = parsed_url.path().trim_matches('/');
-            let mut segments: Vec<&str> = path.split('/').collect();
-            if !segments.is_empty() {
-                _ = segments.pop();
-            }
-
-            if segments.is_empty() {
-                return parsed_url.authority().to_owned();
-            }
-
-            format!("{}/{}", parsed_url.authority(), segments.join("/"))
-        })
-    }
-
-    /// Returns the registry version, derived from the schema URL.
-    #[must_use]
-    pub fn version(&self) -> &str {
-        self.version.get_or_init(|| {
-            let parsed_url = url::Url::parse(&self.url).expect("schema_url must be valid");
-            parsed_url
-                .path()
-                .trim_matches('/')
-                .rsplit('/')
-                .next()
-                .unwrap_or("")
-                .to_owned()
-        })
-    }
-
-    /// Create a SchemaUrl from name and version.
-    pub fn from_name_version(name: &str, version: &str) -> Result<Self, String> {
-        // TODO: replace with scheme regex
-        let schema_url = SchemaUrl::new(
-            if name.starts_with("http://") || name.starts_with("https://") {
-                format!("{}/{}", name.trim_end_matches('/'), version)
-            } else {
-                format!("https://{}/{}", name.trim_end_matches('/'), version)
-            },
-        );
-
-        schema_url.validate()?;
-        Ok(schema_url)
-    }
-}
-
-impl PartialEq for SchemaUrl {
-    fn eq(&self, other: &Self) -> bool {
-        self.url == other.url
-    }
-}
-
-impl Eq for SchemaUrl {}
-
-impl std::hash::Hash for SchemaUrl {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.url.hash(state);
-    }
-}
-
-impl std::fmt::Display for SchemaUrl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.url)
-    }
-}
-
-impl<'de> Deserialize<'de> for SchemaUrl {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Ok(SchemaUrl::new(s))
-    }
-}
-
-impl Serialize for SchemaUrl {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.url)
-    }
-}
 
 /// Represents the information of a semantic convention registry manifest.
 ///
@@ -442,5 +314,129 @@ mod tests {
         } else {
             panic!("Expected an error, but got a result.");
         }
+    }
+
+    // Dependency tests
+    #[test]
+    fn test_dependency_deserialize_with_schema_url() {
+        let yaml = r#"
+schema_url: "https://opentelemetry.io/schemas/1.0.0"
+"#;
+        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+        assert_eq!(
+            dep.schema_url.as_str(),
+            "https://opentelemetry.io/schemas/1.0.0"
+        );
+        assert!(dep.registry_path.is_none());
+    }
+
+    #[test]
+    fn test_dependency_deserialize_with_registry_path() {
+        let yaml = r#"
+schema_url: "https://opentelemetry.io/schemas/1.0.0"
+registry_path: "./registry"
+"#;
+        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+        assert_eq!(
+            dep.schema_url.as_str(),
+            "https://opentelemetry.io/schemas/1.0.0"
+        );
+        assert!(dep.registry_path.is_some());
+    }
+
+    #[test]
+    fn test_dependency_deserialize_with_deprecated_name() {
+        let yaml = r#"
+name: "acme-registry"
+"#;
+        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+        assert_eq!(dep.schema_url.as_str(), "acme-registry/unknown");
+    }
+
+    #[test]
+    fn test_dependency_deserialize_schema_url_takes_precedence() {
+        let yaml = r#"
+schema_url: "https://opentelemetry.io/schemas/1.0.0"
+name: "ignored-name"
+"#;
+        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+        assert_eq!(
+            dep.schema_url.as_str(),
+            "https://opentelemetry.io/schemas/1.0.0"
+        );
+    }
+
+    #[test]
+    fn test_dependency_deserialize_missing_both_fields() {
+        let yaml = r#"
+registry_path: "./registry"
+"#;
+        let result: Result<Dependency, _> = serde_yaml::from_str(yaml);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("Either 'schema_url' or 'name' must be provided"));
+    }
+
+    #[test]
+    fn test_dependency_serialize() {
+        let dep = Dependency {
+            schema_url: SchemaUrl::new("https://opentelemetry.io/schemas/1.0.0".to_owned()),
+            registry_path: None,
+            name: None,
+        };
+
+        let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
+        // Verify schema_url is serialized
+        assert!(yaml.contains("schema_url"));
+        assert!(yaml.contains("https://opentelemetry.io/schemas/1.0.0"));
+        // Verify name is NOT serialized (skip_serializing)
+        assert!(!yaml.contains("name:"));
+    }
+
+    #[test]
+    fn test_dependency_serialize_with_registry_path() {
+        let dep = Dependency {
+            schema_url: SchemaUrl::new("https://opentelemetry.io/schemas/1.0.0".to_owned()),
+            registry_path: Some(VirtualDirectoryPath::LocalFolder {
+                path: "./registry".to_owned(),
+            }),
+            name: None,
+        };
+
+        let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
+        assert!(yaml.contains("schema_url"));
+        assert!(yaml.contains("registry_path"));
+    }
+
+    #[test]
+    fn test_dependency_serialize_without_optional_path() {
+        let dep = Dependency {
+            schema_url: SchemaUrl::new("https://opentelemetry.io/schemas/1.0.0".to_owned()),
+            registry_path: None,
+            name: None,
+        };
+
+        let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
+        // registry_path should not be serialized when None (skip_serializing_if)
+        assert!(!yaml.contains("registry_path"));
+    }
+
+    #[test]
+    fn test_dependency_roundtrip_serialization() {
+        let original = Dependency {
+            schema_url: SchemaUrl::new("https://example.com/schemas/1.0.0".to_owned()),
+            registry_path: Some(VirtualDirectoryPath::LocalFolder {
+                path: "./test/registry".to_owned(),
+            }),
+            name: None,
+        };
+
+        let yaml = serde_yaml::to_string(&original).expect("Failed to serialize");
+        let deserialized: Dependency = serde_yaml::from_str(&yaml).expect("Failed to deserialize");
+
+        assert_eq!(original.schema_url, deserialized.schema_url);
+        assert!(deserialized.registry_path.is_some());
     }
 }
