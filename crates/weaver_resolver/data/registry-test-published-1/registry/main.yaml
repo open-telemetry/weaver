@@ -1,0 +1,21 @@
+version: '2'
+spans:
+- type: my-span
+  name: 
+    note: how to make the name
+  brief: a fun span
+  note: my fun span
+  kind: client
+  stability: beta
+  attributes:
+  - ref: a
+  entity_associations:
+  - imported.entity.a
+imports:
+  metrics:
+    - imported.*
+  events:
+    - imported.*
+  entities:
+    - imported.*
+  

@@ -9,8 +9,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
   apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
-COPY ui/package.json ui/package-lock.json /build/ui/
-RUN cd /build/ui && npm ci
+RUN npm install -g pnpm
+COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
+RUN cd /build/ui && pnpm install --frozen-lockfile
 
 # Copy UI source files
 COPY ui /build/ui
@@ -26,6 +27,9 @@ COPY src /build/src
 COPY tests /build/tests
 COPY defaults /build/defaults
 COPY cross-arch-build.sh /build/cross-arch-build.sh
+
+# Build the UI
+RUN cd /build/ui && pnpm build
 
 # Build weaver
 RUN ./cross-arch-build.sh

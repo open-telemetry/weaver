@@ -68,7 +68,11 @@ pub struct RegistryManifest {
 pub struct Dependency {
     /// The name of the dependency.
     pub name: String,
-    /// The registry path of the dependency.
+    /// The path to the dependency.
+    ///
+    /// This can be either:
+    /// - A manifest of a published registry
+    /// - A directory containing the raw definition.
     pub registry_path: VirtualDirectoryPath,
 }
 

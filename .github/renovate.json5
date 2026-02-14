@@ -8,6 +8,9 @@
     // cargo-dist manages this file, so we have to pin *its* dependency here.
     ".github/workflows/release.yml"
   ],
+  includePaths: [
+    "ui/**"
+  ],
   packageRules: [
     {
       groupName: 'all patch versions',
@@ -47,6 +50,7 @@
       matchManagers: [
         'cargo',
         'dockerfile',
+        'npm',
       ],
       automerge: true,
     },
