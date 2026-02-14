@@ -45,7 +45,7 @@ impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `Dependency` object that specifies the schema URL and path.
     pub fn try_new_dependency(dependency: &Dependency) -> Result<Self, Error> {
         let path = dependency.registry_path.clone().unwrap_or_else(|| {
-            // If no registry path is provided, we assume it's the same as the parent registry.
+            // If no registry path is provided, we assume it's the same schema_url.
             VirtualDirectoryPath::RemoteArchive {
                 url: dependency.schema_url.to_string(),
                 sub_folder: None,
@@ -195,15 +195,13 @@ impl RegistryRepo {
         }
     }
 
-    /// Returns the registry schema URL, if available in the manifest.
+    /// Returns the registry schema URL.
     #[must_use]
     pub fn schema_url(&self) -> SchemaUrl {
-        // TODO: we should never have a registry without a schema URL at this point
-        // but not sure how to do it in terms of API design
-        // but for now we can just panic if we don't find a schema URL
         self.manifest
             .as_ref()
             .and_then(|manifest| manifest.schema_url.clone())
+            // we should never have a registry without a schema URL at this point
             .expect("Schema URL must have been provided")
     }
 }

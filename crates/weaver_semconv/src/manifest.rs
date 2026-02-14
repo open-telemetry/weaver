@@ -74,7 +74,7 @@ pub struct RegistryManifest {
     pub resolved_schema_uri: Option<String>,
 }
 
-/// Represents a dependency of a semantic convention registry as defined in YAML.
+/// Represents a dependency of a semantic convention registry.
 #[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct Dependency {
     /// The schema URL for the dependency (required).
