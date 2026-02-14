@@ -123,13 +123,21 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     fn try_from(value: crate::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
-        Ok(ResolvedTelemetrySchema {
-            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: value.schema_url,
-            attribute_catalog,
-            registry,
-            refinements,
-        })
+        let schema_url = SchemaUrl::new(value.schema_url);
+
+        match schema_url.validate() {
+            Ok(_) => Ok(ResolvedTelemetrySchema {
+                file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
+                schema_url,
+                attribute_catalog,
+                registry,
+                refinements,
+            }),
+            Err(e) => Err(crate::error::Error::InvalidSchemaUrl {
+                url: schema_url.to_string(),
+                error: e.clone(),
+            }),
+        }
     }
 }
 
@@ -981,17 +989,18 @@ mod tests {
     fn test_try_from_v1_to_v2() {
         let v1_schema = crate::ResolvedTelemetrySchema {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: SchemaUrl::new("http://test/schemas/1.0.0".to_owned()),
+            schema_url: "http://test/schemas/1.0.0".to_owned(),
+            registry_id: "my-registry".to_owned(),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
             registry: crate::registry::Registry {
-                registry_url: "http://test/schemas/1.0".to_owned(),
+                registry_url: "http://test/schemas/1.0.0".to_owned(),
                 groups: vec![],
             },
             instrumentation_library: None,
             resource: None,
             dependencies: vec![],
             versions: None,
-            manifest: None,
+            registry_manifest: None,
         };
 
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();

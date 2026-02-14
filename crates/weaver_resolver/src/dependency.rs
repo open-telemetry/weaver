@@ -439,7 +439,6 @@ mod tests {
     use itertools::Itertools;
     use std::error::Error;
     use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-    use weaver_semconv::manifest::SchemaUrl;
 
     use crate::dependency::{ResolvedDependency, UnresolvedAttributeLookup};
 
@@ -471,7 +470,8 @@ mod tests {
     fn example_v1_schema() -> V1Schema {
         V1Schema {
             file_format: "resolved/1.0.0".to_owned(),
-            schema_url: SchemaUrl::new("http://test/schemas/1.0.0".to_owned()),
+            schema_url: "http://test/schemas/1.0.0".to_owned(),
+            registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
                 groups: vec![weaver_resolved_schema::registry::Group {
@@ -523,7 +523,7 @@ mod tests {
             instrumentation_library: None,
             dependencies: vec![],
             versions: None,
-            manifest: None,
+            registry_manifest: None,
         }
     }
 }
