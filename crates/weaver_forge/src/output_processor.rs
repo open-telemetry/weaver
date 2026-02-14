@@ -291,7 +291,7 @@ impl OutputProcessor {
             OutputKind::Builtin { format, .. } => match format {
                 BuiltinFormat::Json => "application/json",
                 BuiltinFormat::Yaml => "application/yaml",
-                BuiltinFormat::Jsonl => "application/x-ndjson",
+                BuiltinFormat::Jsonl => "application/jsonl",
             },
             OutputKind::Template(_) => "text/plain",
             OutputKind::Mute => "text/plain",

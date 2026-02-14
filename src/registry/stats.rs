@@ -45,7 +45,7 @@ pub struct RegistryStatsArgs {
 /// Thin wrapper that adds a `version` field for the template to branch on.
 /// The raw stats are flattened into the same JSON level via `#[serde(flatten)]`.
 #[derive(Serialize)]
-struct StatsContext<T: Serialize> {
+struct StatsContext<T> {
     version: &'static str,
     #[serde(flatten)]
     stats: T,
