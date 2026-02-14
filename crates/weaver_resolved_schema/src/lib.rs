@@ -97,7 +97,7 @@ impl ResolvedTelemetrySchema {
         Self {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             // TODO: is it correct?
-            schema_url: SchemaUrl(schema_url.as_ref().to_owned()),
+            schema_url: SchemaUrl::new(schema_url.as_ref().to_owned()),
             registry: Registry::new(registry_url),
             catalog: Catalog::default(),
             resource: None,

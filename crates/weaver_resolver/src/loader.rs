@@ -36,7 +36,7 @@ pub enum LoadedSemconvRegistry {
         dependencies: Vec<LoadedSemconvRegistry>,
     },
     /// The semconv repository is already resolved and can be used as-is.
-    Resolved(V1Schema),
+    Resolved(Box<V1Schema>),
     /// The semconv repository is already resolved and can be used as-is.
     ResolvedV2(V2Schema),
 }
@@ -48,11 +48,9 @@ impl LoadedSemconvRegistry {
         use weaver_common::vdir::VirtualDirectoryPath;
         use weaver_semconv::provenance::Provenance;
         let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
-        let repo = RegistryRepo::try_new(None, &path).map_err(|e| {
-            Error::InvalidUrl {
-                url: "test string".to_owned(),
-                error: format!("{e}"),
-            }
+        let repo = RegistryRepo::try_new(None, &path).map_err(|e| Error::InvalidUrl {
+            url: "test string".to_owned(),
+            error: format!("{e}"),
         })?;
         let provenance = Provenance::new("default", "<str>");
         let spec_with_provenance = SemConvSpecWithProvenance::from_string(provenance, spec)
@@ -81,8 +79,8 @@ impl LoadedSemconvRegistry {
         match self {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
             // TODO - are these correct?
-            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url.0,
-            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url.0,
+            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url.url,
+            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url.url,
         }
     }
 
@@ -117,8 +115,8 @@ impl LoadedSemconvRegistry {
                 }
                 result
             }
-            LoadedSemconvRegistry::Resolved(schema) => vec![schema.schema_url.name().clone()],
-            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.schema_url.name().clone()],
+            LoadedSemconvRegistry::Resolved(schema) => vec![schema.schema_url.name().to_owned()],
+            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.schema_url.name().to_owned()],
         }
     }
 }
@@ -204,7 +202,7 @@ fn load_semconv_repository_recursive(
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors = vec![];
             for d in manifest.dependencies.iter() {
-                match RegistryRepo::try_new_dependency(&d) {
+                match RegistryRepo::try_new_dependency(d) {
                     Ok(d_repo) => {
                         // so we need to make sure the dependency chain only include direct dependencies of each other.
                         match load_semconv_repository_recursive(

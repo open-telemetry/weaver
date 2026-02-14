@@ -14,18 +14,43 @@ use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use weaver_common::error::handle_errors;
 use weaver_common::vdir::VirtualDirectoryPath;
 
 /// Represents the schema URL of a registry, which serves as a unique identifier for the registry
 /// along with its version.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
-pub struct SchemaUrl(pub String);
+#[derive(Debug, Clone, JsonSchema)]
+pub struct SchemaUrl {
+    /// The schema URL string.
+    pub url: String,
+    #[serde(skip)]
+    #[schemars(skip)]
+    name: OnceLock<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    version: OnceLock<String>,
+}
 
 impl SchemaUrl {
+    /// Create a new SchemaUrl from a string.
+    #[must_use]
+    pub fn new(url: String) -> Self {
+        Self {
+            url,
+            name: OnceLock::new(),
+            version: OnceLock::new(),
+        }
+    }
+
+    /// Get the URL as a string.
+    pub fn as_str(&self) -> &str {
+        &self.url
+    }
+
     /// Validate the schema URL format.
     pub fn validate(&self) -> Result<(), String> {
-        let parsed = url::Url::parse(&self.0).map_err(|e| format!("Invalid schema URL: {e}"))?;
+        let parsed = url::Url::parse(&self.url).map_err(|e| format!("Invalid schema URL: {e}"))?;
         if parsed.path_segments().map(|c| c.count()).unwrap_or(0) == 0 {
             return Err("The schema URL must have at least one path segment.".to_owned());
         }
@@ -33,51 +58,72 @@ impl SchemaUrl {
     }
 
     /// Returns the registry name, derived from the schema URL.
-    pub fn name(&self) -> String {
-        let parsed_url = url::Url::parse(&self.0).expect("schema_url must be valid");
-        let path = parsed_url.path().trim_matches('/');
-        let mut segments: Vec<&str> = path.split('/').collect();
-        if !segments.is_empty() {
-            _ = segments.pop();
-        }
+    #[must_use]
+    pub fn name(&self) -> &str {
+        self.name.get_or_init(|| {
+            let parsed_url = url::Url::parse(&self.url).expect("schema_url must be valid");
+            let path = parsed_url.path().trim_matches('/');
+            let mut segments: Vec<&str> = path.split('/').collect();
+            if !segments.is_empty() {
+                _ = segments.pop();
+            }
 
-        if segments.is_empty() {
-            return parsed_url.authority().to_string();
-        }
+            if segments.is_empty() {
+                return parsed_url.authority().to_owned();
+            }
 
-        format!("{}/{}", parsed_url.authority(), segments.join("/"))
+            format!("{}/{}", parsed_url.authority(), segments.join("/"))
+        })
     }
 
     /// Returns the registry version, derived from the schema URL.
-    pub fn version(&self) -> String {
-        let parsed_url = url::Url::parse(&self.0).expect("schema_url must be valid");
-        parsed_url
-            .path()
-            .trim_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or("")
-            .to_string()
+    #[must_use]
+    pub fn version(&self) -> &str {
+        self.version.get_or_init(|| {
+            let parsed_url = url::Url::parse(&self.url).expect("schema_url must be valid");
+            parsed_url
+                .path()
+                .trim_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .to_owned()
+        })
     }
 
     /// Create a SchemaUrl from name and version.
     pub fn from_name_version(name: &str, version: &str) -> Result<Self, String> {
-        let schema_url_str;
         // TODO: replace with scheme regex
-        if name.starts_with("http://") || name.starts_with("https://") {
-            schema_url_str = format!("{}/{}", name.trim_end_matches('/'), version);
-        } else {
-            schema_url_str = format!("https://{}/{}", name.trim_end_matches('/'), version);
-        }
-        let schema_url = SchemaUrl(schema_url_str);
+        let schema_url = SchemaUrl::new(
+            if name.starts_with("http://") || name.starts_with("https://") {
+                format!("{}/{}", name.trim_end_matches('/'), version)
+            } else {
+                format!("https://{}/{}", name.trim_end_matches('/'), version)
+            },
+        );
+
         schema_url.validate()?;
         Ok(schema_url)
     }
 }
 
+impl PartialEq for SchemaUrl {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
+    }
+}
+
+impl Eq for SchemaUrl {}
+
+impl std::hash::Hash for SchemaUrl {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.url.hash(state);
+    }
+}
+
 impl std::fmt::Display for SchemaUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.url)
     }
 }
 
@@ -87,7 +133,7 @@ impl<'de> Deserialize<'de> for SchemaUrl {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(SchemaUrl(s))
+        Ok(SchemaUrl::new(s))
     }
 }
 
@@ -96,7 +142,7 @@ impl Serialize for SchemaUrl {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.0)
+        serializer.serialize_str(&self.url)
     }
 }
 
@@ -203,10 +249,10 @@ impl<'de> Deserialize<'de> for Dependency {
 
         let schema_url = match (helper.schema_url, helper.name) {
             (Some(url), _) => url,
-            (None, Some(name)) => SchemaUrl(format!("{}/unknown", name)),
+            (None, Some(name)) => SchemaUrl::new(format!("{}/unknown", name)),
             (None, None) => {
                 return Err(serde::de::Error::custom(
-                    "Either 'schema_url' or 'name' must be provided for a dependency"
+                    "Either 'schema_url' or 'name' must be provided for a dependency",
                 ))
             }
         };
@@ -282,13 +328,13 @@ impl RegistryManifest {
                         path: path.clone(),
                         error: "The registry schema base URL is required.".to_owned(),
                     });
-                } else {
-                    if let Err(e) = url::Url::parse(self.schema_base_url.as_ref().unwrap()) {
-                        errors.push(InvalidRegistryManifest {
-                            path: path.clone(),
-                            error: format!("Invalid schema base URL: {}", e),
-                        });
-                    }
+                } else if let Err(e) =
+                    url::Url::parse(&self.schema_base_url.clone().unwrap_or_default())
+                {
+                    errors.push(InvalidRegistryManifest {
+                        path: path.clone(),
+                        error: format!("Invalid schema base URL: {}", e),
+                    });
                 }
 
                 if self
@@ -321,23 +367,23 @@ impl RegistryManifest {
     /// Returns the registry name, which is derived from the schema URL.
     /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
     /// the registry name would be `opentelemetry.io/schemas/sub-component`
+    #[must_use]
     pub fn name(&self) -> String {
         self.schema_url
             .as_ref()
-            .map(|url| url.name())
+            .map(|url| url.name().to_owned())
             .unwrap_or_default()
-            .to_string()
     }
 
     /// Returns the registry version, which is derived from the schema URL.
     /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
     /// the registry version would be `1.0.0`
+    #[must_use]
     pub fn version(&self) -> String {
         self.schema_url
             .as_ref()
-            .map(|url| url.version())
+            .map(|url| url.version().to_owned())
             .unwrap_or_default()
-            .to_string()
     }
 }
 

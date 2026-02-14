@@ -5,7 +5,7 @@
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
-use crate::manifest::RegistryManifest;
+use crate::manifest::{RegistryManifest, SchemaUrl};
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
@@ -143,22 +143,21 @@ impl SemConvRegistry {
                 }
             }
 
+            let schema_url = SchemaUrl::from_name_version(&registry_repo.name(), &semconv_version)
+                .map_err(|e| Error::InvalidRegistryManifest {
+                    path: registry_repo.registry_path_repr().into(),
+                    error: e.clone(),
+                })?;
+
             registry.set_manifest(RegistryManifest {
                 file_format: None,
-                schema_url: registry_repo
-                    .manifest()
-                    .and_then(|m| Some(m.schema_url.clone()))
-                    .unwrap_or_default(),
-                schema_base_url: registry_repo
-                    .manifest()
-                    .and_then(|m| m.schema_base_url.clone()),
-                semconv_version: registry_repo
-                    .manifest()
-                    .and_then(|m| m.semconv_version.clone()),
+                schema_url: Some(schema_url),
                 description: registry_repo.manifest().and_then(|m| m.description.clone()),
                 dependencies: vec![],
                 resolved_schema_uri: None,
                 stability: crate::stability::Stability::Development,
+                semconv_version: None,
+                schema_base_url: None,
             });
         } else {
             registry.manifest = registry_repo.manifest().cloned();
@@ -394,8 +393,11 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo =
-            RegistryRepo::try_new(Some(SchemaUrl("https://test/42".to_owned())), &registry_path).unwrap();
+        let registry_repo = RegistryRepo::try_new(
+            Some(SchemaUrl::new("https://test/42".to_owned())),
+            &registry_path,
+        )
+        .unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);
