@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use weaver_semconv::group::ImportsWithProvenance;
-use weaver_semconv::manifest::SchemaUrl;
+use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;

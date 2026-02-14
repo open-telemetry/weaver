@@ -478,7 +478,7 @@ mod tests {
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
-    use weaver_semconv::manifest::SchemaUrl;
+    use weaver_semconv::schema_url::SchemaUrl;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;

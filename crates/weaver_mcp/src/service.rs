@@ -58,7 +58,8 @@ impl WeaverMcpService {
         let search_context = Arc::new(SearchContext::from_registry(&registry));
 
         // Create versioned registry wrapper once for live check
-        let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new(registry.as_ref().clone())));
+        let versioned_registry =
+            Arc::new(VersionedRegistry::V2(Box::new(registry.as_ref().clone())));
 
         Self {
             search_context,
@@ -386,7 +387,7 @@ mod tests {
     use weaver_search::SearchType;
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
-    use weaver_semconv::manifest::SchemaUrl;
+    use weaver_semconv::schema_url::SchemaUrl;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;

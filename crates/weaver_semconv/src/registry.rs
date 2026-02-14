@@ -5,9 +5,10 @@
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
-use crate::manifest::{RegistryManifest, SchemaUrl};
+use crate::manifest::RegistryManifest;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
+use crate::schema_url::SchemaUrl;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
@@ -285,10 +286,10 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
-    use crate::manifest::SchemaUrl;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
+    use crate::schema_url::SchemaUrl;
     use crate::semconv::{SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance};
     use crate::Error;
 

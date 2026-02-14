@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     deprecated::Deprecated,
     group::GroupType,
-    manifest::SchemaUrl,
+    schema_url::SchemaUrl,
     v2::{
         attribute_group::AttributeGroupVisibilitySpec, signal_id::SignalId, span::SpanName,
         CommonFields,

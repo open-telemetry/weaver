@@ -20,7 +20,7 @@ use crate::{attribute::AttributeCatalog, Error};
 pub(crate) enum ResolvedDependency {
     /// A V1 Dependency
     V1(Box<V1Schema>),
-    // A V2 Dependency
+    /// A V2 Dependency
     V2(Box<V2Schema>),
 }
 

@@ -413,7 +413,7 @@ mod tests {
     use weaver_semconv::{
         attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
         group::InstrumentSpec,
-        manifest::SchemaUrl,
+        schema_url::SchemaUrl,
         v2::{span::SpanName, CommonFields},
     };
 
