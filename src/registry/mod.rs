@@ -48,10 +48,6 @@ pub enum Error {
     #[error("The params file `{params_file}` is invalid. {error}")]
     InvalidParams { params_file: PathBuf, error: String },
 
-    /// Failed to render the registry diff
-    #[error("Failed to render the registry diff: {error}")]
-    DiffRender { error: String },
-
     #[error(transparent)]
     Schema(#[from] weaver_resolved_schema::error::Error),
 }
