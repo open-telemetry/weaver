@@ -217,7 +217,7 @@ fn test_emit_with_resource_attributes() {
         .arg("--skip-policies")
         .arg("--quiet")
         .arg("--endpoint")
-        .arg(&format!("http://localhost:{w2_grpc_port}"))
+        .arg(format!("http://localhost:{w2_grpc_port}"))
         .timeout(Duration::from_secs(60))
         .output()
         .expect("Failed to execute weaver1 (emit)");
