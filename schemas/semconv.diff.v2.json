@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SchemaChanges",
+  "description": "A summary of schema changes between two versions of a schema.",
+  "type": "object",
+  "properties": {
+    "registry": {
+      "description": "Changes to the registry.",
+      "$ref": "#/$defs/RegistryChanges"
+    }
+  },
+  "required": [
+    "registry"
+  ],
+  "$defs": {
+    "RegistryChanges": {
+      "description": "A summary of changes to the registry of signals and attributes.",
+      "type": "object",
+      "properties": {
+        "attribute_changes": {
+          "description": "Changes across the registry of attributes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SchemaItemChange"
+          }
+        },
+        "attribute_group_changes": {
+          "description": "Changes across the registry of attribute groups.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SchemaItemChange"
+          }
+        },
+        "baseline_schema_url": {
+          "description": "Schema URL of the baseline (older) registry.",
+          "type": "string"
+        },
+        "entity_changes": {
+          "description": "Changes across the registry of entities.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SchemaItemChange"
+          }
+        },
+        "event_changes": {
+          "description": "Changes across the registry of events.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SchemaItemChange"
+          }
+        },
+        "file_format": {
+          "description": "Version of the file structure.",
+          "type": "string"
+        },
+        "head_schema_url": {
+          "description": "Schema URL of the head (newer) registry.",
+          "type": "string"
+        },
+        "metric_changes": {
+          "description": "Changes across the registry of metrics.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SchemaItemChange"
+          }
+        },
+        "span_changes": {
+          "description": "Changes across the registry of spans.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SchemaItemChange"
+          }
+        }
+      },
+      "required": [
+        "file_format",
+        "head_schema_url",
+        "baseline_schema_url",
+        "attribute_changes",
+        "attribute_group_changes",
+        "entity_changes",
+        "event_changes",
+        "metric_changes",
+        "span_changes"
+      ]
+    },
+    "SchemaItemChange": {
+      "description": "Represents the different types of changes that can occur between\ntwo versions of a schema. This covers changes such as adding, removing,\nrenaming, and deprecating telemetry objects (attributes, metrics, etc.).",
+      "oneOf": [
+        {
+          "description": "A top-level telemetry object (e.g., attribute, metric, etc.) was added to the head registry.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The name of the added telemetry object.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "added"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ]
+        },
+        {
+          "description": "A top-level telemetry object from the baseline registry was renamed in the head registry.",
+          "type": "object",
+          "properties": {
+            "new_name": {
+              "description": "The new name of the telemetry object that has been renamed.",
+              "type": "string"
+            },
+            "note": {
+              "description": "A note providing further context.",
+              "type": "string"
+            },
+            "old_name": {
+              "description": "The old name of the telemetry object that has been renamed.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "renamed"
+            }
+          },
+          "required": [
+            "type",
+            "old_name",
+            "new_name",
+            "note"
+          ]
+        },
+        {
+          "description": "One or more fields in a top-level telemetry object have been updated in the head registry.\nNote: This is a placeholder for future use.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "updated"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "A top-level telemetry object that is now discontinued without a valid replacement in the\nhead registry.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The name of the obsoleted telemetry object.",
+              "type": "string"
+            },
+            "note": {
+              "description": "A deprecation note providing further context.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "obsoleted"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "note"
+          ]
+        },
+        {
+          "description": "A placeholder for complex or unclear schema changes that do not fit into existing types.\nThis type serves as a fallback when no specific category applies, with the expectation that\nsome of these changes will be reclassified into more precise schema types in the future.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The name of the uncategorized telemetry object.",
+              "type": "string"
+            },
+            "note": {
+              "description": "A note providing further context.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "uncategorized"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "note"
+          ]
+        },
+        {
+          "description": "A top-level telemetry object from the baseline registry was removed in the head registry.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The name of the removed telemetry object.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "removed"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ]
+        }
+      ]
+    }
+  }
+}

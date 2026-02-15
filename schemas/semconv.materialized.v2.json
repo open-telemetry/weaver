@@ -1,0 +1,1591 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ForgeResolvedRegistry",
+  "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registrys fully fleshed out and ready for codegen.",
+  "type": "object",
+  "properties": {
+    "file_format": {
+      "description": "Version of the file structure.",
+      "type": "string"
+    },
+    "refinements": {
+      "description": "The set of refinments defined in this registry.",
+      "$ref": "#/$defs/Refinements"
+    },
+    "registry": {
+      "description": "The signals defined in this registry.",
+      "$ref": "#/$defs/Registry"
+    },
+    "schema_url": {
+      "description": "The semantic convention registry url.",
+      "$ref": "#/$defs/SchemaUrl"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "file_format",
+    "schema_url",
+    "registry",
+    "refinements"
+  ],
+  "$defs": {
+    "Attribute": {
+      "description": "The definition of an Attribute.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "description": "String that uniquely identifies the attribute.",
+          "type": "string"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "Either a string literal denoting the type as a primitive or an\narray type, a template type or an enum definition.",
+          "$ref": "#/$defs/AttributeType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "brief",
+        "stability"
+      ]
+    },
+    "AttributeGroup": {
+      "description": "Public attribute group.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Attribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "The name of the attribute group, must be unique.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "attributes",
+        "brief",
+        "stability"
+      ]
+    },
+    "AttributeType": {
+      "description": "The different types of attributes (specification).",
+      "anyOf": [
+        {
+          "description": "Primitive or array type.",
+          "$ref": "#/$defs/PrimitiveOrArrayTypeSpec"
+        },
+        {
+          "description": "A template type.",
+          "$ref": "#/$defs/TemplateTypeSpec"
+        },
+        {
+          "description": "An enum definition type.",
+          "type": "object",
+          "properties": {
+            "members": {
+              "description": "List of enum entries.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EnumEntriesSpec"
+              }
+            }
+          },
+          "required": [
+            "members"
+          ]
+        }
+      ]
+    },
+    "BasicRequirementLevelSpec": {
+      "description": "The different types of basic requirement levels.",
+      "oneOf": [
+        {
+          "description": "A required requirement level.",
+          "type": "string",
+          "const": "required"
+        },
+        {
+          "description": "An optional requirement level.",
+          "type": "string",
+          "const": "recommended"
+        },
+        {
+          "description": "An opt-in requirement level.",
+          "type": "string",
+          "const": "opt_in"
+        }
+      ]
+    },
+    "Deprecated": {
+      "description": "The different ways to deprecate an attribute, a metric, ...",
+      "oneOf": [
+        {
+          "description": "The telemetry object containing the deprecated field has been renamed to an\nexisting or a new telemetry object.",
+          "type": "object",
+          "properties": {
+            "note": {
+              "description": "The note to provide more context about the deprecation.",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "const": "renamed"
+            },
+            "renamed_to": {
+              "description": "The new name of the telemetry object.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "renamed_to",
+            "note"
+          ]
+        },
+        {
+          "description": "The telemetry object containing the deprecated field has been obsoleted\nbecause it no longer exists and has no valid replacement.\n\nThe `brief` field should contain the reason why the field has been obsoleted.",
+          "type": "object",
+          "properties": {
+            "note": {
+              "description": "The note to provide more context about the deprecation.",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "const": "obsoleted"
+            }
+          },
+          "required": [
+            "reason",
+            "note"
+          ]
+        },
+        {
+          "description": "The telemetry object containing the deprecated field has been deprecated for\ncomplex reasons (split, merge, ...) which are currently not precisely defined\nin the supported deprecation reasons.\n\nThe `brief` field should contain the reason for this uncategorized deprecation.",
+          "type": "object",
+          "properties": {
+            "note": {
+              "description": "The note to provide more context about the deprecation.",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "const": "uncategorized"
+            }
+          },
+          "required": [
+            "reason",
+            "note"
+          ]
+        },
+        {
+          "description": "This variant is used to capture old, unstructured deprecated \"string\".\nUsed for backward-compatibility only.",
+          "type": "object",
+          "properties": {
+            "note": {
+              "description": "The note to provide more context about the deprecation.",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "const": "unspecified"
+            }
+          },
+          "required": [
+            "reason",
+            "note"
+          ]
+        }
+      ]
+    },
+    "Entity": {
+      "description": "The definition of an entity signal.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "description": "List of attributes that describe to this entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityAttribute"
+          }
+        },
+        "identity": {
+          "description": "List of attributes that identify this entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityAttribute"
+          }
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "The type of the entity.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "brief",
+        "stability"
+      ]
+    },
+    "EntityAttribute": {
+      "description": "A special type of reference to attributes that remembers entity-specific information.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "description": "String that uniquely identifies the attribute.",
+          "type": "string"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition`` MUST\nspecify the conditions under which the attribute is required.",
+          "$ref": "#/$defs/RequirementLevel"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "Either a string literal denoting the type as a primitive or an\narray type, a template type or an enum definition.",
+          "$ref": "#/$defs/AttributeType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "brief",
+        "stability",
+        "requirement_level"
+      ]
+    },
+    "EnumEntriesSpec": {
+      "description": "Possible enum entries.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the member.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "Brief description of the enum entry value.\nIt defaults to the value of id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "description": "Deprecation note.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "String that uniquely identifies the enum entry.",
+          "type": "string"
+        },
+        "note": {
+          "description": "Longer description.\nIt defaults to an empty string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stability": {
+          "description": "Stability of this enum value.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "description": "String, int, or boolean; value of the enum entry.",
+          "$ref": "#/$defs/ValueSpec"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "value"
+      ]
+    },
+    "Event": {
+      "description": "The definition of an event signal.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that belong to this event.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventAttribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "The name of the event.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "brief",
+        "stability"
+      ]
+    },
+    "EventAttribute": {
+      "description": "A special type of reference to attributes that remembers event-specicific information.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "description": "String that uniquely identifies the attribute.",
+          "type": "string"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
+          "$ref": "#/$defs/RequirementLevel"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "Either a string literal denoting the type as a primitive or an\narray type, a template type or an enum definition.",
+          "$ref": "#/$defs/AttributeType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "brief",
+        "stability",
+        "requirement_level"
+      ]
+    },
+    "EventRefinement": {
+      "description": "A refinement of an event signal, for use in code generation or specific library application.\n\nA refinement represents a \"view\" of an Event that is highly optimised for a particular implementation.\ne.g. for HTTP events, there may be a refinement that provides only the necessary information for dealing with Java's HTTP\nclient library, and drops optional or extraneous information from the underlying http event.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that belong to this event.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventAttribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The identity of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "name": {
+          "description": "The name of the event.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "brief",
+        "stability"
+      ]
+    },
+    "Examples": {
+      "description": "The different types of examples.",
+      "anyOf": [
+        {
+          "description": "A boolean example.",
+          "type": "boolean"
+        },
+        {
+          "description": "A integer example.",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "A double example.",
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "description": "A string example.",
+          "type": "string"
+        },
+        {
+          "description": "A any example.",
+          "$ref": "#/$defs/ValueSpec"
+        },
+        {
+          "description": "A array of integers example.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        {
+          "description": "A array of doubles example.",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        {
+          "description": "A array of bools example.",
+          "type": "array",
+          "items": {
+            "type": "boolean"
+          }
+        },
+        {
+          "description": "A array of strings example.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "A array of anys example.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ValueSpec"
+          }
+        },
+        {
+          "description": "List of arrays of integers example.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        {
+          "description": "List of arrays of doubles example.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        {
+          "description": "List of arrays of bools example.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "description": "List of arrays of strings example.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "InstrumentSpec": {
+      "description": "The type of the metric.",
+      "oneOf": [
+        {
+          "description": "An up-down counter metric.",
+          "type": "string",
+          "const": "updowncounter"
+        },
+        {
+          "description": "A counter metric.",
+          "type": "string",
+          "const": "counter"
+        },
+        {
+          "description": "A gauge metric.",
+          "type": "string",
+          "const": "gauge"
+        },
+        {
+          "description": "A histogram metric.",
+          "type": "string",
+          "const": "histogram"
+        }
+      ]
+    },
+    "Metric": {
+      "description": "The definition of a metric signal.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that should be included on this metric.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MetricAttribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "instrument": {
+          "description": "The instrument type that should be used to record the metric. Note that\nthe semantic conventions must be written using the names of the\nsynchronous instrument types (counter, gauge, updowncounter and\nhistogram).\nFor more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).",
+          "$ref": "#/$defs/InstrumentSpec"
+        },
+        "name": {
+          "description": "The name of the metric.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "unit": {
+          "description": "The unit in which the metric is measured, which should adhere to the\n[guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "instrument",
+        "unit",
+        "brief",
+        "stability"
+      ]
+    },
+    "MetricAttribute": {
+      "description": "A special type of reference to attributes that remembers metric-specific information.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "description": "String that uniquely identifies the attribute.",
+          "type": "string"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition`` MUST\nspecify the conditions under which the attribute is required.\n\nNote: For attributes that are \"recommended\" or \"opt-in\" - not all metric source will\ncreate timeseries with these attributes, but for any given timeseries instance, the attributes that *were* present\nshould *remain* present. That is - a metric timeseries cannot drop attributes during its lifetime.",
+          "$ref": "#/$defs/RequirementLevel"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "Either a string literal denoting the type as a primitive or an\narray type, a template type or an enum definition.",
+          "$ref": "#/$defs/AttributeType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "brief",
+        "stability",
+        "requirement_level"
+      ]
+    },
+    "MetricRefinement": {
+      "description": "A refinement of a metric signal, for use in code-gen or specific library application.\n\nA refinement represents a \"view\" of a Metric that is highly optimised for a particular implementation.\ne.g. for HTTP metrics, there may be a refinement that provides only the necessary information for dealing with Java's HTTP\nclient library, and drops optional or extraneous information from the underlying http metric.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that should be included on this metric.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MetricAttribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The identity of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "instrument": {
+          "description": "The instrument type that should be used to record the metric. Note that\nthe semantic conventions must be written using the names of the\nsynchronous instrument types (counter, gauge, updowncounter and\nhistogram).\nFor more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).",
+          "$ref": "#/$defs/InstrumentSpec"
+        },
+        "name": {
+          "description": "The name of the metric.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "unit": {
+          "description": "The unit in which the metric is measured, which should adhere to the\n[guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "instrument",
+        "unit",
+        "brief",
+        "stability"
+      ]
+    },
+    "PrimitiveOrArrayTypeSpec": {
+      "description": "Primitive or array types.",
+      "oneOf": [
+        {
+          "description": "A boolean attribute.",
+          "type": "string",
+          "const": "boolean"
+        },
+        {
+          "description": "A integer attribute (signed 64 bit integer).",
+          "type": "string",
+          "const": "int"
+        },
+        {
+          "description": "A double attribute (double precision floating point (IEEE 754-1985)).",
+          "type": "string",
+          "const": "double"
+        },
+        {
+          "description": "A string attribute.",
+          "type": "string",
+          "const": "string"
+        },
+        {
+          "description": "An any type attribute (accepts any valid value).",
+          "type": "string",
+          "const": "any"
+        },
+        {
+          "description": "An array of strings attribute.",
+          "type": "string",
+          "const": "string[]"
+        },
+        {
+          "description": "An array of integer attribute.",
+          "type": "string",
+          "const": "int[]"
+        },
+        {
+          "description": "An array of double attribute.",
+          "type": "string",
+          "const": "double[]"
+        },
+        {
+          "description": "An array of boolean attribute.",
+          "type": "string",
+          "const": "boolean[]"
+        }
+      ]
+    },
+    "Refinements": {
+      "description": "The set of all refinements for a semantic convention registry.\n\nA refinement is a specialization of a signal for a particular purpose,\ne.g. creating a MySQL specific instance of a database span for the purpose\nof codegeneration for MySQL.",
+      "type": "object",
+      "properties": {
+        "events": {
+          "description": "The event refinements defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventRefinement"
+          }
+        },
+        "metrics": {
+          "description": "The metric refinements defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MetricRefinement"
+          }
+        },
+        "spans": {
+          "description": "The span refinements defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanRefinement"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "metrics",
+        "spans",
+        "events"
+      ]
+    },
+    "Registry": {
+      "description": "The set of all defined signals for a given semantic convention registry.",
+      "type": "object",
+      "properties": {
+        "attribute_groups": {
+          "description": "The public attribute groups in this registry.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeGroup"
+          }
+        },
+        "attributes": {
+          "description": "The raw attributes in this registry.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Attribute"
+          }
+        },
+        "entities": {
+          "description": "The entity signals defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Entity"
+          }
+        },
+        "events": {
+          "description": "The event signals defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Event"
+          }
+        },
+        "metrics": {
+          "description": "The metric signals defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Metric"
+          }
+        },
+        "spans": {
+          "description": "The span signals defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Span"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "attributes",
+        "attribute_groups",
+        "metrics",
+        "spans",
+        "events",
+        "entities"
+      ]
+    },
+    "RequirementLevel": {
+      "description": "The different requirement level specifications.",
+      "anyOf": [
+        {
+          "description": "A basic requirement level.",
+          "$ref": "#/$defs/BasicRequirementLevelSpec"
+        },
+        {
+          "description": "A conditional requirement level.",
+          "type": "object",
+          "properties": {
+            "conditionally_required": {
+              "description": "The description of the condition.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "conditionally_required"
+          ]
+        },
+        {
+          "description": "A recommended requirement level.",
+          "type": "object",
+          "properties": {
+            "recommended": {
+              "description": "The description of the recommendation.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "recommended"
+          ]
+        },
+        {
+          "description": "An opt in requirement level.",
+          "type": "object",
+          "properties": {
+            "opt_in": {
+              "description": "The description of the recommendation.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "opt_in"
+          ]
+        }
+      ]
+    },
+    "SchemaUrl": {
+      "description": "Represents the schema URL of a registry, which serves as a unique identifier for the registry\nalong with its version.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "The schema URL string.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ]
+    },
+    "SignalId": {
+      "description": "An identifier for a signal.  Should be `.` separated namespaces and names.",
+      "type": "string"
+    },
+    "Span": {
+      "description": "The definition of a span signal.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that should be included on this span.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanAttribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kind": {
+          "description": "Specifies the kind of the span.",
+          "$ref": "#/$defs/SpanKindSpec"
+        },
+        "name": {
+          "description": "The name pattern for the span.",
+          "$ref": "#/$defs/SpanName"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "The type of the Span. This denotes the identity\nof the \"shape\" of this span, and must be unique.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "kind",
+        "name",
+        "brief",
+        "stability"
+      ]
+    },
+    "SpanAttribute": {
+      "description": "A special type of reference to attributes that remembers span-specicific information.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "description": "String that uniquely identifies the attribute.",
+          "type": "string"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
+          "$ref": "#/$defs/RequirementLevel"
+        },
+        "sampling_relevant": {
+          "description": "Specifies if the attribute is (especially) relevant for sampling\nand thus should be set at span start. It defaults to false.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "Either a string literal denoting the type as a primitive or an\narray type, a template type or an enum definition.",
+          "$ref": "#/$defs/AttributeType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "brief",
+        "stability",
+        "requirement_level"
+      ]
+    },
+    "SpanKindSpec": {
+      "description": "The span kind.",
+      "oneOf": [
+        {
+          "description": "An internal span.",
+          "type": "string",
+          "const": "internal"
+        },
+        {
+          "description": "A client span.",
+          "type": "string",
+          "const": "client"
+        },
+        {
+          "description": "A server span.",
+          "type": "string",
+          "const": "server"
+        },
+        {
+          "description": "A producer span.",
+          "type": "string",
+          "const": "producer"
+        },
+        {
+          "description": "A consumer span.",
+          "type": "string",
+          "const": "consumer"
+        }
+      ]
+    },
+    "SpanName": {
+      "description": "Specification of the span name.",
+      "type": "object",
+      "properties": {
+        "note": {
+          "description": "Required description of how a span name should be created.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "note"
+      ]
+    },
+    "SpanRefinement": {
+      "description": "A refinement of a span signal, for use in code-gen or specific library application.\n\nA refinement represents a \"view\" of a Span that is highly optimised for a particular implementation.\ne.g. for HTTP spans, there may be a refinement that provides only the necessary information for dealing with Java's HTTP\nclient library, and drops optional or extraneous information from the underlying http span.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that should be included on this span.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanAttribute"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The identity of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "kind": {
+          "description": "Specifies the kind of the span.",
+          "$ref": "#/$defs/SpanKindSpec"
+        },
+        "name": {
+          "description": "The name pattern for the span.",
+          "$ref": "#/$defs/SpanName"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "The type of the Span. This denotes the identity\nof the \"shape\" of this span, and must be unique.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "kind",
+        "name",
+        "brief",
+        "stability"
+      ]
+    },
+    "Stability": {
+      "description": "The level of stability for a definition. Defined in [OTEP-232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md)",
+      "oneOf": [
+        {
+          "description": "A deprecated definition.",
+          "type": "string",
+          "const": "deprecated",
+          "deprecated": true
+        },
+        {
+          "description": "A stable definition.",
+          "type": "string",
+          "const": "stable"
+        },
+        {
+          "description": "A definition in development. Formally known as experimental.",
+          "type": "string",
+          "const": "development"
+        },
+        {
+          "description": "An alpha definition.",
+          "type": "string",
+          "const": "alpha"
+        },
+        {
+          "description": "A beta definition.",
+          "type": "string",
+          "const": "beta"
+        },
+        {
+          "description": "A release candidate definition.",
+          "type": "string",
+          "const": "release_candidate"
+        }
+      ]
+    },
+    "TemplateTypeSpec": {
+      "description": "Template types.",
+      "oneOf": [
+        {
+          "description": "A boolean attribute.",
+          "type": "string",
+          "const": "template[boolean]"
+        },
+        {
+          "description": "A integer attribute.",
+          "type": "string",
+          "const": "template[int]"
+        },
+        {
+          "description": "A double attribute.",
+          "type": "string",
+          "const": "template[double]"
+        },
+        {
+          "description": "A string attribute.",
+          "type": "string",
+          "const": "template[string]"
+        },
+        {
+          "description": "A any attribute.",
+          "type": "string",
+          "const": "template[any]"
+        },
+        {
+          "description": "An array of strings attribute.",
+          "type": "string",
+          "const": "template[string[]]"
+        },
+        {
+          "description": "An array of integer attribute.",
+          "type": "string",
+          "const": "template[int[]]"
+        },
+        {
+          "description": "An array of double attribute.",
+          "type": "string",
+          "const": "template[double[]]"
+        },
+        {
+          "description": "An array of boolean attribute.",
+          "type": "string",
+          "const": "template[boolean[]]"
+        }
+      ]
+    },
+    "ValueSpec": {
+      "description": "The different types of values.",
+      "anyOf": [
+        {
+          "description": "A integer value.",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "A double value.",
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "description": "A string value.",
+          "type": "string"
+        },
+        {
+          "description": "A boolean value.",
+          "type": "boolean"
+        }
+      ]
+    },
+    "YamlValue": {
+      "type": [
+        "null",
+        "boolean",
+        "object",
+        "array",
+        "number",
+        "string"
+      ]
+    }
+  }
+}

@@ -16,7 +16,7 @@ use weaver_semconv::{
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::{
-    v2::{
+    V2_DIFF_FILE_FORMAT, V2_RESOLVED_FILE_FORMAT, v2::{
         attribute::Attribute,
         attribute_group::AttributeGroup,
         catalog::{AttributeCatalog, Catalog},
@@ -26,8 +26,7 @@ use crate::{
         registry::Registry,
         span::{Span, SpanRefinement},
         stats::Stats,
-    },
-    V2_RESOLVED_FILE_FORMAT,
+    }
 };
 
 pub mod attribute;
@@ -81,6 +80,9 @@ impl ResolvedTelemetrySchema {
     #[must_use]
     fn registry_diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> RegistryChanges {
         RegistryChanges {
+            file_format: V2_DIFF_FILE_FORMAT.to_owned(),
+            head_schema_url: self.schema_url.as_str().to_owned(),
+            baseline_schema_url: baseline_schema.schema_url.as_str().to_owned(),
             attribute_changes: self.registry_attribute_diff(baseline_schema),
             attribute_group_changes: diff_signals(
                 &self.registry.attribute_groups,

@@ -263,7 +263,7 @@ pub fn emit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
+    use weaver_forge::{registry::{ResolvedGroup, ResolvedRegistry}, v2::registry::V2_MATERIALIZED_FILE_FORMAT};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
@@ -591,6 +591,7 @@ mod tests {
         };
 
         let registry = ForgeResolvedRegistry {
+            file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
             schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned()).unwrap(),
             registry: Registry {
                 attributes: vec![],

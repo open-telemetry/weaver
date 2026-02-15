@@ -18,6 +18,12 @@ pub struct SchemaChanges {
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RegistryChanges {
+    /// Version of the file structure.
+    pub file_format: String,
+    /// Schema URL of the head (newer) registry.
+    pub head_schema_url: String,
+    /// Schema URL of the baseline (older) registry.
+    pub baseline_schema_url: String,
     /// Changes across the registry of attributes.
     pub attribute_changes: Vec<SchemaItemChange>,
     /// Changes across the registry of attribute groups.

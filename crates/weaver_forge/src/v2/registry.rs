@@ -17,6 +17,9 @@ use crate::{
     },
 };
 
+/// The file format version for the V2 materialized registry files.
+pub const V2_MATERIALIZED_FILE_FORMAT: &str = "materialized/2.0.0";
+
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
 ///
@@ -24,6 +27,8 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ForgeResolvedRegistry {
+    /// Version of the file structure.
+    pub file_format: String,
     /// The semantic convention registry url.
     pub schema_url: SchemaUrl,
     // TODO - Attribute Groups
@@ -413,6 +418,7 @@ impl ForgeResolvedRegistry {
         }
 
         Ok(Self {
+            file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
             schema_url: schema.schema_url.clone(),
             registry: Registry {
                 attributes,

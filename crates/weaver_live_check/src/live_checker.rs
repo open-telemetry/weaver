@@ -182,7 +182,7 @@ mod tests {
         attribute::Attribute as V2Attribute,
         event::{Event as V2Event, EventAttribute},
         metric::{Metric as V2Metric, MetricAttribute},
-        registry::{ForgeResolvedRegistry, Refinements, Registry},
+        registry::{ForgeResolvedRegistry, Refinements, Registry, V2_MATERIALIZED_FILE_FORMAT},
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
@@ -512,6 +512,7 @@ mod tests {
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
                 schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
                     .unwrap(),
                 registry: Registry {
@@ -799,6 +800,7 @@ mod tests {
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
                 schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
                     .unwrap(),
                 registry: Registry {
@@ -1008,6 +1010,7 @@ mod tests {
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
                 schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
                     .unwrap(),
                 registry: Registry {
@@ -1523,6 +1526,7 @@ mod tests {
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                file_format: V2_MATERIALIZED_FILE_FORMAT.to_owned(),
                 schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
                     .unwrap(),
                 registry: Registry {
