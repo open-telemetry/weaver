@@ -173,7 +173,7 @@ fn load_semconv_repository_recursive(
     // Make sure we don't go past our max dependency depth.
     if max_dependency_depth == 0 {
         return WResult::FatalErr(Error::MaximumDependencyDepth {
-            registry_name: registry_repo.registry_path_repr().to_owned(),
+            registry_name: registry_repo.name().to_string(),
         });
     }
     let registry_name = registry_repo.name().to_string();
