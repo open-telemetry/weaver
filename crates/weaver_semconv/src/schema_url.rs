@@ -69,11 +69,18 @@ impl SchemaUrl {
                 _ = segments.pop();
             }
 
+            // Construct authority from host and port (replaces deprecated authority() method)
+            let authority = match (parsed_url.host_str(), parsed_url.port()) {
+                (Some(host), Some(port)) => format!("{}:{}", host, port),
+                (Some(host), None) => host.to_owned(),
+                _ => String::new(),
+            };
+
             if segments.is_empty() {
-                return parsed_url.authority().to_owned();
+                return authority;
             }
 
-            format!("{}/{}", parsed_url.authority(), segments.join("/"))
+            format!("{}/{}", authority, segments.join("/"))
         })
     }
 
@@ -140,7 +147,7 @@ impl<'de> Deserialize<'de> for SchemaUrl {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(SchemaUrl::new(s))
+        SchemaUrl::try_new(s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -325,6 +332,24 @@ mod tests {
         let json = "\"https://example.com/schemas/1.0.0\"";
         let schema_url: SchemaUrl = serde_json::from_str(json).unwrap();
         assert_eq!(schema_url.as_str(), "https://example.com/schemas/1.0.0");
+    }
+
+    #[test]
+    fn test_deserialize_invalid_url() {
+        let json = "\"not a valid url\"";
+        let result: Result<SchemaUrl, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("Invalid schema URL"));
+    }
+
+    #[test]
+    fn test_deserialize_url_without_path() {
+        let json = "\"https://example.com\"";
+        let result: Result<SchemaUrl, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("at least one path segment"));
     }
 
     #[test]
