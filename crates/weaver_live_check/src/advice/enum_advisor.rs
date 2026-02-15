@@ -81,7 +81,11 @@ impl Advisor for EnumAdvisor {
                                 ))
                                 .level(FindingLevel::Information)
                                 .signal(signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(
+                                    &sample,
+                                    otlp_emitter.as_deref(),
+                                    signal,
+                                );
 
                                 return Ok(vec![finding]);
                             }

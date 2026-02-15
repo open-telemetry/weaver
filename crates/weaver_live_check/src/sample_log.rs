@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
-    MISSING_EVENT_ADVICE_TYPE,
+    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
+    sample_resource::SampleResource, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
+    Sample, SampleRef, VersionedSignal, MISSING_EVENT_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -34,6 +34,9 @@ pub struct SampleLog {
     pub span_id: Option<String>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Reference to the parent resource (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
 }
 
 impl LiveCheckRunner for SampleLog {
@@ -62,6 +65,7 @@ impl LiveCheckRunner for SampleLog {
                     .build_and_emit(
                         &SampleRef::Log(self),
                         live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                        parent_signal,
                     );
                 result.add_advice(finding);
             };
