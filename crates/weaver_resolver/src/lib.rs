@@ -91,14 +91,9 @@ impl SchemaResolver {
         }
         let manifest = repo.manifest().cloned();
         let schema_url = if let Some(m) = manifest.as_ref() {
-            match m.schema_url.clone() {
-                Some(url) => url,
-                None => {
-                    return WResult::FatalErr(Error::FailToResolveSchemaUrl {});
-                }
-            }
+            m.schema_url.clone()
         } else {
-            match SchemaUrl::from_name_version(&repo.name(), &repo.version()) {
+            match SchemaUrl::try_from_name_version(&repo.name(), &repo.version()) {
                 Ok(url) => url,
                 Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
             }

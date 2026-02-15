@@ -34,9 +34,8 @@ fn test_cli_interface() {
         refspec: None,
     };
 
-    let schema_url = Some(SchemaUrl::new(
-        "https://opentelemetry.io/schemas/1.40.0".to_owned(),
-    ));
+    let schema_url =
+        Some(SchemaUrl::try_new("https://opentelemetry.io/schemas/1.40.0".to_owned()).unwrap());
     let registry_repo = RegistryRepo::try_new(schema_url, &registry_path).unwrap_or_else(|e| {
         panic!("Failed to create the registry repo, error: {e}");
     });

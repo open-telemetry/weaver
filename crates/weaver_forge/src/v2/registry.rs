@@ -448,7 +448,7 @@ mod tests {
     fn test_try_from_resolved_schema() {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
-            schema_url: SchemaUrl::new("https://example.com/schema".to_owned()),
+            schema_url: SchemaUrl::try_new("https://example.com/schema".to_owned()).unwrap(),
             attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -610,7 +610,7 @@ mod tests {
     fn test_try_from_resolved_schema_with_missing_attribute() {
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
-            schema_url: SchemaUrl::new("https://example.com/schema".to_owned()),
+            schema_url: SchemaUrl::try_new("https://example.com/schema".to_owned()).unwrap(),
             attribute_catalog: vec![],
             registry: v2::registry::Registry {
                 attributes: vec![], // No attributes - This is the logic bug.

@@ -123,21 +123,21 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     fn try_from(value: crate::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
-        let schema_url = SchemaUrl::new(value.schema_url);
+        let schema_url_str = value.schema_url.clone();
+        let schema_url = SchemaUrl::try_new(value.schema_url).map_err(|e| {
+            crate::error::Error::InvalidSchemaUrl {
+                url: schema_url_str,
+                error: e,
+            }
+        })?;
 
-        match schema_url.validate() {
-            Ok(_) => Ok(ResolvedTelemetrySchema {
-                file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-                schema_url,
-                attribute_catalog,
-                registry,
-                refinements,
-            }),
-            Err(e) => Err(crate::error::Error::InvalidSchemaUrl {
-                url: schema_url.to_string(),
-                error: e.clone(),
-            }),
-        }
+        Ok(ResolvedTelemetrySchema {
+            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
+            schema_url,
+            attribute_catalog,
+            registry,
+            refinements,
+        })
     }
 }
 
@@ -1009,7 +1009,7 @@ mod tests {
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(
             v2_schema.schema_url,
-            SchemaUrl::new("http://test/schemas/1.0.0".to_owned())
+            SchemaUrl::try_new("http://test/schemas/1.0.0".to_owned()).unwrap()
         );
     }
 
@@ -1218,7 +1218,7 @@ mod tests {
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: SchemaUrl::new("http://test/schemas/1.0".to_owned()),
+            schema_url: SchemaUrl::try_new("http://test/schemas/1.0".to_owned()).unwrap(),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],

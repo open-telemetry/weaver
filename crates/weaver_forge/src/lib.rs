@@ -856,7 +856,7 @@ mod tests {
         cli_params: Params,
         ignore_non_fatal_errors: bool,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
-        let schema_url = Some(SchemaUrl::new("https://default/1.0.0".to_owned()));
+        let schema_url = Some(SchemaUrl::try_new("https://default/1.0.0".to_owned()).unwrap());
         let path: VirtualDirectoryPath = "data/registry"
             .try_into()
             .expect("Invalid virtual directory path string");
@@ -1060,7 +1060,7 @@ mod tests {
         let path: VirtualDirectoryPath = "data/registry"
             .try_into()
             .expect("Invalid virtual directory path string");
-        let schema_url = Some(SchemaUrl::new("https://default/1.0.0".to_owned()));
+        let schema_url = Some(SchemaUrl::try_new("https://default/1.0.0".to_owned()).unwrap());
         let repo =
             RegistryRepo::try_new(schema_url, &path).expect("Failed to construct repository");
         let loaded = SchemaResolver::load_semconv_repository(repo, false)
@@ -1190,7 +1190,7 @@ mod tests {
         let path: VirtualDirectoryPath = "data/mini_registry_for_comments"
             .try_into()
             .expect("Invalid virtual directory path string");
-        let schema_url = Some(SchemaUrl::new("https://default/1.0.0".to_owned()));
+        let schema_url = Some(SchemaUrl::try_new("https://default/1.0.0".to_owned()).unwrap());
         let repo =
             RegistryRepo::try_new(schema_url, &path).expect("Failed to construct repository");
         let loaded = SchemaResolver::load_semconv_repository(repo, false)

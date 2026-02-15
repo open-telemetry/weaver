@@ -452,7 +452,7 @@ mod tests {
     fn test_registry() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: "resolved/2.0.0".to_owned(),
-            schema_url: SchemaUrl::new("https://todo/1.0.0".to_owned()),
+            schema_url: SchemaUrl::try_new("https://todo/1.0.0".to_owned()).unwrap(),
             attribute_catalog: vec![Attribute {
                 key: "attr1".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),

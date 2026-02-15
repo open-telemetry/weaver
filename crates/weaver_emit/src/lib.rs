@@ -591,7 +591,7 @@ mod tests {
         };
 
         let registry = ForgeResolvedRegistry {
-            schema_url: SchemaUrl::new("https://example.com/schemas/1.2.3".to_owned()),
+            schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned()).unwrap(),
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],

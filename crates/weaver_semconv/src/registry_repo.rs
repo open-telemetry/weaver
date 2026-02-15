@@ -26,13 +26,11 @@ pub const REGISTRY_MANIFEST: &str = "manifest.yaml";
 ///   - Initialized from a Git archive
 /// - A published repository, which is a manifest file
 ///   that denotes where to find aspects of the registry.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct RegistryRepo {
-    // A unique identifier for the registry (e.g. opentelemetry.io/schemas/sub-component).
-    name: Arc<str>,
-
-    // Registry version
-    version: Arc<str>,
+    /// The schema URL associated with the registry
+    /// May be derived from the manifest or the registry name and version if the manifest is not present.
+    schema_url: SchemaUrl,
 
     // A virtual directory containing the registry.
     registry: VirtualDirectory,
@@ -68,8 +66,7 @@ impl RegistryRepo {
         if let Some(manifest_path) = {
             // We need a temporary RegistryRepo to call manifest_path
             let temp_repo = Self {
-                name: Arc::from(""),
-                version: Arc::from(""),
+                schema_url: SchemaUrl::new_unknown(),
                 registry: registry.clone(),
                 manifest: None,
             };
@@ -77,24 +74,15 @@ impl RegistryRepo {
         } {
             let registry_manifest = RegistryManifest::try_from_file(manifest_path)?;
             Ok(Self {
-                name: registry_manifest.name().into(),
-                version: registry_manifest.version().into(),
+                schema_url: registry_manifest.schema_url.clone(),
                 registry,
                 manifest: Some(registry_manifest),
             })
         } else {
             // No manifest
+            let schema_url_combined = schema_url.unwrap_or_else(SchemaUrl::new_unknown);
             Ok(Self {
-                name: Arc::from(
-                    schema_url
-                        .as_ref()
-                        .map_or("unknown".to_owned(), |url| url.name().to_owned()),
-                ),
-                version: Arc::from(
-                    schema_url
-                        .as_ref()
-                        .map_or("unknown".to_owned(), |url| url.version().to_owned()),
-                ),
+                schema_url: schema_url_combined.clone(),
                 registry,
                 manifest: None,
             })
@@ -104,21 +92,13 @@ impl RegistryRepo {
     /// Returns the registry name (from manifest if present, otherwise top-level field).
     #[must_use]
     pub fn name(&self) -> Arc<str> {
-        if let Some(manifest) = &self.manifest {
-            Arc::from(manifest.name())
-        } else {
-            self.name.clone()
-        }
+        self.schema_url.name().into()
     }
 
     /// Returns the registry version (from manifest if present, otherwise top-level field).
     #[must_use]
     pub fn version(&self) -> Arc<str> {
-        if let Some(manifest) = &self.manifest {
-            Arc::from(manifest.version())
-        } else {
-            self.version.clone()
-        }
+        self.schema_url.version().into()
     }
 
     /// Returns the local path to the semconv registry.
@@ -198,11 +178,17 @@ impl RegistryRepo {
     /// Returns the registry schema URL.
     #[must_use]
     pub fn schema_url(&self) -> SchemaUrl {
-        self.manifest
-            .as_ref()
-            .and_then(|manifest| manifest.schema_url.clone())
-            // we should never have a registry without a schema URL at this point
-            .expect("Schema URL must have been provided")
+        self.schema_url.clone()
+    }
+}
+
+impl Default for RegistryRepo {
+    fn default() -> Self {
+        Self {
+            schema_url: SchemaUrl::new_unknown(),
+            registry: VirtualDirectory::default(),
+            manifest: None,
+        }
     }
 }
 

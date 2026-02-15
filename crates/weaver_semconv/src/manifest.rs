@@ -14,15 +14,13 @@ use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::path::PathBuf;
-use weaver_common::error::handle_errors;
 use weaver_common::vdir::VirtualDirectoryPath;
 
 /// Represents the information of a semantic convention registry manifest.
 ///
 /// This information defines the registry's name, version, description, and schema
 /// base url.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct RegistryManifest {
     /// The file format for this registry.
     ///
@@ -34,8 +32,8 @@ pub struct RegistryManifest {
     /// This URL is populated before registry is published and is used as
     /// a unique identifier of the registry. It MUST follow OTel schema URL format, which is:
     /// `http[s]://server[:port]/path/<version>`.
-    /// See https://github.com/open-telemetry/opentelemetry-specification/blob/v1.53.0/specification/schemas/README.md#schema-url for more details.
-    pub schema_url: Option<SchemaUrl>,
+    /// See <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.53.0/specification/schemas/README.md#schema-url> for more details.
+    pub schema_url: SchemaUrl,
 
     /// An optional description of the registry.
     ///
@@ -121,7 +119,8 @@ impl<'de> Deserialize<'de> for Dependency {
 
         let schema_url = match (helper.schema_url, helper.name) {
             (Some(url), _) => url,
-            (None, Some(name)) => SchemaUrl::new(format!("{}/unknown", name)),
+            (None, Some(name)) => SchemaUrl::try_from_name_version(&name, "unknown")
+                .map_err(serde::de::Error::custom)?,
             (None, None) => {
                 return Err(serde::de::Error::custom(
                     "Either 'schema_url' or 'name' must be provided for a dependency",
@@ -133,6 +132,61 @@ impl<'de> Deserialize<'de> for Dependency {
             schema_url,
             registry_path: helper.registry_path,
             name: None,
+        })
+    }
+}
+
+impl<'de> Deserialize<'de> for RegistryManifest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct RegistryManifestHelper {
+            file_format: Option<String>,
+            schema_url: Option<SchemaUrl>,
+            description: Option<String>,
+            #[allow(deprecated)]
+            semconv_version: Option<String>,
+            #[allow(deprecated)]
+            schema_base_url: Option<String>,
+            #[serde(default)]
+            dependencies: Vec<Dependency>,
+            #[serde(default)]
+            stability: Stability,
+            resolved_schema_uri: Option<String>,
+        }
+
+        let helper = RegistryManifestHelper::deserialize(deserializer)?;
+
+        let schema_url = if let Some(url) = helper.schema_url {
+            url
+        } else {
+            // Fall back to deprecated fields
+            let base_url = helper.schema_base_url.as_ref().ok_or_else(|| {
+               serde::de::Error::custom(
+                   "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided",
+               )
+            })?;
+            let version = helper.semconv_version.as_ref().ok_or_else(|| {
+                serde::de::Error::custom(
+                    "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided",
+                )
+            })?;
+            SchemaUrl::try_from_name_version(base_url, version).map_err(serde::de::Error::custom)?
+        };
+
+        Ok(RegistryManifest {
+            file_format: helper.file_format,
+            schema_url,
+            description: helper.description,
+            #[allow(deprecated)]
+            semconv_version: helper.semconv_version,
+            #[allow(deprecated)]
+            schema_base_url: helper.schema_base_url,
+            dependencies: helper.dependencies,
+            stability: helper.stability,
+            resolved_schema_uri: helper.resolved_schema_uri,
         })
     }
 }
@@ -155,85 +209,13 @@ impl RegistryManifest {
             error: e.to_string(),
         })?;
         let reader = std::io::BufReader::new(file);
-        let mut manifest: RegistryManifest =
+        let manifest: RegistryManifest =
             serde_yaml::from_reader(reader).map_err(|e| InvalidRegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
             })?;
 
-        manifest.validate(manifest_path_buf.clone())?;
-
-        // If the schema URL is not provided, populate it using deprecated schema_base_url and semconv_version
-        // validation would fail if they were not provided
-        if manifest.schema_url.is_none() {
-            manifest.schema_url = Some(
-                SchemaUrl::from_name_version(
-                    &manifest.schema_base_url.clone().unwrap_or_default(),
-                    &manifest.semconv_version.clone().unwrap_or_default(),
-                )
-                .map_err(|e| InvalidRegistryManifest {
-                    path: manifest_path_buf.clone(),
-                    error: e,
-                })?,
-            );
-        }
-
         Ok(manifest)
-    }
-
-    fn validate(&self, path: PathBuf) -> Result<(), Error> {
-        let mut errors = vec![];
-
-        if self.schema_url.is_none() {
-            if self.schema_base_url.is_none() || self.semconv_version.is_none() {
-                errors.push(InvalidRegistryManifest {
-                    path: path.clone(),
-                    error: "The registry schema URL is required.".to_owned(),
-                });
-            } else {
-                if self
-                    .schema_base_url
-                    .as_ref()
-                    .map_or(true, |url| url.is_empty())
-                {
-                    errors.push(InvalidRegistryManifest {
-                        path: path.clone(),
-                        error: "The registry schema base URL is required.".to_owned(),
-                    });
-                } else if let Err(e) =
-                    url::Url::parse(&self.schema_base_url.clone().unwrap_or_default())
-                {
-                    errors.push(InvalidRegistryManifest {
-                        path: path.clone(),
-                        error: format!("Invalid schema base URL: {}", e),
-                    });
-                }
-
-                if self
-                    .semconv_version
-                    .as_ref()
-                    .map_or(true, |version| version.is_empty())
-                {
-                    errors.push(InvalidRegistryManifest {
-                        path: path.clone(),
-                        error: "The registry version is required.".to_owned(),
-                    });
-                }
-            }
-        } else {
-            // validate the resolved schema URL: it must be a valid absolute URI with at least one path segment
-            if let Some(url) = self.schema_url.as_ref() {
-                url.validate().unwrap_or_else(|e| {
-                    errors.push(InvalidRegistryManifest {
-                        path: path.clone(),
-                        error: format!("Invalid schema URL: {}", e),
-                    });
-                });
-            }
-        }
-
-        handle_errors(errors)?;
-        Ok(())
     }
 
     /// Returns the registry name, which is derived from the schema URL.
@@ -241,10 +223,7 @@ impl RegistryManifest {
     /// the registry name would be `opentelemetry.io/schemas/sub-component`
     #[must_use]
     pub fn name(&self) -> String {
-        self.schema_url
-            .as_ref()
-            .map(|url| url.name().to_owned())
-            .unwrap_or_default()
+        self.schema_url.name().to_owned()
     }
 
     /// Returns the registry version, which is derived from the schema URL.
@@ -252,17 +231,15 @@ impl RegistryManifest {
     /// the registry version would be `1.0.0`
     #[must_use]
     pub fn version(&self) -> String {
-        self.schema_url
-            .as_ref()
-            .map(|url| url.version().to_owned())
-            .unwrap_or_default()
+        self.schema_url.version().to_owned()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
-    use crate::Error::CompoundError;
 
     #[test]
     fn test_not_found_registry_info() {
@@ -298,16 +275,10 @@ mod tests {
         );
         let path = PathBuf::from("tests/test_data/invalid_semconv_registry_manifest.yaml");
 
-        let expected_errs = CompoundError(vec![
-            InvalidRegistryManifest {
-                path: path.clone(),
-                error: "The registry schema base URL is required.".to_owned(),
-            },
-            InvalidRegistryManifest {
-                path: path.clone(),
-                error: "The registry version is required.".to_owned(),
-            },
-        ]);
+        let expected_errs = InvalidRegistryManifest {
+            path: path.clone(),
+            error: "Registry name and version cannot be empty.".to_owned(),
+        };
 
         if let Err(observed_errs) = result {
             assert_eq!(observed_errs, expected_errs);
@@ -350,7 +321,7 @@ registry_path: "./registry"
 name: "acme-registry"
 "#;
         let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
-        assert_eq!(dep.schema_url.as_str(), "acme-registry/unknown");
+        assert_eq!(dep.schema_url.as_str(), "https://acme-registry/unknown");
     }
 
     #[test]
@@ -382,7 +353,8 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_serialize() {
         let dep = Dependency {
-            schema_url: SchemaUrl::new("https://opentelemetry.io/schemas/1.0.0".to_owned()),
+            schema_url: SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned())
+                .unwrap(),
             registry_path: None,
             name: None,
         };
@@ -398,7 +370,8 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_serialize_with_registry_path() {
         let dep = Dependency {
-            schema_url: SchemaUrl::new("https://opentelemetry.io/schemas/1.0.0".to_owned()),
+            schema_url: SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned())
+                .unwrap(),
             registry_path: Some(VirtualDirectoryPath::LocalFolder {
                 path: "./registry".to_owned(),
             }),
@@ -413,7 +386,8 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_serialize_without_optional_path() {
         let dep = Dependency {
-            schema_url: SchemaUrl::new("https://opentelemetry.io/schemas/1.0.0".to_owned()),
+            schema_url: SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned())
+                .unwrap(),
             registry_path: None,
             name: None,
         };
@@ -426,7 +400,7 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_roundtrip_serialization() {
         let original = Dependency {
-            schema_url: SchemaUrl::new("https://example.com/schemas/1.0.0".to_owned()),
+            schema_url: SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap(),
             registry_path: Some(VirtualDirectoryPath::LocalFolder {
                 path: "./test/registry".to_owned(),
             }),

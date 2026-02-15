@@ -512,7 +512,8 @@ mod tests {
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
-                schema_url: SchemaUrl::new("https://example.com/schemas/1.2.3".to_owned()),
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![
                         V2Attribute {
@@ -798,7 +799,8 @@ mod tests {
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
-                schema_url: SchemaUrl::new("https://example.com/schemas/1.2.3".to_owned()),
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![memory_state_attr.clone()],
                     attribute_groups: vec![],
@@ -1006,7 +1008,8 @@ mod tests {
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
-                schema_url: SchemaUrl::new("https://example.com/schemas/1.2.3".to_owned()),
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![custom_string_attr.clone()],
                     attribute_groups: vec![],
@@ -1520,7 +1523,8 @@ mod tests {
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
-                schema_url: SchemaUrl::new("https://example.com/schemas/1.2.3".to_owned()),
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
                     attribute_groups: vec![],
