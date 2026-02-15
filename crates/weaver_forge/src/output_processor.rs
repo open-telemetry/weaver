@@ -267,7 +267,11 @@ impl OutputProcessor {
                     OutputTarget::File(p) | OutputTarget::Directory(p) => {
                         (p.clone(), OutputDirective::File)
                     }
-                    OutputTarget::Mute => unreachable!(),
+                    OutputTarget::Mute => {
+                        return Err(Error::InternalError(
+                            "Template generate called with Mute target".to_owned(),
+                        ));
+                    }
                 };
                 t.engine.generate(data, &path, &directive)
             }
@@ -394,14 +398,16 @@ mod tests {
     #[test]
     fn test_mute_format() {
         let output =
-            OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
+                .expect("mute format should succeed");
         assert!(!output.is_file_output());
         assert!(!output.is_line_oriented());
     }
 
     #[test]
     fn test_mute_via_output_target() {
-        let output = OutputProcessor::new("json", "test", None, None, OutputTarget::Mute).unwrap();
+        let output = OutputProcessor::new("json", "test", None, None, OutputTarget::Mute)
+            .expect("json with Mute target should succeed");
         assert!(!output.is_file_output());
         assert!(!output.is_line_oriented());
     }
@@ -410,7 +416,8 @@ mod tests {
     fn test_mute_via_from_optional_dir() {
         let none_path = PathBuf::from("none");
         let target = OutputTarget::from_optional_dir(Some(&none_path));
-        let output = OutputProcessor::new("json", "test", None, None, target).unwrap();
+        let output = OutputProcessor::new("json", "test", None, None, target)
+            .expect("json with 'none' dir target should succeed");
         assert!(!output.is_file_output());
         assert!(!output.is_line_oriented());
     }
@@ -430,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_json_format_to_directory() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("should create temp dir");
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new(
             "json",
@@ -439,21 +446,21 @@ mod tests {
             None,
             OutputTarget::Directory(path.clone()),
         )
-        .unwrap();
+        .expect("json directory output should succeed");
         assert!(!output.is_line_oriented());
         assert!(output.is_file_output());
 
-        output.generate(&test_data()).unwrap();
+        output.generate(&test_data()).expect("generate should succeed");
 
         let file_path = path.join("test.json");
-        let content = fs::read_to_string(&file_path).unwrap();
-        let parsed: TestData = serde_json::from_str(&content).unwrap();
+        let content = fs::read_to_string(&file_path).expect("should read output file");
+        let parsed: TestData = serde_json::from_str(&content).expect("should parse JSON");
         assert_eq!(parsed, test_data());
     }
 
     #[test]
     fn test_json_format_to_direct_file() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("should create temp dir");
         let file_path = temp_dir.path().join("output.json");
         let mut output = OutputProcessor::new(
             "json",
@@ -462,19 +469,19 @@ mod tests {
             None,
             OutputTarget::File(file_path.clone()),
         )
-        .unwrap();
+        .expect("json file output should succeed");
         assert!(output.is_file_output());
 
-        output.generate(&test_data()).unwrap();
+        output.generate(&test_data()).expect("generate should succeed");
 
-        let content = fs::read_to_string(&file_path).unwrap();
-        let parsed: TestData = serde_json::from_str(&content).unwrap();
+        let content = fs::read_to_string(&file_path).expect("should read output file");
+        let parsed: TestData = serde_json::from_str(&content).expect("should parse JSON");
         assert_eq!(parsed, test_data());
     }
 
     #[test]
     fn test_yaml_format_to_directory() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("should create temp dir");
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new(
             "yaml",
@@ -483,21 +490,21 @@ mod tests {
             None,
             OutputTarget::Directory(path.clone()),
         )
-        .unwrap();
+        .expect("yaml directory output should succeed");
         assert!(!output.is_line_oriented());
         assert!(output.is_file_output());
 
-        output.generate(&test_data()).unwrap();
+        output.generate(&test_data()).expect("generate should succeed");
 
         let file_path = path.join("test.yaml");
-        let content = fs::read_to_string(&file_path).unwrap();
-        let parsed: TestData = serde_yaml::from_str(&content).unwrap();
+        let content = fs::read_to_string(&file_path).expect("should read output file");
+        let parsed: TestData = serde_yaml::from_str(&content).expect("should parse YAML");
         assert_eq!(parsed, test_data());
     }
 
     #[test]
     fn test_jsonl_format_to_directory() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("should create temp dir");
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new(
             "jsonl",
@@ -506,7 +513,7 @@ mod tests {
             None,
             OutputTarget::Directory(path.clone()),
         )
-        .unwrap();
+        .expect("jsonl directory output should succeed");
         assert!(output.is_line_oriented());
         assert!(output.is_file_output());
 
@@ -514,15 +521,15 @@ mod tests {
             name: "second".to_owned(),
             value: 99,
         };
-        output.generate(&test_data()).unwrap();
-        output.generate(&second).unwrap();
+        output.generate(&test_data()).expect("generate first should succeed");
+        output.generate(&second).expect("generate second should succeed");
 
         let file_path = path.join("test.jsonl");
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("should read output file");
         let lines: Vec<&str> = content.trim().lines().collect();
         assert_eq!(lines.len(), 2);
-        let parsed_first: TestData = serde_json::from_str(lines[0]).unwrap();
-        let parsed_second: TestData = serde_json::from_str(lines[1]).unwrap();
+        let parsed_first: TestData = serde_json::from_str(lines[0]).expect("should parse first JSON line");
+        let parsed_second: TestData = serde_json::from_str(lines[1]).expect("should parse second JSON line");
         assert_eq!(parsed_first, test_data());
         assert_eq!(parsed_second, second);
     }
@@ -530,7 +537,8 @@ mod tests {
     #[test]
     fn test_mute_generate_does_nothing() {
         let mut output =
-            OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
+                .expect("mute format should succeed");
         assert!(output.generate(&test_data()).is_ok());
         assert!(!output.is_file_output());
     }
@@ -538,16 +546,18 @@ mod tests {
     #[test]
     fn test_is_file_output() {
         // Mute is not file output
-        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout).unwrap();
+        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
+            .expect("mute format should succeed");
         assert!(!mute.is_file_output());
 
         // Stdout is not file output
         let stdout =
-            OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
+                .expect("json stdout should succeed");
         assert!(!stdout.is_file_output());
 
         // Directory output is file output
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("should create temp dir");
         let path = temp_dir.path().to_path_buf();
         let dir = OutputProcessor::new(
             "json",
@@ -556,7 +566,7 @@ mod tests {
             None,
             OutputTarget::Directory(path.clone()),
         )
-        .unwrap();
+        .expect("json directory output should succeed");
         assert!(dir.is_file_output());
 
         // Direct file output is file output
@@ -567,7 +577,7 @@ mod tests {
             None,
             OutputTarget::File(path.join("test.json")),
         )
-        .unwrap();
+        .expect("json file output should succeed");
         assert!(file.is_file_output());
     }
 
@@ -575,18 +585,21 @@ mod tests {
     fn test_format_case_insensitive() {
         // JSON (uppercase) should create a valid non-line-oriented processor
         let json_upper =
-            OutputProcessor::new("JSON", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("JSON", "test", None, None, OutputTarget::Stdout)
+                .expect("JSON uppercase should succeed");
         assert!(!json_upper.is_line_oriented());
         assert!(!json_upper.is_file_output());
 
         // Json (mixed case) should also work
         let json_mixed =
-            OutputProcessor::new("Json", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("Json", "test", None, None, OutputTarget::Stdout)
+                .expect("Json mixed case should succeed");
         assert!(!json_mixed.is_line_oriented());
         assert!(!json_mixed.is_file_output());
 
         // MUTE (uppercase) should create a mute processor
-        let mute = OutputProcessor::new("MUTE", "test", None, None, OutputTarget::Stdout).unwrap();
+        let mute = OutputProcessor::new("MUTE", "test", None, None, OutputTarget::Stdout)
+            .expect("MUTE uppercase should succeed");
         assert!(!mute.is_file_output());
         assert!(!mute.is_line_oriented());
     }
@@ -606,15 +619,15 @@ mod tests {
             None,
             OutputTarget::Stdout,
         )
-        .unwrap();
+        .expect("template format should succeed");
         assert!(!output.is_line_oriented());
         assert!(!output.is_file_output());
-        output.generate(&test_data()).unwrap();
+        output.generate(&test_data()).expect("generate should succeed");
     }
 
     #[test]
     fn test_template_format_to_directory() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("should create temp dir");
         let path = temp_dir.path().to_path_buf();
         let mut output = OutputProcessor::new(
             "simple",
@@ -623,66 +636,74 @@ mod tests {
             None,
             OutputTarget::Directory(path.clone()),
         )
-        .unwrap();
+        .expect("template directory output should succeed");
         assert!(!output.is_line_oriented());
         assert!(output.is_file_output());
 
-        output.generate(&test_data()).unwrap();
+        output.generate(&test_data()).expect("generate should succeed");
 
         let file_path = path.join("output.txt");
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("should read output file");
         assert!(content.contains("test"), "should contain name");
         assert!(content.contains("42"), "should contain value");
     }
 
     #[test]
     fn test_is_line_oriented() {
-        let json = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout).unwrap();
+        let json = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
+            .expect("json format should succeed");
         assert!(!json.is_line_oriented());
 
-        let yaml = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout).unwrap();
+        let yaml = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout)
+            .expect("yaml format should succeed");
         assert!(!yaml.is_line_oriented());
 
         let jsonl =
-            OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout)
+                .expect("jsonl format should succeed");
         assert!(jsonl.is_line_oriented());
 
-        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout).unwrap();
+        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
+            .expect("mute format should succeed");
         assert!(!mute.is_line_oriented());
     }
 
     #[test]
     fn test_generate_to_string_json() {
         let output =
-            OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout).unwrap();
-        let result = output.generate_to_string(&test_data()).unwrap();
-        let parsed: TestData = serde_json::from_str(&result).unwrap();
+            OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
+                .expect("json format should succeed");
+        let result = output.generate_to_string(&test_data()).expect("generate_to_string should succeed");
+        let parsed: TestData = serde_json::from_str(&result).expect("should parse JSON");
         assert_eq!(parsed, test_data());
     }
 
     #[test]
     fn test_generate_to_string_yaml() {
         let output =
-            OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout).unwrap();
-        let result = output.generate_to_string(&test_data()).unwrap();
-        let parsed: TestData = serde_yaml::from_str(&result).unwrap();
+            OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout)
+                .expect("yaml format should succeed");
+        let result = output.generate_to_string(&test_data()).expect("generate_to_string should succeed");
+        let parsed: TestData = serde_yaml::from_str(&result).expect("should parse YAML");
         assert_eq!(parsed, test_data());
     }
 
     #[test]
     fn test_generate_to_string_jsonl() {
         let output =
-            OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout).unwrap();
-        let result = output.generate_to_string(&test_data()).unwrap();
-        let parsed: TestData = serde_json::from_str(&result).unwrap();
+            OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout)
+                .expect("jsonl format should succeed");
+        let result = output.generate_to_string(&test_data()).expect("generate_to_string should succeed");
+        let parsed: TestData = serde_json::from_str(&result).expect("should parse JSON");
         assert_eq!(parsed, test_data());
     }
 
     #[test]
     fn test_generate_to_string_mute() {
         let output =
-            OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout).unwrap();
-        let result = output.generate_to_string(&test_data()).unwrap();
+            OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
+                .expect("mute format should succeed");
+        let result = output.generate_to_string(&test_data()).expect("generate_to_string should succeed");
         assert!(result.is_empty());
     }
 
@@ -695,8 +716,8 @@ mod tests {
             None,
             OutputTarget::Stdout,
         )
-        .unwrap();
-        let result = output.generate_to_string(&test_data()).unwrap();
+        .expect("template format should succeed");
+        let result = output.generate_to_string(&test_data()).expect("generate_to_string should succeed");
         assert!(result.contains("test"), "should contain name");
         assert!(result.contains("42"), "should contain value");
     }
@@ -715,7 +736,7 @@ mod tests {
             None,
             OutputTarget::Stdout,
         )
-        .unwrap();
+        .expect("each_test template should succeed");
 
         let data = Items {
             items: vec![
@@ -733,7 +754,7 @@ mod tests {
                 },
             ],
         };
-        let result = output.generate_to_string(&data).unwrap();
+        let result = output.generate_to_string(&data).expect("generate_to_string should succeed");
         assert!(
             result.contains("a=1"),
             "should contain first item: {result}"
@@ -763,7 +784,7 @@ mod tests {
             None,
             OutputTarget::Stdout,
         )
-        .unwrap();
+        .expect("each_test template should succeed");
 
         let data = Items {
             items: TestData {
@@ -771,7 +792,7 @@ mod tests {
                 value: 99,
             },
         };
-        let result = output.generate_to_string(&data).unwrap();
+        let result = output.generate_to_string(&data).expect("generate_to_string should succeed");
         assert!(
             result.contains("solo=99"),
             "should contain the single item: {result}"
@@ -780,14 +801,17 @@ mod tests {
 
     #[test]
     fn test_content_type() {
-        let json = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout).unwrap();
+        let json = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
+            .expect("json format should succeed");
         assert_eq!(json.content_type(), "application/json");
 
-        let yaml = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout).unwrap();
+        let yaml = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout)
+            .expect("yaml format should succeed");
         assert_eq!(yaml.content_type(), "application/yaml");
 
         let jsonl =
-            OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout).unwrap();
+            OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout)
+                .expect("jsonl format should succeed");
         assert_eq!(jsonl.content_type(), "application/jsonl");
 
         let template = OutputProcessor::new(
@@ -797,10 +821,11 @@ mod tests {
             None,
             OutputTarget::Stdout,
         )
-        .unwrap();
+        .expect("template format should succeed");
         assert_eq!(template.content_type(), "text/plain");
 
-        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout).unwrap();
+        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
+            .expect("mute format should succeed");
         assert_eq!(mute.content_type(), "text/plain");
     }
 
@@ -860,9 +885,9 @@ mod tests {
             None,
             OutputTarget::Stderr,
         )
-        .unwrap();
+        .expect("template stderr output should succeed");
         assert!(!output.is_line_oriented());
         assert!(!output.is_file_output());
-        output.generate(&test_data()).unwrap();
+        output.generate(&test_data()).expect("generate should succeed");
     }
 }
