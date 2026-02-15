@@ -100,6 +100,7 @@ pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {
         unit: otlp_metric.unit,
         data_points: otlp_data_to_data_points(&otlp_metric.data),
         live_check_result: None,
+        resource: None,
     }
 }
 
@@ -356,5 +357,6 @@ pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
             }
         },
         live_check_result: None,
+        resource: None,
     }
 }

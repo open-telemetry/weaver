@@ -278,6 +278,7 @@ Each policy finding is emitted as an OTLP log record with the following structur
 - `weaver.finding.sample_type`: Sample type (e.g., "attribute", "span", "metric")
 - `weaver.finding.signal_type`: Signal type (e.g., "span", "event", "metric")
 - `weaver.finding.signal_name`: Signal name (e.g., event name or metric name)
+- `weaver.finding.resource_attribute.<key>`: Resource attributes from the original telemetry source that produced the finding
 
 ## Continuous Running Sessions
 

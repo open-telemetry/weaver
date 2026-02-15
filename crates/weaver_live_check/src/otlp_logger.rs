@@ -15,7 +15,7 @@ use opentelemetry_sdk::Resource;
 use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
-use crate::{Error, SampleRef};
+use crate::{Error, Sample, SampleRef};
 
 /// Type alias for log attributes as (Key, AnyValue) pairs
 type LogAttribute = (Key, AnyValue);
@@ -95,7 +95,12 @@ impl OtlpEmitter {
     }
 
     /// Emit a policy finding as an OTLP log record
-    pub fn emit_finding(&self, finding: &PolicyFinding, sample_ref: &SampleRef<'_>) {
+    pub fn emit_finding(
+        &self,
+        finding: &PolicyFinding,
+        sample_ref: &SampleRef<'_>,
+        parent_signal: &Sample,
+    ) {
         log::debug!("Emitting finding: {} - {}", finding.id, finding.message);
         let severity = finding_level_to_severity(&finding.level);
 
@@ -132,6 +137,16 @@ impl OtlpEmitter {
 
         // Flatten and add finding context
         attributes.extend(flatten_finding_context(&finding.context));
+
+        // Add resource attributes from the parent signal
+        if let Some(resource) = parent_signal.resource() {
+            for attr in &resource.attributes {
+                if let Some(value) = &attr.value {
+                    let prefixed_key = format!("weaver.finding.resource_attribute.{}", attr.name);
+                    flatten_json_recursive(value, &prefixed_key, &mut attributes);
+                }
+            }
+        }
 
         // Get a logger from the provider
         let logger = self.provider.logger("weaver.live_check");
@@ -241,6 +256,7 @@ mod tests {
             span_events: vec![],
             span_links: vec![],
             live_check_result: None,
+            resource: None,
         }
     }
 
@@ -252,6 +268,7 @@ mod tests {
             unit: "ms".to_owned(),
             data_points: None,
             live_check_result: None,
+            resource: None,
         }
     }
 
@@ -408,6 +425,7 @@ mod tests {
     fn test_emit_finding_with_stdout_emitter() {
         let emitter = OtlpEmitter::new_stdout();
         let sample = create_test_span("test.span");
+        let parent_signal = Sample::Span(sample.clone());
         let sample_ref = SampleRef::Span(&sample);
         let finding = create_test_finding(
             "test_finding",
@@ -421,7 +439,7 @@ mod tests {
             }),
         );
 
-        emitter.emit_finding(&finding, &sample_ref);
+        emitter.emit_finding(&finding, &sample_ref, &parent_signal);
 
         assert!(emitter.shutdown().is_ok());
     }
@@ -430,6 +448,7 @@ mod tests {
     fn test_emit_finding_all_severity_levels() {
         let emitter = OtlpEmitter::new_stdout();
         let sample = create_test_attribute("test.attribute");
+        let parent_signal = Sample::Attribute(sample.clone());
         let sample_ref = SampleRef::Attribute(&sample);
 
         for level in [
@@ -445,7 +464,7 @@ mod tests {
                 None,
                 json!({}),
             );
-            emitter.emit_finding(&finding, &sample_ref);
+            emitter.emit_finding(&finding, &sample_ref, &parent_signal);
         }
 
         assert!(emitter.shutdown().is_ok());
@@ -455,6 +474,7 @@ mod tests {
     fn test_emit_finding_with_complex_context() {
         let emitter = OtlpEmitter::new_stdout();
         let sample = create_test_metric("test.metric");
+        let parent_signal = Sample::Metric(sample.clone());
         let sample_ref = SampleRef::Metric(&sample);
         let finding = create_test_finding(
             "complex_context_test",
@@ -478,7 +498,7 @@ mod tests {
             }),
         );
 
-        emitter.emit_finding(&finding, &sample_ref);
+        emitter.emit_finding(&finding, &sample_ref, &parent_signal);
 
         assert!(emitter.shutdown().is_ok());
     }

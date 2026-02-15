@@ -107,10 +107,11 @@ impl FindingBuilder {
         self,
         sample: &SampleRef<'_>,
         emitter: Option<&OtlpEmitter>,
+        parent_signal: &Sample,
     ) -> PolicyFinding {
         let finding = self.build();
         if let Some(emitter) = emitter {
-            emitter.emit_finding(&finding, sample);
+            emitter.emit_finding(&finding, sample, parent_signal);
         }
         finding
     }
@@ -121,10 +122,11 @@ pub(crate) fn emit_findings(
     findings: &[PolicyFinding],
     sample: &SampleRef<'_>,
     emitter: Option<&OtlpEmitter>,
+    parent_signal: &Sample,
 ) {
     if let Some(emitter) = emitter {
         for finding in findings {
-            emitter.emit_finding(finding, sample);
+            emitter.emit_finding(finding, sample, parent_signal);
         }
     }
 }

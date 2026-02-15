@@ -1875,6 +1875,7 @@ mod tests {
                 },
             ])),
             live_check_result: None,
+            resource: None,
         });
         let mut samples = vec![sample];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
@@ -1951,6 +1952,7 @@ mod tests {
                 }],
             }])),
             live_check_result: None,
+            resource: None,
         });
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
@@ -1999,6 +2001,7 @@ mod tests {
                 unit: "By".to_owned(),
                 data_points: None,
                 live_check_result: None,
+                resource: None,
             }),
             Sample::Metric(SampleMetric {
                 name: "system.memory.usage".to_owned(),
@@ -2006,6 +2009,7 @@ mod tests {
                 unit: "By".to_owned(),
                 data_points: None,
                 live_check_result: None,
+                resource: None,
             }),
         ];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];

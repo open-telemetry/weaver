@@ -194,6 +194,7 @@ impl LiveCheckRunner for SampleAttribute {
                 .build_and_emit(
                     &SampleRef::Attribute(self),
                     live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    parent_signal,
                 );
 
             result.add_advice(finding);
@@ -209,6 +210,7 @@ impl LiveCheckRunner for SampleAttribute {
                         .build_and_emit(
                             &SampleRef::Attribute(self),
                             live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                            parent_signal,
                         );
 
                     result.add_advice(finding);
