@@ -6,7 +6,7 @@ use miette::Diagnostic;
 
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::{registry_repo::RegistryRepo, schema_url::SchemaUrl};
 
 /// The URL of the official semantic convention registry.
 const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
@@ -33,7 +33,10 @@ fn test_cli_interface() {
         sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
         refspec: None,
     };
-    let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
+
+    let schema_url =
+        Some(SchemaUrl::try_new("https://opentelemetry.io/schemas/1.40.0".to_owned()).unwrap());
+    let registry_repo = RegistryRepo::try_new(schema_url, &registry_path).unwrap_or_else(|e| {
         panic!("Failed to create the registry repo, error: {e}");
     });
     let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)

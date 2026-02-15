@@ -90,7 +90,7 @@ pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl Into
     let registry = &state.registry;
 
     let stats = RegistryStats {
-        registry_url: registry.registry_url.clone(),
+        schema_url: registry.schema_url.to_string(),
         counts: RegistryCounts {
             attributes: registry.registry.attributes.len(),
             metrics: registry.registry.metrics.len(),

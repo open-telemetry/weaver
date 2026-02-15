@@ -3,5 +3,5 @@ description: This registry contains the semantic conventions for the App.
 semconv_version: 0.1.0
 schema_base_url: https://app.com/schemas/
 dependencies:
-  - name: acme
+  - schema_url: https://acme.com/schemas/0.1.0
     registry_path: data/multi-registry/custom_registry

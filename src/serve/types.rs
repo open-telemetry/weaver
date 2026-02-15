@@ -10,8 +10,8 @@ use weaver_semconv::stability::Stability;
 /// Registry stats response.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RegistryStats {
-    /// The registry URL.
-    pub registry_url: String,
+    /// The schema URL.
+    pub schema_url: String,
     /// Counts of different entity types.
     pub counts: RegistryCounts,
     // TODO: It would be better to serve the output of `weaver registry stats` here

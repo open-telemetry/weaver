@@ -64,7 +64,8 @@ impl LiveChecker {
                         }
                     }
                     for attribute in &group.attributes {
-                        let attribute_rc = Rc::new(VersionedAttribute::V1(attribute.clone()));
+                        let attribute_rc =
+                            Rc::new(VersionedAttribute::V1(Box::new(attribute.clone())));
                         match attribute.r#type {
                             AttributeType::Template(_) => {
                                 templates_by_length
@@ -92,7 +93,7 @@ impl LiveChecker {
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
                 for attribute in &registry.registry.attributes {
-                    let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
+                    let attribute_rc = Rc::new(VersionedAttribute::V2(Box::new(attribute.clone())));
                     match &attribute.r#type {
                         AttributeType::Template(_) => {
                             templates_by_length.push((attribute.key.clone(), attribute_rc.clone()));
@@ -185,7 +186,6 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
@@ -194,6 +194,10 @@ mod tests {
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
         YamlValue,
+    };
+    use weaver_semconv::{
+        schema_url::SchemaUrl,
+        v2::{span::SpanName, CommonFields},
     };
 
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -507,8 +511,9 @@ mod tests {
 
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![
                         V2Attribute {
@@ -609,7 +614,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
@@ -793,8 +798,9 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_METRICS".to_owned(),
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![memory_state_attr.clone()],
                     attribute_groups: vec![],
@@ -842,7 +848,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST_METRICS".to_owned(),
@@ -1001,9 +1007,9 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
-
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![custom_string_attr.clone()],
                     attribute_groups: vec![],
@@ -1038,7 +1044,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
@@ -1516,8 +1522,9 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_EVENTS".to_owned(),
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned())
+                    .unwrap(),
                 registry: Registry {
                     attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
                     attribute_groups: vec![],
@@ -1591,7 +1598,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
             VersionedRegistry::V1(ResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),

@@ -1,7 +1,5 @@
 file_format: manifest/2.0.0
-name: resolved
-description: Test repository that has been resolved.
-version: 1.0.0
-repository_url: https://github.com/open-telemetry/weaver.git
 stability: stable
-resolved_schema_url: resolved_schema.yaml
+schema_url: https://opentelemetry.io/schemas/1.0.0
+resolved_schema_uri: resolved_schema.yaml
+description: Test repository that has been resolved.

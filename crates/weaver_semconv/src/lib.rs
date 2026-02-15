@@ -21,6 +21,7 @@ pub mod manifest;
 pub mod provenance;
 pub mod registry;
 pub mod registry_repo;
+pub mod schema_url;
 pub mod semconv;
 pub mod stability;
 pub mod stats;

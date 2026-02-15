@@ -238,7 +238,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let registry = if args.registry.v2 {
         let resolved_v2 = resolved.try_into_v2()?;
         resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        VersionedRegistry::V2(resolved_v2.into_template_schema())
+        VersionedRegistry::V2(Box::new(resolved_v2.into_template_schema()))
     } else {
         resolved.check_after_resolution_policy(&mut diag_msgs)?;
         VersionedRegistry::V1(resolved.into_template_schema())

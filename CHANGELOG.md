@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 - New feature ([#1153](https://github.com/open-telemetry/weaver/issues/1153)) - Live-check now has a `/health` endpoint that can be used in long-running scenarios to confirm readiness and liveness of the live-check server. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
 - New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+- Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
+  from it. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
+- Default to `manifest.yaml` for registry manifest file, deprecate `registry_manifest.yaml` and add warning when it's used. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
 
 # [0.21.2] - 2026-02-03
 
