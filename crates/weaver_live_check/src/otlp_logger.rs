@@ -214,7 +214,15 @@ fn json_value_to_any_value(value: &JsonValue) -> Option<AnyValue> {
             }
         }
         JsonValue::Bool(b) => Some(AnyValue::from(*b)),
-        JsonValue::Null | JsonValue::Object(_) | JsonValue::Array(_) => None,
+        JsonValue::Array(arr) => {
+            let values: Vec<AnyValue> = arr.iter().filter_map(json_value_to_any_value).collect();
+            if values.is_empty() {
+                None
+            } else {
+                Some(AnyValue::ListAny(Box::new(values)))
+            }
+        }
+        JsonValue::Null | JsonValue::Object(_) => None,
     }
 }
 
@@ -541,7 +549,25 @@ mod tests {
         );
         assert_eq!(json_value_to_any_value(&json!(null)), None);
         assert_eq!(json_value_to_any_value(&json!({"key": "val"})), None);
-        assert_eq!(json_value_to_any_value(&json!([1, 2, 3])), None);
+        assert_eq!(
+            json_value_to_any_value(&json!(["10.0.0.1", "192.168.1.1"])),
+            Some(AnyValue::ListAny(Box::new(vec![
+                AnyValue::from("10.0.0.1"),
+                AnyValue::from("192.168.1.1"),
+            ])))
+        );
+        assert_eq!(
+            json_value_to_any_value(&json!([1, 2, 3])),
+            Some(AnyValue::ListAny(Box::new(vec![
+                AnyValue::Int(1),
+                AnyValue::Int(2),
+                AnyValue::Int(3),
+            ])))
+        );
+        // Empty arrays return None
+        assert_eq!(json_value_to_any_value(&json!([])), None);
+        // Arrays with only null values return None
+        assert_eq!(json_value_to_any_value(&json!([null, null])), None);
     }
 
     /// Helper to find an attribute by key in a list of log attributes
@@ -572,6 +598,12 @@ mod tests {
                 SampleAttribute {
                     name: "host.cpu.count".to_owned(),
                     value: Some(json!(4)),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "host.ip".to_owned(),
+                    value: Some(json!(["10.0.0.1", "192.168.1.1"])),
                     r#type: None,
                     live_check_result: None,
                 },
@@ -608,6 +640,13 @@ mod tests {
         assert_eq!(
             find_attr(&attrs, "weaver.finding.resource_attribute.host.cpu.count"),
             Some(&AnyValue::Int(4))
+        );
+        assert_eq!(
+            find_attr(&attrs, "weaver.finding.resource_attribute.host.ip"),
+            Some(&AnyValue::ListAny(Box::new(vec![
+                AnyValue::from("10.0.0.1"),
+                AnyValue::from("192.168.1.1"),
+            ])))
         );
         // host.name had no value, should not be present
         assert_eq!(
