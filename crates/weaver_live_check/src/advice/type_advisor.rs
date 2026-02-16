@@ -205,7 +205,7 @@ impl Advisor for TypeAdvisor {
                                         ))
                                         .level(FindingLevel::Violation)
                                         .signal(parent_signal)
-                                        .build_and_emit(&sample, otlp_emitter.as_deref());
+                                        .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                                     return Ok(vec![finding]);
                                 } else {
@@ -228,7 +228,7 @@ impl Advisor for TypeAdvisor {
                                 ))
                                 .level(FindingLevel::Violation)
                                 .signal(parent_signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                             Ok(vec![finding])
                         } else {
@@ -252,7 +252,7 @@ impl Advisor for TypeAdvisor {
                                 .message(format!("Instrument '{name}' is not supported"))
                                 .level(FindingLevel::Violation)
                                 .signal(parent_signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                             advice_list.push(finding);
                         }
@@ -269,7 +269,7 @@ impl Advisor for TypeAdvisor {
                                         ))
                                         .level(FindingLevel::Violation)
                                         .signal(parent_signal)
-                                        .build_and_emit(&sample, otlp_emitter.as_deref());
+                                        .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                                     advice_list.push(finding);
                                 }
@@ -290,7 +290,7 @@ impl Advisor for TypeAdvisor {
                                 ))
                                 .level(FindingLevel::Violation)
                                 .signal(parent_signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                             advice_list.push(finding);
                         }
@@ -316,7 +316,12 @@ impl Advisor for TypeAdvisor {
                     };
 
                     // Emit each finding if emitter available
-                    emit_findings(&advice_list, &sample, otlp_emitter.as_deref());
+                    emit_findings(
+                        &advice_list,
+                        &sample,
+                        otlp_emitter.as_deref(),
+                        parent_signal,
+                    );
 
                     Ok(advice_list)
                 } else {
@@ -341,7 +346,12 @@ impl Advisor for TypeAdvisor {
                     };
 
                     // Emit each finding if emitter available
-                    emit_findings(&advice_list, &sample, otlp_emitter.as_deref());
+                    emit_findings(
+                        &advice_list,
+                        &sample,
+                        otlp_emitter.as_deref(),
+                        parent_signal,
+                    );
 
                     Ok(advice_list)
                 } else {
@@ -366,7 +376,12 @@ impl Advisor for TypeAdvisor {
                     };
 
                     // Emit each finding if emitter available
-                    emit_findings(&advice_list, &sample, otlp_emitter.as_deref());
+                    emit_findings(
+                        &advice_list,
+                        &sample,
+                        otlp_emitter.as_deref(),
+                        parent_signal,
+                    );
 
                     Ok(advice_list)
                 } else {
@@ -466,6 +481,7 @@ mod tests {
             data_points: None,
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
             live_check_result: None,
+            resource: None,
         });
 
         let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
@@ -537,6 +553,7 @@ mod tests {
             data_points: None,
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
             live_check_result: None,
+            resource: None,
         });
         let advice = check_attributes(&semconv_attributes, &sample_attributes, &sample);
         assert!(advice.is_empty());
@@ -579,6 +596,7 @@ mod tests {
             data_points: None,
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
             live_check_result: None,
+            resource: None,
         });
 
         let advice = check_attributes(&semconv_attributes, &sample_attributes_with_match, &sample);
