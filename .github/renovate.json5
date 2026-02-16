@@ -72,12 +72,44 @@
         "dist-workspace.toml",
       ],
       matchStrings: [
-        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[^\s@]+?)\" # v(?<depVersion>[^\s@]+?)\n"
+        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[^\\s@]+?)\" # v(?<depVersion>[^\\s@]+?)\\s"
       ],
       datasourceTemplate: "github-tags",
       versioningTemplate: "docker",
       currentValueTemplate: "{{depVersion}}",
       depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update Just file",
+      managerFilePatterns: [
+        "justfile",
+      ],
+      matchStrings: [
+        "cargo install (?<packageName>.+\/?)@(?<depVersion>[^\s@]+?)\\s",
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Rust toolchain version",
+      managerFilePatterns: [
+        "rust-toolchain.toml", 
+        "justfile",
+      ],
+      matchStrings: [
+        "channel\\s*=\\s*\"(?<depVersion>\\d+\\.\\d+\\.\\d+)\"",
+        "rustup install (?<depVersion>[^\s@]+?)\s",
+        "rustup update (?<depVersion>[^\s@]+?)\s",
+      ],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "rust",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "SDK",
     },
   ],
   labels: [
