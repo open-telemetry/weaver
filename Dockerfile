@@ -1,5 +1,5 @@
 # The build image
-FROM docker.io/rust:1.93.0@sha256:4c7eb947d7e078f5c076e086c7b75c36ea0ec7c685f2244b3d79306deb7e44b7 AS weaver-build
+FROM docker.io/rust:1.93.1@sha256:80302520b7199f0504975bca59a914015e9fee088f759875dbbc238ca9509ee1 AS weaver-build
 WORKDIR /build
 
 # Install Node.js and musl build dependencies
@@ -9,8 +9,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
   apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
-COPY ui/package.json ui/package-lock.json /build/ui/
-RUN cd /build/ui && npm ci
+RUN npm install -g pnpm
+COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
+RUN cd /build/ui && pnpm install --frozen-lockfile
 
 # Copy UI source files
 COPY ui /build/ui
@@ -26,6 +27,9 @@ COPY src /build/src
 COPY tests /build/tests
 COPY defaults /build/defaults
 COPY cross-arch-build.sh /build/cross-arch-build.sh
+
+# Build the UI
+RUN cd /build/ui && pnpm build
 
 # Build weaver
 RUN ./cross-arch-build.sh

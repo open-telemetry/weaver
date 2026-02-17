@@ -13,7 +13,7 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
-use weaver_forge::OutputProcessor;
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
@@ -32,6 +32,7 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
 use super::otlp::otlp_ingester::OtlpIngester;
+use super::otlp::AdminReportSender;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -119,6 +120,7 @@ pub struct RegistryLiveCheckArgs {
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the report is printed to stdout.
     /// Use "none" to disable all template output rendering (useful when emitting OTLP logs).
+    /// Use "http" to send the report as the response to the /stop request on the admin port.
     #[arg(short, long)]
     output: Option<PathBuf>,
 
@@ -200,12 +202,30 @@ fn generate_report(
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
+    // Detect --output http mode
+    let is_http_output = args
+        .output
+        .as_ref()
+        .is_some_and(|p| p.to_str() == Some("http"));
+
+    if is_http_output && !matches!(&args.input_source, InputSource::Otlp) {
+        return Err(DiagnosticMessages::from(Error::OutputError {
+            error: "--output http is only valid with --input otlp".to_owned(),
+        }));
+    }
+
+    // For http output, create the processor in stdout mode (used for format/template config)
+    let target = if is_http_output {
+        OutputTarget::Stdout
+    } else {
+        OutputTarget::from_optional_dir(args.output.as_ref())
+    };
     let mut output = OutputProcessor::new(
         &args.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
         Some(args.templates.clone()),
-        args.output.as_ref(),
+        target,
     )?;
 
     info!("Weaver Registry Live Check");
@@ -235,6 +255,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
+    let mut admin_report_sender: Option<AdminReportSender> = None;
     let ingester = match (&args.input_source, &args.input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
@@ -244,13 +265,22 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
         (InputSource::Stdin, InputFormat::Json) => JsonStdinIngester::new().ingest()?,
 
-        (InputSource::Otlp, _) => (OtlpIngester {
-            otlp_grpc_address: args.otlp_grpc_address.clone(),
-            otlp_grpc_port: args.otlp_grpc_port,
-            admin_port: args.admin_port,
-            inactivity_timeout: args.inactivity_timeout,
-        })
-        .ingest()?,
+        (InputSource::Otlp, _) => {
+            let otlp = OtlpIngester {
+                otlp_grpc_address: args.otlp_grpc_address.clone(),
+                otlp_grpc_port: args.otlp_grpc_port,
+                admin_port: args.admin_port,
+                inactivity_timeout: args.inactivity_timeout,
+            };
+            let (iter, sender) = otlp.ingest_otlp()?;
+            if is_http_output {
+                sender
+                    .expect_report
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            admin_report_sender = Some(sender);
+            iter
+        }
     };
 
     // Create Tokio runtime if OTLP log emission is enabled
@@ -285,8 +315,8 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
 
-    let report_mode = if output.is_file_output() {
-        // File output forces report mode
+    let report_mode = if is_http_output || output.is_file_output() {
+        // HTTP output and file output force report mode
         true
     } else {
         // This flag is not set by default. The user can set it to disable streaming output
@@ -318,7 +348,62 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         exit_code = 1;
     }
 
-    if report_mode {
+    if is_http_output {
+        let admin_waiting = admin_report_sender.as_ref().is_some_and(|s| {
+            s.sender
+                .lock()
+                .expect("Failed to acquire lock on admin report sender")
+                .is_some()
+        });
+
+        if admin_waiting {
+            // Format report and send through admin channel
+            let content_type = output.content_type().to_owned();
+            let body = if output.is_line_oriented() {
+                // For line-oriented formats (jsonl), build the body line by line
+                let mut lines = Vec::new();
+                for sample in &samples {
+                    lines.push(
+                        output
+                            .generate_to_string(sample)
+                            .map_err(DiagnosticMessages::from)?,
+                    );
+                }
+                match &stats {
+                    LiveCheckStatistics::Cumulative(_) => {
+                        lines.push(
+                            output
+                                .generate_to_string(&stats)
+                                .map_err(DiagnosticMessages::from)?,
+                        );
+                    }
+                    LiveCheckStatistics::Disabled(_) => {}
+                }
+                lines.join("\n")
+            } else {
+                let report = LiveCheckReport {
+                    statistics: stats,
+                    samples,
+                };
+                output
+                    .generate_to_string(&report)
+                    .map_err(DiagnosticMessages::from)?
+            };
+            if let Some(report) = admin_report_sender.take() {
+                if let Some(sender) = report
+                    .sender
+                    .lock()
+                    .expect("Failed to acquire lock on admin report sender")
+                    .take()
+                {
+                    let _ = sender.send((content_type, body));
+                }
+            }
+        } else {
+            // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
+            generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
+        }
+    } else if report_mode {
         generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
     } else {
         // Stats only (streaming mode finished)

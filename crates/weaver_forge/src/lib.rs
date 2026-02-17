@@ -45,7 +45,7 @@ pub mod output_processor;
 pub mod registry;
 pub mod v2;
 
-pub use output_processor::OutputProcessor;
+pub use output_processor::{OutputProcessor, OutputTarget};
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
@@ -75,7 +75,7 @@ pub const COMMEND_END: &str = "#}";
 
 /// Enumeration defining where the output of program execution should be directed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OutputDirective {
+pub(crate) enum OutputDirective {
     /// Write the generated content to the standard output.
     Stdout,
     /// Write the generated content to the standard error.
@@ -170,7 +170,7 @@ pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_j
 
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
-pub struct TemplateEngine {
+pub(crate) struct TemplateEngine {
     /// File loader used by the engine.
     file_loader: Arc<dyn FileLoader + Send + Sync + 'static>,
 
@@ -212,7 +212,7 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 
 impl TemplateEngine {
     /// Create a new template engine for the given Weaver config.
-    pub fn try_new(
+    pub(crate) fn try_new(
         mut config: WeaverConfig,
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
@@ -285,7 +285,7 @@ impl TemplateEngine {
     /// * `context` - The context to use when generating snippets.
     /// * `filter` - The jq filter expression to use.
     /// * `snippet_id` - The template to use when rendering the snippet.
-    pub fn generate_snippet<T: Serialize>(
+    pub(crate) fn generate_snippet<T: Serialize>(
         &self,
         context: &T,
         filter: &str,
@@ -326,6 +326,75 @@ impl TemplateEngine {
         Ok(result)
     }
 
+    /// Generate artifacts from a serializable context and return the rendered
+    /// output as a String instead of writing to files or stdout.
+    ///
+    /// This is useful when the output needs to be captured (e.g., for HTTP responses).
+    pub(crate) fn generate_to_string<T: Serialize>(&self, context: &T) -> Result<String, Error> {
+        let files = self.file_loader.all_files();
+        let tmpl_matcher = self.target_config.template_matcher()?;
+
+        let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+            error: e.to_string(),
+        })?;
+
+        let mut results = Vec::new();
+        for file_to_process in files {
+            for template in tmpl_matcher.matches(file_to_process.clone()) {
+                let yaml_params = Self::init_params(template.params.clone())?;
+                let params = Self::prepare_jq_context(&yaml_params)?;
+                let filter = Filter::new(template.filter.as_str());
+                let filtered_result = filter.apply(context.clone(), &params)?;
+
+                match template.application_mode {
+                    ApplicationMode::Single => {
+                        let is_empty = filtered_result.is_null()
+                            || (filtered_result.is_array()
+                                && filtered_result.as_array().expect("is_array").is_empty());
+                        if !is_empty {
+                            let (output, _) = self.render_template(
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()?,
+                                &yaml_params,
+                                &file_to_process,
+                                None,
+                            )?;
+                            results.push(output);
+                        }
+                    }
+                    ApplicationMode::Each => {
+                        if let serde_json::Value::Array(values) = &filtered_result {
+                            for value in values {
+                                let (output, _) = self.render_template(
+                                    NewContext { ctx: value }.try_into()?,
+                                    &yaml_params,
+                                    &file_to_process,
+                                    None,
+                                )?;
+                                results.push(output);
+                            }
+                        } else {
+                            let (output, _) = self.render_template(
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()?,
+                                &yaml_params,
+                                &file_to_process,
+                                None,
+                            )?;
+                            results.push(output);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results.join(""))
+    }
+
     /// Generate artifacts from a serializable context and a template directory,
     /// in parallel.
     ///
@@ -338,7 +407,7 @@ impl TemplateEngine {
     ///
     /// * `Ok(())` if the artifacts were generated successfully.
     /// * `Err(error)` if an error occurred during the generation of the artifacts.
-    pub fn generate<T: Serialize>(
+    pub(crate) fn generate<T: Serialize>(
         &self,
         context: &T,
         output_dir: &Path,
@@ -538,17 +607,16 @@ impl TemplateEngine {
         }
     }
 
-    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
-    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
-    fn evaluate_template(
+    /// Set up a Jinja engine, render a template, and return the output string
+    /// along with the `TemplateObject` (which may have been mutated by the
+    /// template to override the file name).
+    fn render_template(
         &self,
         ctx: serde_json::Value,
-        file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
         template_path: &Path,
-        output_directive: &OutputDirective,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
+        file_path_config: Option<&String>,
+    ) -> Result<(String, TemplateObject), Error> {
         let mut engine = self.template_engine()?;
 
         // Add the Weaver parameters to the template context
@@ -559,7 +627,7 @@ impl TemplateEngine {
 
         // Pre-determine the file path for the generated file based on the template file path
         // if defined, otherwise use the default file path based on the template file name.
-        let file_path = match file_path {
+        let file_path = match file_path_config {
             Some(file_path) => {
                 engine
                     .render_str(file_path, ctx.clone())
@@ -603,13 +671,28 @@ impl TemplateEngine {
             }
         })?;
 
-        let output = template
-            .render(ctx.clone())
-            .map_err(|e| TemplateEvaluationFailed {
-                template: template_path.to_path_buf(),
-                error_id: e.to_string(),
-                error: error_summary(e),
-            })?;
+        let output = template.render(ctx).map_err(|e| TemplateEvaluationFailed {
+            template: template_path.to_path_buf(),
+            error_id: e.to_string(),
+            error: error_summary(e),
+        })?;
+
+        Ok((output, template_object))
+    }
+
+    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
+    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
+    fn evaluate_template(
+        &self,
+        ctx: serde_json::Value,
+        file_path: Option<&String>,
+        params: &BTreeMap<String, serde_yaml::Value>,
+        template_path: &Path,
+        output_directive: &OutputDirective,
+        output_dir: &Path,
+    ) -> Result<(), Error> {
+        let (output, template_object) =
+            self.render_template(ctx, params, template_path, file_path)?;
         match output_directive {
             OutputDirective::Stdout => {
                 println!("{output}");

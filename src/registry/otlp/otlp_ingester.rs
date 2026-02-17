@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! OTLP ingester
+use std::rc::Rc;
 use std::time::Duration;
 
 use log::info;
@@ -16,7 +17,7 @@ use super::{
         otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
         span_kind_from_otlp_kind, status_from_otlp_status,
     },
-    listen_otlp_requests, OtlpRequest,
+    listen_otlp_requests, AdminReportSender, OtlpRequest,
 };
 
 /// An ingester for OTLP data
@@ -49,7 +50,7 @@ impl OtlpIterator {
         match request {
             OtlpRequest::Logs(logs) => {
                 for resource_log in logs.resource_logs {
-                    if let Some(resource) = resource_log.resource {
+                    let rc_resource = if let Some(resource) = resource_log.resource {
                         let mut sample_resource = SampleResource {
                             attributes: Vec::new(),
                             live_check_result: None,
@@ -59,8 +60,12 @@ impl OtlpIterator {
                                 .attributes
                                 .push(sample_attribute_from_key_value(&attribute));
                         }
-                        self.buffer.push(Sample::Resource(sample_resource));
-                    }
+                        let rc = Rc::new(sample_resource);
+                        self.buffer.push(Sample::Resource((*rc).clone()));
+                        Some(rc)
+                    } else {
+                        None
+                    };
 
                     for scope_log in resource_log.scope_logs {
                         if let Some(scope) = scope_log.scope {
@@ -72,7 +77,8 @@ impl OtlpIterator {
                         }
 
                         for log_record in scope_log.log_records {
-                            let sample_log = otlp_log_record_to_sample_log(&log_record);
+                            let mut sample_log = otlp_log_record_to_sample_log(&log_record);
+                            sample_log.resource = rc_resource.clone();
                             self.buffer.push(Sample::Log(sample_log));
                         }
                     }
@@ -81,7 +87,7 @@ impl OtlpIterator {
             }
             OtlpRequest::Metrics(metrics) => {
                 for resource_metric in metrics.resource_metrics {
-                    if let Some(resource) = resource_metric.resource {
+                    let rc_resource = if let Some(resource) = resource_metric.resource {
                         let mut sample_resource = SampleResource {
                             attributes: Vec::new(),
                             live_check_result: None,
@@ -91,8 +97,12 @@ impl OtlpIterator {
                                 .attributes
                                 .push(sample_attribute_from_key_value(&attribute));
                         }
-                        self.buffer.push(Sample::Resource(sample_resource));
-                    }
+                        let rc = Rc::new(sample_resource);
+                        self.buffer.push(Sample::Resource((*rc).clone()));
+                        Some(rc)
+                    } else {
+                        None
+                    };
 
                     for scope_metric in resource_metric.scope_metrics {
                         if let Some(scope) = scope_metric.scope {
@@ -105,8 +115,9 @@ impl OtlpIterator {
                         }
 
                         for metric in scope_metric.metrics {
-                            let sample_metric = Sample::Metric(otlp_metric_to_sample(metric));
-                            self.buffer.push(sample_metric);
+                            let mut sample_metric = otlp_metric_to_sample(metric);
+                            sample_metric.resource = rc_resource.clone();
+                            self.buffer.push(Sample::Metric(sample_metric));
                         }
                     }
                 }
@@ -114,7 +125,7 @@ impl OtlpIterator {
             }
             OtlpRequest::Traces(trace) => {
                 for resource_span in trace.resource_spans {
-                    if let Some(resource) = resource_span.resource {
+                    let rc_resource = if let Some(resource) = resource_span.resource {
                         let mut sample_resource = SampleResource {
                             attributes: Vec::new(),
                             live_check_result: None,
@@ -124,8 +135,12 @@ impl OtlpIterator {
                                 .attributes
                                 .push(sample_attribute_from_key_value(&attribute));
                         }
-                        self.buffer.push(Sample::Resource(sample_resource));
-                    }
+                        let rc = Rc::new(sample_resource);
+                        self.buffer.push(Sample::Resource((*rc).clone()));
+                        Some(rc)
+                    } else {
+                        None
+                    };
 
                     for scope_span in resource_span.scope_spans {
                         if let Some(scope) = scope_span.scope {
@@ -147,6 +162,7 @@ impl OtlpIterator {
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),
                                 live_check_result: None,
+                                resource: rc_resource.clone(),
                             };
                             for attribute in span.attributes {
                                 sample_span
@@ -207,9 +223,15 @@ impl Iterator for OtlpIterator {
     }
 }
 
-impl Ingester for OtlpIngester {
-    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
-        let otlp_requests = listen_otlp_requests(
+impl OtlpIngester {
+    /// Ingest OTLP data and return both the sample iterator and the admin report sender.
+    ///
+    /// The `AdminReportSender` can be used to send a formatted report back through
+    /// the `/stop` HTTP endpoint when `--output http` is used.
+    pub fn ingest_otlp(
+        &self,
+    ) -> Result<(Box<dyn Iterator<Item = Sample>>, AdminReportSender), Error> {
+        let (otlp_requests, report_sender) = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
@@ -238,6 +260,16 @@ impl Ingester for OtlpIngester {
             );
         };
 
-        Ok(Box::new(OtlpIterator::new(Box::new(otlp_requests))))
+        Ok((
+            Box::new(OtlpIterator::new(Box::new(otlp_requests))),
+            report_sender,
+        ))
+    }
+}
+
+impl Ingester for OtlpIngester {
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
+        let (iterator, _report_sender) = self.ingest_otlp()?;
+        Ok(iterator)
     }
 }

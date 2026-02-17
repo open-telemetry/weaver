@@ -1,0 +1,60 @@
+file_format: resolved/2.0.0
+schema_url: http://todo
+registry_id: published
+attribute_catalog:
+- key: a
+  type: string
+  brief: test a
+  stability: stable
+registry:
+  registry_url: todo-why?
+  attributes:
+    - 0
+  attribute_groups:
+  spans:
+  metrics:
+    - name: imported.metric.a
+      instrument: histogram
+      unit: s
+      attributes:
+      - base: 0
+        requirement_level: required
+      entity_associations:
+      - imported.entity.a
+      brief: a fun metric
+      note: a metric note
+      stability: stable
+  events:
+    - name: imported.event.a
+      attributes:
+      - base: 0
+        requirement_level: recommended
+      entity_associations:
+      - imported.entity.a
+      brief: a fun event
+      note: an event note
+      stability: stable
+  entities:
+    - type: imported.entity.a
+      identity:
+      - base: 0
+        requirement_level: required
+      brief: a fun entity
+      note: an entity note
+      stability: stable
+refinements:
+  spans:
+  metrics:
+  - id: imported.metric.a
+    name: imported.metric.a
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 0
+      requirement_level: required
+    entity_associations:
+    - service
+    brief: a fun metric
+    note: a metric note
+    stability: stable
+  events:

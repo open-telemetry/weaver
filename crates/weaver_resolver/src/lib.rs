@@ -125,7 +125,7 @@ impl SchemaResolver {
     pub fn load_semconv_repository(
         registry_repo: RegistryRepo,
         follow_symlinks: bool,
-    ) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+    ) -> WResult<LoadedSemconvRegistry, Error> {
         loader::load_semconv_repository(registry_repo, follow_symlinks)
     }
 }

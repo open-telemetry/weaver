@@ -14,16 +14,13 @@ use std::io::Write;
 use registry::semconv_registry;
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
 use weaver_common::log_error;
-use weaver_forge::config::{Params, WeaverConfig};
-use weaver_forge::file_loader::EmbeddedFileLoader;
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::cli::{Cli, Commands};
 use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
 
 mod cli;
 mod diagnostic;
-mod format;
 mod registry;
 mod serve;
 mod weaver;
@@ -172,25 +169,19 @@ fn print_diagnostics(
     diagnostic_args: &DiagnosticArgs,
     diagnostic_messages: &DiagnosticMessages,
 ) -> Result<(), weaver_forge::error::Error> {
-    let loader = EmbeddedFileLoader::try_new(
-        &DEFAULT_DIAGNOSTIC_TEMPLATES,
-        diagnostic_args.diagnostic_template.clone(),
-        &diagnostic_args.diagnostic_format,
-    )
-    .expect("Failed to create the embedded file loader for the diagnostic templates");
-    let config = WeaverConfig::try_from_loader(&loader)
-        .expect("Failed to load `defaults/diagnostic_templates/weaver.yaml`");
-    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
-    let output_directive = if diagnostic_args.diagnostic_stdout {
-        OutputDirective::Stdout
+    let target = if diagnostic_args.diagnostic_stdout {
+        OutputTarget::Stdout
     } else {
-        OutputDirective::Stderr
+        OutputTarget::Stderr
     };
-    engine.generate(
-        diagnostic_messages,
-        PathBuf::new().as_path(),
-        &output_directive,
-    )
+    let mut output = OutputProcessor::new(
+        &diagnostic_args.diagnostic_format,
+        "errors",
+        Some(&DEFAULT_DIAGNOSTIC_TEMPLATES),
+        Some(diagnostic_args.diagnostic_template.clone()),
+        target,
+    )?;
+    output.generate(diagnostic_messages)
 }
 
 /// Render the diagnostic messages based on the diagnostic configuration and return the exit

@@ -4,10 +4,13 @@
 
 use globset::GlobSet;
 use serde::Deserialize;
-use weaver_resolved_schema::attribute::UnresolvedAttribute;
+use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
+use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
+use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 
 use crate::{attribute::AttributeCatalog, Error};
@@ -49,18 +52,6 @@ impl ImportableDependency for V1Schema {
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        let build_globset = |wildcards: Option<&Vec<GroupWildcard>>| {
-            let mut builder = GlobSet::builder();
-            if let Some(wildcards_vec) = wildcards {
-                for wildcard in wildcards_vec.iter() {
-                    _ = builder.add(wildcard.0.clone());
-                }
-            }
-            builder.build().map_err(|e| Error::InvalidWildcard {
-                error: e.to_string(),
-            })
-        };
-
         // Filter imports to only include those from the current registry
         let current_registry_imports: Vec<_> = imports.iter().collect();
 
@@ -130,14 +121,197 @@ impl ImportableDependency for V1Schema {
     }
 }
 
+/// Converts a V2 attribute (with no requirement level) to a v1 attribute.
+fn convert_v2_attribute(
+    attr: &weaver_resolved_schema::v2::attribute::Attribute,
+    requirement_level: RequirementLevel,
+    role: Option<AttributeRole>,
+) -> Attribute {
+    Attribute {
+        name: attr.key.clone(),
+        r#type: attr.r#type.clone(),
+        brief: attr.common.brief.clone(),
+        examples: attr.examples.clone(),
+        tag: None,
+        requirement_level,
+        sampling_relevant: None,
+        note: attr.common.note.clone(),
+        stability: Some(attr.common.stability.clone()),
+        deprecated: attr.common.deprecated.clone(),
+        prefix: false,
+        tags: None,
+        annotations: Some(attr.common.annotations.clone()),
+        value: None,
+        role,
+    }
+}
+
 impl ImportableDependency for V2Schema {
     fn import_groups(
         &self,
-        _imports: &[ImportsWithProvenance],
-        _include_all: bool,
-        _attribute_catalog: &mut AttributeCatalog,
+        imports: &[ImportsWithProvenance],
+        include_all: bool,
+        attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        todo!("Support V2 schema dependency resolution.")
+        let mut result = vec![];
+
+        // First import metrics.  These are *by name* and come from the registry.
+        // This is the closest to V1 ref syntax we have.
+        let metrics_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
+        for m in self.registry.metrics.iter().filter(|m| {
+            let metric_name: &str = &m.name;
+            include_all || metrics_imports_matcher.is_match(metric_name)
+        }) {
+            let mut attributes = vec![];
+            for ar in m.attributes.iter() {
+                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
+                    Error::InvalidRegistryAttributeRef {
+                        registry_id: self.registry_id.clone(),
+                        attribute_ref: ar.base.0,
+                    },
+                )?;
+                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                    attr,
+                    ar.requirement_level.clone(),
+                    None,
+                )));
+            }
+            result.push(Group {
+                id: m.id().to_owned(),
+                r#type: weaver_semconv::group::GroupType::Metric,
+                brief: m.common.brief.clone(),
+                note: m.common.note.clone(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(m.common.stability.clone()),
+                deprecated: m.common.deprecated.clone(),
+                attributes,
+                span_kind: None,
+                events: vec![],
+                metric_name: Some(m.name.to_string()),
+                instrument: Some(m.instrument.clone()),
+                unit: Some(m.unit.clone()),
+                name: None,
+                // TODO - fill this out.
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: Some(m.common.annotations.clone()),
+                entity_associations: m.entity_associations.clone(),
+                visibility: None,
+            });
+        }
+
+        // Now event imports.
+        let events_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.events.as_ref()))?;
+        for e in self.registry.events.iter().filter(|e| {
+            let event_name: &str = &e.name;
+            include_all || events_imports_matcher.is_match(event_name)
+        }) {
+            let mut attributes = vec![];
+            for ar in e.attributes.iter() {
+                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
+                    Error::InvalidRegistryAttributeRef {
+                        registry_id: self.registry_id.clone(),
+                        attribute_ref: ar.base.0,
+                    },
+                )?;
+                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                    attr,
+                    ar.requirement_level.clone(),
+                    None,
+                )));
+            }
+            result.push(Group {
+                id: e.id().to_owned(),
+                r#type: weaver_semconv::group::GroupType::Event,
+                brief: e.common.brief.clone(),
+                note: e.common.note.clone(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(e.common.stability.clone()),
+                deprecated: e.common.deprecated.clone(),
+                attributes,
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some(e.name.to_string()),
+                // TODO - fill this out.
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: Some(e.common.annotations.clone()),
+                entity_associations: e.entity_associations.clone(),
+                visibility: None,
+            });
+        }
+
+        // Now Entity imports.
+        let entities_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.entities.as_ref()))?;
+        for e in self.registry.entities.iter().filter(|e| {
+            let entity_type: &str = &e.r#type;
+            include_all || entities_imports_matcher.is_match(entity_type)
+        }) {
+            let mut attributes = vec![];
+            for ar in e.identity.iter() {
+                // TODO - this should be non-panic errors.
+                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
+                    Error::InvalidRegistryAttributeRef {
+                        registry_id: self.registry_id.clone(),
+                        attribute_ref: ar.base.0,
+                    },
+                )?;
+                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                    attr,
+                    ar.requirement_level.clone(),
+                    Some(AttributeRole::Identifying),
+                )));
+            }
+            for ar in e.description.iter() {
+                // TODO - this should be non-panic errors.
+                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
+                    Error::InvalidRegistryAttributeRef {
+                        registry_id: self.registry_id.clone(),
+                        attribute_ref: ar.base.0,
+                    },
+                )?;
+                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                    attr,
+                    ar.requirement_level.clone(),
+                    Some(AttributeRole::Descriptive),
+                )));
+            }
+            result.push(Group {
+                id: e.id().to_owned(),
+                r#type: weaver_semconv::group::GroupType::Entity,
+                brief: e.common.brief.clone(),
+                note: e.common.note.clone(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(e.common.stability.clone()),
+                deprecated: e.common.deprecated.clone(),
+                attributes,
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some(e.r#type.to_string()),
+                // TODO - fill this out.
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: Some(e.common.annotations.clone()),
+                entity_associations: vec![],
+                visibility: None,
+            });
+        }
+        Ok(result)
     }
 }
 
@@ -179,6 +353,8 @@ impl ImportableDependency for Vec<ResolvedDependency> {
 /// Helper trait for abstracting over V1 and V2 schema.
 trait UnresolvedAttributeLookup {
     /// Looks up group attributes on this repo.
+    /// id: The group id to find
+    /// return: The set of attributes the group defined, or None if the group was not found.
     fn lookup_group_attributes(&self, id: &str) -> Option<Vec<UnresolvedAttribute>>;
 }
 
@@ -243,6 +419,19 @@ impl From<V2Schema> for ResolvedDependency {
     fn from(value: V2Schema) -> Self {
         ResolvedDependency::V2(value)
     }
+}
+
+// Constructs a globset from a set of wildcards.
+fn build_globset(wildcards: Option<&Vec<GroupWildcard>>) -> Result<GlobSet, Error> {
+    let mut builder = GlobSet::builder();
+    if let Some(wildcards_vec) = wildcards {
+        for wildcard in wildcards_vec.iter() {
+            _ = builder.add(wildcard.0.clone());
+        }
+    }
+    builder.build().map_err(|e| Error::InvalidWildcard {
+        error: e.to_string(),
+    })
 }
 
 #[cfg(test)]

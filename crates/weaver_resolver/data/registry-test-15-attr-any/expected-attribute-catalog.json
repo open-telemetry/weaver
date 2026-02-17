@@ -1,27 +1,29 @@
-[
-  {
-    "name": "test.any",
-    "type": "any",
-    "brief": "any attribute",
-    "examples": [
-      "zero",
-      1,
-      2.0,
-      true
-    ],
-    "note": "any attribute.\n",
-    "stability": "stable",
-    "requirement_level": "recommended"
-  },
-  {
-    "name": "test.template.any",
-    "type": "template[any]",
-    "brief": "template[any] attribute",
-    "examples": [
-      "test.template.any.my-custom-metadata-attribute=[\"zero\", 1, 2.0, true]"
-    ],
-    "requirement_level": "recommended",
-    "note": "template[any] attribute.\n",
-    "stability": "stable"
-  }
-]
+{
+  "attributes": [
+    {
+      "name": "test.any",
+      "type": "any",
+      "brief": "any attribute",
+      "examples": [
+        "zero",
+        1,
+        2.0,
+        true
+      ],
+      "requirement_level": "recommended",
+      "note": "any attribute.\n",
+      "stability": "stable"
+    },
+    {
+      "name": "test.template.any",
+      "type": "template[any]",
+      "brief": "template[any] attribute",
+      "examples": [
+        "test.template.any.my-custom-metadata-attribute=[\"zero\", 1, 2.0, true]"
+      ],
+      "requirement_level": "recommended",
+      "note": "template[any] attribute.\n",
+      "stability": "stable"
+    }
+  ]
+}

@@ -356,6 +356,17 @@ impl Sample {
         }
     }
 
+    /// Returns a reference to the parent resource, if available.
+    #[must_use]
+    pub fn resource(&self) -> Option<&SampleResource> {
+        match self {
+            Sample::Span(s) => s.resource.as_deref(),
+            Sample::Metric(m) => m.resource.as_deref(),
+            Sample::Log(l) => l.resource.as_deref(),
+            _ => None,
+        }
+    }
+
     /// Returns the signal name as a string or None if sample
     /// does not capture a whole signal.
     #[must_use]
