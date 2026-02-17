@@ -31,19 +31,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        # Installs the pnpm CLI tool
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          package_json_file: ui/package.json
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-      - name: Verify npm is available
-        run: npm --version
+          cache: 'pnpm'
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: Verify pnpm is available
+        run: pnpm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
+      - name: Build UI
+        run: pnpm build
+        working-directory: ./ui
       - name: Build
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
         run: cargo test --no-run --workspace
@@ -64,14 +75,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        # Installs the pnpm CLI tool
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          package_json_file: ui/package.json
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-      - name: Verify npm is available
-        run: npm --version
+          cache: 'pnpm'
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: Verify pnpm is available
+        run: pnpm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -89,6 +105,12 @@ jobs:
           else
             echo "Correct toolchain $CURRENT_TOOLCHAIN is installed and active"
           fi
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
+      - name: Build UI
+        run: pnpm build
+        working-directory: ./ui
       - name: Default features
         run: cargo check --workspace --all-targets
       # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
@@ -114,19 +136,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        # Installs the pnpm CLI tool
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          package_json_file: ui/package.json
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-      - name: Verify npm is available
-        run: npm --version
+          cache: 'pnpm'
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: Verify pnpm is available
+        run: pnpm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
+      - name: Build UI
+        run: pnpm build
+        working-directory: ./ui
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -D warnings
@@ -185,14 +218,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        # Installs the pnpm CLI tool
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          package_json_file: ui/package.json
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-      - name: Verify npm is available
-        run: npm --version
+          cache: 'pnpm'
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: Verify pnpm is available
+        run: pnpm --version
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -205,6 +243,12 @@ jobs:
         run: cargo install sarif-fmt --locked
       - name: Install protoc
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+      - name: Install UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./ui
+      - name: Build UI
+        run: pnpm build
+        working-directory: ./ui
       - name: Check
         # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
         # [ToDo LQ] Re-enable --all-features once the issue is resolved
@@ -215,7 +259,7 @@ jobs:
           | sarif-fmt
         continue-on-error: true
       - name: Upload
-        uses: github/codeql-action/upload-sarif@19b2f06db2b6f5108140aeb04014ef02b648f789 # v4.31.11
+        uses: github/codeql-action/upload-sarif@9e907b5e64f6b83e7804b09294d44122997950d6 # v4.32.3
         with:
           sarif_file: clippy-results.sarif
           wait-for-processing: true

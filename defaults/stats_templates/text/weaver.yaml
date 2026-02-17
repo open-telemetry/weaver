@@ -2,8 +2,8 @@
 whitespace_control:
   trim_blocks: true
   lstrip_blocks: true
-  
+
 templates:
-  - template: diff.yaml.j2
+  - template: stats.txt.j2
     filter: .
     application_mode: single

@@ -68,7 +68,7 @@ impl Advisor for DeprecatedAdvisor {
                             .message(format_deprecation_message("Attribute", name, deprecated))
                             .level(FindingLevel::Violation)
                             .signal(signal)
-                            .build_and_emit(&sample, otlp_emitter.as_deref());
+                            .build_and_emit(&sample, otlp_emitter.as_deref(), signal);
 
                         findings.push(finding);
                     }
@@ -89,7 +89,7 @@ impl Advisor for DeprecatedAdvisor {
                             .message(format_deprecation_message("Metric", name, deprecated))
                             .level(FindingLevel::Violation)
                             .signal(signal)
-                            .build_and_emit(&sample, otlp_emitter.as_deref());
+                            .build_and_emit(&sample, otlp_emitter.as_deref(), signal);
 
                         findings.push(finding);
                     }
@@ -110,7 +110,7 @@ impl Advisor for DeprecatedAdvisor {
                             .message(format_deprecation_message("Event", name, deprecated))
                             .level(FindingLevel::Violation)
                             .signal(signal)
-                            .build_and_emit(&sample, otlp_emitter.as_deref());
+                            .build_and_emit(&sample, otlp_emitter.as_deref(), signal);
 
                         findings.push(finding);
                     }

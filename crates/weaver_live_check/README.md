@@ -100,7 +100,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
         "level": "violation",
         "id": "missing_attribute",
         "message": "Attribute `hello` does not exist in the registry.",
-        "context": {"attribute_name": "hello"},
+        "context": { "attribute_name": "hello" },
         "signal_name": "http.client.request.duration",
         "signal_type": "metric"
       }
@@ -157,9 +157,11 @@ To override the default Otel jq preprocessor provide a path to the jq file throu
 
 ## Output
 
-The output follows existing Weaver paradigms providing overridable jinja template based processing.
+The output follows existing Weaver paradigms providing overridable jinja template based processing alongside builtin standard formats.
 
-Out-of-the-box the output is streamed (when available) to templates providing `ansi` (default) or `json` output via the `--format` option. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
+By default the output is streamed (when available) to an `ansi` template. Use the `--format` option to pick one of the builtin standard formats: `json`, `jsonl` and `yaml` or a template name. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
+
+Set `--output=http` to have the report sent as the response to the `/stop` endpoint on the admin port.
 
 To provide your own custom templates use the `--templates` option.
 
@@ -228,7 +230,7 @@ This could be parsed for a more sophisticated way to determine pass/fail in CI f
 
 ## OTLP Log Record Emission
 
-In addition to the templated output formats (ANSI, JSON), live check can emit policy findings as OTLP log records. This enables real-time monitoring and analysis of semantic convention validation results through OpenTelemetry observability backends.
+In addition to the output formats, live check can emit policy findings as OTLP log records. This enables real-time monitoring and analysis of semantic convention validation results through OpenTelemetry observability backends.
 
 ### Enabling OTLP Emission
 
@@ -257,6 +259,7 @@ Each policy finding is emitted as an OTLP log record with the following structur
 **Body**: The finding message (e.g., "Required attribute 'server.address' is not present.")
 
 **Severity**:
+
 - `Error` (17) for `violation` level findings
 - `Warn` (13) for `improvement` level findings
 - `Info` (9) for `information` level findings
@@ -264,15 +267,18 @@ Each policy finding is emitted as an OTLP log record with the following structur
 **Event Name**: `weaver.live_check.finding`
 
 **Resource Attributes**:
+
 - `service.name`: set by OTEL_SERVICE_NAME or OTEL_RESOURCE_ATTRIBUTES environment variables, defaulting to `weaver`
 
 **Log Attributes**:
+
 - `weaver.finding.id`: Finding type identifier (e.g., "required_attribute_not_present")
 - `weaver.finding.level`: Finding level as string ("violation", "improvement", "information")
 - `weaver.finding.context.<key>`: Key-value pairs provided in the context. Each pair is recorded as a single attribute.
 - `weaver.finding.sample_type`: Sample type (e.g., "attribute", "span", "metric")
 - `weaver.finding.signal_type`: Signal type (e.g., "span", "event", "metric")
 - `weaver.finding.signal_name`: Signal name (e.g., event name or metric name)
+- `weaver.finding.resource_attribute.<key>`: Resource attributes from the original telemetry source that produced the finding
 
 ## Continuous Running Sessions
 

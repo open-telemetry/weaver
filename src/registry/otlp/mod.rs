@@ -5,6 +5,11 @@
 pub mod conversion;
 pub mod otlp_ingester;
 
+use axum::extract::State;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -23,8 +28,9 @@ use miette::Diagnostic;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinSet;
@@ -33,6 +39,18 @@ use tonic::codegen::tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+
+/// Channel for sending the formatted report back to the /stop HTTP handler.
+///
+/// When `expect_report` is set to `true`, the `/stop` handler will wait for
+/// the report to be sent through the oneshot channel before responding.
+/// When `false`, `/stop` returns 200 immediately (the default).
+#[derive(Clone)]
+pub struct AdminReportSender {
+    pub sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
+    /// Set to `true` to have `/stop` wait and return the report as its response body.
+    pub expect_report: Arc<AtomicBool>,
+}
 
 /// Expose the OTLP gRPC services.
 /// See the build.rs file for more information.
@@ -167,7 +185,11 @@ impl Display for StopSignal {
 }
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
-/// and return an iterator of received OTLP requests.
+/// and return an iterator of received OTLP requests and an admin report sender.
+///
+/// The `AdminReportSender` allows the caller to send a formatted report back
+/// through the `/stop` HTTP endpoint. When `/stop` is called, the HTTP handler
+/// stores a oneshot sender in the slot and waits for the report.
 ///
 /// This function guarantees that the OTLP server is started and ready when the
 /// result is Ok(iterator).
@@ -176,7 +198,7 @@ pub fn listen_otlp_requests(
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
-) -> Result<impl Iterator<Item = OtlpRequest>, Error> {
+) -> Result<(impl Iterator<Item = OtlpRequest>, AdminReportSender), Error> {
     let addr: SocketAddr =
         format!("{grpc_addr}:{grpc_port}")
             .parse()
@@ -197,6 +219,11 @@ pub fn listen_otlp_requests(
     let stop_tx = tx.clone();
     // Create a watch channel for the last activity timestamp
     let (activity_tx, activity_rx) = watch::channel(Instant::now());
+    // Create the admin report sender for /stop response back-channel
+    let report_sender = AdminReportSender {
+        sender: Arc::new(Mutex::new(None)),
+        expect_report: Arc::new(AtomicBool::new(false)),
+    };
     let logs_service = LogsServiceImpl {
         tx: tx.clone(),
         activity_tx: activity_tx.clone(),
@@ -214,6 +241,7 @@ pub fn listen_otlp_requests(
 
     // Start an OS thread and run a single threaded Tokio runtime inside.
     // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
+    let report_sender_clone = report_sender.clone();
     let _ = std::thread::spawn(move || {
         // Start a current threaded Tokio runtime
         tokio::runtime::Builder::new_current_thread()
@@ -225,7 +253,13 @@ pub fn listen_otlp_requests(
 
                 // Spawn tasks to handle different stop signals
                 spawn_stop_signal_handlers(stop_tx.clone(), &mut tasks);
-                spawn_http_stop_handler(stop_tx.clone(), admin_port, &mut tasks).await;
+                spawn_http_admin_handler(
+                    stop_tx.clone(),
+                    admin_port,
+                    report_sender_clone,
+                    &mut tasks,
+                )
+                .await;
                 // Only spawn the inactivity monitor if the timeout is greater than zero
                 if inactivity_timeout.as_secs() > 0 {
                     spawn_inactivity_monitor(
@@ -269,7 +303,7 @@ pub fn listen_otlp_requests(
         error: format!("OTLP server dropped before signaling readiness (error: {e})"),
     })?;
 
-    Ok(SyncReceiver { receiver: rx })
+    Ok((SyncReceiver { receiver: rx }, report_sender))
 }
 
 /// Spawn tasks to handle CTRL+C and SIGHUP signals.
@@ -307,70 +341,138 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut Jo
     }
 }
 
-/// Spawn a minimal HTTP server that handles the /stop endpoint
+/// Shared state for the admin HTTP handler.
+#[derive(Clone)]
+struct AdminState {
+    stop_tx: mpsc::Sender<OtlpRequest>,
+    report_sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
+    /// When true, `/stop` waits for a report to be sent back through `report_sender`.
+    /// When false, `/stop` returns 200 immediately.
+    expect_report: Arc<AtomicBool>,
+    shutdown_tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+}
+
+/// GET /health — returns a simple JSON status.
+async fn health_handler() -> impl IntoResponse {
+    Json(serde_json::json!({"status": "ready"}))
+}
+
+/// POST /stop — sends a stop signal. If `--output=http` was set, waits for
+/// the report and returns it as the response body; otherwise returns 200
+/// immediately.
+async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
+    let wait_for_report = state.expect_report.load(Ordering::Relaxed);
+
+    if wait_for_report {
+        let (tx, rx) = oneshot::channel::<(String, String)>();
+        {
+            let mut slot = state
+                .report_sender
+                .lock()
+                .expect("Report sender lock poisoned");
+            *slot = Some(tx);
+        }
+
+        let _ = state
+            .stop_tx
+            .send(OtlpRequest::Stop(StopSignal::AdminStop))
+            .await;
+
+        let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+            Ok(Ok((content_type, body))) => {
+                (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
+            }
+            Ok(Err(_)) => {
+                // Channel dropped — report generation failed
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": "Report generation failed"})),
+                )
+                    .into_response()
+            }
+            Err(_) => {
+                // Timeout
+                (
+                    StatusCode::GATEWAY_TIMEOUT,
+                    Json(serde_json::json!({"error": "Timed out waiting for report"})),
+                )
+                    .into_response()
+            }
+        };
+
+        // Signal the server to shut down after the response is built
+        if let Some(shutdown_tx) = state
+            .shutdown_tx
+            .lock()
+            .expect("Shutdown lock poisoned")
+            .take()
+        {
+            let _ = shutdown_tx.send(());
+        }
+
+        response
+    } else {
+        let _ = state
+            .stop_tx
+            .send(OtlpRequest::Stop(StopSignal::AdminStop))
+            .await;
+
+        // Signal the server to shut down
+        if let Some(shutdown_tx) = state
+            .shutdown_tx
+            .lock()
+            .expect("Shutdown lock poisoned")
+            .take()
+        {
+            let _ = shutdown_tx.send(());
+        }
+
+        StatusCode::OK.into_response()
+    }
+}
+
+/// Spawn a minimal HTTP server that handles admin endpoints (/health, /stop).
 ///
 /// Note: All the tasks created in this function are recorded into a
 /// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
 /// ignore as we don't need to abort these tasks.
-async fn spawn_http_stop_handler(
+async fn spawn_http_admin_handler(
     stop_tx: mpsc::Sender<OtlpRequest>,
     port: u16,
+    report_sender: AdminReportSender,
     tasks: &mut JoinSet<()>,
 ) {
     let addr: SocketAddr = format!("0.0.0.0:{port}")
         .parse()
-        .expect("Failed to parse HTTP stop port");
+        .expect("Failed to parse HTTP admin port");
 
     match TcpListener::bind(addr).await {
         Ok(listener) => {
+            let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+            let state = AdminState {
+                stop_tx,
+                report_sender: report_sender.sender.clone(),
+                expect_report: report_sender.expect_report.clone(),
+                shutdown_tx: Arc::new(Mutex::new(Some(shutdown_tx))),
+            };
+
+            let app = Router::new()
+                .route("/health", get(health_handler))
+                .route("/stop", post(stop_handler))
+                .with_state(state);
+
             let _ = tasks.spawn(async move {
-                let mut stop_signal_received = false;
-                while !stop_signal_received {
-                    match listener.accept().await {
-                        Ok((mut socket, _)) => {
-                            let mut buffer = [0; 1024];
-                            if let Ok(n) = socket.read(&mut buffer).await {
-                                let request = String::from_utf8_lossy(&buffer[..n]);
-
-                                // Parse the request - very basic HTTP parsing
-                                let lines: Vec<&str> = request.lines().collect();
-                                if let Some(first_line) = lines.first() {
-                                    let parts: Vec<&str> = first_line.split_whitespace().collect();
-                                    if parts.len() >= 2 && parts[0] == "POST" && parts[1] == "/stop"
-                                    {
-                                        // Send stop signal
-                                        let _ = stop_tx
-                                            .send(OtlpRequest::Stop(StopSignal::AdminStop))
-                                            .await
-                                            .ok();
-
-                                        // Send HTTP 200 OK response
-                                        let response =
-                                            "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
-                                        let _ = socket.write_all(response.as_bytes()).await.ok();
-                                        stop_signal_received = true;
-                                    } else {
-                                        // Send HTTP 404 Not Found for any other request
-                                        let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found";
-                                        let _ = socket.write_all(response.as_bytes()).await.ok();
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            stop_tx
-                                .send(OtlpRequest::Error(Error::HttpAdminError {error: format!("Failed to accept HTTP connection: {e}")}))
-                                .await
-                                .expect("Failed to send an OtlpRequest::Error");
-                        }
-                    }
-                }
+                let _ = axum::serve(listener, app)
+                    .with_graceful_shutdown(async {
+                        let _ = shutdown_rx.await;
+                    })
+                    .await;
             });
         }
         Err(e) => {
             stop_tx
                 .send(OtlpRequest::Error(Error::HttpAdminError {
-                    error: format!("Failed to bind HTTP stop port {port}: {e}"),
+                    error: format!("Failed to bind HTTP admin port {port}: {e}"),
                 }))
                 .await
                 .expect("Failed to send an OtlpRequest::Error");
@@ -517,7 +619,7 @@ mod tests {
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_secs(1);
 
-        let mut receiver =
+        let (mut receiver, _report_sender) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
         let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
         let expected_metrics_count = 3;
@@ -605,18 +707,66 @@ mod tests {
     }
 
     #[test]
-    fn test_http_stop_endpoint() {
+    fn test_http_stop_endpoint_with_report() {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_secs(5);
 
-        let mut receiver =
+        let (mut receiver, report_sender) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+
+        // Enable report-via-HTTP mode (simulates --output http)
+        report_sender.expect_report.store(true, Ordering::Relaxed);
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));
 
-        // Send a POST request to /stop on the admin port to stop the server.
+        // The HTTP handler now waits for a report before responding, so the
+        // POST must be on a separate thread.
+        let response_handle = thread::spawn(move || {
+            let url = format!("http://127.0.0.1:{admin_port}/stop");
+            ureq::post(&url)
+                .send("")
+                .expect("HTTP POST to /stop failed")
+        });
+
+        // Wait for the Stop signal and then send the report
+        match receiver.next() {
+            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {
+                // Send a report back through the channel
+                if let Some(sender) = report_sender.sender.lock().unwrap().take() {
+                    let _ = sender.send(("text/plain".into(), "test report".into()));
+                }
+            }
+            other => {
+                panic!("Expected OtlpRequest::Stop, got {other:?}");
+            }
+        }
+
+        let response = response_handle.join().expect("HTTP thread panicked");
+        assert_eq!(
+            response.status(),
+            200,
+            "Stop endpoint returned non-200 status"
+        );
+        let body = response.into_body().read_to_string().unwrap();
+        assert_eq!(body, "test report");
+    }
+
+    #[test]
+    fn test_http_stop_endpoint_immediate() {
+        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
+        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let inactivity_timeout = Duration::from_secs(5);
+
+        let (mut receiver, _report_sender) =
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+
+        // expect_report defaults to false — /stop should return 200 immediately
+
+        // Give the server a little time to finish binding the port.
+        thread::sleep(Duration::from_millis(200));
+
         let url = format!("http://127.0.0.1:{admin_port}/stop");
         let response = ureq::post(&url)
             .send("")
@@ -626,14 +776,39 @@ mod tests {
             200,
             "Stop endpoint returned non-200 status"
         );
+        let body = response.into_body().read_to_string().unwrap();
+        assert!(body.is_empty(), "Expected empty body, got: {body}");
 
+        // Should still receive the stop signal
         match receiver.next() {
-            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {
-                eprintln!("Test: Received Stop as expected");
-            }
+            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {}
             other => {
                 panic!("Expected OtlpRequest::Stop, got {other:?}");
             }
         }
+    }
+
+    #[test]
+    fn test_health_endpoint() {
+        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
+        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let inactivity_timeout = Duration::from_secs(5);
+
+        let (_receiver, _report_sender) =
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+
+        // Give the server a little time to finish binding the port.
+        thread::sleep(Duration::from_millis(200));
+
+        // First health check
+        let url = format!("http://127.0.0.1:{admin_port}/health");
+        let response = ureq::get(&url).call().expect("GET /health failed");
+        assert_eq!(response.status(), 200);
+        let body = response.into_body().read_to_string().unwrap();
+        assert_eq!(body, r#"{"status":"ready"}"#);
+
+        // Second health check — server should still be running
+        let response2 = ureq::get(&url).call().expect("GET /health (2nd) failed");
+        assert_eq!(response2.status(), 200);
     }
 }

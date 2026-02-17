@@ -215,6 +215,26 @@ pub enum Error {
         error: String,
     },
 
+    /// Failed to serialize data.
+    #[error("Serialization failed: {error}")]
+    SerializationError {
+        /// Error message.
+        error: String,
+    },
+
+    /// Output file operation failed.
+    #[error("Output file `{path}` failed: {error}")]
+    OutputFileError {
+        /// File path.
+        path: PathBuf,
+        /// Error message.
+        error: String,
+    },
+
+    /// An internal logic error that should not occur in normal operation.
+    #[error("Internal error: {0}")]
+    InternalError(String),
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),

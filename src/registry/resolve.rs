@@ -8,9 +8,9 @@ use clap::Args;
 
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
-use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::{PolicyError, ResolvedV2, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
@@ -33,12 +33,11 @@ pub struct RegistryResolveArgs {
     output: Option<PathBuf>,
 
     /// Output format for the resolved schema
-    /// If not specified, the resolved schema is printed in YAML format
-    /// Supported formats: yaml, json
+    /// Supported formats: yaml, json, jsonl, mute
     /// Default format: yaml
     /// Example: `--format json`
     #[arg(short, long, default_value = "yaml")]
-    format: Format,
+    format: String,
 
     /// Policy parameters
     #[command(flatten)]
@@ -70,47 +69,22 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
         loaded.check_before_resolution_policy(&mut diag_msgs)?;
     }
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
+
+    let target = OutputTarget::from_optional_file(args.output.as_ref());
+    let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
+        .map_err(DiagnosticMessages::from)?;
+
     if args.registry.v2 {
         let resolved_v2: ResolvedV2 = resolved.try_into()?;
         resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        apply_format(&args.format, &resolved_v2.template_schema())
-            .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
-            .and_then(|s| {
-                if let Some(ref path) = args.output {
-                    // Write the resolved registry to a file.
-                    std::fs::write(path, s).map_err(|e| {
-                        format!("Failed to write the resolved registry to file: {e:?}")
-                    })
-                } else {
-                    // Print the resolved registry to stdout.
-                    println!("{s}");
-                    Ok(())
-                }
-            })
-            .unwrap_or_else(|e| {
-                // Capture all the errors
-                panic!("{}", e);
-            });
+        output
+            .generate(&resolved_v2.template_schema())
+            .map_err(DiagnosticMessages::from)?;
     } else {
         resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        apply_format(&args.format, &resolved.template_schema())
-            .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
-            .and_then(|s| {
-                if let Some(ref path) = args.output {
-                    // Write the resolved registry to a file.
-                    std::fs::write(path, s).map_err(|e| {
-                        format!("Failed to write the resolved registry to file: {e:?}")
-                    })
-                } else {
-                    // Print the resolved registry to stdout.
-                    println!("{s}");
-                    Ok(())
-                }
-            })
-            .unwrap_or_else(|e| {
-                // Capture all the errors
-                panic!("{}", e);
-            });
+        output
+            .generate(&resolved.template_schema())
+            .map_err(DiagnosticMessages::from)?;
     }
 
     if !diag_msgs.is_empty() {
@@ -126,7 +100,6 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 #[cfg(test)]
 mod tests {
     use crate::cli::{Cli, Commands};
-    use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
     use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
@@ -150,7 +123,7 @@ mod tests {
                     },
                     lineage: true,
                     output: None,
-                    format: Format::Yaml,
+                    format: "yaml".to_owned(),
                     policy: PolicyArgs {
                         policies: vec![],
                         skip_policies: true,
@@ -182,7 +155,7 @@ mod tests {
                     },
                     lineage: true,
                     output: None,
-                    format: Format::Json,
+                    format: "json".to_owned(),
                     policy: PolicyArgs {
                         policies: vec![],
                         skip_policies: false,
