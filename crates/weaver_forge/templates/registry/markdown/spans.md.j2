@@ -3,7 +3,7 @@
 
 This document describes the `{{ ctx.root_namespace }}` spans.
 
-> for span in ctx.spans <
+> for span in ctx.spans | sort(attribute="id") <
 ## `{{ span.id }}`
 
 {{ span.brief | default("") | trim }}

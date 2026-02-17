@@ -8,7 +8,7 @@ The consistency level of the query. Based on consistency values from [CQL](https
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `all`, `each_quorum`, `quorum`, `local_quorum`, `one`, `two`, `three`, `local_one`, `any`, `serial`, `local_serial`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Development |
 
@@ -123,7 +123,7 @@ Cosmos client connection mode.
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `gateway`, `direct`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 
@@ -151,7 +151,7 @@ CosmosDB Operation Type.
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `Invalid`, `Create`, `Patch`, `Read`, `ReadFeed`, `Delete`, `Replace`, `Execute`, `Query`, `Head`, `HeadFeed`, `Upsert`, `Batch`, `QueryPlan`, `ExecuteJavaScript`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 
@@ -377,7 +377,7 @@ An identifier for the database management system (DBMS) product being used. See 
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `other_sql`, `mssql`, `mssqlcompact`, `mysql`, `oracle`, `db2`, `postgresql`, `redshift`, `hive`, `cloudscape`, `hsqldb`, `progress`, `maxdb`, `hanadb`, `ingres`, `firstsql`, `edb`, `cache`, `adabas`, `firebird`, `derby`, `filemaker`, `informix`, `instantdb`, `interbase`, `mariadb`, `netezza`, `pervasive`, `pointbase`, `sqlite`, `sybase`, `teradata`, `vertica`, `h2`, `coldfusion`, `cassandra`, `hbase`, `mongodb`, `redis`, `couchbase`, `couchdb`, `azure.cosmosdb`, `dynamodb`, `neo4j`, `geode`, `elasticsearch`, `memcached`, `cockroachdb`, `opensearch`, `clickhouse`, `spanner`, `trino`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 

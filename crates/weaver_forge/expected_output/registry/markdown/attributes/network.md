@@ -52,7 +52,7 @@ This describes more details regarding the connection.type. It may be the type of
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `gprs`, `edge`, `umts`, `cdma`, `evdo_0`, `evdo_a`, `cdma2000_1xrtt`, `hsdpa`, `hsupa`, `hspa`, `iden`, `evdo_b`, `lte`, `ehrpd`, `hspap`, `gsm`, `td_scdma`, `iwlan`, `nr`, `nrnsa`, `lte_ca`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 | Examples | `LTE` |
@@ -89,7 +89,7 @@ The internet connection type.
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `wifi`, `wired`, `cell`, `unavailable`, `unknown`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 | Examples | `wifi` |
@@ -110,7 +110,7 @@ The network IO operation direction.
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `transmit`, `receive`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 | Examples | `transmit` |
@@ -204,7 +204,7 @@ different processes could be listening on TCP port 12345 and UDP port 12345.
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `tcp`, `udp`, `pipe`, `unix`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 | Examples | `tcp`, `udp` |
@@ -226,7 +226,7 @@ The value SHOULD be normalized to lowercase.
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `ipv4`, `ipv6`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 | Examples | `ipv4`, `ipv6` |

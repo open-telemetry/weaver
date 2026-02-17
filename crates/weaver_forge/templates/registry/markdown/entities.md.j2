@@ -6,7 +6,7 @@ This document describes the entity semantic conventions.
 > for grouped_entities in ctx <
 ## Namespace: `{{ grouped_entities.root_namespace }}`
 
-> for entity in grouped_entities.entities <
+> for entity in grouped_entities.entities | sort(attribute="id") <
 ### `{{ entity.id }}`
 
 {{ entity.brief | default("") | trim }}

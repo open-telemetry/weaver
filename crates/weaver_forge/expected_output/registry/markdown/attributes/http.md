@@ -49,7 +49,7 @@ Tracing instrumentations that do so, MUST also set `http.request.method_original
 
 | Property | Value |
 |----------|-------|
-| Type | Enum: `CONNECT`, `DELETE`, `GET`, `HEAD`, `OPTIONS`, `PATCH`, `POST`, `PUT`, `TRACE`, `_OTHER`|
+| Type | Enum ([see values below](#enum-values)) |
 | Requirement Level | Recommended |
 | Stability | Stable |
 | Examples | `GET`, `POST`, `HEAD` |

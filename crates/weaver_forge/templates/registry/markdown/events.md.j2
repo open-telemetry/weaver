@@ -3,7 +3,7 @@
 
 This document describes the `{{ ctx.root_namespace }}` events.
 
-> for event in ctx.events <
+> for event in ctx.events | sort(attribute="id") <
 ## `{{ event.id }}`
 
 {{ event.brief | default("") | trim }}

@@ -14,7 +14,7 @@ This document describes the `{{ ctx.root_namespace }}` attributes.
 | Property | Value |
 |----------|-------|
 > if attribute.type is mapping <
-| Type | Enum: `{{ attribute.type.members | map(attribute="value") | join("`, `") }}`|
+| Type | Enum ([see values below](#enum-values)) |
 > else <
 | Type | `{{ attribute.type }}` |
 > endif <

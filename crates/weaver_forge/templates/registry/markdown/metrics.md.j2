@@ -3,7 +3,7 @@
 
 This document describes the `{{ ctx.root_namespace }}` metrics.
 
-> for metric in ctx.metrics <
+> for metric in ctx.metrics | sort(attribute="metric_name") <
 ## `{{ metric.metric_name }}`
 
 {{ metric.brief | default("") | trim }}
