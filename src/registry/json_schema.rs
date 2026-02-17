@@ -55,10 +55,10 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
         JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
-        JsonSchemaType::SemconvDefinitionV2 => {
+        JsonSchemaType::SemconvDefinitionV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        JsonSchemaType::ResolvedRegistryV2 => {
             schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
         }
-        JsonSchemaType::ResolvedRegistryV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
         JsonSchemaType::ForgeRegistryV2 => {
             schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
         }
