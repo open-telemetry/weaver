@@ -124,7 +124,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
         let schema_url_str = value.schema_url.clone();
-        let schema_url = SchemaUrl::try_new(value.schema_url).map_err(|e| {
+        let schema_url: SchemaUrl = value.schema_url.try_into().map_err(|e| {
             crate::error::Error::InvalidSchemaUrl {
                 url: schema_url_str,
                 error: e,
@@ -993,7 +993,7 @@ mod tests {
             registry_id: "my-registry".to_owned(),
             catalog: crate::catalog::Catalog::from_attributes(vec![]),
             registry: crate::registry::Registry {
-                registry_url: "http://test/schemas/1.0.0".to_owned(),
+                registry_url: "http://another/url/1.0".to_owned(),
                 groups: vec![],
             },
             instrumentation_library: None,
@@ -1009,7 +1009,7 @@ mod tests {
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(
             v2_schema.schema_url,
-            SchemaUrl::try_new("http://test/schemas/1.0.0".to_owned()).unwrap()
+            "http://test/schemas/1.0.0".try_into().unwrap()
         );
     }
 
@@ -1218,7 +1218,7 @@ mod tests {
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: SchemaUrl::try_new("http://test/schemas/1.0".to_owned()).unwrap(),
+            schema_url: "http://test/schemas/1.0".try_into().expect("Should be valid schema url"),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],

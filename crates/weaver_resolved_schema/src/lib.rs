@@ -298,13 +298,13 @@ impl ResolvedTelemetrySchema {
 
         if let Some(ref manifest) = self.registry_manifest {
             changes.set_head_manifest(weaver_version::schema_changes::RegistryManifest {
-                semconv_version: manifest.version().clone(),
+                semconv_version: manifest.version().to_owned(),
             });
         }
 
         if let Some(ref manifest) = baseline_schema.registry_manifest {
             changes.set_baseline_manifest(weaver_version::schema_changes::RegistryManifest {
-                semconv_version: manifest.version().clone(),
+                semconv_version: manifest.version().to_owned(),
             });
         }
 

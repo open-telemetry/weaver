@@ -291,7 +291,6 @@ mod tests {
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
-    use crate::schema_url::SchemaUrl;
     use crate::semconv::{SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance};
     use crate::Error;
 
@@ -397,7 +396,7 @@ mod tests {
             path: "data".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(
-            Some(SchemaUrl::try_new("https://test/42".to_owned()).unwrap()),
+            Some("https://test/42".try_into().expect("Should be valid schema url")),
             &registry_path,
         )
         .unwrap();

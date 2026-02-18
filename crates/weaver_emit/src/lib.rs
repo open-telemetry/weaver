@@ -268,7 +268,6 @@ mod tests {
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
-        schema_url::SchemaUrl,
         stability::Stability,
     };
 
@@ -591,7 +590,7 @@ mod tests {
         };
 
         let registry = ForgeResolvedRegistry {
-            schema_url: SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned()).unwrap(),
+            schema_url: "https://example.com/schemas/1.2.3".try_into().unwrap(),
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],

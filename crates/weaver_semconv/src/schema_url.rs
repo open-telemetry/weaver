@@ -31,14 +31,6 @@ impl SchemaUrl {
         }
     }
 
-    /// Create a new SchemaUrl from a string with validation.
-    /// Returns an error if the URL is invalid or doesn't have at least one path segment.
-    pub fn try_new(url: String) -> Result<Self, String> {
-        let schema_url = Self::new(url);
-        schema_url.validate()?;
-        Ok(schema_url)
-    }
-
     /// Get the URL as a string.
     pub fn as_str(&self) -> &str {
         &self.url
@@ -105,13 +97,12 @@ impl SchemaUrl {
             return Err("Registry name and version cannot be empty.".to_owned());
         }
         // TODO: replace with scheme regex
-        SchemaUrl::try_new(
-            if name.starts_with("http://") || name.starts_with("https://") {
-                format!("{}/{}", name.trim_end_matches('/'), version)
-            } else {
-                format!("https://{}/{}", name.trim_end_matches('/'), version)
-            },
-        )
+
+        if name.starts_with("http://") || name.starts_with("https://") {
+            format!("{}/{}", name.trim_end_matches('/'), version).try_into()
+        } else {
+            format!("https://{}/{}", name.trim_end_matches('/'), version).try_into()
+        }
     }
 
     /// Returns a default unknown schema URL.
@@ -147,7 +138,8 @@ impl<'de> Deserialize<'de> for SchemaUrl {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        SchemaUrl::try_new(s).map_err(serde::de::Error::custom)
+        let schema: SchemaUrl = s.try_into().map_err(serde::de::Error::custom)?;
+        Ok(schema)
     }
 }
 
@@ -160,6 +152,26 @@ impl Serialize for SchemaUrl {
     }
 }
 
+impl TryFrom<&str> for SchemaUrl {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let schema_url = Self::new(value.to_owned());
+        schema_url.validate()?;
+        Ok(schema_url)
+    }
+}
+
+impl TryFrom<String> for SchemaUrl {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let schema_url = Self::new(value);
+        schema_url.validate()?;
+        Ok(schema_url)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,25 +179,26 @@ mod tests {
     #[test]
     fn test_new_and_as_str() {
         let url = "https://opentelemetry.io/schemas/1.0.0";
-        let schema_url = SchemaUrl::try_new(url.to_owned()).unwrap();
+        let schema_url: SchemaUrl = url.try_into().unwrap();
         assert_eq!(schema_url.as_str(), url);
     }
 
     #[test]
     fn test_validate_invalid_url_syntax() {
-        assert!(SchemaUrl::try_new("not a valid url".to_owned()).is_err());
+        let result: Result<SchemaUrl, _> = "not a valid url".try_into();
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_validate_url_without_path() {
-        let result = SchemaUrl::try_new("https://opentelemetry.io".to_owned());
+        let result = TryInto::<SchemaUrl>::try_into("https://opentelemetry.io");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("at least one path segment"));
     }
 
     #[test]
     fn test_try_new_valid_url() {
-        let result = SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned());
+        let result = TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/1.0.0");
         assert!(result.is_ok());
         let schema_url = result.unwrap();
         assert_eq!(
@@ -196,49 +209,46 @@ mod tests {
 
     #[test]
     fn test_name_extraction_simple() {
-        let schema_url =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl = TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/1.0.0").unwrap();
         assert_eq!(schema_url.name(), "opentelemetry.io/schemas");
     }
 
     #[test]
     fn test_name_extraction_nested_path() {
-        let schema_url =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/sub-component/1.0.0".to_owned())
-                .unwrap();
+        let schema_url: SchemaUrl = TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/sub-component/1.0.0").unwrap();
         assert_eq!(schema_url.name(), "opentelemetry.io/schemas/sub-component");
     }
 
     #[test]
     fn test_name_extraction_single_segment() {
-        let schema_url = SchemaUrl::try_new("https://opentelemetry.io/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl = "https://opentelemetry.io/1.0.0".try_into().unwrap();
         assert_eq!(schema_url.name(), "opentelemetry.io");
     }
 
     #[test]
     fn test_name_extraction_with_port() {
-        let schema_url =
-            SchemaUrl::try_new("https://example.com:8080/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://example.com:8080/schemas/1.0.0".try_into().unwrap();
         assert_eq!(schema_url.name(), "example.com:8080/schemas");
     }
 
     #[test]
     fn test_version_extraction_simple() {
-        let schema_url =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
         assert_eq!(schema_url.version(), "1.0.0");
     }
 
     #[test]
     fn test_version_extraction_semantic_version() {
-        let schema_url =
-            SchemaUrl::try_new("https://example.com/schemas/1.2.3".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://example.com/schemas/1.2.3".try_into().unwrap();
         assert_eq!(schema_url.version(), "1.2.3");
     }
 
     #[test]
     fn test_version_extraction_single_segment() {
-        let schema_url = SchemaUrl::try_new("https://example.com/v1".to_owned()).unwrap();
+        let schema_url: SchemaUrl = "https://example.com/v1".try_into().unwrap();
         assert_eq!(schema_url.version(), "v1");
     }
 
@@ -282,9 +292,9 @@ mod tests {
 
     #[test]
     fn test_equality() {
-        let url1 = SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap();
-        let url2 = SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap();
-        let url3 = SchemaUrl::try_new("https://example.com/schemas/2.0.0".to_owned()).unwrap();
+        let url1: SchemaUrl = "https://example.com/schemas/1.0.0".try_into().unwrap();
+        let url2: SchemaUrl = "https://example.com/schemas/1.0.0".try_into().unwrap();
+        let url3: SchemaUrl = "https://example.com/schemas/2.0.0".try_into().unwrap();
 
         assert_eq!(url1, url2);
         assert_ne!(url1, url3);
@@ -295,8 +305,8 @@ mod tests {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
-        let url1 = SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap();
-        let url2 = SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap();
+        let url1: SchemaUrl = "https://example.com/schemas/1.0.0".try_into().unwrap();
+        let url2: SchemaUrl = "https://example.com/schemas/1.0.0".try_into().unwrap();
 
         let mut hasher1 = DefaultHasher::new();
         url1.hash(&mut hasher1);
@@ -311,8 +321,8 @@ mod tests {
 
     #[test]
     fn test_display() {
-        let schema_url =
-            SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://example.com/schemas/1.0.0".try_into().unwrap();
         assert_eq!(
             format!("{}", schema_url),
             "https://example.com/schemas/1.0.0"
@@ -321,8 +331,8 @@ mod tests {
 
     #[test]
     fn test_serialize() {
-        let schema_url =
-            SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://example.com/schemas/1.0.0".try_into().unwrap();
         let json = serde_json::to_string(&schema_url).unwrap();
         assert_eq!(json, "\"https://example.com/schemas/1.0.0\"");
     }
@@ -354,8 +364,8 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_roundtrip() {
-        let original =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned()).unwrap();
+        let original: SchemaUrl =
+            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: SchemaUrl = serde_json::from_str(&json).unwrap();
         assert_eq!(original, deserialized);
@@ -363,8 +373,8 @@ mod tests {
 
     #[test]
     fn test_name_caching() {
-        let schema_url =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
         // Call name() twice and verify they return the same reference
         let name1 = schema_url.name();
@@ -379,8 +389,8 @@ mod tests {
 
     #[test]
     fn test_version_caching() {
-        let schema_url =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned()).unwrap();
+        let schema_url: SchemaUrl =
+            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
         // Call version() twice and verify they return the same reference
         let version1 = schema_url.version();
@@ -395,8 +405,8 @@ mod tests {
 
     #[test]
     fn test_clone_preserves_url_but_resets_cache() {
-        let original =
-            SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned()).unwrap();
+        let original: SchemaUrl =
+            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
         // Access name to populate cache
         let _ = original.name();

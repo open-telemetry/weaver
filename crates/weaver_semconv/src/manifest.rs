@@ -222,16 +222,16 @@ impl RegistryManifest {
     /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
     /// the registry name would be `opentelemetry.io/schemas/sub-component`
     #[must_use]
-    pub fn name(&self) -> String {
-        self.schema_url.name().to_owned()
+    pub fn name(&self) -> &str {
+        self.schema_url.name()
     }
 
     /// Returns the registry version, which is derived from the schema URL.
     /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
     /// the registry version would be `1.0.0`
     #[must_use]
-    pub fn version(&self) -> String {
-        self.schema_url.version().to_owned()
+    pub fn version(&self) -> &str {
+        self.schema_url.version()
     }
 }
 
@@ -353,8 +353,7 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_serialize() {
         let dep = Dependency {
-            schema_url: SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned())
-                .unwrap(),
+            schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
             registry_path: None,
             name: None,
         };
@@ -370,8 +369,7 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_serialize_with_registry_path() {
         let dep = Dependency {
-            schema_url: SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned())
-                .unwrap(),
+            schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
             registry_path: Some(VirtualDirectoryPath::LocalFolder {
                 path: "./registry".to_owned(),
             }),
@@ -386,8 +384,7 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_serialize_without_optional_path() {
         let dep = Dependency {
-            schema_url: SchemaUrl::try_new("https://opentelemetry.io/schemas/1.0.0".to_owned())
-                .unwrap(),
+            schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
             registry_path: None,
             name: None,
         };
@@ -400,7 +397,7 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_roundtrip_serialization() {
         let original = Dependency {
-            schema_url: SchemaUrl::try_new("https://example.com/schemas/1.0.0".to_owned()).unwrap(),
+            schema_url: "https://example.com/schemas/1.0.0".try_into().unwrap(),
             registry_path: Some(VirtualDirectoryPath::LocalFolder {
                 path: "./test/registry".to_owned(),
             }),

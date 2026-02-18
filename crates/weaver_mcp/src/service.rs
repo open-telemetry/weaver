@@ -387,14 +387,13 @@ mod tests {
     use weaver_search::SearchType;
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
-    use weaver_semconv::schema_url::SchemaUrl;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
-            schema_url: SchemaUrl::try_new("https://todo/1.0.0".to_owned()).unwrap(),
+            schema_url: "https://todo/1.0.0".try_into().unwrap(),
             registry: Registry {
                 attributes: vec![Attribute {
                     key: "http.request.method".to_owned(),

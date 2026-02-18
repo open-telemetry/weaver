@@ -413,7 +413,6 @@ mod tests {
     use weaver_semconv::{
         attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
         group::InstrumentSpec,
-        schema_url::SchemaUrl,
         v2::{span::SpanName, CommonFields},
     };
 
@@ -452,7 +451,7 @@ mod tests {
     fn test_registry() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: "resolved/2.0.0".to_owned(),
-            schema_url: SchemaUrl::try_new("https://todo/1.0.0".to_owned()).unwrap(),
+            schema_url: "https://todo/1.0.0".try_into().unwrap(),
             attribute_catalog: vec![Attribute {
                 key: "attr1".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
