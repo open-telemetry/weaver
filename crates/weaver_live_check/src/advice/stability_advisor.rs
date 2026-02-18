@@ -9,9 +9,9 @@ use weaver_semconv::stability::Stability;
 
 use super::{Advisor, FindingBuilder};
 use crate::{
-    otlp_logger::OtlpEmitter, Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
-    METRIC_NAME_ADVICE_CONTEXT_KEY, NOT_STABLE_ADVICE_TYPE, STABILITY_ADVICE_CONTEXT_KEY,
+    otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
+    VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
+    METRIC_NAME_ADVICE_CONTEXT_KEY, STABILITY_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample is stable from the stability field in the semantic convention
@@ -34,7 +34,7 @@ impl Advisor for StabilityAdvisor {
                     match attribute.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
                             let name = &sample_attribute.name;
-                            let finding = FindingBuilder::new(NOT_STABLE_ADVICE_TYPE)
+                            let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
@@ -60,7 +60,7 @@ impl Advisor for StabilityAdvisor {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
                             let name = &sample_metric.name;
-                            let finding = FindingBuilder::new(NOT_STABLE_ADVICE_TYPE)
+                            let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({
                                     METRIC_NAME_ADVICE_CONTEXT_KEY: name,
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
@@ -86,7 +86,7 @@ impl Advisor for StabilityAdvisor {
                     match group.stability() {
                         Some(ref stability) if *stability != &Stability::Stable => {
                             let name = &sample_log.event_name;
-                            let finding = FindingBuilder::new(NOT_STABLE_ADVICE_TYPE)
+                            let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({
                                     EVENT_NAME_ADVICE_CONTEXT_KEY: name,
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,

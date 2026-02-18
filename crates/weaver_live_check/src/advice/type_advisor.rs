@@ -15,10 +15,9 @@ use weaver_semconv::attribute::{
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
+    Error, FindingId, Sample, SampleRef, VersionedAttribute, VersionedSignal,
     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, TYPE_MISMATCH_ADVICE_TYPE,
-    UNEXPECTED_INSTRUMENT_ADVICE_TYPE, UNIT_ADVICE_CONTEXT_KEY, UNIT_MISMATCH_ADVICE_TYPE,
+    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
@@ -118,24 +117,24 @@ fn check_attributes<T: CheckableAttribute>(
         if !is_present {
             let (advice_type, advice_level, message) = match semconv_attribute.requirement_level() {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
-                    "required_attribute_not_present".to_owned(),
+                    FindingId::RequiredAttributeNotPresent.to_string(),
                     FindingLevel::Violation,
                     format!("Required attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
                 | RequirementLevel::Recommended { .. } => (
-                    "recommended_attribute_not_present".to_owned(),
+                    FindingId::RecommendedAttributeNotPresent.to_string(),
                     FindingLevel::Improvement,
                     format!("Recommended attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
-                    "opt_in_attribute_not_present".to_owned(),
+                    FindingId::OptInAttributeNotPresent.to_string(),
                     FindingLevel::Information,
                     format!("Opt-in attribute '{}' is not present.", key),
                 ),
                 RequirementLevel::ConditionallyRequired { .. } => (
-                    "conditionally_required_attribute_not_present".to_owned(),
+                    FindingId::ConditionallyRequiredAttributeNotPresent.to_string(),
                     FindingLevel::Information,
                     format!("Conditionally required attribute '{}' is not present.", key),
                 ),
@@ -194,7 +193,7 @@ impl Advisor for TypeAdvisor {
                                     && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                                 {
                                     let name = &sample_attribute.name;
-                                    let finding = FindingBuilder::new(TYPE_MISMATCH_ADVICE_TYPE)
+                                    let finding = FindingBuilder::new(FindingId::TypeMismatch)
                                         .context(json!({
                                             ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
                                             ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
@@ -216,7 +215,7 @@ impl Advisor for TypeAdvisor {
 
                         if !attribute_type.is_compatible(semconv_attribute_type) {
                             let name = &sample_attribute.name;
-                            let finding = FindingBuilder::new(TYPE_MISMATCH_ADVICE_TYPE)
+                            let finding = FindingBuilder::new(FindingId::TypeMismatch)
                                 .context(json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
                                     ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
@@ -245,7 +244,7 @@ impl Advisor for TypeAdvisor {
                 if let Some(semconv_metric) = registry_group {
                     match &sample_metric.instrument {
                         SampleInstrument::Unsupported(name) => {
-                            let finding = FindingBuilder::new(UNEXPECTED_INSTRUMENT_ADVICE_TYPE)
+                            let finding = FindingBuilder::new(FindingId::UnexpectedInstrument)
                                 .context(json!({
                                     INSTRUMENT_ADVICE_CONTEXT_KEY: name,
                                 }))
@@ -259,7 +258,7 @@ impl Advisor for TypeAdvisor {
                         SampleInstrument::Supported(sample_instrument) => {
                             if let Some(semconv_instrument) = semconv_metric.instrument() {
                                 if semconv_instrument != sample_instrument {
-                                    let finding = FindingBuilder::new(UNEXPECTED_INSTRUMENT_ADVICE_TYPE)
+                                    let finding = FindingBuilder::new(FindingId::UnexpectedInstrument)
                                         .context(json!({
                                             INSTRUMENT_ADVICE_CONTEXT_KEY: sample_instrument,
                                             EXPECTED_VALUE_ADVICE_CONTEXT_KEY: semconv_instrument,
@@ -280,7 +279,7 @@ impl Advisor for TypeAdvisor {
                     if let Some(semconv_unit) = semconv_metric.unit() {
                         if semconv_unit != &sample_metric.unit {
                             let unit = &sample_metric.unit;
-                            let finding = FindingBuilder::new(UNIT_MISMATCH_ADVICE_TYPE)
+                            let finding = FindingBuilder::new(FindingId::UnitMismatch)
                                 .context(json!({
                                     UNIT_ADVICE_CONTEXT_KEY: unit,
                                     EXPECTED_VALUE_ADVICE_CONTEXT_KEY: semconv_unit,

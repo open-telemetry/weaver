@@ -9,9 +9,8 @@ use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSp
 
 use super::{Advisor, FindingBuilder};
 use crate::{
-    otlp_logger::OtlpEmitter, Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY,
-    UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
+    otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
+    VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that reports if the given value is not a defined variant in the enum
@@ -66,7 +65,7 @@ impl Advisor for EnumAdvisor {
 
                             if !is_found {
                                 let finding = FindingBuilder::new(
-                                    UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
+                                    FindingId::UndefinedEnumVariant,
                                 )
                                 .context(json!({
                                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &sample_attribute.name,

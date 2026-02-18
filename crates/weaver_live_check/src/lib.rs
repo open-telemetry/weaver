@@ -59,27 +59,6 @@ pub mod text_stdin_ingester;
 // Re-export statistics types from stats module
 pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
 
-/// Missing Attribute advice type
-pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
-/// Template Attribute advice type
-pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
-/// Missing Metric advice type
-pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
-/// Missing Event advice type
-pub const MISSING_EVENT_ADVICE_TYPE: &str = "missing_event";
-/// Deprecated advice type
-pub const DEPRECATED_ADVICE_TYPE: &str = "deprecated";
-/// Type Mismatch advice type
-pub const TYPE_MISMATCH_ADVICE_TYPE: &str = "type_mismatch";
-/// Unstable advice type
-pub const NOT_STABLE_ADVICE_TYPE: &str = "not_stable";
-/// Unit mismatch advice type
-pub const UNIT_MISMATCH_ADVICE_TYPE: &str = "unit_mismatch";
-/// Instrument mismatch advice type
-pub const UNEXPECTED_INSTRUMENT_ADVICE_TYPE: &str = "unexpected_instrument";
-/// Undefined enum variant advice type
-pub const UNDEFINED_ENUM_VARIANT_ADVICE_TYPE: &str = "undefined_enum_variant";
-
 /// Attribute name key in advice context
 pub const ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &str = "attribute_name";
 /// Attribute value key in advice context
