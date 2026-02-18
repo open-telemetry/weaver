@@ -20,7 +20,7 @@ importers:
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: 6.2.4
-        version: 6.2.4(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7))
+        version: 6.2.4(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7))
       autoprefixer:
         specifier: 10.4.24
         version: 10.4.24(postcss@8.5.6)
@@ -31,8 +31,8 @@ importers:
         specifier: 8.5.6
         version: 8.5.6
       svelte:
-        specifier: 5.49.2
-        version: 5.49.2
+        specifier: 5.50.3
+        version: 5.50.3
       tailwindcss:
         specifier: 3.4.19
         version: 3.4.19
@@ -1101,8 +1101,8 @@ packages:
   svelte-spa-router@4.0.1:
     resolution: {integrity: sha512-2JkmUQ2f9jRluijL58LtdQBIpynSbem2eBGp4zXdi7aDY1znbR6yjw0KsonD0aq2QLwf4Yx4tBJQjxIjgjXHKg==}
 
-  svelte@5.49.2:
-    resolution: {integrity: sha512-PYLwnngYzyhKzqDlGVlCH4z+NVI8mC0/bTv15vw25CcdOhxENsOHIbQ36oj5DIf3oBazM+STbCAvaskpxtBmWA==}
+  svelte@5.50.3:
+    resolution: {integrity: sha512-5JCO8P/cFlwyfi1LeZ9uppMZvuaHWygyZmqxyKOIqbV3PoHKaddvV1C6njL/InpDXplNYZnAVEbn8mLslycBxQ==}
     engines: {node: '>=18'}
 
   swagger-client@3.36.1:
@@ -1434,20 +1434,20 @@ snapshots:
     dependencies:
       acorn: 8.15.0
 
-  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7)))(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7))':
+  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7)))(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7))
+      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7))
       obug: 2.1.1
-      svelte: 5.49.2
+      svelte: 5.50.3
       vite: 7.3.1(jiti@1.21.7)
 
-  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7))':
+  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7)))(svelte@5.49.2)(vite@7.3.1(jiti@1.21.7))
+      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7)))(svelte@5.50.3)(vite@7.3.1(jiti@1.21.7))
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.1
-      svelte: 5.49.2
+      svelte: 5.50.3
       vite: 7.3.1(jiti@1.21.7)
       vitefu: 1.1.1(vite@7.3.1(jiti@1.21.7))
 
@@ -2414,7 +2414,7 @@ snapshots:
     dependencies:
       regexparam: 2.0.2
 
-  svelte@5.49.2:
+  svelte@5.50.3:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5

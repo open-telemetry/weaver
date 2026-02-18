@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_resource::SampleResource,
+    Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    VersionedSignal,
 };
 
 /// The status code of the span
@@ -54,6 +55,9 @@ pub struct SampleSpan {
     pub span_links: Vec<SampleSpanLink>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Reference to the parent resource (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
 }
 
 impl Advisable for SampleSpan {
