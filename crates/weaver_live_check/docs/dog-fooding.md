@@ -1,7 +1,7 @@
 # Dog-fooding: Weaver Generates Its Own Code and Documentation
 
 Weaver Live Check uses Weaver's own semantic convention model format and template engine to
-define the finding schema, generate the `FindingId` Rust enum, and generate reference
+define the finding schema, generate Rust types and constants, and generate reference
 documentation. This is a dog-fooding exercise that proves Weaver's code generation
 capabilities work on real-world models.
 
@@ -11,7 +11,7 @@ The finding attributes, enumerations, and event are defined as a semantic conven
 in [`../model/`](../model/):
 
 - **`live_check.yaml`** — Defines the `weaver.finding.*` attributes (including enum types for
-  `level`, `sample_type`, and `signal_type`), template types for `context` and
+  `id`, `level`, `sample_type`, and `signal_type`), template types for `context` and
   `resource_attribute`, and the `weaver.live_check.finding` event.
 - **`registry_manifest.yaml`** — Registry manifest declaring the `weaver-live-check` registry
   and its dependency on the upstream OpenTelemetry semantic conventions.
@@ -34,13 +34,20 @@ generate Markdown documentation from the resolved registry:
 
 ### Rust code generation
 
-Weaver Jinja templates at [`../templates/rust/`](../templates/rust/)
-generate the `FindingId` enum from the `weaver.finding.id` attribute definition:
+A single generic Jinja template at [`../templates/rust/`](../templates/rust/) generates all
+finding-related Rust types and constants from the model:
 
-- **`weaver.yaml`** — Template configuration: single-file output producing `finding_id.rs`.
-- **`finding_id.rs.j2`** — Template that reads the `weaver.finding.id` enum members and
-  generates a Rust enum with serde/strum derives, doc comments from the model's `brief` fields,
-  and a `Custom(String)` catch-all variant for user-defined Rego policy IDs.
+- **`weaver.yaml`** — Template configuration: single-file output producing `finding.rs`.
+- **`finding.rs.j2`** — Generic template that iterates all `weaver.finding.*` attributes and
+  generates:
+  - **Attribute name constants** for every attribute (e.g., `WEAVER_FINDING_ID`,
+    `WEAVER_FINDING_SAMPLE_TYPE`).
+  - **Rust enums** for each attribute with enum members (`FindingId`, `FindingLevel`,
+    `SampleType`, `SignalType`). Extensible enums (annotated with `custom_variants: true`
+    in the model) get a `Custom(String)` catch-all variant; closed enums derive `Copy`.
+
+The template uses generic heuristics (no hardcoded attribute keys) to derive enum names
+from the attribute key structure, and model annotations to control code generation behavior.
 
 ## Generating
 
@@ -70,7 +77,7 @@ cargo run -- registry generate \
   crates/weaver_live_check/src/
 ```
 
-This produces [`../src/finding_id.rs`](../src/finding_id.rs).
+This produces [`../src/finding.rs`](../src/finding.rs).
 
 ## How It Works
 
@@ -79,8 +86,9 @@ This produces [`../src/finding_id.rs`](../src/finding_id.rs).
 2. The `--v2` flag produces the v2 registry structure where attributes are accessed via
    `ctx.registry.attributes` (with a `key` field) and events via `ctx.registry.events`.
 3. The `filter: .` in `weaver.yaml` passes the entire resolved registry as the template context.
-4. The Jinja templates iterate over attributes and events, rendering either Markdown with
-   stability badges, type information, and enum value tables, or Rust source code with
-   derives, doc comments, and enum variants.
-5. The generated `FindingId` enum replaces the hand-written version, proving that Weaver can
-   generate its own code from its own semantic convention model.
+4. The Jinja template iterates over all attributes, generating constants for each one and
+   enums for those with `type.members`. It derives enum names from the attribute key structure
+   and detects extensible enums from model annotations.
+5. The generated `finding.rs` module provides `FindingId`, `SampleType`, `SignalType` enums
+   and `WEAVER_FINDING_*` constants, replacing hand-written definitions and eliminating
+   hardcoded string literals throughout the crate.

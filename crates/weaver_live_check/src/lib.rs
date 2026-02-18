@@ -28,9 +28,9 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
-/// Finding ID enum for live check findings
-pub mod finding_id;
-pub use finding_id::FindingId;
+/// Generated types and constants for live check findings
+pub mod finding;
+pub use finding::{FindingId, SampleType, SignalType};
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.
@@ -303,38 +303,40 @@ pub enum SampleRef<'a> {
 }
 
 impl SampleRef<'_> {
-    /// Returns the sample type as a string.
+    /// Returns the sample type.
     #[must_use]
-    pub fn sample_type(&self) -> &str {
+    pub fn sample_type(&self) -> SampleType {
         match self {
-            SampleRef::Attribute(_) => "attribute",
-            SampleRef::Span(_) => "span",
-            SampleRef::SpanEvent(_) => "span_event",
-            SampleRef::SpanLink(_) => "span_link",
-            SampleRef::Resource(_) => "resource",
-            SampleRef::Metric(_) => "metric",
-            SampleRef::NumberDataPoint(_) => "number_data_point",
-            SampleRef::HistogramDataPoint(_) => "histogram_data_point",
-            SampleRef::ExponentialHistogramDataPoint(_) => "exponential_histogram_data_point",
-            SampleRef::Exemplar(_) => "exemplar",
-            SampleRef::Log(_) => "log",
+            SampleRef::Attribute(_) => SampleType::Attribute,
+            SampleRef::Span(_) => SampleType::Span,
+            SampleRef::SpanEvent(_) => SampleType::SpanEvent,
+            SampleRef::SpanLink(_) => SampleType::SpanLink,
+            SampleRef::Resource(_) => SampleType::Resource,
+            SampleRef::Metric(_) => SampleType::Metric,
+            SampleRef::NumberDataPoint(_) => SampleType::NumberDataPoint,
+            SampleRef::HistogramDataPoint(_) => SampleType::HistogramDataPoint,
+            SampleRef::ExponentialHistogramDataPoint(_) => {
+                SampleType::ExponentialHistogramDataPoint
+            }
+            SampleRef::Exemplar(_) => SampleType::Exemplar,
+            SampleRef::Log(_) => SampleType::Log,
         }
     }
 }
 
 impl Sample {
-    /// Returns the signal type as a string or None if sample
+    /// Returns the signal type or None if sample
     /// does not capture a whole signal.
     #[must_use]
     pub fn signal_type(&self) -> Option<String> {
         match self {
             Sample::Attribute(_) => None, // not a signal
-            Sample::Span(_) => Some("span".to_owned()),
+            Sample::Span(_) => Some(SignalType::Span.to_string()),
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
-            Sample::Resource(_) => Some("resource".to_owned()),
-            Sample::Metric(_) => Some("metric".to_owned()),
-            Sample::Log(_) => Some("log".to_owned()),
+            Sample::Resource(_) => Some(SignalType::Resource.to_string()),
+            Sample::Metric(_) => Some(SignalType::Metric.to_string()),
+            Sample::Log(_) => Some(SignalType::Log.to_string()),
         }
     }
 

@@ -3,7 +3,7 @@ whitespace_control:
   lstrip_blocks: true
 
 templates:
-  - template: finding_id.rs.j2
+  - template: finding.rs.j2
     filter: .
     application_mode: single
-    file_name: finding_id.rs
+    file_name: finding.rs

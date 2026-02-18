@@ -92,6 +92,8 @@ attributes:
 
       Custom Rego policies may emit additional finding IDs not listed here.
     stability: development
+    annotations:
+      custom_variants: true
 
   - key: weaver.finding.level
     type:

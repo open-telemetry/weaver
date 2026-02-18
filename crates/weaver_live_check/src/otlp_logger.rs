@@ -15,7 +15,7 @@ use opentelemetry_sdk::Resource;
 use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
-use crate::{Error, Sample, SampleRef};
+use crate::{finding, Error, Sample, SampleRef};
 
 /// Type alias for log attributes as (Key, AnyValue) pairs
 type LogAttribute = (Key, AnyValue);
@@ -138,30 +138,30 @@ fn build_finding_attributes(
 ) -> Vec<LogAttribute> {
     let mut attributes: Vec<LogAttribute> = Vec::new();
 
-    // Add finding attributes
+    // Add fixed/typed finding attributes
     attributes.push((
-        Key::from("weaver.finding.id"),
+        Key::from(finding::WEAVER_FINDING_ID),
         AnyValue::from(finding.id.clone()),
     ));
     attributes.push((
-        Key::from("weaver.finding.level"),
+        Key::from(finding::WEAVER_FINDING_LEVEL),
         AnyValue::from(finding.level.to_string()),
     ));
     attributes.push((
-        Key::from("weaver.finding.sample_type"),
-        AnyValue::from(sample_ref.sample_type().to_owned()),
+        Key::from(finding::WEAVER_FINDING_SAMPLE_TYPE),
+        AnyValue::from(sample_ref.sample_type().to_string()),
     ));
 
     if let Some(ref signal_type) = finding.signal_type {
         attributes.push((
-            Key::from("weaver.finding.signal_type"),
+            Key::from(finding::WEAVER_FINDING_SIGNAL_TYPE),
             AnyValue::from(signal_type.clone()),
         ));
     }
 
     if let Some(ref signal_name) = finding.signal_name {
         attributes.push((
-            Key::from("weaver.finding.signal_name"),
+            Key::from(finding::WEAVER_FINDING_SIGNAL_NAME),
             AnyValue::from(signal_name.clone()),
         ));
     }
@@ -175,7 +175,11 @@ fn build_finding_attributes(
         for attr in &resource.attributes {
             if let Some(value) = &attr.value {
                 if let Some(any_value) = json_value_to_any_value(value) {
-                    let key = format!("weaver.finding.resource_attribute.{}", attr.name);
+                    let key = format!(
+                        "{}.{}",
+                        finding::WEAVER_FINDING_RESOURCE_ATTRIBUTE,
+                        attr.name
+                    );
                     attributes.push((Key::from(key), any_value));
                 }
             }
@@ -197,7 +201,7 @@ fn finding_level_to_severity(level: &FindingLevel) -> Severity {
 /// Flatten finding context JSON into key-value pairs with dot notation
 fn flatten_finding_context(context: &JsonValue) -> Vec<LogAttribute> {
     let mut attributes = Vec::new();
-    flatten_json_recursive(context, "weaver.finding.context", &mut attributes);
+    flatten_json_recursive(context, finding::WEAVER_FINDING_CONTEXT, &mut attributes);
     attributes
 }
 
@@ -679,14 +683,19 @@ mod tests {
 
     #[test]
     fn test_sample_ref_types() {
+        use crate::SampleType;
+
         let attr_sample = create_test_attribute("test");
         assert_eq!(
             SampleRef::Attribute(&attr_sample).sample_type(),
-            "attribute"
+            SampleType::Attribute
         );
 
         let span_sample = create_test_span("test");
-        assert_eq!(SampleRef::Span(&span_sample).sample_type(), "span");
+        assert_eq!(
+            SampleRef::Span(&span_sample).sample_type(),
+            SampleType::Span
+        );
 
         let event_sample = SampleSpanEvent {
             name: "test".to_owned(),
@@ -695,14 +704,17 @@ mod tests {
         };
         assert_eq!(
             SampleRef::SpanEvent(&event_sample).sample_type(),
-            "span_event"
+            SampleType::SpanEvent
         );
 
         let link_sample = SampleSpanLink {
             attributes: vec![],
             live_check_result: None,
         };
-        assert_eq!(SampleRef::SpanLink(&link_sample).sample_type(), "span_link");
+        assert_eq!(
+            SampleRef::SpanLink(&link_sample).sample_type(),
+            SampleType::SpanLink
+        );
 
         let resource_sample = SampleResource {
             attributes: vec![],
@@ -710,7 +722,7 @@ mod tests {
         };
         assert_eq!(
             SampleRef::Resource(&resource_sample).sample_type(),
-            "resource"
+            SampleType::Resource
         );
     }
 }
