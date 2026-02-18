@@ -432,4 +432,46 @@ registry_path: "./registry"
         assert_eq!(original.schema_url, deserialized.schema_url);
         assert!(deserialized.registry_path.is_some());
     }
+
+    #[test]
+    fn test_legacy_manifest_file_warning() {
+        // Test that loading from a legacy manifest filename (registry_manifest.yaml) produces a warning
+        let mut warnings = vec![];
+        let result = RegistryManifest::try_from_file(
+            "tests/test_data/registry_manifest.yaml",
+            &mut warnings,
+        );
+
+        assert!(result.is_ok());
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(w, LegacyRegistryManifest { .. })),
+            "Expected a LegacyRegistryManifest warning, got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn test_deprecated_properties_warning() {
+        // Test that using deprecated properties (semconv_version and schema_base_url) produces a warning
+        let mut warnings = vec![];
+        let result = RegistryManifest::try_from_file(
+            "tests/test_data/valid_semconv_registry_manifest.yaml",
+            &mut warnings,
+        );
+
+        assert!(result.is_ok());
+        let manifest = result.unwrap();
+        // The manifest should still work and extract the correct values
+        assert_eq!(manifest.name(), "acme.com/schemas");
+        assert_eq!(manifest.version(), "0.1.0");
+
+        // But it should produce a deprecation warning
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(w, DeprecatedSyntaxInRegistryManifest { .. })),
+            "Expected a DeprecatedSyntaxInRegistryManifest warning, got: {warnings:?}"
+        );
+    }
 }
