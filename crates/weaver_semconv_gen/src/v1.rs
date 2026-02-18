@@ -7,7 +7,7 @@ use weaver_common::{
     diagnostic::{DiagnosticMessage, DiagnosticMessages},
     result::WResult,
 };
-use weaver_forge::{registry::ResolvedGroup, TemplateEngine};
+use weaver_forge::{registry::ResolvedGroup, OutputProcessor};
 use weaver_resolved_schema::{catalog::Catalog, registry::Group, ResolvedTelemetrySchema};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry_repo::RegistryRepo;
@@ -17,7 +17,7 @@ use crate::{parser::GenerateMarkdownArgs, Error, MarkdownSnippetGenerator};
 /// State we need to generate markdown snippets from configuration.
 pub struct SnippetGenerator {
     lookup: ResolvedSemconvRegistry,
-    template_engine: TemplateEngine,
+    output: OutputProcessor,
 }
 
 impl SnippetGenerator {
@@ -25,7 +25,7 @@ impl SnippetGenerator {
     #[deprecated]
     pub fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
-        template_engine: TemplateEngine,
+        output: OutputProcessor,
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
         include_unreferenced: bool,
@@ -38,16 +38,16 @@ impl SnippetGenerator {
         )?;
         Ok(SnippetGenerator {
             lookup: registry,
-            template_engine,
+            output,
         })
     }
 
-    /// Constructs a new SnippetGenerator for the v1 schema with the given template engine.
+    /// Constructs a new SnippetGenerator for the v1 schema with the given output processor.
     #[must_use]
-    pub fn new(registry: ResolvedTelemetrySchema, template_engine: TemplateEngine) -> Self {
+    pub fn new(registry: ResolvedTelemetrySchema, output: OutputProcessor) -> Self {
         Self {
             lookup: ResolvedSemconvRegistry { schema: registry },
-            template_engine,
+            output,
         }
     }
 }
@@ -129,11 +129,9 @@ impl MarkdownSnippetGenerator for SnippetGenerator {
         };
         // We automatically default to specific file for the snippet types.
         let snippet_template_file = "snippet.md.j2";
-        let mut result = self.template_engine.generate_snippet(
-            &context,
-            ".",
-            snippet_template_file.to_owned(),
-        )?;
+        let mut result =
+            self.output
+                .generate_snippet(&context, ".", snippet_template_file.to_owned())?;
         result.push('\n');
         Ok(result)
     }
@@ -172,7 +170,7 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
-    use weaver_forge::TemplateEngine;
+    use weaver_forge::{OutputProcessor, OutputTarget};
     use weaver_semconv::registry_repo::RegistryRepo;
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
@@ -193,7 +191,8 @@ mod tests {
                 .insert("test".to_owned(), Value::String("param".to_owned()));
             p
         };
-        let template = TemplateEngine::try_new(config, loader, params)?;
+        let output =
+            OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?;
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
@@ -201,7 +200,7 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let generator = SnippetGenerator::try_from_registry_repo(
             &registry_repo,
-            template,
+            output,
             &mut diag_msgs,
             false,
             false,

@@ -13,7 +13,7 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
-use weaver_forge::OutputProcessor;
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
@@ -215,16 +215,17 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     }
 
     // For http output, create the processor in stdout mode (used for format/template config)
+    let target = if is_http_output {
+        OutputTarget::Stdout
+    } else {
+        OutputTarget::from_optional_dir(args.output.as_ref())
+    };
     let mut output = OutputProcessor::new(
         &args.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
         Some(args.templates.clone()),
-        if is_http_output {
-            None
-        } else {
-            args.output.as_ref()
-        },
+        target,
     )?;
 
     info!("Weaver Registry Live Check");

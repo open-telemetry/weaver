@@ -4,13 +4,6 @@
     'config:best-practices',
     'helpers:pinGitHubActionDigestsToSemver',
   ],
-  "ignorePaths": [
-    // cargo-dist manages this file, so we have to pin *its* dependency here.
-    ".github/workflows/release.yml"
-  ],
-  includePaths: [
-    "ui/**"
-  ],
   packageRules: [
     {
       groupName: 'all patch versions',
@@ -53,6 +46,70 @@
         'npm',
       ],
       automerge: true,
+    },
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Update Cargo Dist workspace",
+      managerFilePatterns: [
+        "dist-workspace.toml",
+        ".github/workflows/release.yml"
+      ],
+      matchStrings: [
+        "(?<packageName>.+?)-version = \"(?<depVersion>[^\\s@]+?)\"",
+        "https:\/\/github.com\/axodotdev\/(?<packageName>.+?)\/releases\/download\/v(?<depVersion>[^\\s@]+?)\/"
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Cargo Dist Actions",
+      managerFilePatterns: [
+        "dist-workspace.toml",
+      ],
+      matchStrings: [
+        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[^\\s@]+?)\" # v(?<depVersion>[^\\s@]+?)\\s"
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "docker",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update Just file",
+      managerFilePatterns: [
+        "justfile",
+      ],
+      matchStrings: [
+        "cargo install (?<packageName>.+\/?)@(?<depVersion>[^\s@]+?)\\s",
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Rust toolchain version",
+      managerFilePatterns: [
+        "rust-toolchain.toml", 
+        "justfile",
+      ],
+      matchStrings: [
+        "channel\\s*=\\s*\"(?<depVersion>\\d+\\.\\d+\\.\\d+)\"",
+        "rustup install (?<depVersion>[^\s@]+?)\s",
+        "rustup update (?<depVersion>[^\s@]+?)\s",
+      ],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "rust",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "SDK",
     },
   ],
   labels: [

@@ -2,21 +2,16 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
-use crate::registry::Error::DiffRender;
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::{include_dir, Dir};
 use log::info;
-use miette::Diagnostic;
-use serde::Serialize;
 use std::path::PathBuf;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_forge::config::{Params, WeaverConfig};
-use weaver_forge::file_loader::EmbeddedFileLoader;
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Embedded default schema changes templates
@@ -35,12 +30,12 @@ pub struct RegistryDiffArgs {
 
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
     /// and markdown.
-    #[arg(long, default_value = "ansi")]
-    diff_format: String,
+    #[arg(long, alias = "diff-format", default_value = "ansi")]
+    format: String,
 
     /// Path to the directory where the schema changes templates are located.
-    #[arg(long, default_value = "diff_templates")]
-    diff_template: PathBuf,
+    #[arg(long, alias = "diff-template", default_value = "diff_templates")]
+    templates: PathBuf,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the diff report is printed to stdout
@@ -52,27 +47,6 @@ pub struct RegistryDiffArgs {
     pub(crate) diagnostic: DiagnosticArgs,
 }
 
-/// An error that can occur while generating the diff between two versions of the same
-/// semantic convention registry.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
-#[non_exhaustive]
-pub enum Error {
-    /// Writing to the file failed.
-    #[error("Writing to the file ‘{file}’ failed for the following reason: {error}")]
-    WriteError {
-        /// The path to the output file.
-        file: PathBuf,
-        /// The error that occurred.
-        error: String,
-    },
-}
-
-impl From<Error> for DiagnosticMessages {
-    fn from(error: Error) -> Self {
-        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
-    }
-}
-
 enum VersionedDiff {
     V1(crate::weaver::Diff),
     V2(crate::weaver::DiffV2),
@@ -80,14 +54,6 @@ enum VersionedDiff {
 
 /// Generate a diff between two versions of a semantic convention registry.
 pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
-    let mut output = PathBuf::from("output");
-    let output_directive = if let Some(path_buf) = &args.output {
-        output = path_buf.clone();
-        OutputDirective::File
-    } else {
-        OutputDirective::Stdout
-    };
-
     let mut diag_msgs = DiagnosticMessages::empty();
     // TODO - make sure policy is disabled.
     let policy_config = PolicyArgs {
@@ -123,32 +89,20 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
         return Err(diag_msgs);
     }
 
-    let loader = EmbeddedFileLoader::try_new(
-        &DEFAULT_DIFF_TEMPLATES,
-        args.diff_template.clone(),
-        &args.diff_format,
-    )
-    .expect("Failed to create the embedded file loader for the diff templates");
-    let config = WeaverConfig::try_from_loader(&loader)
-        .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
-    let engine = TemplateEngine::try_new(config, loader, Params::default())?;
+    let target = OutputTarget::from_optional_dir(args.output.as_ref());
+    let mut output = OutputProcessor::new(
+        &args.format,
+        "diff",
+        Some(&DEFAULT_DIFF_TEMPLATES),
+        Some(args.templates.clone()),
+        target,
+    )?;
 
-    let result = match diff {
-        VersionedDiff::V1(d) => {
-            engine.generate(d.as_template_context(), output.as_path(), &output_directive)
-        }
-        VersionedDiff::V2(d) => {
-            engine.generate(d.as_template_context(), output.as_path(), &output_directive)
-        }
-    };
-    match result {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(DiagnosticMessages::from(DiffRender {
-                error: e.to_string(),
-            }));
-        }
+    match diff {
+        VersionedDiff::V1(d) => output.generate(d.as_template_context()),
+        VersionedDiff::V2(d) => output.generate(d.as_template_context()),
     }
+    .map_err(DiagnosticMessages::from)?;
 
     Ok(ExitDirectives {
         exit_code: 0,
@@ -186,8 +140,8 @@ mod tests {
                     baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
                     },
-                    diff_format: "json".to_owned(),
-                    diff_template: Default::default(),
+                    format: "json".to_owned(),
+                    templates: Default::default(),
                     output: None,
                     diagnostic: Default::default(),
                 }),
@@ -219,8 +173,8 @@ mod tests {
                 baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),
                 },
-                diff_format: "json".to_owned(),
-                diff_template: Default::default(),
+                format: "json".to_owned(),
+                templates: Default::default(),
                 output: Some(temp_dir.path().to_path_buf()),
                 diagnostic: Default::default(),
             }),

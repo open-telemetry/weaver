@@ -231,6 +231,10 @@ pub enum Error {
         error: String,
     },
 
+    /// An internal logic error that should not occur in normal operation.
+    #[error("Internal error: {0}")]
+    InternalError(String),
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),

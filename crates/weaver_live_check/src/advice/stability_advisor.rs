@@ -45,7 +45,7 @@ impl Advisor for StabilityAdvisor {
                                 ))
                                 .level(FindingLevel::Improvement)
                                 .signal(parent_signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                             findings.push(finding);
                         }
@@ -71,7 +71,7 @@ impl Advisor for StabilityAdvisor {
                                 ))
                                 .level(FindingLevel::Improvement)
                                 .signal(parent_signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                             findings.push(finding);
                         }
@@ -97,7 +97,7 @@ impl Advisor for StabilityAdvisor {
                                 ))
                                 .level(FindingLevel::Improvement)
                                 .signal(parent_signal)
-                                .build_and_emit(&sample, otlp_emitter.as_deref());
+                                .build_and_emit(&sample, otlp_emitter.as_deref(), parent_signal);
 
                             findings.push(finding);
                         }

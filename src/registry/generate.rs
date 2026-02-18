@@ -12,7 +12,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
 use crate::weaver::{ResolvedV2, WeaverEngine};
@@ -105,23 +105,20 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
     } else {
         WeaverConfig::try_from_path(loader.root())
     }?;
-    let engine = TemplateEngine::try_new(config, loader, params)?;
+    let mut output = OutputProcessor::from_template_config(
+        config,
+        loader,
+        params,
+        OutputTarget::Directory(args.output.clone()),
+    )?;
     // Resolve v1 and v2 schema, based on user request.
     if args.registry.v2 {
         let resolved_v2: ResolvedV2 = resolved.try_into()?;
         resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        engine.generate(
-            &resolved_v2.template_schema(),
-            args.output.as_path(),
-            &OutputDirective::File,
-        )?;
+        output.generate(&resolved_v2.template_schema())?;
     } else {
         resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        engine.generate(
-            &resolved.template_schema(),
-            args.output.as_path(),
-            &OutputDirective::File,
-        )?;
+        output.generate(&resolved.template_schema())?;
     }
 
     if !diag_msgs.is_empty() {
