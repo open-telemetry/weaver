@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 #[derive(Debug, Clone, JsonSchema)]
 pub struct SchemaUrl {
     /// The schema URL string.
-    pub url: String,
+    url: String,
     #[serde(skip)]
     #[schemars(skip)]
     name: OnceLock<String>,

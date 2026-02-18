@@ -36,7 +36,7 @@ pub enum LoadedSemconvRegistry {
         dependencies: Vec<LoadedSemconvRegistry>,
     },
     /// The semconv repository is already resolved and can be used as-is.
-    Resolved(Box<V1Schema>),
+    Resolved(V1Schema),
     /// The semconv repository is already resolved and can be used as-is.
     ResolvedV2(V2Schema),
 }
@@ -81,7 +81,7 @@ impl LoadedSemconvRegistry {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
             // TODO - are these correct?
             LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
-            LoadedSemconvRegistry::ResolvedV2(schema) => &schema.schema_url.url,
+            LoadedSemconvRegistry::ResolvedV2(schema) => schema.schema_url.as_str(),
         }
     }
 
