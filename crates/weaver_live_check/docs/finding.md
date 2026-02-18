@@ -34,7 +34,7 @@ quality, ensure semantic convention compliance, and identify instrumentation iss
 | Attribute | Type | Stability | Description | Examples |
 |-----------|------|-----------|-------------|----------|
 | `weaver.finding.context.<key>` | template[any] | ![Development](https://img.shields.io/badge/-development-blue) | Additional contextual information about the finding | `http.method`, `http.request.method` |
-| `weaver.finding.id` | string | ![Development](https://img.shields.io/badge/-development-blue) | Unique identifier for the type of finding detected by the policy engine | `required_attribute_not_present`, `undefined_enum_variant`, `is_deprecated`, `missing_attribute` |
+| `weaver.finding.id` | enum | ![Development](https://img.shields.io/badge/-development-blue) | Unique identifier for the type of finding detected by the policy engine | `missing_attribute`, `template_attribute` |
 | `weaver.finding.level` | enum | ![Development](https://img.shields.io/badge/-development-blue) | Severity level of the semantic convention finding | `violation`, `improvement` |
 | `weaver.finding.resource_attribute.<key>` | template[any] | ![Development](https://img.shields.io/badge/-development-blue) | Resource attributes from the original telemetry source that produced the finding | `my-app`, `1.2.3` |
 | `weaver.finding.sample_type` | enum | ![Development](https://img.shields.io/badge/-development-blue) | The type of telemetry sample being validated | `attribute`, `span` |
@@ -74,15 +74,42 @@ attribute names, expected values, stability levels, and deprecation reasons.
 
 Unique identifier for the type of finding detected by the policy engine
 
-**Type:** `string`
+**Type:** `enum`
 
 The finding ID is a stable, machine-readable identifier that categorizes the issue.
-Common examples include missing required attributes, deprecated attribute usage,
-invalid enum values, or naming convention violations. This ID can be used to
-filter, aggregate, or suppress specific finding types.
+It can be used to filter, aggregate, or suppress specific finding types.
+
+IDs prefixed with common patterns indicate the source: built-in advisors produce
+findings like `missing_attribute` and `type_mismatch`, requirement-level checks
+produce `*_attribute_not_present` findings, and Rego policies produce findings
+like `missing_namespace` and `invalid_format`.
+
+Custom Rego policies may emit additional finding IDs not listed here.
 
 
-**Examples:** `required_attribute_not_present`, `undefined_enum_variant`, `is_deprecated`, `missing_attribute`
+#### Values
+
+| Value | Stability | Description |
+|-------|-----------|-------------|
+| `missing_attribute` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute is not defined in the semantic convention registry |
+| `template_attribute` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute matched a template definition in the registry |
+| `missing_metric` | ![Development](https://img.shields.io/badge/-development-blue) | A metric is not defined in the semantic convention registry |
+| `missing_event` | ![Development](https://img.shields.io/badge/-development-blue) | An event is not defined in the semantic convention registry |
+| `deprecated` | ![Development](https://img.shields.io/badge/-development-blue) | A deprecated attribute or signal is in use |
+| `type_mismatch` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute value type does not match the type defined in the registry |
+| `not_stable` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute or signal has not reached stable status |
+| `unit_mismatch` | ![Development](https://img.shields.io/badge/-development-blue) | A metric unit does not match the unit defined in the registry |
+| `unexpected_instrument` | ![Development](https://img.shields.io/badge/-development-blue) | A metric instrument type does not match or is not supported by the registry |
+| `undefined_enum_variant` | ![Development](https://img.shields.io/badge/-development-blue) | An enum attribute value is not in the set of allowed members |
+| `required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A required attribute is absent from the sample |
+| `recommended_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A recommended attribute is absent from the sample |
+| `opt_in_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | An opt-in attribute is absent from the sample |
+| `conditionally_required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A conditionally required attribute is absent from the sample |
+| `missing_namespace` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute name has no dot-separated namespace |
+| `invalid_format` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute or metric name does not match the required naming format |
+| `illegal_namespace` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute name uses a namespace that collides with an existing attribute |
+| `extends_namespace` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute name shares a namespace prefix with existing registry attributes |
+
 
 ---
 

@@ -28,6 +28,9 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
+/// Finding ID enum for live check findings
+pub mod finding_id;
+pub use finding_id::FindingId;
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.

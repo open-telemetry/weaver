@@ -3,21 +3,95 @@ version: "2"
 
 attributes:
   - key: weaver.finding.id
-    type: string
+    type:
+      members:
+        # Built-in advisor findings
+        - id: missing_attribute
+          value: "missing_attribute"
+          brief: "An attribute is not defined in the semantic convention registry"
+          stability: development
+        - id: template_attribute
+          value: "template_attribute"
+          brief: "An attribute matched a template definition in the registry"
+          stability: development
+        - id: missing_metric
+          value: "missing_metric"
+          brief: "A metric is not defined in the semantic convention registry"
+          stability: development
+        - id: missing_event
+          value: "missing_event"
+          brief: "An event is not defined in the semantic convention registry"
+          stability: development
+        - id: deprecated
+          value: "deprecated"
+          brief: "A deprecated attribute or signal is in use"
+          stability: development
+        - id: type_mismatch
+          value: "type_mismatch"
+          brief: "An attribute value type does not match the type defined in the registry"
+          stability: development
+        - id: not_stable
+          value: "not_stable"
+          brief: "An attribute or signal has not reached stable status"
+          stability: development
+        - id: unit_mismatch
+          value: "unit_mismatch"
+          brief: "A metric unit does not match the unit defined in the registry"
+          stability: development
+        - id: unexpected_instrument
+          value: "unexpected_instrument"
+          brief: "A metric instrument type does not match or is not supported by the registry"
+          stability: development
+        - id: undefined_enum_variant
+          value: "undefined_enum_variant"
+          brief: "An enum attribute value is not in the set of allowed members"
+          stability: development
+        # Requirement-level attribute findings
+        - id: required_attribute_not_present
+          value: "required_attribute_not_present"
+          brief: "A required attribute is absent from the sample"
+          stability: development
+        - id: recommended_attribute_not_present
+          value: "recommended_attribute_not_present"
+          brief: "A recommended attribute is absent from the sample"
+          stability: development
+        - id: opt_in_attribute_not_present
+          value: "opt_in_attribute_not_present"
+          brief: "An opt-in attribute is absent from the sample"
+          stability: development
+        - id: conditionally_required_attribute_not_present
+          value: "conditionally_required_attribute_not_present"
+          brief: "A conditionally required attribute is absent from the sample"
+          stability: development
+        # Default Rego policy findings (otel.rego)
+        - id: missing_namespace
+          value: "missing_namespace"
+          brief: "An attribute name has no dot-separated namespace"
+          stability: development
+        - id: invalid_format
+          value: "invalid_format"
+          brief: "An attribute or metric name does not match the required naming format"
+          stability: development
+        - id: illegal_namespace
+          value: "illegal_namespace"
+          brief: "An attribute name uses a namespace that collides with an existing attribute"
+          stability: development
+        - id: extends_namespace
+          value: "extends_namespace"
+          brief: "An attribute name shares a namespace prefix with existing registry attributes"
+          stability: development
     brief: "Unique identifier for the type of finding detected by the policy engine"
     note: |
       The finding ID is a stable, machine-readable identifier that categorizes the issue.
-      Common examples include missing required attributes, deprecated attribute usage,
-      invalid enum values, or naming convention violations. This ID can be used to
-      filter, aggregate, or suppress specific finding types.
+      It can be used to filter, aggregate, or suppress specific finding types.
+
+      IDs prefixed with common patterns indicate the source: built-in advisors produce
+      findings like `missing_attribute` and `type_mismatch`, requirement-level checks
+      produce `*_attribute_not_present` findings, and Rego policies produce findings
+      like `missing_namespace` and `invalid_format`.
+
+      Custom Rego policies may emit additional finding IDs not listed here.
     stability: development
-    examples:
-      [
-        "required_attribute_not_present",
-        "undefined_enum_variant",
-        "is_deprecated",
-        "missing_attribute",
-      ]
 
   - key: weaver.finding.level
     type:

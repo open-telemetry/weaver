@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Tests for FindingId enum — kept separate from the definition since
+//! finding_id.rs will be replaced by code generation in a future phase.
+
+use std::str::FromStr;
+
+use weaver_live_check::FindingId;
+
+#[test]
+fn test_roundtrip() {
+    let variants = [
+        FindingId::MissingAttribute,
+        FindingId::TemplateAttribute,
+        FindingId::MissingMetric,
+        FindingId::MissingEvent,
+        FindingId::Deprecated,
+        FindingId::TypeMismatch,
+        FindingId::NotStable,
+        FindingId::UnitMismatch,
+        FindingId::UnexpectedInstrument,
+        FindingId::UndefinedEnumVariant,
+        FindingId::RequiredAttributeNotPresent,
+        FindingId::RecommendedAttributeNotPresent,
+        FindingId::OptInAttributeNotPresent,
+        FindingId::ConditionallyRequiredAttributeNotPresent,
+        FindingId::MissingNamespace,
+        FindingId::InvalidFormat,
+        FindingId::IllegalNamespace,
+        FindingId::ExtendsNamespace,
+    ];
+    for variant in &variants {
+        let s = variant.to_string();
+        let roundtripped = FindingId::from_str(&s).expect("parse failed");
+        assert_eq!(&roundtripped, variant, "roundtrip failed for {s}");
+    }
+}
+
+#[test]
+fn test_custom_variant() {
+    let custom = FindingId::from_str("my_custom_policy").expect("parse failed");
+    assert_eq!(custom, FindingId::Custom("my_custom_policy".to_owned()));
+    assert_eq!(custom.to_string(), "my_custom_policy");
+}
+
+#[test]
+fn test_display() {
+    assert_eq!(FindingId::TypeMismatch.to_string(), "type_mismatch");
+    assert_eq!(FindingId::Custom("foo".to_owned()).to_string(), "foo");
+}
+
+#[test]
+fn test_into_string() {
+    let s: String = FindingId::MissingAttribute.into();
+    assert_eq!(s, "missing_attribute");
+}
