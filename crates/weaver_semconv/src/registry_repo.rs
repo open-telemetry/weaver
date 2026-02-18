@@ -147,7 +147,7 @@ impl RegistryRepo {
         }
     }
 
-    /// Returns the path to the `registry_manifest.yaml` file (if any).
+    /// Returns the path to the `manifest.yaml` or legacy `registry_manifest.yaml` (if any of them exist).
     #[must_use]
     pub fn manifest_path(&self) -> Option<PathBuf> {
         // First check to see if we're pointing at a manifest.

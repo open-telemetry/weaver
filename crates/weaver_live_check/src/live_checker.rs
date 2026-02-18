@@ -613,7 +613,7 @@ mod tests {
                 },
             }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
                 groups: vec![ResolvedGroup {
                     id: "test.comprehensive.internal".to_owned(),
@@ -752,7 +752,7 @@ mod tests {
                     body: None,
                     annotations: None,
                 }],
-            })
+            }))
         }
     }
 
@@ -848,7 +848,7 @@ mod tests {
                 },
             }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_METRICS".to_owned(),
                 groups: vec![
                     // Attribute group for system memory
@@ -983,7 +983,7 @@ mod tests {
                         annotations: None,
                     },
                 ],
-            })
+            }))
         }
     }
 
@@ -1045,7 +1045,7 @@ mod tests {
                 },
             }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
                 groups: vec![ResolvedGroup {
                     id: "custom.comprehensive.internal".to_owned(),
@@ -1090,7 +1090,7 @@ mod tests {
                     body: None,
                     annotations: None,
                 }],
-            })
+            }))
         }
     }
 
@@ -1600,7 +1600,7 @@ mod tests {
                 },
             }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),
                 groups: vec![
                     ResolvedGroup {
@@ -1711,7 +1711,7 @@ mod tests {
                         }),
                     },
                 ],
-            })
+            }))
         }
     }
 

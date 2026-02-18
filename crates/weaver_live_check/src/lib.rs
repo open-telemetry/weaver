@@ -116,7 +116,7 @@ pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advic
 #[serde(untagged)]
 pub enum VersionedRegistry {
     /// v1 ResolvedRegistry
-    V1(ResolvedRegistry),
+    V1(Box<ResolvedRegistry>),
     /// v2 ForgeResolvedRegistry
     V2(Box<ForgeResolvedRegistry>),
 }
