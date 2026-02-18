@@ -65,7 +65,7 @@ impl LiveChecker {
                     }
                     for attribute in &group.attributes {
                         let attribute_rc =
-                            Rc::new(VersionedAttribute::V1(Box::new(attribute.clone())));
+                            Rc::new(VersionedAttribute::V1(attribute.clone()));
                         match attribute.r#type {
                             AttributeType::Template(_) => {
                                 templates_by_length
@@ -93,7 +93,7 @@ impl LiveChecker {
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
                 for attribute in &registry.registry.attributes {
-                    let attribute_rc = Rc::new(VersionedAttribute::V2(Box::new(attribute.clone())));
+                    let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
                         AttributeType::Template(_) => {
                             templates_by_length.push((attribute.key.clone(), attribute_rc.clone()));

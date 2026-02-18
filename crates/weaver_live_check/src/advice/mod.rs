@@ -161,7 +161,7 @@ mod tests {
 
         // Test DeprecatedAdvisor
         let mut deprecated_advisor = DeprecatedAdvisor;
-        let deprecated_attr = Rc::new(VersionedAttribute::V1(Box::new(Attribute {
+        let deprecated_attr = Rc::new(VersionedAttribute::V1(Attribute {
             name: "deprecated.attr".to_owned(),
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -179,7 +179,7 @@ mod tests {
             role: None,
             tags: None,
             value: None,
-        })));
+        }));
 
         let sample_attr = create_sample_attribute("deprecated.attr");
         let sample = Sample::Attribute(sample_attr.clone());
@@ -198,7 +198,7 @@ mod tests {
 
         // Test TypeAdvisor
         let mut type_advisor = TypeAdvisor;
-        let int_attr = Rc::new(VersionedAttribute::V1(Box::new(Attribute {
+        let int_attr = Rc::new(VersionedAttribute::V1(Attribute {
             name: "int.attr".to_owned(),
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
@@ -214,7 +214,7 @@ mod tests {
             role: None,
             tags: None,
             value: None,
-        })));
+        }));
 
         let mut sample_attr = create_sample_attribute("int.attr");
         sample_attr.r#type = Some(PrimitiveOrArrayTypeSpec::String);
@@ -236,7 +236,7 @@ mod tests {
 
         // Test StabilityAdvisor
         let mut stability_advisor = StabilityAdvisor;
-        let dev_attr = Rc::new(VersionedAttribute::V1(Box::new(Attribute {
+        let dev_attr = Rc::new(VersionedAttribute::V1(Attribute {
             name: "dev.attr".to_owned(),
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -252,7 +252,7 @@ mod tests {
             role: None,
             tags: None,
             value: None,
-        })));
+        }));
 
         let sample_attr = create_sample_attribute("dev.attr");
         let sample = Sample::Attribute(sample_attr.clone());

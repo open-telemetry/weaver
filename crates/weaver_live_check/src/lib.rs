@@ -126,9 +126,9 @@ pub enum VersionedRegistry {
 #[serde(untagged)]
 pub enum VersionedAttribute {
     /// v1 Attribute
-    V1(Box<weaver_resolved_schema::attribute::Attribute>),
+    V1(weaver_resolved_schema::attribute::Attribute),
     /// v2 Attribute
-    V2(Box<weaver_forge::v2::attribute::Attribute>),
+    V2(weaver_forge::v2::attribute::Attribute),
 }
 
 impl VersionedAttribute {
