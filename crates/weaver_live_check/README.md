@@ -2,6 +2,12 @@
 
 Live check is a developer tool for assessing sample telemetry and providing findings for improvement.
 
+> **Dog-fooding**: Live Check uses Weaver's own semantic convention model and template engine to
+> define its finding schema and generate its documentation. The finding attributes, enumerations,
+> and event are defined in [`model/live_check.yaml`](model/live_check.yaml) and the reference
+> documentation at [`docs/finding.md`](docs/finding.md) is auto-generated from that model using
+> Weaver templates. See [Dog-fooding](docs/dog-fooding.md) for details.
+
 A Semantic Convention `Registry` is loaded for comparison with samples. `Ingesters` transform various input formats and sources into intermediary representations to be assessed by `Advisors`. The `PolicyFinding` produced is transformed via jinja templates to the required output format for downstream consumption.
 
 ```mermaid
@@ -253,6 +259,9 @@ weaver registry live-check --emit-otlp-logs --otlp-logs-stdout
 ```
 
 ### Log Record Structure
+
+> For the full auto-generated reference of finding attributes, enum values, and the event schema,
+> see [docs/finding.md](docs/finding.md).
 
 Each policy finding is emitted as an OTLP log record with the following structure:
 
