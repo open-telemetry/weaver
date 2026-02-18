@@ -6,6 +6,15 @@
   ],
   packageRules: [
     {
+      groupName: 'all digest versions',
+      matchUpdateTypes: [
+        'digest',
+      ],
+      schedule: [
+        'before 8am every weekday',
+      ],
+    },
+    {
       groupName: 'all patch versions',
       matchUpdateTypes: [
         'patch',
@@ -39,6 +48,7 @@
       matchUpdateTypes: [
         'minor',
         'patch',
+        'digest',
       ],
       matchManagers: [
         'cargo',
