@@ -14,7 +14,10 @@ use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
 use crate::schema_url::SchemaUrl;
 use crate::stability::Stability;
 use crate::Error;
-use crate::Error::{InvalidRegistryManifest, LegacyRegistryManifest, RegistryManifestNotFound, DeprecatedSyntaxInRegistryManifest};
+use crate::Error::{
+    DeprecatedSyntaxInRegistryManifest, InvalidRegistryManifest, LegacyRegistryManifest,
+    RegistryManifestNotFound,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 use weaver_common::vdir::VirtualDirectoryPath;
@@ -213,15 +216,12 @@ impl RegistryManifest {
             });
         }
 
-        nfes.extend(
-            manifest
-                .deserialization_warnings
-                .iter()
-                .map(|w| DeprecatedSyntaxInRegistryManifest {
-                    path: manifest_path_buf.clone(),
-                    error: w.clone(),
-                }),
-        );
+        nfes.extend(manifest.deserialization_warnings.iter().map(|w| {
+            DeprecatedSyntaxInRegistryManifest {
+                path: manifest_path_buf.clone(),
+                error: w.clone(),
+            }
+        }));
         Ok(manifest)
     }
 
