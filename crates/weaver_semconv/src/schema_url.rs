@@ -209,13 +209,16 @@ mod tests {
 
     #[test]
     fn test_name_extraction_simple() {
-        let schema_url: SchemaUrl = TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/1.0.0").unwrap();
+        let schema_url: SchemaUrl =
+            TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/1.0.0").unwrap();
         assert_eq!(schema_url.name(), "opentelemetry.io/schemas");
     }
 
     #[test]
     fn test_name_extraction_nested_path() {
-        let schema_url: SchemaUrl = TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/sub-component/1.0.0").unwrap();
+        let schema_url: SchemaUrl =
+            TryInto::<SchemaUrl>::try_into("https://opentelemetry.io/schemas/sub-component/1.0.0")
+                .unwrap();
         assert_eq!(schema_url.name(), "opentelemetry.io/schemas/sub-component");
     }
 
@@ -227,22 +230,19 @@ mod tests {
 
     #[test]
     fn test_name_extraction_with_port() {
-        let schema_url: SchemaUrl =
-            "https://example.com:8080/schemas/1.0.0".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://example.com:8080/schemas/1.0.0".try_into().unwrap();
         assert_eq!(schema_url.name(), "example.com:8080/schemas");
     }
 
     #[test]
     fn test_version_extraction_simple() {
-        let schema_url: SchemaUrl =
-            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
         assert_eq!(schema_url.version(), "1.0.0");
     }
 
     #[test]
     fn test_version_extraction_semantic_version() {
-        let schema_url: SchemaUrl =
-            "https://example.com/schemas/1.2.3".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://example.com/schemas/1.2.3".try_into().unwrap();
         assert_eq!(schema_url.version(), "1.2.3");
     }
 
@@ -321,8 +321,7 @@ mod tests {
 
     #[test]
     fn test_display() {
-        let schema_url: SchemaUrl =
-            "https://example.com/schemas/1.0.0".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://example.com/schemas/1.0.0".try_into().unwrap();
         assert_eq!(
             format!("{}", schema_url),
             "https://example.com/schemas/1.0.0"
@@ -331,8 +330,7 @@ mod tests {
 
     #[test]
     fn test_serialize() {
-        let schema_url: SchemaUrl =
-            "https://example.com/schemas/1.0.0".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://example.com/schemas/1.0.0".try_into().unwrap();
         let json = serde_json::to_string(&schema_url).unwrap();
         assert_eq!(json, "\"https://example.com/schemas/1.0.0\"");
     }
@@ -364,8 +362,7 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_roundtrip() {
-        let original: SchemaUrl =
-            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let original: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: SchemaUrl = serde_json::from_str(&json).unwrap();
         assert_eq!(original, deserialized);
@@ -373,8 +370,7 @@ mod tests {
 
     #[test]
     fn test_name_caching() {
-        let schema_url: SchemaUrl =
-            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
         // Call name() twice and verify they return the same reference
         let name1 = schema_url.name();
@@ -389,8 +385,7 @@ mod tests {
 
     #[test]
     fn test_version_caching() {
-        let schema_url: SchemaUrl =
-            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let schema_url: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
         // Call version() twice and verify they return the same reference
         let version1 = schema_url.version();
@@ -405,8 +400,7 @@ mod tests {
 
     #[test]
     fn test_clone_preserves_url_but_resets_cache() {
-        let original: SchemaUrl =
-            "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let original: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
         // Access name to populate cache
         let _ = original.name();

@@ -186,6 +186,7 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
@@ -194,9 +195,6 @@ mod tests {
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
         YamlValue,
-    };
-    use weaver_semconv::{
-        v2::{span::SpanName, CommonFields},
     };
 
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {

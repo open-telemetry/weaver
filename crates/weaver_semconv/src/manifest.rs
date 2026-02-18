@@ -8,10 +8,13 @@
 //! In the future, this struct may be extended to include additional information
 //! such as the registry's owner, maintainers, and dependencies.
 
+use std::vec;
+
+use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
 use crate::schema_url::SchemaUrl;
 use crate::stability::Stability;
 use crate::Error;
-use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
+use crate::Error::{InvalidRegistryManifest, LegacyRegistryManifest, RegistryManifestNotFound, DeprecatedSyntaxInRegistryManifest};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 use weaver_common::vdir::VirtualDirectoryPath;
@@ -43,20 +46,6 @@ pub struct RegistryManifest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    /// The version of the registry which will be used to define the semconv package version.
-    #[serde(default, skip_serializing)]
-    #[deprecated(
-        note = "The `version` field is deprecated. The registry version should be specified in the `schema_url` field, which is required and serves as a unique identifier for the registry."
-    )]
-    pub semconv_version: Option<String>,
-
-    /// The base URL where the registry's schema files are hosted.
-    #[serde(default, skip_serializing)]
-    #[deprecated(
-        note = "The `schema_base_url` field is deprecated. The registry schema URL should be specified in the `schema_url` field, which is required and serves as a unique identifier for the registry."
-    )]
-    pub schema_base_url: Option<String>,
-
     /// List of the registry's dependencies.
     /// Note: In the current phase, we only support zero or one dependency.
     /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
@@ -70,6 +59,9 @@ pub struct RegistryManifest {
     /// The location of the resolved telemetry schema, if available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_schema_uri: Option<String>,
+
+    #[serde(skip)]
+    deserialization_warnings: Vec<String>,
 }
 
 /// Represents a dependency of a semantic convention registry.
@@ -91,16 +83,6 @@ pub struct Dependency {
     /// - A directory containing the raw definition.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub registry_path: Option<VirtualDirectoryPath>,
-
-    /// This field is deprecated and should not be used.
-    /// The registry name should be derived from the `schema_url` field,
-    /// which serves as a unique identifier for the dependency registry
-    /// and includes registry version.
-    #[deprecated(
-        note = "The `name` field is deprecated. The registry name should be derived from the `schema_url` field, which serves as a unique identifier for the dependency registry."
-    )]
-    #[serde(default, skip_serializing)] // we can read, but won't write this field
-    pub name: Option<String>,
 }
 
 impl<'de> Deserialize<'de> for Dependency {
@@ -131,7 +113,6 @@ impl<'de> Deserialize<'de> for Dependency {
         Ok(Dependency {
             schema_url,
             registry_path: helper.registry_path,
-            name: None,
         })
     }
 }
@@ -158,6 +139,7 @@ impl<'de> Deserialize<'de> for RegistryManifest {
         }
 
         let helper = RegistryManifestHelper::deserialize(deserializer)?;
+        let mut warnings = vec![];
 
         let schema_url = if let Some(url) = helper.schema_url {
             url
@@ -168,11 +150,14 @@ impl<'de> Deserialize<'de> for RegistryManifest {
                    "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided",
                )
             })?;
+
             let version = helper.semconv_version.as_ref().ok_or_else(|| {
                 serde::de::Error::custom(
                     "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided",
                 )
             })?;
+
+            warnings.push("The 'semconv_version' and 'schema_base_url' fields are deprecated in favor of 'schema_url'.".to_owned());
             SchemaUrl::try_from_name_version(base_url, version).map_err(serde::de::Error::custom)?
         };
 
@@ -180,13 +165,10 @@ impl<'de> Deserialize<'de> for RegistryManifest {
             file_format: helper.file_format,
             schema_url,
             description: helper.description,
-            #[allow(deprecated)]
-            semconv_version: helper.semconv_version,
-            #[allow(deprecated)]
-            schema_base_url: helper.schema_base_url,
             dependencies: helper.dependencies,
             stability: helper.stability,
             resolved_schema_uri: helper.resolved_schema_uri,
+            deserialization_warnings: warnings,
         })
     }
 }
@@ -195,7 +177,10 @@ impl RegistryManifest {
     /// Attempts to load a registry manifest from a file.
     ///
     /// The expected file format is YAML.
-    pub fn try_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
+    pub fn try_from_file<P: AsRef<std::path::Path>>(
+        path: P,
+        nfes: &mut Vec<Error>,
+    ) -> Result<Self, Error> {
         let manifest_path_buf = path.as_ref().to_path_buf();
 
         if !manifest_path_buf.exists() {
@@ -215,6 +200,28 @@ impl RegistryManifest {
                 error: e.to_string(),
             })?;
 
+        // Check if this is a legacy manifest file
+        let is_legacy = if let Some(file_name) = manifest_path_buf.file_name() {
+            file_name == LEGACY_REGISTRY_MANIFEST
+        } else {
+            false
+        };
+
+        if is_legacy {
+            nfes.push(LegacyRegistryManifest {
+                path: manifest_path_buf.clone(),
+            });
+        }
+
+        nfes.extend(
+            manifest
+                .deserialization_warnings
+                .iter()
+                .map(|w| DeprecatedSyntaxInRegistryManifest {
+                    path: manifest_path_buf.clone(),
+                    error: w.clone(),
+                }),
+        );
         Ok(manifest)
     }
 
@@ -233,6 +240,20 @@ impl RegistryManifest {
     pub fn version(&self) -> &str {
         self.schema_url.version()
     }
+
+    /// Creates a new `RegistryManifest` from a schema URL with default values.
+    #[must_use]
+    pub fn from_schema_url(schema_url: SchemaUrl) -> Self {
+        Self {
+            file_format: None,
+            schema_url,
+            description: None,
+            dependencies: vec![],
+            resolved_schema_uri: None,
+            stability: Stability::Development,
+            deserialization_warnings: vec![],
+        }
+    }
 }
 
 #[cfg(test)]
@@ -243,7 +264,8 @@ mod tests {
 
     #[test]
     fn test_not_found_registry_info() {
-        let result = RegistryManifest::try_from_file("tests/test_data/missing_registry.yaml");
+        let result =
+            RegistryManifest::try_from_file("tests/test_data/missing_registry.yaml", &mut vec![]);
         assert!(
             matches!(result, Err(RegistryManifestNotFound { path, .. }) if path.ends_with("missing_registry.yaml"))
         );
@@ -253,6 +275,7 @@ mod tests {
     fn test_incomplete_registry_info() {
         let result = RegistryManifest::try_from_file(
             "tests/test_data/incomplete_semconv_registry_manifest.yaml",
+            &mut vec![],
         );
         assert!(
             matches!(result, Err(InvalidRegistryManifest { path, .. }) if path.ends_with("incomplete_semconv_registry_manifest.yaml"))
@@ -261,9 +284,11 @@ mod tests {
 
     #[test]
     fn test_valid_registry_info() {
-        let config =
-            RegistryManifest::try_from_file("tests/test_data/valid_semconv_registry_manifest.yaml")
-                .expect("Failed to load the registry configuration file.");
+        let config = RegistryManifest::try_from_file(
+            "tests/test_data/valid_semconv_registry_manifest.yaml",
+            &mut vec![],
+        )
+        .expect("Failed to load the registry configuration file.");
         assert_eq!(config.name(), "acme.com/schemas");
         assert_eq!(config.version(), "0.1.0");
     }
@@ -272,6 +297,7 @@ mod tests {
     fn test_invalid_registry_info() {
         let result = RegistryManifest::try_from_file(
             "tests/test_data/invalid_semconv_registry_manifest.yaml",
+            &mut vec![],
         );
         let path = PathBuf::from("tests/test_data/invalid_semconv_registry_manifest.yaml");
 
@@ -355,7 +381,6 @@ registry_path: "./registry"
         let dep = Dependency {
             schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
             registry_path: None,
-            name: None,
         };
 
         let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
@@ -373,7 +398,6 @@ registry_path: "./registry"
             registry_path: Some(VirtualDirectoryPath::LocalFolder {
                 path: "./registry".to_owned(),
             }),
-            name: None,
         };
 
         let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
@@ -386,7 +410,6 @@ registry_path: "./registry"
         let dep = Dependency {
             schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
             registry_path: None,
-            name: None,
         };
 
         let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
@@ -401,7 +424,6 @@ registry_path: "./registry"
             registry_path: Some(VirtualDirectoryPath::LocalFolder {
                 path: "./test/registry".to_owned(),
             }),
-            name: None,
         };
 
         let yaml = serde_yaml::to_string(&original).expect("Failed to serialize");

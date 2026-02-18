@@ -10,7 +10,7 @@ use crate::manifest::{Dependency, RegistryManifest};
 use crate::schema_url::SchemaUrl;
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
-use weaver_common::{get_path_type, log_info, log_warn};
+use weaver_common::{get_path_type, log_info};
 
 /// The name of the legacy registry manifest file.
 #[deprecated(note = "The registry manifest file is renamed to `manifest.yaml`.")]
@@ -41,7 +41,10 @@ pub struct RegistryRepo {
 
 impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `Dependency` object that specifies the schema URL and path.
-    pub fn try_new_dependency(dependency: &Dependency) -> Result<Self, Error> {
+    pub fn try_new_dependency(
+        dependency: &Dependency,
+        nfes: &mut Vec<Error>,
+    ) -> Result<Self, Error> {
         let path = dependency.registry_path.clone().unwrap_or_else(|| {
             // If no registry path is provided, we assume it's the same schema_url.
             VirtualDirectoryPath::RemoteArchive {
@@ -49,7 +52,7 @@ impl RegistryRepo {
                 sub_folder: None,
             }
         });
-        Self::try_new(Some(dependency.schema_url.clone()), &path)
+        Self::try_new(Some(dependency.schema_url.clone()), &path, nfes)
     }
 
     /// Creates a new `RegistryRepo` from a schema URL and `RegistryPath` object that
@@ -59,6 +62,7 @@ impl RegistryRepo {
     pub fn try_new(
         schema_url: Option<SchemaUrl>,
         registry_path: &VirtualDirectoryPath,
+        nfes: &mut Vec<Error>,
     ) -> Result<Self, Error> {
         let registry =
             VirtualDirectory::try_new(registry_path).map_err(Error::VirtualDirectoryError)?;
@@ -72,7 +76,7 @@ impl RegistryRepo {
             };
             temp_repo.manifest_path()
         } {
-            let registry_manifest = RegistryManifest::try_from_file(manifest_path)?;
+            let registry_manifest = RegistryManifest::try_from_file(manifest_path, nfes)?;
             Ok(Self {
                 schema_url: registry_manifest.schema_url.clone(),
                 registry,
@@ -160,10 +164,9 @@ impl RegistryRepo {
             ));
             Some(manifest_path)
         } else if legacy_path.exists() {
-            log_warn(format!(
-                "Found registry manifest: {}. Please rename file to {}, as the old name is deprecated and won't be supported in future versions.",
-                legacy_path.display(),
-                REGISTRY_MANIFEST
+            log_info(format!(
+                "Found registry manifest: {}",
+                legacy_path.display()
             ));
             Some(legacy_path)
         } else {
@@ -212,7 +215,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = RegistryRepo::try_new(None, &registry_path).unwrap();
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![]).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(
@@ -231,8 +234,10 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/resolved/1.0.0".to_owned(),
         };
-        let repo =
-            RegistryRepo::try_new(None, &registry_path).expect("Failed to load test repository.");
+
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to load test repository.");
+
         let Some(manifest) = repo.manifest() else {
             panic!("Did not resolve manifest for repo: {repo:?}");
         };
@@ -253,8 +258,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/resolved/2.0.0".to_owned(),
         };
-        let repo =
-            RegistryRepo::try_new(None, &registry_path).expect("Failed to load test repository.");
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
@@ -267,8 +272,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "tests/published_repository/3.0.0".to_owned(),
         };
-        let repo =
-            RegistryRepo::try_new(None, &registry_path).expect("Failed to load test repository.");
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to load test repository.");
         let Some(resolved_path) = repo.resolved_schema_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",

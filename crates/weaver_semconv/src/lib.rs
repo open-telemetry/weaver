@@ -321,6 +321,24 @@ pub enum Error {
         error: String,
     },
 
+    /// This error is raised when a registry manifest is using a legacy file name.
+    #[diagnostic(severity(Warning))]
+    #[error("The registry manifest at {path:?} is using a legacy file name. Please rename it to `manifest.yaml`.")]
+    LegacyRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+    },
+
+    /// This error is raised when a registry manifest includes deprecated properties.
+    #[error("The syntax used in the registry manifest at {path:?} is deprecated. {error}")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedSyntaxInRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),

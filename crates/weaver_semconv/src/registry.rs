@@ -152,16 +152,7 @@ impl SemConvRegistry {
                     },
                 )?;
 
-            registry.set_manifest(RegistryManifest {
-                file_format: None,
-                schema_url,
-                description: registry_repo.manifest().and_then(|m| m.description.clone()),
-                dependencies: vec![],
-                resolved_schema_uri: None,
-                stability: crate::stability::Stability::Development,
-                semconv_version: None,
-                schema_base_url: None,
-            });
+            registry.set_manifest(RegistryManifest::from_schema_url(schema_url));
         } else {
             registry.manifest = registry_repo.manifest().cloned();
         }
@@ -396,8 +387,13 @@ mod tests {
             path: "data".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(
-            Some("https://test/42".try_into().expect("Should be valid schema url")),
+            Some(
+                "https://test/42"
+                    .try_into()
+                    .expect("Should be valid schema url"),
+            ),
             &registry_path,
+            &mut vec![],
         )
         .unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();

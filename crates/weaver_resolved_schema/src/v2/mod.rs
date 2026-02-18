@@ -124,12 +124,14 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
         let (attribute_catalog, registry, refinements) =
             convert_v1_to_v2(value.catalog, value.registry)?;
         let schema_url_str = value.schema_url.clone();
-        let schema_url: SchemaUrl = value.schema_url.try_into().map_err(|e| {
-            crate::error::Error::InvalidSchemaUrl {
-                url: schema_url_str,
-                error: e,
-            }
-        })?;
+        let schema_url: SchemaUrl =
+            value
+                .schema_url
+                .try_into()
+                .map_err(|e| crate::error::Error::InvalidSchemaUrl {
+                    url: schema_url_str,
+                    error: e,
+                })?;
 
         Ok(ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
@@ -1218,7 +1220,9 @@ mod tests {
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url: "http://test/schemas/1.0".try_into().expect("Should be valid schema url"),
+            schema_url: "http://test/schemas/1.0"
+                .try_into()
+                .expect("Should be valid schema url"),
             attribute_catalog: vec![],
             registry: Registry {
                 attributes: vec![],

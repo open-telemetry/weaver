@@ -919,12 +919,15 @@ mod tests {
             let observed_output_dir = PathBuf::from(format!("observed_output/{test_dir}"));
             std::fs::create_dir_all(observed_output_dir.clone())
                 .expect("Failed to create observed output directory");
-            let schema_url: SchemaUrl = "https://default/0.1.0".try_into().expect("Should be valid schema url");
+            let schema_url: SchemaUrl = "https://default/0.1.0"
+                .try_into()
+                .expect("Should be valid schema url");
             let location: VirtualDirectoryPath = format!("{test_dir}/registry")
                 .try_into()
                 .expect("Failed to parse file directory");
             let loaded = SchemaResolver::load_semconv_repository(
-                RegistryRepo::try_new(Some(schema_url), &location).expect("Failed to load registry"),
+                RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
+                    .expect("Failed to load registry"),
                 true,
             )
             .ignore(|e| {
@@ -948,6 +951,14 @@ mod tests {
                             version: _,
                             provenance: _,
                         }
+                    )
+                )
+            })
+            .ignore(|e| {
+                matches!(
+                    e,
+                    crate::Error::FailToResolveDefinition(
+                        weaver_semconv::Error::LegacyRegistryManifest { path: _ }
                     )
                 )
             })
@@ -1113,8 +1124,11 @@ groups:
             path: "data/registry-test-7-spans/registry".to_owned(),
         };
 
-        let schema_url: SchemaUrl = "https://local/registry/1.0.0".try_into().expect("Should be valid schema url");
-        let repo = RegistryRepo::try_new(Some(schema_url), &path)?;
+        let schema_url: SchemaUrl = "https://local/registry/1.0.0"
+            .try_into()
+            .expect("Should be valid schema url");
+        let repo = RegistryRepo::try_new(Some(schema_url), &path, &mut vec![])
+            .expect("Failed to load registry");
         let loaded =
             SchemaResolver::load_semconv_repository(repo, true).into_result_failing_non_fatal()?;
         let resolved_schema =

@@ -34,11 +34,15 @@ fn test_cli_interface() {
         refspec: None,
     };
 
-    let schema_url: Option<SchemaUrl> =
-        Some("https://opentelemetry.io/schemas/1.40.0".try_into().unwrap());
-    let registry_repo = RegistryRepo::try_new(schema_url, &registry_path).unwrap_or_else(|e| {
-        panic!("Failed to create the registry repo, error: {e}");
-    });
+    let schema_url: Option<SchemaUrl> = Some(
+        "https://opentelemetry.io/schemas/1.40.0"
+            .try_into()
+            .unwrap(),
+    );
+    let registry_repo = RegistryRepo::try_new(schema_url, &registry_path, &mut vec![])
+        .unwrap_or_else(|e| {
+            panic!("Failed to create the registry repo, error: {e}");
+        });
     let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()

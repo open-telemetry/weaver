@@ -51,7 +51,7 @@ impl SchemaResolver {
         }
     }
 
-    // Actually resolves a defiinition registry.
+    // Actually resolves a definition registry.
     fn resolve_registry(
         repo: RegistryRepo,
         specs: Vec<SemConvSpecWithProvenance>,
@@ -243,7 +243,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         // test with the `include_unreferenced` flag set to false
         check_semconv_load_and_resolve(registry_repo.clone(), false);
         // test with the `include_unreferenced` flag set to true
@@ -257,7 +257,7 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path)?;
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let result = SchemaResolver::load_semconv_repository(registry_repo, true);
 
         match result {
