@@ -64,27 +64,21 @@ impl Advisor for EnumAdvisor {
                             }
 
                             if !is_found {
-                                let finding = FindingBuilder::new(
-                                    FindingId::UndefinedEnumVariant,
-                                )
-                                .context(json!({
-                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &sample_attribute.name,
-                                    ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
-                                }))
-                                .message(format!(
+                                let finding = FindingBuilder::new(FindingId::UndefinedEnumVariant)
+                                    .context(json!({
+                                        ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &sample_attribute.name,
+                                        ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
+                                    }))
+                                    .message(format!(
                                     "Enum attribute '{}' has value '{}' which is not documented.",
                                     sample_attribute.name,
                                     attribute_value
                                         .as_str()
                                         .unwrap_or(&attribute_value.to_string())
                                 ))
-                                .level(FindingLevel::Information)
-                                .signal(signal)
-                                .build_and_emit(
-                                    &sample,
-                                    otlp_emitter.as_deref(),
-                                    signal,
-                                );
+                                    .level(FindingLevel::Information)
+                                    .signal(signal)
+                                    .build_and_emit(&sample, otlp_emitter.as_deref(), signal);
 
                                 return Ok(vec![finding]);
                             }

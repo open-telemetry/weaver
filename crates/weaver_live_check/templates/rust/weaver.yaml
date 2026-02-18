@@ -1,0 +1,9 @@
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+templates:
+  - template: finding_id.rs.j2
+    filter: .
+    application_mode: single
+    file_name: finding_id.rs
