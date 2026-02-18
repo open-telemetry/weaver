@@ -6,6 +6,15 @@
   ],
   packageRules: [
     {
+      groupName: 'all digest versions',
+      matchUpdateTypes: [
+        'digest',
+      ],
+      schedule: [
+        'before 8am every weekday',
+      ],
+    },
+    {
       groupName: 'all patch versions',
       matchUpdateTypes: [
         'patch',
@@ -39,6 +48,7 @@
       matchUpdateTypes: [
         'minor',
         'patch',
+        'digest',
       ],
       matchManagers: [
         'cargo',
@@ -57,8 +67,8 @@
         ".github/workflows/release.yml"
       ],
       matchStrings: [
-        "(?<packageName>.+?)-version = \"(?<depVersion>[^\\s@]+?)\"",
-        "https:\/\/github.com\/axodotdev\/(?<packageName>.+?)\/releases\/download\/v(?<depVersion>[^\\s@]+?)\/"
+        "(?<packageName>.+?)-version = \"(?<depVersion>[0-9.]+)\"",
+        "https:\/\/github.com\/axodotdev\/(?<packageName>.+?)\/releases\/download\/v(?<depVersion>[0-9.]+)\/"
       ],
       datasourceTemplate: "crate",
       versioningTemplate: "semver",
@@ -72,11 +82,13 @@
         "dist-workspace.toml",
       ],
       matchStrings: [
-        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[^\\s@]+?)\" # v(?<depVersion>[^\\s@]+?)\\s"
+        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[a-f0-9]{40})\" # v(?<depVersion>[0-9.]+)"
       ],
-      datasourceTemplate: "github-tags",
-      versioningTemplate: "docker",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "semver",
       currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      replaceStringTemplate: "\"{{depName}}\" = \"{{newDigest}}\" # v{{newVersion}}",
       depTypeTemplate: "action",
     },
     {
@@ -86,7 +98,7 @@
         "justfile",
       ],
       matchStrings: [
-        "cargo install (?<packageName>.+\/?)@(?<depVersion>[^\s@]+?)\\s",
+        "cargo install (?<packageName>.+\/?)@(?<depVersion>[0-9.]+)",
       ],
       datasourceTemplate: "crate",
       versioningTemplate: "semver",
@@ -101,14 +113,16 @@
         "justfile",
       ],
       matchStrings: [
-        "channel\\s*=\\s*\"(?<depVersion>\\d+\\.\\d+\\.\\d+)\"",
-        "rustup install (?<depVersion>[^\s@]+?)\s",
-        "rustup update (?<depVersion>[^\s@]+?)\s",
+        "channel\\s*=\\s*\"(?<depVersion>[0-9.]+)\"",
+        "rustup install (?<depVersion>[0-9.]+)",
+        "rustup update (?<depVersion>[0-9.]+)",
       ],
       datasourceTemplate: "github-releases",
       depNameTemplate: "rust",
       versioningTemplate: "semver",
+      extractVersionTemplate: "^v(?<version>.*)$",
       currentValueTemplate: "{{depVersion}}",
+      packageNameTemplate: "rust-lang/rust",
       depTypeTemplate: "SDK",
     },
   ],
