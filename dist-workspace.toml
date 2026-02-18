@@ -21,3 +21,9 @@ install-path = "CARGO_HOME"
 github-attestations = true
 github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-pc-windows-msvc = "windows-2025", aarch64-unknown-linux-gnu = "ubuntu-24.04-arm" }
 github-build-setup = "../build-setup.yml"
+
+[dist.github-action-commits]
+"actions/attest-build-provenance" = "96278af6caaf10aea03fd8d33a09a777ca52d62f" # v3.2.0
+"actions/checkout" = "8e8c483db84b4bee98b60c0593521ed34d9990e8" # v6.0.1
+"actions/download-artifact" = "37930b1c2abaa49bbe596cd826c3c89aef350131" # v7.0.0
+"actions/upload-artifact" = "b7c566a772e6b6bfb58ed0dc250532a479d7789f" # v6.0.0
