@@ -93,6 +93,22 @@
     },
     {
       customType: "regex",
+      description: "Update Cargo Dist Yaml Actions",
+      managerFilePatterns: [
+        ".github/build-setup.yml",
+      ],
+      matchStrings: [
+        "uses: (?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40}) # v(?<depVersion>[0-9.]+)"
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "uses: {{depName}}@{{newDigest}} # v{{newVersion}}",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
       description: "Update Just file",
       managerFilePatterns: [
         "justfile",
