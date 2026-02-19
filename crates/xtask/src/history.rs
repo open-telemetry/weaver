@@ -10,8 +10,6 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 const REPO_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
-const ARCHIVE_URL: &str =
-    "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/";
 /// TODO - Figure out how to have hard failures for V2 here, and bump to v1.27.0 as that's the first when
 /// events had names.
 const START_TAG: &str = "v1.26.0";
@@ -63,7 +61,7 @@ fn get_versions_from_git(repo: &Repository, start_semver: Version) -> anyhow::Re
     Ok(tags)
 }
 
-/// Run registry check on every semconv archive starting from start_version
+/// Run registry check on every semconv version starting from start_version
 #[cfg(not(tarpaulin_include))]
 pub fn run(start_version: Option<String>) -> anyhow::Result<()> {
     use anyhow::Context;
@@ -87,7 +85,7 @@ pub fn run(start_version: Option<String>) -> anyhow::Result<()> {
             .arg("registry")
             .arg("check")
             .arg("-r")
-            .arg(format!("{ARCHIVE_URL}{version}.zip[model]"))
+            .arg(format!("{REPO_URL}@{version}[model]"))
             .timeout(Duration::from_secs(60))
             .output()
             .context("Failed to execute the weaver process.")?;

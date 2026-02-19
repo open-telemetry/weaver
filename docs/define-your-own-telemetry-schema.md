@@ -49,7 +49,7 @@ semconv_version: 0.1.0
 schema_base_url: https://acme.com/schemas/
 dependencies:
   - name: otel
-    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.34.0.zip[model]
+    registry_path: https://github.com/open-telemetry/semantic-conventions@v1.34.0[model]
 ```
 
 ## Semantic conventions files
@@ -109,3 +109,8 @@ weaver registry live-check --registry <path-to-your-registry>
 All commands accepting the `-r` or `--registry` parameter can be applied to your
 custom registry. It is important to note that some templates are specific to the
 OTEL registry. We are working to remove this type of limitation.
+
+The `<path-to-your-registry>` parameter can be a local directory, a local or
+remote archive or a Git URL.
+It is also possible to use specific Git references, such as a tag, a branch or
+even a specific commit with the `<path-to-your-registry>@<refspec>` syntax.
