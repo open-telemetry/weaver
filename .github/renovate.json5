@@ -100,7 +100,7 @@
       matchStrings: [
         "uses: (?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40}) # v(?<depVersion>[0-9.]+)"
       ],
-      datasourceTemplate: "github-releases",
+      datasourceTemplate: "github-tags",
       versioningTemplate: "semver",
       currentValueTemplate: "{{depVersion}}",
       extractVersionTemplate: "^v(?<version>.*)$",
