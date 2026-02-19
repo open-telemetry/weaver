@@ -88,7 +88,7 @@
       versioningTemplate: "semver",
       currentValueTemplate: "{{depVersion}}",
       extractVersionTemplate: "^v(?<version>.*)$",
-      replaceStringTemplate: "\"{{depName}}\" = \"{{newDigest}}\" # v{{newVersion}}",
+      autoReplaceStringTemplate: "\"{{depName}}\" = \"{{newDigest}}\" # v{{newVersion}}",
       depTypeTemplate: "action",
     },
     {
