@@ -576,6 +576,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             span_events: Vec::new(),
                             span_links: Vec::new(),
                             live_check_result: None,
+                            resource: None,
                         };
                         for attribute in span.attributes {
                             sample_span
@@ -626,7 +627,7 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
     );
 
     // Start the OTLP gRPC server and get an iterator of requests
-    let requests = listen_otlp_requests(
+    let (requests, _report_sender) = listen_otlp_requests(
         &args.grpc_address,
         args.grpc_port,
         args.admin_port,
@@ -999,6 +1000,7 @@ mod tests {
             span_events: vec![],
             span_links: vec![],
             live_check_result: None,
+            resource: None,
         };
 
         acc.add_span(span);
@@ -1032,6 +1034,7 @@ mod tests {
             }],
             span_links: vec![],
             live_check_result: None,
+            resource: None,
         };
 
         acc.add_span(span);
@@ -1131,6 +1134,7 @@ mod tests {
             span_events: vec![],
             span_links: vec![],
             live_check_result: None,
+            resource: None,
         });
 
         let registry = acc.to_semconv_spec();
@@ -1153,6 +1157,7 @@ mod tests {
             unit: "ms".to_owned(),
             data_points: None,
             live_check_result: None,
+            resource: None,
         };
 
         acc.add_metric(metric);
@@ -1178,6 +1183,7 @@ mod tests {
             unit: String::new(), // Empty unit
             data_points: None,
             live_check_result: None,
+            resource: None,
         };
 
         acc.add_metric(metric);
