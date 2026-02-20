@@ -90,16 +90,6 @@ impl {{ struct_name }} {
     }
 }
 
-{% set has_enums = false %}
-{%- for attr in entity.identity %}
-{%- if attr.type is mapping and attr.type.members is defined %}{% set has_enums = true %}{% endif %}
-{%- endfor %}
-{%- for attr in entity.description %}
-{%- if attr.type is mapping and attr.type.members is defined %}{% set has_enums = true %}{% endif %}
-{%- endfor %}
-{%- if has_enums %}
-
-// --- {{ entity.type }} enums ---
 {% for attr in entity.identity %}
 {% if attr.type is mapping and attr.type.members is defined %}
 {{ macros.enum_def(attr) }}
@@ -110,5 +100,4 @@ impl {{ struct_name }} {
 {{ macros.enum_def(attr) }}
 {% endif %}
 {% endfor %}
-{%- endif %}
 {% endfor %}

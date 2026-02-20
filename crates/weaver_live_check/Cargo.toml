@@ -29,8 +29,12 @@ tokio.workspace = true
 strum = { version = "0.27.2", features = ["derive"] }
 
 [dev-dependencies]
-tempfile = "=3.25.0"
+assert_cmd = "=2.1.2"
+portpicker = "=0.1.1"
 serde_yaml.workspace = true
+tempfile = "=3.25.0"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+ureq.workspace = true
 
 [lints]
 workspace = true

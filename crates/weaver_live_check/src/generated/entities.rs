@@ -50,3 +50,88 @@ impl Service {
         attrs
     }
 }
+
+// --- telemetry.sdk entity ---
+
+// Attribute key constants
+/// The language of the telemetry SDK.
+pub const TELEMETRY_SDK_LANGUAGE: &str = "telemetry.sdk.language";
+/// The name of the telemetry SDK as defined above.
+pub const TELEMETRY_SDK_NAME: &str = "telemetry.sdk.name";
+/// The version string of the telemetry SDK.
+pub const TELEMETRY_SDK_VERSION: &str = "telemetry.sdk.version";
+
+/// The telemetry SDK used to capture data recorded by the instrumentation libraries.
+///
+///
+
+#[derive(Debug, Clone)]
+pub struct TelemetrySdk {
+    /// The language of the telemetry SDK.
+    pub language: SdkLanguage,
+    /// The name of the telemetry SDK as defined above.
+    pub name: String,
+    /// The version string of the telemetry SDK.
+    pub version: Option<String>,
+}
+
+impl TelemetrySdk {
+    /// Convert this entity's attributes to OpenTelemetry resource attributes.
+    #[must_use]
+    pub fn to_resource_attributes(&self) -> Vec<KeyValue> {
+        let mut attrs = Vec::new();
+        attrs.push(KeyValue::new(
+            TELEMETRY_SDK_LANGUAGE,
+            self.language.to_string(),
+        ));
+        attrs.push(KeyValue::new(TELEMETRY_SDK_NAME, self.name.clone()));
+        if let Some(val) = &self.version {
+            attrs.push(KeyValue::new(TELEMETRY_SDK_VERSION, val.clone()));
+        }
+        attrs
+    }
+}
+
+/// The language of the telemetry SDK.
+///
+///
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SdkLanguage {
+    /// {"boolean": true, "value": "cpp"}
+    Cpp,
+    /// {"boolean": true, "value": "dotnet"}
+    Dotnet,
+    /// {"boolean": true, "value": "erlang"}
+    Erlang,
+    /// {"boolean": true, "value": "go"}
+    Go,
+    /// {"boolean": true, "value": "java"}
+    Java,
+    /// {"boolean": true, "value": "nodejs"}
+    Nodejs,
+    /// {"boolean": true, "value": "php"}
+    Php,
+    /// {"boolean": true, "value": "python"}
+    Python,
+    /// {"boolean": true, "value": "ruby"}
+    Ruby,
+    /// {"boolean": true, "value": "rust"}
+    Rust,
+    /// {"boolean": true, "value": "swift"}
+    Swift,
+    /// {"boolean": true, "value": "webjs"}
+    Webjs,
+}

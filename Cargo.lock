@@ -5799,12 +5799,14 @@ dependencies = [
 name = "weaver_live_check"
 version = "0.21.2"
 dependencies = [
+ "assert_cmd",
  "log",
  "miette",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-stdout",
  "opentelemetry_sdk",
+ "portpicker",
  "schemars",
  "serde",
  "serde_json",
@@ -5813,6 +5815,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "ureq",
  "weaver_checker",
  "weaver_common",
  "weaver_forge",

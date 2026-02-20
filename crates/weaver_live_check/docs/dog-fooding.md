@@ -104,3 +104,34 @@ This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs)
    enums and `WEAVER_FINDING_*` constants. The generated `events.rs` module provides log
    record builders, replacing hand-written definitions and eliminating hardcoded string
    literals throughout the crate.
+
+## Integration Test: OTLP Emission Validation
+
+The integration test at [`../tests/livecheck_emit.rs`](../tests/livecheck_emit.rs) closes the
+dog-fooding loop by validating that the OTLP log records emitted by `OtlpEmitter` conform to
+the live_check model.
+
+```
+weaver live-check (validator, registry = model/)
+    ^ gRPC (receives OTLP finding logs)
+    |
+integration test
+    creates OtlpEmitter::new_grpc(endpoint)
+    emits findings using generated types
+    |
+    v POST /stop -> JSON report -> assert zero violations
+```
+
+The test:
+
+1. Spawns `weaver registry live-check` with `--output http` and dynamic ports
+2. Polls `/health` until the server is ready
+3. Creates an `OtlpEmitter` and emits 5 diverse findings covering all severity levels,
+   multiple sample types (span, metric, attribute), complex context JSON, and resource
+   attributes on parent signals
+4. Collects the JSON report via `POST /stop`
+5. Asserts `total_entities > 0` (data flowed through) and zero violations from
+   `statistics.advice_level_counts`
+
+If a template or model change breaks the OTLP emission format, this test catches it
+immediately — any violations are printed with their messages for fast debugging.

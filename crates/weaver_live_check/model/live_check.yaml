@@ -292,3 +292,4 @@ events:
 imports:
   entities:
     - service
+    - telemetry.sdk
