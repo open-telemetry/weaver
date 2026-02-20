@@ -2,11 +2,8 @@
 
 //! OTLP logger provider for emitting policy findings as log records.
 
-use opentelemetry::logs::AnyValue;
-use opentelemetry::logs::LoggerProvider;
-use opentelemetry::logs::{Logger, Severity};
-use opentelemetry::Key;
-use opentelemetry::KeyValue;
+use opentelemetry::logs::{AnyValue, Logger, LoggerProvider, Severity};
+use opentelemetry::{Key, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::resource::ResourceDetector;
@@ -72,7 +69,7 @@ impl OtlpEmitter {
             .with_endpoint(endpoint)
             .build()
             .map_err(|e| Error::OutputError {
-                error: format!("Failed to create OTLP log exporter: {}", e),
+                error: format!("Failed to create OTLP log exporter: {e}"),
             })?;
 
         let provider = SdkLoggerProvider::builder()
@@ -136,7 +133,7 @@ impl OtlpEmitter {
     /// Shutdown the provider, flushing any pending log records
     pub fn shutdown(&self) -> Result<(), Error> {
         self.provider.shutdown().map_err(|e| Error::OutputError {
-            error: format!("Failed to shutdown OTLP log provider: {}", e),
+            error: format!("Failed to shutdown OTLP log provider: {e}"),
         })
     }
 }
@@ -165,15 +162,15 @@ fn finding_level_to_severity(level: &FindingLevel) -> Severity {
 /// Keys are the raw attribute names (e.g. `service.name`); the generated
 /// `populate_*_log_record` function prefixes them with the template constant.
 fn flatten_resource_attributes(attributes: &[SampleAttribute]) -> Vec<LogAttribute> {
-    let mut result = Vec::new();
-    for attr in attributes {
-        if let Some(value) = &attr.value {
-            if let Some(any_value) = json_value_to_any_value(value) {
-                result.push((Key::from(attr.name.clone()), any_value));
-            }
-        }
-    }
-    result
+    attributes
+        .iter()
+        .filter_map(|attr| {
+            attr.value
+                .as_ref()
+                .and_then(json_value_to_any_value)
+                .map(|v| (Key::from(attr.name.clone()), v))
+        })
+        .collect()
 }
 
 /// Flatten finding context JSON into suffix key-value pairs with dot notation.
@@ -408,14 +405,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_otlp_emitter_new_grpc() {
-        // Test with a non-existent endpoint - should create the emitter successfully
-        // but won't actually connect until we try to emit
-        let result = OtlpEmitter::new_grpc("http://localhost:4317");
-        assert!(result.is_ok());
-
-        if let Ok(emitter) = result {
-            assert!(emitter.shutdown().is_ok());
-        }
+        // Creates the emitter successfully but won't actually connect until we try to emit
+        let emitter =
+            OtlpEmitter::new_grpc("http://localhost:4317").expect("should create gRPC emitter");
+        assert!(emitter.shutdown().is_ok());
     }
 
     #[test]
