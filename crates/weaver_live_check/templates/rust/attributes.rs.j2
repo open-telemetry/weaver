@@ -75,6 +75,12 @@ impl From<{{ enum_name }}> for String {
         id.to_string()
     }
 }
+
+impl From<String> for {{ enum_name }} {
+    fn from(s: String) -> Self {
+        s.parse().unwrap_or(Self::Custom(s))
+    }
+}
 {% endif %}
 {% endif %}
 {% endfor %}

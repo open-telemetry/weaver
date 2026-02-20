@@ -102,6 +102,12 @@ impl From<FindingId> for String {
     }
 }
 
+impl From<String> for FindingId {
+    fn from(s: String) -> Self {
+        s.parse().unwrap_or(Self::Custom(s))
+    }
+}
+
 /// Severity level of the semantic convention finding
 ///
 /// The level indicates how serious the finding is and what action should be taken. Violations should be addressed to achieve compliance, improvements are recommended for better quality, and information is provided for context.

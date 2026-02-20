@@ -107,10 +107,7 @@ impl OtlpEmitter {
         let logger = self.provider.logger("weaver.live_check");
         let mut log_record = logger.create_log_record();
 
-        let finding_id: FindingId = finding
-            .id
-            .parse()
-            .unwrap_or_else(|_| FindingId::Custom(finding.id.clone()));
+        let finding_id = FindingId::from(finding.id.clone());
         let level = GeneratedFindingLevel::from(&finding.level);
         let signal_type: Option<SignalType> =
             finding.signal_type.as_deref().and_then(|s| s.parse().ok());
