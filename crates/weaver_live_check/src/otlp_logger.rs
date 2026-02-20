@@ -14,9 +14,9 @@ use opentelemetry_sdk::Resource;
 use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
-use crate::sample_attribute::SampleAttribute;
 use crate::generated::attributes::{FindingId, FindingLevel as GeneratedFindingLevel, SignalType};
 use crate::generated::events;
+use crate::sample_attribute::SampleAttribute;
 use crate::{Error, Sample, SampleRef};
 
 /// Type alias for log attributes as (Key, AnyValue) pairs

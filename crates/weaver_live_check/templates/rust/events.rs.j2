@@ -13,6 +13,11 @@
 //!   rust \
 //!   crates/weaver_live_check/src/
 //! ```
+//!
+//! Each `populate_*_log_record` function sets the event name, severity, body,
+//! and all attributes on the record. Template-type attributes accept
+//! `&[(Key, AnyValue)]` slices where each key is a suffix that gets prefixed
+//! with the attribute's namespace constant.
 
 use opentelemetry::logs::{AnyValue, LogRecord, Severity};
 use opentelemetry::Key;
@@ -28,9 +33,13 @@ pub const {{ event.name | screaming_snake_case }}: &str = "{{ event.name }}";
 
 /// Populate a log record for the [`{{ event.name }}`] event.
 ///
-/// Sets the event name, severity, body, and all attributes on the record.
-/// Template-type attributes accept `&[(Key, AnyValue)]` slices where each key
-/// is a suffix that gets prefixed with the attribute's namespace constant.
+{% for line in event.note | trim | split("\n") %}
+{% if line | trim | length > 0 %}
+/// {{ line }}
+{% else %}
+///
+{% endif %}
+{% endfor %}
 pub fn populate_{{ event_short }}_log_record(
     log_record: &mut impl LogRecord,
     body: impl Into<AnyValue>,

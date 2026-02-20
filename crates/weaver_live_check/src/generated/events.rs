@@ -13,6 +13,11 @@
 //!   rust \
 //!   crates/weaver_live_check/src/
 //! ```
+//!
+//! Each `populate_*_log_record` function sets the event name, severity, body,
+//! and all attributes on the record. Template-type attributes accept
+//! `&[(Key, AnyValue)]` slices where each key is a suffix that gets prefixed
+//! with the attribute's namespace constant.
 
 use opentelemetry::logs::{AnyValue, LogRecord, Severity};
 use opentelemetry::Key;
@@ -25,9 +30,22 @@ pub const WEAVER_LIVE_CHECK_FINDING: &str = "weaver.live_check.finding";
 
 /// Populate a log record for the [`weaver.live_check.finding`] event.
 ///
-/// Sets the event name, severity, body, and all attributes on the record.
-/// Template-type attributes accept `&[(Key, AnyValue)]` slices where each key
-/// is a suffix that gets prefixed with the attribute's namespace constant.
+/// This event is emitted when Weaver Live Check validates telemetry samples against
+/// OpenTelemetry semantic conventions and detects violations, improvement opportunities,
+/// or informational issues. Each finding represents a single policy check result.
+///
+/// The event body contains a human-readable message describing the finding, while
+/// the attributes provide structured, machine-readable details for filtering,
+/// aggregation, and automated processing.
+///
+/// Severity levels are mapped as follows:
+///
+/// - violation → ERROR severity
+/// - improvement → WARN severity
+/// - information → INFO severity
+///
+/// These findings can be collected via OTLP and analyzed to improve telemetry
+/// quality, ensure semantic convention compliance, and identify instrumentation issues.
 pub fn populate_finding_log_record(
     log_record: &mut impl LogRecord,
     body: impl Into<AnyValue>,
