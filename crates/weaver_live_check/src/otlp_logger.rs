@@ -111,7 +111,7 @@ impl OtlpEmitter {
             .id
             .parse()
             .unwrap_or_else(|_| FindingId::Custom(finding.id.clone()));
-        let level = checker_to_generated_level(&finding.level);
+        let level = GeneratedFindingLevel::from(&finding.level);
         let signal_type: Option<SignalType> =
             finding.signal_type.as_deref().and_then(|s| s.parse().ok());
         let context_attrs = flatten_finding_context(&finding.context);
@@ -144,12 +144,13 @@ impl OtlpEmitter {
     }
 }
 
-/// Convert `weaver_checker::FindingLevel` to the generated `FindingLevel`.
-fn checker_to_generated_level(level: &FindingLevel) -> GeneratedFindingLevel {
-    match level {
-        FindingLevel::Violation => GeneratedFindingLevel::Violation,
-        FindingLevel::Improvement => GeneratedFindingLevel::Improvement,
-        FindingLevel::Information => GeneratedFindingLevel::Information,
+impl From<&FindingLevel> for GeneratedFindingLevel {
+    fn from(level: &FindingLevel) -> Self {
+        match level {
+            FindingLevel::Violation => Self::Violation,
+            FindingLevel::Improvement => Self::Improvement,
+            FindingLevel::Information => Self::Information,
+        }
     }
 }
 
