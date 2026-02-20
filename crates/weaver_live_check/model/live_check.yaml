@@ -279,9 +279,12 @@ events:
       quality, ensure semantic convention compliance, and identify instrumentation issues.
     attributes:
       - ref: weaver.finding.id
+        requirement_level: required
       - ref: weaver.finding.level
+        requirement_level: required
       - ref: weaver.finding.context
       - ref: weaver.finding.sample_type
+        requirement_level: required
       - ref: weaver.finding.signal_type
       - ref: weaver.finding.signal_name
       - ref: weaver.finding.resource_attribute

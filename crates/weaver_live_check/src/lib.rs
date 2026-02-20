@@ -28,9 +28,9 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
-/// Generated types and constants for live check findings
-pub mod finding;
-pub use finding::{FindingId, SampleType, SignalType};
+/// Generated types, constants, and log record builders for live check findings
+pub mod generated;
+pub use generated::attributes::{FindingId, SampleType, SignalType};
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.

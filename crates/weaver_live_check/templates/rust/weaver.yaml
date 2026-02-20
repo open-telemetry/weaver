@@ -3,7 +3,13 @@ whitespace_control:
   lstrip_blocks: true
 
 templates:
-  - template: finding.rs.j2
+  - template: attributes.rs.j2
     filter: .
     application_mode: single
-    file_name: finding.rs
+    file_name: generated/attributes.rs
+
+  - template: events.rs.j2
+    filter: .
+    application_mode: single
+    file_name: generated/events.rs
+

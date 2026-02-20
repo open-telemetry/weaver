@@ -3,7 +3,6 @@
 //! OTLP logger provider for emitting policy findings as log records.
 
 use opentelemetry::logs::AnyValue;
-use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::LoggerProvider;
 use opentelemetry::logs::{Logger, Severity};
 use opentelemetry::Key;
@@ -15,7 +14,10 @@ use opentelemetry_sdk::Resource;
 use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
-use crate::{finding, Error, Sample, SampleRef};
+use crate::sample_attribute::SampleAttribute;
+use crate::generated::attributes::{FindingId, FindingLevel as GeneratedFindingLevel, SignalType};
+use crate::generated::events;
+use crate::{Error, Sample, SampleRef};
 
 /// Type alias for log attributes as (Key, AnyValue) pairs
 type LogAttribute = (Key, AnyValue);
@@ -102,21 +104,34 @@ impl OtlpEmitter {
         parent_signal: &Sample,
     ) {
         log::debug!("Emitting finding: {} - {}", finding.id, finding.message);
-        let severity = finding_level_to_severity(&finding.level);
-        let attributes = build_finding_attributes(finding, sample_ref, parent_signal);
-
-        // Get a logger from the provider
         let logger = self.provider.logger("weaver.live_check");
-
-        // Create and emit the log record
         let mut log_record = logger.create_log_record();
-        log_record.set_severity_number(severity);
-        log_record.set_severity_text(severity.name());
-        log_record.set_body(finding.message.clone().into());
-        log_record.set_event_name("weaver.live_check.finding");
 
-        // Add attributes using the add_attributes method
-        log_record.add_attributes(attributes);
+        let finding_id: FindingId = finding
+            .id
+            .parse()
+            .unwrap_or_else(|_| FindingId::Custom(finding.id.clone()));
+        let level = checker_to_generated_level(&finding.level);
+        let signal_type: Option<SignalType> =
+            finding.signal_type.as_deref().and_then(|s| s.parse().ok());
+        let context_attrs = flatten_finding_context(&finding.context);
+        let resource_attrs = parent_signal
+            .resource()
+            .map(|r| flatten_resource_attributes(&r.attributes))
+            .unwrap_or_default();
+
+        events::populate_finding_log_record(
+            &mut log_record,
+            finding.message.clone(),
+            finding_level_to_severity(&finding.level),
+            &context_attrs,
+            signal_type.as_ref(),
+            finding.signal_name.as_deref(),
+            &resource_attrs,
+            &finding_id,
+            &level,
+            &sample_ref.sample_type(),
+        );
 
         logger.emit(log_record);
     }
@@ -129,64 +144,13 @@ impl OtlpEmitter {
     }
 }
 
-/// Build the attribute list for a finding log record from the finding,
-/// sample reference, and parent signal context.
-fn build_finding_attributes(
-    finding: &PolicyFinding,
-    sample_ref: &SampleRef<'_>,
-    parent_signal: &Sample,
-) -> Vec<LogAttribute> {
-    let mut attributes: Vec<LogAttribute> = Vec::new();
-
-    // Add fixed/typed finding attributes
-    attributes.push((
-        Key::from(finding::WEAVER_FINDING_ID),
-        AnyValue::from(finding.id.clone()),
-    ));
-    attributes.push((
-        Key::from(finding::WEAVER_FINDING_LEVEL),
-        AnyValue::from(finding.level.to_string()),
-    ));
-    attributes.push((
-        Key::from(finding::WEAVER_FINDING_SAMPLE_TYPE),
-        AnyValue::from(sample_ref.sample_type().to_string()),
-    ));
-
-    if let Some(ref signal_type) = finding.signal_type {
-        attributes.push((
-            Key::from(finding::WEAVER_FINDING_SIGNAL_TYPE),
-            AnyValue::from(signal_type.clone()),
-        ));
+/// Convert `weaver_checker::FindingLevel` to the generated `FindingLevel`.
+fn checker_to_generated_level(level: &FindingLevel) -> GeneratedFindingLevel {
+    match level {
+        FindingLevel::Violation => GeneratedFindingLevel::Violation,
+        FindingLevel::Improvement => GeneratedFindingLevel::Improvement,
+        FindingLevel::Information => GeneratedFindingLevel::Information,
     }
-
-    if let Some(ref signal_name) = finding.signal_name {
-        attributes.push((
-            Key::from(finding::WEAVER_FINDING_SIGNAL_NAME),
-            AnyValue::from(signal_name.clone()),
-        ));
-    }
-
-    // Flatten and add finding context
-    attributes.extend(flatten_finding_context(&finding.context));
-
-    // Add resource attributes from the parent signal.
-    // Resource attributes are always flat primitives, not nested objects.
-    if let Some(resource) = parent_signal.resource() {
-        for attr in &resource.attributes {
-            if let Some(value) = &attr.value {
-                if let Some(any_value) = json_value_to_any_value(value) {
-                    let key = format!(
-                        "{}.{}",
-                        finding::WEAVER_FINDING_RESOURCE_ATTRIBUTE,
-                        attr.name
-                    );
-                    attributes.push((Key::from(key), any_value));
-                }
-            }
-        }
-    }
-
-    attributes
 }
 
 /// Convert FindingLevel to OpenTelemetry Severity
@@ -198,10 +162,30 @@ fn finding_level_to_severity(level: &FindingLevel) -> Severity {
     }
 }
 
-/// Flatten finding context JSON into key-value pairs with dot notation
+/// Flatten resource attributes into suffix key-value pairs.
+///
+/// Keys are the raw attribute names (e.g. `service.name`); the generated
+/// `populate_*_log_record` function prefixes them with the template constant.
+fn flatten_resource_attributes(attributes: &[SampleAttribute]) -> Vec<LogAttribute> {
+    let mut result = Vec::new();
+    for attr in attributes {
+        if let Some(value) = &attr.value {
+            if let Some(any_value) = json_value_to_any_value(value) {
+                result.push((Key::from(attr.name.clone()), any_value));
+            }
+        }
+    }
+    result
+}
+
+/// Flatten finding context JSON into suffix key-value pairs with dot notation.
+///
+/// Keys are the flattened suffixes (e.g. `attribute_name`, `nested.value`);
+/// the generated `populate_*_log_record` function prefixes them with the
+/// template constant.
 fn flatten_finding_context(context: &JsonValue) -> Vec<LogAttribute> {
     let mut attributes = Vec::new();
-    flatten_json_recursive(context, finding::WEAVER_FINDING_CONTEXT, &mut attributes);
+    flatten_json_recursive(context, "", &mut attributes);
     attributes
 }
 
@@ -230,18 +214,26 @@ fn json_value_to_any_value(value: &JsonValue) -> Option<AnyValue> {
     }
 }
 
-/// Recursively flatten JSON into key-value pairs
+/// Recursively flatten JSON into key-value pairs with dot-separated suffixes.
 fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<LogAttribute>) {
     match value {
         JsonValue::Object(map) => {
             for (key, val) in map {
-                let new_prefix = format!("{}.{}", prefix, key);
+                let new_prefix = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", prefix, key)
+                };
                 flatten_json_recursive(val, &new_prefix, attributes);
             }
         }
         JsonValue::Array(arr) => {
             for (idx, val) in arr.iter().enumerate() {
-                let new_prefix = format!("{}.{}", prefix, idx);
+                let new_prefix = if prefix.is_empty() {
+                    idx.to_string()
+                } else {
+                    format!("{}.{}", prefix, idx)
+                };
                 flatten_json_recursive(val, &new_prefix, attributes);
             }
         }
@@ -255,10 +247,7 @@ fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use super::*;
-    use crate::sample_attribute::SampleAttribute;
     use crate::sample_metric::{SampleInstrument, SampleMetric};
     use crate::sample_resource::SampleResource;
     use crate::sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode};
@@ -351,15 +340,9 @@ mod tests {
         let attributes = flatten_finding_context(&json);
 
         assert_eq!(attributes.len(), 3);
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.key1"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.key2"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.key3"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "key1"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "key2"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "key3"));
     }
 
     #[test]
@@ -375,10 +358,7 @@ mod tests {
         let attributes = flatten_finding_context(&json);
 
         assert_eq!(attributes.len(), 1);
-        assert_eq!(
-            attributes[0].0.as_str(),
-            "weaver.finding.context.outer.inner.value"
-        );
+        assert_eq!(attributes[0].0.as_str(), "outer.inner.value");
     }
 
     #[test]
@@ -390,15 +370,9 @@ mod tests {
         let attributes = flatten_finding_context(&json);
 
         assert_eq!(attributes.len(), 3);
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.items.0"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.items.1"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.items.2"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "items.0"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "items.1"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "items.2"));
     }
 
     #[test]
@@ -415,18 +389,10 @@ mod tests {
 
         // null should be skipped
         assert_eq!(attributes.len(), 4);
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.string"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.int"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.float"));
-        assert!(attributes
-            .iter()
-            .any(|attr| attr.0.as_str() == "weaver.finding.context.bool"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "string"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "int"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "float"));
+        assert!(attributes.iter().any(|attr| attr.0.as_str() == "bool"));
     }
 
     #[test]
@@ -583,102 +549,66 @@ mod tests {
     }
 
     #[test]
-    fn test_build_finding_attributes_includes_resource_attributes() {
-        let mut span = create_test_span("test.span");
-        span.resource = Some(Rc::new(SampleResource {
-            attributes: vec![
-                SampleAttribute {
-                    name: "service.name".to_owned(),
-                    value: Some(json!("my-service")),
-                    r#type: None,
-                    live_check_result: None,
-                },
-                SampleAttribute {
-                    name: "service.version".to_owned(),
-                    value: Some(json!("1.2.3")),
-                    r#type: None,
-                    live_check_result: None,
-                },
-                SampleAttribute {
-                    name: "host.cpu.count".to_owned(),
-                    value: Some(json!(4)),
-                    r#type: None,
-                    live_check_result: None,
-                },
-                SampleAttribute {
-                    name: "host.ip".to_owned(),
-                    value: Some(json!(["10.0.0.1", "192.168.1.1"])),
-                    r#type: None,
-                    live_check_result: None,
-                },
-                SampleAttribute {
-                    name: "host.name".to_owned(),
-                    value: None, // no value, should be skipped
-                    r#type: None,
-                    live_check_result: None,
-                },
-            ],
-            live_check_result: None,
-        }));
-        let parent_signal = Sample::Span(span.clone());
-        let sample_ref = SampleRef::Span(&span);
-        let finding = create_test_finding(
-            "test_id",
-            "test message",
-            FindingLevel::Information,
-            Some("span"),
-            Some("test.span"),
-            json!({}),
-        );
+    fn test_flatten_resource_attributes() {
+        let attributes = vec![
+            SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-service")),
+                r#type: None,
+                live_check_result: None,
+            },
+            SampleAttribute {
+                name: "service.version".to_owned(),
+                value: Some(json!("1.2.3")),
+                r#type: None,
+                live_check_result: None,
+            },
+            SampleAttribute {
+                name: "host.cpu.count".to_owned(),
+                value: Some(json!(4)),
+                r#type: None,
+                live_check_result: None,
+            },
+            SampleAttribute {
+                name: "host.ip".to_owned(),
+                value: Some(json!(["10.0.0.1", "192.168.1.1"])),
+                r#type: None,
+                live_check_result: None,
+            },
+            SampleAttribute {
+                name: "host.name".to_owned(),
+                value: None, // no value, should be skipped
+                r#type: None,
+                live_check_result: None,
+            },
+        ];
 
-        let attrs = build_finding_attributes(&finding, &sample_ref, &parent_signal);
+        let attrs = flatten_resource_attributes(&attributes);
 
         assert_eq!(
-            find_attr(&attrs, "weaver.finding.resource_attribute.service.name"),
+            find_attr(&attrs, "service.name"),
             Some(&AnyValue::from("my-service"))
         );
         assert_eq!(
-            find_attr(&attrs, "weaver.finding.resource_attribute.service.version"),
+            find_attr(&attrs, "service.version"),
             Some(&AnyValue::from("1.2.3"))
         );
+        assert_eq!(find_attr(&attrs, "host.cpu.count"), Some(&AnyValue::Int(4)));
         assert_eq!(
-            find_attr(&attrs, "weaver.finding.resource_attribute.host.cpu.count"),
-            Some(&AnyValue::Int(4))
-        );
-        assert_eq!(
-            find_attr(&attrs, "weaver.finding.resource_attribute.host.ip"),
+            find_attr(&attrs, "host.ip"),
             Some(&AnyValue::ListAny(Box::new(vec![
                 AnyValue::from("10.0.0.1"),
                 AnyValue::from("192.168.1.1"),
             ])))
         );
         // host.name had no value, should not be present
-        assert_eq!(
-            find_attr(&attrs, "weaver.finding.resource_attribute.host.name"),
-            None
-        );
+        assert_eq!(find_attr(&attrs, "host.name"), None);
     }
 
     #[test]
-    fn test_build_finding_attributes_without_resource() {
-        let span = create_test_span("test.span");
-        let parent_signal = Sample::Span(span.clone());
-        let sample_ref = SampleRef::Span(&span);
-        let finding = create_test_finding(
-            "test_id",
-            "test message",
-            FindingLevel::Violation,
-            None,
-            None,
-            json!({}),
-        );
-
-        let attrs = build_finding_attributes(&finding, &sample_ref, &parent_signal);
-
-        // No resource attributes should be present
-        assert!(!attrs
-            .iter()
-            .any(|(k, _)| k.as_str().starts_with("weaver.finding.resource_attribute.")));
+    fn test_flatten_resource_attributes_empty() {
+        let attrs = flatten_resource_attributes(&[]);
+        assert!(attrs.is_empty());
     }
 
     #[test]
