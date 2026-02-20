@@ -34,20 +34,27 @@ generate Markdown documentation from the resolved registry:
 
 ### Rust code generation
 
-A single generic Jinja template at [`../templates/rust/`](../templates/rust/) generates all
-finding-related Rust types and constants from the model:
+Two Jinja templates at [`../templates/rust/`](../templates/rust/) generate all
+finding-related Rust types, constants, and log record builders from the model:
 
-- **`weaver.yaml`** — Template configuration: single-file output producing `finding.rs`.
-- **`finding.rs.j2`** — Generic template that iterates all `weaver.finding.*` attributes and
-  generates:
+- **`weaver.yaml`** — Template configuration: two single-file outputs producing
+  `generated/attributes.rs` and `generated/events.rs`.
+- **`attributes.rs.j2`** — Iterates all `weaver.finding.*` attributes and generates:
   - **Attribute name constants** for every attribute (e.g., `WEAVER_FINDING_ID`,
     `WEAVER_FINDING_SAMPLE_TYPE`).
   - **Rust enums** for each attribute with enum members (`FindingId`, `FindingLevel`,
     `SampleType`, `SignalType`). Extensible enums (annotated with `custom_variants: true`
     in the model) get a `Custom(String)` catch-all variant; closed enums derive `Copy`.
+- **`events.rs.j2`** — Iterates all events and generates:
+  - **Event name constants** (e.g., `WEAVER_LIVE_CHECK_FINDING`).
+  - **`populate_*_log_record` functions** that accept a `&mut impl LogRecord` and set the
+    event name, severity, body, and all attributes. Parameters use the generated enum types
+    for type safety. Template-type attributes accept `&[(Key, AnyValue)]` slices with
+    suffix keys that get prefixed with the attribute's namespace constant.
 
-The template uses generic heuristics (no hardcoded attribute keys) to derive enum names
-from the attribute key structure, and model annotations to control code generation behavior.
+The templates use generic heuristics (no hardcoded attribute keys) to derive enum names
+from the attribute key structure, map model types to Rust types, and detect extensible
+enums from model annotations.
 
 ## Generating
 
@@ -77,18 +84,23 @@ cargo run -- registry generate \
   crates/weaver_live_check/src/
 ```
 
-This produces [`../src/finding.rs`](../src/finding.rs).
+This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs) and
+[`../src/generated/events.rs`](../src/generated/events.rs).
 
 ## How It Works
 
 1. The `registry generate` command loads the model from `live_check.yaml` and resolves it
    against the registry manifest (including the OTel dependency).
 2. The `--v2` flag produces the v2 registry structure where attributes are accessed via
-   `ctx.registry.attributes` (with a `key` field) and events via `ctx.registry.events`.
+   `ctx.attributes` (with a `key` field) and events via `ctx.signals.events`.
 3. The `filter: .` in `weaver.yaml` passes the entire resolved registry as the template context.
-4. The Jinja template iterates over all attributes, generating constants for each one and
+4. `attributes.rs.j2` iterates over all attributes, generating constants for each one and
    enums for those with `type.members`. It derives enum names from the attribute key structure
    and detects extensible enums from model annotations.
-5. The generated `finding.rs` module provides `FindingId`, `SampleType`, `SignalType` enums
-   and `WEAVER_FINDING_*` constants, replacing hand-written definitions and eliminating
-   hardcoded string literals throughout the crate.
+5. `events.rs.j2` iterates over all events, generating event name constants and type-safe
+   `populate_*_log_record` functions that set the event name, severity, body, and all
+   attributes on a `LogRecord`.
+6. The generated `attributes.rs` module provides `FindingId`, `SampleType`, `SignalType`
+   enums and `WEAVER_FINDING_*` constants. The generated `events.rs` module provides log
+   record builders, replacing hand-written definitions and eliminating hardcoded string
+   literals throughout the crate.
