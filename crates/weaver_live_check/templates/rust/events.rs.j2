@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+{%- import "macros.j2" as macros %}
 
 //! Generated event types and log record builders for live check findings.
 //!
@@ -6,7 +7,7 @@
 //! To regenerate, run from the repository root:
 //!
 //! ```sh
-//! cargo run -- registry generate \
+//! weaver registry generate \
 //!   --registry crates/weaver_live_check/model/ \
 //!   --templates crates/weaver_live_check/templates/ \
 //!   --v2 \
@@ -25,7 +26,7 @@ use opentelemetry::Key;
 #[allow(clippy::wildcard_imports)]
 use super::attributes::*;
 
-{% for event in ctx.signals.events %}
+{% for event in ctx.registry.events %}
 {% set event_short = event.name | split(".") | last %}
 
 /// Event name for: {{ event.brief | lower }}
@@ -33,13 +34,7 @@ pub const {{ event.name | screaming_snake_case }}: &str = "{{ event.name }}";
 
 /// Populate a log record for the [`{{ event.name }}`] event.
 ///
-{% for line in event.note | trim | split("\n") %}
-{% if line | trim | length > 0 %}
-/// {{ line }}
-{% else %}
-///
-{% endif %}
-{% endfor %}
+{{ macros.doc_note(event.note) -}}
 pub fn populate_{{ event_short }}_log_record(
     log_record: &mut impl LogRecord,
     body: impl Into<AnyValue>,
@@ -53,14 +48,7 @@ pub fn populate_{{ event_short }}_log_record(
 {% if is_template %}
     {{ param_name }}: &[(Key, AnyValue)],
 {% elif is_enum %}
-{% set last_segment = attr.key | split(".") | last %}
-{% set prefix_key = attr.key | replace("." ~ last_segment, "") %}
-{% set penultimate = prefix_key | split(".") | last %}
-{% if "_" not in last_segment %}
-{% set enum_type = (penultimate ~ "_" ~ last_segment) | pascal_case %}
-{% else %}
-{% set enum_type = last_segment | pascal_case %}
-{% endif %}
+{% set enum_type = macros.enum_name(attr) %}
 {% if is_required %}
     {{ param_name }}: &{{ enum_type }},
 {% else %}

@@ -288,3 +288,7 @@ events:
       - ref: weaver.finding.signal_type
       - ref: weaver.finding.signal_name
       - ref: weaver.finding.resource_attribute
+
+imports:
+  entities:
+    - service

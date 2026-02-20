@@ -13,3 +13,8 @@ templates:
     application_mode: single
     file_name: generated/events.rs
 
+  - template: entities.rs.j2
+    filter: .
+    application_mode: single
+    file_name: generated/entities.rs
+

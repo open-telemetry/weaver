@@ -4,4 +4,4 @@ semconv_version: 0.1.0
 schema_base_url: https://github.com/open-telemetry/weaver
 dependencies:
   - name: otel
-    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.38.0.zip[model]
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.39.0.zip[model]

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+{%- import "macros.j2" as macros %}
 
 //! Generated attribute constants and enum types for live check findings.
 //!
@@ -6,7 +7,7 @@
 //! To regenerate, run from the repository root:
 //!
 //! ```sh
-//! cargo run -- registry generate \
+//! weaver registry generate \
 //!   --registry crates/weaver_live_check/model/ \
 //!   --templates crates/weaver_live_check/templates/ \
 //!   --v2 \
@@ -18,69 +19,13 @@ use serde::{Deserialize, Serialize};
 
 // --- Attribute name constants ---
 
-{% for attr in ctx.attributes %}
-/// Attribute key for: {{ attr.brief | lower }}
-pub const {{ attr.key | screaming_snake_case }}: &str = "{{ attr.key }}";
+{% for attr in ctx.registry.attributes %}
+{{ macros.attr_const(attr) }}
 {% endfor %}
 
 // --- Enums ---
-{% for attr in ctx.attributes %}
+{% for attr in ctx.registry.attributes %}
 {% if attr.type is mapping and attr.type.members is defined %}
-{% set last_segment = attr.key | split(".") | last %}
-{% set prefix_key = attr.key | replace("." ~ last_segment, "") %}
-{% set penultimate = prefix_key | split(".") | last %}
-{% if "_" not in last_segment %}
-{% set enum_name = (penultimate ~ "_" ~ last_segment) | pascal_case %}
-{% else %}
-{% set enum_name = last_segment | pascal_case %}
-{% endif %}
-{% set has_custom = attr.annotations is mapping and attr.annotations.custom_variants is defined and attr.annotations.custom_variants %}
-
-/// {{ attr.brief }}
-///
-{% for line in attr.note | trim | split("\n") %}
-{% if line | trim | length > 0 %}
-/// {{ line }}
-{% else %}
-///
-{% endif %}
-{% endfor %}
-{% if has_custom %}
-///
-/// The `Custom` variant accepts values not listed above.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[derive(strum::Display, strum::EnumString)]
-{% else %}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[derive(strum::Display, strum::EnumString)]
-{% endif %}
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum {{ enum_name }} {
-{% for member in attr.type.members %}
-    /// {{ member.brief }}
-    {{ member.id | pascal_case }},
-{% endfor %}
-{% if has_custom %}
-    /// A value not defined in the known variants
-    #[serde(untagged)]
-    #[strum(default)]
-    Custom(String),
-{% endif %}
-}
-{% if has_custom %}
-
-impl From<{{ enum_name }}> for String {
-    fn from(id: {{ enum_name }}) -> Self {
-        id.to_string()
-    }
-}
-
-impl From<String> for {{ enum_name }} {
-    fn from(s: String) -> Self {
-        s.parse().unwrap_or(Self::Custom(s))
-    }
-}
-{% endif %}
+{{ macros.enum_def(attr) }}
 {% endif %}
 {% endfor %}

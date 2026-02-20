@@ -3,7 +3,7 @@
 //! OTLP logger provider for emitting policy findings as log records.
 
 use opentelemetry::logs::{AnyValue, Logger, LoggerProvider, Severity};
-use opentelemetry::{Key, KeyValue};
+use opentelemetry::Key;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::resource::ResourceDetector;
@@ -12,6 +12,7 @@ use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
 use crate::generated::attributes::{FindingId, FindingLevel as GeneratedFindingLevel, SignalType};
+use crate::generated::entities::{Service, SERVICE_NAME};
 use crate::generated::events;
 use crate::sample_attribute::SampleAttribute;
 use crate::{Error, Sample, SampleRef};
@@ -19,29 +20,33 @@ use crate::{Error, Sample, SampleRef};
 /// Type alias for log attributes as (Key, AnyValue) pairs
 type LogAttribute = (Key, AnyValue);
 
-/// The service name for weaver resources
-const WEAVER_SERVICE_NAME: &str = "weaver";
-
 /// Custom resource detector that provides weaver-specific defaults
 struct WeaverResourceDetector;
 
 impl ResourceDetector for WeaverResourceDetector {
     fn detect(&self) -> Resource {
-        // Check if OTEL_SERVICE_NAME is set - if so, don't override it
-        if std::env::var("OTEL_SERVICE_NAME").is_ok() {
-            return Resource::builder_empty().build();
-        }
+        let has_service_name = std::env::var("OTEL_SERVICE_NAME").is_ok()
+            || std::env::var("OTEL_RESOURCE_ATTRIBUTES")
+                .map(|attrs| attrs.contains(&format!("{SERVICE_NAME}=")))
+                .unwrap_or(false);
 
-        // Check if service.name is in OTEL_RESOURCE_ATTRIBUTES
-        if let Ok(attrs) = std::env::var("OTEL_RESOURCE_ATTRIBUTES") {
-            if attrs.contains("service.name=") {
-                return Resource::builder_empty().build();
-            }
-        }
+        let service = Service {
+            name: if has_service_name {
+                // User provided service.name via env — don't override it
+                String::new()
+            } else {
+                "weaver".to_owned()
+            },
+            version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+        };
 
-        // No service name from env, provide our default
         Resource::builder_empty()
-            .with_attributes([KeyValue::new("service.name", WEAVER_SERVICE_NAME)])
+            .with_attributes(
+                service
+                    .to_resource_attributes()
+                    .into_iter()
+                    .filter(|kv| !kv.value.as_str().is_empty()),
+            )
             .build()
     }
 }
@@ -119,12 +124,12 @@ impl OtlpEmitter {
             finding.message.clone(),
             finding_level_to_severity(&finding.level),
             &context_attrs,
-            signal_type.as_ref(),
-            finding.signal_name.as_deref(),
-            &resource_attrs,
             &finding_id,
             &level,
+            &resource_attrs,
             &sample_ref.sample_type(),
+            finding.signal_name.as_deref(),
+            signal_type.as_ref(),
         );
 
         logger.emit(log_record);
@@ -600,6 +605,129 @@ mod tests {
     fn test_flatten_resource_attributes_empty() {
         let attrs = flatten_resource_attributes(&[]);
         assert!(attrs.is_empty());
+    }
+
+    #[test]
+    fn test_service_to_resource_attributes_full() {
+        use crate::generated::entities::{Service, SERVICE_NAME, SERVICE_VERSION};
+
+        let service = Service {
+            name: "my-service".to_owned(),
+            version: Some("1.2.3".to_owned()),
+        };
+
+        let attrs = service.to_resource_attributes();
+        assert_eq!(attrs.len(), 2);
+        assert_eq!(attrs[0].key.as_str(), SERVICE_NAME);
+        assert_eq!(attrs[0].value.as_str().as_ref(), "my-service");
+        assert_eq!(attrs[1].key.as_str(), SERVICE_VERSION);
+        assert_eq!(attrs[1].value.as_str().as_ref(), "1.2.3");
+    }
+
+    #[test]
+    fn test_service_to_resource_attributes_no_version() {
+        use crate::generated::entities::{Service, SERVICE_NAME};
+
+        let service = Service {
+            name: "my-service".to_owned(),
+            version: None,
+        };
+
+        let attrs = service.to_resource_attributes();
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(attrs[0].key.as_str(), SERVICE_NAME);
+    }
+
+    #[test]
+    fn test_weaver_resource_detector_default() {
+        use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
+
+        // Remove env vars to ensure we get defaults
+        std::env::remove_var("OTEL_SERVICE_NAME");
+        std::env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
+
+        let detector = WeaverResourceDetector;
+        let resource = detector.detect();
+
+        // Should include service.name="weaver" and service.version=CARGO_PKG_VERSION
+        let schema_url = resource.schema_url();
+        assert!(schema_url.is_none());
+
+        let attrs: Vec<_> = resource.iter().collect();
+        let name_attr = attrs
+            .iter()
+            .find(|(k, _)| k.as_str() == SERVICE_NAME)
+            .expect("should have service.name");
+        assert_eq!(name_attr.1.as_str().as_ref(), "weaver");
+
+        let version_attr = attrs
+            .iter()
+            .find(|(k, _)| k.as_str() == SERVICE_VERSION)
+            .expect("should have service.version");
+        assert_eq!(version_attr.1.as_str().as_ref(), env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn test_weaver_resource_detector_with_user_service_name() {
+        use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
+
+        // Set OTEL_SERVICE_NAME to simulate user providing their own
+        std::env::set_var("OTEL_SERVICE_NAME", "user-service");
+
+        let detector = WeaverResourceDetector;
+        let resource = detector.detect();
+
+        let attrs: Vec<_> = resource.iter().collect();
+
+        // Should NOT include service.name (empty string filtered out)
+        let name_attr = attrs.iter().find(|(k, _)| k.as_str() == SERVICE_NAME);
+        assert!(
+            name_attr.is_none(),
+            "service.name should be filtered out when user provides their own"
+        );
+
+        // Should still include service.version
+        let version_attr = attrs
+            .iter()
+            .find(|(k, _)| k.as_str() == SERVICE_VERSION)
+            .expect("should still have service.version even when user provides service.name");
+        assert_eq!(version_attr.1.as_str().as_ref(), env!("CARGO_PKG_VERSION"));
+
+        // Clean up
+        std::env::remove_var("OTEL_SERVICE_NAME");
+    }
+
+    #[test]
+    fn test_weaver_resource_detector_with_resource_attributes_env() {
+        use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
+
+        std::env::remove_var("OTEL_SERVICE_NAME");
+        std::env::set_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "service.name=custom,deployment.environment=prod",
+        );
+
+        let detector = WeaverResourceDetector;
+        let resource = detector.detect();
+
+        let attrs: Vec<_> = resource.iter().collect();
+
+        // Should NOT include service.name (user provided via OTEL_RESOURCE_ATTRIBUTES)
+        let name_attr = attrs.iter().find(|(k, _)| k.as_str() == SERVICE_NAME);
+        assert!(
+            name_attr.is_none(),
+            "service.name should be filtered out when user provides via OTEL_RESOURCE_ATTRIBUTES"
+        );
+
+        // Should still include service.version
+        let version_attr = attrs
+            .iter()
+            .find(|(k, _)| k.as_str() == SERVICE_VERSION)
+            .expect("should still have service.version");
+        assert_eq!(version_attr.1.as_str().as_ref(), env!("CARGO_PKG_VERSION"));
+
+        // Clean up
+        std::env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
     }
 
     #[test]
