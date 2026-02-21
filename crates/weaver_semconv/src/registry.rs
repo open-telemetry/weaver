@@ -6,10 +6,10 @@ use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
-use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
-use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
+use crate::semconv::{SemConvSpecV1, SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use crate::stats::Stats;
+use crate::v2::SemConvSpecV2;
 use crate::Error;
 use regex::Regex;
 use std::collections::HashMap;
@@ -76,7 +76,8 @@ impl SemConvRegistry {
             non_fatal_errors: &mut Vec<Error>,
         ) -> Result<SemConvRegistry, Error> {
             let mut registry = SemConvRegistry::new(registry_id);
-            let versioned_validator = JsonSchemaValidator::new_versioned();
+            let versioned_validator_v1 = JsonSchemaValidator::new_for::<SemConvSpecV1>();
+            let versioned_validator_v2 = JsonSchemaValidator::new_for::<SemConvSpecV2>();
             let unversioned_validator = JsonSchemaValidator::new_unversioned();
             for sc_entry in
                 glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
@@ -92,7 +93,8 @@ impl SemConvRegistry {
                     registry_id,
                     path_buf.as_path(),
                     &unversioned_validator,
-                    &versioned_validator,
+                    &versioned_validator_v1,
+                    &versioned_validator_v2,
                 )
                 .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
@@ -187,24 +189,13 @@ impl SemConvRegistry {
         self.semconv_spec_count += 1;
     }
 
-    /// Load and add a semantic convention string to the semantic convention registry.
-    ///
-    /// This should only be used in tests!
-    pub fn add_semconv_spec_from_string(
-        &mut self,
-        provenance: Provenance,
-        spec: &str,
-    ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_string(provenance, spec)
-            .map(|spec| self.add_semconv_spec(spec))
-    }
-
     /// Loads and returns the semantic convention spec from a file.
     pub fn semconv_spec_from_file<P, F>(
         registry_id: &str,
         semconv_path: P,
         unversioned_validator: &JsonSchemaValidator,
-        versioned_validator: &JsonSchemaValidator,
+        versioned_validator_v1: &JsonSchemaValidator,
+        versioned_validator_v2: &JsonSchemaValidator,
         path_fixer: F,
     ) -> WResult<SemConvSpecWithProvenance, Error>
     where
@@ -215,7 +206,8 @@ impl SemConvRegistry {
             registry_id,
             semconv_path,
             unversioned_validator,
-            versioned_validator,
+            versioned_validator_v1,
+            versioned_validator_v2,
             path_fixer,
         )
     }

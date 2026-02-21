@@ -950,6 +950,14 @@ mod tests {
                     )
                 )
             })
+            .ignore(|e| {
+                matches!(
+                    e,
+                    crate::Error::FailToResolveDefinition(
+                        weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
+                    )
+                )
+            })
             .into_result_failing_non_fatal()
             .expect("Failed to load semconv specs");
 

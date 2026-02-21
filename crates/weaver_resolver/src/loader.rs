@@ -8,6 +8,8 @@ use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::semconv::SemConvSpecV1;
+use weaver_semconv::v2::SemConvSpecV2;
 
 use walkdir::DirEntry;
 use weaver_common::result::WResult;
@@ -284,7 +286,8 @@ fn load_definition_repository(
     }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
-    let versioned_validator = JsonSchemaValidator::new_versioned();
+    let versioned_validator_v1 = JsonSchemaValidator::new_for::<SemConvSpecV1>();
+    let versioned_validator_v2 = JsonSchemaValidator::new_for::<SemConvSpecV2>();
     let unversioned_validator = JsonSchemaValidator::new_unversioned();
 
     // Loads the semantic convention specifications from the git repo.
@@ -307,7 +310,8 @@ fn load_definition_repository(
                         &registry_repo.id(),
                         entry.path(),
                         &unversioned_validator,
-                        &versioned_validator,
+                        &versioned_validator_v1,
+                        &versioned_validator_v2,
                         |path| {
                             // Replace the local path with the git URL combined with the relative path
                             // of the semantic convention file.
@@ -481,7 +485,7 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Circular dependency detected") && 
+                    error_msg.contains("Circular dependency detected") &&
                     error_msg.contains("registry_a") &&
                     error_msg.contains("registry_b"),
                     "Expected circular dependency error mentioning both registries, got: {error_msg}"
