@@ -351,7 +351,7 @@ mod tests {
             groups: vec![],
             registry_url: String::new(),
         };
-        let versioned_registry = VersionedRegistry::V1(registry);
+        let versioned_registry = VersionedRegistry::V1(Box::new(registry));
 
         let mut disabled_stats = LiveCheckStatistics::Disabled(DisabledStatistics);
         let mut normal_stats =

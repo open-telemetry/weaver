@@ -543,7 +543,7 @@ mod tests {
 
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
-            registry_url: "test".to_owned(),
+            schema_url: "https://example.com/schemas/1.2.3".try_into().unwrap(),
             registry: Registry {
                 attributes: vec![
                     make_attribute("http.request.method", "HTTP request method", "", false),

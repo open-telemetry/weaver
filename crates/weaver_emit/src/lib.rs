@@ -590,7 +590,7 @@ mod tests {
         };
 
         let registry = ForgeResolvedRegistry {
-            registry_url: "TEST_V2".to_owned(),
+            schema_url: "https://example.com/schemas/1.2.3".try_into().unwrap(),
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],

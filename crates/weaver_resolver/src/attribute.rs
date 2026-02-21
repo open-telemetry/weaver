@@ -321,7 +321,7 @@ impl AttributeLookup for V1Schema {
 
 impl AttributeLookup for V2Schema {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
-        let fake_group_id = format!("v2_dependency.{}", self.registry_id);
+        let fake_group_id = format!("v2_dependency.{}", self.schema_url.name());
         self.attribute_catalog.iter().find_map(|attr| {
             if attr.key == key {
                 Some(AttributeWithGroupId {

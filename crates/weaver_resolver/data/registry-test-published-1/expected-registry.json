@@ -58,12 +58,12 @@
       "name": "my-span",
       "lineage": {
         "provenance": {
-          "registry_id": "acme",
+          "registry_id": "acme.com/schemas",
           "path": "data/registry-test-published-1/registry/main.yaml"
         },
         "attributes": {
           "a": {
-            "source_group": "v2_dependency.published",
+            "source_group": "v2_dependency.opentelemetry.io/schemas",
             "inherited_fields": [
               "annotations",
               "brief",

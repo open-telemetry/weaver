@@ -507,8 +507,10 @@ mod tests {
 
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.2.3"
+                    .try_into()
+                    .expect("Should be valid schema url"),
                 registry: Registry {
                     attributes: vec![
                         V2Attribute {
@@ -609,9 +611,9 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
                 groups: vec![ResolvedGroup {
                     id: "test.comprehensive.internal".to_owned(),
@@ -750,7 +752,7 @@ mod tests {
                     body: None,
                     annotations: None,
                 }],
-            })
+            }))
         }
     }
 
@@ -793,8 +795,10 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_METRICS".to_owned(),
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.2.3"
+                    .try_into()
+                    .expect("Should be valid schema url"),
                 registry: Registry {
                     attributes: vec![memory_state_attr.clone()],
                     attribute_groups: vec![],
@@ -842,9 +846,9 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_METRICS".to_owned(),
                 groups: vec![
                     // Attribute group for system memory
@@ -979,7 +983,7 @@ mod tests {
                         annotations: None,
                     },
                 ],
-            })
+            }))
         }
     }
 
@@ -1001,9 +1005,10 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST".to_owned(),
-
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.2.3"
+                    .try_into()
+                    .expect("Should be valid schema url"),
                 registry: Registry {
                     attributes: vec![custom_string_attr.clone()],
                     attribute_groups: vec![],
@@ -1038,9 +1043,9 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
                 groups: vec![ResolvedGroup {
                     id: "custom.comprehensive.internal".to_owned(),
@@ -1085,7 +1090,7 @@ mod tests {
                     body: None,
                     annotations: None,
                 }],
-            })
+            }))
         }
     }
 
@@ -1516,8 +1521,10 @@ mod tests {
                 },
             };
 
-            VersionedRegistry::V2(ForgeResolvedRegistry {
-                registry_url: "TEST_EVENTS".to_owned(),
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.2.3"
+                    .try_into()
+                    .expect("Should be valid schema url"),
                 registry: Registry {
                     attributes: vec![session_id_attr.clone(), session_previous_id_attr.clone()],
                     attribute_groups: vec![],
@@ -1591,9 +1598,9 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                 },
-            })
+            }))
         } else {
-            VersionedRegistry::V1(ResolvedRegistry {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),
                 groups: vec![
                     ResolvedGroup {
@@ -1704,7 +1711,7 @@ mod tests {
                         }),
                     },
                 ],
-            })
+            }))
         }
     }
 
