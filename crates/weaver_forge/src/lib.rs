@@ -1225,6 +1225,25 @@ mod tests {
     }
 
     #[test]
+    fn test_registry_markdown() {
+        let (engine, template_registry, observed_output, expected_output) =
+            prepare_test("registry/markdown", Params::default(), true);
+
+        engine
+            .generate(
+                &template_registry,
+                observed_output.as_path(),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
     fn test_wrong_config() {
         let loader = FileSystemFileLoader::try_new("templates".into(), "wrong_config")
             .expect("Failed to create file system loader");

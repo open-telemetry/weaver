@@ -8,10 +8,10 @@ All notable changes to this project will be documented in this file.
 - New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
 - Unified output handling across all registry subcommands. Builtin output formats (json, yaml, jsonl) are now available in `registry stats`, `registry diff`, and `registry resolve`. `registry stats` also supports `--templates` for custom text output templates. ([#1200](https://github.com/open-telemetry/weaver/pull/1200) by @jerbly)
 - New feature ([#1152](https://github.com/open-telemetry/weaver/issues/1152)) - Live-check with `--emit-otlp-logs` will now include the attributes from the resource in the emitted log record, this helps to identify the source of the finding in a multi-source environment. ([#1206](https://github.com/open-telemetry/weaver/pull/1206) by @jerbly)
+- New Experimental feature: `weaver registry infer` command that listens for OTLP telemetry and infers a semantic convention registry file from the received data. Supports spans, metrics, events, and resource attributes. Includes configurable gRPC address/port, admin server for graceful shutdown, and inactivity timeout. ([#1138](https://github.com/open-telemetry/weaver/pull/1138) by @ArthurSens)
 - Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
   from it. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
 - Default to `manifest.yaml` for registry manifest file, deprecate `registry_manifest.yaml` and add warning when it's used. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
-
 
 # [0.21.2] - 2026-02-03
 
