@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
 use crate::generated::attributes::{FindingId, FindingLevel as GeneratedFindingLevel, SignalType};
-use crate::generated::entities::{Service, SERVICE_NAME};
+use crate::generated::entities::{Service, ServiceCriticality, SERVICE_NAME};
 use crate::generated::events;
 use crate::sample_attribute::SampleAttribute;
 use crate::{Error, Sample, SampleRef};
@@ -38,6 +38,7 @@ impl ResourceDetector for WeaverResourceDetector {
                 "weaver".to_owned()
             },
             version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+            criticality: Some(ServiceCriticality::Low),
         };
 
         Resource::builder_empty()
@@ -609,19 +610,24 @@ mod tests {
 
     #[test]
     fn test_service_to_resource_attributes_full() {
-        use crate::generated::entities::{Service, SERVICE_NAME, SERVICE_VERSION};
+        use crate::generated::entities::{
+            Service, SERVICE_CRITICALITY, SERVICE_NAME, SERVICE_VERSION,
+        };
 
         let service = Service {
             name: "my-service".to_owned(),
             version: Some("1.2.3".to_owned()),
+            criticality: Some(ServiceCriticality::Low),
         };
 
         let attrs = service.to_resource_attributes();
-        assert_eq!(attrs.len(), 2);
+        assert_eq!(attrs.len(), 3);
         assert_eq!(attrs[0].key.as_str(), SERVICE_NAME);
         assert_eq!(attrs[0].value.as_str().as_ref(), "my-service");
-        assert_eq!(attrs[1].key.as_str(), SERVICE_VERSION);
-        assert_eq!(attrs[1].value.as_str().as_ref(), "1.2.3");
+        assert_eq!(attrs[1].key.as_str(), SERVICE_CRITICALITY);
+        assert_eq!(attrs[1].value.as_str().as_ref(), "low");
+        assert_eq!(attrs[2].key.as_str(), SERVICE_VERSION);
+        assert_eq!(attrs[2].value.as_str().as_ref(), "1.2.3");
     }
 
     #[test]
@@ -631,6 +637,7 @@ mod tests {
         let service = Service {
             name: "my-service".to_owned(),
             version: None,
+            criticality: None,
         };
 
         let attrs = service.to_resource_attributes();

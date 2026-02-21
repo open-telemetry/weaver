@@ -3,7 +3,7 @@
 Live check is a developer tool for assessing sample telemetry and providing findings for improvement.
 
 > **Dog-fooding**: Live Check uses Weaver's own semantic convention model and template engine to
-> define its finding schema and generate its documentation. The finding attributes, enumerations,
+> define its finding schema and generate its documentation, code and tests. The finding attributes, enumerations,
 > and event are defined in [`model/live_check.yaml`](model/live_check.yaml) and the reference
 > documentation at [`docs/finding.md`](docs/finding.md) is auto-generated from that model using
 > Weaver templates. See [Dog-fooding](docs/dog-fooding.md) for details.

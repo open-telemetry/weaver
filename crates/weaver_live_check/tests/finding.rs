@@ -91,13 +91,6 @@ fn test_sample_type_display() {
     );
 }
 
-#[test]
-fn test_sample_type_is_copy() {
-    let a = SampleType::Span;
-    let b = a; // Copy
-    assert_eq!(a, b);
-}
-
 // === SignalType ===
 
 #[test]
@@ -121,11 +114,4 @@ fn test_signal_type_display() {
     assert_eq!(SignalType::Resource.to_string(), "resource");
     assert_eq!(SignalType::Metric.to_string(), "metric");
     assert_eq!(SignalType::Log.to_string(), "log");
-}
-
-#[test]
-fn test_signal_type_is_copy() {
-    let a = SignalType::Metric;
-    let b = a; // Copy
-    assert_eq!(a, b);
 }

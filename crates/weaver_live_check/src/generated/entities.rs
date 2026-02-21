@@ -23,6 +23,8 @@ use opentelemetry::KeyValue;
 // Attribute key constants
 /// Logical name of the service.
 pub const SERVICE_NAME: &str = "service.name";
+/// The operational criticality of the service.
+pub const SERVICE_CRITICALITY: &str = "service.criticality";
 /// The version string of the service component. The format is not defined by these conventions.
 pub const SERVICE_VERSION: &str = "service.version";
 
@@ -34,6 +36,8 @@ pub const SERVICE_VERSION: &str = "service.version";
 pub struct Service {
     /// Logical name of the service.
     pub name: String,
+    /// The operational criticality of the service.
+    pub criticality: Option<ServiceCriticality>,
     /// The version string of the service component. The format is not defined by these conventions.
     pub version: Option<String>,
 }
@@ -44,11 +48,42 @@ impl Service {
     pub fn to_resource_attributes(&self) -> Vec<KeyValue> {
         let mut attrs = Vec::new();
         attrs.push(KeyValue::new(SERVICE_NAME, self.name.clone()));
+        if let Some(val) = &self.criticality {
+            attrs.push(KeyValue::new(SERVICE_CRITICALITY, val.to_string()));
+        }
         if let Some(val) = &self.version {
             attrs.push(KeyValue::new(SERVICE_VERSION, val.clone()));
         }
         attrs
     }
+}
+
+/// The operational criticality of the service.
+///
+/// Application developers are encouraged to set `service.criticality` to express the operational importance of their services. Telemetry consumers MAY use this attribute to optimize telemetry collection or improve user experience.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ServiceCriticality {
+    /// Service is business-critical; downtime directly impacts revenue, user experience, or core functionality.
+    Critical,
+    /// Service is important but has degradation tolerance or fallback mechanisms.
+    High,
+    /// Service provides supplementary functionality; degradation has limited user impact.
+    Medium,
+    /// Service is non-essential to core operations; used for background tasks or internal tools.
+    Low,
 }
 
 // --- telemetry.sdk entity ---
