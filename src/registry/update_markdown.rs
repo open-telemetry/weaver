@@ -17,7 +17,7 @@ use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::TemplateEngine;
+use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv_gen::{MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -91,7 +91,7 @@ pub(crate) fn command(
     let params = generate_params_shared(&args.param, &args.params)?;
 
     // Construct a generator if we were given a `--target` argument.
-    let template_engine = {
+    let output = {
         let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
             Error::InvalidVirtualDirectory {
                 path: args.templates.to_string(),
@@ -101,7 +101,7 @@ pub(crate) fn command(
         let loader =
             FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        TemplateEngine::try_new(config, loader, params)?
+        OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
     let policy_config = PolicyArgs {
         policies: vec![],
@@ -117,12 +117,12 @@ pub(crate) fn command(
         Box::new(SnipperGeneratorV2::new(
             resolved_v2.into_resolved_schema(),
             template_schema,
-            template_engine,
+            output,
         ))
     } else {
         Box::new(SnippetGenerator::new(
             resolved.into_resolved_schema(),
-            template_engine,
+            output,
         ))
     };
 

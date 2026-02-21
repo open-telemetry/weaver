@@ -4,11 +4,16 @@
     'config:best-practices',
     'helpers:pinGitHubActionDigestsToSemver',
   ],
-  "ignorePaths": [
-    // cargo-dist manages this file, so we have to pin *its* dependency here.
-    ".github/workflows/release.yml"
-  ],
   packageRules: [
+    {
+      groupName: 'all digest versions',
+      matchUpdateTypes: [
+        'digest',
+      ],
+      schedule: [
+        'before 8am every weekday',
+      ],
+    },
     {
       groupName: 'all patch versions',
       matchUpdateTypes: [
@@ -43,12 +48,98 @@
       matchUpdateTypes: [
         'minor',
         'patch',
+        'digest',
       ],
       matchManagers: [
         'cargo',
         'dockerfile',
+        'npm',
       ],
       automerge: true,
+    },
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Update Cargo Dist workspace",
+      managerFilePatterns: [
+        "dist-workspace.toml",
+        ".github/workflows/release.yml"
+      ],
+      matchStrings: [
+        "(?<packageName>.+?)-version = \"(?<depVersion>[0-9.]+)\"",
+        "https:\/\/github.com\/axodotdev\/(?<packageName>.+?)\/releases\/download\/v(?<depVersion>[0-9.]+)\/"
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Cargo Dist Actions",
+      managerFilePatterns: [
+        "dist-workspace.toml",
+      ],
+      matchStrings: [
+        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[a-f0-9]{40})\" # v(?<depVersion>[0-9.]+)"
+      ],
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "\"{{depName}}\" = \"{{newDigest}}\" # v{{newVersion}}",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update Cargo Dist Yaml Actions",
+      managerFilePatterns: [
+        ".github/build-setup.yml",
+      ],
+      matchStrings: [
+        "uses: (?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40}) # v(?<depVersion>[0-9.]+)"
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "uses: {{depName}}@{{newDigest}} # v{{newVersion}}",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update Just file",
+      managerFilePatterns: [
+        "justfile",
+      ],
+      matchStrings: [
+        "cargo install (?<packageName>.+\/?)@(?<depVersion>[0-9.]+)",
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Rust toolchain version",
+      managerFilePatterns: [
+        "rust-toolchain.toml", 
+        "justfile",
+      ],
+      matchStrings: [
+        "channel\\s*=\\s*\"(?<depVersion>[0-9.]+)\"",
+        "rustup install (?<depVersion>[0-9.]+)",
+        "rustup update (?<depVersion>[0-9.]+)",
+      ],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "rust",
+      versioningTemplate: "semver",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      currentValueTemplate: "{{depVersion}}",
+      packageNameTemplate: "rust-lang/rust",
+      depTypeTemplate: "SDK",
     },
   ],
   labels: [

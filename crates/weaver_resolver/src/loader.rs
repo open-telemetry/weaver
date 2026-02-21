@@ -6,6 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
+use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::registry::SemConvRegistry;
 
 use walkdir::DirEntry;
@@ -15,6 +16,8 @@ use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::json_schema::JsonSchemaValidator;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
+
+use crate::Error;
 
 /// Maximum allowed depth for registry dependency chains.
 const MAX_DEPENDENCY_DEPTH: u32 = 10;
@@ -41,19 +44,18 @@ pub enum LoadedSemconvRegistry {
 impl LoadedSemconvRegistry {
     /// Creates a loaded semconv registry from a single string.
     #[cfg(test)]
-    pub fn create_from_string(spec: &str) -> Result<LoadedSemconvRegistry, crate::Error> {
+    pub fn create_from_string(spec: &str) -> Result<LoadedSemconvRegistry, Error> {
         use weaver_common::vdir::VirtualDirectoryPath;
         use weaver_semconv::provenance::Provenance;
         let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
-        let repo =
-            RegistryRepo::try_new("default", &path).map_err(|e| crate::Error::InvalidUrl {
-                url: "test string".to_owned(),
-                error: format!("{e}"),
-            })?;
+        let repo = RegistryRepo::try_new("default", &path).map_err(|e| Error::InvalidUrl {
+            url: "test string".to_owned(),
+            error: format!("{e}"),
+        })?;
         let provenance = Provenance::new("default", "<str>");
         let spec_with_provenance = SemConvSpecWithProvenance::from_string(provenance, spec)
             .into_result_failing_non_fatal()
-            .map_err(|e| crate::Error::InvalidUrl {
+            .map_err(|e| Error::InvalidUrl {
                 url: "test string".to_owned(),
                 error: format!("{e}"),
             })?;
@@ -146,7 +148,7 @@ impl Display for LoadedSemconvRegistry {
 pub(crate) fn load_semconv_repository(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
-) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+) -> WResult<LoadedSemconvRegistry, Error> {
     // This method simply sets up the resolution state and delegates to the actual work.
     let mut visited_registries = HashSet::new();
     let mut dependency_chain = Vec::new();
@@ -167,14 +169,11 @@ fn load_semconv_repository_recursive(
     max_dependency_depth: u32,
     visited_registries: &mut HashSet<String>,
     dependency_chain: &mut Vec<String>,
-) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+) -> WResult<LoadedSemconvRegistry, Error> {
     // Make sure we don't go past our max dependency depth.
     if max_dependency_depth == 0 {
-        return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
-            error: format!(
-                "Maximum dependency depth reached for registry `{}`. Cannot load further dependencies.",
-                registry_repo.registry_path_repr()
-            ),
+        return WResult::FatalErr(Error::MaximumDependencyDepth {
+            registry: registry_repo.registry_path_repr().to_owned(),
         });
     }
     let registry_id = registry_repo.id().to_string();
@@ -182,10 +181,9 @@ fn load_semconv_repository_recursive(
     if visited_registries.contains(&registry_id) {
         dependency_chain.push(registry_id.clone());
         let chain_str = dependency_chain.join(" → ");
-        return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
-            error: format!(
-                "Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain_str}"
-            ),
+        return WResult::FatalErr(Error::CircularDependency {
+            registry_id,
+            chain: chain_str,
         });
     }
     // Add current registry to visited set and dependency chain
@@ -194,8 +192,8 @@ fn load_semconv_repository_recursive(
 
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
-        if let Some(resolved_url) = manifest.resolved_schema_url.as_ref() {
-            todo!("Loading resolved telemetry schema ({resolved_url}) is currently unsupported.\nSee https://github.com/open-telemetry/weaver/issues/1134");
+        if let Some(resolved_url) = registry_repo.resolved_schema_url() {
+            load_resolved_repository(&resolved_url)
         } else {
             if manifest.dependencies.len() > 1 {
                 todo!("Multiple dependencies is not supported yet.")
@@ -222,7 +220,7 @@ fn load_semconv_repository_recursive(
                             WResult::FatalErr(err) => return WResult::FatalErr(err),
                         }
                     }
-                    Err(err) => return WResult::FatalErr(err),
+                    Err(err) => return WResult::FatalErr(err.into()),
                 }
             }
             // Now load the raw repository.
@@ -237,12 +235,36 @@ fn load_semconv_repository_recursive(
     }
 }
 
+/// Loads a resolved repository.
+fn load_resolved_repository(path: &VirtualDirectoryPath) -> WResult<LoadedSemconvRegistry, Error> {
+    // TODO - should we handle V1 and V2?
+    match from_vdir(path) {
+        Ok(resolved) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(resolved)),
+        Err(err) => WResult::FatalErr(err),
+    }
+}
+
+/// Reads a serialized object with serde from the given virtual directory path.
+fn from_vdir<T: serde::de::DeserializeOwned>(f: &VirtualDirectoryPath) -> Result<T, Error> {
+    let path = VirtualDirectory::try_new(f).map_err(|e| Error::InvalidUrl {
+        url: f.to_string(),
+        error: format!("Invalid weaver path reference: {e}"),
+    })?;
+    let file = std::fs::File::open(path.path()).map_err(|_| Error::InvalidSchemaPath {
+        path: path.path().to_path_buf(),
+    })?;
+    let reader = std::io::BufReader::new(file);
+    serde_yaml::from_reader(reader).map_err(|e| Error::ConversionError {
+        message: format!("Unable to read resolved schema: {e}"),
+    })
+}
+
 /// Loads a "raw" repository (composed of the original definition).
 fn load_definition_repository(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     dependencies: Vec<LoadedSemconvRegistry>,
-) -> WResult<LoadedSemconvRegistry, weaver_semconv::Error> {
+) -> WResult<LoadedSemconvRegistry, Error> {
     // Define helper functions for filtering files.
     fn is_hidden(entry: &DirEntry) -> bool {
         entry
@@ -326,7 +348,7 @@ fn load_definition_repository(
                 specs.push(t);
                 non_fatal_errors.extend(nfes);
             }
-            WResult::FatalErr(e) => return WResult::FatalErr(e),
+            WResult::FatalErr(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
         }
     }
 
@@ -349,7 +371,10 @@ fn load_definition_repository(
             imports,
             dependencies,
         },
-        non_fatal_errors,
+        non_fatal_errors
+            .into_iter()
+            .map(Error::FailToResolveDefinition)
+            .collect(),
     )
 }
 
@@ -364,11 +389,11 @@ mod tests {
 
     use crate::{
         loader::{load_semconv_repository, load_semconv_repository_recursive},
-        LoadedSemconvRegistry,
+        Error, LoadedSemconvRegistry,
     };
 
     #[test]
-    fn test_load_unresolved_registry_with_dependencies() -> Result<(), weaver_semconv::Error> {
+    fn test_load_unresolved_registry_with_dependencies() -> Result<(), Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };

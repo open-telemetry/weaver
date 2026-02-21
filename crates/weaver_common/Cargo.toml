@@ -23,10 +23,11 @@ once_cell.workspace = true
 schemars.workspace = true
 ureq.workspace = true
 log.workspace = true
+url.workspace = true
 
 tempfile.workspace = true
 dirs = "6.0.0"
-gix = { version = "0.78.0", default-features = false, features = [
+gix = { version = "0.79.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest-native-tls",
     "max-performance-safe",

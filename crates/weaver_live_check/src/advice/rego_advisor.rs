@@ -125,7 +125,7 @@ impl Advisor for RegoAdvisor {
         }
 
         // Emit each finding if emitter available
-        emit_findings(&findings, &sample, otlp_emitter.as_deref());
+        emit_findings(&findings, &sample, otlp_emitter.as_deref(), signal);
 
         Ok(findings)
     }

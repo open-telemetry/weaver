@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
+use crate::registry::infer::RegistryInferArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::RegistryLiveCheckArgs;
 use crate::registry::mcp::RegistryMcpArgs;
@@ -27,6 +28,7 @@ mod check;
 mod diff;
 mod emit;
 mod generate;
+mod infer;
 mod json_schema;
 mod live_check;
 mod mcp;
@@ -47,10 +49,6 @@ pub enum Error {
     /// Invalid params file passed to the command line
     #[error("The params file `{params_file}` is invalid. {error}")]
     InvalidParams { params_file: PathBuf, error: String },
-
-    /// Failed to render the registry diff
-    #[error("Failed to render the registry diff: {error}")]
-    DiffRender { error: String },
 
     #[error(transparent)]
     Schema(#[from] weaver_resolved_schema::error::Error),
@@ -146,6 +144,10 @@ pub enum RegistrySubCommand {
     /// The server communicates over stdio using JSON-RPC.
     #[clap(verbatim_doc_comment)]
     Mcp(RegistryMcpArgs),
+
+    /// Generates a schema file by inferring the schema from a OTLP message.
+    #[clap(verbatim_doc_comment)]
+    Infer(RegistryInferArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -231,6 +233,9 @@ pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
         }
         RegistrySubCommand::Mcp(args) => {
             CmdResult::new(mcp::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Infer(args) => {
+            CmdResult::new(infer::command(args), Some(args.diagnostic.clone()))
         }
     }
 }

@@ -1,0 +1,38 @@
+> import "_macros.j2" as macros <
+# Metrics: `{{ ctx.root_namespace }}`
+
+This document describes the `{{ ctx.root_namespace }}` metrics.
+
+> for metric in ctx.metrics | sort(attribute="metric_name") <
+## `{{ metric.metric_name }}`
+
+{{ metric.brief | default("") | trim }}
+
+> if metric.note <
+{{ metric.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+| Instrument | {{ metric.instrument }} |
+> if metric.unit <
+| Unit | `{{ metric.unit }}` |
+> endif <
+> if metric.stability <
+| Stability | {{ metric.stability | capitalize }} |
+> endif <
+> if metric.deprecated <
+| Deprecated | {{ metric.deprecated.note }} |
+> endif <
+
+> if metric.attributes <
+### Attributes
+
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+> for attr in metric.attributes | attribute_sort <
+| `{{ attr.name }}` | {{ macros.attribute_type(attr) }} | {{ macros.requirement_level(attr.requirement_level) }} | {{ macros.brief_inline(attr.brief) }} |
+> endfor <
+
+> endif <
+> endfor <

@@ -12,8 +12,8 @@ use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
     advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    VersionedSignal, MISSING_METRIC_ADVICE_TYPE,
+    sample_resource::SampleResource, Advisable, Error, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics, Sample, SampleRef, VersionedSignal, MISSING_METRIC_ADVICE_TYPE,
 };
 
 /// Represents the instrument type of a metric
@@ -286,6 +286,9 @@ pub struct SampleMetric {
     pub data_points: Option<DataPoints>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Reference to the parent resource (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
 }
 
 impl LiveCheckRunner for SampleMetric {
@@ -307,6 +310,7 @@ impl LiveCheckRunner for SampleMetric {
                 .build_and_emit(
                     &SampleRef::Metric(self),
                     live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    parent_signal,
                 );
 
             result.add_advice(finding);
