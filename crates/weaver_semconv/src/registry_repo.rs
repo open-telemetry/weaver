@@ -4,7 +4,6 @@
 
 use std::default::Default;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use crate::manifest::{Dependency, RegistryManifest};
 use crate::schema_url::SchemaUrl;
@@ -18,6 +17,39 @@ pub const LEGACY_REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
 /// The name of the registry manifest file.
 pub const REGISTRY_MANIFEST: &str = "manifest.yaml";
+
+/// Finds the path to the manifest file, could be
+/// - directly the path to the manifest file, or
+/// - either `manifest.yaml` or `registry_manifest.yaml` in the given directory.
+/// - None otherwise.
+fn find_manifest_path(registry_path: &Path) -> Option<PathBuf> {
+    // First check to see if we're pointing at a manifest.
+    if registry_path.is_file() {
+        // The path *is* the manifest.
+        return Some(registry_path.to_path_buf());
+    }
+    let manifest_path = registry_path.join(REGISTRY_MANIFEST);
+    let legacy_path = registry_path.join(LEGACY_REGISTRY_MANIFEST);
+    if manifest_path.exists() {
+        log_info(format!(
+            "Found registry manifest: {}",
+            manifest_path.display()
+        ));
+        Some(manifest_path)
+    } else if legacy_path.exists() {
+        log_info(format!(
+            "Found registry manifest: {}",
+            legacy_path.display()
+        ));
+        Some(legacy_path)
+    } else {
+        log_info(format!(
+            "No registry manifest found: {}",
+            manifest_path.display()
+        ));
+        None
+    }
+}
 
 /// A semantic convention registry repository that can be:
 /// - A definition repository, which is one of:
@@ -37,6 +69,9 @@ pub struct RegistryRepo {
 
     // The registry manifest definition.
     manifest: Option<RegistryManifest>,
+
+    // Cached path to the manifest file (if it exists).
+    manifest_path: Option<PathBuf>,
 }
 
 impl RegistryRepo {
@@ -67,20 +102,14 @@ impl RegistryRepo {
         let registry =
             VirtualDirectory::try_new(registry_path).map_err(Error::VirtualDirectoryError)?;
         // Try to load manifest
-        if let Some(manifest_path) = {
-            // We need a temporary RegistryRepo to call manifest_path
-            let temp_repo = Self {
-                schema_url: SchemaUrl::new_unknown(),
-                registry: registry.clone(),
-                manifest: None,
-            };
-            temp_repo.manifest_path()
-        } {
-            let registry_manifest = RegistryManifest::try_from_file(manifest_path, nfes)?;
+        let manifest_path = find_manifest_path(registry.path());
+        if let Some(ref path) = manifest_path {
+            let registry_manifest = RegistryManifest::try_from_file(path, nfes)?;
             Ok(Self {
                 schema_url: registry_manifest.schema_url.clone(),
                 registry,
                 manifest: Some(registry_manifest),
+                manifest_path,
             })
         } else {
             // No manifest
@@ -89,20 +118,21 @@ impl RegistryRepo {
                 schema_url: schema_url_combined.clone(),
                 registry,
                 manifest: None,
+                manifest_path: None,
             })
         }
     }
 
     /// Returns the registry name (from manifest if present, otherwise top-level field).
     #[must_use]
-    pub fn name(&self) -> Arc<str> {
-        self.schema_url.name().into()
+    pub fn name(&self) -> &str {
+        self.schema_url.name()
     }
 
     /// Returns the registry version (from manifest if present, otherwise top-level field).
     #[must_use]
-    pub fn version(&self) -> Arc<str> {
-        self.schema_url.version().into()
+    pub fn version(&self) -> &str {
+        self.schema_url.version()
     }
 
     /// Returns the local path to the semconv registry.
@@ -131,7 +161,10 @@ impl RegistryRepo {
         match get_path_type(resolved_uri) {
             weaver_common::PathType::RelativePath => {
                 // We need to understand if the manifest URI is the same as the registry URI.
-                let vdir_was_manifest_file = self.manifest_path()? == self.registry.path();
+                let vdir_was_manifest_file = self
+                    .manifest_path
+                    .clone()
+                    .is_some_and(|mp| mp == self.registry.path());
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
@@ -147,41 +180,9 @@ impl RegistryRepo {
         }
     }
 
-    /// Returns the path to the `manifest.yaml` or legacy `registry_manifest.yaml` (if any of them exist).
-    #[must_use]
-    pub fn manifest_path(&self) -> Option<PathBuf> {
-        // First check to see if we're pointing at a manifest.
-        if self.registry.path().is_file() {
-            // The VirtualDirectory *is* the registry.
-            return Some(self.registry.path().to_path_buf());
-        }
-        let manifest_path = self.registry.path().join(REGISTRY_MANIFEST);
-        let legacy_path = self.registry.path().join(LEGACY_REGISTRY_MANIFEST);
-        if manifest_path.exists() {
-            log_info(format!(
-                "Found registry manifest: {}",
-                manifest_path.display()
-            ));
-            Some(manifest_path)
-        } else if legacy_path.exists() {
-            log_info(format!(
-                "Found registry manifest: {}",
-                legacy_path.display()
-            ));
-            Some(legacy_path)
-        } else {
-            log_info(format!(
-                "No registry manifest found: {}",
-                manifest_path.display()
-            ));
-            None
-        }
-    }
-
     /// Returns the registry schema URL.
-    #[must_use]
-    pub fn schema_url(&self) -> SchemaUrl {
-        self.schema_url.clone()
+    pub fn schema_url(&self) -> &SchemaUrl {
+        &self.schema_url
     }
 }
 
@@ -191,6 +192,7 @@ impl Default for RegistryRepo {
             schema_url: SchemaUrl::new_unknown(),
             registry: VirtualDirectory::default(),
             manifest: None,
+            manifest_path: None,
         }
     }
 }

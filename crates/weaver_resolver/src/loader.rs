@@ -110,7 +110,7 @@ impl LoadedSemconvRegistry {
             LoadedSemconvRegistry::Unresolved {
                 repo, dependencies, ..
             } => {
-                let mut result = vec![repo.name().to_string()];
+                let mut result = vec![repo.name().to_owned()];
                 for d in dependencies {
                     result.extend(d.registry_names());
                 }
@@ -177,7 +177,7 @@ fn load_semconv_repository_recursive(
             registry_name: registry_repo.registry_path_repr().to_owned(),
         });
     }
-    let registry_name = registry_repo.name().to_string();
+    let registry_name = registry_repo.name().to_owned();
     // Check for circular dependency
     if visited_registries.contains(&registry_name) {
         dependency_chain.push(registry_name.clone());
@@ -309,7 +309,7 @@ fn load_definition_repository(
 
                     // TODO - less confusing way to load semconv specs.
                     vec![SemConvRegistry::semconv_spec_from_file(
-                        &registry_repo.name(),
+                        registry_repo.name(),
                         entry.path(),
                         &unversioned_validator,
                         &versioned_validator,
@@ -414,7 +414,7 @@ mod tests {
             dependencies,
         } = loaded
         {
-            assert_eq!("acme.com/schemas", repo.name().as_ref());
+            assert_eq!("acme.com/schemas", repo.name());
             assert_eq!(dependencies.len(), 1);
             assert_eq!(specs.len(), 1);
             assert_eq!(imports.len(), 1);
@@ -425,7 +425,7 @@ mod tests {
                 dependencies,
             }] = &dependencies.as_slice()
             {
-                assert_eq!("opentelemetry.io/schemas", repo.name().as_ref());
+                assert_eq!("opentelemetry.io/schemas", repo.name());
                 assert_eq!(dependencies.len(), 0);
                 assert_eq!(specs.len(), 1);
                 assert_eq!(imports.len(), 0);

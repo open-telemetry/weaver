@@ -126,7 +126,7 @@ impl SemConvRegistry {
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.name().as_ref());
+        let mut registry = SemConvRegistry::new(registry_repo.name());
 
         for spec in semconv_specs {
             registry.add_semconv_spec(spec);
@@ -145,7 +145,7 @@ impl SemConvRegistry {
             }
 
             let schema_url =
-                SchemaUrl::try_from_name_version(&registry_repo.name(), &semconv_version).map_err(
+                SchemaUrl::try_from_name_version(registry_repo.name(), &semconv_version).map_err(
                     |e| Error::InvalidRegistryManifest {
                         path: registry_repo.registry_path_repr().into(),
                         error: e.clone(),
