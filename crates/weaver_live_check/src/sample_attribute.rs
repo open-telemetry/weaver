@@ -154,7 +154,7 @@ impl SampleAttribute {
         if let Some(result) = &mut self.live_check_result {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
-                if advice.id == FindingId::TemplateAttribute.to_string() {
+                if advice.id.parse::<FindingId>() == Ok(FindingId::TemplateAttribute) {
                     if let Some(template_name) = advice.context["template_name"].as_str() {
                         seen_attribute_name = template_name.to_owned();
                     }
