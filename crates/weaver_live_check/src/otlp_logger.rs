@@ -131,6 +131,13 @@ impl OtlpEmitter {
         logger.emit(log_record);
     }
 
+    /// Force-flush any pending log records without shutting down the provider.
+    pub fn force_flush(&self) -> Result<(), Error> {
+        self.provider.force_flush().map_err(|e| Error::OutputError {
+            error: format!("Failed to flush OTLP log provider: {e}"),
+        })
+    }
+
     /// Shutdown the provider, flushing any pending log records
     pub fn shutdown(&self) -> Result<(), Error> {
         self.provider.shutdown().map_err(|e| Error::OutputError {
