@@ -1,17 +1,16 @@
 default: pre-push
 
 install:
-    cargo install cargo-machete
-    cargo install cargo-depgraph
-    cargo install cargo-edit
-    rustup install nightly-2024-10-29   # used by cargo-check-external-types
-    cargo install cargo-check-external-types
-    cargo install git-cliff
-    cargo install cargo-tarpaulin
-    cargo install cargo-nextest --locked
+    rustup update 1.93.0
+    cargo install cargo-machete@0.9.1 --locked
+    cargo install cargo-depgraph@1.6.0 --locked
+    cargo install cargo-edit@0.13.8 --locked
+    cargo install cargo-check-external-types@0.4.0 --locked
+    cargo install git-cliff@2.12.0 --locked
+    cargo install cargo-tarpaulin@0.35.2 --locked
+    cargo install cargo-nextest@0.9.128 --locked
 
 pre-push-check:
-    rustup update
     cargo clean
     cargo update
     cargo machete
@@ -30,7 +29,7 @@ pre-push-check:
     cargo doc --workspace --no-deps --document-private-items
     cargo deny check licenses
 
-pre-push: pre-push-check validate-workspace check-external-types
+pre-push: install pre-push-check validate-workspace check-external-types
     cargo depgraph --workspace-only --dedup-transitive-deps | dot -Tsvg > docs/images/dependencies.svg
 
 upgrade:

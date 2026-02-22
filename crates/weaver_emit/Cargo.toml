@@ -23,7 +23,7 @@ serde.workspace = true
 miette.workspace = true
 
 [dev-dependencies]
-futures-util = { version = "=0.3.31", default-features = false }
+futures-util = { version = "=0.3.32", default-features = false }
 
 [lints]
 workspace = true
