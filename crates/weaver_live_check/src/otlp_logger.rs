@@ -29,7 +29,11 @@ impl ResourceDetector for WeaverResourceDetector {
     fn detect(&self) -> Resource {
         let user_set_service_name = std::env::var("OTEL_SERVICE_NAME").is_ok()
             || std::env::var("OTEL_RESOURCE_ATTRIBUTES")
-                .map(|attrs| attrs.contains(&format!("{SERVICE_NAME}=")))
+                .map(|attrs| {
+                    attrs
+                        .split(',')
+                        .any(|kv| kv.split_once('=').is_some_and(|(k, _)| k == SERVICE_NAME))
+                })
                 .unwrap_or(false);
 
         // Build the base service with optional fields that always apply.
@@ -241,8 +245,13 @@ fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<
             }
         }
         _ => {
-            if let Some(any_value) = json_value_to_any_value(value) {
-                attributes.push((Key::from(prefix.to_owned()), any_value));
+            // Skip scalar values at the root level (empty prefix) — they have
+            // no key name to use as a suffix and would produce a malformed
+            // attribute like "weaver.finding.context." with a trailing dot.
+            if !prefix.is_empty() {
+                if let Some(any_value) = json_value_to_any_value(value) {
+                    attributes.push((Key::from(prefix.to_owned()), any_value));
+                }
             }
         }
     }
@@ -403,6 +412,61 @@ mod tests {
         let json = json!({});
         let attributes = flatten_finding_context(&json);
         assert_eq!(attributes.len(), 0);
+    }
+
+    #[test]
+    fn test_flatten_json_scalar_root_is_dropped() {
+        // A scalar value at the root has no key to use as a suffix, so it
+        // should be silently dropped rather than producing an empty-key entry.
+        assert!(flatten_finding_context(&json!("hello")).is_empty());
+        assert!(flatten_finding_context(&json!(42)).is_empty());
+        assert!(flatten_finding_context(&json!(true)).is_empty());
+        assert!(flatten_finding_context(&json!(null)).is_empty());
+    }
+
+    #[test]
+    fn test_custom_finding_id_round_trip() {
+        use crate::FindingId;
+
+        let custom_id = "my_custom_rego_policy";
+        let parsed: FindingId = custom_id.parse().expect("should parse as Custom");
+        assert_eq!(parsed, FindingId::Custom(custom_id.to_owned()));
+        assert_eq!(parsed.to_string(), custom_id);
+
+        // Known IDs should not fall into Custom
+        let known: FindingId = "missing_attribute".parse().expect("should parse");
+        assert_eq!(known, FindingId::MissingAttribute);
+        assert_eq!(known.to_string(), "missing_attribute");
+    }
+
+    #[test]
+    #[serial_test::serial(env)]
+    fn test_resource_attributes_env_no_false_positive() {
+        // A key like "my.service.name=foo" should NOT match SERVICE_NAME
+        std::env::remove_var("OTEL_SERVICE_NAME");
+        std::env::set_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "my.service.name=foo,deployment.environment=prod",
+        );
+
+        let detector = WeaverResourceDetector;
+        let resource = detector.detect();
+        let attrs: Vec<_> = resource.iter().collect();
+
+        // service.name should be present (our default) because the env var
+        // contains "my.service.name", not "service.name".
+        let name_attr = attrs.iter().find(|(k, _)| k.as_str() == SERVICE_NAME);
+        assert!(
+            name_attr.is_some(),
+            "service.name should be set because 'my.service.name' is not 'service.name'"
+        );
+        assert_eq!(
+            name_attr.expect("checked above").1.as_str().as_ref(),
+            "weaver"
+        );
+
+        // Clean up
+        std::env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
     }
 
     #[test]

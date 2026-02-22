@@ -289,9 +289,7 @@ async fn test_livecheck_emit_roundtrip() {
     //    The batch exporter schedules sends on the Tokio runtime, so we yield
     //    briefly to let the batch task trigger before calling force_flush.
     tokio::time::sleep(Duration::from_millis(1500)).await;
-    emitter
-        .force_flush()
-        .expect("Failed to flush OtlpEmitter");
+    emitter.force_flush().expect("Failed to flush OtlpEmitter");
     emitter.shutdown().expect("Failed to shutdown OtlpEmitter");
 
     // Brief delay for weaver to finish processing the received log records.
