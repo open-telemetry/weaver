@@ -3,7 +3,7 @@
 Live check is a developer tool for assessing sample telemetry and providing findings for improvement.
 
 > **Dog-fooding**: Live Check uses Weaver's own semantic convention model and template engine to
-> define its finding schema, generate Rust types and constants, and generate reference
+> define its `finding` schema, generate Rust types and constants, and generate reference
 > documentation — all from [`model/live_check.yaml`](model/live_check.yaml). An integration test
 > validates the emitted OTLP log records against the model, catching any drift between the
 > generated code and the schema. See [Dog-fooding](docs/dog-fooding.md) for details.

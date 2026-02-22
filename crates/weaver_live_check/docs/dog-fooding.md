@@ -1,9 +1,6 @@
-# Dog-fooding: Weaver Generates Its Own Code and Documentation
+# Dog-fooding: Live-check Generates Its Own Code and Docs, and Live-checks Itself
 
-Weaver Live Check uses Weaver's own semantic convention model format and template engine to
-define the finding schema, generate Rust types and constants, and generate reference
-documentation. This is a dog-fooding exercise that proves Weaver's code generation
-capabilities work on real-world models.
+Weaver Live-check uses Weaver's own semantic convention model format and template engine to define the `finding` schema, generate Rust types and constants, and generate reference documentation. An integration test validates the emitted OTLP log records against the model, catching any drift between the generated code and the schema.
 
 ## Model
 
@@ -22,7 +19,7 @@ The model uses the version 2 schema format.
 
 ### Markdown documentation
 
-Weaver Jinja templates at [`../templates/markdown/`](../templates/markdown/)
+Weaver Minijinja templates at [`../templates/markdown/`](../templates/markdown/)
 generate Markdown documentation from the resolved registry:
 
 - **`weaver.yaml`** — Template configuration: single-file output using `filter: .` to pass the
@@ -34,7 +31,7 @@ generate Markdown documentation from the resolved registry:
 
 ### Rust code generation
 
-Jinja templates at [`../templates/rust/`](../templates/rust/) generate all
+Minijinja templates at [`../templates/rust/`](../templates/rust/) generate all
 finding-related Rust types, constants, entity structs, and log record builders from the model:
 
 - **`weaver.yaml`** — Template configuration: three single-file outputs producing
@@ -59,10 +56,6 @@ finding-related Rust types, constants, entity structs, and log record builders f
   - **Rust structs** with identity fields (required) and description fields (optional).
   - **`to_resource_attributes()`** methods that convert the struct to `Vec<KeyValue>`.
   - **Rust enums** for any entity attributes with enum members (e.g., `SdkLanguage`).
-
-The templates use generic heuristics (no hardcoded attribute keys) to derive enum names
-from the attribute key structure, map model types to Rust types, and detect extensible
-enums from model annotations.
 
 ## Generating
 
@@ -154,4 +147,4 @@ The test:
    `statistics.advice_level_counts`
 
 If a template or model change breaks the OTLP emission format, this test catches it
-immediately — any violations are printed with their messages for fast debugging.
+immediately — any violations are printed with their messages for fast debugging. The coverage statistic is also checked to ensure all attributes and events are represented in the emitted findings, preventing silent drift between the model and the emitted data.
