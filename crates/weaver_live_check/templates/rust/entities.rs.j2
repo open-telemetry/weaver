@@ -33,8 +33,10 @@ use opentelemetry::KeyValue;
 {% endfor %}
 
 /// {{ entity.brief | trim }}
+{% if entity.note is defined and entity.note | trim | length > 0 %}
 ///
 {{ macros.doc_note(entity.note) }}
+{% endif %}
 #[derive(Debug, Clone)]
 pub struct {{ struct_name }} {
 {% for attr in entity.identity %}

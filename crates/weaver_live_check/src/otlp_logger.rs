@@ -223,7 +223,7 @@ fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<
                 let new_prefix = if prefix.is_empty() {
                     key.clone()
                 } else {
-                    format!("{}.{}", prefix, key)
+                    format!("{prefix}.{key}")
                 };
                 flatten_json_recursive(val, &new_prefix, attributes);
             }
@@ -233,7 +233,7 @@ fn flatten_json_recursive(value: &JsonValue, prefix: &str, attributes: &mut Vec<
                 let new_prefix = if prefix.is_empty() {
                     idx.to_string()
                 } else {
-                    format!("{}.{}", prefix, idx)
+                    format!("{prefix}.{idx}")
                 };
                 flatten_json_recursive(val, &new_prefix, attributes);
             }
@@ -646,6 +646,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_weaver_resource_detector_default() {
         use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
 
@@ -675,6 +676,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_weaver_resource_detector_with_user_service_name() {
         use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
 
@@ -705,6 +707,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_weaver_resource_detector_with_resource_attributes_env() {
         use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
 

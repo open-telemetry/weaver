@@ -4,10 +4,29 @@
 //! instance that uses the live_check model as its registry. Validates that the emitted
 //! OTLP log records conform to the model (zero violations).
 
-use std::process::Command as StdCommand;
+use std::process::{Child, Command as StdCommand};
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
+
+/// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
+struct ChildGuard(Option<Child>);
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        if let Some(ref mut child) = self.0 {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+impl ChildGuard {
+    /// Take ownership of the child, disabling the kill-on-drop behavior.
+    fn take(&mut self) -> Child {
+        self.0.take().expect("child already taken")
+    }
+}
 
 use serde_json::json;
 use weaver_checker::{FindingLevel, PolicyFinding};
@@ -111,25 +130,27 @@ async fn test_livecheck_emit_roundtrip() {
     let model_dir = format!("{}/model", env!("CARGO_MANIFEST_DIR"));
     #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
     let weaver_bin = assert_cmd::cargo::cargo_bin("weaver");
-    let mut live_check_cmd = StdCommand::new(weaver_bin)
-        .args([
-            "registry",
-            "live-check",
-            "-r",
-            &model_dir,
-            "--format",
-            "json",
-            "--output",
-            "http",
-            "--otlp-grpc-port",
-            &grpc_port.to_string(),
-            "--admin-port",
-            &admin_port.to_string(),
-            "--inactivity-timeout",
-            "15",
-        ])
-        .spawn()
-        .expect("Failed to start weaver live-check process");
+    let mut guard = ChildGuard(Some(
+        StdCommand::new(weaver_bin)
+            .args([
+                "registry",
+                "live-check",
+                "-r",
+                &model_dir,
+                "--format",
+                "json",
+                "--output",
+                "http",
+                "--otlp-grpc-port",
+                &grpc_port.to_string(),
+                "--admin-port",
+                &admin_port.to_string(),
+                "--inactivity-timeout",
+                "15",
+            ])
+            .spawn()
+            .expect("Failed to start weaver live-check process"),
+    ));
 
     // 3. Wait for the health endpoint to respond
     wait_for_health(admin_port);
@@ -277,7 +298,9 @@ async fn test_livecheck_emit_roundtrip() {
 
     // 7. Wait for weaver to exit
     //    Exit code may be non-zero if there are violations — we check that separately below.
-    let _status = live_check_cmd
+    //    Take the child out of the guard so it won't be killed again on drop.
+    let _status = guard
+        .take()
         .wait()
         .expect("Failed to wait for weaver live-check to exit");
 

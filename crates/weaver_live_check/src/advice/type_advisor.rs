@@ -115,32 +115,32 @@ fn check_attributes<T: CheckableAttribute>(
         };
 
         if !is_present {
-            let (advice_type, advice_level, message) = match semconv_attribute.requirement_level() {
+            let (finding_id, advice_level, message) = match semconv_attribute.requirement_level() {
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
-                    FindingId::RequiredAttributeNotPresent.to_string(),
+                    FindingId::RequiredAttributeNotPresent,
                     FindingLevel::Violation,
-                    format!("Required attribute '{}' is not present.", key),
+                    format!("Required attribute '{key}' is not present."),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
                 | RequirementLevel::Recommended { .. } => (
-                    FindingId::RecommendedAttributeNotPresent.to_string(),
+                    FindingId::RecommendedAttributeNotPresent,
                     FindingLevel::Improvement,
-                    format!("Recommended attribute '{}' is not present.", key),
+                    format!("Recommended attribute '{key}' is not present."),
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
-                    FindingId::OptInAttributeNotPresent.to_string(),
+                    FindingId::OptInAttributeNotPresent,
                     FindingLevel::Information,
-                    format!("Opt-in attribute '{}' is not present.", key),
+                    format!("Opt-in attribute '{key}' is not present."),
                 ),
                 RequirementLevel::ConditionallyRequired { .. } => (
-                    FindingId::ConditionallyRequiredAttributeNotPresent.to_string(),
+                    FindingId::ConditionallyRequiredAttributeNotPresent,
                     FindingLevel::Information,
-                    format!("Conditionally required attribute '{}' is not present.", key),
+                    format!("Conditionally required attribute '{key}' is not present."),
                 ),
             };
             advice_list.push(PolicyFinding {
-                id: advice_type,
+                id: finding_id.into(),
                 context: json!({
                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: key.to_owned()
                 }),

@@ -77,13 +77,16 @@ This produces [`finding.md`](finding.md).
 ### Rust code
 
 ```sh
-cargo run -- registry generate \
+./target/release/weaver registry generate \
   --registry crates/weaver_live_check/model/ \
   --templates crates/weaver_live_check/templates/ \
   --v2 \
   rust \
   crates/weaver_live_check/src/
 ```
+
+> **Note**: Use the release binary (`./target/release/weaver`) for Rust code generation, not
+> `cargo run`, to avoid bootstrapping issues when the generated files are in an invalid state.
 
 This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs),
 [`../src/generated/events.rs`](../src/generated/events.rs), and

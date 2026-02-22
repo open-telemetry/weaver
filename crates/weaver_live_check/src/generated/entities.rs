@@ -97,9 +97,6 @@ pub const TELEMETRY_SDK_NAME: &str = "telemetry.sdk.name";
 pub const TELEMETRY_SDK_VERSION: &str = "telemetry.sdk.version";
 
 /// The telemetry SDK used to capture data recorded by the instrumentation libraries.
-///
-///
-
 #[derive(Debug, Clone)]
 pub struct TelemetrySdk {
     /// The language of the telemetry SDK.
