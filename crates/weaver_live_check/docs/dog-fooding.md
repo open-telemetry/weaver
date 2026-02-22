@@ -34,11 +34,13 @@ generate Markdown documentation from the resolved registry:
 
 ### Rust code generation
 
-Two Jinja templates at [`../templates/rust/`](../templates/rust/) generate all
-finding-related Rust types, constants, and log record builders from the model:
+Jinja templates at [`../templates/rust/`](../templates/rust/) generate all
+finding-related Rust types, constants, entity structs, and log record builders from the model:
 
-- **`weaver.yaml`** — Template configuration: two single-file outputs producing
-  `generated/attributes.rs` and `generated/events.rs`.
+- **`weaver.yaml`** — Template configuration: three single-file outputs producing
+  `generated/attributes.rs`, `generated/events.rs`, and `generated/entities.rs`.
+- **`macros.j2`** — Shared macro library for attribute constants, Rust type mapping,
+  enum definitions, and doc comments.
 - **`attributes.rs.j2`** — Iterates all `weaver.finding.*` attributes and generates:
   - **Attribute name constants** for every attribute (e.g., `WEAVER_FINDING_ID`,
     `WEAVER_FINDING_SAMPLE_TYPE`).
@@ -51,6 +53,12 @@ finding-related Rust types, constants, and log record builders from the model:
     event name, severity, body, and all attributes. Parameters use the generated enum types
     for type safety. Template-type attributes accept `&[(Key, AnyValue)]` slices with
     suffix keys that get prefixed with the attribute's namespace constant.
+- **`entities.rs.j2`** — Iterates all imported entities (e.g., `service`, `telemetry.sdk`)
+  and generates:
+  - **Attribute key constants** for each entity attribute.
+  - **Rust structs** with identity fields (required) and description fields (optional).
+  - **`to_resource_attributes()`** methods that convert the struct to `Vec<KeyValue>`.
+  - **Rust enums** for any entity attributes with enum members (e.g., `SdkLanguage`).
 
 The templates use generic heuristics (no hardcoded attribute keys) to derive enum names
 from the attribute key structure, map model types to Rust types, and detect extensible
@@ -84,15 +92,17 @@ cargo run -- registry generate \
   crates/weaver_live_check/src/
 ```
 
-This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs) and
-[`../src/generated/events.rs`](../src/generated/events.rs).
+This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs),
+[`../src/generated/events.rs`](../src/generated/events.rs), and
+[`../src/generated/entities.rs`](../src/generated/entities.rs).
 
 ## How It Works
 
 1. The `registry generate` command loads the model from `live_check.yaml` and resolves it
    against the registry manifest (including the OTel dependency).
 2. The `--v2` flag produces the v2 registry structure where attributes are accessed via
-   `ctx.attributes` (with a `key` field) and events via `ctx.signals.events`.
+   `ctx.registry.attributes`, events via `ctx.registry.events`, and entities via
+   `ctx.registry.entities`.
 3. The `filter: .` in `weaver.yaml` passes the entire resolved registry as the template context.
 4. `attributes.rs.j2` iterates over all attributes, generating constants for each one and
    enums for those with `type.members`. It derives enum names from the attribute key structure
@@ -100,9 +110,12 @@ This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs)
 5. `events.rs.j2` iterates over all events, generating event name constants and type-safe
    `populate_*_log_record` functions that set the event name, severity, body, and all
    attributes on a `LogRecord`.
-6. The generated `attributes.rs` module provides `FindingId`, `SampleType`, `SignalType`
-   enums and `WEAVER_FINDING_*` constants. The generated `events.rs` module provides log
-   record builders, replacing hand-written definitions and eliminating hardcoded string
+6. `entities.rs.j2` iterates over all imported entities (from the `imports.entities` list in
+   the model), generating structs with identity/description fields, attribute key constants,
+   `to_resource_attributes()` methods, and any associated enums.
+7. The generated modules provide `FindingId`, `SampleType`, `SignalType` enums,
+   `WEAVER_FINDING_*` constants, log record builders, and entity structs (`Service`,
+   `TelemetrySdk`) — replacing hand-written definitions and eliminating hardcoded string
    literals throughout the crate.
 
 ## Integration Test: OTLP Emission Validation
@@ -111,15 +124,22 @@ The integration test at [`../tests/livecheck_emit.rs`](../tests/livecheck_emit.r
 dog-fooding loop by validating that the OTLP log records emitted by `OtlpEmitter` conform to
 the live_check model.
 
-```
-weaver live-check (validator, registry = model/)
-    ^ gRPC (receives OTLP finding logs)
-    |
-integration test
-    creates OtlpEmitter::new_grpc(endpoint)
-    emits findings using generated types
-    |
-    v POST /stop -> JSON report -> assert zero violations
+```mermaid
+sequenceDiagram
+    participant Test as Integration Test
+    participant Weaver as weaver live-check<br/>(registry = model/)
+
+    Test->>Weaver: spawn process (dynamic ports)
+    loop Poll until ready
+        Test->>Weaver: GET /health
+        Weaver-->>Test: 200 OK
+    end
+    Note over Test: Create OtlpEmitter
+    Test->>Weaver: gRPC OTLP log records<br/>(5 findings, all levels)
+    Note over Test: Shutdown emitter
+    Test->>Weaver: POST /stop
+    Weaver-->>Test: JSON report
+    Note over Test: Assert zero violations
 ```
 
 The test:
