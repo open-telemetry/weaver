@@ -32,7 +32,7 @@ use super::attributes::*;
 /// Event name for: {{ event.brief | lower }}
 pub const {{ event.name | screaming_snake_case }}: &str = "{{ event.name }}";
 
-/// Populate a log record for the [`{{ event.name }}`] event.
+/// Populate a log record for the `{{ event.name }}` event.
 ///
 {{ macros.doc_note(event.note) -}}
 pub fn populate_{{ event_short }}_log_record(

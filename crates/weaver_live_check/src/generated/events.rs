@@ -27,7 +27,7 @@ use super::attributes::*;
 /// Event name for: a semantic convention validation finding emitted by weaver live check
 pub const WEAVER_LIVE_CHECK_FINDING: &str = "weaver.live_check.finding";
 
-/// Populate a log record for the [`weaver.live_check.finding`] event.
+/// Populate a log record for the `weaver.live_check.finding` event.
 ///
 /// This event is emitted when Weaver Live Check validates telemetry samples against
 /// OpenTelemetry semantic conventions and detects violations, improvement opportunities,
