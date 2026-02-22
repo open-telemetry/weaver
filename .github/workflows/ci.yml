@@ -67,6 +67,9 @@ jobs:
         run: cargo test --workspace --no-default-features
       - name: History check
         run: cargo xtask history
+      - name: Check generated files are up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo xtask check-generated
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
