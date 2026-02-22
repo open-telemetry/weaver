@@ -285,12 +285,11 @@ async fn test_livecheck_emit_roundtrip() {
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }
 
-    // 5. Shutdown emitter to flush pending logs
-    //    Give the batch exporter time to send before we trigger shutdown.
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    // 5. Shutdown emitter — this flushes the batch exporter synchronously,
+    //    ensuring all pending log records are sent to the gRPC endpoint.
     emitter.shutdown().expect("Failed to shutdown OtlpEmitter");
 
-    // Small delay to ensure logs are received by weaver
+    // Brief delay for weaver to finish processing the received log records.
     sleep(Duration::from_millis(500));
 
     // 6. Collect report via POST /stop

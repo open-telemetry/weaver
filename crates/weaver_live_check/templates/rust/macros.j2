@@ -1,6 +1,12 @@
 {#- Derive an enum name from an attribute key.
     Uses the penultimate and last segments for single-word last segments,
-    or just the last segment if it contains an underscore. -#}
+    or just the last segment if it contains an underscore.
+    For example:
+      "weaver.finding.id"           → penultimate="finding", last="id"           → FindingId
+      "weaver.finding.sample_type"  → last="sample_type" (has underscore)        → SampleType
+    This heuristic works well for 2–3 segment keys. For deeply nested keys
+    it only considers the last two segments, which may produce collisions
+    if multiple enums share the same suffix pair. -#}
 {%- macro enum_name(attr) -%}
 {%- set last_segment = attr.key | split(".") | last -%}
 {%- set prefix_key = attr.key | replace("." ~ last_segment, "") -%}

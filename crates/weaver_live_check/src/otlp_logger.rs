@@ -3,7 +3,7 @@
 //! OTLP logger provider for emitting policy findings as log records.
 
 use opentelemetry::logs::{AnyValue, Logger, LoggerProvider, Severity};
-use opentelemetry::Key;
+use opentelemetry::{Key, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::resource::ResourceDetector;
@@ -12,7 +12,9 @@ use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 
 use crate::generated::attributes::{FindingId, FindingLevel as GeneratedFindingLevel, SignalType};
-use crate::generated::entities::{Service, ServiceCriticality, SERVICE_NAME};
+use crate::generated::entities::{
+    ServiceCriticality, SERVICE_CRITICALITY, SERVICE_NAME, SERVICE_VERSION,
+};
 use crate::generated::events;
 use crate::sample_attribute::SampleAttribute;
 use crate::{Error, Sample, SampleRef};
@@ -25,30 +27,23 @@ struct WeaverResourceDetector;
 
 impl ResourceDetector for WeaverResourceDetector {
     fn detect(&self) -> Resource {
-        let has_service_name = std::env::var("OTEL_SERVICE_NAME").is_ok()
+        let user_set_service_name = std::env::var("OTEL_SERVICE_NAME").is_ok()
             || std::env::var("OTEL_RESOURCE_ATTRIBUTES")
                 .map(|attrs| attrs.contains(&format!("{SERVICE_NAME}=")))
                 .unwrap_or(false);
 
-        let service = Service {
-            name: if has_service_name {
-                // User provided service.name via env — don't override it
-                String::new()
-            } else {
-                "weaver".to_owned()
-            },
-            version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-            criticality: Some(ServiceCriticality::Low),
-        };
+        // Build the base service with optional fields that always apply.
+        let mut attrs = Vec::new();
+        if !user_set_service_name {
+            attrs.push(KeyValue::new(SERVICE_NAME, "weaver"));
+        }
+        attrs.push(KeyValue::new(
+            SERVICE_CRITICALITY,
+            ServiceCriticality::Low.to_string(),
+        ));
+        attrs.push(KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")));
 
-        Resource::builder_empty()
-            .with_attributes(
-                service
-                    .to_resource_attributes()
-                    .into_iter()
-                    .filter(|kv| !kv.value.as_str().is_empty()),
-            )
-            .build()
+        Resource::builder_empty().with_attributes(attrs).build()
     }
 }
 
@@ -648,7 +643,7 @@ mod tests {
     #[test]
     #[serial_test::serial(env)]
     fn test_weaver_resource_detector_default() {
-        use crate::generated::entities::{SERVICE_NAME, SERVICE_VERSION};
+        use crate::generated::entities::{SERVICE_CRITICALITY, SERVICE_NAME, SERVICE_VERSION};
 
         // Remove env vars to ensure we get defaults
         std::env::remove_var("OTEL_SERVICE_NAME");
@@ -667,6 +662,12 @@ mod tests {
             .find(|(k, _)| k.as_str() == SERVICE_NAME)
             .expect("should have service.name");
         assert_eq!(name_attr.1.as_str().as_ref(), "weaver");
+
+        let criticality_attr = attrs
+            .iter()
+            .find(|(k, _)| k.as_str() == SERVICE_CRITICALITY)
+            .expect("should have service.criticality");
+        assert_eq!(criticality_attr.1.as_str().as_ref(), "low");
 
         let version_attr = attrs
             .iter()
@@ -688,11 +689,11 @@ mod tests {
 
         let attrs: Vec<_> = resource.iter().collect();
 
-        // Should NOT include service.name (empty string filtered out)
+        // Should NOT include service.name (user provided their own)
         let name_attr = attrs.iter().find(|(k, _)| k.as_str() == SERVICE_NAME);
         assert!(
             name_attr.is_none(),
-            "service.name should be filtered out when user provides their own"
+            "service.name should not be set when user provides their own"
         );
 
         // Should still include service.version
@@ -726,7 +727,7 @@ mod tests {
         let name_attr = attrs.iter().find(|(k, _)| k.as_str() == SERVICE_NAME);
         assert!(
             name_attr.is_none(),
-            "service.name should be filtered out when user provides via OTEL_RESOURCE_ATTRIBUTES"
+            "service.name should not be set when user provides via OTEL_RESOURCE_ATTRIBUTES"
         );
 
         // Should still include service.version
