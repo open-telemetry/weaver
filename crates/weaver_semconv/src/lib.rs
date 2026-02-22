@@ -296,14 +296,33 @@ pub enum Error {
         error: String,
     },
 
-    /// This indicates the file version used is not yet stable.
-    #[error("Version `{version}` schema file format is not yet stable: {provenance}")]
+    /// This indicates the file format (version) used is not yet stable.
+    #[error("File format `{file_format}` is not yet stable: {provenance}")]
     #[diagnostic(severity(Warning))]
-    UnstableFileVersion {
-        /// The version specified.
-        version: String,
+    UnstableFileFormat {
+        /// The file_format specified.
+        file_format: String,
         /// The source using that version.
         provenance: String,
+    },
+
+    /// This indicates the deprecated 'version' field is being used instead of 'file_format'.
+    #[error("The 'version' field is deprecated and will be removed in a future version. Please use 'file_format: definition/2' instead: {provenance}")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedVersionField {
+        /// The source using the deprecated field.
+        provenance: String,
+    },
+
+    /// This indicates the file format (version) used is not yet stable.
+    #[error("Invalid file format: `{field_key}: {field_value}`. Expected 'file_format: definition/1' or 'file_format: definition/2'.")]
+    #[diagnostic(severity(Error))]
+    InvalidFileFormat {
+        /// The file_format or version field key.
+        field_key: String,
+
+        /// The version specified.
+        field_value: String,
     },
 
     /// This indicates that deprecated property is invalid

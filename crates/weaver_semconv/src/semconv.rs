@@ -8,31 +8,46 @@ use crate::provenance::Provenance;
 use crate::v2::SemConvSpecV2;
 use crate::Error;
 use schemars::JsonSchema;
+use serde::de;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](/schemas/semconv-syntax.md)
-/// A semconv file either follows version 1 or 2.  Default is version 1.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+/// A semconv file either follows file_format 1 or 2.  Default is file_format 1.
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum SemConvSpec {
-    /// Semantic convention specification that includes a version tag.
+    /// Semantic convention specification that includes a file_format tag.
     WithVersion(Versioned),
-    /// Semantic convention specification that does NOT include a version tag.
+    /// Semantic convention specification that does NOT include a file_format tag.
     NoVersion(SemConvSpecV1),
+}
+
+impl<'de> Deserialize<'de> for SemConvSpec {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // this custom deserialization is used in tests, in real
+        // use cases, we read the file and use from_yaml_value directly
+        // so we can provide better error messages with provenance information.
+        let value = serde_yaml::Value::deserialize(deserializer)?;
+        from_yaml_value(value, "<in-memory>", None, None, None, &mut Vec::new())
+            .map_err(|e| de::Error::custom(e.to_string()))
+    }
 }
 
 /// A versioned semantic convention file.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(tag = "version")]
+#[serde(tag = "file_format")]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
-    #[serde(rename = "1")]
+    #[serde(rename = "definition/1")]
     V1(SemConvSpecV1),
     /// Version 2 of the semantic convention schema.
-    #[serde(rename = "2")]
+    #[serde(rename = "definition/2")]
     V2(SemConvSpecV2),
 }
 
@@ -114,7 +129,7 @@ impl SemConvSpecV1 {
 }
 
 impl SemConvSpec {
-    /// Converts this SemconvSpec into the version 1 specification.
+    /// Converts this SemconvSpec into the file_format 1 specification.
     ///
     /// name: A unique identifier to use for synthetic group ids in this semconv, if needed.
     #[must_use]
@@ -167,18 +182,162 @@ fn provenance_path_to_name(path: &str) -> String {
     result
 }
 
-impl SemConvSpecWithProvenance {
-    /// True if this specification contains V2 version.
-    fn is_v2(&self) -> bool {
-        matches!(
-            self,
-            SemConvSpecWithProvenance {
-                spec: SemConvSpec::WithVersion(Versioned::V2(..)),
-                ..
-            }
-        )
+// Helper functions for parsing semantic convention specs
+
+fn check_version_and_determine_format(
+    yaml_value: &serde_yaml::Value,
+    provenance: &str,
+    warnings: &mut Vec<Error>,
+) -> (Option<String>, Option<String>, bool, bool) {
+    use serde_yaml::Value;
+
+    // Check for deprecated version field
+    let version = yaml_value
+        .get(Value::String("version".to_owned()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned());
+
+    if version.is_some() {
+        warnings.push(Error::DeprecatedVersionField {
+            provenance: provenance.to_owned(),
+        });
     }
 
+    let file_format = yaml_value
+        .get(Value::String("file_format".to_owned()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned());
+
+    let is_v2 = file_format == Some("definition/2".to_owned()) || version == Some("2".to_owned());
+    let is_v1 = file_format == Some("definition/1".to_owned()) || version == Some("1".to_owned());
+
+    if is_v2 {
+        warnings.push(Error::UnstableFileFormat {
+            file_format: "definition/2".to_owned(),
+            provenance: provenance.to_owned(),
+        });
+    }
+
+    (file_format, version, is_v1, is_v2)
+}
+
+fn clean_yaml_mapping(
+    yaml_value: serde_yaml::Value,
+    provenance: &str,
+) -> Result<serde_yaml::Value, Error> {
+    use serde_yaml::Value;
+
+    let mut mapping = match yaml_value {
+        Value::Mapping(m) => m,
+        o => {
+            return Err(Error::DeserializationError {
+                path_or_url: provenance.to_owned(),
+                error: format!("Expected a YAML mapping at the root, but found: {o:?}"),
+            })
+        }
+    };
+
+    _ = mapping.remove(Value::String("file_format".to_owned()));
+    _ = mapping.remove(Value::String("version".to_owned()));
+    Ok(Value::Mapping(mapping))
+}
+
+fn deserialize_v2(
+    cleaned: &serde_yaml::Value,
+    provenance: &str,
+    validator: Option<&JsonSchemaValidator>,
+) -> Result<SemConvSpec, Error> {
+    match serde_yaml::from_value::<SemConvSpecV2>(cleaned.clone()) {
+        Ok(v2) => Ok(SemConvSpec::WithVersion(Versioned::V2(v2))),
+        Err(e) => {
+            let error_string = e.to_string();
+            if let Some(v) = validator {
+                v.validate_yaml(cleaned.clone(), provenance, e)?;
+            }
+            Err(Error::DeserializationError {
+                path_or_url: provenance.to_owned(),
+                error: error_string,
+            })
+        }
+    }
+}
+
+fn deserialize_v1(
+    cleaned: &serde_yaml::Value,
+    provenance: &str,
+    validator: Option<&JsonSchemaValidator>,
+) -> Result<SemConvSpec, Error> {
+    match serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone()) {
+        Ok(v1) => Ok(SemConvSpec::WithVersion(Versioned::V1(v1))),
+        Err(e) => {
+            let error_string = e.to_string();
+            if let Some(v) = validator {
+                v.validate_yaml(cleaned.clone(), provenance, e)?;
+            }
+            Err(Error::DeserializationError {
+                path_or_url: provenance.to_owned(),
+                error: error_string,
+            })
+        }
+    }
+}
+
+fn deserialize_unversioned(
+    cleaned: &serde_yaml::Value,
+    provenance: &str,
+    validator: Option<&JsonSchemaValidator>,
+) -> Result<SemConvSpec, Error> {
+    match serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone()) {
+        Ok(v1) => Ok(SemConvSpec::NoVersion(v1)),
+        Err(e) => {
+            let error_string = e.to_string();
+            if let Some(v) = validator {
+                v.validate_yaml(cleaned.clone(), provenance, e)?;
+            }
+            Err(Error::DeserializationError {
+                path_or_url: provenance.to_owned(),
+                error: error_string,
+            })
+        }
+    }
+}
+
+fn from_yaml_value(
+    yaml_value: serde_yaml::Value,
+    provenance: &str,
+    unversioned_validator: Option<&JsonSchemaValidator>,
+    versioned_validator_v1: Option<&JsonSchemaValidator>,
+    versioned_validator_v2: Option<&JsonSchemaValidator>,
+    warnings: &mut Vec<Error>,
+) -> Result<SemConvSpec, Error> {
+    let (file_format, version, is_v1, is_v2) =
+        check_version_and_determine_format(&yaml_value, provenance, warnings);
+
+    let cleaned = clean_yaml_mapping(yaml_value, provenance)?;
+
+    if is_v2 {
+        deserialize_v2(&cleaned, provenance, versioned_validator_v2)
+    } else if is_v1 {
+        deserialize_v1(&cleaned, provenance, versioned_validator_v1)
+    } else if file_format.is_none() && version.is_none() {
+        deserialize_unversioned(&cleaned, provenance, unversioned_validator)
+    } else {
+        Err(Error::InvalidFileFormat {
+            field_key: if version.is_some() {
+                "version".to_owned()
+            } else {
+                "file_format".to_owned()
+            },
+            field_value: version
+                .as_deref()
+                .or(file_format.as_deref())
+                .unwrap_or("unknown")
+                .to_owned(),
+        })
+    }
+}
+
+impl SemConvSpecWithProvenance {
     /// Converts this semconv specification into version 1, preserving provenance.
     #[must_use]
     pub fn into_v1(self) -> SemConvSpecV1WithProvenance {
@@ -209,13 +368,15 @@ impl SemConvSpecWithProvenance {
         registry_id: &str,
         path: P,
         unversioned_validator: &JsonSchemaValidator,
-        versioned_validator: &JsonSchemaValidator,
+        versioned_validator_v1: &JsonSchemaValidator,
+        versioned_validator_v2: &JsonSchemaValidator,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
         Self::from_file_with_mapped_path(
             registry_id,
             path,
             unversioned_validator,
-            versioned_validator,
+            versioned_validator_v1,
+            versioned_validator_v2,
             |path| path,
         )
     }
@@ -233,68 +394,41 @@ impl SemConvSpecWithProvenance {
         registry_id: &str,
         path: P,
         unversioned_validator: &JsonSchemaValidator,
-        versioned_validator: &JsonSchemaValidator,
+        versioned_validator_v1: &JsonSchemaValidator,
+        versioned_validator_v2: &JsonSchemaValidator,
         path_fixer: F,
     ) -> WResult<SemConvSpecWithProvenance, Error>
     where
         P: AsRef<Path>,
         F: Fn(String) -> String,
     {
-        fn from_file_or_fatal(
-            path: &Path,
-            provenance: &str,
-            unversioned_validator: &JsonSchemaValidator,
-            versioned_validator: &JsonSchemaValidator,
-        ) -> Result<SemConvSpec, Error> {
-            use serde_yaml::Value;
-            use std::io::Seek;
-
-            // Open file
-            let mut semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
+        fn read_yaml_file(path: &Path, provenance: &str) -> Result<serde_yaml::Value, Error> {
+            let semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
                 path_or_url: provenance.to_owned(),
                 error: e.to_string(),
             })?;
 
-            // Try direct deserialization first
-            match serde_yaml::from_reader::<_, SemConvSpec>(&mut semconv_file) {
-                Ok(spec) => Ok(spec),
-                Err(e) => {
-                    // If serde fails, try to get better errors via jsonschema
-                    // Rewind file for second read
-                    _ = semconv_file.rewind().ok();
-
-                    let original_error = e.to_string();
-                    let value: Result<Value, _> = serde_yaml::from_reader(&mut semconv_file);
-                    if let Ok(yaml_value) = value {
-                        // TODO - Check if we should use versioned or unversioned validator.
-                        if yaml_value
-                            .as_mapping()
-                            .and_then(|m| m.get("version"))
-                            .map(|v| v.is_string())
-                            .unwrap_or(false)
-                        {
-                            // Use versioned validator.
-                            versioned_validator.validate_yaml(yaml_value, provenance, e)?;
-                        } else {
-                            unversioned_validator.validate_yaml(yaml_value, provenance, e)?;
-                        }
-                    }
-
-                    // Fallback: return original serde error
-                    Err(Error::DeserializationError {
-                        path_or_url: provenance.to_owned(),
-                        error: original_error,
-                    })
-                }
-            }
+            serde_yaml::from_reader(semconv_file).map_err(|e| Error::DeserializationError {
+                path_or_url: provenance.to_owned(),
+                error: e.to_string(),
+            })
         }
+
         let path = path.as_ref().display().to_string();
         let provenance = Provenance::new(registry_id, &path_fixer(path.clone()));
-        let raw_spec = match from_file_or_fatal(
-            path.as_ref(),
+        let yaml_value = match read_yaml_file(path.as_ref(), &path) {
+            Ok(value) => value,
+            Err(e) => return WResult::FatalErr(e),
+        };
+        let mut warnings = Vec::new();
+
+        let raw_spec = match from_yaml_value(
+            yaml_value,
             &path,
-            unversioned_validator,
-            versioned_validator,
+            Some(unversioned_validator),
+            Some(versioned_validator_v1),
+            Some(versioned_validator_v2),
+            &mut warnings,
         ) {
             Ok(semconv_spec) => {
                 // Important note: the resolution process expects this step of validation to be done for
@@ -303,33 +437,22 @@ impl SemConvSpecWithProvenance {
             }
             Err(e) => WResult::FatalErr(e),
         };
-        let result = raw_spec.map(|spec| SemConvSpecWithProvenance { spec, provenance });
-        // Check for unstable versions and add warnings.
-        match result {
-            WResult::Ok(spec) => {
-                if spec.is_v2() {
-                    let nfe = Error::UnstableFileVersion {
-                        version: "2".to_owned(),
-                        provenance: spec.provenance.path.clone(),
-                    };
-                    WResult::with_non_fatal_errors(spec, vec![nfe])
-                } else {
-                    WResult::Ok(spec)
-                }
-            }
-            WResult::OkWithNFEs(spec, errs) => {
-                if spec.is_v2() {
-                    let mut nfes = errs;
-                    nfes.push(Error::UnstableFileVersion {
-                        version: "2".to_owned(),
-                        provenance: spec.provenance.path.clone(),
-                    });
-                    WResult::OkWithNFEs(spec, nfes)
-                } else {
+        let result = raw_spec.map(|spec| SemConvSpecWithProvenance {
+            spec,
+            provenance: provenance.clone(),
+        });
+        if warnings.is_empty() {
+            result
+        } else {
+            // Add warnings.
+            match result {
+                WResult::Ok(spec) => WResult::OkWithNFEs(spec, warnings),
+                WResult::OkWithNFEs(spec, mut errs) => {
+                    errs.extend(warnings);
                     WResult::OkWithNFEs(spec, errs)
                 }
+                WResult::FatalErr(err) => WResult::FatalErr(err),
             }
-            WResult::FatalErr(err) => WResult::FatalErr(err),
         }
     }
 
@@ -385,7 +508,7 @@ mod tests {
         let path = PathBuf::from("data/database.yaml");
 
         let semconv_spec =
-            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
+            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator, &validator)
                 .into_result_failing_non_fatal()
                 .unwrap();
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 10);
@@ -393,7 +516,7 @@ mod tests {
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
         let semconv_spec =
-            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
+            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator, &validator)
                 .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
@@ -401,7 +524,7 @@ mod tests {
         // Invalid file structure
         let path = PathBuf::from("data/invalid/invalid-semconv.yaml");
         let semconv_spec =
-            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator)
+            SemConvSpecWithProvenance::from_file("test", path, &validator, &validator, &validator)
                 .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
@@ -593,7 +716,7 @@ mod tests {
         let validator = JsonSchemaValidator::new_all_versions();
         let path = PathBuf::from("data/database.yaml");
         let semconv_spec =
-            SemConvSpecWithProvenance::from_file("main", &path, &validator, &validator)
+            SemConvSpecWithProvenance::from_file("main", &path, &validator, &validator, &validator)
                 .into_result_failing_non_fatal()
                 .unwrap();
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 10);
@@ -665,7 +788,7 @@ mod tests {
         }));
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
-            r#"version: '2'
+            r#"file_format: definition/2
 attributes:
 - key: test.key
   type: int
@@ -690,17 +813,16 @@ attributes:
                 examples: "example1""#,
         );
         assert!(matches!(raw, SemConvSpec::NoVersion(_)));
-        let v1 = parse_versioned(r#"version: '1'"#);
+        let v1 = parse_versioned(r#"file_format: 'definition/1'"#);
         assert!(matches!(v1, SemConvSpec::WithVersion(Versioned::V1 { .. })));
-        let v2 = parse_versioned("version: '2'");
+        let v2 = parse_versioned("file_format: 'definition/2'");
         assert!(matches!(v2, SemConvSpec::WithVersion(Versioned::V2 { .. })));
     }
 
     #[test]
     fn test_semconv_spec_with_provenance_from_string_v2() {
-        // let provenance = Provenance::new("main", "my_string");
         let spec = r#"
-        version: '2'
+        file_format: 'definition/2'
         attributes:
         - key: "attr1"
           stability: "stable"
@@ -736,5 +858,76 @@ attributes:
         let mut group_ids: Vec<&str> = semconv_spec.groups.iter().map(|g| g.id.as_str()).collect();
         group_ids.sort();
         assert_eq!(vec!["registry.test", "span.group2"], group_ids);
+    }
+
+    #[test]
+    fn test_error_message_bad_format() {
+        let spec = r#"
+        file_format: 'definition/24'
+        attributes:
+        - key: "attr1"
+          stability: "stable"
+          brief: "description1"
+          type: "string"
+          examples: "example1"
+        "#;
+
+        let result = serde_yaml::from_str::<SemConvSpec>(spec);
+        assert!(result.is_err());
+        let error_message = result.err().unwrap().to_string();
+        assert!(error_message.contains("Invalid file format: `file_format: definition/24`. Expected 'file_format: definition/1' or 'file_format: definition/2'"), "Actual error message: {}", error_message);
+    }
+
+    #[test]
+    fn test_error_message_invalid_v1() {
+        let spec = r#"
+        file_format: 'definition/1'
+        attributes:
+        - key: "attr1"
+        "#;
+
+        let result = serde_yaml::from_str::<SemConvSpec>(spec);
+        assert!(result.is_err());
+        let error_message = result.err().unwrap().to_string();
+        assert!(
+            error_message.contains("unknown field `attributes`, expected `groups`"),
+            "Actual error message: {}",
+            error_message
+        );
+    }
+
+    #[test]
+    fn test_error_message_invalid_unversioned() {
+        let spec = r#"
+        attributes:
+        - key: "attr1"
+        "#;
+
+        let result = serde_yaml::from_str::<SemConvSpec>(spec);
+        assert!(result.is_err());
+        let error_message = result.err().unwrap().to_string();
+        assert!(
+            error_message.contains("unknown field `attributes`, expected `groups`"),
+            "Actual error message: {}",
+            error_message
+        );
+    }
+
+    #[test]
+    fn test_error_message_invalid_format_2() {
+        let spec = r#"
+        file_format: 'definition/2'
+        groups:
+          - id: group
+        "#;
+
+        let result = serde_yaml::from_str::<SemConvSpec>(spec);
+        assert!(result.is_err());
+        let error_message = result.err().unwrap().to_string();
+        assert!(
+            error_message.contains("unknown field `groups`"),
+            "Actual error message: {}",
+            error_message
+        );
     }
 }

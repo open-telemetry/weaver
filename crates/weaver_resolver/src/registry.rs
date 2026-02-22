@@ -943,10 +943,18 @@ mod tests {
                 matches!(
                     e,
                     crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::UnstableFileVersion {
-                            version: _,
+                        weaver_semconv::Error::UnstableFileFormat {
+                            file_format: _,
                             provenance: _,
                         }
+                    )
+                )
+            })
+            .ignore(|e| {
+                matches!(
+                    e,
+                    crate::Error::FailToResolveDefinition(
+                        weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
                     )
                 )
             })
