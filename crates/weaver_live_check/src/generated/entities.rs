@@ -145,28 +145,28 @@ impl TelemetrySdk {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SdkLanguage {
-    /// {"boolean": true, "value": "cpp"}
+    /// `cpp`
     Cpp,
-    /// {"boolean": true, "value": "dotnet"}
+    /// `dotnet`
     Dotnet,
-    /// {"boolean": true, "value": "erlang"}
+    /// `erlang`
     Erlang,
-    /// {"boolean": true, "value": "go"}
+    /// `go`
     Go,
-    /// {"boolean": true, "value": "java"}
+    /// `java`
     Java,
-    /// {"boolean": true, "value": "nodejs"}
+    /// `nodejs`
     Nodejs,
-    /// {"boolean": true, "value": "php"}
+    /// `php`
     Php,
-    /// {"boolean": true, "value": "python"}
+    /// `python`
     Python,
-    /// {"boolean": true, "value": "ruby"}
+    /// `ruby`
     Ruby,
-    /// {"boolean": true, "value": "rust"}
+    /// `rust`
     Rust,
-    /// {"boolean": true, "value": "swift"}
+    /// `swift`
     Swift,
-    /// {"boolean": true, "value": "webjs"}
+    /// `webjs`
     Webjs,
 }

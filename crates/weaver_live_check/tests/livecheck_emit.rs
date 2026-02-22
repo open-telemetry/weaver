@@ -312,11 +312,17 @@ async fn test_livecheck_emit_roundtrip() {
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
 
+    let registry_coverage = statistics
+        .get("registry_coverage")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+
     eprintln!("--- Live-check emit roundtrip report ---");
-    eprintln!("  total_entities:   {total_entities}");
-    eprintln!("  total_advisories: {total_advisories}");
-    eprintln!("  no_advice_count:  {no_advice_count}");
-    eprintln!("  violations found: {violation_count}");
+    eprintln!("  total_entities:     {total_entities}");
+    eprintln!("  total_advisories:   {total_advisories}");
+    eprintln!("  no_advice_count:    {no_advice_count}");
+    eprintln!("  violations found:   {violation_count}");
+    eprintln!("  registry_coverage:  {registry_coverage:.1}%");
 
     // Collect and print any violation messages, then assert zero violations.
     if violation_count > 0 {
@@ -338,5 +344,11 @@ async fn test_livecheck_emit_roundtrip() {
         "Expected zero violations (emitted findings should conform to the model), \
          but found {violation_count}. This indicates the generated OTLP log records \
          do not match the live_check.yaml model."
+    );
+
+    assert!(
+        (registry_coverage - 1.0).abs() < f64::EPSILON,
+        "Expected 100% registry coverage, got {registry_coverage:.4}. \
+         All attributes and events in the model should be seen in the emitted findings."
     );
 }

@@ -46,7 +46,11 @@ true
 #[strum(serialize_all = "snake_case")]
 pub enum {{ name }} {
 {% for member in attr.type.members %}
-    /// {{ member.brief | default(value=member.id, boolean=true) }}
+{% if member.brief %}
+    /// {{ member.brief }}
+{% else %}
+    /// `{{ member.id }}`
+{% endif %}
     {{ member.id | pascal_case }},
 {% endfor %}
 {% if custom %}
