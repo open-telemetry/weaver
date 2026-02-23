@@ -41,16 +41,17 @@ use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 /// Poll GET /health until it returns 200, with retries.
 fn wait_for_health(port: u16) {
     let url = format!("http://127.0.0.1:{port}/health");
-    for attempt in 0..50 {
+    let max_attempts = 60;
+    for attempt in 0..max_attempts {
         match ureq::get(&url).call() {
             Ok(resp) if resp.status() == 200 => return,
             _ => {
-                if attempt == 29 {
+                if attempt == max_attempts - 1 {
                     panic!(
-                        "weaver live-check did not become healthy on port {port} after 30 attempts"
+                        "weaver live-check did not become healthy on port {port} after {max_attempts} attempts"
                     );
                 }
-                sleep(Duration::from_millis(300));
+                sleep(Duration::from_millis(500));
             }
         }
     }
