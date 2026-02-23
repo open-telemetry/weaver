@@ -18,5 +18,9 @@ fn test_cli_interface() {
         .output()
         .expect("failed to execute process");
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "Process did not exit successfully. Stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
