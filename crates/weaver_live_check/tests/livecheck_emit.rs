@@ -120,7 +120,7 @@ fn collect_violation_messages(value: &serde_json::Value, messages: &mut Vec<Stri
 }
 
 #[tokio::test]
-#[cfg_attr(tarpaulin, ignore)]
+#[cfg(not(tarpaulin_include))]
 async fn test_livecheck_emit_roundtrip() {
     // 1. Allocate dynamic ports
     let grpc_port = portpicker::pick_unused_port().expect("no free port for gRPC");
