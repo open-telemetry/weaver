@@ -19,20 +19,25 @@ pub enum Error {
     FailToResolveDefinition(#[from] weaver_semconv::Error),
 
     /// We discovered a circular dependency we cannot resolve.
-    #[error("Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain}")]
+    #[error("Circular dependency detected: registry '{registry_name}' depends on itself through the chain: {chain}")]
     CircularDependency {
         /// The registry that depends on itself.
-        registry_id: String,
+        registry_name: String,
+
         /// A string representing the dependency chain.
         chain: String,
     },
 
     /// We've reached the maximum dependency depth for this registry.
-    #[error("Maximum dependency depth reached for registry `{registry}`. Cannot load further dependencies.")]
+    #[error("Maximum dependency depth reached for registry `{registry_name}`. Cannot load further dependencies.")]
     MaximumDependencyDepth {
         /// The registry which has too many dependencies.
-        registry: String,
+        registry_name: String,
     },
+
+    /// Failed to resolve the schema URL for a registry.
+    #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
+    FailToResolveSchemaUrl {},
 
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
@@ -168,10 +173,12 @@ pub enum Error {
     },
 
     /// We
-    #[error("Invalid registry: {registry_id}. Unable to find attribute by index: {attribute_ref}")]
+    #[error(
+        "Invalid registry: {registry_name}. Unable to find attribute by index: {attribute_ref}"
+    )]
     InvalidRegistryAttributeRef {
         /// The registry with the issue.
-        registry_id: String,
+        registry_name: String,
         /// The attribute index that does not exist in the registry.
         attribute_ref: u32,
     },

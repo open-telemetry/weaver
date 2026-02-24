@@ -58,7 +58,11 @@ impl<'a> WeaverEngine<'a> {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Loaded, Error> {
         let registry_path = &self.registry_config.registry;
-        let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+        let mut nfes = vec![];
+        let main_registry_repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+
+        diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
+
         self.load_definitions(main_registry_repo, diag_msgs)
     }
 

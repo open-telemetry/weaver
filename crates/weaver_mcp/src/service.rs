@@ -58,7 +58,7 @@ impl WeaverMcpService {
         let search_context = Arc::new(SearchContext::from_registry(&registry));
 
         // Create versioned registry wrapper once for live check
-        let versioned_registry = Arc::new(VersionedRegistry::V2((*registry).clone()));
+        let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new((*registry).clone())));
 
         Self {
             search_context,
@@ -392,7 +392,7 @@ mod tests {
 
     fn make_test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
-            registry_url: "test".to_owned(),
+            schema_url: "https://todo/1.0.0".try_into().unwrap(),
             registry: Registry {
                 attributes: vec![Attribute {
                     key: "http.request.method".to_owned(),

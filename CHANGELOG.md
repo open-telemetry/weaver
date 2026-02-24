@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 - New feature ([#1152](https://github.com/open-telemetry/weaver/issues/1152)) - Live-check with `--emit-otlp-logs` will now include the attributes from the resource in the emitted log record, this helps to identify the source of the finding in a multi-source environment. ([#1206](https://github.com/open-telemetry/weaver/pull/1206) by @jerbly)
 - Live-check OTLP log findings are now dog-fooded: the event schema, attributes, and enumerations are defined in a semconv model and code-generated using Weaver's own templates. See [`finding.md`](crates/weaver_live_check/docs/finding.md) for the generated reference documentation and [`dog-fooding.md`](crates/weaver_live_check/docs/dog-fooding.md) for the full dog-fooding guide. ([#1232](https://github.com/open-telemetry/weaver/pull/1232) by @jerbly)
 - New Experimental feature: `weaver registry infer` command that listens for OTLP telemetry and infers a semantic convention registry file from the received data. Supports spans, metrics, events, and resource attributes. Includes configurable gRPC address/port, admin server for graceful shutdown, and inactivity timeout. ([#1138](https://github.com/open-telemetry/weaver/pull/1138) by @ArthurSens)
+- Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
+  from it. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
+- Default to `manifest.yaml` for registry manifest file, deprecate `registry_manifest.yaml` and add warning when it's used. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
 
 # [0.21.2] - 2026-02-03
 

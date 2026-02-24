@@ -8,6 +8,7 @@ use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
+use crate::schema_url::SchemaUrl;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
@@ -125,7 +126,7 @@ impl SemConvRegistry {
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
+        let mut registry = SemConvRegistry::new(registry_repo.name());
 
         for spec in semconv_specs {
             registry.add_semconv_spec(spec);
@@ -143,16 +144,15 @@ impl SemConvRegistry {
                 }
             }
 
-            registry.set_manifest(RegistryManifest {
-                file_format: None,
-                name: registry_repo.id().as_ref().to_owned(),
-                description: None,
-                version: semconv_version,
-                repository_url: "".to_owned(),
-                dependencies: vec![],
-                resolved_schema_url: None,
-                stability: crate::stability::Stability::Development,
-            });
+            let schema_url =
+                SchemaUrl::try_from_name_version(registry_repo.name(), &semconv_version).map_err(
+                    |e| Error::InvalidRegistryManifest {
+                        path: registry_repo.registry_path_repr().into(),
+                        error: e.clone(),
+                    },
+                )?;
+
+            registry.set_manifest(RegistryManifest::from_schema_url(schema_url));
         } else {
             registry.manifest = registry_repo.manifest().cloned();
         }
@@ -386,7 +386,16 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("test", &registry_path).unwrap();
+        let registry_repo = RegistryRepo::try_new(
+            Some(
+                "https://test/42"
+                    .try_into()
+                    .expect("Should be valid schema url"),
+            ),
+            &registry_path,
+            &mut vec![],
+        )
+        .unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);

@@ -450,8 +450,7 @@ mod tests {
     fn test_registry() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: "resolved/2.0.0".to_owned(),
-            schema_url: "todo/1.0.0".to_owned(),
-            registry_id: "main".to_owned(),
+            schema_url: "https://todo/1.0.0".try_into().unwrap(),
             attribute_catalog: vec![Attribute {
                 key: "attr1".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -465,7 +464,6 @@ mod tests {
                     attributes: vec![AttributeRef(0)],
                     common: CommonFields::default(),
                 }],
-                registry_url: "todo".to_owned(),
                 spans: vec![Span {
                     r#type: "trace.test".to_owned().into(),
                     kind: weaver_semconv::group::SpanKindSpec::Client,
@@ -569,7 +567,6 @@ mod tests {
                     },
                 }],
             },
-            registry_manifest: None,
         }
     }
 }

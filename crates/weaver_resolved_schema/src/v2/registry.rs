@@ -35,11 +35,6 @@ pub struct Registry {
     /// Catalog of (public) attribute groups.
     pub attribute_groups: Vec<AttributeGroup>,
 
-    /// The semantic convention registry url.
-    ///
-    /// This is the base URL, under which this registry can be found.
-    pub registry_url: String,
-
     /// A  list of span signal definitions.
     pub spans: Vec<Span>,
 
@@ -267,7 +262,6 @@ mod test {
         }];
         let registry = Registry {
             attribute_groups: vec![],
-            registry_url: "https://opentelemetry.io/schemas/1.23.0".to_owned(),
             spans: vec![Span {
                 r#type: "test.span".to_owned().into(),
                 kind: SpanKindSpec::Client,
