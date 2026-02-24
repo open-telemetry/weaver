@@ -16,7 +16,6 @@ use weaver_common::result::WResult;
 
 static VALIDATOR_V1: OnceLock<JsonSchemaValidator> = OnceLock::new();
 static VALIDATOR_V2: OnceLock<JsonSchemaValidator> = OnceLock::new();
-static VALIDATOR_UNVERSIONED: OnceLock<JsonSchemaValidator> = OnceLock::new();
 
 /// A versioned semantic convention file.
 #[derive(Serialize, Debug, Clone, JsonSchema)]
@@ -157,6 +156,7 @@ fn provenance_path_to_name(path: &str) -> String {
 }
 
 /// The detected file format of a semantic convention spec.
+#[derive(Debug)]
 enum FileFormat {
     /// Explicit `file_format: definition/1` (or legacy `version: 1`).
     V1,
@@ -224,14 +224,11 @@ impl FileFormat {
 
     fn validator(&self) -> &'static JsonSchemaValidator {
         match self {
-            FileFormat::V1 => {
+            FileFormat::V1 | FileFormat::Unversioned  => {
                 VALIDATOR_V1.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV1>)
             }
             FileFormat::V2 => {
                 VALIDATOR_V2.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV2>)
-            }
-            FileFormat::Unversioned => {
-                VALIDATOR_UNVERSIONED.get_or_init(JsonSchemaValidator::new_unversioned)
             }
         }
     }
