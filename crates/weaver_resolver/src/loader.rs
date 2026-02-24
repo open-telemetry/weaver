@@ -8,14 +8,11 @@ use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::semconv::SemConvSpecV1;
-use weaver_semconv::v2::SemConvSpecV2;
 
 use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_semconv::json_schema::JsonSchemaValidator;
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
@@ -47,21 +44,32 @@ impl LoadedSemconvRegistry {
     /// Creates a loaded semconv registry from a single string.
     #[cfg(test)]
     pub fn create_from_string(spec: &str) -> Result<LoadedSemconvRegistry, Error> {
+        use std::io::Write;
         use weaver_common::vdir::VirtualDirectoryPath;
-        use weaver_semconv::provenance::Provenance;
         let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
         let repo =
             RegistryRepo::try_new(None, &path, &mut vec![]).map_err(|e| Error::InvalidUrl {
                 url: "test string".to_owned(),
                 error: format!("{e}"),
             })?;
-        let provenance = Provenance::new("default", "<str>");
-        let spec_with_provenance = SemConvSpecWithProvenance::from_string(provenance, spec)
-            .into_result_failing_non_fatal()
+        let mut temp_file =
+            tempfile::NamedTempFile::with_suffix(".yaml").map_err(|e| Error::InvalidUrl {
+                url: "test string".to_owned(),
+                error: format!("Failed to create temp file: {e}"),
+            })?;
+        temp_file
+            .write_all(spec.as_bytes())
             .map_err(|e| Error::InvalidUrl {
                 url: "test string".to_owned(),
-                error: format!("{e}"),
+                error: format!("Failed to write to temp file: {e}"),
             })?;
+        let spec_with_provenance =
+            SemConvSpecWithProvenance::from_file("default", temp_file.path())
+                .into_result_failing_non_fatal()
+                .map_err(|e| Error::InvalidUrl {
+                    url: "test string".to_owned(),
+                    error: format!("{e}"),
+                })?;
         Ok(LoadedSemconvRegistry::Unresolved {
             repo,
             specs: vec![spec_with_provenance],
@@ -291,9 +299,6 @@ fn load_definition_repository(
     }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
-    let versioned_validator_v1 = JsonSchemaValidator::new_for::<SemConvSpecV1>();
-    let versioned_validator_v2 = JsonSchemaValidator::new_for::<SemConvSpecV2>();
-    let unversioned_validator = JsonSchemaValidator::new_unversioned();
 
     // Loads the semantic convention specifications from the git repo.
     // All yaml files are recursively loaded and parsed in parallel from
@@ -314,9 +319,6 @@ fn load_definition_repository(
                     vec![SemConvRegistry::semconv_spec_from_file(
                         registry_repo.name(),
                         entry.path(),
-                        &unversioned_validator,
-                        &versioned_validator_v1,
-                        &versioned_validator_v2,
                         |path| {
                             // Replace the local path with the git URL combined with the relative path
                             // of the semantic convention file.
