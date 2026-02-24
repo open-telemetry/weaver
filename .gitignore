@@ -1,3 +1,18 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
 # Rust specific
 /target
 **/*.rs.bk
@@ -7,22 +22,15 @@ bench-log
 # Just
 just.zsh
 
-# IntelliJ IDEs
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
 /.idea
 *.iml
-
-# VS Code
-.vscode/
 .devcontainer/
-
-# Visual Studio
 .vs/
-
-# Emacs
 *~
 \#*\#
-
-# Miscellaneous files
 *.sw[op]
 *.DS_Store
 
