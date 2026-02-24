@@ -2,7 +2,7 @@
 
 //! JSON Schema validator for semantic convention files.
 
-use crate::semconv::{SemConvSpec, SemConvSpecV1};
+use crate::semconv::{SemConvSpecV1, Versioned};
 use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
 use crate::{Error, InvalidSemConvSpecError};
 use itertools::Itertools;
@@ -33,7 +33,7 @@ impl JsonSchemaValidator {
     /// Creates a new JSON schema validator.
     #[must_use]
     pub fn new_all_versions() -> Self {
-        Self::new_for::<SemConvSpec>()
+        Self::new_for::<Versioned>()
     }
 
     /// Creates a new JSON schema validator that ONLY works when `file_format` is not specified.

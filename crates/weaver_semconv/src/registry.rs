@@ -254,7 +254,7 @@ mod tests {
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
-    use crate::semconv::{SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance};
+    use crate::semconv::{SemConvSpecV1, SemConvSpecWithProvenance, Versioned};
     use crate::Error;
 
     use weaver_common::vdir::VirtualDirectoryPath;
@@ -283,7 +283,7 @@ mod tests {
         let semconv_specs = vec![
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c1.yaml"),
-                spec: SemConvSpec::NoVersion(SemConvSpecV1 {
+                spec: Versioned::V1(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -327,7 +327,7 @@ mod tests {
             },
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c2.yaml"),
-                spec: SemConvSpec::NoVersion(SemConvSpecV1 {
+                spec: Versioned::V1(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
                         r#type: GroupType::AttributeGroup,

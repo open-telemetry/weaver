@@ -18,19 +18,8 @@ static VALIDATOR_V1: OnceLock<JsonSchemaValidator> = OnceLock::new();
 static VALIDATOR_V2: OnceLock<JsonSchemaValidator> = OnceLock::new();
 static VALIDATOR_UNVERSIONED: OnceLock<JsonSchemaValidator> = OnceLock::new();
 
-/// A semantic convention file as defined [here](/schemas/semconv-syntax.md)
-/// A semconv file either follows file_format 1 or 2.  Default is file_format 1.
-#[derive(Serialize, Debug, Clone, JsonSchema)]
-#[serde(untagged)]
-pub enum SemConvSpec {
-    /// Semantic convention specification that includes a file_format tag.
-    WithVersion(Versioned),
-    /// Semantic convention specification that does NOT include a file_format tag.
-    NoVersion(SemConvSpecV1),
-}
-
 /// A versioned semantic convention file.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "file_format")]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
@@ -72,16 +61,16 @@ pub struct Imports {
     pub entities: Option<Vec<GroupWildcard>>,
 }
 
-/// A wrapper for a [`SemConvSpec`] with its provenance.
+/// A wrapper for a [`Versioned`] with its provenance.
 #[derive(Debug, Clone)]
 pub struct SemConvSpecWithProvenance {
     /// The semantic convention spec.
-    pub spec: SemConvSpec,
+    pub spec: Versioned,
     /// The provenance of the semantic convention spec (path or URL).
     pub provenance: Provenance,
 }
 
-/// A wrapper for a [`SemConvSpec`] with its provenance.
+/// A wrapper for a [`SemConvSpecV1`] with its provenance.
 #[derive(Debug, Clone)]
 pub struct SemConvSpecV1WithProvenance {
     /// The semantic convention spec.
@@ -118,29 +107,24 @@ impl SemConvSpecV1 {
     }
 }
 
-impl SemConvSpec {
-    /// Converts this SemconvSpec into the file_format 1 specification.
+impl Versioned {
+    /// Converts this versioned spec into the file_format 1 specification.
     ///
     /// name: A unique identifier to use for synthetic group ids in this semconv, if needed.
     #[must_use]
     pub fn into_v1(self, file_name: &str) -> SemConvSpecV1 {
         match self {
-            SemConvSpec::NoVersion(v1) => v1,
-            SemConvSpec::WithVersion(Versioned::V1(v1)) => v1,
-            SemConvSpec::WithVersion(Versioned::V2(v2)) => v2.into_v1_specification(file_name),
+            Versioned::V1(v1) => v1,
+            Versioned::V2(v2) => v2.into_v1_specification(file_name),
         }
     }
 
     /// Validates invariants on the model.
     pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
         match self {
-            SemConvSpec::NoVersion(v1) | SemConvSpec::WithVersion(Versioned::V1(v1)) => v1
-                .validate(provenance)
-                .map(|v1| SemConvSpec::WithVersion(Versioned::V1(v1))),
+            Versioned::V1(v1) => v1.validate(provenance).map(Versioned::V1),
             // TODO - what validation is needed on V2?
-            SemConvSpec::WithVersion(Versioned::V2(v2)) => {
-                WResult::Ok(SemConvSpec::WithVersion(Versioned::V2(v2)))
-            }
+            Versioned::V2(v2) => WResult::Ok(Versioned::V2(v2)),
         }
     }
 }
@@ -172,8 +156,6 @@ fn provenance_path_to_name(path: &str) -> String {
     result
 }
 
-// Helper functions for parsing semantic convention specs
-
 /// The detected file format of a semantic convention spec.
 enum FileFormat {
     /// Explicit `file_format: definition/1` (or legacy `version: 1`).
@@ -185,6 +167,61 @@ enum FileFormat {
 }
 
 impl FileFormat {
+    fn detect(
+        yaml_value: &serde_yaml::Value,
+        provenance: &str,
+        warnings: &mut Vec<Error>,
+    ) -> Result<Self, Error> {
+        use serde_yaml::Value;
+
+        // Check for deprecated version field
+        let version = yaml_value
+            .get(Value::String("version".to_owned()))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_owned());
+
+        if version.is_some() {
+            warnings.push(Error::DeprecatedVersionField {
+                provenance: provenance.to_owned(),
+            });
+        }
+
+        let file_format = yaml_value
+            .get(Value::String("file_format".to_owned()))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_owned());
+
+        let is_v2 =
+            file_format == Some("definition/2".to_owned()) || version == Some("2".to_owned());
+        let is_v1 =
+            file_format == Some("definition/1".to_owned()) || version == Some("1".to_owned());
+
+        if is_v2 {
+            warnings.push(Error::UnstableFileFormat {
+                file_format: "definition/2".to_owned(),
+                provenance: provenance.to_owned(),
+            });
+            Ok(FileFormat::V2)
+        } else if is_v1 {
+            Ok(FileFormat::V1)
+        } else if file_format.is_none() && version.is_none() {
+            Ok(FileFormat::Unversioned)
+        } else {
+            Err(Error::InvalidFileFormat {
+                field_key: if version.is_some() {
+                    "version".to_owned()
+                } else {
+                    "file_format".to_owned()
+                },
+                field_value: version
+                    .as_deref()
+                    .or(file_format.as_deref())
+                    .unwrap_or("unknown")
+                    .to_owned(),
+            })
+        }
+    }
+
     fn validator(&self) -> &'static JsonSchemaValidator {
         match self {
             FileFormat::V1 => {
@@ -197,59 +234,6 @@ impl FileFormat {
                 VALIDATOR_UNVERSIONED.get_or_init(JsonSchemaValidator::new_unversioned)
             }
         }
-    }
-}
-
-fn check_version_and_determine_format(
-    yaml_value: &serde_yaml::Value,
-    provenance: &str,
-    warnings: &mut Vec<Error>,
-) -> Result<FileFormat, Error> {
-    use serde_yaml::Value;
-
-    // Check for deprecated version field
-    let version = yaml_value
-        .get(Value::String("version".to_owned()))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_owned());
-
-    if version.is_some() {
-        warnings.push(Error::DeprecatedVersionField {
-            provenance: provenance.to_owned(),
-        });
-    }
-
-    let file_format = yaml_value
-        .get(Value::String("file_format".to_owned()))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_owned());
-
-    let is_v2 = file_format == Some("definition/2".to_owned()) || version == Some("2".to_owned());
-    let is_v1 = file_format == Some("definition/1".to_owned()) || version == Some("1".to_owned());
-
-    if is_v2 {
-        warnings.push(Error::UnstableFileFormat {
-            file_format: "definition/2".to_owned(),
-            provenance: provenance.to_owned(),
-        });
-        Ok(FileFormat::V2)
-    } else if is_v1 {
-        Ok(FileFormat::V1)
-    } else if file_format.is_none() && version.is_none() {
-        Ok(FileFormat::Unversioned)
-    } else {
-        Err(Error::InvalidFileFormat {
-            field_key: if version.is_some() {
-                "version".to_owned()
-            } else {
-                "file_format".to_owned()
-            },
-            field_value: version
-                .as_deref()
-                .or(file_format.as_deref())
-                .unwrap_or("unknown")
-                .to_owned(),
-        })
     }
 }
 
@@ -297,21 +281,20 @@ fn from_yaml_value(
     yaml_value: serde_yaml::Value,
     provenance: &str,
     warnings: &mut Vec<Error>,
-) -> Result<SemConvSpec, Error> {
-    let format = check_version_and_determine_format(&yaml_value, provenance, warnings)?;
+) -> Result<Versioned, Error> {
+    let format = FileFormat::detect(&yaml_value, provenance, warnings)?;
     let cleaned = clean_yaml_mapping(yaml_value, provenance)?;
     let validator = format.validator();
 
     match format {
         FileFormat::V2 => serde_yaml::from_value::<SemConvSpecV2>(cleaned.clone())
-            .map(|v2| SemConvSpec::WithVersion(Versioned::V2(v2)))
+            .map(Versioned::V2)
             .map_err(|e| better_error(cleaned, provenance, validator, e)),
-        FileFormat::V1 => serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone())
-            .map(|v1| SemConvSpec::WithVersion(Versioned::V1(v1)))
-            .map_err(|e| better_error(cleaned, provenance, validator, e)),
-        FileFormat::Unversioned => serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone())
-            .map(SemConvSpec::NoVersion)
-            .map_err(|e| better_error(cleaned, provenance, validator, e)),
+        FileFormat::V1 | FileFormat::Unversioned => {
+            serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone())
+                .map(Versioned::V1)
+                .map_err(|e| better_error(cleaned, provenance, validator, e))
+        }
     }
 }
 
@@ -687,7 +670,7 @@ mod tests {
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 2);
     }
 
-    fn parse_versioned(spec: &str) -> SemConvSpec {
+    fn parse_versioned(spec: &str) -> Versioned {
         let temp_file = make_temp_file(spec);
         SemConvSpecWithProvenance::from_file("test", temp_file.path())
             .ignore(|e| matches!(e, Error::UnstableFileFormat { .. }))
@@ -698,7 +681,7 @@ mod tests {
 
     #[test]
     fn test_versioned_semconv() {
-        let sample = SemConvSpec::WithVersion(Versioned::V2(SemConvSpecV2 {
+        let sample = Versioned::V2(SemConvSpecV2 {
             attributes: vec![AttributeDef {
                 key: "test.key".to_owned(),
                 r#type: crate::attribute::AttributeType::PrimitiveOrArray(
@@ -719,7 +702,7 @@ mod tests {
             spans: vec![],
             imports: None,
             attribute_groups: vec![],
-        }));
+        });
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
             r#"file_format: definition/2
@@ -747,14 +730,11 @@ attributes:
                 examples: "example1""#,
         );
         // unversioned is treated as v1
-        assert!(matches!(
-            spec,
-            SemConvSpec::WithVersion(Versioned::V1 { .. })
-        ));
+        assert!(matches!(spec, Versioned::V1 { .. }));
         let v1 = parse_versioned(r#"file_format: 'definition/1'"#);
-        assert!(matches!(v1, SemConvSpec::WithVersion(Versioned::V1 { .. })));
+        assert!(matches!(v1, Versioned::V1 { .. }));
         let v2 = parse_versioned("file_format: 'definition/2'");
-        assert!(matches!(v2, SemConvSpec::WithVersion(Versioned::V2 { .. })));
+        assert!(matches!(v2, Versioned::V2 { .. }));
     }
 
     #[test]
