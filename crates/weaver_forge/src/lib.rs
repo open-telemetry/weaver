@@ -712,6 +712,13 @@ impl TemplateEngine {
     /// Create a new template engine based on the target configuration.
     fn template_engine(&self) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
+        // Disable auto-escaping. MiniJinja's default_auto_escape_callback
+        // infers escaping from the template file extension (e.g. `.yaml`/`.json`
+        // trigger JSON serialization of values, `.html` triggers HTML escaping).
+        // Use `|tojson` for JSON/YAML value escaping or `|e`
+        // for HTML escaping explicitly in templates where needed.
+        // See: https://docs.rs/minijinja/latest/minijinja/fn.default_auto_escape_callback.html
+        env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
         let template_syntax = self.target_config.template_syntax.clone();
 
         let syntax = SyntaxConfig::builder()
