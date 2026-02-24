@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
   from it. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
 - Default to `manifest.yaml` for registry manifest file, deprecate `registry_manifest.yaml` and add warning when it's used. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
-- 💥 BREAKING CHANGE 💥 (Fixes [#760](https://github.com/open-telemetry/weaver/issues/760)) - Disable MiniJinja auto-escaping so templates with `.yaml`, `.json`, or `.html` in their filename no longer produce unwanted escaping in the output. Use `|tojson` for JSON/YAML value escaping or `|e` for HTML escaping explicitly in templates where needed. ([#1239](https://github.com/open-telemetry/weaver/pull/1239) by @jerbly)
+- 💥 BREAKING CHANGE 💥 (Fixes [#760](https://github.com/open-telemetry/weaver/issues/760)) - Disable MiniJinja auto-escaping for `.yaml`, `.json`, and `.js` templates so they no longer produce unwanted value escaping in the output. HTML escaping is preserved for `.html`/`.htm`/`.xml` templates. Use `|tojson` for explicit JSON/YAML value escaping in templates where needed. ([#1239](https://github.com/open-telemetry/weaver/pull/1239) by @jerbly)
 
 # [0.21.2] - 2026-02-03
 

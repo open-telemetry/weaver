@@ -712,13 +712,23 @@ impl TemplateEngine {
     /// Create a new template engine based on the target configuration.
     fn template_engine(&self) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
-        // Disable auto-escaping. MiniJinja's default_auto_escape_callback
-        // infers escaping from the template file extension (e.g. `.yaml`/`.json`
-        // trigger JSON serialization of values, `.html` triggers HTML escaping).
-        // Use `|tojson` for JSON/YAML value escaping or `|e`
-        // for HTML escaping explicitly in templates where needed.
+        // Override MiniJinja's default_auto_escape_callback to disable
+        // JSON/YAML escaping (which serializes values to JSON on output)
+        // while preserving HTML escaping for `.html`/`.htm`/`.xml` templates.
+        // Template extensions `.j2`/`.jinja`/`.jinja2` are stripped first.
+        // Use `|tojson` for explicit JSON/YAML value escaping in templates.
         // See: https://docs.rs/minijinja/latest/minijinja/fn.default_auto_escape_callback.html
-        env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
+        env.set_auto_escape_callback(|name| {
+            let name = name
+                .strip_suffix(".j2")
+                .or_else(|| name.strip_suffix(".jinja"))
+                .or_else(|| name.strip_suffix(".jinja2"))
+                .unwrap_or(name);
+            match name.rsplit('.').next().unwrap_or("") {
+                "html" | "htm" | "xml" => minijinja::AutoEscape::Html,
+                _ => minijinja::AutoEscape::None,
+            }
+        });
         let template_syntax = self.target_config.template_syntax.clone();
 
         let syntax = SyntaxConfig::builder()
@@ -1274,5 +1284,84 @@ mod tests {
         });
         let result = run_filter_raw(&input, ".test").expect("failed to run raw filter `.test`");
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_auto_escape_callback() {
+        use minijinja::{AutoEscape, Environment};
+
+        let auto_escape_callback = |name: &str| -> AutoEscape {
+            let name = name
+                .strip_suffix(".j2")
+                .or_else(|| name.strip_suffix(".jinja"))
+                .or_else(|| name.strip_suffix(".jinja2"))
+                .unwrap_or(name);
+            match name.rsplit('.').next().unwrap_or("") {
+                "html" | "htm" | "xml" => AutoEscape::Html,
+                _ => AutoEscape::None,
+            }
+        };
+
+        let mut env = Environment::new();
+        env.set_auto_escape_callback(auto_escape_callback);
+
+        let value_with_special_chars = "<b>hello</b> & \"world\"";
+        let ctx = minijinja::context! { value => value_with_special_chars };
+
+        // YAML templates should NOT escape values
+        env.add_template("schema.yaml.j2", "key: {{ value }}")
+            .expect("should add yaml.j2 template");
+        let result = env
+            .get_template("schema.yaml.j2")
+            .expect("should get template")
+            .render(&ctx)
+            .expect("should render");
+        assert_eq!(result, "key: <b>hello</b> & \"world\"");
+
+        // JSON templates should NOT escape values
+        env.add_template("data.json.j2", "{ \"key\": \"{{ value }}\" }")
+            .expect("should add json.j2 template");
+        let result = env
+            .get_template("data.json.j2")
+            .expect("should get template")
+            .render(&ctx)
+            .expect("should render");
+        assert_eq!(result, "{ \"key\": \"<b>hello</b> & \"world\"\" }");
+
+        // Plain .j2 templates should NOT escape values
+        env.add_template("output.j2", "{{ value }}")
+            .expect("should add .j2 template");
+        let result = env
+            .get_template("output.j2")
+            .expect("should get template")
+            .render(&ctx)
+            .expect("should render");
+        assert_eq!(result, "<b>hello</b> & \"world\"");
+
+        // HTML templates SHOULD escape values
+        env.add_template("page.html.j2", "<p>{{ value }}</p>")
+            .expect("should add html.j2 template");
+        let result = env
+            .get_template("page.html.j2")
+            .expect("should get template")
+            .render(&ctx)
+            .expect("should render");
+        assert_eq!(
+            result,
+            "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p>"
+        );
+
+        // XML templates SHOULD escape values
+        env.add_template("data.xml.j2", "<v>{{ value }}</v>")
+            .expect("should add xml.j2 template");
+        let result = env
+            .get_template("data.xml.j2")
+            .expect("should get template")
+            .render(&ctx)
+            .expect("should render");
+        assert_eq!(
+            result,
+            "<v>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</v>"
+        );
     }
 }
