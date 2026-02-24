@@ -2,7 +2,6 @@
 
 //! JSON Schema validator for semantic convention files.
 
-use crate::semconv::{SemConvSpecV1, Versioned};
 use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
 use crate::{Error, InvalidSemConvSpecError};
 use itertools::Itertools;

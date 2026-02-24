@@ -224,7 +224,7 @@ impl FileFormat {
 
     fn validator(&self) -> &'static JsonSchemaValidator {
         match self {
-            FileFormat::V1 | FileFormat::Unversioned  => {
+            FileFormat::V1 | FileFormat::Unversioned => {
                 VALIDATOR_V1.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV1>)
             }
             FileFormat::V2 => {
