@@ -113,7 +113,7 @@ pub enum Error {
     },
 
     /// A container for multiple errors.
-    #[error("{:?}", format_errors(.0))]
+    #[error("{}", format_errors(.0))]
     #[diagnostic()]
     CompoundError(Vec<Error>),
 }
