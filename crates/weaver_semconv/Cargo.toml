@@ -29,6 +29,7 @@ regex.workspace = true
 globset.workspace = true
 itertools.workspace = true
 log.workspace = true
+url.workspace = true
 
 glob = "0.3.3"
 jsonschema = "0.40.0"        # JSON Schema validation used to enhance error messages

@@ -21,6 +21,7 @@ pub mod manifest;
 pub mod provenance;
 pub mod registry;
 pub mod registry_repo;
+pub mod schema_url;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
@@ -336,6 +337,24 @@ pub enum Error {
         /// The group id of the attribute.
         id: String,
         /// The reason of the error.
+        error: String,
+    },
+
+    /// This error is raised when a registry manifest is using a legacy file name.
+    #[diagnostic(severity(Warning))]
+    #[error("The registry manifest at {path:?} is using a legacy file name. Please rename it to `manifest.yaml`.")]
+    LegacyRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+    },
+
+    /// This error is raised when a registry manifest includes deprecated properties.
+    #[error("The syntax used in the registry manifest at {path:?} is deprecated. {error}")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedSyntaxInRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The error that occurred.
         error: String,
     },
 

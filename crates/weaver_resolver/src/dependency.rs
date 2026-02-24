@@ -19,9 +19,9 @@ use crate::{attribute::AttributeCatalog, Error};
 #[derive(Debug, Deserialize)]
 pub(crate) enum ResolvedDependency {
     /// A V1 Dependency
-    V1(V1Schema),
-    // A V2 Dependency
-    V2(V2Schema),
+    V1(Box<V1Schema>),
+    /// A V2 Dependency
+    V2(Box<V2Schema>),
 }
 
 impl ResolvedDependency {
@@ -167,7 +167,7 @@ impl ImportableDependency for V2Schema {
             for ar in m.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().to_owned(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -214,7 +214,7 @@ impl ImportableDependency for V2Schema {
             for ar in e.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().to_owned(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -262,7 +262,7 @@ impl ImportableDependency for V2Schema {
                 // TODO - this should be non-panic errors.
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().to_owned(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -276,7 +276,7 @@ impl ImportableDependency for V2Schema {
                 // TODO - this should be non-panic errors.
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
-                        registry_id: self.registry_id.clone(),
+                        registry_name: self.schema_url.name().to_owned(),
                         attribute_ref: ar.base.0,
                     },
                 )?;
@@ -411,13 +411,13 @@ impl UnresolvedAttributeLookup for Vec<ResolvedDependency> {
 
 impl From<V1Schema> for ResolvedDependency {
     fn from(value: V1Schema) -> Self {
-        ResolvedDependency::V1(value)
+        ResolvedDependency::V1(Box::new(value))
     }
 }
 
 impl From<V2Schema> for ResolvedDependency {
     fn from(value: V2Schema) -> Self {
-        ResolvedDependency::V2(value)
+        ResolvedDependency::V2(Box::new(value))
     }
 }
 
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_lookup_group_attributes() -> Result<(), Box<dyn Error>> {
-        let d = ResolvedDependency::V1(example_v1_schema());
+        let d = ResolvedDependency::V1(Box::new(example_v1_schema()));
         let result = d.lookup_group_attributes("a");
         assert!(
             result.is_some(),
@@ -470,8 +470,8 @@ mod tests {
     fn example_v1_schema() -> V1Schema {
         V1Schema {
             file_format: "resolved/1.0.0".to_owned(),
-            schema_url: "v1-example".to_owned(),
-            registry_id: "v1-example".to_owned(),
+            schema_url: "http://test/schemas/1.0.0".to_owned(),
+            registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
                 groups: vec![weaver_resolved_schema::registry::Group {

@@ -298,13 +298,13 @@ impl ResolvedTelemetrySchema {
 
         if let Some(ref manifest) = self.registry_manifest {
             changes.set_head_manifest(weaver_version::schema_changes::RegistryManifest {
-                semconv_version: manifest.version.clone(),
+                semconv_version: manifest.version().to_owned(),
             });
         }
 
         if let Some(ref manifest) = baseline_schema.registry_manifest {
             changes.set_baseline_manifest(weaver_version::schema_changes::RegistryManifest {
-                semconv_version: manifest.version.clone(),
+                semconv_version: manifest.version().to_owned(),
             });
         }
 
@@ -645,7 +645,7 @@ mod tests {
 
     #[test]
     fn detect_2_renamed_registry_attributes() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("http://test/schemas/1.0", "", "");
         prior_schema.add_attribute_group(
             "registry.group1",
             [
@@ -659,7 +659,7 @@ mod tests {
         // 2 new attributes are added: attr2_bis and attr3_bis
         // attr2 is renamed attr2_bis
         // attr3 is renamed attr3_bis
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("http://test/schemas/2.0", "", "");
         latest_schema.add_attribute_group(
             "registry.group1",
             [
@@ -805,9 +805,9 @@ mod tests {
     // TODO add many more group diff checks for various capabilities.
     #[test]
     fn detect_metric_name_change() {
-        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "test/base_version", "");
+        let mut prior_schema = ResolvedTelemetrySchema::new("http://test/schemas/1.0", "", "");
         prior_schema.add_metric_group("metrics.cpu.time", "cpu.time", [], None);
-        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "test/new_version", "");
+        let mut latest_schema = ResolvedTelemetrySchema::new("http://test/schemas/2.0", "", "");
         latest_schema.add_metric_group(
             "metrics.cpu.time",
             "cpu.time",

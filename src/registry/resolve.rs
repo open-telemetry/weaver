@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Args;
 
 use log::info;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
@@ -56,7 +56,11 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     let mut diag_msgs = DiagnosticMessages::empty();
     let weaver = WeaverEngine::new(&args.registry, &args.policy);
     let registry_path = &args.registry.registry;
-    let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+
+    let mut nfes = vec![];
+    let main_registry_repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+
+    diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
     let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     // TODO - only do this in weaver check?
