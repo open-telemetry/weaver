@@ -161,8 +161,17 @@ impl OutputProcessor {
         }
 
         let format_lower = format.to_lowercase();
+        let has_templates = embedded_templates.is_some() || templates_path.is_some();
+
+        // When templates are available, check for a matching template directory
+        // first. This allows users to override builtin formats (e.g. "yaml")
+        // with custom templates.
         let kind = if format_lower == "mute" {
             OutputKind::Mute
+        } else if has_templates
+            && Self::has_template_dir(format, embedded_templates, templates_path.as_ref())
+        {
+            Self::load_template_kind(format, embedded_templates, templates_path, output)?
         } else if let Some(builtin) = BuiltinFormat::from_name(&format_lower) {
             OutputKind::Builtin {
                 format: builtin,
@@ -171,22 +180,53 @@ impl OutputProcessor {
                 file: None,
             }
         } else {
-            let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
-                template_dir: PathBuf::from(&format_lower),
-                error: "Template format requires embedded_templates parameter".to_owned(),
-            })?;
-            let templates = templates_path.unwrap_or_default();
-
-            let loader = EmbeddedFileLoader::try_new(embedded, templates, &format_lower)?;
-            let config = WeaverConfig::try_from_loader(&loader)?;
-            let engine = TemplateEngine::try_new(config, loader, Params::default())?;
-            OutputKind::Template(Box::new(TemplateOutput {
-                engine,
-                target: output,
-            }))
+            // Not a builtin and no template directory found — attempt template
+            // load anyway to produce a descriptive error message.
+            Self::load_template_kind(format, embedded_templates, templates_path, output)?
         };
 
         Ok(Self { kind })
+    }
+
+    /// Check whether a template directory exists for the given format name.
+    /// Probes the local filesystem path first, then the embedded directory.
+    fn has_template_dir(
+        format: &str,
+        embedded_templates: Option<&'static Dir<'static>>,
+        templates_path: Option<&PathBuf>,
+    ) -> bool {
+        if let Some(path) = templates_path {
+            if path.join(format).exists() {
+                return true;
+            }
+        }
+        if let Some(embedded) = embedded_templates {
+            if embedded.get_dir(format).is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Load a template-based OutputKind for the given format name.
+    fn load_template_kind(
+        format: &str,
+        embedded_templates: Option<&'static Dir<'static>>,
+        templates_path: Option<PathBuf>,
+        output: OutputTarget,
+    ) -> Result<OutputKind, Error> {
+        let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
+            template_dir: PathBuf::from(format),
+            error: "Template format requires embedded_templates parameter".to_owned(),
+        })?;
+        let templates = templates_path.unwrap_or_default();
+        let loader = EmbeddedFileLoader::try_new(embedded, templates, format)?;
+        let config = WeaverConfig::try_from_loader(&loader)?;
+        let engine = TemplateEngine::try_new(config, loader, Params::default())?;
+        Ok(OutputKind::Template(Box::new(TemplateOutput {
+            engine,
+            target: output,
+        })))
     }
 
     /// Create an OutputProcessor from an explicit template configuration.

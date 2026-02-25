@@ -143,6 +143,32 @@ pub enum ApplicationMode {
     Each,
 }
 
+/// Auto-escape mode for a template's output.
+/// `none` (default): no escaping.
+/// `html`: escape `<`, `>`, `&`, `"`, `'`, `/` for HTML/XML.
+/// `json`: serialize values as JSON (suitable for JSON/YAML embedding).
+///
+/// This mirrors `minijinja::AutoEscape` but adds serde support for
+/// deserialization from `weaver.yaml`.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum AutoEscapeMode {
+    #[default]
+    None,
+    Html,
+    Json,
+}
+
+impl From<&AutoEscapeMode> for minijinja::AutoEscape {
+    fn from(mode: &AutoEscapeMode) -> Self {
+        match mode {
+            AutoEscapeMode::None => minijinja::AutoEscape::None,
+            AutoEscapeMode::Html => minijinja::AutoEscape::Html,
+            AutoEscapeMode::Json => minijinja::AutoEscape::Json,
+        }
+    }
+}
+
 /// A template configuration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -173,6 +199,14 @@ pub(crate) struct TemplateConfig {
     /// The default value of this path is the same as the input file path.
     /// This file path can be a Jinja expression referencing the parameters.
     pub(crate) file_name: Option<String>,
+    /// Auto-escape mode for this template's output.
+    /// `none` (default): no escaping.
+    /// `html`: escape `<`, `>`, `&`, `"`, `'`, `/` for HTML/XML.
+    /// `json`: serialize values as JSON (suitable for JSON/YAML embedding).
+    /// Within a template, `{% autoescape false %}` blocks can selectively
+    /// disable escaping for sections.
+    #[serde(default)]
+    pub(crate) auto_escape: AutoEscapeMode,
 }
 
 fn default_filter() -> String {

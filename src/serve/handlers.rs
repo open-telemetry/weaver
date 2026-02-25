@@ -124,8 +124,12 @@ pub async fn get_registry_attribute(
     // Remove leading slash if present (from wildcard match)
     let key = key.trim_start_matches('/');
 
-    // O(1) lookup via SearchContext
-    match state.search_ctx.get_attribute(key) {
+    // O(1) lookup via SearchContext, checking both regular and template attributes
+    match state
+        .search_ctx
+        .get_attribute(key)
+        .or_else(|| state.search_ctx.get_template(key))
+    {
         Some(attr) => Json(attr.as_ref()).into_response(),
         None => (
             StatusCode::NOT_FOUND,
