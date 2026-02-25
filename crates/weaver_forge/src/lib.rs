@@ -25,7 +25,7 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::log_success;
 
-use crate::config::{ApplicationMode, Params, TemplateConfig, WeaverConfig};
+use crate::config::{ApplicationMode, AutoEscapeMode, Params, TemplateConfig, WeaverConfig};
 use crate::debug::error_summary;
 use crate::error::Error::{InvalidConfigFile, InvalidFilePath};
 use crate::extensions::{ansi, case, code, otel, util};
@@ -298,7 +298,7 @@ impl TemplateEngine {
             error: e.to_string(),
         })?;
 
-        let mut engine = self.template_engine()?;
+        let mut engine = self.template_engine(&AutoEscapeMode::None)?;
         // Create snippet parameters
         let mut params = self
             .target_config
@@ -360,6 +360,7 @@ impl TemplateEngine {
                                 &yaml_params,
                                 &file_to_process,
                                 None,
+                                &template.auto_escape,
                             )?;
                             results.push(output);
                         }
@@ -372,6 +373,7 @@ impl TemplateEngine {
                                     &yaml_params,
                                     &file_to_process,
                                     None,
+                                    &template.auto_escape,
                                 )?;
                                 results.push(output);
                             }
@@ -384,6 +386,7 @@ impl TemplateEngine {
                                 &yaml_params,
                                 &file_to_process,
                                 None,
+                                &template.auto_escape,
                             )?;
                             results.push(output);
                         }
@@ -475,6 +478,7 @@ impl TemplateEngine {
                 template_file,
                 output_dir,
                 output_directive,
+                &template.auto_escape,
             ),
             ApplicationMode::Each => self.process_each_mode(
                 &filtered_result,
@@ -483,6 +487,7 @@ impl TemplateEngine {
                 template_file,
                 output_dir,
                 output_directive,
+                &template.auto_escape,
             ),
         }
     }
@@ -498,6 +503,7 @@ impl TemplateEngine {
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
+        auto_escape: &AutoEscapeMode,
     ) -> Result<(), Error> {
         match ctx {
             serde_json::Value::Array(values) => {
@@ -512,6 +518,7 @@ impl TemplateEngine {
                             template_file,
                             output_directive,
                             output_dir,
+                            auto_escape,
                         )
                         .err()
                     })
@@ -525,6 +532,7 @@ impl TemplateEngine {
                 template_file,
                 output_directive,
                 output_dir,
+                auto_escape,
             ),
         }
     }
@@ -538,6 +546,7 @@ impl TemplateEngine {
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
+        auto_escape: &AutoEscapeMode,
     ) -> Result<(), Error> {
         if ctx.is_null() || (ctx.is_array() && ctx.as_array().expect("is_array").is_empty()) {
             // Skip the template evaluation if the filtered result is null or an empty array
@@ -550,6 +559,7 @@ impl TemplateEngine {
             template_file,
             output_directive,
             output_dir,
+            auto_escape,
         )
     }
 
@@ -616,8 +626,9 @@ impl TemplateEngine {
         params: &BTreeMap<String, serde_yaml::Value>,
         template_path: &Path,
         file_path_config: Option<&String>,
+        auto_escape: &AutoEscapeMode,
     ) -> Result<(String, TemplateObject), Error> {
-        let mut engine = self.template_engine()?;
+        let mut engine = self.template_engine(auto_escape)?;
 
         // Add the Weaver parameters to the template context
         engine.add_global(
@@ -690,9 +701,10 @@ impl TemplateEngine {
         template_path: &Path,
         output_directive: &OutputDirective,
         output_dir: &Path,
+        auto_escape: &AutoEscapeMode,
     ) -> Result<(), Error> {
         let (output, template_object) =
-            self.render_template(ctx, params, template_path, file_path)?;
+            self.render_template(ctx, params, template_path, file_path, auto_escape)?;
         match output_directive {
             OutputDirective::Stdout => {
                 println!("{output}");
@@ -710,25 +722,13 @@ impl TemplateEngine {
     }
 
     /// Create a new template engine based on the target configuration.
-    fn template_engine(&self) -> Result<Environment<'_>, Error> {
+    fn template_engine(&self, auto_escape: &AutoEscapeMode) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
-        // Override MiniJinja's default_auto_escape_callback to disable
-        // JSON/YAML escaping (which serializes values to JSON on output)
-        // while preserving HTML escaping for `.html`/`.htm`/`.xml` templates.
-        // Template extensions `.j2`/`.jinja`/`.jinja2` are stripped first.
-        // Use `|tojson` for explicit JSON/YAML value escaping in templates.
-        // See: https://docs.rs/minijinja/latest/minijinja/fn.default_auto_escape_callback.html
-        env.set_auto_escape_callback(|name| {
-            let name = name
-                .strip_suffix(".j2")
-                .or_else(|| name.strip_suffix(".jinja"))
-                .or_else(|| name.strip_suffix(".jinja2"))
-                .unwrap_or(name);
-            match name.rsplit('.').next().unwrap_or("") {
-                "html" | "htm" | "xml" => minijinja::AutoEscape::Html,
-                _ => minijinja::AutoEscape::None,
-            }
-        });
+        // Set the auto-escape mode based on the per-template configuration.
+        // Within a template, `{% autoescape false %}` blocks can selectively
+        // disable escaping for sections.
+        let auto_escape_mode = minijinja::AutoEscape::from(auto_escape);
+        env.set_auto_escape_callback(move |_| auto_escape_mode);
         let template_syntax = self.target_config.template_syntax.clone();
 
         let syntax = SyntaxConfig::builder()
@@ -861,7 +861,9 @@ mod tests {
     use weaver_semconv::registry_repo::RegistryRepo;
     use weaver_semconv::schema_url::SchemaUrl;
 
-    use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};
+    use crate::config::{
+        ApplicationMode, AutoEscapeMode, CaseConvention, Params, TemplateConfig, WeaverConfig,
+    };
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
@@ -1075,6 +1077,7 @@ mod tests {
             application_mode: ApplicationMode::Single,
             params: None,
             file_name: None,
+            auto_escape: AutoEscapeMode::None,
         });
         engine.target_config.templates = Some(templates);
 
@@ -1287,81 +1290,114 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_escape_callback() {
+    fn test_auto_escape_modes() {
         use minijinja::{AutoEscape, Environment};
-
-        let auto_escape_callback = |name: &str| -> AutoEscape {
-            let name = name
-                .strip_suffix(".j2")
-                .or_else(|| name.strip_suffix(".jinja"))
-                .or_else(|| name.strip_suffix(".jinja2"))
-                .unwrap_or(name);
-            match name.rsplit('.').next().unwrap_or("") {
-                "html" | "htm" | "xml" => AutoEscape::Html,
-                _ => AutoEscape::None,
-            }
-        };
-
-        let mut env = Environment::new();
-        env.set_auto_escape_callback(auto_escape_callback);
 
         let value_with_special_chars = "<b>hello</b> & \"world\"";
         let ctx = minijinja::context! { value => value_with_special_chars };
 
-        // YAML templates should NOT escape values
-        env.add_template("schema.yaml.j2", "key: {{ value }}")
-            .expect("should add yaml.j2 template");
-        let result = env
-            .get_template("schema.yaml.j2")
-            .expect("should get template")
-            .render(&ctx)
-            .expect("should render");
-        assert_eq!(result, "key: <b>hello</b> & \"world\"");
+        // AutoEscapeMode::None — no escaping regardless of template extension
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::None;
+            env.set_auto_escape_callback(move |_| mode);
 
-        // JSON templates should NOT escape values
-        env.add_template("data.json.j2", "{ \"key\": \"{{ value }}\" }")
-            .expect("should add json.j2 template");
-        let result = env
-            .get_template("data.json.j2")
-            .expect("should get template")
-            .render(&ctx)
-            .expect("should render");
-        assert_eq!(result, "{ \"key\": \"<b>hello</b> & \"world\"\" }");
+            env.add_template("schema.yaml.j2", "key: {{ value }}")
+                .expect("should add template");
+            let result = env
+                .get_template("schema.yaml.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "key: <b>hello</b> & \"world\"");
 
-        // Plain .j2 templates should NOT escape values
-        env.add_template("output.j2", "{{ value }}")
-            .expect("should add .j2 template");
-        let result = env
-            .get_template("output.j2")
-            .expect("should get template")
-            .render(&ctx)
-            .expect("should render");
-        assert_eq!(result, "<b>hello</b> & \"world\"");
+            env.add_template("page.html.j2", "<p>{{ value }}</p>")
+                .expect("should add template");
+            let result = env
+                .get_template("page.html.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "<p><b>hello</b> & \"world\"</p>");
 
-        // HTML templates SHOULD escape values
-        env.add_template("page.html.j2", "<p>{{ value }}</p>")
-            .expect("should add html.j2 template");
-        let result = env
-            .get_template("page.html.j2")
-            .expect("should get template")
-            .render(&ctx)
-            .expect("should render");
-        assert_eq!(
-            result,
-            "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p>"
-        );
+            env.add_template("data.json.j2", "{ \"key\": \"{{ value }}\" }")
+                .expect("should add template");
+            let result = env
+                .get_template("data.json.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "{ \"key\": \"<b>hello</b> & \"world\"\" }");
+        }
 
-        // XML templates SHOULD escape values
-        env.add_template("data.xml.j2", "<v>{{ value }}</v>")
-            .expect("should add xml.j2 template");
-        let result = env
-            .get_template("data.xml.j2")
-            .expect("should get template")
-            .render(&ctx)
-            .expect("should render");
-        assert_eq!(
-            result,
-            "<v>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</v>"
-        );
+        // AutoEscapeMode::Html — HTML entity escaping for all templates
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::Html;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template("page.html.j2", "<p>{{ value }}</p>")
+                .expect("should add template");
+            let result = env
+                .get_template("page.html.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(
+                result,
+                "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p>"
+            );
+
+            // HTML escaping applies even to non-HTML template extensions
+            env.add_template("output.txt.j2", "{{ value }}")
+                .expect("should add template");
+            let result = env
+                .get_template("output.txt.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(
+                result,
+                "&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;"
+            );
+        }
+
+        // AutoEscapeMode::Json — JSON serialization for all templates
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::Json;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template("data.json.j2", "{ \"key\": {{ value }} }")
+                .expect("should add template");
+            let result = env
+                .get_template("data.json.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "{ \"key\": \"<b>hello</b> & \\\"world\\\"\" }");
+        }
+
+        // AutoEscapeMode::Html with {% autoescape false %} block override
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::Html;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template(
+                "mixed.html.j2",
+                "<p>{{ value }}</p>{% autoescape false %}<raw>{{ value }}</raw>{% endautoescape %}",
+            )
+            .expect("should add template");
+            let result = env
+                .get_template("mixed.html.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(
+                result,
+                "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p><raw><b>hello</b> & \"world\"</raw>"
+            );
+        }
     }
 }
