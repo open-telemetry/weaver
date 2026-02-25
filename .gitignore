@@ -57,3 +57,6 @@ history-temp-repo/
 ui/node_modules/
 ui/dist/
 ui/.vite/
+
+# claude
+.claude/
