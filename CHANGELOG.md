@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
   from it. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
 - Default to `manifest.yaml` for registry manifest file, deprecate `registry_manifest.yaml` and add warning when it's used. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
-- 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2' for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2` for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
 
 # [0.21.2] - 2026-02-03
 

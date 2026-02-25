@@ -167,6 +167,9 @@ enum FileFormat {
 }
 
 impl FileFormat {
+    /// Detects the file format of a semantic convention spec from its YAML representation
+    /// and produces warnings for deprecated or unstable formats.
+    /// Returns an error if the file format is invalid.
     fn detect(
         yaml_value: &serde_yaml::Value,
         provenance: &str,
@@ -222,6 +225,7 @@ impl FileFormat {
         }
     }
 
+    /// Returns the JSON schema validator for this file format, initializing it if necessary.
     fn validator(&self) -> &'static JsonSchemaValidator {
         match self {
             FileFormat::V1 | FileFormat::Unversioned => {
@@ -234,6 +238,7 @@ impl FileFormat {
     }
 }
 
+/// Auxiliary function to clean the YAML mapping by removing version fields
 fn clean_yaml_mapping(
     yaml_value: serde_yaml::Value,
     provenance: &str,
@@ -274,6 +279,9 @@ fn better_error(
     }
 }
 
+/// Converts a yaml value into a versioned semantic convention spec
+/// If deserialization fails, attempts to produce the best available error
+/// using JSON schema validation.
 fn from_yaml_value(
     yaml_value: serde_yaml::Value,
     provenance: &str,
