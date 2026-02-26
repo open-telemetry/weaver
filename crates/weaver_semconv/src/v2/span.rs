@@ -2,13 +2,18 @@
 
 //! The new way we want to define spans going forward.
 
+use std::collections::BTreeMap;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     attribute::AttributeSpec,
+    deprecated::Deprecated,
     group::{GroupSpec, GroupType, SpanKindSpec},
+    stability::Stability,
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    YamlValue,
 };
 
 /// A reference to an attribute group for spans.
@@ -77,6 +82,47 @@ pub struct Span {
     pub common: CommonFields,
 }
 
+/// A refinement of an existing span.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpanRefinement {
+    /// The ID of the refinement.
+    pub id: SignalId,
+    /// The name of the span being refined.
+    pub r#ref: SignalId,
+    /// Specifies the kind of the span.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<SpanKindSpec>,
+    /// The name pattern for the span.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<SpanName>,
+    /// List of attributes that belong to the semantic convention.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<SpanAttributeOrGroupRef>,
+    /// Which resources this span should be associated with.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
+
+    /// Refines the brief description of the signal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// Refines the more elaborate description of the signal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Refines the stability of the signal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stability: Option<Stability>,
+    /// Specifies if the signal is deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
+    /// Additional annotations for the signal.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
+}
+
 impl Span {
     /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
@@ -110,6 +156,42 @@ impl Span {
             visibility: None,
         }
     }
+}
+
+impl SpanRefinement {
+    /// Converts a v2 span refinement into a v1 GroupSpec.
+    #[must_use]
+    pub fn into_v1_group(self) -> GroupSpec {
+        let (attribute_refs, include_groups) = split_span_attributes_and_groups(self.attributes);
+        GroupSpec {
+            id: self.id.to_string(),
+            r#type: GroupType::Span,
+            brief: self.brief.unwrap_or_default(),
+            note: self.note.unwrap_or_default(),
+            prefix: Default::default(),
+            extends: Some(format!("span.{}", &self.r#ref)),
+            include_groups,
+            stability: self.stability,
+            deprecated: self.deprecated,
+            attributes: attribute_refs,
+            span_kind: self.kind,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: Some(format!("{}", &self.id)),
+            display_name: None,
+            body: None,
+            annotations: if self.annotations.is_empty() {
+                None
+            } else {
+                Some(self.annotations)
+            },
+            entity_associations: self.entity_associations,
+            visibility: None,
+        }
+    }
+
 }
 
 /// Specification of the span name.

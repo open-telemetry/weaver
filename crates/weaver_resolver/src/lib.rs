@@ -64,9 +64,22 @@ impl SchemaResolver {
         // TODO - do this in multiple threads w/ `.par_bridge()` and `+ Send`.
         for d in dependencies {
             match d {
-                LoadedSemconvRegistry::Unresolved { .. } => {
-                    opt_resolved_dependencies
-                        .push(Self::resolve(d, include_unreferenced).map(|s| s.into()));
+                LoadedSemconvRegistry::Unresolved {
+                    repo,
+                    specs,
+                    imports,
+                    dependencies,
+                } => {
+                    opt_resolved_dependencies.push(
+                        Self::resolve_registry(
+                            repo,
+                            specs,
+                            imports,
+                            dependencies,
+                            include_unreferenced,
+                        )
+                        .map(|s| s.into()),
+                    );
                 }
                 LoadedSemconvRegistry::Resolved(schema) => {
                     opt_resolved_dependencies.push(WResult::Ok(schema.into()));

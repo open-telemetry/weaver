@@ -1,0 +1,19 @@
+{
+  "attributes": [
+    {
+      "name": "test.attr",
+      "type": "int",
+      "brief": "Test attribute",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "test.attr",
+      "type": "int",
+      "brief": "Test attribute",
+      "requirement_level": "recommended",
+      "stability": "stable",
+      "role": "identifying"
+    }
+  ]
+}
