@@ -91,9 +91,11 @@ pub struct SpanRefinement {
     /// The name of the span being refined.
     pub r#ref: SignalId,
     /// Specifies the kind of the span.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<SpanKindSpec>,
     /// The name pattern for the span.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<SpanName>,
     /// List of attributes that belong to the semantic convention.
@@ -101,23 +103,29 @@ pub struct SpanRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<SpanAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
 
     /// Refines the brief description of the signal.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Refines the more elaborate description of the signal.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// Refines the stability of the signal.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Specifies if the signal is deprecated.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Additional annotations for the signal.
+    /// Note: This field is currently not propagated during resolution.
     #[serde(default)]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, YamlValue>,
