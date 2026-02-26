@@ -92,6 +92,7 @@ templates:
       <param_2>: <any_simple_type>
       # ...
     file_name: <relative_file_path>  # optional
+    auto_escape: none|html|json      # optional, default: none
   - ...
 ```
 
@@ -162,6 +163,33 @@ templates:
 > [!IMPORTANT]
 > **Backward compatibility note**: The field `pattern` has been renamed to `template` in the
 > `templates` section. The `pattern` field is still supported for backward compatibility.
+
+## Auto-Escape
+
+By default, auto-escaping is disabled (`none`) for all templates regardless of file extension.
+This means `{{ value }}` outputs the raw value with no transformation. To opt in to
+auto-escaping, set `auto_escape` per template:
+
+- `none` (default) — no escaping; values are output as-is.
+- `html` — escapes `<`, `>`, `&`, `"`, `'`, `/` for safe embedding in HTML/XML.
+- `json` — serializes values as JSON strings (suitable for embedding in JSON or YAML).
+
+```yaml
+templates:
+  - template: "page.html.j2"
+    filter: .
+    application_mode: single
+    auto_escape: html
+
+  - template: "data.json.j2"
+    filter: .
+    application_mode: single
+    auto_escape: json
+```
+
+Within a template, `{% autoescape false %}...{% endautoescape %}` blocks can selectively
+disable escaping for specific sections. For explicit one-off JSON serialization without
+setting the mode, use the `|tojson` filter (e.g. `{{ value|tojson }}`).
 
 # Configuration File Loading Order and Overriding Rules
 
