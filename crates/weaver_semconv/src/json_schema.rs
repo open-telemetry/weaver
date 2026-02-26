@@ -2,7 +2,6 @@
 
 //! JSON Schema validator for semantic convention files.
 
-use crate::semconv::{SemConvSpec, SemConvSpecV1, Versioned};
 use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
 use crate::{Error, InvalidSemConvSpecError};
 use itertools::Itertools;
@@ -30,27 +29,9 @@ pub struct JsonSchemaValidator {
 }
 
 impl JsonSchemaValidator {
-    /// Creates a new JSON schema validator.
-    #[must_use]
-    pub fn new_all_versions() -> Self {
-        Self::new_for::<SemConvSpec>()
-    }
-
-    /// Creates a new JSON schema validator that ONLY works when `version` is not specified.
-    #[must_use]
-    pub fn new_unversioned() -> Self {
-        Self::new_for::<SemConvSpecV1>()
-    }
-
-    /// Creates a new JSON schema validator that ONLY works when `version` is specified.
-    #[must_use]
-    pub fn new_versioned() -> Self {
-        Self::new_for::<Versioned>()
-    }
-
     /// Creates a new JSON schema validator that works for any type T.
     #[must_use]
-    fn new_for<T: JsonSchema>() -> Self {
+    pub fn new_for<T: JsonSchema>() -> Self {
         // Generate the JSON schema for the SemConvSpec struct using Schemars
         let root_schema = schemars::schema_for!(T);
         let json_schema = serde_json::to_value(&root_schema)

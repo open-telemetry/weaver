@@ -4,9 +4,7 @@
 
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
-use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
-use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
 use crate::schema_url::SchemaUrl;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
@@ -77,8 +75,6 @@ impl SemConvRegistry {
             non_fatal_errors: &mut Vec<Error>,
         ) -> Result<SemConvRegistry, Error> {
             let mut registry = SemConvRegistry::new(registry_id);
-            let versioned_validator = JsonSchemaValidator::new_versioned();
-            let unversioned_validator = JsonSchemaValidator::new_unversioned();
             for sc_entry in
                 glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
                     path_pattern: path_pattern.to_owned(),
@@ -89,13 +85,9 @@ impl SemConvRegistry {
                     path_pattern: path_pattern.to_owned(),
                     error: e.to_string(),
                 })?;
-                let (semconv_spec, nfes) = SemConvSpecWithProvenance::from_file(
-                    registry_id,
-                    path_buf.as_path(),
-                    &unversioned_validator,
-                    &versioned_validator,
-                )
-                .into_result_with_non_fatal()?;
+                let (semconv_spec, nfes) =
+                    SemConvSpecWithProvenance::from_file(registry_id, path_buf.as_path())
+                        .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
                 non_fatal_errors.extend(nfes);
             }
@@ -187,37 +179,17 @@ impl SemConvRegistry {
         self.semconv_spec_count += 1;
     }
 
-    /// Load and add a semantic convention string to the semantic convention registry.
-    ///
-    /// This should only be used in tests!
-    pub fn add_semconv_spec_from_string(
-        &mut self,
-        provenance: Provenance,
-        spec: &str,
-    ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_string(provenance, spec)
-            .map(|spec| self.add_semconv_spec(spec))
-    }
-
     /// Loads and returns the semantic convention spec from a file.
     pub fn semconv_spec_from_file<P, F>(
         registry_id: &str,
         semconv_path: P,
-        unversioned_validator: &JsonSchemaValidator,
-        versioned_validator: &JsonSchemaValidator,
         path_fixer: F,
     ) -> WResult<SemConvSpecWithProvenance, Error>
     where
         P: AsRef<Path>,
         F: Fn(String) -> String,
     {
-        SemConvSpecWithProvenance::from_file_with_mapped_path(
-            registry_id,
-            semconv_path,
-            unversioned_validator,
-            versioned_validator,
-            path_fixer,
-        )
+        SemConvSpecWithProvenance::from_file_with_mapped_path(registry_id, semconv_path, path_fixer)
     }
 
     /// Returns the number of semantic convention specs added in the semantic
@@ -282,7 +254,7 @@ mod tests {
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
-    use crate::semconv::{SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance};
+    use crate::semconv::{SemConvSpecV1, SemConvSpecWithProvenance, Versioned};
     use crate::Error;
 
     use weaver_common::vdir::VirtualDirectoryPath;
@@ -311,7 +283,7 @@ mod tests {
         let semconv_specs = vec![
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c1.yaml"),
-                spec: SemConvSpec::NoVersion(SemConvSpecV1 {
+                spec: Versioned::V1(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -355,7 +327,7 @@ mod tests {
             },
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c2.yaml"),
-                spec: SemConvSpec::NoVersion(SemConvSpecV1 {
+                spec: Versioned::V1(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
                         r#type: GroupType::AttributeGroup,

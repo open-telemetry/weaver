@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
-use weaver_semconv::semconv::SemConvSpec;
+use weaver_semconv::semconv::Versioned;
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
@@ -54,7 +54,7 @@ pub enum JsonSchemaType {
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
-        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
+        JsonSchemaType::SemconvGroup => schema_for!(Versioned),
         JsonSchemaType::SemconvDefinitionV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
         JsonSchemaType::ResolvedRegistryV2 => {
             schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)

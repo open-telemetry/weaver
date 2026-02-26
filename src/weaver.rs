@@ -14,7 +14,7 @@ use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::{LoadedSemconvRegistry, SchemaResolver};
-use weaver_semconv::semconv::SemConvSpec;
+use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
@@ -498,7 +498,7 @@ pub(crate) fn check_policy(
             // Create a local policy engine inheriting the policies
             // from the global policy engine
             let mut policy_engine = policy_engine.clone();
-            check_policy_stage::<SemConvSpec, ()>(
+            check_policy_stage::<Versioned, ()>(
                 &mut policy_engine,
                 PolicyStage::BeforeResolution,
                 semconv.provenance.path.as_str(),
