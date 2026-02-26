@@ -58,9 +58,9 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 /// The extension for a tar gz archive.
-const TAR_GZ_EXT: &str = ".tar.gz";
+pub const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
-const ZIP_EXT: &str = ".zip";
+pub const ZIP_EXT: &str = ".zip";
 
 /// Regex to parse a virtual directory path string.
 ///
