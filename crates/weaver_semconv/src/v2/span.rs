@@ -199,7 +199,6 @@ impl SpanRefinement {
             visibility: None,
         }
     }
-
 }
 
 /// Specification of the span name.

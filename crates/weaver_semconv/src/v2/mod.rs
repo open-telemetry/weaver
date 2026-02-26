@@ -126,9 +126,21 @@ impl SemConvSpecV2 {
         );
 
         // Add all refinements
-        groups.extend(self.entity_refinements.into_iter().map(|e| e.into_v1_group()));
-        groups.extend(self.event_refinements.into_iter().map(|e| e.into_v1_group()));
-        groups.extend(self.metric_refinements.into_iter().map(|m| m.into_v1_group()));
+        groups.extend(
+            self.entity_refinements
+                .into_iter()
+                .map(|e| e.into_v1_group()),
+        );
+        groups.extend(
+            self.event_refinements
+                .into_iter()
+                .map(|e| e.into_v1_group()),
+        );
+        groups.extend(
+            self.metric_refinements
+                .into_iter()
+                .map(|m| m.into_v1_group()),
+        );
         groups.extend(self.span_refinements.into_iter().map(|s| s.into_v1_group()));
 
         SemConvSpecV1 {
@@ -329,7 +341,7 @@ groups:
   name: span.my.refined.span
   span_kind: server
   extends: span.base.span
-"#
+"#,
         );
     }
 }
