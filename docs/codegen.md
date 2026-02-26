@@ -218,6 +218,10 @@ For more details on available filters, see the [JQ Filters Reference](../crates/
 
 ## Tips and Tricks
 
+#### Mark generated files
+
+Add a short header comment in each template output noting that the file is generated and which template produced it. This helps downstream users avoid hand-editing generated artifacts and makes it easier to trace changes back to the source template.
+
 #### Use `debug()`
 
 Jinja2 can be overwhelming and hard to discover. Try putting `debug()` somewhere in your code:
