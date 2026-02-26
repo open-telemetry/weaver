@@ -1,4 +1,4 @@
-version: "1"
+file_format: definition/1
 groups:
   - id: registry.network
     type: attribute_group
