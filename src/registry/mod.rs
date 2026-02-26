@@ -154,7 +154,8 @@ pub enum RegistrySubCommand {
 #[derive(Args, Debug)]
 pub struct RegistryArgs {
     /// Local folder, Git repo URL, or Git archive URL of the semantic
-    /// convention registry. For Git URLs, a sub-folder can be specified
+    /// convention registry. For Git URLs, a reference can be specified
+    /// using the `@refspec` syntax and a sub-folder can be specified
     /// using the `[sub-folder]` syntax after the URL.
     #[arg(
         short = 'r',
