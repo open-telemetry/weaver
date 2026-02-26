@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=../../../schemas/semconv-group.json
-version: "2"
+file_format: definition/2
 
 attributes:
   - key: weaver.finding.id
