@@ -120,8 +120,6 @@ pub enum VirtualDirectoryPath {
         url: String,
 
         /// Specific tag, branch, or commit hash to checkout.
-        ///
-        /// **Note:** Specifying this field is currently not implemented and has no effect.
         refspec: Option<String>,
 
         /// Optional sub-folder path within the cloned repository to use as the root directory.
@@ -335,7 +333,7 @@ impl VirtualDirectory {
     /// - Downloading and extracting remote archives.
     /// - Extracting local archives.
     ///
-    /// Returns an [`Error`] if any operation fails (e.g. network issues, invalid paths, extraction failures).    
+    /// Returns an [`Error`] if any operation fails (e.g. network issues, invalid paths, extraction failures).
     pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
         let vdir_path_repr = vdir_path.to_string();
         let vdir = match vdir_path {
@@ -345,8 +343,10 @@ impl VirtualDirectory {
                 tmp_dir: Arc::new(None),
             }),
             GitRepo {
-                url, sub_folder, ..
-            } => Self::try_from_git_url(url, sub_folder, vdir_path_repr),
+                url,
+                sub_folder,
+                refspec,
+            } => Self::try_from_git_url(url, sub_folder, refspec, vdir_path_repr),
             LocalArchive { path, sub_folder } => {
                 // Create a temporary directory for the virtual directory that will be deleted
                 // when the `VirtualDirectory` goes out of scope.
@@ -376,6 +376,7 @@ impl VirtualDirectory {
     fn try_from_git_url(
         url: &str,
         sub_folder: &Option<String>,
+        refspec: &Option<String>,
         vdir_path: String,
     ) -> Result<Self, Error> {
         let tmp_dir = Self::create_tmp_repo()?;
@@ -399,7 +400,12 @@ impl VirtualDirectory {
         })?
         .with_shallow(Shallow::DepthAtRemote(
             NonZeroU32::new(1).expect("1 is not zero"),
-        ));
+        ))
+        .with_ref_name(refspec.as_ref())
+        .map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: e.to_string(),
+        })?;
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -772,6 +778,7 @@ impl VirtualDirectory {
 mod tests {
     use crate::test::ServeStaticFiles;
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
+    use crate::Error::GitError;
     use std::path::Path;
 
     #[test]
@@ -952,9 +959,23 @@ mod tests {
             // This git repo is expected to be available.
             url: "https://github.com/open-telemetry/semantic-conventions.git".to_owned(),
             sub_folder: Some("model".to_owned()),
-            refspec: None,
+            refspec: Some(String::from("v1.26.0")),
         };
-        check_archive(registry_path, None);
+        check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_semconv_registry_git_repo_with_invalid_refspec() {
+        // This git repo is expected to be available.
+        let url = "https://github.com/open-telemetry/semantic-conventions.git".to_owned();
+        let registry_path = VirtualDirectoryPath::GitRepo {
+            url: url.clone(),
+            sub_folder: Some("model".to_owned()),
+            refspec: Some(String::from("invalid")),
+        };
+        let repo = VirtualDirectory::try_new(&registry_path);
+        assert!(repo.is_err());
+        assert!(matches!(repo, Err(GitError { repo_url, .. }) if repo_url == url ));
     }
 
     #[test]
