@@ -57,6 +57,7 @@ history-temp-repo/
 ui/node_modules/
 ui/dist/
 ui/.vite/
+ui/package-lock.json
 
 # claude
 .claude/
