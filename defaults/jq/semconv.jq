@@ -70,6 +70,8 @@ def get_id($signal; $obj):
     $obj.name
   elif ($signal == "event") then
     $obj.name
+  elif ($signal == "span") then
+    $obj.type
   else
     null
   end;
@@ -227,3 +229,35 @@ def semconv_grouped_metrics($options): semconv_metrics($options) | semconv_group
 
 # Convenience function to group all metrics by their root namespace without any filtering options.
 def semconv_grouped_metrics: semconv_grouped_metrics({});
+
+# Span Functions
+# Groups the spans by their root namespace and sorts spans by type.
+def semconv_group_spans_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.type) });
+
+# Extracts and processes semantic convention spans based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable spans and non-stable attributes on stable spans.
+# - exclude_deprecated: a boolean to exclude deprecated spans and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level span and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable spans instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_spans($options): semconv_signal("span"; $options) | sort_by(.type);
+
+# Convenience function to extract all spans without any filtering options.
+def semconv_spans: semconv_spans({});
+
+# Groups the processed spans by their root namespace based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable spans and non-stable attributes on stable spans.
+# - exclude_deprecated: a boolean to exclude deprecated spans and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level span and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable spans instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_grouped_spans($options): semconv_spans($options) | semconv_group_spans_by_root_namespace;
+
+# Convenience function to group all spans by their root namespace without any filtering options.
+def semconv_grouped_spans: semconv_grouped_spans({});
