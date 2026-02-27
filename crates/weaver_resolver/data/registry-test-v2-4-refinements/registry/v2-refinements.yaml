@@ -1,0 +1,65 @@
+version: '2'
+attributes:
+  - key: test.attr
+    type: int
+    brief: Test attribute
+    stability: stable
+
+attribute_groups:
+  - id: test.group
+    visibility: public
+    brief: Test group
+    stability: stable
+    attributes:
+      - ref: test.attr
+
+metrics:
+  - name: base.metric
+    instrument: histogram
+    unit: s
+    brief: Base metric
+    stability: stable
+    attributes:
+      - ref_group: test.group
+
+metric_refinements:
+  - id: metric.refined.metric
+    ref: base.metric
+    brief: Refined metric
+    unit: ms
+
+spans:
+  - type: base.span
+    kind: client
+    name:
+      note: "base span"
+    brief: Base span
+    stability: stable
+
+span_refinements:
+  - id: span.refined.span
+    ref: base.span
+    kind: server
+    brief: Refined span
+
+events:
+  - name: base.event
+    brief: Base event
+    stability: stable
+
+event_refinements:
+  - id: event.refined.event
+    ref: base.event
+    brief: Refined event
+
+entities:
+  - type: base.entity
+    identity:
+      - ref: test.attr
+    brief: Base entity
+    stability: stable
+
+entity_refinements:
+  - id: entity.refined.entity
+    ref: base.entity
+    brief: Refined entity

@@ -1,0 +1,219 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "entity.base.entity",
+      "type": "entity",
+      "brief": "Base entity",
+      "stability": "stable",
+      "attributes": [
+        1
+      ],
+      "name": "base.entity",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "role"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "entity.refined.entity",
+      "type": "entity",
+      "brief": "Refined entity",
+      "attributes": [
+        1
+      ],
+      "name": "entity.refined.entity",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "extends_group": "entity.base.entity",
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "role"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "event.base.event",
+      "type": "event",
+      "brief": "Base event",
+      "stability": "stable",
+      "name": "base.event",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        }
+      }
+    },
+    {
+      "id": "event.refined.event",
+      "type": "event",
+      "brief": "Refined event",
+      "name": "event.refined.event",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "extends_group": "event.base.event"
+      }
+    },
+    {
+      "id": "metric.base.metric",
+      "type": "metric",
+      "brief": "Base metric",
+      "stability": "stable",
+      "attributes": [
+        0
+      ],
+      "metric_name": "base.metric",
+      "instrument": "histogram",
+      "unit": "s",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        },
+        "includes_group": [
+          "test.group"
+        ]
+      }
+    },
+    {
+      "id": "metric.refined.metric",
+      "type": "metric",
+      "brief": "Refined metric",
+      "attributes": [
+        0
+      ],
+      "metric_name": "metric.refined.metric",
+      "unit": "ms",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "extends_group": "metric.base.metric",
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+      "type": "attribute_group",
+      "brief": "<synthetic v2>",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        }
+      }
+    },
+    {
+      "id": "span.base.span",
+      "type": "span",
+      "brief": "Base span",
+      "stability": "stable",
+      "span_kind": "client",
+      "name": "base.span",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        }
+      }
+    },
+    {
+      "id": "span.refined.span",
+      "type": "span",
+      "brief": "Refined span",
+      "span_kind": "server",
+      "name": "span.refined.span",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "extends_group": "span.base.span"
+      }
+    },
+    {
+      "id": "test.group",
+      "type": "attribute_group",
+      "brief": "Test group",
+      "stability": "stable",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1049,8 +1049,8 @@ mod tests {
                 .expect("Failed to write observed output.");
 
             assert_eq!(
-                observed_registry,
-                expected_registry,
+                to_json(&observed_registry),
+                to_json(&expected_registry),
                 "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
                 test_dir,
                 weaver_diff::diff_output(

@@ -13,8 +13,9 @@ use crate::{
     semconv::{Imports, SemConvSpecV1},
     stability::Stability,
     v2::{
-        attribute::AttributeDef, attribute_group::AttributeGroup, entity::Entity, event::Event,
-        metric::Metric, span::Span,
+        attribute::AttributeDef, attribute_group::AttributeGroup, entity::Entity,
+        entity::EntityRefinement, event::Event, event::EventRefinement, metric::Metric,
+        metric::MetricRefinement, span::Span, span::SpanRefinement,
     },
     YamlValue,
 };
@@ -73,6 +74,19 @@ pub struct SemConvSpecV2 {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) attribute_groups: Vec<AttributeGroup>,
 
+    /// A collection of semantic convention refinements for Entity signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) entity_refinements: Vec<EntityRefinement>,
+    /// A collection of semantic convention refinements for Event signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) event_refinements: Vec<EventRefinement>,
+    /// A collection of semantic convention refinements for Metric signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) metric_refinements: Vec<MetricRefinement>,
+    /// A collection of semantic convention refinements for Span signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) span_refinements: Vec<SpanRefinement>,
+
     /// A list of imports referencing groups defined in a dependent registry.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) imports: Option<Imports>,
@@ -111,6 +125,24 @@ impl SemConvSpecV2 {
                 .map(|ag| ag.into_v1_group()),
         );
 
+        // Add all refinements
+        groups.extend(
+            self.entity_refinements
+                .into_iter()
+                .map(|e| e.into_v1_group()),
+        );
+        groups.extend(
+            self.event_refinements
+                .into_iter()
+                .map(|e| e.into_v1_group()),
+        );
+        groups.extend(
+            self.metric_refinements
+                .into_iter()
+                .map(|m| m.into_v1_group()),
+        );
+        groups.extend(self.span_refinements.into_iter().map(|s| s.into_v1_group()));
+
         SemConvSpecV1 {
             groups,
             imports: self.imports,
@@ -125,6 +157,10 @@ impl SemConvSpecV2 {
             && self.metrics.is_empty()
             && self.spans.is_empty()
             && self.attribute_groups.is_empty()
+            && self.entity_refinements.is_empty()
+            && self.event_refinements.is_empty()
+            && self.metric_refinements.is_empty()
+            && self.span_refinements.is_empty()
     }
 }
 
@@ -253,6 +289,58 @@ groups:
 imports:
   metrics:
   - foo/*
+"#,
+        );
+    }
+
+    #[test]
+    fn test_refinements() {
+        parse_and_translate(
+            r#"
+metric_refinements:
+  - id: metric.my.refined.metric
+    ref: base.metric
+    brief: Refined metric brief
+    unit: ms
+span_refinements:
+  - id: span.my.refined.span
+    ref: base.span
+    kind: server
+    name:
+      note: "new note"
+event_refinements:
+  - id: event.my.refined.event
+    ref: base.event
+    brief: Refined event brief
+entity_refinements:
+  - id: entity.my.refined.entity
+    ref: base.entity
+    brief: Refined entity brief
+"#,
+            r#"
+groups:
+- id: entity.my.refined.entity
+  type: entity
+  name: entity.my.refined.entity
+  brief: Refined entity brief
+  extends: entity.base.entity
+- id: event.my.refined.event
+  type: event
+  name: event.my.refined.event
+  brief: Refined event brief
+  extends: event.base.event
+- id: metric.my.refined.metric
+  type: metric
+  metric_name: metric.my.refined.metric
+  brief: Refined metric brief
+  extends: metric.base.metric
+  unit: ms
+- id: span.my.refined.span
+  type: span
+  brief: ""
+  name: span.my.refined.span
+  span_kind: server
+  extends: span.base.span
 "#,
         );
     }
