@@ -1,0 +1,6 @@
+templates:
+  - template: semconv_spans.j2
+    filter: >
+      semconv_grouped_spans({"v2": true})
+    application_mode: single
+    file_name: semconv_spans.json
