@@ -1,0 +1,18 @@
+groups:
+  - id: test.attr
+    type: attribute_group
+    brief: Test attributes.
+    stability: stable
+    attributes:
+      - id: test.attr
+        type: string
+        brief: A test attribute.
+        stability: stable
+        examples: ["example-value"]
+  - id: test.span
+    type: span
+    span_kind: client
+    brief: A test span.
+    stability: stable
+    attributes:
+      - ref: test.attr

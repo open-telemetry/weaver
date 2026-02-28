@@ -4,23 +4,48 @@ This document contains the help content for the `weaver` command-line program.
 
 **Command Overview:**
 
-* [`weaver`↴](#weaver)
-* [`weaver registry`↴](#weaver-registry)
-* [`weaver registry check`↴](#weaver-registry-check)
-* [`weaver registry generate`↴](#weaver-registry-generate)
-* [`weaver registry resolve`↴](#weaver-registry-resolve)
-* [`weaver registry search`↴](#weaver-registry-search)
-* [`weaver registry stats`↴](#weaver-registry-stats)
-* [`weaver registry update-markdown`↴](#weaver-registry-update-markdown)
-* [`weaver registry json-schema`↴](#weaver-registry-json-schema)
-* [`weaver registry diff`↴](#weaver-registry-diff)
-* [`weaver registry emit`↴](#weaver-registry-emit)
-* [`weaver registry live-check`↴](#weaver-registry-live-check)
-* [`weaver registry mcp`↴](#weaver-registry-mcp)
-* [`weaver diagnostic`↴](#weaver-diagnostic)
-* [`weaver diagnostic init`↴](#weaver-diagnostic-init)
-* [`weaver completion`↴](#weaver-completion)
-* [`weaver serve`↴](#weaver-serve)
+- [Command-Line Help for `weaver`](#command-line-help-for-weaver)
+  - [`weaver`](#weaver)
+          - [**Subcommands:**](#subcommands)
+          - [**Options:**](#options)
+  - [`weaver registry`](#weaver-registry)
+          - [**Subcommands:**](#subcommands-1)
+  - [`weaver registry check`](#weaver-registry-check)
+          - [**Options:**](#options-1)
+  - [`weaver registry generate`](#weaver-registry-generate)
+          - [**Arguments:**](#arguments)
+          - [**Options:**](#options-2)
+  - [`weaver registry resolve`](#weaver-registry-resolve)
+          - [**Options:**](#options-3)
+  - [`weaver registry search`](#weaver-registry-search)
+          - [**Arguments:**](#arguments-1)
+          - [**Options:**](#options-4)
+  - [`weaver registry stats`](#weaver-registry-stats)
+          - [**Options:**](#options-5)
+  - [`weaver registry update-markdown`](#weaver-registry-update-markdown)
+          - [**Arguments:**](#arguments-2)
+          - [**Options:**](#options-6)
+  - [`weaver registry json-schema`](#weaver-registry-json-schema)
+          - [**Options:**](#options-7)
+  - [`weaver registry diff`](#weaver-registry-diff)
+          - [**Options:**](#options-8)
+  - [`weaver registry emit`](#weaver-registry-emit)
+          - [**Options:**](#options-9)
+  - [`weaver registry live-check`](#weaver-registry-live-check)
+          - [**Options:**](#options-10)
+  - [`weaver registry mcp`](#weaver-registry-mcp)
+          - [**Options:**](#options-11)
+  - [`weaver registry package`](#weaver-registry-package)
+          - [**Options:**](#options-12)
+  - [`weaver diagnostic`](#weaver-diagnostic)
+          - [**Subcommands:**](#subcommands-2)
+  - [`weaver diagnostic init`](#weaver-diagnostic-init)
+          - [**Arguments:**](#arguments-3)
+          - [**Options:**](#options-13)
+  - [`weaver completion`](#weaver-completion)
+          - [**Arguments:**](#arguments-4)
+  - [`weaver serve`](#weaver-serve)
+          - [**Options:**](#options-14)
 
 ## `weaver`
 
@@ -62,6 +87,7 @@ Manage Semantic Convention Registry
 * `emit` — Emits a semantic convention registry as example signals to your OTLP receiver.
 * `live-check` — Perform a live check on sample telemetry by comparing it to a semantic convention registry.
 * `mcp` — Run an MCP (Model Context Protocol) server for the semantic convention registry.
+* `package` — Packages a semantic convention registry into a self-contained artifact.
 
 
 
@@ -347,6 +373,8 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the diff
   - `diff-v2`:
     The JSON schema of the diff V2
+  - `publication-manifest`:
+    The JSON schema of the publication manifest produced by `weaver registry package`
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
@@ -551,6 +579,50 @@ The server communicates over stdio using JSON-RPC.
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+
+
+
+## `weaver registry package`
+
+Packages a semantic convention registry into a self-contained artifact.
+
+The package consists of two files written to the output directory:
+
+* `resolved.yaml` — the fully resolved telemetry schema
+* `manifest.yaml` — a publication manifest describing the registry and pointing to where the resolved schema will be published
+
+Requires `--v2` and a `manifest.yaml` file in the registry root. Policy checks are run before packaging; use `--skip-policies` to bypass them.
+
+**Usage:** `weaver registry package [OPTIONS] --resolved-schema-uri <RESOLVED_SCHEMA_URI>`
+
+###### **Options:**
+
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+
+  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
+* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. **Required** for this command
+
+  Default value: `false`
+* `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written
+
+  Default value: `output`
+* `--resolved-schema-uri <RESOLVED_SCHEMA_URI>` — URI where the resolved schema will eventually be published. This value is embedded in the publication manifest as `resolved_schema_uri`
+* `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
+* `--skip-policies` — Skip the policy checks
+
+  Default value: `false`
+* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+
+  Default value: `false`
+* `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+  Default value: `ansi`
+* `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+
+  Default value: `diagnostic_templates`
+* `--diagnostic-stdout` — Send the output to stdout instead of stderr
 
 
 

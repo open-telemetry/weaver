@@ -1,0 +1,8 @@
+groups:
+  - id: test.span
+    type: span
+    span_kind: client
+    brief: A test span.
+    stability: stable
+    attributes:
+      - ref: nonexistent.attribute

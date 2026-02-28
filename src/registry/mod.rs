@@ -15,6 +15,7 @@ use crate::registry::infer::RegistryInferArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::RegistryLiveCheckArgs;
 use crate::registry::mcp::RegistryMcpArgs;
+use crate::registry::package::RegistryPackageArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -33,6 +34,7 @@ mod json_schema;
 mod live_check;
 mod mcp;
 mod otlp;
+mod package;
 mod resolve;
 mod search;
 mod stats;
@@ -52,6 +54,14 @@ pub enum Error {
 
     #[error(transparent)]
     Schema(#[from] weaver_resolved_schema::error::Error),
+
+    /// Packaging requires a v2 registry
+    #[error("Packaging is only supported for v2 registries. Pass `--v2` to enable v2 schema.")]
+    PackagingRequiresV2,
+
+    /// Packaging requires a manifest file
+    #[error("Registry `{registry}` does not contain a manifest file")]
+    PackagingRequiresManifest { registry: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -148,6 +158,10 @@ pub enum RegistrySubCommand {
     /// Generates a schema file by inferring the schema from a OTLP message.
     #[clap(verbatim_doc_comment)]
     Infer(RegistryInferArgs),
+
+    /// Packages a semantic convention registry into a self-contained artifact.
+    #[clap(verbatim_doc_comment)]
+    Package(RegistryPackageArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -237,6 +251,9 @@ pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
         }
         RegistrySubCommand::Infer(args) => {
             CmdResult::new(infer::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Package(args) => {
+            CmdResult::new(package::command(args), Some(args.diagnostic.clone()))
         }
     }
 }
