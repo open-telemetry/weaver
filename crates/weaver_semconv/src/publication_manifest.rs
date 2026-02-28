@@ -80,8 +80,7 @@ stability: stable
         )
         .expect("Failed to deserialize RegistryManifest");
 
-        let resolved_schema_uri =
-            "https://example.com/resolved/1.0.0/resolved.yaml".to_owned();
+        let resolved_schema_uri = "https://example.com/resolved/1.0.0/resolved.yaml".to_owned();
         let publication = PublicationRegistryManifest::from_registry_manifest(
             &manifest,
             resolved_schema_uri.clone(),
