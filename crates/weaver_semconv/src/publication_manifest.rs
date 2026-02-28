@@ -62,5 +62,39 @@ impl PublicationRegistryManifest {
             resolved_schema_uri,
         }
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stability::Stability;
+
+    #[test]
+    fn test_from_registry_manifest() {
+        let manifest: RegistryManifest = serde_yaml::from_str(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+description: "A test registry"
+stability: stable
+"#,
+        )
+        .expect("Failed to deserialize RegistryManifest");
+
+        let resolved_schema_uri =
+            "https://example.com/resolved/1.0.0/resolved.yaml".to_owned();
+        let publication = PublicationRegistryManifest::from_registry_manifest(
+            &manifest,
+            resolved_schema_uri.clone(),
+        );
+
+        assert_eq!(publication.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
+        assert_eq!(
+            publication.schema_url.as_str(),
+            "https://example.com/schemas/1.0.0"
+        );
+        assert_eq!(publication.description.as_deref(), Some("A test registry"));
+        assert_eq!(publication.stability, Stability::Stable);
+        assert!(publication.dependencies.is_empty());
+        assert_eq!(publication.resolved_schema_uri, resolved_schema_uri);
+    }
 }

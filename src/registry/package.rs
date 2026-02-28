@@ -84,11 +84,12 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
 
     // Write resolved schema as resolved.yaml
     let resolved_path = args.output.join("resolved.yaml");
-    let resolved_yaml = serde_yaml::to_string(&resolved_v2.resolved_schema())
-        .map_err(|e| Error::InvalidParams {
+    let resolved_yaml = serde_yaml::to_string(&resolved_v2.resolved_schema()).map_err(|e| {
+        Error::InvalidParams {
             params_file: resolved_path.clone(),
             error: e.to_string(),
-        })?;
+        }
+    })?;
     fs::write(&resolved_path, resolved_yaml).map_err(|e| Error::InvalidParams {
         params_file: resolved_path.clone(),
         error: e.to_string(),
@@ -172,9 +173,10 @@ mod tests {
         // resolved.yaml must exist, be valid YAML, and contain the v2 resolved schema format
         let resolved_path = output.path().join("resolved.yaml");
         assert!(resolved_path.exists(), "resolved.yaml not written");
-        let resolved_content = fs::read_to_string(&resolved_path).expect("failed to read resolved.yaml");
-        let resolved: serde_yaml::Value = serde_yaml::from_str(&resolved_content)
-            .expect("resolved.yaml is not valid YAML");
+        let resolved_content =
+            fs::read_to_string(&resolved_path).expect("failed to read resolved.yaml");
+        let resolved: serde_yaml::Value =
+            serde_yaml::from_str(&resolved_content).expect("resolved.yaml is not valid YAML");
         assert_eq!(
             resolved["file_format"].as_str(),
             Some("resolved/2.0.0"),
@@ -184,14 +186,21 @@ mod tests {
         // manifest.yaml must exist and contain the correct fields
         let manifest_path = output.path().join("manifest.yaml");
         assert!(manifest_path.exists(), "manifest.yaml not written");
-        let manifest_content = fs::read_to_string(&manifest_path).expect("failed to read manifest.yaml");
+        let manifest_content =
+            fs::read_to_string(&manifest_path).expect("failed to read manifest.yaml");
         let manifest: PublicationRegistryManifest =
             serde_yaml::from_str(&manifest_content).expect("manifest.yaml is not valid YAML");
 
         assert_eq!(manifest.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
         assert_eq!(manifest.schema_url.as_str(), "https://test/schemas/1.0.0");
-        assert_eq!(manifest.resolved_schema_uri, "https://test/semconv/1.0.0/resolved.yaml");
-        assert_eq!(manifest.description.as_deref(), Some("A test registry for packaging tests."));
+        assert_eq!(
+            manifest.resolved_schema_uri,
+            "https://test/semconv/1.0.0/resolved.yaml"
+        );
+        assert_eq!(
+            manifest.description.as_deref(),
+            Some("A test registry for packaging tests.")
+        );
     }
 
     /// The output directory is created automatically if it does not exist.
@@ -230,7 +239,10 @@ mod tests {
         assert!(result.is_err());
         let diag_msgs = result.unwrap_err();
         let msg = format!("{diag_msgs:?}");
-        assert!(msg.contains("PackagingRequiresV2") || msg.contains("--v2"), "unexpected error: {msg}");
+        assert!(
+            msg.contains("PackagingRequiresV2") || msg.contains("--v2"),
+            "unexpected error: {msg}"
+        );
     }
 
     /// Packaging a registry that has no manifest fails with `PackagingRequiresManifest`.
@@ -266,7 +278,10 @@ mod tests {
         );
 
         let result = command(&args);
-        assert!(result.is_err(), "Expected resolution failure for invalid definition");
+        assert!(
+            result.is_err(),
+            "Expected resolution failure for invalid definition"
+        );
         // No output files should have been written
         assert!(!output.path().join("resolved.yaml").exists());
         assert!(!output.path().join("manifest.yaml").exists());
