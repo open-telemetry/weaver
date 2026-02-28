@@ -84,7 +84,7 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
 
     // Write resolved schema as resolved.yaml
     let resolved_path = args.output.join("resolved.yaml");
-    let resolved_yaml = serde_yaml::to_string(&resolved_v2.template_schema())
+    let resolved_yaml = serde_yaml::to_string(&resolved_v2.resolved_schema())
         .map_err(|e| Error::InvalidParams {
             params_file: resolved_path.clone(),
             error: e.to_string(),
@@ -169,12 +169,17 @@ mod tests {
         let result = command(&args);
         assert!(result.is_ok(), "Expected success, got: {result:?}");
 
-        // resolved.yaml must exist and be valid YAML
+        // resolved.yaml must exist, be valid YAML, and contain the v2 resolved schema format
         let resolved_path = output.path().join("resolved.yaml");
         assert!(resolved_path.exists(), "resolved.yaml not written");
         let resolved_content = fs::read_to_string(&resolved_path).expect("failed to read resolved.yaml");
-        let _: serde_yaml::Value = serde_yaml::from_str(&resolved_content)
+        let resolved: serde_yaml::Value = serde_yaml::from_str(&resolved_content)
             .expect("resolved.yaml is not valid YAML");
+        assert_eq!(
+            resolved["file_format"].as_str(),
+            Some("resolved/2.0.0"),
+            "resolved.yaml does not contain the expected v2 resolved schema file_format"
+        );
 
         // manifest.yaml must exist and contain the correct fields
         let manifest_path = output.path().join("manifest.yaml");
