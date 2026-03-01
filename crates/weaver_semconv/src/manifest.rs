@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Contains the definitions for semantic convention registry manifests.
+//! Contains the definitions for the semantic conventions registry manifest.
 //!
 //! Two manifest types are defined here:
 //! - [`RegistryManifest`]: flexible, can be a definition or publication manifest
@@ -257,8 +257,12 @@ impl RegistryManifest {
         }
     }
 
+    /// Checks if this manifest is a publication manifest based on the presence of `resolved_schema_uri`
+    /// or the `file_format` matching the publication manifest format.
+    #[must_use]
     pub fn is_publication_manifest(&self) -> bool {
-        self.resolved_schema_uri.is_some() || self.file_format.as_deref() == Some(PUBLICATION_MANIFEST_FILE_FORMAT)
+        self.resolved_schema_uri.is_some()
+            || self.file_format.as_deref() == Some(PUBLICATION_MANIFEST_FILE_FORMAT)
     }
 }
 
