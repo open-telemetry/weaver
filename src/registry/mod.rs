@@ -62,6 +62,15 @@ pub enum Error {
     /// Packaging requires a manifest file
     #[error("Registry `{registry}` does not contain a manifest file")]
     PackagingRequiresManifest { registry: String },
+
+    /// The registry passed to `package` is already a publication manifest.
+    /// `weaver registry package` expects a definition registry, not a previously
+    /// packaged one.
+    #[error(
+        "Registry `{registry}` contains publication manifest, \
+         `weaver registry package` requires a definition registry as input."
+    )]
+    UnexpectedDefinitionManifest { registry: String },
 }
 
 impl From<Error> for DiagnosticMessages {

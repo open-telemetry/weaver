@@ -202,46 +202,55 @@ fn load_semconv_repository_recursive(
     dependency_chain.push(registry_name.clone());
 
     // Either load a fully resolved repository, or read in raw files.
-    if let Some(manifest) = registry_repo.manifest() {
-        if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
-            load_resolved_repository(&resolved_url)
-        } else {
-            if manifest.dependencies.len() > 1 {
-                todo!("Multiple dependencies is not supported yet.")
-            }
-            // Load dependencies.
-            let mut loaded_dependencies = vec![];
-            let mut non_fatal_errors: Vec<Error> = vec![];
-            for d in manifest.dependencies.iter() {
-                let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
-                match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
-                    Ok(d_repo) => {
-                        non_fatal_errors
-                            .extend(semconv_nfes.into_iter().map(Error::FailToResolveDefinition));
-                        // so we need to make sure the dependency chain only include direct dependencies of each other.
-                        match load_semconv_repository_recursive(
-                            d_repo,
-                            follow_symlinks,
-                            max_dependency_depth - 1,
-                            visited_registries,
-                            dependency_chain,
-                        ) {
-                            WResult::Ok(d) => loaded_dependencies.push(d),
-                            WResult::OkWithNFEs(d, nfes) => {
-                                loaded_dependencies.push(d);
-                                non_fatal_errors.extend(nfes);
-                            }
-                            WResult::FatalErr(err) => return WResult::FatalErr(err),
-                        }
-                    }
-                    Err(err) => return WResult::FatalErr(err.into()),
-                }
-            }
-            // Now load the raw repository.
-            // TODO - Allow ignoring dependency warnings - https://github.com/open-telemetry/weaver/issues/1126.
-            load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
-                .extend_non_fatal_errors(non_fatal_errors)
+    if registry_repo.is_publication_manifest() {
+        // Publication manifests always have a resolved_schema_uri pointing to the
+        // pre-resolved schema; use it directly instead of re-resolving raw files.
+        match registry_repo.resolved_schema_uri() {
+            Some(resolved_url) => return load_resolved_repository(&resolved_url),
+            None => return WResult::FatalErr(Error::ConversionError {
+                message: format!(
+                    "Publication manifest at '{}' is missing required field 'resolved_schema_uri'",
+                    registry_repo.registry_path_repr()
+                ),
+            }),
         }
+    }
+    if let Some(manifest) = registry_repo.manifest() {
+        if manifest.dependencies.len() > 1 {
+            todo!("Multiple dependencies is not supported yet.")
+        }
+        // Load dependencies.
+        let mut loaded_dependencies = vec![];
+        let mut non_fatal_errors: Vec<Error> = vec![];
+        for d in manifest.dependencies.iter() {
+            let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
+            match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
+                Ok(d_repo) => {
+                    non_fatal_errors
+                        .extend(semconv_nfes.into_iter().map(Error::FailToResolveDefinition));
+                    // so we need to make sure the dependency chain only include direct dependencies of each other.
+                    match load_semconv_repository_recursive(
+                        d_repo,
+                        follow_symlinks,
+                        max_dependency_depth - 1,
+                        visited_registries,
+                        dependency_chain,
+                    ) {
+                        WResult::Ok(d) => loaded_dependencies.push(d),
+                        WResult::OkWithNFEs(d, nfes) => {
+                            loaded_dependencies.push(d);
+                            non_fatal_errors.extend(nfes);
+                        }
+                        WResult::FatalErr(err) => return WResult::FatalErr(err),
+                    }
+                }
+                Err(err) => return WResult::FatalErr(err.into()),
+            }
+        }
+        // Now load the raw repository.
+        // TODO - Allow ignoring dependency warnings - https://github.com/open-telemetry/weaver/issues/1126.
+        load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
+            .extend_non_fatal_errors(non_fatal_errors)
     } else {
         // This is a raw repository with *no* manifest.
         // TODO - issue a warning that manifest will be required w/ 2.0 to allow publishing.

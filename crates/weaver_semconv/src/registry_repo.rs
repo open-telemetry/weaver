@@ -5,7 +5,7 @@
 use std::default::Default;
 use std::path::{Path, PathBuf};
 
-use crate::manifest::{Dependency, RegistryManifest};
+use crate::manifest::{Dependency, RegistryManifest, PUBLICATION_MANIFEST_FILE_FORMAT};
 use crate::schema_url::SchemaUrl;
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};

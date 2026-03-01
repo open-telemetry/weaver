@@ -19,7 +19,6 @@ pub mod group;
 pub mod json_schema;
 pub mod manifest;
 pub mod provenance;
-pub mod publication_manifest;
 pub mod registry;
 pub mod registry_repo;
 pub mod schema_url;

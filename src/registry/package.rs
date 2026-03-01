@@ -10,7 +10,7 @@ use log::info;
 use weaver_common::log_success;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_semconv::publication_manifest::PublicationRegistryManifest;
+use weaver_semconv::manifest::PublicationRegistryManifest;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
@@ -66,6 +66,14 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
             registry: registry_path.to_string(),
         })?
         .clone();
+
+    // Reject publication manifests passed as input — package expects a definition registry.
+    if registry_manifest.is_publication_manifest() {
+        return Err(Error::UnexpectedDefinitionManifest {
+            registry: registry_path.to_string(),
+        }
+        .into());
+    }
 
     let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
@@ -125,7 +133,7 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
 mod tests {
     use super::*;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_semconv::publication_manifest::PUBLICATION_MANIFEST_FILE_FORMAT;
+    use weaver_semconv::manifest::PUBLICATION_MANIFEST_FILE_FORMAT;
 
     use crate::registry::{PolicyArgs, RegistryArgs};
 

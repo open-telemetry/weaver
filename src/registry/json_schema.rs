@@ -67,7 +67,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
         JsonSchemaType::PublicationManifest => {
-            schema_for!(weaver_semconv::publication_manifest::PublicationRegistryManifest)
+            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
         }
     };
 

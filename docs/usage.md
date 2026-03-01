@@ -591,7 +591,7 @@ The package consists of two files written to the output directory:
 * `resolved.yaml` — the fully resolved telemetry schema
 * `manifest.yaml` — a publication manifest describing the registry and pointing to where the resolved schema will be published
 
-Requires `--v2` and a `manifest.yaml` file in the registry root. Policy checks are run before packaging; use `--skip-policies` to bypass them.
+Requires `--v2` and a definition `manifest.yaml` file in the registry root. Policy checks are run before packaging; use `--skip-policies` to bypass them.
 
 **Usage:** `weaver registry package [OPTIONS] --resolved-schema-uri <RESOLVED_SCHEMA_URI>`
 
