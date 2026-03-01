@@ -240,7 +240,7 @@ attributes:
     examples:
       ["http.server.request.duration", "exception", "GET /api/users"]
 
-  - key: weaver.finding.resource_attribute
+  - key: weaver.finding.resource.attribute
     type: template[any]
     brief: "Resource attributes from the original telemetry source that produced the finding"
     note: |
