@@ -228,7 +228,7 @@ attributes:
       (traces, metrics, or logs).
     stability: development
 
-  - key: weaver.finding.signal_name
+  - key: weaver.finding.signal.name
     type: string
     brief: "The name of the specific signal being validated"
     note: |
