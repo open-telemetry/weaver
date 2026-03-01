@@ -4,23 +4,46 @@ This document contains the help content for the `weaver` command-line program.
 
 **Command Overview:**
 
-* [`weaver`↴](#weaver)
-* [`weaver registry`↴](#weaver-registry)
-* [`weaver registry check`↴](#weaver-registry-check)
-* [`weaver registry generate`↴](#weaver-registry-generate)
-* [`weaver registry resolve`↴](#weaver-registry-resolve)
-* [`weaver registry search`↴](#weaver-registry-search)
-* [`weaver registry stats`↴](#weaver-registry-stats)
-* [`weaver registry update-markdown`↴](#weaver-registry-update-markdown)
-* [`weaver registry json-schema`↴](#weaver-registry-json-schema)
-* [`weaver registry diff`↴](#weaver-registry-diff)
-* [`weaver registry emit`↴](#weaver-registry-emit)
-* [`weaver registry live-check`↴](#weaver-registry-live-check)
-* [`weaver registry mcp`↴](#weaver-registry-mcp)
-* [`weaver diagnostic`↴](#weaver-diagnostic)
-* [`weaver diagnostic init`↴](#weaver-diagnostic-init)
-* [`weaver completion`↴](#weaver-completion)
-* [`weaver serve`↴](#weaver-serve)
+- [Command-Line Help for `weaver`](#command-line-help-for-weaver)
+  - [`weaver`](#weaver)
+          - [**Subcommands:**](#subcommands)
+          - [**Options:**](#options)
+  - [`weaver registry`](#weaver-registry)
+          - [**Subcommands:**](#subcommands-1)
+  - [`weaver registry check`](#weaver-registry-check)
+          - [**Options:**](#options-1)
+  - [`weaver registry generate`](#weaver-registry-generate)
+          - [**Arguments:**](#arguments)
+          - [**Options:**](#options-2)
+  - [`weaver registry resolve`](#weaver-registry-resolve)
+          - [**Options:**](#options-3)
+  - [`weaver registry search`](#weaver-registry-search)
+          - [**Arguments:**](#arguments-1)
+          - [**Options:**](#options-4)
+  - [`weaver registry stats`](#weaver-registry-stats)
+          - [**Options:**](#options-5)
+  - [`weaver registry update-markdown`](#weaver-registry-update-markdown)
+          - [**Arguments:**](#arguments-2)
+          - [**Options:**](#options-6)
+  - [`weaver registry json-schema`](#weaver-registry-json-schema)
+          - [**Options:**](#options-7)
+  - [`weaver registry diff`](#weaver-registry-diff)
+          - [**Options:**](#options-8)
+  - [`weaver registry emit`](#weaver-registry-emit)
+          - [**Options:**](#options-9)
+  - [`weaver registry live-check`](#weaver-registry-live-check)
+          - [**Options:**](#options-10)
+  - [`weaver registry mcp`](#weaver-registry-mcp)
+          - [**Options:**](#options-11)
+  - [`weaver diagnostic`](#weaver-diagnostic)
+          - [**Subcommands:**](#subcommands-2)
+  - [`weaver diagnostic init`](#weaver-diagnostic-init)
+          - [**Arguments:**](#arguments-3)
+          - [**Options:**](#options-12)
+  - [`weaver completion`](#weaver-completion)
+          - [**Arguments:**](#arguments-4)
+  - [`weaver serve`](#weaver-serve)
+          - [**Options:**](#options-13)
 
 ## `weaver`
 
@@ -53,7 +76,7 @@ Manage Semantic Convention Registry
 
 * `check` — Validates a semantic convention registry.
 * `generate` — Generates artifacts from a semantic convention registry.
-* `resolve` — Resolves a semantic convention registry.
+* `resolve` — DEPRECATED - Resolves a semantic convention registry. This command is deprecated and will be removed in a future version. Please use `generate` or `package` instead.
 * `search` — DEPRECATED - Searches a registry. This command is deprecated and will be removed in a future version. It is not compatible with V2 schema. Please search the generated documentation instead
 * `stats` — Calculate a set of general statistics on a semantic convention registry
 * `update-markdown` — Update markdown files that contain markers indicating the templates used to update the specified sections
@@ -167,6 +190,8 @@ The process exits with a code of 0 if the generation is successful.
 
 
 ## `weaver registry resolve`
+
+**DEPRECATED** - This command is deprecated and will be removed in a future version. Please use `weaver registry generate` or `weaver registry package` instead.
 
 Resolves a semantic convention registry.
 
