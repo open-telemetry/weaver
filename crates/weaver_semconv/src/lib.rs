@@ -358,6 +358,14 @@ pub enum Error {
         error: String,
     },
 
+    /// A publication manifest was passed where a definition registry was expected.
+    #[error("Registry `{schema_url}` contains a publication manifest; `weaver registry package` requires a definition registry as input.")]
+    #[diagnostic(severity(Error))]
+    UnexpectedPublicationManifest {
+        /// The schema URL of the publication manifest.
+        schema_url: String,
+    },
+
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),

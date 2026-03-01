@@ -2,11 +2,10 @@
 
 //! Contains the definitions for the semantic conventions registry manifest.
 //!
-//! This struct is used to specify the registry, including its name, version,
-//! description, and few other details.
-//!
-//! In the future, this struct may be extended to include additional information
-//! such as the registry's owner, maintainers, and dependencies.
+//! Two manifest types are defined here:
+//! - [`RegistryManifest`]: flexible, can be a definition or publication manifest
+//! - [`PublicationRegistryManifest`]: the publication manifest produced by `weaver registry package`
+//!   (strict, always includes `resolved_schema_uri`).
 
 use std::vec;
 
@@ -23,14 +22,17 @@ use serde::{Deserialize, Deserializer, Serialize};
 use weaver_common::vdir::VirtualDirectoryPath;
 
 /// Represents the information of a semantic convention registry manifest.
+/// It can be either a definition manifest (where `resolved_schema_uri` and
+/// `file_format` are optional) or a publication manifest.
+///
+/// See [`PublicationRegistryManifest`] for the stricter publication form produced
+/// by `weaver registry package`.
 ///
 /// This information defines the registry's name, version, description, and schema
 /// base url.
 #[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct RegistryManifest {
     /// The file format for this registry.
-    ///
-    /// No value is assumed to be `manifest/2.0.0`
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub file_format: Option<String>,
 
@@ -254,6 +256,14 @@ impl RegistryManifest {
             deserialization_warnings: vec![],
         }
     }
+
+    /// Checks if this manifest is a publication manifest based on the presence of `resolved_schema_uri`
+    /// or the `file_format` matching the publication manifest format.
+    #[must_use]
+    pub fn is_publication_manifest(&self) -> bool {
+        self.resolved_schema_uri.is_some()
+            || self.file_format.as_deref() == Some(PUBLICATION_MANIFEST_FILE_FORMAT)
+    }
 }
 
 #[cfg(test)]
@@ -472,6 +482,124 @@ registry_path: "./registry"
                 .iter()
                 .any(|w| matches!(w, DeprecatedSyntaxInRegistryManifest { .. })),
             "Expected a DeprecatedSyntaxInRegistryManifest warning, got: {warnings:?}"
+        );
+    }
+}
+
+/// The file format version of the publication manifest.
+pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "2.0.0";
+
+/// Represents the publication manifest for a packaged semantic convention registry.
+///
+/// This is produced by `weaver registry package` and describes the contents of
+/// a self-contained registry artifact, including its resolved schema location.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct PublicationRegistryManifest {
+    /// The file format version of this publication manifest.
+    /// Always `"2.0.0"`.
+    pub file_format: String,
+
+    /// The schema URL for this registry.
+    /// Uniquely identifies the registry and its version.
+    pub schema_url: SchemaUrl,
+
+    /// An optional description of the registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// List of the registry's dependencies.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub dependencies: Vec<Dependency>,
+
+    /// The stability of this registry.
+    #[serde(default)]
+    pub stability: Stability,
+
+    /// URI pointing to the resolved telemetry schema included in this package.
+    pub resolved_schema_uri: String,
+}
+
+impl PublicationRegistryManifest {
+    /// Creates a `PublicationRegistryManifest` from a `RegistryManifest` and a
+    /// `resolved_schema_uri` pointing to where the resolved schema will be published.
+    ///
+    /// Returns an error if `registry_manifest` is itself a publication manifest —
+    /// `weaver registry package` requires a definition registry as input.
+    pub fn try_from_registry_manifest(
+        registry_manifest: &RegistryManifest,
+        resolved_schema_uri: String,
+    ) -> Result<Self, Error> {
+        if registry_manifest.is_publication_manifest() {
+            return Err(Error::UnexpectedPublicationManifest {
+                schema_url: registry_manifest.schema_url.to_string(),
+            });
+        }
+        Ok(Self {
+            file_format: PUBLICATION_MANIFEST_FILE_FORMAT.to_owned(),
+            schema_url: registry_manifest.schema_url.clone(),
+            description: registry_manifest.description.clone(),
+            dependencies: registry_manifest.dependencies.clone(),
+            stability: registry_manifest.stability.clone(),
+            resolved_schema_uri,
+        })
+    }
+}
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+    use crate::stability::Stability;
+
+    #[test]
+    fn test_from_registry_manifest() {
+        let manifest: RegistryManifest = serde_yaml::from_str(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+description: "A test registry"
+stability: stable
+"#,
+        )
+        .expect("Failed to deserialize RegistryManifest");
+
+        let resolved_schema_uri = "https://example.com/resolved/1.0.0/resolved.yaml".to_owned();
+        let publication = PublicationRegistryManifest::try_from_registry_manifest(
+            &manifest,
+            resolved_schema_uri.clone(),
+        )
+        .expect("should succeed for a definition manifest");
+
+        assert_eq!(publication.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
+        assert_eq!(
+            publication.schema_url.as_str(),
+            "https://example.com/schemas/1.0.0"
+        );
+        assert_eq!(publication.description.as_deref(), Some("A test registry"));
+        assert_eq!(publication.stability, Stability::Stable);
+        assert!(publication.dependencies.is_empty());
+        assert_eq!(publication.resolved_schema_uri, resolved_schema_uri);
+    }
+
+    #[test]
+    fn test_try_from_publication_manifest_fails() {
+        // A RegistryManifest that looks like a publication manifest (has resolved_schema_uri)
+        // should be rejected.
+        let manifest: RegistryManifest = serde_yaml::from_str(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+file_format: "2.0.0"
+resolved_schema_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+"#,
+        )
+        .expect("Failed to deserialize RegistryManifest");
+
+        let result = PublicationRegistryManifest::try_from_registry_manifest(
+            &manifest,
+            "https://example.com/resolved/2.0.0/resolved.yaml".to_owned(),
+        );
+
+        assert!(
+            matches!(result, Err(Error::UnexpectedPublicationManifest { .. })),
+            "expected UnexpectedPublicationManifest, got {result:?}"
         );
     }
 }
