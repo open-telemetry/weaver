@@ -3,7 +3,7 @@
 //! Package a semantic convention registry.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Args;
 use log::info;
@@ -42,6 +42,18 @@ pub struct RegistryPackageArgs {
     pub diagnostic: DiagnosticArgs,
 }
 
+fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), DiagnosticMessages> {
+    let yaml = serde_yaml::to_string(data).map_err(|e| Error::InvalidParams {
+        params_file: path.to_path_buf(),
+        error: e.to_string(),
+    })?;
+    fs::write(path, yaml).map_err(|e| Error::InvalidParams {
+        params_file: path.to_path_buf(),
+        error: e.to_string(),
+    })?;
+    Ok(())
+}
+
 /// Package a semantic convention registry.
 pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Packaging registry `{}`", args.registry.registry);
@@ -67,14 +79,6 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         })?
         .clone();
 
-    // Reject publication manifests passed as input — package expects a definition registry.
-    if registry_manifest.is_publication_manifest() {
-        return Err(Error::UnexpectedDefinitionManifest {
-            registry: registry_path.to_string(),
-        }
-        .into());
-    }
-
     let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
 
@@ -90,34 +94,16 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         error: e.to_string(),
     })?;
 
-    // Write resolved schema as resolved.yaml
-    let resolved_path = args.output.join("resolved.yaml");
-    let resolved_yaml = serde_yaml::to_string(&resolved_v2.resolved_schema()).map_err(|e| {
-        Error::InvalidParams {
-            params_file: resolved_path.clone(),
-            error: e.to_string(),
-        }
-    })?;
-    fs::write(&resolved_path, resolved_yaml).map_err(|e| Error::InvalidParams {
-        params_file: resolved_path.clone(),
-        error: e.to_string(),
-    })?;
+    write_yaml(
+        &args.output.join("resolved.yaml"),
+        resolved_v2.resolved_schema(),
+    )?;
 
-    // Build and write the publication manifest as manifest.yaml
-    let publication_manifest = PublicationRegistryManifest::from_registry_manifest(
+    let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
         &registry_manifest,
         args.resolved_schema_uri.clone(),
-    );
-    let manifest_path = args.output.join("manifest.yaml");
-    let manifest_yaml =
-        serde_yaml::to_string(&publication_manifest).map_err(|e| Error::InvalidParams {
-            params_file: manifest_path.clone(),
-            error: e.to_string(),
-        })?;
-    fs::write(&manifest_path, manifest_yaml).map_err(|e| Error::InvalidParams {
-        params_file: manifest_path.clone(),
-        error: e.to_string(),
-    })?;
+    )?;
+    write_yaml(&args.output.join("manifest.yaml"), &publication_manifest)?;
 
     log_success(format!(
         "Registry packaged successfully to `{}`",
