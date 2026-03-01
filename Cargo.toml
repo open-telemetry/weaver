@@ -156,6 +156,7 @@ lto = "thin"
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unused_lifetimes = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)', 'cfg(tarpaulin_include)'] }
 # unreachable_pub = "warn"
 semicolon_in_expressions_from_macros = "warn"
 missing_docs = "deny"

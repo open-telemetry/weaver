@@ -1,0 +1,20 @@
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+templates:
+  - template: attributes.rs.j2
+    filter: .
+    application_mode: single
+    file_name: generated/attributes.rs
+
+  - template: events.rs.j2
+    filter: .
+    application_mode: single
+    file_name: generated/events.rs
+
+  - template: entities.rs.j2
+    filter: .
+    application_mode: single
+    file_name: generated/entities.rs
+

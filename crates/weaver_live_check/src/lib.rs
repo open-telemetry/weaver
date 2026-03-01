@@ -28,6 +28,9 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
+/// Generated types, constants, and log record builders for live check findings
+pub mod generated;
+pub use generated::attributes::{FindingId, SampleType, SignalType};
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.
@@ -56,29 +59,8 @@ pub mod text_stdin_ingester;
 // Re-export statistics types from stats module
 pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
 
-/// Missing Attribute advice type
-pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
-/// Template Attribute advice type
-pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
-/// Missing Metric advice type
-pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
-/// Missing Event advice type
-pub const MISSING_EVENT_ADVICE_TYPE: &str = "missing_event";
-/// Deprecated advice type
-pub const DEPRECATED_ADVICE_TYPE: &str = "deprecated";
-/// Type Mismatch advice type
-pub const TYPE_MISMATCH_ADVICE_TYPE: &str = "type_mismatch";
-/// Unstable advice type
-pub const NOT_STABLE_ADVICE_TYPE: &str = "not_stable";
-/// Unit mismatch advice type
-pub const UNIT_MISMATCH_ADVICE_TYPE: &str = "unit_mismatch";
-/// Instrument mismatch advice type
-pub const UNEXPECTED_INSTRUMENT_ADVICE_TYPE: &str = "unexpected_instrument";
-/// Undefined enum variant advice type
-pub const UNDEFINED_ENUM_VARIANT_ADVICE_TYPE: &str = "undefined_enum_variant";
-
-/// Attribute name key in advice context
-pub const ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &str = "attribute_name";
+/// Attribute key in advice context
+pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
 /// Attribute value key in advice context
 pub const ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: &str = "attribute_value";
 ///Attribute type key in advice context
@@ -321,38 +303,40 @@ pub enum SampleRef<'a> {
 }
 
 impl SampleRef<'_> {
-    /// Returns the sample type as a string.
+    /// Returns the sample type.
     #[must_use]
-    pub fn sample_type(&self) -> &str {
+    pub fn sample_type(&self) -> SampleType {
         match self {
-            SampleRef::Attribute(_) => "attribute",
-            SampleRef::Span(_) => "span",
-            SampleRef::SpanEvent(_) => "span_event",
-            SampleRef::SpanLink(_) => "span_link",
-            SampleRef::Resource(_) => "resource",
-            SampleRef::Metric(_) => "metric",
-            SampleRef::NumberDataPoint(_) => "number_data_point",
-            SampleRef::HistogramDataPoint(_) => "histogram_data_point",
-            SampleRef::ExponentialHistogramDataPoint(_) => "exponential_histogram_data_point",
-            SampleRef::Exemplar(_) => "exemplar",
-            SampleRef::Log(_) => "log",
+            SampleRef::Attribute(_) => SampleType::Attribute,
+            SampleRef::Span(_) => SampleType::Span,
+            SampleRef::SpanEvent(_) => SampleType::SpanEvent,
+            SampleRef::SpanLink(_) => SampleType::SpanLink,
+            SampleRef::Resource(_) => SampleType::Resource,
+            SampleRef::Metric(_) => SampleType::Metric,
+            SampleRef::NumberDataPoint(_) => SampleType::NumberDataPoint,
+            SampleRef::HistogramDataPoint(_) => SampleType::HistogramDataPoint,
+            SampleRef::ExponentialHistogramDataPoint(_) => {
+                SampleType::ExponentialHistogramDataPoint
+            }
+            SampleRef::Exemplar(_) => SampleType::Exemplar,
+            SampleRef::Log(_) => SampleType::Log,
         }
     }
 }
 
 impl Sample {
-    /// Returns the signal type as a string or None if sample
+    /// Returns the signal type or None if sample
     /// does not capture a whole signal.
     #[must_use]
     pub fn signal_type(&self) -> Option<String> {
         match self {
             Sample::Attribute(_) => None, // not a signal
-            Sample::Span(_) => Some("span".to_owned()),
+            Sample::Span(_) => Some(SignalType::Span.to_string()),
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
-            Sample::Resource(_) => Some("resource".to_owned()),
-            Sample::Metric(_) => Some("metric".to_owned()),
-            Sample::Log(_) => Some("log".to_owned()),
+            Sample::Resource(_) => Some(SignalType::Resource.to_string()),
+            Sample::Metric(_) => Some(SignalType::Metric.to_string()),
+            Sample::Log(_) => Some(SignalType::Log.to_string()),
         }
     }
 

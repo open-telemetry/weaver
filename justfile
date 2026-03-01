@@ -21,6 +21,7 @@ pre-push-check:
     cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
     rm -rf crates/weaver_forge/observed_output/*
     cargo nextest run --all
+    cargo xtask check-generated
     cargo xtask history
     # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
     # [ToDo LQ] Re-enable --all-features once the issue is resolved
@@ -33,6 +34,9 @@ pre-push: install pre-push-check validate-workspace check-external-types
 
 upgrade:
     cargo upgrade
+
+check-generated:
+    cargo xtask check-generated
 
 validate-workspace:
     cargo xtask validate

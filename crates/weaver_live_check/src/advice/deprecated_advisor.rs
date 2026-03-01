@@ -9,8 +9,8 @@ use weaver_semconv::deprecated::Deprecated;
 
 use super::{Advisor, FindingBuilder};
 use crate::{
-    otlp_logger::OtlpEmitter, Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_TYPE, DEPRECATION_NOTE_ADVICE_CONTEXT_KEY,
+    otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, DEPRECATION_NOTE_ADVICE_CONTEXT_KEY,
     DEPRECATION_REASON_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
     METRIC_NAME_ADVICE_CONTEXT_KEY,
 };
@@ -59,9 +59,9 @@ impl Advisor for DeprecatedAdvisor {
                 if let Some(attribute) = registry_attribute {
                     if let Some(deprecated) = &attribute.deprecated() {
                         let name = &sample_attribute.name;
-                        let finding = FindingBuilder::new(DEPRECATED_ADVICE_TYPE)
+                        let finding = FindingBuilder::new(FindingId::Deprecated)
                             .context(json!({
-                                ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
+                                ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: name,
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
                                 DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated.to_string(),
                             }))
@@ -80,7 +80,7 @@ impl Advisor for DeprecatedAdvisor {
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
                         let name = &sample_metric.name;
-                        let finding = FindingBuilder::new(DEPRECATED_ADVICE_TYPE)
+                        let finding = FindingBuilder::new(FindingId::Deprecated)
                             .context(json!({
                                 METRIC_NAME_ADVICE_CONTEXT_KEY: name,
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
@@ -101,7 +101,7 @@ impl Advisor for DeprecatedAdvisor {
                 if let Some(group) = registry_group {
                     if let Some(deprecated) = &group.deprecated() {
                         let name = &sample_log.event_name;
-                        let finding = FindingBuilder::new(DEPRECATED_ADVICE_TYPE)
+                        let finding = FindingBuilder::new(FindingId::Deprecated)
                             .context(json!({
                                 EVENT_NAME_ADVICE_CONTEXT_KEY: name,
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),

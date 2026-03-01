@@ -1,137 +1,295 @@
-groups:
-  - id: registry.weaver
-    type: attribute_group
-    brief: >
-      A set of attributes used within Weaver Live Check.
-    attributes:
-      - id: weaver.finding.id
-        type: string
-        brief: "Finding type identifier"
-        requirement_level: required
-        stability: development
-        examples: ["required_attribute_not_present", "invalid_span_name"]
+# yaml-language-server: $schema=../../../schemas/semconv-group.json
+file_format: definition/2
 
-      - id: weaver.finding.level
-        type:
-          members:
-            - id: violation
-              value: "violation"
-              brief: "Indicates a violation"
-              stability: development
-            - id: improvement
-              value: "improvement"
-              brief: "Indicates an improvement suggestion"
-              stability: development
-            - id: information
-              value: "information"
-              brief: "Provides informational context"
-              stability: development
-        brief: "Finding level"
-        requirement_level: required
-        stability: development
+attributes:
+  - key: weaver.finding.id
+    type:
+      members:
+        # Built-in advisor findings
+        - id: missing_attribute
+          value: "missing_attribute"
+          brief: "An attribute is not defined in the semantic convention registry"
+          stability: development
+        - id: template_attribute
+          value: "template_attribute"
+          brief: "An attribute matched a template definition in the registry"
+          stability: development
+        - id: missing_metric
+          value: "missing_metric"
+          brief: "A metric is not defined in the semantic convention registry"
+          stability: development
+        - id: missing_event
+          value: "missing_event"
+          brief: "An event is not defined in the semantic convention registry"
+          stability: development
+        - id: deprecated
+          value: "deprecated"
+          brief: "A deprecated attribute or signal is in use"
+          stability: development
+        - id: type_mismatch
+          value: "type_mismatch"
+          brief: "An attribute value type does not match the type defined in the registry"
+          stability: development
+        - id: not_stable
+          value: "not_stable"
+          brief: "An attribute or signal has not reached stable status"
+          stability: development
+        - id: unit_mismatch
+          value: "unit_mismatch"
+          brief: "A metric unit does not match the unit defined in the registry"
+          stability: development
+        - id: unexpected_instrument
+          value: "unexpected_instrument"
+          brief: "A metric instrument type does not match or is not supported by the registry"
+          stability: development
+        - id: undefined_enum_variant
+          value: "undefined_enum_variant"
+          brief: "An enum attribute value is not in the set of allowed members"
+          stability: development
+        # Requirement-level attribute findings
+        - id: required_attribute_not_present
+          value: "required_attribute_not_present"
+          brief: "A required attribute is absent from the sample"
+          stability: development
+        - id: recommended_attribute_not_present
+          value: "recommended_attribute_not_present"
+          brief: "A recommended attribute is absent from the sample"
+          stability: development
+        - id: opt_in_attribute_not_present
+          value: "opt_in_attribute_not_present"
+          brief: "An opt-in attribute is absent from the sample"
+          stability: development
+        - id: conditionally_required_attribute_not_present
+          value: "conditionally_required_attribute_not_present"
+          brief: "A conditionally required attribute is absent from the sample"
+          stability: development
+        # Default Rego policy findings (otel.rego)
+        - id: missing_namespace
+          value: "missing_namespace"
+          brief: "An attribute name has no dot-separated namespace"
+          stability: development
+        - id: invalid_format
+          value: "invalid_format"
+          brief: "An attribute or metric name does not match the required naming format"
+          stability: development
+        - id: illegal_namespace
+          value: "illegal_namespace"
+          brief: "An attribute name uses a namespace that collides with an existing attribute"
+          stability: development
+        - id: extends_namespace
+          value: "extends_namespace"
+          brief: "An attribute name shares a namespace prefix with existing registry attributes"
+          stability: development
+    brief: "Unique identifier for the type of finding detected by the policy engine"
+    note: |
+      The finding ID is a stable, machine-readable identifier that categorizes the issue.
+      It can be used to filter, aggregate, or suppress specific finding types.
 
-      - id: weaver.finding.context
-        type: template[any]
-        brief: "Key-value pairs providing additional context for the finding"
-        note: >
-          Each key-value pair is recorded as a single attribute.
-          Replace `<key>` with the actual context key.
-          e.g., `weaver.finding.context.attribute_name`: "my_attribute"
-        requirement_level: recommended
-        stability: development
-        examples:
-          - ["my_attribute", "attribute_value"]
+      IDs prefixed with common patterns indicate the source: built-in advisors produce
+      findings like `missing_attribute` and `type_mismatch`, requirement-level checks
+      produce `*_attribute_not_present` findings, and Rego policies produce findings
+      like `missing_namespace` and `invalid_format`.
 
-      - id: weaver.finding.sample_type
-        type:
-          members:
-            - id: attribute
-              value: "attribute"
-              brief: "Attribute sample"
-              stability: development
-            - id: span
-              value: "span"
-              brief: "Span sample"
-              stability: development
-            - id: span_event
-              value: "span_event"
-              brief: "Span event sample"
-              stability: development
-            - id: span_link
-              value: "span_link"
-              brief: "Span link sample"
-              stability: development
-            - id: resource
-              value: "resource"
-              brief: "Resource sample"
-              stability: development
-            - id: metric
-              value: "metric"
-              brief: "Metric sample"
-              stability: development
-            - id: number_data_point
-              value: "number_data_point"
-              brief: "Number data point sample"
-              stability: development
-            - id: histogram_data_point
-              value: "histogram_data_point"
-              brief: "Histogram data point sample"
-              stability: development
-            - id: exponential_histogram_data_point
-              value: "exponential_histogram_data_point"
-              brief: "Exponential histogram data point sample"
-              stability: development
-            - id: exemplar
-              value: "exemplar"
-              brief: "Exemplar sample"
-              stability: development
-            - id: log
-              value: "log"
-              brief: "Log sample"
-              stability: development
-        brief: "Sample type"
-        requirement_level: required
-        stability: development
-
-      - id: weaver.finding.signal_type
-        type:
-          members:
-            - id: span
-              value: "span"
-              brief: "Span signal"
-              stability: development
-            - id: resource
-              value: "resource"
-              brief: "Resource signal"
-              stability: development
-            - id: metric
-              value: "metric"
-              brief: "Metric signal"
-              stability: development
-            - id: log
-              value: "log"
-              brief: "Log signal"
-              stability: development
-        brief: "Signal type"
-        requirement_level: required
-        stability: development
-
-      - id: weaver.finding.signal_name
-        type: string
-        brief: "Signal name (e.g., event name or metric name)"
-        requirement_level: recommended
-        stability: development
-        examples: ["http.request.duration", "user.login.event"]
-
-  - id: weaver.live_check.finding
-    type: event
-    name: weaver.live_check.finding
+      Custom Rego policies may emit additional finding IDs not listed here.
     stability: development
-    brief: "Weaver Live Check finding event"
+    annotations:
+      custom_variants: true
+
+  - key: weaver.finding.level
+    type:
+      members:
+        - id: violation
+          value: "violation"
+          brief: "A finding that breaks semantic convention compliance rules"
+          note: >
+            Violations represent hard errors in telemetry that break the semantic conventions.
+            Examples include missing required attributes, using undefined attributes, or
+            emitting malformed signal names.
+          stability: development
+        - id: improvement
+          value: "improvement"
+          brief: "A suggested change that would improve semantic convention compliance"
+          note: >
+            Improvements represent opportunities to enhance telemetry quality without being
+            hard errors. Examples include using recommended attributes, upgrading from
+            development to stable conventions, or following best practices.
+          stability: development
+        - id: information
+          value: "information"
+          brief: "Useful context about the telemetry without requiring action"
+          note: >
+            Information findings provide helpful context for understanding the telemetry
+            or the validation results. For example, noting that a template attribute
+            was used.
+          stability: development
+    brief: "Severity level of the semantic convention finding"
+    note: >
+      The level indicates how serious the finding is and what action should be taken.
+      Violations should be addressed to achieve compliance, improvements are recommended
+      for better quality, and information is provided for context.
+    stability: development
+
+  - key: weaver.finding.context
+    type: template[any]
+    brief: "Additional contextual information about the finding"
+    note: |
+      Context attributes provide structured details about what was found during validation.
+      Each context field is flattened into a separate attribute using dot notation.
+      For example, a context containing `{"attribute_key": "http.method", "expected": "http.request.method"}`
+      would be recorded as two attributes:
+
+      - `weaver.finding.context.attribute_key`: `"http.method"`
+      - `weaver.finding.context.expected`: `"http.request.method"`
+
+      The context structure varies by finding type but commonly includes details like
+      attribute names, expected values, stability levels, and deprecation reasons.
+    stability: development
+    examples:
+      - "http.method"
+      - "http.request.method"
+
+  - key: weaver.finding.sample.type
+    type:
+      members:
+        - id: attribute
+          value: "attribute"
+          brief: "A standalone attribute being validated"
+          stability: development
+        - id: span
+          value: "span"
+          brief: "A span"
+          stability: development
+        - id: span_event
+          value: "span_event"
+          brief: "An event attached to a span"
+          stability: development
+        - id: span_link
+          value: "span_link"
+          brief: "A link between spans"
+          stability: development
+        - id: resource
+          value: "resource"
+          brief: "A resource describing the telemetry source"
+          stability: development
+        - id: metric
+          value: "metric"
+          brief: "A metric measurement"
+          stability: development
+        - id: number_data_point
+          value: "number_data_point"
+          brief: "A numeric data point within a metric"
+          stability: development
+        - id: histogram_data_point
+          value: "histogram_data_point"
+          brief: "A histogram data point within a metric"
+          stability: development
+        - id: exponential_histogram_data_point
+          value: "exponential_histogram_data_point"
+          brief: "An exponential histogram data point within a metric"
+          stability: development
+        - id: exemplar
+          value: "exemplar"
+          brief: "An exemplar (sample measurement) attached to a metric data point"
+          stability: development
+        - id: log
+          value: "log"
+          brief: "A log record or event"
+          stability: development
+    brief: "The type of telemetry sample being validated"
+    note: |
+      This indicates what kind of OpenTelemetry data structure was analyzed.
+      The sample type helps categorize findings and understand which part of
+      the telemetry pipeline generated the issue.
+    stability: development
+
+  - key: weaver.finding.signal.type
+    type:
+      members:
+        - id: span
+          value: "span"
+          brief: "Distributed tracing span signal"
+          stability: development
+        - id: resource
+          value: "resource"
+          brief: "Resource describing the telemetry source"
+          stability: development
+        - id: metric
+          value: "metric"
+          brief: "Numeric measurement signal"
+          stability: development
+        - id: log
+          value: "log"
+          brief: "Log record or event signal"
+          stability: development
+    brief: "The OpenTelemetry signal type that the finding applies to"
+    note: |
+      The signal type categorizes the finding according to the OpenTelemetry data model.
+      This helps correlate findings with specific parts of an observability system
+      (traces, metrics, or logs).
+    stability: development
+
+  - key: weaver.finding.signal.name
+    type: string
+    brief: "The name of the specific signal being validated"
+    note: |
+      For metrics, this is the metric name (e.g., `http.server.request.duration`).
+      For log events, this is the event name (e.g., `exception`).
+      For spans, this is the span name (e.g., `GET /api/users`).
+      This field helps identify exactly which signal in the telemetry has the issue.
+    stability: development
+    examples:
+      ["http.server.request.duration", "exception", "GET /api/users"]
+
+  - key: weaver.finding.resource.attribute
+    type: template[any]
+    brief: "Resource attributes from the original telemetry source that produced the finding"
+    note: |
+      When a finding is emitted as an OTLP log record, the resource attributes from the
+      original telemetry signal are included with this prefix. This allows identifying
+      which service or application produced the telemetry that triggered the finding,
+      which is essential in CI environments with multiple instrumented applications.
+
+      For example, if the original telemetry had resource attribute `service.name: "my-app"`,
+      the finding log record would include `weaver.finding.resource_attribute.service.name: "my-app"`.
+    stability: development
+    examples:
+      - "my-app"
+      - "1.2.3"
+
+events:
+  - name: weaver.live_check.finding
+    stability: development
+    brief: "A semantic convention validation finding emitted by Weaver Live Check"
+    note: |
+      This event is emitted when Weaver Live Check validates telemetry samples against
+      OpenTelemetry semantic conventions and detects violations, improvement opportunities,
+      or informational issues. Each finding represents a single policy check result.
+
+      The event body contains a human-readable message describing the finding, while
+      the attributes provide structured, machine-readable details for filtering,
+      aggregation, and automated processing.
+
+      Severity levels are mapped as follows:
+
+      - violation → ERROR severity
+      - improvement → WARN severity
+      - information → INFO severity
+
+      These findings can be collected via OTLP and analyzed to improve telemetry
+      quality, ensure semantic convention compliance, and identify instrumentation issues.
     attributes:
       - ref: weaver.finding.id
+        requirement_level: required
       - ref: weaver.finding.level
+        requirement_level: required
       - ref: weaver.finding.context
-      - ref: weaver.finding.sample_type
-      - ref: weaver.finding.signal_type
-      - ref: weaver.finding.signal_name
+      - ref: weaver.finding.sample.type
+        requirement_level: required
+      - ref: weaver.finding.signal.type
+      - ref: weaver.finding.signal.name
+      - ref: weaver.finding.resource.attribute
+
+imports:
+  entities:
+    - service
+    - telemetry.sdk
