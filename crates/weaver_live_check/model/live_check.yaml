@@ -148,7 +148,7 @@ attributes:
       - "http.method"
       - "http.request.method"
 
-  - key: weaver.finding.sample_type
+  - key: weaver.finding.sample.type
     type:
       members:
         - id: attribute
