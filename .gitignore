@@ -61,3 +61,6 @@ ui/package-lock.json
 
 # claude
 .claude/
+
+# weaver config files
+.weaver.toml

@@ -155,6 +155,51 @@ make_finding(id, level, context, message) := {
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
+## Finding Modification
+
+Findings can be modified or filtered through a `.weaver.toml` configuration file. Weaver discovers this file by walking up from the current working directory, or you can specify one directly with `--config <path>`.
+
+A JSON Schema can be generated to provide IDE support (autocomplete, validation) when editing `.weaver.toml`:
+
+```sh
+weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.json
+```
+
+### Overrides
+
+Overrides change the level of findings that match by ID. An optional `signal_type` scopes the override to a specific signal type. When multiple overrides match, the first one wins.
+
+```toml
+# Escalate these findings to violations
+[[live_check.finding_overrides]]
+id = ["not_stable", "missing_attribute"]
+level = "violation"
+
+# Downgrade not_stable to information, but only for spans
+[[live_check.finding_overrides]]
+id = ["not_stable"]
+level = "information"
+signal_type = "span"
+```
+
+### Filters
+
+Filters drop findings entirely. Use `exclude` to drop by ID and `min_level` to drop findings below a threshold. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type.
+
+```toml
+# Drop deprecated and missing_namespace findings, and anything below improvement
+[[live_check.finding_filters]]
+exclude = ["deprecated", "missing_namespace"]
+min_level = "improvement"
+
+# Additionally drop not_stable findings, but only for spans
+[[live_check.finding_filters]]
+signal_type = "span"
+exclude = ["not_stable"]
+```
+
+Overrides are applied first, then filters. This means a finding can be overridden to a new level and then filtered based on that new level.
+
 ## Output
 
 The output follows existing Weaver paradigms providing overridable jinja template based processing alongside builtin standard formats.

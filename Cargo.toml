@@ -68,6 +68,7 @@ convert_case = "0.11"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.9.2"
+toml = "0.9.8"
 
 # Features definition =========================================================
 [features]
@@ -90,6 +91,7 @@ weaver_forge = { path = "crates/weaver_forge", features = ["openapi"] }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
+weaver_config = { path = "crates/weaver_config" }
 weaver_search = { path = "crates/weaver_search" }
 weaver_mcp = { path = "crates/weaver_mcp" }
 weaver_version = { path = "crates/weaver_version" }

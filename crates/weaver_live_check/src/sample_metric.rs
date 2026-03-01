@@ -313,7 +313,7 @@ impl LiveCheckRunner for SampleMetric {
                     parent_signal,
                 );
 
-            result.add_advice(finding);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref());
         };
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list = advisor.advise(
@@ -323,7 +323,7 @@ impl LiveCheckRunner for SampleMetric {
                 semconv_metric.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list);
+            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
         }
         // Get advice for the data points
         match &mut self.data_points {

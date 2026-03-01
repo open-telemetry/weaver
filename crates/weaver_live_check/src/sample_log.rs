@@ -67,7 +67,7 @@ impl LiveCheckRunner for SampleLog {
                         live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
                         parent_signal,
                     );
-                result.add_advice(finding);
+                result.add_advice(finding, live_checker.finding_modifier.as_ref());
             };
             semconv_event
         };
@@ -79,7 +79,7 @@ impl LiveCheckRunner for SampleLog {
                 semconv_event.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list);
+            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
         }
         // Check attributes
         self.attributes.run_live_check(
