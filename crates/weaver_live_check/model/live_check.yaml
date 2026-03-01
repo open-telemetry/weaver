@@ -138,7 +138,7 @@ attributes:
       For example, a context containing `{"attribute_name": "http.method", "expected": "http.request.method"}`
       would be recorded as two attributes:
 
-      - `weaver.finding.context.attribute_name`: `"http.method"`
+      - `weaver.finding.context.attribute_key`: `"http.method"`
       - `weaver.finding.context.expected`: `"http.request.method"`
 
       The context structure varies by finding type but commonly includes details like
