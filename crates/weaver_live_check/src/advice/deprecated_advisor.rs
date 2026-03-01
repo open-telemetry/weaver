@@ -10,7 +10,7 @@ use weaver_semconv::deprecated::Deprecated;
 use super::{Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
-    VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, DEPRECATION_NOTE_ADVICE_CONTEXT_KEY,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, DEPRECATION_NOTE_ADVICE_CONTEXT_KEY,
     DEPRECATION_REASON_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
     METRIC_NAME_ADVICE_CONTEXT_KEY,
 };
@@ -61,7 +61,7 @@ impl Advisor for DeprecatedAdvisor {
                         let name = &sample_attribute.name;
                         let finding = FindingBuilder::new(FindingId::Deprecated)
                             .context(json!({
-                                ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
+                                ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: name,
                                 DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
                                 DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated.to_string(),
                             }))

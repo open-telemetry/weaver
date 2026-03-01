@@ -59,8 +59,8 @@ pub mod text_stdin_ingester;
 // Re-export statistics types from stats module
 pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
 
-/// Attribute name key in advice context
-pub const ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &str = "attribute_name";
+/// Attribute key in advice context
+pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
 /// Attribute value key in advice context
 pub const ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: &str = "attribute_value";
 ///Attribute type key in advice context

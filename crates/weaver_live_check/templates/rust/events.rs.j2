@@ -40,7 +40,7 @@ pub fn populate_{{ event_short }}_log_record(
     body: impl Into<AnyValue>,
     severity: Severity,
 {% for attr in event.attributes %}
-{% set param_name = attr.key | split(".") | last %}
+{% set param_name = macros.param_name(attr) %}
 {% set is_template = attr.type is string and "template" in attr.type %}
 {% set is_enum = attr.type is mapping and attr.type.members is defined %}
 {% set is_array = not is_template and attr.type is string and "[]" in attr.type %}
@@ -86,7 +86,7 @@ pub fn populate_{{ event_short }}_log_record(
     log_record.set_severity_text(severity.name());
     log_record.set_body(body.into());
 {% for attr in event.attributes %}
-{% set param_name = attr.key | split(".") | last %}
+{% set param_name = macros.param_name(attr) %}
 {% set attr_const = attr.key | screaming_snake_case %}
 {% set is_template = attr.type is string and "template" in attr.type %}
 {% set is_enum = attr.type is mapping and attr.type.members is defined %}

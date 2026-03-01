@@ -13,7 +13,7 @@ use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::{
     advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,
     LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY,
+    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -184,7 +184,7 @@ impl LiveCheckRunner for SampleAttribute {
         };
         if semconv_attribute.is_none() {
             let finding = FindingBuilder::new(FindingId::MissingAttribute)
-                .context(json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }))
+                .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: self.name.clone() }))
                 .message(format!(
                     "Attribute '{}' does not exist in the registry.",
                     self.name
@@ -203,7 +203,7 @@ impl LiveCheckRunner for SampleAttribute {
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type() {
                     let finding = FindingBuilder::new(FindingId::TemplateAttribute)
-                        .context(json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))
+                        .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))
                         .message(format!("Attribute '{}' is a template", self.name))
                         .level(FindingLevel::Information)
                         .signal(parent_signal)

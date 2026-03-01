@@ -16,7 +16,7 @@ use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
     Error, FindingId, Sample, SampleRef, VersionedAttribute, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
+    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
@@ -142,7 +142,7 @@ fn check_attributes<T: CheckableAttribute>(
             advice_list.push(PolicyFinding {
                 id: finding_id.into(),
                 context: json!({
-                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: key.to_owned()
+                    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: key.to_owned()
                 }),
                 message,
                 level: advice_level,
@@ -195,7 +195,7 @@ impl Advisor for TypeAdvisor {
                                     let name = &sample_attribute.name;
                                     let finding = FindingBuilder::new(FindingId::TypeMismatch)
                                         .context(json!({
-                                            ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
+                                            ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: name,
                                             ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
                                         }))
                                         .message(format!(
@@ -217,7 +217,7 @@ impl Advisor for TypeAdvisor {
                             let name = &sample_attribute.name;
                             let finding = FindingBuilder::new(FindingId::TypeMismatch)
                                 .context(json!({
-                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
+                                    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: name,
                                     ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: attribute_type,
                                     EXPECTED_VALUE_ADVICE_CONTEXT_KEY: semconv_attribute_type,
                                 }))

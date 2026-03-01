@@ -18,7 +18,7 @@ pub struct PolicyFinding {
     /// machine-readable string that categorizes the finding.
     pub id: String,
 
-    /// The context associated with the finding e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
+    /// The context associated with the finding e.g. { "attribute_key": "foo.bar", "attribute_value": "bar" }
     /// The context should contain all dynamic parts of the message
     /// Context values may be used with custom templates and filters to customize reports.
     pub context: Value,

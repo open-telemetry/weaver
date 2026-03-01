@@ -24,13 +24,13 @@ pub const WEAVER_FINDING_ID: &str = "weaver.finding.id";
 /// Severity level of the semantic convention finding
 pub const WEAVER_FINDING_LEVEL: &str = "weaver.finding.level";
 /// Resource attributes from the original telemetry source that produced the finding
-pub const WEAVER_FINDING_RESOURCE_ATTRIBUTE: &str = "weaver.finding.resource_attribute";
+pub const WEAVER_FINDING_RESOURCE_ATTRIBUTE: &str = "weaver.finding.resource.attribute";
 /// The type of telemetry sample being validated
-pub const WEAVER_FINDING_SAMPLE_TYPE: &str = "weaver.finding.sample_type";
+pub const WEAVER_FINDING_SAMPLE_TYPE: &str = "weaver.finding.sample.type";
 /// The name of the specific signal being validated
-pub const WEAVER_FINDING_SIGNAL_NAME: &str = "weaver.finding.signal_name";
+pub const WEAVER_FINDING_SIGNAL_NAME: &str = "weaver.finding.signal.name";
 /// The OpenTelemetry signal type that the finding applies to
-pub const WEAVER_FINDING_SIGNAL_TYPE: &str = "weaver.finding.signal_type";
+pub const WEAVER_FINDING_SIGNAL_TYPE: &str = "weaver.finding.signal.type";
 
 // --- Enums ---
 

@@ -135,7 +135,7 @@ attributes:
     note: |
       Context attributes provide structured details about what was found during validation.
       Each context field is flattened into a separate attribute using dot notation.
-      For example, a context containing `{"attribute_name": "http.method", "expected": "http.request.method"}`
+      For example, a context containing `{"attribute_key": "http.method", "expected": "http.request.method"}`
       would be recorded as two attributes:
 
       - `weaver.finding.context.attribute_key`: `"http.method"`
@@ -283,11 +283,11 @@ events:
       - ref: weaver.finding.level
         requirement_level: required
       - ref: weaver.finding.context
-      - ref: weaver.finding.sample_type
+      - ref: weaver.finding.sample.type
         requirement_level: required
-      - ref: weaver.finding.signal_type
-      - ref: weaver.finding.signal_name
-      - ref: weaver.finding.resource_attribute
+      - ref: weaver.finding.signal.type
+      - ref: weaver.finding.signal.name
+      - ref: weaver.finding.resource.attribute
 
 imports:
   entities:

@@ -82,6 +82,28 @@ impl From<String> for {{ name }} {
 {% endif %}
 {%- endmacro -%}
 
+{#- Derive a function parameter name from an attribute key.
+    Uses the penultimate and last segments joined by underscore for single-word
+    last segments, or just the last segment if it already contains an underscore.
+    This mirrors the enum_name logic but produces snake_case identifiers.
+    For example:
+      "weaver.finding.id"                → "finding_id"
+      "weaver.finding.sample.type"       → "sample_type"
+      "weaver.finding.signal.name"       → "signal_name"
+      "weaver.finding.resource.attribute" → "resource_attribute"
+      "weaver.finding.sample_type"       → "sample_type"  (underscore in last)
+-#}
+{%- macro param_name(attr) -%}
+{%- set last_segment = attr.key | split(".") | last -%}
+{%- set prefix_key = attr.key | replace("." ~ last_segment, "") -%}
+{%- set penultimate = prefix_key | split(".") | last -%}
+{%- if "_" not in last_segment -%}
+{{ penultimate }}_{{ last_segment }}
+{%- else -%}
+{{ last_segment }}
+{%- endif -%}
+{%- endmacro -%}
+
 {#- Generate a doc comment block from a note string -#}
 {%- macro doc_note(note) %}
 {% for line in note | trim | split("\n") %}

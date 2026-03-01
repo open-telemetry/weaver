@@ -181,7 +181,7 @@ async fn test_livecheck_emit_roundtrip() {
             FindingLevel::Violation,
             Some("span"),
             Some("http.server"),
-            json!({"attribute_name": "http.request.method"}),
+            json!({"attribute_key": "http.request.method"}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }
@@ -204,7 +204,7 @@ async fn test_livecheck_emit_roundtrip() {
             FindingLevel::Improvement,
             Some("metric"),
             Some("http.server.request.duration"),
-            json!({"attribute_name": "http.request.method", "stability": "development"}),
+            json!({"attribute_key": "http.request.method", "stability": "development"}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }
@@ -220,7 +220,7 @@ async fn test_livecheck_emit_roundtrip() {
             FindingLevel::Information,
             None,
             None,
-            json!({"attribute_name": "http.request.method", "attribute_type": "string"}),
+            json!({"attribute_key": "http.request.method", "attribute_type": "string"}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }
@@ -237,7 +237,7 @@ async fn test_livecheck_emit_roundtrip() {
             None,
             None,
             json!({
-                "attribute_name": "db.system",
+                "attribute_key": "db.system",
                 "attribute_value": "postgresql",
                 "expected": "postgres"
             }),
@@ -282,7 +282,7 @@ async fn test_livecheck_emit_roundtrip() {
             FindingLevel::Improvement,
             Some("span"),
             Some("db.query"),
-            json!({"attribute_name": "db.statement", "deprecation_reason": "Use db.query.text"}),
+            json!({"attribute_key": "db.statement", "deprecation_reason": "Use db.query.text"}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }

@@ -49,9 +49,9 @@ pub fn populate_finding_log_record(
     log_record: &mut impl LogRecord,
     body: impl Into<AnyValue>,
     severity: Severity,
-    context: &[(Key, AnyValue)],
-    id: &FindingId,
-    level: &FindingLevel,
+    finding_context: &[(Key, AnyValue)],
+    finding_id: &FindingId,
+    finding_level: &FindingLevel,
     resource_attribute: &[(Key, AnyValue)],
     sample_type: &SampleType,
     signal_name: Option<&str>,
@@ -61,16 +61,19 @@ pub fn populate_finding_log_record(
     log_record.set_severity_number(severity);
     log_record.set_severity_text(severity.name());
     log_record.set_body(body.into());
-    for (suffix, value) in context {
+    for (suffix, value) in finding_context {
         log_record.add_attribute(
             Key::from(format!("{}.{}", WEAVER_FINDING_CONTEXT, suffix.as_str())),
             value.clone(),
         );
     }
-    log_record.add_attribute(Key::from(WEAVER_FINDING_ID), AnyValue::from(id.to_string()));
+    log_record.add_attribute(
+        Key::from(WEAVER_FINDING_ID),
+        AnyValue::from(finding_id.to_string()),
+    );
     log_record.add_attribute(
         Key::from(WEAVER_FINDING_LEVEL),
-        AnyValue::from(level.to_string()),
+        AnyValue::from(finding_level.to_string()),
     );
     for (suffix, value) in resource_attribute {
         log_record.add_attribute(

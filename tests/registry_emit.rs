@@ -141,7 +141,7 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 /// Triple-weaver setup:
 ///   weaver1 (emit) --> weaver2 (live-check --emit-otlp-logs) --> weaver3 (live-check --format json)
 ///
-/// weaver3's JSON output is checked for `weaver.finding.resource_attribute.*` attributes
+/// weaver3's JSON output is checked for `weaver.finding.resource.attribute.*` attributes
 /// on the ingested log samples, confirming the resource attributes flow through.
 #[test]
 fn test_emit_with_resource_attributes() {
@@ -255,17 +255,17 @@ fn test_emit_with_resource_attributes() {
         .as_array()
         .expect("Failed to get samples array from weaver3 report");
 
-    // Look for log samples that have weaver.finding.resource_attribute.* attributes
+    // Look for log samples that have weaver.finding.resource.attribute.* attributes
     let mut found_resource_attr = false;
     for sample in samples {
         if let Some(log) = sample.get("log") {
             if let Some(attrs) = log.get("attributes").and_then(|a| a.as_array()) {
                 for attr in attrs {
                     if let Some(name) = attr.get("name").and_then(|n| n.as_str()) {
-                        if name.starts_with("weaver.finding.resource_attribute.") {
+                        if name.starts_with("weaver.finding.resource.attribute.") {
                             found_resource_attr = true;
                             // Verify the service.name resource attribute is present
-                            if name == "weaver.finding.resource_attribute.service.name" {
+                            if name == "weaver.finding.resource.attribute.service.name" {
                                 assert_eq!(
                                     attr.get("value").and_then(|v| v.as_str()),
                                     Some("weaver"),
@@ -281,7 +281,7 @@ fn test_emit_with_resource_attributes() {
 
     assert!(
         found_resource_attr,
-        "No weaver.finding.resource_attribute.* attributes found in weaver3's log samples. \
+        "No weaver.finding.resource.attribute.* attributes found in weaver3's log samples. \
          Resource attributes should flow from weaver1 → weaver2 → weaver3."
     );
 }

@@ -36,10 +36,10 @@ quality, ensure semantic convention compliance, and identify instrumentation iss
 | `weaver.finding.context.<key>` | template[any] | ![Development](https://img.shields.io/badge/-development-blue) | Additional contextual information about the finding | `http.method`, `http.request.method` |
 | `weaver.finding.id` | enum | ![Development](https://img.shields.io/badge/-development-blue) | Unique identifier for the type of finding detected by the policy engine | `missing_attribute`, `template_attribute` |
 | `weaver.finding.level` | enum | ![Development](https://img.shields.io/badge/-development-blue) | Severity level of the semantic convention finding | `violation`, `improvement` |
-| `weaver.finding.resource_attribute.<key>` | template[any] | ![Development](https://img.shields.io/badge/-development-blue) | Resource attributes from the original telemetry source that produced the finding | `my-app`, `1.2.3` |
-| `weaver.finding.sample_type` | enum | ![Development](https://img.shields.io/badge/-development-blue) | The type of telemetry sample being validated | `attribute`, `span` |
-| `weaver.finding.signal_name` | string | ![Development](https://img.shields.io/badge/-development-blue) | The name of the specific signal being validated | `http.server.request.duration`, `exception`, `GET /api/users` |
-| `weaver.finding.signal_type` | enum | ![Development](https://img.shields.io/badge/-development-blue) | The OpenTelemetry signal type that the finding applies to | `span`, `resource` |
+| `weaver.finding.resource.attribute.<key>` | template[any] | ![Development](https://img.shields.io/badge/-development-blue) | Resource attributes from the original telemetry source that produced the finding | `my-app`, `1.2.3` |
+| `weaver.finding.sample.type` | enum | ![Development](https://img.shields.io/badge/-development-blue) | The type of telemetry sample being validated | `attribute`, `span` |
+| `weaver.finding.signal.name` | string | ![Development](https://img.shields.io/badge/-development-blue) | The name of the specific signal being validated | `http.server.request.duration`, `exception`, `GET /api/users` |
+| `weaver.finding.signal.type` | enum | ![Development](https://img.shields.io/badge/-development-blue) | The OpenTelemetry signal type that the finding applies to | `span`, `resource` |
 
 
 ## Attribute Details
@@ -54,10 +54,10 @@ Additional contextual information about the finding
 
 Context attributes provide structured details about what was found during validation.
 Each context field is flattened into a separate attribute using dot notation.
-For example, a context containing `{"attribute_name": "http.method", "expected": "http.request.method"}`
+For example, a context containing `{"attribute_key": "http.method", "expected": "http.request.method"}`
 would be recorded as two attributes:
 
-- `weaver.finding.context.attribute_name`: `"http.method"`
+- `weaver.finding.context.attribute_key`: `"http.method"`
 - `weaver.finding.context.expected`: `"http.request.method"`
 
 The context structure varies by finding type but commonly includes details like
@@ -141,7 +141,7 @@ The level indicates how serious the finding is and what action should be taken. 
 
 ---
 
-### `weaver.finding.resource_attribute.<key>`
+### `weaver.finding.resource.attribute.<key>`
 
 ![Development](https://img.shields.io/badge/-development-blue)
 
@@ -162,7 +162,7 @@ the finding log record would include `weaver.finding.resource_attribute.service.
 
 ---
 
-### `weaver.finding.sample_type`
+### `weaver.finding.sample.type`
 
 ![Development](https://img.shields.io/badge/-development-blue)
 
@@ -194,7 +194,7 @@ the telemetry pipeline generated the issue.
 
 ---
 
-### `weaver.finding.signal_name`
+### `weaver.finding.signal.name`
 
 ![Development](https://img.shields.io/badge/-development-blue)
 
@@ -212,7 +212,7 @@ This field helps identify exactly which signal in the telemetry has the issue.
 
 ---
 
-### `weaver.finding.signal_type`
+### `weaver.finding.signal.type`
 
 ![Development](https://img.shields.io/badge/-development-blue)
 

@@ -10,7 +10,7 @@ use weaver_semconv::stability::Stability;
 use super::{Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
-    VersionedSignal, ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
     METRIC_NAME_ADVICE_CONTEXT_KEY, STABILITY_ADVICE_CONTEXT_KEY,
 };
 
@@ -36,7 +36,7 @@ impl Advisor for StabilityAdvisor {
                             let name = &sample_attribute.name;
                             let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({
-                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: name,
+                                    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: name,
                                     STABILITY_ADVICE_CONTEXT_KEY: stability,
                                 }))
                                 .message(format!(
