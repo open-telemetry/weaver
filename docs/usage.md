@@ -53,7 +53,7 @@ Manage Semantic Convention Registry
 
 * `check` — Validates a semantic convention registry.
 * `generate` — Generates artifacts from a semantic convention registry.
-* `resolve` — Resolves a semantic convention registry.
+* `resolve` — DEPRECATED - Resolves a semantic convention registry. This command is deprecated and will be removed in a future version. Please use `generate` or `package` instead.
 * `search` — DEPRECATED - Searches a registry. This command is deprecated and will be removed in a future version. It is not compatible with V2 schema. Please search the generated documentation instead
 * `stats` — Calculate a set of general statistics on a semantic convention registry
 * `update-markdown` — Update markdown files that contain markers indicating the templates used to update the specified sections
@@ -167,6 +167,8 @@ The process exits with a code of 0 if the generation is successful.
 
 
 ## `weaver registry resolve`
+
+**DEPRECATED** - This command is deprecated and will be removed in a future version. Please use `weaver registry generate` or `weaver registry package` instead.
 
 Resolves a semantic convention registry.
 

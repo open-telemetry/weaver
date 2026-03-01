@@ -94,13 +94,8 @@ pub enum RegistrySubCommand {
     /// The process exits with a code of 0 if the generation is successful.
     #[clap(verbatim_doc_comment)]
     Generate(RegistryGenerateArgs),
-    /// Resolves a semantic convention registry.
-    ///
-    /// Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
-    ///
-    /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
-    ///
-    /// The process exits with a code of 0 if the resolution is successful.
+    /// DEPRECATED - Resolves a semantic convention registry. This command is deprecated and will be removed in a future version.
+    /// Please use 'weaver registry generate' instead.
     #[clap(verbatim_doc_comment)]
     Resolve(RegistryResolveArgs),
     /// DEPRECATED - Searches a registry. This command is deprecated and will be removed in a future version.
