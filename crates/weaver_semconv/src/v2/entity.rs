@@ -40,7 +40,7 @@ pub struct EntityRefinement {
     pub id: SignalId,
     /// The name of the entity being refined.
     pub r#ref: SignalId,
-    /// The additionaly attributes to describe of the Entity.
+    /// The additional attributes to describe the Entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub description: Vec<AttributeRef>,

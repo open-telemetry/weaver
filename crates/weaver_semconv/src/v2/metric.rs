@@ -56,14 +56,6 @@ pub struct MetricRefinement {
     pub id: SignalId,
     /// The name of the metric being refined.
     pub r#ref: SignalId,
-    /// The instrument type that should be used to record the metric.
-    /// Note: This field is currently not propagated during resolution.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub instrument: Option<InstrumentSpec>,
-    /// The unit in which the metric is measured.
-    /// Note: This field is currently not propagated during resolution.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub unit: Option<String>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -151,8 +143,8 @@ impl MetricRefinement {
             span_kind: None,
             events: Default::default(),
             metric_name: Some(self.id.into_v1()),
-            instrument: self.instrument,
-            unit: self.unit,
+            instrument: None,
+            unit: None,
             name: None,
             display_name: None,
             body: None,

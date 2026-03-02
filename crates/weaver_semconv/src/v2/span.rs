@@ -90,14 +90,6 @@ pub struct SpanRefinement {
     pub id: SignalId,
     /// The name of the span being refined.
     pub r#ref: SignalId,
-    /// Specifies the kind of the span.
-    /// Note: This field is currently not propagated during resolution.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub kind: Option<SpanKindSpec>,
-    /// The name pattern for the span.
-    /// Note: This field is currently not propagated during resolution.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<SpanName>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -182,7 +174,7 @@ impl SpanRefinement {
             stability: self.stability,
             deprecated: self.deprecated,
             attributes: attribute_refs,
-            span_kind: self.kind,
+            span_kind: None,
             events: vec![],
             metric_name: None,
             instrument: None,

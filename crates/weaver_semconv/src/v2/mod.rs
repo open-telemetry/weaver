@@ -301,13 +301,9 @@ metric_refinements:
   - id: metric.my.refined.metric
     ref: base.metric
     brief: Refined metric brief
-    unit: ms
 span_refinements:
   - id: span.my.refined.span
     ref: base.span
-    kind: server
-    name:
-      note: "new note"
 event_refinements:
   - id: event.my.refined.event
     ref: base.event
@@ -334,14 +330,49 @@ groups:
   metric_name: metric.my.refined.metric
   brief: Refined metric brief
   extends: metric.base.metric
-  unit: ms
 - id: span.my.refined.span
   type: span
   brief: ""
   name: span.my.refined.span
-  span_kind: server
   extends: span.base.span
 "#,
         );
+    }
+
+    #[test]
+    fn test_semconv_spec_v2_is_empty() {
+        let empty_spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+        assert!(empty_spec.is_empty());
+
+        let non_empty_spec = SemConvSpecV2 {
+            attributes: vec![AttributeDef {
+                key: "test".to_owned(),
+                r#type: crate::attribute::AttributeType::PrimitiveOrArray(
+                    crate::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                examples: None,
+                common: CommonFields {
+                    brief: "test".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            ..empty_spec.clone()
+        };
+        assert!(!non_empty_spec.is_empty());
     }
 }
