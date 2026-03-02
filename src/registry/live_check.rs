@@ -17,6 +17,7 @@ use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
+use weaver_live_check::finding_modifier::FindingModifier;
 use weaver_live_check::json_file_ingester::JsonFileIngester;
 use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
@@ -163,6 +164,10 @@ pub struct RegistryLiveCheckArgs {
     /// versus processing the data for every sample.
     #[arg(long)]
     advice_preprocessor: Option<PathBuf>,
+
+    /// Path to a `.weaver.toml` config file. Skips automatic discovery when set.
+    #[arg(long = "config")]
+    config_path: Option<PathBuf>,
 }
 
 fn default_advisors() -> Vec<Box<dyn Advisor>> {
@@ -228,6 +233,26 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         target,
     )?;
 
+    // Load .weaver.toml config for finding overrides/filters (fail early if invalid)
+    let weaver_config = if let Some(ref config_path) = args.config_path {
+        Some(weaver_config::load(config_path).map_err(|e| {
+            DiagnosticMessages::from(Error::ConfigError {
+                error: e.to_string(),
+            })
+        })?)
+    } else {
+        let cwd = std::env::current_dir().map_err(|e| {
+            DiagnosticMessages::from(Error::ConfigError {
+                error: format!("Failed to get current directory: {e}"),
+            })
+        })?;
+        weaver_config::discover_and_load(&cwd).map_err(|e| {
+            DiagnosticMessages::from(Error::ConfigError {
+                error: e.to_string(),
+            })
+        })?
+    };
+
     info!("Weaver Registry Live Check");
 
     // Prepare the registry
@@ -246,6 +271,12 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     };
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
+
+    if let Some(config) = weaver_config {
+        if let Some(live_check_config) = config.live_check {
+            live_checker.finding_modifier = FindingModifier::from_config(live_check_config);
+        }
+    }
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,

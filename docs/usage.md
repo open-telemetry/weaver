@@ -17,6 +17,7 @@ This document contains the help content for the `weaver` command-line program.
 * [`weaver registry emit`↴](#weaver-registry-emit)
 * [`weaver registry live-check`↴](#weaver-registry-live-check)
 * [`weaver registry mcp`↴](#weaver-registry-mcp)
+* [`weaver registry infer`↴](#weaver-registry-infer)
 * [`weaver diagnostic`↴](#weaver-diagnostic)
 * [`weaver diagnostic init`↴](#weaver-diagnostic-init)
 * [`weaver completion`↴](#weaver-completion)
@@ -62,6 +63,7 @@ Manage Semantic Convention Registry
 * `emit` — Emits a semantic convention registry as example signals to your OTLP receiver.
 * `live-check` — Perform a live check on sample telemetry by comparing it to a semantic convention registry.
 * `mcp` — Run an MCP (Model Context Protocol) server for the semantic convention registry.
+* `infer` — Generates a schema file by inferring the schema from a OTLP message.
 
 
 
@@ -347,6 +349,8 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the diff
   - `diff-v2`:
     The JSON schema of the diff V2
+  - `weaver-config`:
+    The JSON schema of the `.weaver.toml` configuration file
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
@@ -515,6 +519,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives in a stream. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--config <CONFIG_PATH>` — Path to a `.weaver.toml` config file. Skips automatic discovery when set
 
 
 
@@ -551,6 +556,39 @@ The server communicates over stdio using JSON-RPC.
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+
+
+
+## `weaver registry infer`
+
+Generates a schema file by inferring the schema from a OTLP message.
+
+**Usage:** `weaver registry infer [OPTIONS]`
+
+###### **Options:**
+
+* `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+  Default value: `ansi`
+* `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+
+  Default value: `diagnostic_templates`
+* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+* `-o`, `--output <OUTPUT>` — Output folder for generated YAML files
+
+  Default value: `./inferred-registry/`
+* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
+
+  Default value: `0.0.0.0`
+* `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener
+
+  Default value: `4317`
+* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop)
+
+  Default value: `8080`
+* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never)
+
+  Default value: `60`
 
 
 

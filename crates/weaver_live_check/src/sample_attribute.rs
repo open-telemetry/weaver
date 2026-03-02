@@ -197,7 +197,7 @@ impl LiveCheckRunner for SampleAttribute {
                     parent_signal,
                 );
 
-            result.add_advice(finding);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref());
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
@@ -213,7 +213,7 @@ impl LiveCheckRunner for SampleAttribute {
                             parent_signal,
                         );
 
-                    result.add_advice(finding);
+                    result.add_advice(finding, live_checker.finding_modifier.as_ref());
                 }
             }
         }
@@ -227,7 +227,7 @@ impl LiveCheckRunner for SampleAttribute {
                 parent_group.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list);
+            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
         }
         self.live_check_result = Some(result);
         self.update_stats(stats);

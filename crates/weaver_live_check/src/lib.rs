@@ -4,6 +4,7 @@
 
 use std::rc::Rc;
 
+use finding_modifier::FindingModifier;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
@@ -28,6 +29,8 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
+/// Finding modifier engine (overrides and filters).
+pub mod finding_modifier;
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.
@@ -233,6 +236,13 @@ impl VersionedSignal {
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// Configuration error.
+    #[error("Configuration error. {error}")]
+    ConfigError {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// Generic ingest error.
     #[error("Fatal error during ingest. {error}")]
     IngestError {
@@ -437,23 +447,38 @@ impl LiveCheckResult {
         }
     }
 
-    /// Add an advice to the result and update the highest advice level
-    pub fn add_advice(&mut self, advice: PolicyFinding) {
-        let advice_level = advice.level.clone();
-        if let Some(previous_highest) = &self.highest_advice_level {
-            if previous_highest < &advice_level {
-                self.highest_advice_level = Some(advice_level);
+    /// Add an advice to the result and update the highest advice level.
+    ///
+    /// When a `FindingModifier` is provided, the finding may be modified (level
+    /// override) or dropped (filter exclusion) before being stored.
+    pub fn add_advice(&mut self, advice: PolicyFinding, modifier: Option<&FindingModifier>) {
+        let advice = if let Some(modifier) = modifier {
+            match modifier.apply(advice) {
+                Some(modified) => modified,
+                None => return, // Excluded by filter
             }
         } else {
-            self.highest_advice_level = Some(advice_level);
-        }
+            advice
+        };
+        let level = advice.level;
+        self.highest_advice_level = Some(
+            self.highest_advice_level
+                .map_or(level, |prev| prev.max(level)),
+        );
         self.all_advice.push(advice);
     }
 
-    /// Add a list of advice to the result and update the highest advice level
-    pub fn add_advice_list(&mut self, advice: Vec<PolicyFinding>) {
+    /// Add a list of advice to the result and update the highest advice level.
+    ///
+    /// When a `FindingModifier` is provided, each finding may be modified or
+    /// dropped before being stored.
+    pub fn add_advice_list(
+        &mut self,
+        advice: Vec<PolicyFinding>,
+        modifier: Option<&FindingModifier>,
+    ) {
         for advice in advice {
-            self.add_advice(advice);
+            self.add_advice(advice, modifier);
         }
     }
 }
@@ -527,7 +552,7 @@ pub trait Advisable {
                 parent_group.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list);
+            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
         }
 
         stats.inc_entity_count(self.entity_type());
