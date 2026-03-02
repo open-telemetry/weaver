@@ -236,18 +236,18 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     // Load .weaver.toml config for finding overrides/filters (fail early if invalid)
     let weaver_config = if let Some(ref config_path) = args.config_path {
         Some(weaver_config::load(config_path).map_err(|e| {
-            DiagnosticMessages::from(Error::IngestError {
+            DiagnosticMessages::from(Error::ConfigError {
                 error: e.to_string(),
             })
         })?)
     } else {
         let cwd = std::env::current_dir().map_err(|e| {
-            DiagnosticMessages::from(Error::IngestError {
+            DiagnosticMessages::from(Error::ConfigError {
                 error: format!("Failed to get current directory: {e}"),
             })
         })?;
         weaver_config::discover_and_load(&cwd).map_err(|e| {
-            DiagnosticMessages::from(Error::IngestError {
+            DiagnosticMessages::from(Error::ConfigError {
                 error: e.to_string(),
             })
         })?
@@ -272,8 +272,8 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
 
-    if let Some(ref config) = weaver_config {
-        if let Some(ref live_check_config) = config.live_check {
+    if let Some(config) = weaver_config {
+        if let Some(live_check_config) = config.live_check {
             live_checker.finding_modifier = FindingModifier::from_config(live_check_config);
         }
     }

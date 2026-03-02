@@ -27,11 +27,13 @@ pub struct WeaverConfig {
 pub struct LiveCheckConfig {
     /// Overrides modify finding levels. Each targets findings by ID (or list of IDs).
     /// Optional `signal_type` scopes the override to a specific signal type.
-    pub finding_overrides: Option<Vec<FindingOverride>>,
+    #[serde(default)]
+    pub finding_overrides: Vec<FindingOverride>,
 
     /// Filters control which findings are dropped. A filter without `signal_type`
     /// applies globally; a filter with `signal_type` applies only to that signal type.
-    pub finding_filters: Option<Vec<FindingFilter>>,
+    #[serde(default)]
+    pub finding_filters: Vec<FindingFilter>,
 }
 
 /// An override that modifies the level of findings matching the given ID(s).
@@ -161,38 +163,50 @@ exclude = ["not_stable"]
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let live_check = config.live_check.expect("live_check should be present");
 
-        let overrides = live_check
-            .finding_overrides
-            .expect("overrides should be present");
-        assert_eq!(overrides.len(), 2);
+        assert_eq!(live_check.finding_overrides.len(), 2);
         assert_eq!(
-            overrides[0].id,
+            live_check.finding_overrides[0].id,
             vec!["not_stable".to_owned(), "missing_attribute".to_owned()]
         );
-        assert_eq!(overrides[0].level, FindingLevel::Violation);
-        assert!(overrides[0].signal_type.is_none());
+        assert_eq!(
+            live_check.finding_overrides[0].level,
+            FindingLevel::Violation
+        );
+        assert!(live_check.finding_overrides[0].signal_type.is_none());
 
-        assert_eq!(overrides[1].id, vec!["not_stable".to_owned()]);
-        assert_eq!(overrides[1].level, FindingLevel::Information);
-        assert_eq!(overrides[1].signal_type.as_deref(), Some("span"));
+        assert_eq!(
+            live_check.finding_overrides[1].id,
+            vec!["not_stable".to_owned()]
+        );
+        assert_eq!(
+            live_check.finding_overrides[1].level,
+            FindingLevel::Information
+        );
+        assert_eq!(
+            live_check.finding_overrides[1].signal_type.as_deref(),
+            Some("span")
+        );
 
-        let filters = live_check
-            .finding_filters
-            .expect("filters should be present");
-        assert_eq!(filters.len(), 2);
+        assert_eq!(live_check.finding_filters.len(), 2);
 
         // Global filter (no signal_type)
-        assert!(filters[0].signal_type.is_none());
+        assert!(live_check.finding_filters[0].signal_type.is_none());
         assert_eq!(
-            filters[0].exclude.as_deref(),
+            live_check.finding_filters[0].exclude.as_deref(),
             Some(&["deprecated".to_owned(), "missing_namespace".to_owned()][..])
         );
-        assert_eq!(filters[0].min_level, Some(FindingLevel::Improvement));
+        assert_eq!(
+            live_check.finding_filters[0].min_level,
+            Some(FindingLevel::Improvement)
+        );
 
         // Scoped filter (with signal_type)
-        assert_eq!(filters[1].signal_type.as_deref(), Some("span"));
         assert_eq!(
-            filters[1].exclude.as_deref(),
+            live_check.finding_filters[1].signal_type.as_deref(),
+            Some("span")
+        );
+        assert_eq!(
+            live_check.finding_filters[1].exclude.as_deref(),
             Some(&["not_stable".to_owned()][..])
         );
     }
@@ -211,14 +225,14 @@ min_level = "violation"
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let live_check = config.live_check.expect("live_check should be present");
-        assert!(live_check.finding_overrides.is_none());
-        let filters = live_check
-            .finding_filters
-            .expect("filters should be present");
-        assert_eq!(filters.len(), 1);
-        assert_eq!(filters[0].min_level, Some(FindingLevel::Violation));
-        assert!(filters[0].exclude.is_none());
-        assert!(filters[0].signal_type.is_none());
+        assert!(live_check.finding_overrides.is_empty());
+        assert_eq!(live_check.finding_filters.len(), 1);
+        assert_eq!(
+            live_check.finding_filters[0].min_level,
+            Some(FindingLevel::Violation)
+        );
+        assert!(live_check.finding_filters[0].exclude.is_none());
+        assert!(live_check.finding_filters[0].signal_type.is_none());
     }
 
     #[test]
@@ -229,13 +243,9 @@ id = ["a", "b", "c"]
 level = "violation"
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let overrides = config
-            .live_check
-            .expect("live_check")
-            .finding_overrides
-            .expect("overrides");
+        let live_check = config.live_check.expect("live_check");
         assert_eq!(
-            overrides[0].id,
+            live_check.finding_overrides[0].id,
             vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]
         );
     }

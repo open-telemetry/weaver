@@ -236,6 +236,13 @@ impl VersionedSignal {
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// Configuration error.
+    #[error("Configuration error. {error}")]
+    ConfigError {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// Generic ingest error.
     #[error("Fatal error during ingest. {error}")]
     IngestError {
@@ -453,14 +460,11 @@ impl LiveCheckResult {
         } else {
             advice
         };
-        let advice_level = advice.level.clone();
-        if let Some(previous_highest) = &self.highest_advice_level {
-            if previous_highest < &advice_level {
-                self.highest_advice_level = Some(advice_level);
-            }
-        } else {
-            self.highest_advice_level = Some(advice_level);
-        }
+        let level = advice.level;
+        self.highest_advice_level = Some(
+            self.highest_advice_level
+                .map_or(level, |prev| prev.max(level)),
+        );
         self.all_advice.push(advice);
     }
 

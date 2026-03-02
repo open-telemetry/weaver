@@ -17,14 +17,37 @@ pub struct FindingModifier {
     filters: Vec<FindingFilter>,
 }
 
+/// Check whether a scope matches a finding's signal_type.
+/// A `None` scope matches all findings (global).
+fn scope_matches(scope: Option<&String>, signal_type: Option<&String>) -> bool {
+    scope.map_or(true, |s| signal_type == Some(s))
+}
+
+/// Check whether a finding should be excluded by a given filter.
+fn is_excluded_by(finding: &PolicyFinding, filter: &FindingFilter) -> bool {
+    // Exclude by ID
+    if let Some(ref exclude_ids) = filter.exclude {
+        if exclude_ids.iter().any(|id| id == &finding.id) {
+            return true;
+        }
+    }
+    // Exclude by min_level
+    if let Some(min_level) = filter.min_level {
+        if finding.level < min_level {
+            return true;
+        }
+    }
+    false
+}
+
 impl FindingModifier {
     /// Create a new `FindingModifier` from a `LiveCheckConfig`.
     ///
     /// Returns `None` if the config has no overrides or filters.
     #[must_use]
-    pub fn from_config(config: &LiveCheckConfig) -> Option<Self> {
-        let overrides = config.finding_overrides.clone().unwrap_or_default();
-        let filters = config.finding_filters.clone().unwrap_or_default();
+    pub fn from_config(config: LiveCheckConfig) -> Option<Self> {
+        let overrides = config.finding_overrides;
+        let filters = config.finding_filters;
 
         if overrides.is_empty() && filters.is_empty() {
             return None;
@@ -48,55 +71,24 @@ impl FindingModifier {
             if !ov.id.iter().any(|id| id == &finding.id) {
                 continue;
             }
-            // Check signal_type scope
-            if let Some(ref scope) = ov.signal_type {
-                if finding.signal_type.as_ref() != Some(scope) {
-                    continue;
-                }
+            if !scope_matches(ov.signal_type.as_ref(), finding.signal_type.as_ref()) {
+                continue;
             }
             // First match wins — apply level override
-            finding.level = ov.level.clone();
+            finding.level = ov.level;
             break;
         }
 
         // 2. Apply filters
         for filter in &self.filters {
-            match &filter.signal_type {
-                // Global filter (no signal_type) — applies to all findings
-                None => {
-                    if self.is_excluded_by(&finding, filter) {
-                        return None;
-                    }
-                }
-                // Scoped filter — only applies when signal_type matches
-                Some(scope) => {
-                    if finding.signal_type.as_ref() == Some(scope)
-                        && self.is_excluded_by(&finding, filter)
-                    {
-                        return None;
-                    }
-                }
+            if scope_matches(filter.signal_type.as_ref(), finding.signal_type.as_ref())
+                && is_excluded_by(&finding, filter)
+            {
+                return None;
             }
         }
 
         Some(finding)
-    }
-
-    /// Check whether a finding should be excluded by a given filter.
-    fn is_excluded_by(&self, finding: &PolicyFinding, filter: &FindingFilter) -> bool {
-        // Exclude by ID
-        if let Some(ref exclude_ids) = filter.exclude {
-            if exclude_ids.iter().any(|id| id == &finding.id) {
-                return true;
-            }
-        }
-        // Exclude by min_level
-        if let Some(ref min_level) = filter.min_level {
-            if &finding.level < min_level {
-                return true;
-            }
-        }
-        false
     }
 }
 
@@ -120,21 +112,21 @@ mod tests {
     #[test]
     fn test_no_rules_passthrough() {
         let config = LiveCheckConfig::default();
-        let modifier = FindingModifier::from_config(&config);
+        let modifier = FindingModifier::from_config(config);
         assert!(modifier.is_none());
     }
 
     #[test]
     fn test_override_level() {
         let config = LiveCheckConfig {
-            finding_overrides: Some(vec![FindingOverride {
+            finding_overrides: vec![FindingOverride {
                 id: vec!["not_stable".to_owned()],
                 level: FindingLevel::Violation,
                 signal_type: None,
-            }]),
+            }],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("not_stable", FindingLevel::Information, None);
         let result = modifier.apply(finding).expect("should not be excluded");
@@ -144,14 +136,14 @@ mod tests {
     #[test]
     fn test_override_scoped_by_signal_type() {
         let config = LiveCheckConfig {
-            finding_overrides: Some(vec![FindingOverride {
+            finding_overrides: vec![FindingOverride {
                 id: vec!["not_stable".to_owned()],
                 level: FindingLevel::Information,
                 signal_type: Some("span".to_owned()),
-            }]),
+            }],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         // Matching signal_type — override applies
         let finding = make_finding("not_stable", FindingLevel::Violation, Some("span"));
@@ -167,14 +159,14 @@ mod tests {
     #[test]
     fn test_override_with_multiple_ids() {
         let config = LiveCheckConfig {
-            finding_overrides: Some(vec![FindingOverride {
+            finding_overrides: vec![FindingOverride {
                 id: vec!["a".to_owned(), "b".to_owned()],
                 level: FindingLevel::Improvement,
                 signal_type: None,
-            }]),
+            }],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding_a = make_finding("a", FindingLevel::Information, None);
         assert_eq!(
@@ -198,7 +190,7 @@ mod tests {
     #[test]
     fn test_first_match_wins() {
         let config = LiveCheckConfig {
-            finding_overrides: Some(vec![
+            finding_overrides: vec![
                 FindingOverride {
                     id: vec!["not_stable".to_owned()],
                     level: FindingLevel::Violation,
@@ -209,10 +201,10 @@ mod tests {
                     level: FindingLevel::Information,
                     signal_type: None,
                 },
-            ]),
+            ],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("not_stable", FindingLevel::Improvement, None);
         let result = modifier.apply(finding).expect("should not be excluded");
@@ -222,14 +214,14 @@ mod tests {
     #[test]
     fn test_global_filter_exclude_by_id() {
         let config = LiveCheckConfig {
-            finding_filters: Some(vec![FindingFilter {
+            finding_filters: vec![FindingFilter {
                 exclude: Some(vec!["deprecated".to_owned()]),
                 min_level: None,
                 signal_type: None,
-            }]),
+            }],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("deprecated", FindingLevel::Violation, None);
         assert!(modifier.apply(finding).is_none());
@@ -241,14 +233,14 @@ mod tests {
     #[test]
     fn test_global_filter_min_level() {
         let config = LiveCheckConfig {
-            finding_filters: Some(vec![FindingFilter {
+            finding_filters: vec![FindingFilter {
                 exclude: None,
                 min_level: Some(FindingLevel::Improvement),
                 signal_type: None,
-            }]),
+            }],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("foo", FindingLevel::Information, None);
         assert!(modifier.apply(finding).is_none());
@@ -263,14 +255,14 @@ mod tests {
     #[test]
     fn test_scoped_filter() {
         let config = LiveCheckConfig {
-            finding_filters: Some(vec![FindingFilter {
+            finding_filters: vec![FindingFilter {
                 exclude: Some(vec!["not_stable".to_owned()]),
                 min_level: None,
                 signal_type: Some("span".to_owned()),
-            }]),
+            }],
             ..Default::default()
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("not_stable", FindingLevel::Information, Some("span"));
         assert!(modifier.apply(finding).is_none());
@@ -282,18 +274,18 @@ mod tests {
     #[test]
     fn test_override_then_filter() {
         let config = LiveCheckConfig {
-            finding_overrides: Some(vec![FindingOverride {
+            finding_overrides: vec![FindingOverride {
                 id: vec!["foo".to_owned()],
                 level: FindingLevel::Violation,
                 signal_type: None,
-            }]),
-            finding_filters: Some(vec![FindingFilter {
+            }],
+            finding_filters: vec![FindingFilter {
                 exclude: Some(vec!["foo".to_owned()]),
                 min_level: None,
                 signal_type: None,
-            }]),
+            }],
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("foo", FindingLevel::Information, None);
         assert!(modifier.apply(finding).is_none());
@@ -302,18 +294,18 @@ mod tests {
     #[test]
     fn test_override_level_then_min_level_filter() {
         let config = LiveCheckConfig {
-            finding_overrides: Some(vec![FindingOverride {
+            finding_overrides: vec![FindingOverride {
                 id: vec!["foo".to_owned()],
                 level: FindingLevel::Information,
                 signal_type: None,
-            }]),
-            finding_filters: Some(vec![FindingFilter {
+            }],
+            finding_filters: vec![FindingFilter {
                 exclude: None,
                 min_level: Some(FindingLevel::Improvement),
                 signal_type: None,
-            }]),
+            }],
         };
-        let modifier = FindingModifier::from_config(&config).expect("modifier");
+        let modifier = FindingModifier::from_config(config).expect("modifier");
 
         let finding = make_finding("foo", FindingLevel::Violation, None);
         assert!(modifier.apply(finding).is_none());
