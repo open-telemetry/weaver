@@ -62,6 +62,10 @@ pub enum Error {
     /// Packaging requires a manifest file
     #[error("Registry `{registry}` does not contain a manifest file")]
     PackagingRequiresManifest { registry: String },
+
+    /// Failed to write an output file during packaging
+    #[error("Failed to write output file `{path}`: {error}")]
+    OutputWriteError { path: PathBuf, error: String },
 }
 
 impl From<Error> for DiagnosticMessages {

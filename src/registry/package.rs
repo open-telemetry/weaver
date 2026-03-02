@@ -3,6 +3,7 @@
 //! Package a semantic convention registry.
 
 use std::fs;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -43,12 +44,12 @@ pub struct RegistryPackageArgs {
 }
 
 fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), DiagnosticMessages> {
-    let yaml = serde_yaml::to_string(data).map_err(|e| Error::InvalidParams {
-        params_file: path.to_path_buf(),
+    let file = fs::File::create(path).map_err(|e| Error::OutputWriteError {
+        path: path.to_path_buf(),
         error: e.to_string(),
     })?;
-    fs::write(path, yaml).map_err(|e| Error::InvalidParams {
-        params_file: path.to_path_buf(),
+    serde_yaml::to_writer(BufWriter::new(file), data).map_err(|e| Error::OutputWriteError {
+        path: path.to_path_buf(),
         error: e.to_string(),
     })?;
     Ok(())
@@ -89,8 +90,8 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         return Err(diag_msgs);
     }
 
-    fs::create_dir_all(&args.output).map_err(|e| Error::InvalidParams {
-        params_file: args.output.clone(),
+    fs::create_dir_all(&args.output).map_err(|e| Error::OutputWriteError {
+        path: args.output.clone(),
         error: e.to_string(),
     })?;
 
