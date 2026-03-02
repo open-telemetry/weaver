@@ -65,7 +65,7 @@ pub enum Error {
 
     /// Failed to write an output file during packaging
     #[error("Failed to write output file `{path}`: {error}")]
-    OutputWriteError { path: PathBuf, error: String },
+    OutputWrite { path: PathBuf, error: String },
 }
 
 impl From<Error> for DiagnosticMessages {

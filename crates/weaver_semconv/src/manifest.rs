@@ -487,7 +487,7 @@ registry_path: "./registry"
 }
 
 /// The file format version of the publication manifest.
-pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "2.0.0";
+pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0.0";
 
 /// Represents the publication manifest for a packaged semantic convention registry.
 ///

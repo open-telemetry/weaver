@@ -44,11 +44,11 @@ pub struct RegistryPackageArgs {
 }
 
 fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), DiagnosticMessages> {
-    let file = fs::File::create(path).map_err(|e| Error::OutputWriteError {
+    let file = fs::File::create(path).map_err(|e| Error::OutputWrite {
         path: path.to_path_buf(),
         error: e.to_string(),
     })?;
-    serde_yaml::to_writer(BufWriter::new(file), data).map_err(|e| Error::OutputWriteError {
+    serde_yaml::to_writer(BufWriter::new(file), data).map_err(|e| Error::OutputWrite {
         path: path.to_path_buf(),
         error: e.to_string(),
     })?;
@@ -90,7 +90,7 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         return Err(diag_msgs);
     }
 
-    fs::create_dir_all(&args.output).map_err(|e| Error::OutputWriteError {
+    fs::create_dir_all(&args.output).map_err(|e| Error::OutputWrite {
         path: args.output.clone(),
         error: e.to_string(),
     })?;
