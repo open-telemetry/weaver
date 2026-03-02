@@ -1,8 +1,12 @@
-version: '2'
+file_format: definition/2
 attributes:
   - key: test.attr
     type: int
     brief: Test attribute
+    stability: stable
+  - key: test.attr2
+    type: string
+    brief: Test attribute 2
     stability: stable
 
 attribute_groups:
@@ -26,7 +30,6 @@ metric_refinements:
   - id: metric.refined.metric
     ref: base.metric
     brief: Refined metric
-    unit: ms
 
 spans:
   - type: base.span
@@ -39,7 +42,6 @@ spans:
 span_refinements:
   - id: span.refined.span
     ref: base.span
-    kind: server
     brief: Refined span
 
 events:
@@ -63,3 +65,5 @@ entity_refinements:
   - id: entity.refined.entity
     ref: base.entity
     brief: Refined entity
+    description:
+      - ref: test.attr2
