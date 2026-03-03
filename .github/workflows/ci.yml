@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: none
     name: CI
-    needs: [test, msrv, docs, rustfmt, clippy]
+    needs: [test, msrv, docs, rustfmt, clippy, check-usage-docs]
     runs-on: ubuntu-latest
     steps:
       - name: Done
@@ -265,6 +265,26 @@ jobs:
           wait-for-processing: true
       - name: Report status
         run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
+  check-usage-docs:
+    name: Check usage docs are up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - name: Regenerate usage docs
+        run: cargo run -- --quiet markdown-help > /tmp/usage.md
+      - name: Check docs/usage.md is up-to-date
+        run: |
+          if ! diff -q docs/usage.md /tmp/usage.md > /dev/null 2>&1; then
+            echo "docs/usage.md is out of date. Run 'cargo run -- --quiet markdown-help > docs/usage.md' to regenerate it."
+            diff docs/usage.md /tmp/usage.md
+            exit 1
+          fi
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
