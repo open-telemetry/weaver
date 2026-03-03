@@ -20,7 +20,10 @@ static VALIDATOR_V2: OnceLock<JsonSchemaValidator> = OnceLock::new();
 /// A versioned semantic convention file.
 #[derive(Serialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "file_format")]
-#[allow(clippy::large_enum_variant, reason="We plan to remove the variant in the future, and want SemconvSpecV2 (largest) to remain on stack.")]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "We plan to remove the variant in the future, and want SemconvSpecV2 (largest) to remain on stack."
+)]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "definition/1")]
