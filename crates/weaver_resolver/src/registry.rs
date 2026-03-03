@@ -462,10 +462,7 @@ fn add_resolved_group_to_index(
     unresolved_group.include_groups.clear();
     let mut summary = GroupSummary::from_without_attributes(&unresolved_group.group);
     summary.attributes = unresolved_group.attributes.clone();
-    _ = group_index.insert(
-        unresolved_group.group.id.clone(),
-        summary,
-    );
+    _ = group_index.insert(unresolved_group.group.id.clone(), summary);
     *resolved_group_count += 1;
 }
 /// The resolution process is iterative. The process stops when all the
@@ -496,10 +493,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 );
                 let mut summary = GroupSummary::from_without_attributes(&group.group);
                 summary.attributes = group.attributes.clone();
-                _ = group_index.insert(
-                    group.group.id.clone(),
-                    summary,
-                );
+                _ = group_index.insert(group.group.id.clone(), summary);
             }
         }
         // Iterate over all groups and resolve the `extends` clauses.
@@ -845,9 +839,7 @@ fn lookup_group_with_dependencies(
         return Some(summary.clone());
     }
     // Now check dependencies in order.
-    dependencies.iter().find_map(|d| {
-        d.lookup_group_summary(id)
-    })
+    dependencies.iter().find_map(|d| d.lookup_group_summary(id))
 }
 
 /// This will sort the clean and sort the attribute catalog and registry.

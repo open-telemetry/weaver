@@ -10,11 +10,11 @@ use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
-use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::stability::Stability;
-use weaver_semconv::deprecated::Deprecated;
 
 use crate::{attribute::AttributeCatalog, Error};
 
@@ -76,8 +76,6 @@ impl ResolvedDependency {
     }
 }
 
-
-
 /// Allows importing dependencies
 pub(crate) trait ImportableDependency {
     /// Imports groups from the given dependency using the flags provided.
@@ -126,11 +124,9 @@ impl ImportableDependency for V1Schema {
                         .name
                         .as_ref()
                         .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
-                    GroupType::Metric => {
-                        g.metric_name.as_ref().is_some_and(|metric_name| {
-                            metrics_imports_matcher.is_match(metric_name.as_str())
-                        })
-                    }
+                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
+                        metrics_imports_matcher.is_match(metric_name.as_str())
+                    }),
                     GroupType::MetricGroup => false,
                     GroupType::Entity => g
                         .name
@@ -412,23 +408,21 @@ impl GroupRefinementLookup for V1Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| self.catalog.attribute(ar))
-                .map(|a| {
-                    UnresolvedAttribute {
-                        spec: weaver_semconv::attribute::AttributeSpec::Id {
-                            id: a.name.clone(),
-                            r#type: a.r#type.clone(),
-                            brief: Some(a.brief.clone()),
-                            examples: a.examples.clone(),
-                            tag: a.tag.clone(),
-                            requirement_level: a.requirement_level.clone(),
-                            sampling_relevant: a.sampling_relevant,
-                            note: a.note.clone(),
-                            stability: a.stability.clone(),
-                            deprecated: a.deprecated.clone(),
-                            annotations: a.annotations.clone(),
-                            role: a.role.clone(),
-                        },
-                    }
+                .map(|a| UnresolvedAttribute {
+                    spec: weaver_semconv::attribute::AttributeSpec::Id {
+                        id: a.name.clone(),
+                        r#type: a.r#type.clone(),
+                        brief: Some(a.brief.clone()),
+                        examples: a.examples.clone(),
+                        tag: a.tag.clone(),
+                        requirement_level: a.requirement_level.clone(),
+                        sampling_relevant: a.sampling_relevant,
+                        note: a.note.clone(),
+                        stability: a.stability.clone(),
+                        deprecated: a.deprecated.clone(),
+                        annotations: a.annotations.clone(),
+                        role: a.role.clone(),
+                    },
                 })
                 .collect();
             let mut summary = GroupSummary::from_without_attributes(g);
@@ -440,66 +434,63 @@ impl GroupRefinementLookup for V1Schema {
 
 impl GroupRefinementLookup for V2Schema {
     fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
-        let lookup_group = self.registry
+        let lookup_group = self
+            .registry
             .metrics
             .iter()
             .find(|m| m.id() == id)
-            .map(|m| {
-                Group {
-                    id: m.id().to_owned(),
-                    r#type: GroupType::Metric,
-                    brief: m.common.brief.clone(),
-                    note: m.common.note.clone(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(m.common.stability.clone()),
-                    deprecated: m.common.deprecated.clone(),
-                    attributes: vec![],
-                    span_kind: None,
-                    events: vec![],
-                    metric_name: Some(m.name.to_string()),
-                    instrument: Some(m.instrument.clone()),
-                    unit: Some(m.unit.clone()),
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                    annotations: Some(m.common.annotations.clone()),
-                    entity_associations: m.entity_associations.clone(),
-                    visibility: None,
-                    is_v2: true,
-                }
+            .map(|m| Group {
+                id: m.id().to_owned(),
+                r#type: GroupType::Metric,
+                brief: m.common.brief.clone(),
+                note: m.common.note.clone(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(m.common.stability.clone()),
+                deprecated: m.common.deprecated.clone(),
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: Some(m.name.to_string()),
+                instrument: Some(m.instrument.clone()),
+                unit: Some(m.unit.clone()),
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: Some(m.common.annotations.clone()),
+                entity_associations: m.entity_associations.clone(),
+                visibility: None,
+                is_v2: true,
             })
             .or_else(|| {
                 self.registry
                     .events
                     .iter()
                     .find(|e| e.id() == id)
-                    .map(|e| {
-                        Group {
-                            id: e.id().to_owned(),
-                            r#type: GroupType::Event,
-                            brief: e.common.brief.clone(),
-                            note: e.common.note.clone(),
-                            prefix: "".to_owned(),
-                            extends: None,
-                            stability: Some(e.common.stability.clone()),
-                            deprecated: e.common.deprecated.clone(),
-                            attributes: vec![],
-                            span_kind: None,
-                            events: vec![],
-                            metric_name: None,
-                            instrument: None,
-                            unit: None,
-                            name: Some(e.name.to_string()),
-                            lineage: None,
-                            display_name: None,
-                            body: None,
-                            annotations: Some(e.common.annotations.clone()),
-                            entity_associations: e.entity_associations.clone(),
-                            visibility: None,
-                            is_v2: true,
-                        }
+                    .map(|e| Group {
+                        id: e.id().to_owned(),
+                        r#type: GroupType::Event,
+                        brief: e.common.brief.clone(),
+                        note: e.common.note.clone(),
+                        prefix: "".to_owned(),
+                        extends: None,
+                        stability: Some(e.common.stability.clone()),
+                        deprecated: e.common.deprecated.clone(),
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some(e.name.to_string()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: Some(e.common.annotations.clone()),
+                        entity_associations: e.entity_associations.clone(),
+                        visibility: None,
+                        is_v2: true,
                     })
             })
             .or_else(|| {
@@ -507,38 +498,37 @@ impl GroupRefinementLookup for V2Schema {
                     .entities
                     .iter()
                     .find(|e| e.id() == id)
-                    .map(|e| {
-                        Group {
-                            id: e.id().to_owned(),
-                            r#type: GroupType::Entity,
-                            brief: e.common.brief.clone(),
-                            note: e.common.note.clone(),
-                            prefix: "".to_owned(),
-                            extends: None,
-                            stability: Some(e.common.stability.clone()),
-                            deprecated: e.common.deprecated.clone(),
-                            attributes: vec![],
-                            span_kind: None,
-                            events: vec![],
-                            metric_name: None,
-                            instrument: None,
-                            unit: None,
-                            name: Some(e.r#type.to_string()),
-                            lineage: None,
-                            display_name: None,
-                            body: None,
-                            annotations: Some(e.common.annotations.clone()),
-                            entity_associations: vec![],
-                            visibility: None,
-                            is_v2: true,
-                        }
+                    .map(|e| Group {
+                        id: e.id().to_owned(),
+                        r#type: GroupType::Entity,
+                        brief: e.common.brief.clone(),
+                        note: e.common.note.clone(),
+                        prefix: "".to_owned(),
+                        extends: None,
+                        stability: Some(e.common.stability.clone()),
+                        deprecated: e.common.deprecated.clone(),
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        name: Some(e.r#type.to_string()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: Some(e.common.annotations.clone()),
+                        entity_associations: vec![],
+                        visibility: None,
+                        is_v2: true,
                     })
             });
 
         // Now fill out all the attributes we need for `extends` and refinements.
         lookup_group.map(|g| {
             let mut summary = GroupSummary::from_without_attributes(&g);
-            summary.attributes = g.attributes
+            summary.attributes = g
+                .attributes
                 .iter()
                 .filter_map(|ar| self.attribute_catalog.get(ar.0 as usize))
                 .map(|a| UnresolvedAttribute {
@@ -548,7 +538,9 @@ impl GroupRefinementLookup for V2Schema {
                         brief: Some(a.common.brief.clone()),
                         examples: a.examples.clone(),
                         tag: None,
-                        requirement_level: RequirementLevel::Basic(weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended),
+                        requirement_level: RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                        ),
                         sampling_relevant: None,
                         note: a.common.note.clone(),
                         stability: Some(a.common.stability.clone()),
