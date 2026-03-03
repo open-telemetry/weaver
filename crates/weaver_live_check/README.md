@@ -184,7 +184,7 @@ signal_type = "span"
 
 ### Filters
 
-Filters drop findings entirely. Use `exclude` to drop by ID and `min_level` to drop findings below a threshold. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type.
+Filters drop findings entirely. Use `exclude` to drop by ID, `min_level` to drop findings below a threshold, and `exclude_samples` to drop all findings for specific sample names. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type.
 
 ```toml
 # Drop deprecated and missing_namespace findings, and anything below improvement
@@ -196,7 +196,13 @@ min_level = "improvement"
 [[live_check.finding_filters]]
 signal_type = "span"
 exclude = ["not_stable"]
+
+# Suppress all findings for these attribute names
+[[live_check.finding_filters]]
+exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
 ```
+
+The `exclude_samples` filter matches by sample name: attribute key for attributes, span name for spans, metric name for metrics, event name for logs, and span event name for span events. It can be combined with other filter fields, for example scoping to a specific `signal_type`.
 
 Overrides are applied first, then filters. This means a finding can be overridden to a new level and then filtered based on that new level.
 

@@ -331,6 +331,23 @@ pub enum SampleRef<'a> {
 }
 
 impl SampleRef<'_> {
+    /// Returns the sample name, if available for this sample type.
+    ///
+    /// For attributes this is the attribute key, for spans/metrics/events
+    /// it is the signal name. Sub-signal types (data points, exemplars,
+    /// span links, resources) do not carry a name.
+    #[must_use]
+    pub fn sample_name(&self) -> Option<&str> {
+        match self {
+            SampleRef::Attribute(attr) => Some(&attr.name),
+            SampleRef::Span(span) => Some(&span.name),
+            SampleRef::SpanEvent(event) => Some(&event.name),
+            SampleRef::Metric(metric) => Some(&metric.name),
+            SampleRef::Log(log) => Some(&log.event_name),
+            _ => None,
+        }
+    }
+
     /// Returns the sample type as a string.
     #[must_use]
     pub fn sample_type(&self) -> &str {
@@ -451,9 +468,17 @@ impl LiveCheckResult {
     ///
     /// When a `FindingModifier` is provided, the finding may be modified (level
     /// override) or dropped (filter exclusion) before being stored.
-    pub fn add_advice(&mut self, advice: PolicyFinding, modifier: Option<&FindingModifier>) {
+    ///
+    /// `sample` is the sample that produced this finding, used by
+    /// `exclude_samples` filters to inspect and match on it.
+    pub fn add_advice(
+        &mut self,
+        advice: PolicyFinding,
+        modifier: Option<&FindingModifier>,
+        sample: &SampleRef<'_>,
+    ) {
         let advice = if let Some(modifier) = modifier {
-            match modifier.apply(advice) {
+            match modifier.apply(advice, sample) {
                 Some(modified) => modified,
                 None => return, // Excluded by filter
             }
@@ -476,9 +501,10 @@ impl LiveCheckResult {
         &mut self,
         advice: Vec<PolicyFinding>,
         modifier: Option<&FindingModifier>,
+        sample: &SampleRef<'_>,
     ) {
         for advice in advice {
-            self.add_advice(advice, modifier);
+            self.add_advice(advice, modifier, sample);
         }
     }
 }
@@ -552,7 +578,11 @@ pub trait Advisable {
                 parent_group.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &self.as_sample_ref(),
+            );
         }
 
         stats.inc_entity_count(self.entity_type());

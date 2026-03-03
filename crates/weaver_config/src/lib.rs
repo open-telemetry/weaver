@@ -59,6 +59,12 @@ pub struct FindingFilter {
     /// Optional signal type scope. When set, this filter only applies to
     /// findings with a matching signal_type.
     pub signal_type: Option<String>,
+    /// Drop all findings for samples with these names.
+    /// For attribute samples, this matches the attribute key — e.g.
+    /// `["trace.parent_id", "trace.span_id"]` suppresses all findings
+    /// (e.g. `missing_attribute`) for those attribute keys.
+    #[serde(default)]
+    pub exclude_samples: Vec<String>,
 }
 
 /// Discover a `.weaver.toml` file by walking up from the given directory.
@@ -286,5 +292,48 @@ level = "information"
             .expect("Failed to load config")
             .expect("Config should be found");
         assert!(config.live_check.is_some());
+    }
+
+    #[test]
+    fn test_parse_exclude_samples() {
+        let toml = r#"
+[[live_check.finding_filters]]
+exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
+
+[[live_check.finding_filters]]
+signal_type = "span"
+exclude_samples = ["custom.internal_id"]
+exclude = ["not_stable"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let live_check = config.live_check.expect("live_check should be present");
+        assert_eq!(live_check.finding_filters.len(), 2);
+
+        // Global filter with exclude_samples only
+        let f0 = &live_check.finding_filters[0];
+        assert!(f0.signal_type.is_none());
+        assert!(f0.exclude.is_none());
+        assert!(f0.min_level.is_none());
+        assert_eq!(
+            f0.exclude_samples,
+            vec!["trace.parent_id", "trace.span_id", "trace.trace_id"]
+        );
+
+        // Scoped filter combining exclude_samples with exclude
+        let f1 = &live_check.finding_filters[1];
+        assert_eq!(f1.signal_type.as_deref(), Some("span"));
+        assert_eq!(f1.exclude.as_deref(), Some(&["not_stable".to_owned()][..]));
+        assert_eq!(f1.exclude_samples, vec!["custom.internal_id"]);
+    }
+
+    #[test]
+    fn test_parse_exclude_samples_defaults_to_empty() {
+        let toml = r#"
+[[live_check.finding_filters]]
+min_level = "violation"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let live_check = config.live_check.expect("live_check should be present");
+        assert!(live_check.finding_filters[0].exclude_samples.is_empty());
     }
 }

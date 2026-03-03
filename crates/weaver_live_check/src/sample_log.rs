@@ -67,19 +67,25 @@ impl LiveCheckRunner for SampleLog {
                         live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
                         parent_signal,
                     );
-                result.add_advice(finding, live_checker.finding_modifier.as_ref());
+                let sample_ref = SampleRef::Log(self);
+                result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
             };
             semconv_event
         };
         for advisor in live_checker.advisors.iter_mut() {
+            let sample_ref = SampleRef::Log(self);
             let advice_list = advisor.advise(
-                SampleRef::Log(self),
+                sample_ref.clone(),
                 parent_signal,
                 None,
                 semconv_event.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
         }
         // Check attributes
         self.attributes.run_live_check(

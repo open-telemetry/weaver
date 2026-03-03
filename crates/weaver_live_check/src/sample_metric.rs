@@ -313,17 +313,23 @@ impl LiveCheckRunner for SampleMetric {
                     parent_signal,
                 );
 
-            result.add_advice(finding, live_checker.finding_modifier.as_ref());
+            let sample_ref = SampleRef::Metric(self);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
         };
         for advisor in live_checker.advisors.iter_mut() {
+            let sample_ref = SampleRef::Metric(self);
             let advice_list = advisor.advise(
-                SampleRef::Metric(self),
+                sample_ref.clone(),
                 parent_signal,
                 None,
                 semconv_metric.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list, live_checker.finding_modifier.as_ref());
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
         }
         // Get advice for the data points
         match &mut self.data_points {

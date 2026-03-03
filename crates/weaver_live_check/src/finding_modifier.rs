@@ -5,6 +5,7 @@
 //! Applies overrides (level changes) and filters (exclusions, min-level)
 //! to findings at creation time — before they are stored in `LiveCheckResult`.
 
+use crate::SampleRef;
 use weaver_checker::PolicyFinding;
 use weaver_config::{FindingFilter, FindingOverride, LiveCheckConfig};
 
@@ -24,7 +25,7 @@ fn scope_matches(scope: Option<&String>, signal_type: Option<&String>) -> bool {
 }
 
 /// Check whether a finding should be excluded by a given filter.
-fn is_excluded_by(finding: &PolicyFinding, filter: &FindingFilter) -> bool {
+fn is_excluded_by(finding: &PolicyFinding, filter: &FindingFilter, sample: &SampleRef<'_>) -> bool {
     // Exclude by ID
     if let Some(ref exclude_ids) = filter.exclude {
         if exclude_ids.iter().any(|id| id == &finding.id) {
@@ -35,6 +36,14 @@ fn is_excluded_by(finding: &PolicyFinding, filter: &FindingFilter) -> bool {
     if let Some(min_level) = filter.min_level {
         if finding.level < min_level {
             return true;
+        }
+    }
+    // Exclude by sample name
+    if !filter.exclude_samples.is_empty() {
+        if let Some(name) = sample.sample_name() {
+            if filter.exclude_samples.iter().any(|s| s == name) {
+                return true;
+            }
         }
     }
     false
@@ -61,11 +70,19 @@ impl FindingModifier {
     /// Returns `None` if the finding should be excluded, or `Some(finding)`
     /// with the (possibly modified) level.
     ///
+    /// `sample` is the sample that produced this finding. It is used by
+    /// `exclude_samples` filters to suppress findings by sample name (e.g.
+    /// attribute key for attribute samples).
+    ///
     /// Override matching: first matching override wins (by ID + optional signal_type).
     /// Filter matching: global filter applies to all; scoped filters apply when
     /// their `signal_type` matches the finding's `signal_type`.
     #[must_use]
-    pub fn apply(&self, mut finding: PolicyFinding) -> Option<PolicyFinding> {
+    pub fn apply(
+        &self,
+        mut finding: PolicyFinding,
+        sample: &SampleRef<'_>,
+    ) -> Option<PolicyFinding> {
         // 1. Apply first matching override
         for ov in &self.overrides {
             if !ov.id.iter().any(|id| id == &finding.id) {
@@ -82,7 +99,7 @@ impl FindingModifier {
         // 2. Apply filters
         for filter in &self.filters {
             if scope_matches(filter.signal_type.as_ref(), finding.signal_type.as_ref())
-                && is_excluded_by(&finding, filter)
+                && is_excluded_by(&finding, filter, sample)
             {
                 return None;
             }
@@ -95,6 +112,7 @@ impl FindingModifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sample_attribute::SampleAttribute;
     use serde_json::json;
     use weaver_checker::FindingLevel;
 
@@ -106,6 +124,15 @@ mod tests {
             level,
             signal_type: signal_type.map(|s| s.to_owned()),
             signal_name: None,
+        }
+    }
+
+    fn make_attribute(name: &str) -> SampleAttribute {
+        SampleAttribute {
+            name: name.to_owned(),
+            r#type: None,
+            value: None,
+            live_check_result: None,
         }
     }
 
@@ -128,8 +155,12 @@ mod tests {
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
 
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
         let finding = make_finding("not_stable", FindingLevel::Information, None);
-        let result = modifier.apply(finding).expect("should not be excluded");
+        let result = modifier
+            .apply(finding, &sample)
+            .expect("should not be excluded");
         assert_eq!(result.level, FindingLevel::Violation);
     }
 
@@ -144,15 +175,21 @@ mod tests {
             ..Default::default()
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         // Matching signal_type — override applies
         let finding = make_finding("not_stable", FindingLevel::Violation, Some("span"));
-        let result = modifier.apply(finding).expect("should not be excluded");
+        let result = modifier
+            .apply(finding, &sample)
+            .expect("should not be excluded");
         assert_eq!(result.level, FindingLevel::Information);
 
         // Non-matching signal_type — override does not apply
         let finding = make_finding("not_stable", FindingLevel::Violation, Some("metric"));
-        let result = modifier.apply(finding).expect("should not be excluded");
+        let result = modifier
+            .apply(finding, &sample)
+            .expect("should not be excluded");
         assert_eq!(result.level, FindingLevel::Violation);
     }
 
@@ -167,22 +204,24 @@ mod tests {
             ..Default::default()
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding_a = make_finding("a", FindingLevel::Information, None);
         assert_eq!(
-            modifier.apply(finding_a).expect("result").level,
+            modifier.apply(finding_a, &sample).expect("result").level,
             FindingLevel::Improvement
         );
 
         let finding_b = make_finding("b", FindingLevel::Violation, None);
         assert_eq!(
-            modifier.apply(finding_b).expect("result").level,
+            modifier.apply(finding_b, &sample).expect("result").level,
             FindingLevel::Improvement
         );
 
         let finding_c = make_finding("c", FindingLevel::Violation, None);
         assert_eq!(
-            modifier.apply(finding_c).expect("result").level,
+            modifier.apply(finding_c, &sample).expect("result").level,
             FindingLevel::Violation
         );
     }
@@ -205,9 +244,13 @@ mod tests {
             ..Default::default()
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding = make_finding("not_stable", FindingLevel::Improvement, None);
-        let result = modifier.apply(finding).expect("should not be excluded");
+        let result = modifier
+            .apply(finding, &sample)
+            .expect("should not be excluded");
         assert_eq!(result.level, FindingLevel::Violation);
     }
 
@@ -218,16 +261,19 @@ mod tests {
                 exclude: Some(vec!["deprecated".to_owned()]),
                 min_level: None,
                 signal_type: None,
+                exclude_samples: vec![],
             }],
             ..Default::default()
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding = make_finding("deprecated", FindingLevel::Violation, None);
-        assert!(modifier.apply(finding).is_none());
+        assert!(modifier.apply(finding, &sample).is_none());
 
         let finding = make_finding("not_stable", FindingLevel::Violation, None);
-        assert!(modifier.apply(finding).is_some());
+        assert!(modifier.apply(finding, &sample).is_some());
     }
 
     #[test]
@@ -237,19 +283,22 @@ mod tests {
                 exclude: None,
                 min_level: Some(FindingLevel::Improvement),
                 signal_type: None,
+                exclude_samples: vec![],
             }],
             ..Default::default()
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding = make_finding("foo", FindingLevel::Information, None);
-        assert!(modifier.apply(finding).is_none());
+        assert!(modifier.apply(finding, &sample).is_none());
 
         let finding = make_finding("foo", FindingLevel::Improvement, None);
-        assert!(modifier.apply(finding).is_some());
+        assert!(modifier.apply(finding, &sample).is_some());
 
         let finding = make_finding("foo", FindingLevel::Violation, None);
-        assert!(modifier.apply(finding).is_some());
+        assert!(modifier.apply(finding, &sample).is_some());
     }
 
     #[test]
@@ -259,16 +308,19 @@ mod tests {
                 exclude: Some(vec!["not_stable".to_owned()]),
                 min_level: None,
                 signal_type: Some("span".to_owned()),
+                exclude_samples: vec![],
             }],
             ..Default::default()
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding = make_finding("not_stable", FindingLevel::Information, Some("span"));
-        assert!(modifier.apply(finding).is_none());
+        assert!(modifier.apply(finding, &sample).is_none());
 
         let finding = make_finding("not_stable", FindingLevel::Information, Some("metric"));
-        assert!(modifier.apply(finding).is_some());
+        assert!(modifier.apply(finding, &sample).is_some());
     }
 
     #[test]
@@ -283,12 +335,15 @@ mod tests {
                 exclude: Some(vec!["foo".to_owned()]),
                 min_level: None,
                 signal_type: None,
+                exclude_samples: vec![],
             }],
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding = make_finding("foo", FindingLevel::Information, None);
-        assert!(modifier.apply(finding).is_none());
+        assert!(modifier.apply(finding, &sample).is_none());
     }
 
     #[test]
@@ -303,11 +358,64 @@ mod tests {
                 exclude: None,
                 min_level: Some(FindingLevel::Improvement),
                 signal_type: None,
+                exclude_samples: vec![],
             }],
         };
         let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
 
         let finding = make_finding("foo", FindingLevel::Violation, None);
-        assert!(modifier.apply(finding).is_none());
+        assert!(modifier.apply(finding, &sample).is_none());
+    }
+
+    #[test]
+    fn test_exclude_samples_matches_attribute() {
+        let config = LiveCheckConfig {
+            finding_filters: vec![FindingFilter {
+                exclude: None,
+                min_level: None,
+                signal_type: None,
+                exclude_samples: vec!["trace.parent_id".to_owned(), "trace.span_id".to_owned()],
+            }],
+            ..Default::default()
+        };
+        let modifier = FindingModifier::from_config(config).expect("modifier");
+
+        // Matching attribute name — excluded
+        let attr = make_attribute("trace.parent_id");
+        let sample = SampleRef::Attribute(&attr);
+        let finding = make_finding("missing_attribute", FindingLevel::Violation, Some("span"));
+        assert!(modifier.apply(finding, &sample).is_none());
+
+        // Non-matching attribute name — kept
+        let attr = make_attribute("http.method");
+        let sample = SampleRef::Attribute(&attr);
+        let finding = make_finding("missing_attribute", FindingLevel::Violation, Some("span"));
+        assert!(modifier.apply(finding, &sample).is_some());
+    }
+
+    #[test]
+    fn test_exclude_samples_with_signal_type_scope() {
+        let config = LiveCheckConfig {
+            finding_filters: vec![FindingFilter {
+                exclude: None,
+                min_level: None,
+                signal_type: Some("span".to_owned()),
+                exclude_samples: vec!["trace.parent_id".to_owned()],
+            }],
+            ..Default::default()
+        };
+        let modifier = FindingModifier::from_config(config).expect("modifier");
+        let attr = make_attribute("trace.parent_id");
+        let sample = SampleRef::Attribute(&attr);
+
+        // Matching signal_type + attribute — excluded
+        let finding = make_finding("missing_attribute", FindingLevel::Violation, Some("span"));
+        assert!(modifier.apply(finding, &sample).is_none());
+
+        // Non-matching signal_type — kept even though attribute matches
+        let finding = make_finding("missing_attribute", FindingLevel::Violation, Some("metric"));
+        assert!(modifier.apply(finding, &sample).is_some());
     }
 }
