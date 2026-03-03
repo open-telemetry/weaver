@@ -22,6 +22,8 @@ use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
+use crate::dependency::GroupSummary;
+
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
 pub struct UnresolvedRegistry {
@@ -57,6 +59,9 @@ pub struct UnresolvedGroup {
 
     /// Visibility of the group.
     pub visibility: Option<AttributeGroupVisibilitySpec>,
+
+    /// True if the group was defined using the v2 syntax.
+    pub is_v2: bool,
 
     /// The provenance of the group (URL or path).
     pub provenance: Provenance,
@@ -301,11 +306,13 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             annotations: group.spec.annotations,
             entity_associations: group.spec.entity_associations,
             visibility: group.spec.visibility.clone(),
+            is_v2: group.spec.is_v2,
         },
         attributes: attrs,
         provenance: group.provenance,
         include_groups: group.spec.include_groups,
         visibility: group.spec.visibility,
+        is_v2: group.spec.is_v2,
     }
 }
 
@@ -341,11 +348,13 @@ fn resolve_dependency_imports(
     let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
     for group in groups {
         let provenance = group.provenance();
+        let is_v2 = group.is_v2();
         ureg.groups.push(UnresolvedGroup {
             group,
             attributes: vec![],
             include_groups: vec![],
             visibility: None,
+            is_v2,
             provenance,
         });
     }
@@ -436,7 +445,7 @@ fn resolve_attribute_references(
 
 /// Helper function to add a resolved group to the index and update its state
 fn add_resolved_group_to_index(
-    group_index: &mut HashMap<String, Vec<UnresolvedAttribute>>,
+    group_index: &mut HashMap<String, GroupSummary>,
     unresolved_group: &mut UnresolvedGroup,
     resolved_group_count: &mut usize,
 ) {
@@ -451,9 +460,11 @@ fn add_resolved_group_to_index(
     );
     _ = unresolved_group.group.extends.take();
     unresolved_group.include_groups.clear();
+    let mut summary = GroupSummary::from_without_attributes(&unresolved_group.group);
+    summary.attributes = unresolved_group.attributes.clone();
     _ = group_index.insert(
         unresolved_group.group.id.clone(),
-        unresolved_group.attributes.clone(),
+        summary,
     );
     *resolved_group_count += 1;
 }
@@ -467,7 +478,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         let mut errors = vec![];
         let mut resolved_group_count = 0;
 
-        // Create a map group_id -> attributes for groups
+        // Create a map group_id -> group_summary for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
         let dependencies = &ureg.dependencies;
@@ -483,25 +494,62 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         .map(|a| a.spec.id().clone())
                         .collect::<Vec<_>>()
                 );
-                _ = group_index.insert(group.group.id.clone(), group.attributes.clone());
+                let mut summary = GroupSummary::from_without_attributes(&group.group);
+                summary.attributes = group.attributes.clone();
+                _ = group_index.insert(
+                    group.group.id.clone(),
+                    summary,
+                );
             }
         }
         // Iterate over all groups and resolve the `extends` clauses.
         for unresolved_group in ureg.groups.iter_mut() {
             // TODO - also look in dependencies.
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
-                if let Some(attrs) =
-                    lookup_group_attributes_with_dependencies(dependencies, &group_index, extends)
+                if let Some(parent_summary) =
+                    lookup_group_with_dependencies(dependencies, &group_index, extends)
                 {
                     unresolved_group.attributes = resolve_inheritance_attrs_unified(
                         &unresolved_group.group.id,
                         &unresolved_group.attributes,
-                        vec![(extends, &attrs)],
+                        vec![(extends, &parent_summary.attributes)],
                         unresolved_group.group.lineage.as_mut(),
                     );
                     if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
                         lineage.extends(extends);
                     }
+
+                    // Inherit fields for v2 groups.
+                    if unresolved_group.is_v2 {
+                        if unresolved_group.group.r#type != parent_summary.r#type {
+                            errors.push(Error::InvalidRefinement {
+                                group_id: unresolved_group.group.id.clone(),
+                                extends_ref: extends.clone(),
+                                group_type: format!("{:?}", unresolved_group.group.r#type),
+                                extends_type: format!("{:?}", parent_summary.r#type),
+                                provenance: unresolved_group.provenance.clone(),
+                            });
+                        }
+                        if unresolved_group.group.stability.is_none() {
+                            unresolved_group.group.stability = parent_summary.stability.clone();
+                        }
+                        if unresolved_group.group.deprecated.is_none() {
+                            unresolved_group.group.deprecated = parent_summary.deprecated.clone();
+                        }
+                        if unresolved_group.group.instrument.is_none() {
+                            unresolved_group.group.instrument = parent_summary.instrument.clone();
+                        }
+                        if unresolved_group.group.unit.is_none() {
+                            unresolved_group.group.unit = parent_summary.unit.clone();
+                        }
+                        if unresolved_group.group.span_kind.is_none() {
+                            unresolved_group.group.span_kind = parent_summary.span_kind;
+                        }
+                        if unresolved_group.group.metric_name.is_none() {
+                            unresolved_group.group.metric_name = parent_summary.metric_name.clone();
+                        }
+                    }
+
                     add_resolved_group_to_index(
                         &mut group_index,
                         unresolved_group,
@@ -522,11 +570,11 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 let mut all_resolved = true;
 
                 for include_group in unresolved_group.include_groups.iter() {
-                    if let Some(attrs) = group_index.get(include_group) {
+                    if let Some(summary) = group_index.get(include_group) {
                         // check if any attribute in the attrs is already in the all_attrs
                         // and fail - this is a diamond include problem and is not allowed.
                         // Otherwise add all of them to all_attrs
-                        for attr in attrs {
+                        for attr in &summary.attributes {
                             if attr_ids.contains_key(&attr.spec.id()) {
                                 errors.push(Error::DuplicateAttributeId {
                                     group_ids: unresolved_group.include_groups.clone(),
@@ -537,7 +585,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                 _ = attr_ids.insert(attr.spec.id().clone(), attr);
                             }
                         }
-                        _ = attrs_by_group.insert(include_group.clone(), attrs);
+                        _ = attrs_by_group.insert(include_group.clone(), &summary.attributes);
 
                         // We'll need to reverse engineer if it was a private group later in V2 mapping.
                         if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
@@ -787,19 +835,19 @@ fn resolve_inheritance_attr(
 // We do NOT borrow the index as mutable when iterating over groups, but
 // Rust's type system is not advanced enough to know about partial mutable
 // borrowing of a reference.
-fn lookup_group_attributes_with_dependencies(
+fn lookup_group_with_dependencies(
     dependencies: &[ResolvedDependency],
-    local_index: &HashMap<String, Vec<UnresolvedAttribute>>,
+    local_index: &HashMap<String, GroupSummary>,
     id: &str,
-) -> Option<Vec<UnresolvedAttribute>> {
+) -> Option<GroupSummary> {
     // First check our direct groups.
-    if let Some(attrs) = local_index.get(id) {
-        return Some(attrs.clone());
+    if let Some(summary) = local_index.get(id) {
+        return Some(summary.clone());
     }
     // Now check dependencies in order.
-    dependencies
-        .iter()
-        .find_map(|d| d.lookup_group_attributes(id))
+    dependencies.iter().find_map(|d| {
+        d.lookup_group_summary(id)
+    })
 }
 
 /// This will sort the clean and sort the attribute catalog and registry.
@@ -1227,10 +1275,12 @@ groups:
                     annotations: Default::default(),
                     entity_associations: Default::default(),
                     visibility: Default::default(),
+                    is_v2: false,
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
                 visibility: Default::default(),
+                is_v2: false,
                 provenance: Provenance {
                     registry_id: Default::default(),
                     path: Default::default(),
@@ -1313,10 +1363,12 @@ groups:
                         annotations: Default::default(),
                         entity_associations: Default::default(),
                         visibility: Default::default(),
+                        is_v2: false,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     visibility: Default::default(),
+                    is_v2: false,
                     provenance: Provenance {
                         registry_id: Default::default(),
                         path: Default::default(),
@@ -1345,10 +1397,12 @@ groups:
                         annotations: Default::default(),
                         entity_associations: Default::default(),
                         visibility: Default::default(),
+                        is_v2: false,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     visibility: Default::default(),
+                    is_v2: false,
                     provenance: Provenance {
                         registry_id: Default::default(),
                         path: Default::default(),
@@ -1377,10 +1431,12 @@ groups:
                         annotations: Default::default(),
                         entity_associations: Default::default(),
                         visibility: Default::default(),
+                        is_v2: false,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     visibility: Default::default(),
+                    is_v2: false,
                     provenance: Provenance {
                         registry_id: Default::default(),
                         path: Default::default(),

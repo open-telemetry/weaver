@@ -153,6 +153,21 @@ pub enum Error {
         provenances: Vec<Provenance>,
     },
 
+    /// An invalid `extends` clause type.
+    #[error("Group `{group_id}` of type `{group_type}` cannot extend group `{extends_ref}` of type `{extends_type}`.")]
+    InvalidRefinement {
+        /// The id of the group with the issue.
+        group_id: String,
+        /// The group id that is being extended.
+        extends_ref: String,
+        /// The type of the group.
+        group_type: String,
+        /// The type of the group being extended.
+        extends_type: String,
+        /// The provenance of the group.
+        provenance: Provenance,
+    },
+
     /// A duplicate attribute id error.
     #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
     DuplicateAttributeId {

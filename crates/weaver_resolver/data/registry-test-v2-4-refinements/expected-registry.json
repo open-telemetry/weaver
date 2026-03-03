@@ -35,12 +35,12 @@
       "id": "entity.refined.entity",
       "type": "entity",
       "brief": "Refined entity",
+      "stability": "stable",
       "attributes": [
         1,
         3
       ],
       "name": "entity.refined.entity",
-      "stability": "stable",
       "lineage": {
         "provenance": {
           "registry_id": "default",
@@ -61,16 +61,16 @@
             ]
           },
           "test.attr2": {
-             "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
-             "inherited_fields": [
-               "brief",
-               "note",
-               "requirement_level",
-               "stability"
-             ],
-             "locally_overridden_fields": [
-               "role"
-             ]
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "role"
+            ]
           }
         }
       }
@@ -138,6 +138,7 @@
       "id": "metric.refined.metric",
       "type": "metric",
       "brief": "Refined metric",
+      "stability": "stable",
       "attributes": [
         0
       ],
@@ -168,7 +169,7 @@
       "type": "attribute_group",
       "brief": "<synthetic v2>",
       "attributes": [
-        0, 
+        0,
         2
       ],
       "lineage": {
