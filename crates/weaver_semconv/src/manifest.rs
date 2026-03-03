@@ -496,7 +496,7 @@ pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0.0";
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct PublicationRegistryManifest {
     /// The file format version of this publication manifest.
-    /// Always `"2.0.0"`.
+    /// Always `"manifest/2.0.0"`.
     pub file_format: String,
 
     /// The schema URL for this registry.
