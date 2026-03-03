@@ -23,6 +23,10 @@ use crate::{attribute::AttributeCatalog, Error};
 pub(crate) struct GroupSummary {
     /// The type of the semantic convention.
     pub r#type: GroupType,
+    /// The brief description of the semantic convention.
+    pub brief: String,
+    /// The note of the semantic convention.
+    pub note: String,
     /// Specifies the stability of the semantic convention.
     pub stability: Option<Stability>,
     /// Specifies if the semantic convention is deprecated.
@@ -46,6 +50,8 @@ impl GroupSummary {
     pub(crate) fn from_without_attributes(group: &Group) -> Self {
         GroupSummary {
             r#type: group.r#type.clone(),
+            brief: group.brief.clone(),
+            note: group.note.clone(),
             stability: group.stability.clone(),
             deprecated: group.deprecated.clone(),
             metric_name: group.metric_name.clone(),

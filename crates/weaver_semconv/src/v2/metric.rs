@@ -143,7 +143,7 @@ impl MetricRefinement {
             attributes: attribute_refs,
             span_kind: None,
             events: Default::default(),
-            metric_name: Some(self.id.into_v1()),
+            metric_name: None,
             instrument: None,
             unit: None,
             name: None,

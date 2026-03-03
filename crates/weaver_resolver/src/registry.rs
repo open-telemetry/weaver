@@ -160,7 +160,14 @@ pub(crate) fn resolve_registry_with_dependencies(
     check_uniqueness(
         &result,
         &mut errors,
-        |group| group.metric_name.clone(),
+        |group| {
+            // Ignore refinement duplicates, as they namespace differently.
+            if group.is_v2_refinement() {
+                None
+            } else {
+                group.metric_name.clone()
+            }
+        },
         |metric_name, provenances| DuplicateMetricName {
             metric_name,
             provenances,
@@ -170,7 +177,14 @@ pub(crate) fn resolve_registry_with_dependencies(
     check_uniqueness(
         &result,
         &mut errors,
-        |group| group.name.clone(),
+        |group| {
+            // Ignore refinement duplicates, as they namespace differently.
+            if group.is_v2_refinement() {
+                None
+            } else {
+                group.name.clone()
+            }
+        },
         |group_name, provenances| DuplicateGroupName {
             group_name,
             provenances,
@@ -523,24 +537,28 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                 extends_type: format!("{:?}", parent_summary.r#type),
                             });
                         }
+                        // Copy over fields refinements MUST use.
+                        unresolved_group.group.instrument = parent_summary.instrument.clone();
+                        unresolved_group.group.unit = parent_summary.unit.clone();
+                        unresolved_group.group.span_kind = parent_summary.span_kind;
+                        unresolved_group.group.metric_name = parent_summary.metric_name.clone();
+
+                        // Optionally copy over fields if refinements have not set them.
                         if unresolved_group.group.stability.is_none() {
                             unresolved_group.group.stability = parent_summary.stability.clone();
                         }
                         if unresolved_group.group.deprecated.is_none() {
                             unresolved_group.group.deprecated = parent_summary.deprecated.clone();
                         }
-                        if unresolved_group.group.instrument.is_none() {
-                            unresolved_group.group.instrument = parent_summary.instrument.clone();
+                        if unresolved_group.group.brief.is_empty() {
+                            unresolved_group.group.brief = parent_summary.brief.clone();
                         }
-                        if unresolved_group.group.unit.is_none() {
-                            unresolved_group.group.unit = parent_summary.unit.clone();
+                        if unresolved_group.group.note.is_empty() {
+                            unresolved_group.group.note = parent_summary.note.clone();
                         }
-                        if unresolved_group.group.span_kind.is_none() {
-                            unresolved_group.group.span_kind = parent_summary.span_kind;
-                        }
-                        if unresolved_group.group.metric_name.is_none() {
-                            unresolved_group.group.metric_name = parent_summary.metric_name.clone();
-                        }
+
+                        // Here we need to do more complicated "merge" logic for fields which require it.
+                        // TODO - annotations
                     }
 
                     add_resolved_group_to_index(

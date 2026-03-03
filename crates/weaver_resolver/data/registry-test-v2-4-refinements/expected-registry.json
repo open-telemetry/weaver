@@ -142,7 +142,7 @@
       "attributes": [
         0
       ],
-      "metric_name": "metric.refined.metric",
+      "metric_name": "base.metric",
       "instrument": "histogram",
       "unit": "s",
       "lineage": {

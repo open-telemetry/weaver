@@ -336,7 +336,6 @@ groups:
   is_v2: true
 - id: metric.my.refined.metric
   type: metric
-  metric_name: metric.my.refined.metric
   brief: Refined metric brief
   extends: metric.base.metric
   is_v2: true

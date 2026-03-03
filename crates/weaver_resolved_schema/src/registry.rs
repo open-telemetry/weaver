@@ -178,6 +178,12 @@ impl Group {
     pub fn is_v2(&self) -> bool {
         self.is_v2
     }
+
+    /// Returns true if the group is a v2 refinement.
+    #[must_use]
+    pub fn is_v2_refinement(&self) -> bool {
+        self.is_v2 && self.lineage.as_ref().is_some_and(|l| l.extends_group.is_some())
+    }
 }
 
 /// Common statistics for a group.
