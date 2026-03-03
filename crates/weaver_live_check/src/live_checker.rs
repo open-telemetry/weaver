@@ -9,8 +9,8 @@ use std::sync::Arc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
-    advice::Advisor, otlp_logger::OtlpEmitter, VersionedAttribute, VersionedRegistry,
-    VersionedSignal,
+    advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
+    VersionedAttribute, VersionedRegistry, VersionedSignal,
 };
 
 #[cfg(test)]
@@ -33,6 +33,9 @@ pub struct LiveChecker {
     /// Optional OTLP emitter for emitting findings as log records
     #[serde(skip)]
     pub otlp_emitter: Option<Rc<OtlpEmitter>>,
+    /// Optional finding modifier for overriding/filtering findings
+    #[serde(skip)]
+    pub finding_modifier: Option<FindingModifier>,
 }
 
 impl LiveChecker {
@@ -118,6 +121,7 @@ impl LiveChecker {
             advisors,
             templates_by_length,
             otlp_emitter: None,
+            finding_modifier: None,
         }
     }
 

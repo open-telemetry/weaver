@@ -349,6 +349,8 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the diff
   - `diff-v2`:
     The JSON schema of the diff V2
+  - `weaver-config`:
+    The JSON schema of the `.weaver.toml` configuration file
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
@@ -517,6 +519,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives in a stream. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--config <CONFIG_PATH>` — Path to a `.weaver.toml` config file. Skips automatic discovery when set
 
 
 

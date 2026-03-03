@@ -203,7 +203,7 @@ impl PolicyFinding {
 
 /// The level of a finding.
 #[derive(
-    Debug, Clone, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash, JsonSchema,
+    Debug, Clone, Copy, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum FindingLevel {
