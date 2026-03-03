@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn test_merge_yaml_values_primitives() {
-        let base = Value::String("base".to_string());
+        let base = Value::String("base".to_owned());
         let override_val = Value::Number(42.into());
         let base = merge_yaml_values(base, &override_val);
         assert_eq!(base, Value::Number(42.into()));
@@ -70,18 +70,18 @@ mod tests {
     #[test]
     fn test_merge_yaml_values_mappings() {
         let mut base_map = Mapping::new();
-        _ = base_map.insert(Value::String("a".to_string()), Value::Number(1.into()));
+        _ = base_map.insert(Value::String("a".to_owned()), Value::Number(1.into()));
         let base = Value::Mapping(base_map);
 
         let mut override_map = Mapping::new();
-        _ = override_map.insert(Value::String("b".to_string()), Value::Number(2.into()));
+        _ = override_map.insert(Value::String("b".to_owned()), Value::Number(2.into()));
         let override_val = Value::Mapping(override_map);
 
         let base = merge_yaml_values(base, &override_val);
 
         let mut expected_map = Mapping::new();
-        _ = expected_map.insert(Value::String("a".to_string()), Value::Number(1.into()));
-        _ = expected_map.insert(Value::String("b".to_string()), Value::Number(2.into()));
+        _ = expected_map.insert(Value::String("a".to_owned()), Value::Number(1.into()));
+        _ = expected_map.insert(Value::String("b".to_owned()), Value::Number(2.into()));
         assert_eq!(base, Value::Mapping(expected_map));
     }
 
@@ -89,20 +89,20 @@ mod tests {
     fn test_merge_yaml_values_nested_mappings() {
         // Base: { a: { b: 1, c: 2 }, d: 3 }
         let mut base_nested = Mapping::new();
-        _ = base_nested.insert(Value::String("b".to_string()), Value::Number(1.into()));
-        _ = base_nested.insert(Value::String("c".to_string()), Value::Number(2.into()));
+        _ = base_nested.insert(Value::String("b".to_owned()), Value::Number(1.into()));
+        _ = base_nested.insert(Value::String("c".to_owned()), Value::Number(2.into()));
         let mut base_map = Mapping::new();
-        _ = base_map.insert(Value::String("a".to_string()), Value::Mapping(base_nested));
-        _ = base_map.insert(Value::String("d".to_string()), Value::Number(3.into()));
+        _ = base_map.insert(Value::String("a".to_owned()), Value::Mapping(base_nested));
+        _ = base_map.insert(Value::String("d".to_owned()), Value::Number(3.into()));
         let base = Value::Mapping(base_map);
 
         // Override: { a: { c: 99, e: 4 } }
         let mut override_nested = Mapping::new();
-        _ = override_nested.insert(Value::String("c".to_string()), Value::Number(99.into()));
-        _ = override_nested.insert(Value::String("e".to_string()), Value::Number(4.into()));
+        _ = override_nested.insert(Value::String("c".to_owned()), Value::Number(99.into()));
+        _ = override_nested.insert(Value::String("e".to_owned()), Value::Number(4.into()));
         let mut override_map = Mapping::new();
         _ = override_map.insert(
-            Value::String("a".to_string()),
+            Value::String("a".to_owned()),
             Value::Mapping(override_nested),
         );
         let override_val = Value::Mapping(override_map);
@@ -111,15 +111,15 @@ mod tests {
 
         // Expected: { a: { b: 1, c: 99, e: 4 }, d: 3 }
         let mut expected_nested = Mapping::new();
-        _ = expected_nested.insert(Value::String("b".to_string()), Value::Number(1.into()));
-        _ = expected_nested.insert(Value::String("c".to_string()), Value::Number(99.into()));
-        _ = expected_nested.insert(Value::String("e".to_string()), Value::Number(4.into()));
+        _ = expected_nested.insert(Value::String("b".to_owned()), Value::Number(1.into()));
+        _ = expected_nested.insert(Value::String("c".to_owned()), Value::Number(99.into()));
+        _ = expected_nested.insert(Value::String("e".to_owned()), Value::Number(4.into()));
         let mut expected_map = Mapping::new();
         _ = expected_map.insert(
-            Value::String("a".to_string()),
+            Value::String("a".to_owned()),
             Value::Mapping(expected_nested),
         );
-        _ = expected_map.insert(Value::String("d".to_string()), Value::Number(3.into()));
+        _ = expected_map.insert(Value::String("d".to_owned()), Value::Number(3.into()));
         assert_eq!(base, Value::Mapping(expected_map));
     }
 }
