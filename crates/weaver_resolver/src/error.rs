@@ -164,8 +164,6 @@ pub enum Error {
         group_type: String,
         /// The type of the group being extended.
         extends_type: String,
-        /// The provenance of the group.
-        provenance: Provenance,
     },
 
     /// A duplicate attribute id error.

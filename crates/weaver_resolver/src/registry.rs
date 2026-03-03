@@ -521,7 +521,6 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                 extends_ref: extends.clone(),
                                 group_type: format!("{:?}", unresolved_group.group.r#type),
                                 extends_type: format!("{:?}", parent_summary.r#type),
-                                provenance: unresolved_group.provenance.clone(),
                             });
                         }
                         if unresolved_group.group.stability.is_none() {
