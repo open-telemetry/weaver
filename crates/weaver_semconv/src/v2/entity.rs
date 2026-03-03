@@ -106,6 +106,7 @@ impl Entity {
             },
             entity_associations: Default::default(),
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -146,6 +147,7 @@ impl EntityRefinement {
             },
             entity_associations: Default::default(),
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -179,6 +181,7 @@ type: entity
 name: my_entity
 brief: Test entity
 stability: stable
+is_v2: true
 attributes:
   - ref: some_attr
     role: identifying

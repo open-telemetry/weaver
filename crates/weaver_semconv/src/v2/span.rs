@@ -154,6 +154,7 @@ impl Span {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -189,6 +190,7 @@ impl SpanRefinement {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -272,6 +274,7 @@ brief: Test span
 name: my_span
 span_kind: client
 stability: stable
+is_v2: true
 "#,
         );
     }

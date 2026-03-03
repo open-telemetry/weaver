@@ -120,6 +120,7 @@ impl Metric {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -155,6 +156,7 @@ impl MetricRefinement {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -186,6 +188,7 @@ type: metric
 metric_name: my_metric
 brief: Test metric
 stability: stable
+is_v2: true
 instrument: histogram
 unit: s
 "#,

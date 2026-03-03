@@ -110,6 +110,7 @@ impl SemConvSpecV2 {
                     .map(|a| a.into_v1_attribute())
                     .collect(),
                 brief: "<synthetic v2>".to_owned(),
+                is_v2: true,
                 ..Default::default()
             });
         }
@@ -244,6 +245,7 @@ groups:
 - id: registry.test_attribute_group
   type: attribute_group
   brief: <synthetic v2>
+  is_v2: true
   attributes:
   - id: test.attribute
     type: int
@@ -255,6 +257,7 @@ groups:
   name: my_entity
   brief: Test entity
   stability: stable
+  is_v2: true
   attributes:
   - ref: some_attr
     role: identifying
@@ -265,11 +268,13 @@ groups:
   name: my_event
   brief: Test event
   stability: stable
+  is_v2: true
 - id: metric.my_metric
   type: metric
   metric_name: my_metric
   brief: Test metric
   stability: stable
+  is_v2: true
   instrument: histogram
   unit: s
   include_groups:
@@ -280,9 +285,11 @@ groups:
   name: my_span
   span_kind: client
   stability: stable
+  is_v2: true
 - id: test
   type: attribute_group
   brief: test
+  is_v2: true
   attributes:
   - ref: test.attribute
   visibility: internal
@@ -320,21 +327,25 @@ groups:
   name: entity.my.refined.entity
   brief: Refined entity brief
   extends: entity.base.entity
+  is_v2: true
 - id: event.my.refined.event
   type: event
   name: event.my.refined.event
   brief: Refined event brief
   extends: event.base.event
+  is_v2: true
 - id: metric.my.refined.metric
   type: metric
   metric_name: metric.my.refined.metric
   brief: Refined metric brief
   extends: metric.base.metric
+  is_v2: true
 - id: span.my.refined.span
   type: span
   brief: ""
   name: span.my.refined.span
   extends: span.base.span
+  is_v2: true
 "#,
         );
     }

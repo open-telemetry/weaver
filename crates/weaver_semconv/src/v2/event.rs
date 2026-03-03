@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     deprecated::Deprecated,
-    group::GroupSpec,
+    group::{GroupSpec, GroupType},
     stability::Stability,
     v2::{
         attribute::{split_attributes_and_groups, AttributeOrGroupRef},
@@ -86,7 +86,7 @@ impl Event {
         let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
         GroupSpec {
             id: format!("event.{}", &self.name),
-            r#type: crate::group::GroupType::Event,
+            r#type: GroupType::Event,
             brief: self.common.brief,
             note: self.common.note,
             prefix: Default::default(),
@@ -110,6 +110,7 @@ impl Event {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -121,7 +122,7 @@ impl EventRefinement {
         let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
         GroupSpec {
             id: self.id.to_string(),
-            r#type: crate::group::GroupType::Event,
+            r#type: GroupType::Event,
             brief: self.brief.unwrap_or_default(),
             note: self.note.unwrap_or_default(),
             prefix: Default::default(),
@@ -131,7 +132,7 @@ impl EventRefinement {
             deprecated: self.deprecated,
             attributes: attribute_refs,
             span_kind: None,
-            events: Default::default(),
+            events: vec![],
             metric_name: None,
             instrument: None,
             unit: None,
@@ -145,6 +146,7 @@ impl EventRefinement {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -174,6 +176,7 @@ type: event
 name: my_event
 brief: Test event
 stability: stable
+is_v2: true
 "#,
         );
     }
