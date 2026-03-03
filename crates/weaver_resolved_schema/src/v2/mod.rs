@@ -690,6 +690,7 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -713,6 +714,7 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
             ],
         };
@@ -818,6 +820,7 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -841,6 +844,7 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
             ],
         };
@@ -916,6 +920,7 @@ mod tests {
                 annotations: None,
                 entity_associations: vec![],
                 visibility: None,
+                is_v2: false,
             }],
         };
 
@@ -975,6 +980,7 @@ mod tests {
                 annotations: None,
                 entity_associations: vec![],
                 visibility: None,
+                is_v2: false,
             }],
         };
 
