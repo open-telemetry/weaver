@@ -266,7 +266,7 @@ jobs:
       - name: Report status
         run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
   check-usage-docs:
-    name: Check usage docs are up-to-date
+    name: Check usage docs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
