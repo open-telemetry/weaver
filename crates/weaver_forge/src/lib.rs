@@ -868,7 +868,11 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
+    use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
+    use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
+    use weaver_semconv::group::SpanKindSpec;
+    use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
     fn prepare_test(
         target: &str,
@@ -927,6 +931,49 @@ mod tests {
         (
             engine,
             template_registry,
+            PathBuf::from(format!("observed_output/{target}")),
+            PathBuf::from(format!("expected_output/{target}")),
+        )
+    }
+
+    fn prepare_test_v2(target: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
+        let loader = FileSystemFileLoader::try_new("templates".into(), target)
+            .expect("Failed to create file system loader");
+        let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
+        let engine = TemplateEngine::try_new(config, loader, Params::default())
+            .expect("Failed to create template engine");
+
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+
+        let registry = ForgeResolvedRegistry {
+            schema_url: "https://example.com/1.0.0".try_into().unwrap(),
+            registry: V2Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![Span {
+                    r#type: SignalId::from("db.client".to_owned()),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "A database client span.".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                }],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        };
+
+        (
+            engine,
+            registry,
             PathBuf::from(format!("observed_output/{target}")),
             PathBuf::from(format!("expected_output/{target}")),
         )
@@ -1179,6 +1226,21 @@ mod tests {
                 observed_output.as_path(),
                 &OutputDirective::File,
             )
+            .inspect_err(|e| {
+                print_dedup_errors(e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_semconv_jq_functions_v2_spans() {
+        let (engine, registry, observed_output, expected_output) =
+            prepare_test_v2("semconv_jq_fn_v2");
+
+        engine
+            .generate(&registry, observed_output.as_path(), &OutputDirective::File)
             .inspect_err(|e| {
                 print_dedup_errors(e.clone());
             })
