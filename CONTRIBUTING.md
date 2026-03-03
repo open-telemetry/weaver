@@ -20,6 +20,12 @@ Run `cargo build` to build a local binary for any additional tests. The resultin
 
 NOTE: You will need to run `pnpm build` in the `ui` directory prior to running any `cargo` commands.
 
+**When making changes to CLI commands or options, regenerate the CLI documentation by running:**
+
+```bash
+cargo run -- --quiet markdown-help > docs/usage.md
+```
+
 **Run `just` before any push to pre-validate all the steps performed by CI.**
 
 ### How to send Pull Request
