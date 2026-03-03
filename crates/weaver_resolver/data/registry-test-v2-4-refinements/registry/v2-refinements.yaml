@@ -23,6 +23,13 @@ metrics:
     unit: s
     brief: Base metric
     stability: stable
+    annotations:
+      config:
+        enabled: true
+        mode: "fast"
+        nested:
+          a: 1
+          b: 2
     attributes:
       - ref_group: test.group
 
@@ -30,7 +37,13 @@ metric_refinements:
   - id: metric.refined.metric
     ref: base.metric
     brief: Refined metric
-
+    annotations:
+      config:
+        mode: "slow"
+        timeout: 500
+        nested:
+          b: 99
+          c: 3
 spans:
   - type: base.span
     kind: client

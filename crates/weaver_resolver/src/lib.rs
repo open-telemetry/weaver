@@ -18,6 +18,7 @@ mod attribute;
 mod dependency;
 mod error;
 mod loader;
+pub(crate) mod merge;
 mod registry;
 
 // Make helper portions of this create public APIs.

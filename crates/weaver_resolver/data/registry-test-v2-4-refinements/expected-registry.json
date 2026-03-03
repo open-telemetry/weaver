@@ -132,6 +132,16 @@
         "includes_group": [
           "test.group"
         ]
+      },
+      "annotations": {
+        "config": {
+          "enabled": true,
+          "mode": "fast",
+          "nested": {
+            "a": 1,
+            "b": 2
+          }
+        }
       }
     },
     {
@@ -161,6 +171,18 @@
               "stability"
             ]
           }
+        }
+      },
+      "annotations": {
+        "config": {
+          "enabled": true,
+          "mode": "slow",
+          "nested": {
+            "a": 1,
+            "b": 99,
+            "c": 3
+          },
+          "timeout": 500
         }
       }
     },

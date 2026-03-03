@@ -41,6 +41,8 @@ pub(crate) struct GroupSummary {
     pub span_kind: Option<SpanKindSpec>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
+    /// The annotations of the group.
+    pub annotations: Option<std::collections::BTreeMap<String, weaver_semconv::YamlValue>>,
 }
 
 impl GroupSummary {
@@ -59,6 +61,7 @@ impl GroupSummary {
             unit: group.unit.clone(),
             span_kind: group.span_kind.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
+            annotations: group.annotations.clone(),
         }
     }
 }

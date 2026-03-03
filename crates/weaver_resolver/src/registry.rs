@@ -558,7 +558,16 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         }
 
                         // Here we need to do more complicated "merge" logic for fields which require it.
-                        // TODO - annotations
+                        // Merge annotations
+                        let mut merged_annotations = parent_summary.annotations.clone().unwrap_or_default();
+                        if let Some(child_annotations) = &unresolved_group.group.annotations {
+                            crate::merge::merge_annotations(&mut merged_annotations, child_annotations);
+                        }
+                        unresolved_group.group.annotations = if merged_annotations.is_empty() {
+                            None
+                        } else {
+                            Some(merged_annotations)
+                        };
                     }
 
                     add_resolved_group_to_index(
