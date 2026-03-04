@@ -2,7 +2,7 @@
 
 ## Background
 
-Weaver already has configuration files that sit alongside the artifacts they describe. A `registry_manifest.yaml` lives at the root of a semantic convention registry and declares its name, version, and dependencies. A `weaver.yaml` lives at the root of a template package and defines how those templates are processed — syntax delimiters, comment formats, text maps, default params, and application modes.
+Weaver already has configuration files that sit alongside the artifacts they describe. A `manifest.yaml` lives at the root of a semantic convention registry and declares its name, version, and dependencies. A `weaver.yaml` lives at the root of a template package and defines how those templates are processed — syntax delimiters, comment formats, text maps, default params, and application modes.
 
 This pattern — config adjacent to artifacts — works well because it keeps configuration close to the thing it configures. The config belongs to the package: it's authored, versioned, and distributed together with the artifacts.
 
