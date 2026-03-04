@@ -51,7 +51,8 @@ pub struct CommonFields {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-/// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
+/// A semconv file is a collection of attributes, signals, groups,
+/// and imports.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SemConvSpecV2 {
