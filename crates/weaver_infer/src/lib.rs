@@ -795,10 +795,7 @@ mod tests {
         assert_eq!(acc.stats(), (0, 1, 0, 0));
         assert!(acc.spans.contains_key("GET /api/users"));
 
-        let accumulated_span = acc
-            .spans
-            .get("GET /api/users")
-            .expect("span should exist");
+        let accumulated_span = acc.spans.get("GET /api/users").expect("span should exist");
         assert_eq!(accumulated_span.kind, SpanKindSpec::Server);
         assert!(accumulated_span.attributes.contains_key("http.method"));
     }
