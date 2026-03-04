@@ -49,9 +49,13 @@ A semantic convention file starts with `file_format: definition/2` and may conta
 
 - `attributes`: Contains definitions of semantic attributes which may be applicable to all OpenTelemetry signals.
 - `entities`: Contains definitions of entities.
+- `entity_refinements`: Contains definitions of entity refinements.
 - `events`: Contains definitions of events.
+- `event_refinements`: Contains definitions of event refinements.
 - `metrics`: Contains definitions of metric instruments.
+- `metric_refinements`: Contains definitions of metric instrument refinements.
 - `spans`: Contains definitions of spans.
+- `span_refinements`: Contains definitions of span refinements.
 - `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `registry_manifest.yaml`).
 
 ### `attributes` definition

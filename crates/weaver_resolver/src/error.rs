@@ -154,16 +154,16 @@ pub enum Error {
     },
 
     /// An invalid `extends` clause type.
-    #[error("Group `{group_id}` of type `{group_type}` cannot extend group `{extends_ref}` of type `{extends_type}`.")]
+    #[error("Refinement `{refinement_id}` of type `{refinement_type}` cannot refine signal `{ref}` of type `{signal_type}`.")]
     InvalidRefinement {
-        /// The id of the group with the issue.
-        group_id: String,
-        /// The group id that is being extended.
-        extends_ref: String,
-        /// The type of the group.
-        group_type: String,
-        /// The type of the group being extended.
-        extends_type: String,
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The reference being refined.
+        r#ref: String,
+        /// The type of the refinement.
+        refinement_type: String,
+        /// The type of the refined signal.
+        signal_type: String,
     },
 
     /// A duplicate attribute id error.

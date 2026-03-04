@@ -531,10 +531,10 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     if unresolved_group.is_v2 {
                         if unresolved_group.group.r#type != parent_summary.r#type {
                             errors.push(Error::InvalidRefinement {
-                                group_id: unresolved_group.group.id.clone(),
-                                extends_ref: extends.clone(),
-                                group_type: format!("{:?}", unresolved_group.group.r#type),
-                                extends_type: format!("{:?}", parent_summary.r#type),
+                                refinement_id: unresolved_group.group.id.clone(),
+                                r#ref: extends.clone(),
+                                refinement_type: format!("{:?}", unresolved_group.group.r#type),
+                                signal_type: format!("{:?}", parent_summary.r#type),
                             });
                         }
                         // Copy over fields refinements MUST use.
@@ -546,6 +546,8 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         // Optionally copy over fields if refinements have not set them.
                         if unresolved_group.group.stability.is_none() {
                             unresolved_group.group.stability = parent_summary.stability.clone();
+                        } else {
+                            // TODO: Validate that the refinement cannot be more stable than the definition.
                         }
                         if unresolved_group.group.deprecated.is_none() {
                             unresolved_group.group.deprecated = parent_summary.deprecated.clone();
