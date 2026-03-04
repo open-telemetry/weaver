@@ -349,6 +349,22 @@ spans:
       - ref: service.instance
 ```
 
+### `span_refinements` definition
+
+The span refinements section contains a list of span refinement definitions. A span refinement allows adding or modifying attributes of an existing span definition.
+
+A span refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the span refinement.
+- `ref` - Required. The type of the span being refined.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `entity_associations` - Optional. Which resources this span should be associated with.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
+
 #### Span name
 
 The `name` field specifies how the span name should be formatted. It consists of a `note` field that describes in a free form how to format span name based on the attributes. OpenTelemetry semantic conventions use `{action} {target}` format where action and target match attributes on that span. For example, [HTTP server span names](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/http/http-spans.md#name) match `{http.request.method} {http.route}` pattern in general case.
@@ -386,6 +402,22 @@ entities:
         requirement_level: required
 ```
 
+### `entity_refinements` definition
+
+The entity refinements section contains a list of entity refinement definitions. An entity refinement allows adding or modifying attributes of an existing entity definition.
+
+An entity refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the entity refinement.
+- `ref` - Required. The name of the entity being refined.
+- `description` - Optional. The additional attributes to describe the Entity.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
+
+
 ### `events` definition
 
 The events section contains a list of event definitions. An event represents a discrete occurrence at a point in time, such as a request completion, system startup, or error condition.
@@ -418,6 +450,22 @@ events:
     entity_associations:
       - ref: service.instance
 ```
+
+### `event_refinements` definition
+
+The event refinements section contains a list of event refinement definitions. An event refinement allows adding or modifying attributes of an existing event definition.
+
+An event refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the event refinement.
+- `ref` - Required. The name of the event being refined.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `entity_associations` - Optional. Which resources this event should be associated with.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
 
 ### `metrics` definition
 
@@ -458,6 +506,22 @@ metrics:
     entity_associations:
       - ref: service.instance
 ```
+
+### `metric_refinements` definition
+
+The metric refinements section contains a list of metric refinement definitions. A metric refinement allows adding or modifying attributes of an existing metric definition.
+
+A metric refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the metric refinement.
+- `ref` - Required. The name of the metric being refined.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `entity_associations` - Optional. Which resources this metric should be associated with.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
 
 ### `attribute_group` definition
 
