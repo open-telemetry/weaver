@@ -11,7 +11,7 @@ use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::{Group, Registry};
 use crate::resource::Resource;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
@@ -46,7 +46,7 @@ pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0.0";
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
