@@ -109,7 +109,7 @@ pub enum RegistrySubCommand {
     #[clap(verbatim_doc_comment)]
     Generate(RegistryGenerateArgs),
     /// DEPRECATED - Resolves a semantic convention registry. This command is deprecated and will be removed in a future version.
-    /// Please use 'weaver registry generate' or `weaver registry package` instead.
+    /// Please use 'weaver registry generate' or 'weaver registry package' instead.
     #[clap(verbatim_doc_comment)]
     Resolve(RegistryResolveArgs),
     /// DEPRECATED - Searches a registry. This command is deprecated and will be removed in a future version.
