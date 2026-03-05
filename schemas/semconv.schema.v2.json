@@ -528,21 +528,21 @@
       "type": "object",
       "properties": {
         "annotations": {
-          "description": "Additional annotations for the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Additional annotations for the signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/YamlValue"
           }
         },
         "brief": {
-          "description": "Refines the brief description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the brief description of the signal.",
           "type": [
             "string",
             "null"
           ]
         },
         "deprecated": {
-          "description": "Specifies if the signal is deprecated.\nNote: This field is currently not propagated during resolution.",
+          "description": "Specifies if the signal is deprecated.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -553,7 +553,7 @@
           ]
         },
         "description": {
-          "description": "The additional attributes to describe of the Entity.",
+          "description": "The additional attributes to describe the Entity.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/AttributeRef"
@@ -564,7 +564,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "Refines the more elaborate description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the more elaborate description of the signal.",
           "type": [
             "string",
             "null"
@@ -575,7 +575,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "stability": {
-          "description": "Refines the stability of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the stability of the signal.",
           "anyOf": [
             {
               "$ref": "#/$defs/Stability"
@@ -722,7 +722,7 @@
       "type": "object",
       "properties": {
         "annotations": {
-          "description": "Additional annotations for the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Additional annotations for the signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/YamlValue"
@@ -736,14 +736,14 @@
           }
         },
         "brief": {
-          "description": "Refines the brief description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the brief description of the signal.",
           "type": [
             "string",
             "null"
           ]
         },
         "deprecated": {
-          "description": "Specifies if the signal is deprecated.\nNote: This field is currently not propagated during resolution.",
+          "description": "Specifies if the signal is deprecated.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -754,7 +754,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this event should be associated with.\nNote: This field is currently not propagated during resolution.",
+          "description": "Which resources this event should be associated with.",
           "type": "array",
           "items": {
             "type": "string"
@@ -765,7 +765,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "Refines the more elaborate description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the more elaborate description of the signal.",
           "type": [
             "string",
             "null"
@@ -776,7 +776,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "stability": {
-          "description": "Refines the stability of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the stability of the signal.",
           "anyOf": [
             {
               "$ref": "#/$defs/Stability"
@@ -1054,7 +1054,7 @@
       "type": "object",
       "properties": {
         "annotations": {
-          "description": "Additional annotations for the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Additional annotations for the signal.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/YamlValue"
@@ -1068,14 +1068,14 @@
           }
         },
         "brief": {
-          "description": "Refines the brief description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the brief description of the signal.",
           "type": [
             "string",
             "null"
           ]
         },
         "deprecated": {
-          "description": "Specifies if the signal is deprecated.\nNote: This field is currently not propagated during resolution.",
+          "description": "Specifies if the signal is deprecated.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -1086,7 +1086,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this metric should be associated with.\nNote: This field is currently not propagated during resolution.",
+          "description": "Which resources this metric should be associated with.",
           "type": "array",
           "items": {
             "type": "string"
@@ -1097,7 +1097,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "Refines the more elaborate description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the more elaborate description of the signal.",
           "type": [
             "string",
             "null"
@@ -1108,7 +1108,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "stability": {
-          "description": "Refines the stability of the signal.\nNote: This field is currently not propagated during resolution.",
+          "description": "Refines the stability of the signal.",
           "anyOf": [
             {
               "$ref": "#/$defs/Stability"
