@@ -605,6 +605,7 @@ registry_path: "./registry"
         RegistryManifest::try_from_file(tmp.path(), &mut vec![])
     }
 
+
     #[test]
     fn test_unknown_file_format_is_rejected() {
         let result = manifest_from_yaml(
