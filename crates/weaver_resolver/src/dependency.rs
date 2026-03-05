@@ -136,10 +136,7 @@ impl ImportableDependency for V1Schema {
             include_all
                 || match g.r#type {
                     GroupType::AttributeGroup => attribute_groups_imports_matcher.is_match(&g.id),
-                    GroupType::Span => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| spans_imports_matcher.is_match(name.as_str())),
+                    GroupType::Span => spans_imports_matcher.is_match(&g.id),
                     GroupType::Event => g
                         .name
                         .as_ref()
@@ -743,30 +740,56 @@ mod tests {
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
-                groups: vec![weaver_resolved_schema::registry::Group {
-                    id: "a".to_owned(),
-                    r#type: weaver_semconv::group::GroupType::AttributeGroup,
-                    brief: Default::default(),
-                    note: Default::default(),
-                    prefix: Default::default(),
-                    extends: Default::default(),
-                    stability: Default::default(),
-                    deprecated: Default::default(),
-                    attributes: vec![weaver_resolved_schema::attribute::AttributeRef(0)],
-                    span_kind: Default::default(),
-                    events: Default::default(),
-                    metric_name: Default::default(),
-                    instrument: Default::default(),
-                    unit: Default::default(),
-                    name: Default::default(),
-                    lineage: Default::default(),
-                    display_name: Default::default(),
-                    body: Default::default(),
-                    annotations: Default::default(),
-                    entity_associations: Default::default(),
-                    visibility: Default::default(),
-                    is_v2: Default::default(),
-                }],
+                groups: vec![
+                    weaver_resolved_schema::registry::Group {
+                        id: "a".to_owned(),
+                        r#type: weaver_semconv::group::GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: vec![weaver_resolved_schema::attribute::AttributeRef(0)],
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: Default::default(),
+                    },
+                    weaver_resolved_schema::registry::Group {
+                        id: "span.v1".to_owned(),
+                        r#type: weaver_semconv::group::GroupType::Span,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: vec![],
+                        span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: Default::default(),
+                    },
+                ],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::from_attributes(vec![
                 weaver_resolved_schema::attribute::Attribute {
@@ -890,18 +913,21 @@ mod tests {
                 metrics: None,
                 events: None,
                 entities: None,
-                spans: None,
-                attribute_groups: None,
+                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("span.v1").unwrap(),
+                )]),
+                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("a").unwrap(),
+                )]),
             },
         }];
 
-        // By default V1 example schema has an AttributeGroup, which is currently
-        // hardcoded to return false for filter in `import_groups` unless include_all is true.
+        // By default V1 example schema has an AttributeGroup and a Span.
         let result = d.import_groups(&imports, false, &mut catalog)?;
-        assert!(result.is_empty(), "Attribute groups not imported");
+        assert_eq!(result.len(), 2, "Attribute group and span should be imported");
 
         let result_all = d.import_groups(&imports, true, &mut catalog)?;
-        assert_eq!(result_all.len(), 1, "Include all should import it");
+        assert_eq!(result_all.len(), 2, "Include all should also import both");
 
         Ok(())
     }
