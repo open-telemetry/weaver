@@ -358,6 +358,24 @@ pub enum Error {
         error: String,
     },
 
+    /// A publication registry manifest is invalid.
+    #[error("The publication manifest at {path:?} is invalid: {details}")]
+    #[diagnostic(severity(Error))]
+    InvalidPublicationManifest {
+        /// The path to the publication manifest file.
+        path: PathBuf,
+        /// Details about what is wrong.
+        details: String,
+    },
+
+    /// A publication manifest was passed where a definition registry was expected.
+    #[error("Registry `{schema_url}` contains a publication manifest; `weaver registry package` requires a definition registry as input.")]
+    #[diagnostic(severity(Error))]
+    UnexpectedPublicationManifest {
+        /// The schema URL of the publication manifest.
+        schema_url: String,
+    },
+
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),

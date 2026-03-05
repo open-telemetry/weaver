@@ -18,6 +18,7 @@ This document contains the help content for the `weaver` command-line program.
 * [`weaver registry live-check`↴](#weaver-registry-live-check)
 * [`weaver registry mcp`↴](#weaver-registry-mcp)
 * [`weaver registry infer`↴](#weaver-registry-infer)
+* [`weaver registry package`↴](#weaver-registry-package)
 * [`weaver diagnostic`↴](#weaver-diagnostic)
 * [`weaver diagnostic init`↴](#weaver-diagnostic-init)
 * [`weaver completion`↴](#weaver-completion)
@@ -64,6 +65,7 @@ Manage Semantic Convention Registry
 * `live-check` — Perform a live check on sample telemetry by comparing it to a semantic convention registry.
 * `mcp` — Run an MCP (Model Context Protocol) server for the semantic convention registry.
 * `infer` — Generates a schema file by inferring the schema from a OTLP message.
+* `package` — Packages a semantic convention registry into a self-contained artifact.
 
 
 
@@ -349,6 +351,10 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the diff
   - `diff-v2`:
     The JSON schema of the diff V2
+  - `publication-manifest-v2`:
+    The JSON schema of the publication manifest produced by `weaver registry package`
+  - `definition-manifest-v2`:
+    Definition manifest describing unpublished registry
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
@@ -586,6 +592,43 @@ Generates a schema file by inferring the schema from a OTLP message.
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never)
 
   Default value: `60`
+
+
+
+## `weaver registry package`
+
+Packages a semantic convention registry into a self-contained artifact.
+
+**Usage:** `weaver registry package [OPTIONS] --resolved-schema-uri <RESOLVED_SCHEMA_URI>`
+
+###### **Options:**
+
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+
+  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
+* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Default value: `false`
+* `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written
+
+  Default value: `output`
+* `--resolved-schema-uri <RESOLVED_SCHEMA_URI>` — URI where the resolved schema will eventually be published. This value is embedded in the publication manifest as `resolved_schema_uri`
+* `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
+* `--skip-policies` — Skip the policy checks
+
+  Default value: `false`
+* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+
+  Default value: `false`
+* `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+  Default value: `ansi`
+* `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+
+  Default value: `diagnostic_templates`
+* `--diagnostic-stdout` — Send the output to stdout instead of stderr
 
 
 
