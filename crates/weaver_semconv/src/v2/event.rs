@@ -174,4 +174,33 @@ is_v2: true
 "#,
         );
     }
+
+    fn parse_and_translate_refinement(v2: &str, v1: &str) {
+        let event =
+            serde_yaml::from_str::<EventRefinement>(v2).expect("Failed to parse YAML string");
+        let expected =
+            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
+        assert_eq!(expected, event.into_v1_group());
+    }
+
+    #[test]
+    fn test_event_refinement_translation() {
+        parse_and_translate_refinement(
+            // V2 - EventRefinement
+            r#"id: event.refinement.my_event
+ref: my_event
+brief: Test event refinement
+stability: stable
+"#,
+            // V1 - Group
+            r#"id: event.refinement.my_event
+type: event
+name: event.refinement.my_event
+brief: Test event refinement
+extends: event.my_event
+stability: stable
+is_v2: true
+"#,
+        );
+    }
 }

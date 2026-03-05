@@ -185,4 +185,33 @@ attributes:
 "#,
         );
     }
+
+    fn parse_and_translate_refinement(v2: &str, v1: &str) {
+        let entity =
+            serde_yaml::from_str::<EntityRefinement>(v2).expect("Failed to parse YAML string");
+        let expected =
+            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
+        assert_eq!(expected, entity.into_v1_group());
+    }
+
+    #[test]
+    fn test_entity_refinement_translation() {
+        parse_and_translate_refinement(
+            // V2 - EntityRefinement
+            r#"id: entity.refinement.my_entity
+ref: my_entity
+brief: Test entity refinement
+stability: stable
+"#,
+            // V1 - Group
+            r#"id: entity.refinement.my_entity
+type: entity
+name: entity.refinement.my_entity
+brief: Test entity refinement
+extends: entity.my_entity
+stability: stable
+is_v2: true
+"#,
+        );
+    }
 }

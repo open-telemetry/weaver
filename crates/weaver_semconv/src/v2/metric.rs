@@ -188,4 +188,32 @@ unit: s
 "#,
         );
     }
+
+    fn parse_and_translate_refinement(v2: &str, v1: &str) {
+        let metric =
+            serde_yaml::from_str::<MetricRefinement>(v2).expect("Failed to parse YAML string");
+        let expected =
+            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
+        assert_eq!(expected, metric.into_v1_group());
+    }
+
+    #[test]
+    fn test_metric_refinement_translation() {
+        parse_and_translate_refinement(
+            // V2 - MetricRefinement
+            r#"id: metric.refinement.my_metric
+ref: my_metric
+brief: Test metric refinement
+stability: stable
+"#,
+            // V1 - Group
+            r#"id: metric.refinement.my_metric
+type: metric
+brief: Test metric refinement
+extends: metric.my_metric
+stability: stable
+is_v2: true
+"#,
+        );
+    }
 }
