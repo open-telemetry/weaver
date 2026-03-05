@@ -140,6 +140,7 @@ impl ResolvedTelemetrySchema {
             annotations: None,
             entity_associations: vec![],
             visibility: None,
+            is_v2: false,
         });
     }
 
@@ -183,6 +184,7 @@ impl ResolvedTelemetrySchema {
             annotations: None,
             entity_associations: vec![],
             visibility: None,
+            is_v2: false,
         });
     }
 

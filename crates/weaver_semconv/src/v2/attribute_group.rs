@@ -87,6 +87,7 @@ impl AttributeGroup {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: Some(AttributeGroupVisibilitySpec::Internal),
+                    is_v2: true,
                 }
             }
             AttributeGroup::Public(public) => {
@@ -118,6 +119,7 @@ impl AttributeGroup {
                     },
                     entity_associations: vec![],
                     visibility: Some(AttributeGroupVisibilitySpec::Public),
+                    is_v2: true,
                 }
             }
         }
@@ -170,7 +172,8 @@ visibility: public"#,
             r#"id: my_attr_group
 type: attribute_group
 brief: Test group
-stability: development"#,
+stability: development
+is_v2: true"#,
         );
     }
 }
