@@ -69,11 +69,11 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     let registry_path = &args.registry.registry;
 
     let mut nfes = vec![];
-    let main_registry_repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+    let repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
     // we require a definition manifest file to be present for packaging
-    let manifest = main_registry_repo
+    let manifest = repo
         .manifest()
         .ok_or_else(|| Error::PackagingRequiresManifest {
             registry: registry_path.to_string(),
@@ -90,7 +90,7 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         }
     };
 
-    let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
+    let loaded = weaver.load_definitions(repo, &mut diag_msgs)?;
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
 
     let resolved_v2: ResolvedV2 = resolved.try_into()?;
@@ -104,16 +104,15 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         path: args.output.clone(),
         error: e.to_string(),
     })?;
+    let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
+        &definition_manifest,
+        args.resolved_schema_uri.clone(),
+    );
 
     write_yaml(
         &args.output.join("resolved.yaml"),
         resolved_v2.resolved_schema(),
     )?;
-
-    let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
-        &definition_manifest,
-        args.resolved_schema_uri.clone(),
-    );
     write_yaml(&args.output.join("manifest.yaml"), &publication_manifest)?;
 
     log_success(format!(
