@@ -10,11 +10,35 @@ Additionally, Weaver has its own CNCF slack channel at [#otel-weaver](https://cl
 
 ## Our Development Process
 
+For an overview of the project architecture and crate descriptions, see [docs/architecture.md](docs/architecture.md).
+For a guide on making schema changes, see [docs/developer-guide.md](docs/developer-guide.md).
+
 ### How to build  and test a change
 
 Run `cargo xtask validate` to check the structure of the project.
 
-Run `cargo test --all` to run the tests.
+Run `cargo test --all` to run the tests. Alternatively, use
+[`cargo-nextest`](https://nexte.st/) for faster and better-formatted test output:
+
+You can install it with:
+
+```bash
+cargo install cargo-nextest --locked
+```
+
+and run all tests with:
+
+```bash
+cargo nextest run --all
+```
+
+to run tests related to specific package, use `-p {package}`
+
+```bash
+cargo nextest run -p {package}
+```
+
+See [docs/architecture.md](docs/architecture.md) for the full list of packages and their descriptions.
 
 Run `cargo build` to build a local binary for any additional tests. The resulting binary will be placed in the `./output` directory.
 
