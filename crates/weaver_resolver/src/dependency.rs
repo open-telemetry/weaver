@@ -688,4 +688,141 @@ mod tests {
             registry_manifest: None,
         }
     }
+
+    fn example_v2_schema() -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+        weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+            file_format: "resolved/2.0.0".to_owned(),
+            schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
+            registry: weaver_resolved_schema::v2::registry::Registry {
+                attribute_groups: vec![],
+                metrics: vec![weaver_resolved_schema::v2::metric::Metric {
+                    name: "metric.a".to_owned().into(),
+                    instrument: weaver_semconv::group::InstrumentSpec::Counter,
+                    unit: "1".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: Default::default(),
+                }],
+                events: vec![weaver_resolved_schema::v2::event::Event {
+                    name: "event.b".to_owned().into(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: Default::default(),
+                }],
+                spans: vec![],
+                entities: vec![weaver_resolved_schema::v2::entity::Entity {
+                    r#type: "entity.c".to_owned().into(),
+                    identity: vec![],
+                    description: vec![],
+                    common: Default::default(),
+                }],
+                attributes: vec![],
+            },
+            attribute_catalog: vec![],
+            refinements: weaver_resolved_schema::v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn test_lookup_group_summary_v2() -> Result<(), Box<dyn Error>> {
+        let d = ResolvedDependency::V2(Box::new(example_v2_schema()));
+        
+        let result_metric = d.lookup_group_summary("metric.a");
+        assert!(result_metric.is_some(), "Should find metric.a");
+        assert_eq!(result_metric.unwrap().r#type, weaver_semconv::group::GroupType::Metric);
+
+        let result_event = d.lookup_group_summary("event.b");
+        assert!(result_event.is_some(), "Should find event.b");
+        assert_eq!(result_event.unwrap().r#type, weaver_semconv::group::GroupType::Event);
+
+        let result_entity = d.lookup_group_summary("entity.c");
+        assert!(result_entity.is_some(), "Should find entity.c");
+        assert_eq!(result_entity.unwrap().r#type, weaver_semconv::group::GroupType::Entity);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_import_groups_v1() -> Result<(), Box<dyn Error>> {
+        use crate::dependency::ImportableDependency;
+        let d = example_v1_schema();
+        let mut catalog = crate::attribute::AttributeCatalog::default();
+
+        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+            provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
+            imports: weaver_semconv::semconv::Imports {
+                metrics: None,
+                events: None,
+                entities: None,
+            },
+        }];
+
+        // By default V1 example schema has an AttributeGroup, which is currently
+        // hardcoded to return false for filter in `import_groups` unless include_all is true.
+        let result = d.import_groups(&imports, false, &mut catalog)?;
+        assert!(result.is_empty(), "Attribute groups not imported");
+
+        let result_all = d.import_groups(&imports, true, &mut catalog)?;
+        assert_eq!(result_all.len(), 1, "Include all should import it");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_import_groups_v2() -> Result<(), Box<dyn Error>> {
+        use crate::dependency::ImportableDependency;
+        let d = example_v2_schema();
+        let mut catalog = crate::attribute::AttributeCatalog::default();
+
+        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+            provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
+            imports: weaver_semconv::semconv::Imports {
+                metrics: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("metric.a").unwrap())]),
+                events: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("event.b").unwrap())]),
+                entities: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("entity.c").unwrap())]),
+            },
+        }];
+
+        let result = d.import_groups(&imports, false, &mut catalog)?;
+        assert_eq!(result.len(), 3, "Should import metric, event, and entity");
+
+        let result_all = d.import_groups(&imports, true, &mut catalog)?;
+        assert_eq!(result_all.len(), 3, "Include all should also import all 3");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_import_groups_vec() -> Result<(), Box<dyn Error>> {
+        use crate::dependency::ImportableDependency;
+        let deps = vec![
+            ResolvedDependency::V1(Box::new(example_v1_schema())),
+            ResolvedDependency::V2(Box::new(example_v2_schema())),
+        ];
+        let mut catalog = crate::attribute::AttributeCatalog::default();
+
+        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+            provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
+            imports: weaver_semconv::semconv::Imports {
+                metrics: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("metric.a").unwrap())]),
+                events: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("event.b").unwrap())]),
+                entities: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("entity.c").unwrap())]),
+            },
+        }];
+
+        let result = deps.import_groups(&imports, false, &mut catalog)?;
+        // V1 schema has AttributeGroup, which returns false unless include_all.
+        // V2 schema has metric, event, and entity that match.
+        assert_eq!(result.len(), 3);
+
+        let result_all = deps.import_groups(&imports, true, &mut catalog)?;
+        // V1 (1 group) + V2 (3 groups) = 4 groups.
+        assert_eq!(result_all.len(), 4);
+
+        Ok(())
+    }
 }
