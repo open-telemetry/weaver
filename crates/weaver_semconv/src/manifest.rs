@@ -25,8 +25,6 @@ use weaver_common::vdir::VirtualDirectoryPath;
 /// The file format version of the publication manifest.
 pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0.0";
 
-/// The file format version of the definition manifest.
-pub const DEFINITION_MANIFEST_FILE_FORMAT: &str = "definition-manifest/2.0.0";
 
 /// Represents the definition manifest for a semantic convention registry.
 ///
@@ -35,10 +33,6 @@ pub const DEFINITION_MANIFEST_FILE_FORMAT: &str = "definition-manifest/2.0.0";
 /// by `weaver registry package`.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct DefinitionRegistryManifest {
-    /// The file format for this registry.
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub file_format: Option<String>,
-
     /// The schema URL for this registry.
     /// This URL is populated before registry is published and is used as
     /// a unique identifier of the registry. It MUST follow OTel schema URL format, which is:
@@ -89,7 +83,6 @@ impl DefinitionRegistryManifest {
     #[must_use]
     pub fn from_schema_url(schema_url: SchemaUrl) -> Self {
         Self {
-            file_format: None,
             schema_url,
             description: None,
             dependencies: vec![],
@@ -195,18 +188,15 @@ impl RawManifestFields {
                 resolved_schema_uri,
             }))
         } else {
-            if let Some(ref fmt) = self.file_format {
-                if fmt != DEFINITION_MANIFEST_FILE_FORMAT {
-                    return Err(InvalidRegistryManifest {
-                        path: path.to_path_buf(),
-                        error: format!(
-                            "Unknown file_format '{fmt}'. Expected '{}' or '{}'.",
-                            DEFINITION_MANIFEST_FILE_FORMAT, PUBLICATION_MANIFEST_FILE_FORMAT
-                        ),
-                    });
-                }
-            }
             let mut warnings = vec![];
+            if let Some(ref fmt) = self.file_format {
+                return Err(InvalidRegistryManifest {
+                    path: path.to_path_buf(),
+                    error: format!(
+                        "Unknown file_format '{fmt}'. Expected '{PUBLICATION_MANIFEST_FILE_FORMAT}' or no file_format for a definition manifest."
+                    ),
+                });
+            }
             let schema_url = if let Some(url) = self.schema_url {
                 url
             } else {
@@ -232,7 +222,6 @@ impl RawManifestFields {
                 })?
             };
             Ok(RegistryManifest::Definition(DefinitionRegistryManifest {
-                file_format: self.file_format,
                 schema_url,
                 description: self.description,
                 dependencies: self.dependencies,
@@ -247,7 +236,7 @@ impl RawManifestFields {
 ///
 /// The `file_format` field is the discriminator:
 /// - `"manifest/2.0.0"` → [`PublicationRegistryManifest`]
-/// - `"definition-manifest/2.0.0"` or absent → [`DefinitionRegistryManifest`]
+/// - absent → [`DefinitionRegistryManifest`]
 #[derive(Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum RegistryManifest {
