@@ -337,7 +337,8 @@ impl RegistryManifest {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct PublicationRegistryManifest {
     /// The file format version of this publication manifest.
-    /// Always `"manifest/2.0.0"`.
+    /// Always `"manifest/2.0.0"`in this version.
+    #[schemars(extend("const" = "manifest/2.0.0"))]
     pub file_format: String,
 
     /// The schema URL for this registry.
