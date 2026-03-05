@@ -298,6 +298,7 @@ mod tests {
                     entity_associations: vec![],
                     annotations: None,
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "apple.group".to_owned(),
@@ -321,6 +322,7 @@ mod tests {
                     entity_associations: vec![],
                     annotations: None,
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "middle.group".to_owned(),
@@ -344,6 +346,7 @@ mod tests {
                     entity_associations: vec![],
                     annotations: None,
                     visibility: None,
+                    is_v2: false,
                 },
             ],
         };

@@ -20,6 +20,10 @@ static VALIDATOR_V2: OnceLock<JsonSchemaValidator> = OnceLock::new();
 /// A versioned semantic convention file.
 #[derive(Serialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "file_format")]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "We plan to remove the variant in the future, and want SemconvSpecV2 (largest) to remain on stack."
+)]
 pub enum Versioned {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "definition/1")]
@@ -707,6 +711,10 @@ mod tests {
             spans: vec![],
             imports: None,
             attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
         });
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(

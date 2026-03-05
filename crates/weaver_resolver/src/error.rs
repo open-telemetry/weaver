@@ -153,6 +153,19 @@ pub enum Error {
         provenances: Vec<Provenance>,
     },
 
+    /// An invalid `extends` clause type.
+    #[error("Refinement `{refinement_id}` of type `{refinement_type}` cannot refine signal `{ref}` of type `{signal_type}`.")]
+    InvalidRefinement {
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The reference being refined.
+        r#ref: String,
+        /// The type of the refinement.
+        refinement_type: String,
+        /// The type of the refined signal.
+        signal_type: String,
+    },
+
     /// A duplicate attribute id error.
     #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
     DuplicateAttributeId {
