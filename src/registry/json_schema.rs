@@ -48,9 +48,9 @@ pub enum JsonSchemaType {
     /// The JSON schema of the diff V2
     DiffV2,
     /// The JSON schema of the publication manifest produced by `weaver registry package`.
-    PublicationManifest,
-    /// Definition manifest for an unpublished registry.
-    DefinitionManifest,
+    PublicationManifestV2,
+    /// Definition manifest describing unpublished registry.
+    DefinitionManifestV2,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
@@ -68,10 +68,10 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         }
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
-        JsonSchemaType::DefinitionManifest => {
+        JsonSchemaType::DefinitionManifestV2 => {
             schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
         }
-        JsonSchemaType::PublicationManifest => {
+        JsonSchemaType::PublicationManifestV2 => {
             schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
         }
     };
