@@ -1,96 +1,94 @@
 {
-  "Err": {
-    "CompoundError": [
-      {
-        "DuplicateGroupId": {
-          "group_id": "metric.faas.init_duration",
-          "provenances": [
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
-            },
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
-            }
-          ]
-        }
-      },
-      {
-        "DuplicateGroupId": {
-          "group_id": "metric.faas.invoke_duration",
-          "provenances": [
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
-            },
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
-            }
-          ]
-        }
-      },
-      {
-        "DuplicateGroupId": {
-          "group_id": "metric.faas.coldstarts",
-          "provenances": [
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
-            },
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
-            }
-          ]
-        }
-      },
-      {
-        "DuplicateMetricName": {
-          "metric_name": "faas.coldstarts",
-          "provenances": [
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
-            },
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
-            }
-          ]
-        }
-      },
-      {
-        "DuplicateMetricName": {
-          "metric_name": "faas.invoke_duration",
-          "provenances": [
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
-            },
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
-            }
-          ]
-        }
-      },
-      {
-        "DuplicateMetricName": {
-          "metric_name": "faas.init_duration",
-          "provenances": [
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
-            },
-            {
-              "registry_id": "default",
-              "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
-            }
-          ]
-        }
+  "CompoundError": [
+    {
+      "DuplicateGroupId": {
+        "group_id": "metric.faas.init_duration",
+        "provenances": [
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
+          },
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          }
+        ]
       }
-    ]
-  }
+    },
+    {
+      "DuplicateGroupId": {
+        "group_id": "metric.faas.invoke_duration",
+        "provenances": [
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
+          },
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "DuplicateGroupId": {
+        "group_id": "metric.faas.coldstarts",
+        "provenances": [
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
+          },
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "DuplicateMetricName": {
+        "metric_name": "faas.coldstarts",
+        "provenances": [
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
+          },
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "DuplicateMetricName": {
+        "metric_name": "faas.invoke_duration",
+        "provenances": [
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
+          },
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "DuplicateMetricName": {
+        "metric_name": "faas.init_duration",
+        "provenances": [
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml"
+          },
+          {
+            "registry_id": "default",
+            "path": "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          }
+        ]
+      }
+    }
+  ]
 }

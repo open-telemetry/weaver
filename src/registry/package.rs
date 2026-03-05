@@ -11,7 +11,7 @@ use log::info;
 use weaver_common::log_success;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_semconv::manifest::PublicationRegistryManifest;
+use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
@@ -72,13 +72,23 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     let main_registry_repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
-    // we require a manifest file to be present for packaging
-    let registry_manifest = main_registry_repo
+    // we require a definition manifest file to be present for packaging
+    let manifest = main_registry_repo
         .manifest()
         .ok_or_else(|| Error::PackagingRequiresManifest {
             registry: registry_path.to_string(),
         })?
         .clone();
+
+    let definition_manifest = match manifest {
+        RegistryManifest::Definition(m) => m,
+        RegistryManifest::Publication(m) => {
+            return Err(weaver_semconv::Error::UnexpectedPublicationManifest {
+                schema_url: m.schema_url.to_string(),
+            }
+            .into());
+        }
+    };
 
     let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
@@ -101,9 +111,9 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     )?;
 
     let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
-        &registry_manifest,
+        &definition_manifest,
         args.resolved_schema_uri.clone(),
-    )?;
+    );
     write_yaml(&args.output.join("manifest.yaml"), &publication_manifest)?;
 
     log_success(format!(

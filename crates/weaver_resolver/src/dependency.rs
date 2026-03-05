@@ -3,7 +3,6 @@
 //! Helpers to handle reading from dependencies.
 
 use globset::GlobSet;
-use serde::Deserialize;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
@@ -16,7 +15,7 @@ use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 use crate::{attribute::AttributeCatalog, Error};
 
 /// A Resolved dependency, for which we can look up items.
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub(crate) enum ResolvedDependency {
     /// A V1 Dependency
     V1(Box<V1Schema>),

@@ -206,13 +206,13 @@ fn load_semconv_repository_recursive(
         if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
             load_resolved_repository(&resolved_url)
         } else {
-            if manifest.dependencies.len() > 1 {
+            if manifest.dependencies().len() > 1 {
                 todo!("Multiple dependencies is not supported yet.")
             }
             // Load dependencies.
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors: Vec<Error> = vec![];
-            for d in manifest.dependencies.iter() {
+            for d in manifest.dependencies().iter() {
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
                     Ok(d_repo) => {
