@@ -730,18 +730,27 @@ mod tests {
     #[test]
     fn test_lookup_group_summary_v2() -> Result<(), Box<dyn Error>> {
         let d = ResolvedDependency::V2(Box::new(example_v2_schema()));
-        
+
         let result_metric = d.lookup_group_summary("metric.a");
         assert!(result_metric.is_some(), "Should find metric.a");
-        assert_eq!(result_metric.unwrap().r#type, weaver_semconv::group::GroupType::Metric);
+        assert_eq!(
+            result_metric.unwrap().r#type,
+            weaver_semconv::group::GroupType::Metric
+        );
 
         let result_event = d.lookup_group_summary("event.b");
         assert!(result_event.is_some(), "Should find event.b");
-        assert_eq!(result_event.unwrap().r#type, weaver_semconv::group::GroupType::Event);
+        assert_eq!(
+            result_event.unwrap().r#type,
+            weaver_semconv::group::GroupType::Event
+        );
 
         let result_entity = d.lookup_group_summary("entity.c");
         assert!(result_entity.is_some(), "Should find entity.c");
-        assert_eq!(result_entity.unwrap().r#type, weaver_semconv::group::GroupType::Entity);
+        assert_eq!(
+            result_entity.unwrap().r#type,
+            weaver_semconv::group::GroupType::Entity
+        );
 
         Ok(())
     }
@@ -781,9 +790,15 @@ mod tests {
         let imports = vec![weaver_semconv::group::ImportsWithProvenance {
             provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
             imports: weaver_semconv::semconv::Imports {
-                metrics: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("metric.a").unwrap())]),
-                events: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("event.b").unwrap())]),
-                entities: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("entity.c").unwrap())]),
+                metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("metric.a").unwrap(),
+                )]),
+                events: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("event.b").unwrap(),
+                )]),
+                entities: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("entity.c").unwrap(),
+                )]),
             },
         }];
 
@@ -808,9 +823,15 @@ mod tests {
         let imports = vec![weaver_semconv::group::ImportsWithProvenance {
             provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
             imports: weaver_semconv::semconv::Imports {
-                metrics: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("metric.a").unwrap())]),
-                events: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("event.b").unwrap())]),
-                entities: Some(vec![weaver_semconv::group::GroupWildcard(globset::Glob::new("entity.c").unwrap())]),
+                metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("metric.a").unwrap(),
+                )]),
+                events: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("event.b").unwrap(),
+                )]),
+                entities: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("entity.c").unwrap(),
+                )]),
             },
         }];
 
