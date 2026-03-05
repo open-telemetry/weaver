@@ -25,7 +25,6 @@ use weaver_common::vdir::VirtualDirectoryPath;
 /// The file format version of the publication manifest.
 pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0.0";
 
-
 /// Represents the definition manifest for a semantic convention registry.
 ///
 /// This is used when developing a registry before it is published.
@@ -604,7 +603,6 @@ registry_path: "./registry"
         tmp.write_all(yaml.as_bytes()).unwrap();
         RegistryManifest::try_from_file(tmp.path(), &mut vec![])
     }
-
 
     #[test]
     fn test_unknown_file_format_is_rejected() {

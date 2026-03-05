@@ -19,7 +19,7 @@
       ]
     },
     "file_format": {
-      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0.0\"`.",
+      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0.0\"`in this version.",
       "type": "string",
       "const": "manifest/2.0.0"
     },
