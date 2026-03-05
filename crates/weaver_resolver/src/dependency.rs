@@ -423,8 +423,11 @@ impl ImportableDependency for V2Schema {
         }
 
         // Now AttributeGroup imports.
-        let attribute_groups_imports_matcher =
-            build_globset(imports.iter().find_map(|i| i.imports.attribute_groups.as_ref()))?;
+        let attribute_groups_imports_matcher = build_globset(
+            imports
+                .iter()
+                .find_map(|i| i.imports.attribute_groups.as_ref()),
+        )?;
         for ag in self.registry.attribute_groups.iter().filter(|ag| {
             let ag_id: &str = &ag.id;
             include_all || attribute_groups_imports_matcher.is_match(ag_id)
@@ -799,11 +802,13 @@ mod tests {
             file_format: "resolved/2.0.0".to_owned(),
             schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
             registry: weaver_resolved_schema::v2::registry::Registry {
-                attribute_groups: vec![weaver_resolved_schema::v2::attribute_group::AttributeGroup {
-                    id: "attribute_group.e".to_owned().into(),
-                    attributes: vec![],
-                    common: Default::default(),
-                }],
+                attribute_groups: vec![
+                    weaver_resolved_schema::v2::attribute_group::AttributeGroup {
+                        id: "attribute_group.e".to_owned().into(),
+                        attributes: vec![],
+                        common: Default::default(),
+                    },
+                ],
                 metrics: vec![weaver_resolved_schema::v2::metric::Metric {
                     name: "metric.a".to_owned().into(),
                     instrument: weaver_semconv::group::InstrumentSpec::Counter,
@@ -821,7 +826,9 @@ mod tests {
                 spans: vec![weaver_resolved_schema::v2::span::Span {
                     r#type: "span.d".to_owned().into(),
                     kind: weaver_semconv::group::SpanKindSpec::Client,
-                    name: weaver_semconv::v2::span::SpanName { note: "test".to_owned() },
+                    name: weaver_semconv::v2::span::SpanName {
+                        note: "test".to_owned(),
+                    },
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
@@ -927,7 +934,11 @@ mod tests {
         }];
 
         let result = d.import_groups(&imports, false, &mut catalog)?;
-        assert_eq!(result.len(), 5, "Should import metric, event, entity, span and attribute_group");
+        assert_eq!(
+            result.len(),
+            5,
+            "Should import metric, event, entity, span and attribute_group"
+        );
 
         let result_all = d.import_groups(&imports, true, &mut catalog)?;
         assert_eq!(result_all.len(), 5, "Include all should also import all 5");
