@@ -924,7 +924,11 @@ mod tests {
 
         // By default V1 example schema has an AttributeGroup and a Span.
         let result = d.import_groups(&imports, false, &mut catalog)?;
-        assert_eq!(result.len(), 2, "Attribute group and span should be imported");
+        assert_eq!(
+            result.len(),
+            2,
+            "Attribute group and span should be imported"
+        );
 
         let result_all = d.import_groups(&imports, true, &mut catalog)?;
         assert_eq!(result_all.len(), 2, "Include all should also import both");
