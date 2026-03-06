@@ -47,7 +47,8 @@
       }
     },
     "file_format": {
-      "description": "The file format version. Must be \"definition/2\" for this version of the schema.",
+      "description": "The file format version.",
+      "type": "string",
       "const": "definition/2"
     },
     "imports": {
