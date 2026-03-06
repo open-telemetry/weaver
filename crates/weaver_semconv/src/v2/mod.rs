@@ -416,6 +416,9 @@ groups:
             .get("properties")
             .and_then(|p| p.get("file_format"))
             .expect("Expected 'file_format' in schema properties");
-        assert_eq!(file_format.get("const").and_then(|v| v.as_str()), Some("definition/2"));
+        assert_eq!(
+            file_format.get("const").and_then(|v| v.as_str()),
+            Some("definition/2")
+        );
     }
 }
