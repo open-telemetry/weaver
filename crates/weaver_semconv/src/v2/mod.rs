@@ -407,4 +407,15 @@ groups:
         };
         assert!(!non_empty_spec.is_empty());
     }
+
+    #[test]
+    fn test_output_schema_contains_file_format() {
+        let schema = SemConvSpecV2::output_schema();
+        let value = serde_json::to_value(&schema).expect("Failed to serialize schema");
+        let file_format = value
+            .get("properties")
+            .and_then(|p| p.get("file_format"))
+            .expect("Expected 'file_format' in schema properties");
+        assert_eq!(file_format.get("const").and_then(|v| v.as_str()), Some("definition/2"));
+    }
 }
