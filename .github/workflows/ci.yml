@@ -266,7 +266,7 @@ jobs:
       - name: Report status
         run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
   check-usage-docs:
-    name: Check usage docs
+    name: Check usage docs and schemas
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -294,13 +294,33 @@ jobs:
         working-directory: ./ui
       - name: Regenerate usage docs
         run: cargo run -- --quiet markdown-help > /tmp/usage.md
-      - name: Check docs/usage.md is up-to-date
+      - name: Regenerate schema files
         run: |
+          cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o /tmp/semconv.schema.v2.json
+          cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o /tmp/semconv.resolved.v2.json
+      - name: Check generated files are up-to-date
+        run: |
+          failed=0
+
           if ! diff -q docs/usage.md /tmp/usage.md > /dev/null 2>&1; then
             echo "docs/usage.md is out of date. Run 'cargo run -- --quiet markdown-help > docs/usage.md' to regenerate it."
             diff docs/usage.md /tmp/usage.md
-            exit 1
+            failed=1
           fi
+
+          if ! diff -q schemas/semconv.schema.v2.json /tmp/semconv.schema.v2.json > /dev/null 2>&1; then
+            echo "schemas/semconv.schema.v2.json is out of date. Run 'cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json' to regenerate it."
+            diff schemas/semconv.schema.v2.json /tmp/semconv.schema.v2.json
+            failed=1
+          fi
+
+          if ! diff -q schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json > /dev/null 2>&1; then
+            echo "schemas/semconv.resolved.v2.json is out of date. Run 'cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json' to regenerate it."
+            diff schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json
+            failed=1
+          fi
+
+          exit $failed
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
