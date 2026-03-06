@@ -27,9 +27,10 @@ Help fix dependency update PRs (from Renovate, Dependabot, etc.) that fail to bu
    - `cargo test --workspace` — ensure all tests pass
    - `cargo clippy --workspace` — ensure no new warnings
 
-7. **Create a PR** — The new PR should:
-   - Be based on the original dependency update branch
-   - Include "Fixes #<original PR number>" in the description
+7. **Create a PR against `main`** — The new PR should:
+   - Target the `main` branch directly (do NOT base it on the Renovate/Dependabot branch, as that can interfere with automated tooling)
+   - Include the version bump change (e.g., update `Cargo.toml` or `package.json`) as well as all API compatibility fixes in the same PR
+   - Include "Fixes #<original PR number>" in the description to close the automated update PR
    - Clearly describe what API changes were needed
 
 ## Common Patterns
