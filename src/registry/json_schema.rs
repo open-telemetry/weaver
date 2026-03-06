@@ -59,25 +59,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
         JsonSchemaType::SemconvGroup => schema_for!(Versioned),
-        JsonSchemaType::SemconvDefinitionV2 => {
-            let mut schema = serde_json::to_value(schema_for!(weaver_semconv::v2::SemConvSpecV2))
-                .expect("Failed to convert schema to JSON value");
-            // Inject `file_format` — the field is stripped before serde deserialization
-            // so it lives only in the schema for documentation / IDE support.
-            if let Some(props) = schema
-                .get_mut("properties")
-                .and_then(|p| p.as_object_mut())
-            {
-                let _ = props.insert(
-                    "file_format".to_owned(),
-                    serde_json::json!({
-                        "description": "The file format version. Must be \"definition/2\" for this version of the schema.",
-                        "const": "definition/2"
-                    }),
-                );
-            }
-            serde_json::from_value(schema).expect("Failed to convert schema back")
-        }
+        JsonSchemaType::SemconvDefinitionV2 => weaver_semconv::v2::SemConvSpecV2::output_schema(),
         JsonSchemaType::ResolvedRegistryV2 => {
             schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
         }

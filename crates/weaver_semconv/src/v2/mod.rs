@@ -94,6 +94,27 @@ pub struct SemConvSpecV2 {
 }
 
 impl SemConvSpecV2 {
+    /// Returns the JSON Schema for this type, with `file_format` injected as a
+    /// documented-only property. The field is intentionally absent from the Rust
+    /// struct (it is stripped before serde deserialization) but must appear in
+    /// the schema for IDE auto-complete and documentation purposes.
+    #[must_use]
+    pub fn output_schema() -> schemars::Schema {
+        let mut schema =
+            serde_json::to_value(schemars::schema_for!(Self)).expect("Failed to serialize schema");
+        if let Some(props) = schema.get_mut("properties").and_then(|p| p.as_object_mut()) {
+            let _ = props.insert(
+                "file_format".to_owned(),
+                serde_json::json!({
+                    "description": "The file format version.",
+                    "type": "string",
+                    "const": "definition/2"
+                }),
+            );
+        }
+        serde_json::from_value(schema).expect("Failed to deserialize schema")
+    }
+
     /// Converts the version 2 schema into the version 1 group spec.
     pub(crate) fn into_v1_specification(self, file_name: &str) -> SemConvSpecV1 {
         log::debug!("Translating v2 spec into v1 spec for {file_name}");
