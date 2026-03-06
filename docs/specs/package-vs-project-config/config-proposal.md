@@ -15,32 +15,53 @@ Today `weaver.yaml` is the only configuration mechanism, and it's being asked to
 
 ## Proposal
 
-### 1. Rename `weaver.yaml` to `template_config.yaml`
+### 1. Rename `weaver.yaml` to `weaver_template.yaml`
 
-The name `weaver.yaml` is too generic — it sounds like it configures Weaver itself, when it actually configures a template package. Renaming to `template_config.yaml` makes its purpose explicit: it is the configuration for the templates it sits alongside.
+The name `weaver.yaml` is too generic — it sounds like it configures Weaver itself, when it actually configures a template package. Renaming to `weaver_template.yaml` makes its purpose explicit: it is the configuration for the templates it sits alongside.
 
-`weaver.yaml` will continue to be loaded as a fallback during a deprecation period, with a warning directing package authors to rename to `template_config.yaml`.
+`weaver.yaml` will continue to be loaded as a fallback during a deprecation period, with a warning directing package authors to rename to `weaver_template.yaml`.
 
 ### 2. Load template config from the package directory only
 
-`template_config.yaml` is read from the given template directory and nowhere else. No directory-walking. No `$HOME/.weaver/` fallback. This is already the behavior for remote template packages and the update-markdown command — we are making local packages consistent with remote ones.
+`weaver_template.yaml` is read from the given template directory and nowhere else. No directory-walking. No `$HOME/.weaver/` fallback. This is already the behavior for remote template packages and the update-markdown command — we are making local packages consistent with remote ones.
 
 A template package should be self-contained and predictable. The same package produces the same output regardless of what `weaver.yaml` files happen to exist in parent directories or the user's home directory.
 
+The `--config` / `-c` flag on `generate` (which currently accepts additional `weaver.yaml` files for layering) is deprecated as part of this change. It was the explicit version of the same layering mechanism — with `.weaver.toml` taking over project-level overrides, it is no longer needed.
+
 ### 3. Introduce `.weaver.toml` as project config
 
-A new `.weaver.toml` file belongs to the **project** — the codebase that uses Weaver. It configures everything that does not belong to a template package: settings that are CLI-configured today, plus new project-level settings that are cumbersome to provide on the command line.
+A new `.weaver.toml` file belongs to the **project** — the codebase that uses Weaver. A project may be a single repository or a monorepo containing multiple services. It configures everything that does not belong to a template package: settings that are CLI-configured today, plus new project-level settings that are cumbersome to provide on the command line.
+
+**Discovery strategy — open question:** `.weaver.toml` is discovered by walking up from CWD through parent directories to root and then includes `$HOME/.weaver.toml`. Two approaches:
+
+- **First match wins:** Use the nearest `.weaver.toml` found. Simple — you always know which file is in effect. A service overrides the root entirely.
+- **Walk and merge:** Collect all `.weaver.toml` files and merge them, nearest taking precedence. This is the approach [Cargo uses](https://doc.rust-lang.org/cargo/reference/config.html#hierarchical-structure). A monorepo defines shared defaults at the root while services override specific settings.
+
+```
+$HOME/.weaver.toml              # user-wide defaults
+monorepo/
+├── .weaver.toml                # shared project defaults
+├── service-a/
+│   ├── .weaver.toml            # service-a overrides
+│   └── ...
+└── service-b/
+    └── ...                     # inherits monorepo defaults (no local .weaver.toml)
+```
+
+With **first match**, running from `service-a/` uses only `service-a/.weaver.toml` and ignores the rest. With **walk and merge**, all three files are merged with `service-a/.weaver.toml` winning on conflicts.
+
+Settings fall into two categories: **persistent** settings that define how the project uses Weaver (e.g. finding filters, policy paths) and **per-invocation** settings that vary between runs (e.g. input source, output format). Some settings may be available in both the config file and on the CLI, with CLI flags taking precedence. The decision about whether a given setting belongs in the config file, the CLI, or both should be made on a case-by-case basis as each setting is implemented.
 
 **What it configures:**
 
 - Live-check finding overrides and filters
 - Live-check OTLP and emit settings
+- Template defaults — shared settings like `acronyms`, `template_syntax`, `whitespace_control`, and `params` that apply across all template packages used by the project, overriding the package's own `weaver_template.yaml` defaults
 - Default registry path, template path, policies path
 - Any other setting that is currently a CLI flag
 
-**Where it lives:** In the project repository. Discovered by walking up from the current working directory. A `--config` flag provides an explicit override.
-
-**Example:**
+**Example** (illustrative — specific settings and naming may change as they are implemented):
 
 ```toml
 # === Phase 1: Live-check finding modification ===
@@ -55,7 +76,31 @@ exclude = ["deprecated"]
 min_level = "improvement"
 exclude_samples = ["trace.parent_id", "trace.span_id"]
 
-# === Phase 2: CLI-equivalent settings ===
+# === Template defaults ===
+# Shared settings applied on top of all template packages.
+# These override the package's own weaver_template.yaml.
+#
+# [template_defaults]
+# acronyms = ["API", "HTTP", "SDK", "CLI", "URL", "JSON"]
+#
+# [template_defaults.template_syntax]
+# block_start = "{%"
+# block_end = "%}"
+# variable_start = "{{"
+# variable_end = "}}"
+# comment_start = "{#"
+# comment_end = "#}"
+#
+# [template_defaults.whitespace_control]
+# trim_blocks = true
+# lstrip_blocks = true
+# keep_trailing_newline = false
+#
+# [template_defaults.params]
+# copyright_owner = "Acme"
+# year = 2026
+
+# === CLI-equivalent settings ===
 
 # Shared options (apply to all subcommands that accept them)
 # [registry]
@@ -112,7 +157,7 @@ exclude_samples = ["trace.parent_id", "trace.span_id"]
 
 **Phase 2:** Add other CLI-equivalent settings to `.weaver.toml`.
 
-**Phase 3:** Rename `weaver.yaml` to `template_config.yaml`. Load from the package directory only — remove directory-walking and `$HOME` fallback. Accept `weaver.yaml` as a deprecated fallback with a warning.
+**Phase 3:** Rename `weaver.yaml` to `weaver_template.yaml`. Load from the package directory only — remove directory-walking and `$HOME` fallback. Accept `weaver.yaml` as a deprecated fallback with a warning.
 
 **Phase 4:** Remove `weaver.yaml` fallback.
 
@@ -120,10 +165,10 @@ exclude_samples = ["trace.parent_id", "trace.span_id"]
 
 |                | Package Config                             | Project Config                               |
 | -------------- | ------------------------------------------ | -------------------------------------------- |
-| **File**       | `template_config.yaml` (was `weaver.yaml`) | `.weaver.toml`                               |
+| **File**       | `weaver_template.yaml` (was `weaver.yaml`) | `.weaver.toml`                               |
 | **Belongs to** | Template package                           | Project repository                           |
 | **Written by** | Package author                             | Project developer                            |
-| **Discovery**  | Template dir root only                     | CWD walking + `--config`                     |
+| **Discovery**  | Template dir root only                     | CWD walking                                  |
 | **Contains**   | Template engine settings, default params   | CLI settings, finding mods, project defaults |
 | **Format**     | YAML                                       | TOML                                         |
 | **Crate**      | `weaver_forge`                             | `weaver_config`                              |
