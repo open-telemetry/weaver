@@ -592,6 +592,8 @@ An imports definition consists of optional lists of group name wildcards for dif
 - `entities` - Optional. List of entity type wildcards.
 - `events` - Optional. List of event name wildcards.
 - `metrics` - Optional. List of metric name wildcards.
+- `spans` - Optional. List of span name wildcards.
+- `attribute_groups` - Optional. List of attribute group id wildcards.
 
 Each wildcard can match one or more groups from the imported registry. For example:
 
@@ -602,6 +604,10 @@ imports:
     - service       # Import service instance entity
   metrics:
     - http.server.*  # Import all HTTP server metrics
+  spans:
+    - http.client   # Import HTTP client spans
+  attribute_groups:
+    - client.*      # Import all client attribute groups
 ```
 
 ### Stability levels
