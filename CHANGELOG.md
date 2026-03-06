@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - 💥 BREAKING CHANGE 💥 (Fixes [#760](https://github.com/open-telemetry/weaver/issues/760)) - Auto-escaping is now off by default (`none`) for all templates, regardless of file extension. To opt in, set `auto_escape: html` or `auto_escape: json` per template in `weaver.yaml`. Within a template, `{% autoescape false %}` blocks can selectively disable escaping for sections. Use `|tojson` for explicit JSON/YAML value escaping where needed. ([#1239](https://github.com/open-telemetry/weaver/pull/1239) by @jerbly)
 - 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2` for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
 - Add `weaver registry package` command to generate manifest and write resolved schema. ([#1254](https://github.com/open-telemetry/weaver/pull/1254) by @lmolkova)
+- Deprecate `weaver registry resolve` command, please use `weaver registry generate` or `package` instead ([#1255](https://github.com/open-telemetry/weaver/pull/1255) by @lmolkova)
 
 # [0.21.2] - 2026-02-03
 
