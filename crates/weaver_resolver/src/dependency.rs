@@ -1012,8 +1012,8 @@ mod tests {
         assert_eq!(result.len(), 5);
 
         let result_all = deps.import_groups(&imports, true, &mut catalog)?;
-        // V1 (1 group) + V2 (5 groups) = 6 groups.
-        assert_eq!(result_all.len(), 6);
+        // V1 (2 groups) + V2 (5 groups) = 7 groups.
+        assert_eq!(result_all.len(), 7);
 
         Ok(())
     }
