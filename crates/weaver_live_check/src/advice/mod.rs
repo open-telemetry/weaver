@@ -196,7 +196,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].id, crate::DEPRECATED_ADVICE_TYPE);
+        assert_eq!(findings[0].id, crate::FindingId::Deprecated.to_string());
 
         // Test TypeAdvisor
         let mut type_advisor = TypeAdvisor;
@@ -234,7 +234,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].id, crate::TYPE_MISMATCH_ADVICE_TYPE);
+        assert_eq!(findings[0].id, crate::FindingId::TypeMismatch.to_string());
 
         // Test StabilityAdvisor
         let mut stability_advisor = StabilityAdvisor;
@@ -270,6 +270,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].id, crate::NOT_STABLE_ADVICE_TYPE);
+        assert_eq!(findings[0].id, crate::FindingId::NotStable.to_string());
     }
 }

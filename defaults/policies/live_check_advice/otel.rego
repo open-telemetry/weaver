@@ -28,8 +28,8 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 	not contains(input.sample.attribute.name, ".")
 	advice_type := "missing_namespace"
 	advice_level := "improvement"
-	advice_context := {"attribute_name": input.sample.attribute.name}
-	message := sprintf("Attribute name '%s' must include a namespace (e.g. '{namespace}.{attribute_key}')", [input.sample.attribute.name])
+	advice_context := {"attribute_key": input.sample.attribute.name}
+	message := sprintf("Attribute key '%s' must include a namespace (e.g. '{namespace}.{attribute_key}')", [input.sample.attribute.name])
 }
 
 # checks attribute name format
@@ -38,8 +38,8 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 	not regex.match(name_regex, input.sample.attribute.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
-	advice_context := {"attribute_name": input.sample.attribute.name}
-	message := sprintf("Attribute '%s' does not match name formatting rules.", [input.sample.attribute.name])
+	advice_context := {"attribute_key": input.sample.attribute.name}
+	message := sprintf("Attribute key '%s' does not match name formatting rules.", [input.sample.attribute.name])
 }
 
 # checks metric name format
@@ -71,7 +71,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 
 	advice_type := "illegal_namespace"
 	advice_level := "violation"
-	advice_context := {"attribute_name": input.sample.attribute.name, "namespace": ns}
+	advice_context := {"attribute_key": input.sample.attribute.name, "namespace": ns}
 	message := sprintf("Namespace '%s' collides with existing attribute '%s'", [ns, input.sample.attribute.name])
 }
 
@@ -96,8 +96,8 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 
 	advice_type := "extends_namespace"
 	advice_level := "information"
-	advice_context := {"attribute_name": input.sample.attribute.name, "namespace": namespace}
-	message := sprintf("Attribute name '%s' collides with existing namespace '%s'", [input.sample.attribute.name, namespace])
+	advice_context := {"attribute_key": input.sample.attribute.name, "namespace": namespace}
+	message := sprintf("Attribute key '%s' collides with existing namespace '%s'", [input.sample.attribute.name, namespace])
 }
 
 make_advice(advice_type, advice_level, advice_context, message) := {
