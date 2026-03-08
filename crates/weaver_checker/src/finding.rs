@@ -21,7 +21,7 @@ pub struct PolicyFinding {
     /// The context associated with the finding e.g. { "attribute_name": "foo.bar", "attribute_value": "bar" }
     /// The context should contain all dynamic parts of the message
     /// Context values may be used with custom templates and filters to customize reports.
-    pub context: Value,
+    pub context: Option<Value>,
 
     /// The human-readable message of the finding e.g. "This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'"
     /// The message, along with signal_name and signal_type, should contain enough information to understand the advice and
@@ -55,7 +55,7 @@ impl PolicyFinding {
         let message = format!("id={id}, category={category}, group={group}, attr={attr}");
         PolicyFinding {
             id: SEMCONV_ATTRIBUTE.to_owned(),
-            context: ctx,
+            context: Some(ctx),
             message,
             level: FindingLevel::Violation,
             signal_type: None,
@@ -144,11 +144,9 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                 let message = opt_message.ok_or(serde::de::Error::missing_field("message"))?;
                 let signal_type = opt_signal_type;
                 let signal_name = opt_signal_name;
-                let advice_context =
-                    opt_context.ok_or(serde::de::Error::missing_field("advice_context"))?;
                 Ok(PolicyFinding {
                     id,
-                    context: advice_context,
+                    context: opt_context,
                     message,
                     level,
                     signal_type,
@@ -162,10 +160,9 @@ impl<'de> serde::de::Visitor<'de> for ViolationBuilder {
                 let message = opt_message.ok_or(serde::de::Error::missing_field("message"))?;
                 let signal_type = opt_signal_type;
                 let signal_name = opt_signal_name;
-                let context = opt_context.ok_or(serde::de::Error::missing_field("context"))?;
                 Ok(PolicyFinding {
                     id,
-                    context,
+                    context: opt_context,
                     message,
                     level,
                     signal_type,
@@ -187,7 +184,12 @@ impl Display for PolicyFinding {
             _ => write!(
                 f,
                 "id={}, context={}, message={}, level={:?}, signal_type={:?}, signal_name={:?}",
-                self.id, self.context, self.message, self.level, self.signal_type, self.signal_name,
+                self.id,
+                self.context.as_ref().map_or("null".to_owned(), |c| c.to_string()),
+                self.message,
+                self.level,
+                self.signal_type,
+                self.signal_name,
             ),
         }
     }
