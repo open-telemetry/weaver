@@ -578,7 +578,13 @@ mod tests {
         format!(
             "{}-{}",
             v.id,
-            v.context.as_ref().unwrap().as_object().unwrap().get("id").unwrap()
+            v.context
+                .as_ref()
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .get("id")
+                .unwrap()
         )
     }
     #[test]

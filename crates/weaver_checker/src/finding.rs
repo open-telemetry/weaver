@@ -185,7 +185,9 @@ impl Display for PolicyFinding {
                 f,
                 "id={}, context={}, message={}, level={:?}, signal_type={:?}, signal_name={:?}",
                 self.id,
-                self.context.as_ref().map_or("null".to_owned(), |c| c.to_string()),
+                self.context
+                    .as_ref()
+                    .map_or("null".to_owned(), |c| c.to_string()),
                 self.message,
                 self.level,
                 self.signal_type,

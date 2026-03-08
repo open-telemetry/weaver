@@ -295,7 +295,9 @@ mod tests {
         assert_eq!(all_advice[0].id, "deprecated");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"}))
+            Some(
+                json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
+            )
         );
         assert_eq!(
             all_advice[0].message,
@@ -315,7 +317,9 @@ mod tests {
         assert_eq!(all_advice[2].id, "type_mismatch");
         assert_eq!(
             all_advice[2].context,
-            Some(json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"}))
+            Some(
+                json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"})
+            )
         );
         assert_eq!(
             all_advice[2].message,
@@ -418,7 +422,9 @@ mod tests {
         assert_eq!(all_advice[0].id, "template_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.template.my.key", "template_name": "test.template"}))
+            Some(
+                json!({"attribute_name": "test.template.my.key", "template_name": "test.template"})
+            )
         );
         assert_eq!(
             all_advice[0].message,
@@ -427,7 +433,9 @@ mod tests {
         assert_eq!(all_advice[1].id, "type_mismatch");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"}))
+            Some(
+                json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"})
+            )
         );
         assert_eq!(
             all_advice[1].message,
