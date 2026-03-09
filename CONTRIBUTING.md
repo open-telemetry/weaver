@@ -50,6 +50,13 @@ NOTE: You will need to run `pnpm build` in the `ui` directory prior to running a
 cargo run -- --quiet markdown-help > docs/usage.md
 ```
 
+**When making changes to the semconv schema definitions, regenerate the JSON schema files by running:**
+
+```bash
+cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json
+cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json
+```
+
 **Run `just` before any push to pre-validate all the steps performed by CI.**
 
 ### How to send Pull Request

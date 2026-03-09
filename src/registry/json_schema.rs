@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
-use weaver_semconv::semconv::Versioned;
+use weaver_semconv::semconv::SemConvSpecV1;
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
@@ -47,6 +47,10 @@ pub enum JsonSchemaType {
     Diff,
     /// The JSON schema of the diff V2
     DiffV2,
+    /// The JSON schema of the publication manifest produced by `weaver registry package`.
+    PublicationManifestV2,
+    /// Definition manifest describing unpublished registry.
+    DefinitionManifestV2,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
@@ -54,8 +58,8 @@ pub enum JsonSchemaType {
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
-        JsonSchemaType::SemconvGroup => schema_for!(Versioned),
-        JsonSchemaType::SemconvDefinitionV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpecV1),
+        JsonSchemaType::SemconvDefinitionV2 => weaver_semconv::v2::SemConvSpecV2::output_schema(),
         JsonSchemaType::ResolvedRegistryV2 => {
             schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
         }
@@ -64,6 +68,12 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         }
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
+        JsonSchemaType::DefinitionManifestV2 => {
+            schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
+        }
+        JsonSchemaType::PublicationManifestV2 => {
+            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
+        }
     };
 
     if let Some(p) = &args.output {

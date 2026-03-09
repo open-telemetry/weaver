@@ -25,7 +25,7 @@ use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use crate::dependency::GroupSummary;
 
 /// A registry containing unresolved groups.
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct UnresolvedRegistry {
     /// The semantic convention registry containing resolved groups.
     pub registry: Registry,
@@ -1055,7 +1055,7 @@ mod tests {
                 assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
-                let observed_errors = serde_json::to_string(&schema).unwrap();
+                let observed_errors = serde_json::to_string(&schema.err()).unwrap();
                 // Write observed errors.
                 assert_eq!(
                     canonicalize_json_string(&observed_errors).unwrap(),

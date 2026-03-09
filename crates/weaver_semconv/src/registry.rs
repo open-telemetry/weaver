@@ -4,7 +4,7 @@
 
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
-use crate::manifest::RegistryManifest;
+use crate::manifest::{DefinitionRegistryManifest, RegistryManifest};
 use crate::registry_repo::RegistryRepo;
 use crate::schema_url::SchemaUrl;
 use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
@@ -144,7 +144,9 @@ impl SemConvRegistry {
                     },
                 )?;
 
-            registry.set_manifest(RegistryManifest::from_schema_url(schema_url));
+            registry.set_manifest(RegistryManifest::Definition(
+                DefinitionRegistryManifest::from_schema_url(schema_url),
+            ));
         } else {
             registry.manifest = registry_repo.manifest().cloned();
         }

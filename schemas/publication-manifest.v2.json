@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PublicationRegistryManifest",
+  "description": "Represents the publication manifest for a packaged semantic convention registry.\n\nThis is produced by `weaver registry package` and describes the contents of\na self-contained registry artifact, including its resolved schema location.",
+  "type": "object",
+  "properties": {
+    "dependencies": {
+      "description": "List of the registry's dependencies.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Dependency"
+      }
+    },
+    "description": {
+      "description": "An optional description of the registry.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "file_format": {
+      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0.0\"`in this version.",
+      "type": "string",
+      "const": "manifest/2.0.0"
+    },
+    "resolved_schema_uri": {
+      "description": "URI pointing to the resolved telemetry schema included in this package.",
+      "type": "string"
+    },
+    "schema_url": {
+      "description": "The schema URL for this registry.\nUniquely identifies the registry and its version.",
+      "$ref": "#/$defs/SchemaUrl"
+    },
+    "stability": {
+      "description": "The stability of this registry.",
+      "$ref": "#/$defs/Stability",
+      "default": "development"
+    }
+  },
+  "required": [
+    "file_format",
+    "schema_url",
+    "resolved_schema_uri"
+  ],
+  "$defs": {
+    "Dependency": {
+      "description": "Represents a dependency of a semantic convention registry.",
+      "type": "object",
+      "properties": {
+        "registry_path": {
+          "description": "The path to the dependency (optional).\nThis can be either:\n- A manifest of a published registry\n- A directory containing the raw definition.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VirtualDirectoryPath"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_url": {
+          "description": "The schema URL for the dependency (required).\nIt must follow OTel schema URL format, which is: `http[s]://server[:port]/path/<version>`.\nThis is not necessarily the URL registry can be accessed at, but it provides\na unique identifier for the dependency registry and its version.\n\nWhen registry is not published yet, this field should be populated with a placeholder URL,\nbut it must follow the URL format and include a version segment.\nThe actual registry files can be provided in `registry_path` field.",
+          "$ref": "#/$defs/SchemaUrl"
+        }
+      },
+      "required": [
+        "schema_url"
+      ]
+    },
+    "SchemaUrl": {
+      "description": "Represents the schema URL of a registry, which serves as a unique identifier for the registry\nalong with its version.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "The schema URL string.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ]
+    },
+    "Stability": {
+      "description": "The level of stability for a definition. Defined in [OTEP-232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md)",
+      "oneOf": [
+        {
+          "description": "A deprecated definition.",
+          "type": "string",
+          "const": "deprecated",
+          "deprecated": true
+        },
+        {
+          "description": "A stable definition.",
+          "type": "string",
+          "const": "stable"
+        },
+        {
+          "description": "A definition in development. Formally known as experimental.",
+          "type": "string",
+          "const": "development"
+        },
+        {
+          "description": "An alpha definition.",
+          "type": "string",
+          "const": "alpha"
+        },
+        {
+          "description": "A beta definition.",
+          "type": "string",
+          "const": "beta"
+        },
+        {
+          "description": "A release candidate definition.",
+          "type": "string",
+          "const": "release_candidate"
+        }
+      ]
+    },
+    "VirtualDirectoryPath": {
+      "description": "Represents a virtual path pointing to a directory-like resource.\n\nSupported formats include:\n- **Local directories** (`/path/to/directory`)\n- **Local archives** (`/path/to/archive.zip` or `/path/to/archive.tar.gz`)\n- **Remote archives** (`https://example.com/archive.zip` or `.tar.gz`)\n- **Git repositories** (`https://github.com/user/repo.git`)\n\nPaths may optionally specify:\n- A sub-folder within the archive or repository via `[sub_folder]`\n- [Not Yet Implemented] A specific Git refspec (branch, tag, or commit) via `@refspec`",
+      "type": "string"
+    }
+  }
+}
