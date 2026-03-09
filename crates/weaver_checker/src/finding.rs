@@ -187,7 +187,7 @@ impl Display for PolicyFinding {
                 self.id,
                 self.context
                     .as_ref()
-                    .map_or("null".to_owned(), |c| c.to_string()),
+                    .map_or("None".to_owned(), |c| c.to_string()),
                 self.message,
                 self.level,
                 self.signal_type,
@@ -202,6 +202,48 @@ impl PolicyFinding {
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_unknown_type_returns_error() {
+        let json =
+            r#"{"type": "unknown_type", "id": "foo", "message": "bar", "level": "violation"}"#;
+        let result = serde_json::from_str::<PolicyFinding>(json);
+        assert!(
+            result.is_err(),
+            "Expected error for unknown type, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_display_with_no_context() {
+        let finding = PolicyFinding {
+            id: "some_id".to_owned(),
+            context: None,
+            message: "some message".to_owned(),
+            level: FindingLevel::Violation,
+            signal_type: None,
+            signal_name: None,
+        };
+        assert!(finding.to_string().contains("context=None"));
+    }
+
+    #[test]
+    fn test_display_with_context() {
+        let finding = PolicyFinding {
+            id: "some_id".to_owned(),
+            context: Some(serde_json::json!({"key": "value"})),
+            message: "some message".to_owned(),
+            level: FindingLevel::Violation,
+            signal_type: None,
+            signal_name: None,
+        };
+        assert!(finding.to_string().contains("context={\"key\":\"value\"}"));
     }
 }
 
