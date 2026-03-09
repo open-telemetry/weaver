@@ -816,6 +816,7 @@ mod tests {
             dependencies: vec![],
             versions: None,
             registry_manifest: None,
+            root_attributes: Default::default(),
         }
     }
 

@@ -213,7 +213,6 @@ fn load_semconv_repository_recursive(
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors: Vec<Error> = vec![];
             for d in manifest.dependencies().iter() {
-                let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
                     Ok(d_repo) => {
                         non_fatal_errors

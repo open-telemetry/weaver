@@ -970,6 +970,7 @@ mod tests {
             // "registry-test-7-spans",
             // "registry-test-8-http",
             // "registry-test-v2-2-multifile",
+            "registry-test-v2-dep", // tested separately in lib.rs
         ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*

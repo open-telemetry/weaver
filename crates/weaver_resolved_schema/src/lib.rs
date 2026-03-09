@@ -13,6 +13,7 @@ use crate::resource::Resource;
 use schemars::JsonSchema;
 use serde::Serialize;
 use std::collections::HashMap;
+
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::manifest::RegistryManifest;
@@ -80,6 +81,12 @@ pub struct ResolvedTelemetrySchema {
     pub versions: Option<Versions>,
     /// The manifest of the registry.
     pub registry_manifest: Option<RegistryManifest>,
+    /// Attribute definitions available in this registry (including those
+    /// from dependencies). Used for cross-registry attribute lookup.
+    /// Not serialized — populated only for freshly resolved schemas.
+    #[schemars(skip)]
+    #[serde(skip)]
+    pub root_attributes: HashMap<String, (Attribute, String)>,
 }
 
 /// Statistics on a resolved telemetry schema.
@@ -106,6 +113,7 @@ impl ResolvedTelemetrySchema {
             dependencies: vec![],
             versions: None,
             registry_manifest: None,
+            root_attributes: HashMap::new(),
         }
     }
 
