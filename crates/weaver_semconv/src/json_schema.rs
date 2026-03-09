@@ -35,10 +35,10 @@ impl JsonSchemaValidator {
         // Generate the JSON schema for the SemConvSpec struct using Schemars
         let root_schema = schemars::schema_for!(T);
         let json_schema = serde_json::to_value(&root_schema)
-            // Should never happen as we expert Schemars to work
+            // Should never happen as we expect Schemars to work
             .expect("Failed to convert schema to JSON value");
         let validator = jsonschema::Validator::new(&json_schema)
-            // Should never happen as we expert Schemars to work
+            // Should never happen as we expect Schemars to work
             .expect("Failed to create JSON schema validator");
         JsonSchemaValidator {
             json_schema,
