@@ -194,6 +194,10 @@ mod tests {
                         assert!(group.is_some());
                         let group = resolved_registry.group("event.session.end");
                         assert!(group.is_some());
+                        let group = resolved_registry.group("custom.group");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("custom.span");
+                        assert!(group.is_some());
                     } else {
                         // These groups should be garbage collected because they are not referenced
                         // anywhere (in ref or imports)
@@ -211,6 +215,10 @@ mod tests {
                         let group = resolved_registry.group("entity.gcp.apphub.service");
                         assert!(group.is_some());
                         let group = resolved_registry.group("event.session.start");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("custom.group");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("custom.span");
                         assert!(group.is_some());
                     }
 
