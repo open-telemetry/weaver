@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2` for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
 - Add JSON schema for resolved registry v2 ([#1261](https://github.com/open-telemetry/weaver/pull/1261) by lmolkova)
 - Add `weaver registry package` command to generate manifest and write resolved schema. ([#1254](https://github.com/open-telemetry/weaver/pull/1254) by @lmolkova)
+- Update JSON Schema v2 to include `file_format` ([#1262](https://github.com/open-telemetry/weaver/pull/1262) by lmolkova)
 - Deprecate `weaver registry resolve` command, please use `weaver registry generate` or `package` instead ([#1255](https://github.com/open-telemetry/weaver/pull/1255) by @lmolkova)
 
 # [0.21.2] - 2026-02-03
