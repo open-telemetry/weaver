@@ -504,11 +504,11 @@ mod tests {
             ),
             PolicyFinding {
                 id: "attr_removed".to_owned(),
-                context: serde_json::json!({
+                context: Some(serde_json::json!({
                     "id": "schema_evolution",
                     "group": "registry.network1".to_owned(),
                     "attr": "protocol.name.3".to_owned(),
-                }),
+                })),
                 message: "Schema evolution violation".to_owned(),
                 level: crate::finding::FindingLevel::Violation,
                 signal_type: None,
@@ -578,7 +578,13 @@ mod tests {
         format!(
             "{}-{}",
             v.id,
-            v.context.as_object().unwrap().get("id").unwrap()
+            v.context
+                .as_ref()
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .get("id")
+                .unwrap()
         )
     }
     #[test]

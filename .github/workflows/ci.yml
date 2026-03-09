@@ -298,6 +298,7 @@ jobs:
         run: |
           cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o /tmp/semconv.schema.v2.json
           cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o /tmp/semconv.resolved.v2.json
+          cargo run -- --quiet registry json-schema -j policy-finding -o /tmp/policy.finding.json
       - name: Check generated files are up-to-date
         run: |
           failed=0
@@ -317,6 +318,12 @@ jobs:
           if ! diff -q schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json > /dev/null 2>&1; then
             echo "schemas/semconv.resolved.v2.json is out of date. Run 'cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json' to regenerate it."
             diff schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json
+            failed=1
+          fi
+
+          if ! diff -q schemas/policy.finding.json /tmp/policy.finding.json > /dev/null 2>&1; then
+            echo "schemas/policy.finding.json is out of date. Run 'cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json' to regenerate it."
+            diff schemas/policy.finding.json /tmp/policy.finding.json
             failed=1
           fi
 
