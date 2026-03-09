@@ -119,14 +119,10 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         "Registry packaged successfully to `{}`",
         args.output.display()
     ));
-    let warnings = if diag_msgs.is_empty() {
-        None
-    } else {
-        Some(diag_msgs)
-    };
+
     Ok(ExitDirectives {
         exit_code: 0,
-        warnings,
+        warnings: (!diag_msgs.is_empty()).then_some(diag_msgs),
     })
 }
 
