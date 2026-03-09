@@ -120,14 +120,22 @@ impl ImportableDependency for V1Schema {
                 .iter()
                 .find_map(|i| i.imports.entities.as_ref()),
         )?;
+        let spans_imports_matcher = build_globset(
+            current_registry_imports
+                .iter()
+                .find_map(|i| i.imports.spans.as_ref()),
+        )?;
+        let attribute_groups_imports_matcher = build_globset(
+            current_registry_imports
+                .iter()
+                .find_map(|i| i.imports.attribute_groups.as_ref()),
+        )?;
 
         let filter = move |g: &Group| {
             include_all
                 || match g.r#type {
-                    // TODO - support importing attribute groups.
-                    GroupType::AttributeGroup => false,
-                    // TODO - support importing spans.
-                    GroupType::Span => false,
+                    GroupType::AttributeGroup => attribute_groups_imports_matcher.is_match(&g.id),
+                    GroupType::Span => spans_imports_matcher.is_match(&g.id),
                     GroupType::Event => g
                         .name
                         .as_ref()
@@ -357,6 +365,103 @@ impl ImportableDependency for V2Schema {
                 display_name: None,
                 body: None,
                 annotations: Some(e.common.annotations.clone()),
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: true,
+            });
+        }
+
+        // Now Span imports.
+        let spans_imports_matcher =
+            build_globset(imports.iter().find_map(|i| i.imports.spans.as_ref()))?;
+        for s in self.registry.spans.iter().filter(|s| {
+            let span_name: &str = &s.r#type;
+            include_all || spans_imports_matcher.is_match(span_name)
+        }) {
+            let mut attributes = vec![];
+            for ar in s.attributes.iter() {
+                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
+                    Error::InvalidRegistryAttributeRef {
+                        registry_name: self.schema_url.name().to_owned(),
+                        attribute_ref: ar.base.0,
+                    },
+                )?;
+                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                    attr,
+                    ar.requirement_level.clone(),
+                    None,
+                )));
+            }
+            result.push(Group {
+                id: s.id().to_owned(),
+                r#type: GroupType::Span,
+                brief: s.common.brief.clone(),
+                note: s.common.note.clone(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(s.common.stability.clone()),
+                deprecated: s.common.deprecated.clone(),
+                attributes,
+                span_kind: Some(s.kind.clone()),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some(s.r#type.to_string()),
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: Some(s.common.annotations.clone()),
+                entity_associations: s.entity_associations.clone(),
+                visibility: None,
+                is_v2: true,
+            });
+        }
+
+        // Now AttributeGroup imports.
+        let attribute_groups_imports_matcher = build_globset(
+            imports
+                .iter()
+                .find_map(|i| i.imports.attribute_groups.as_ref()),
+        )?;
+        for ag in self.registry.attribute_groups.iter().filter(|ag| {
+            let ag_id: &str = &ag.id;
+            include_all || attribute_groups_imports_matcher.is_match(ag_id)
+        }) {
+            let mut attributes = vec![];
+            for ar in ag.attributes.iter() {
+                let attr = self.attribute_catalog.attribute(ar).ok_or(
+                    Error::InvalidRegistryAttributeRef {
+                        registry_name: self.schema_url.name().to_owned(),
+                        attribute_ref: ar.0,
+                    },
+                )?;
+                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
+                    attr,
+                    RequirementLevel::default(),
+                    None,
+                )));
+            }
+            result.push(Group {
+                id: ag.id().to_owned(),
+                r#type: GroupType::AttributeGroup,
+                brief: ag.common.brief.clone(),
+                note: ag.common.note.clone(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(ag.common.stability.clone()),
+                deprecated: ag.common.deprecated.clone(),
+                attributes,
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: Some(ag.common.annotations.clone()),
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: true,
@@ -634,30 +739,56 @@ mod tests {
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
-                groups: vec![weaver_resolved_schema::registry::Group {
-                    id: "a".to_owned(),
-                    r#type: weaver_semconv::group::GroupType::AttributeGroup,
-                    brief: Default::default(),
-                    note: Default::default(),
-                    prefix: Default::default(),
-                    extends: Default::default(),
-                    stability: Default::default(),
-                    deprecated: Default::default(),
-                    attributes: vec![weaver_resolved_schema::attribute::AttributeRef(0)],
-                    span_kind: Default::default(),
-                    events: Default::default(),
-                    metric_name: Default::default(),
-                    instrument: Default::default(),
-                    unit: Default::default(),
-                    name: Default::default(),
-                    lineage: Default::default(),
-                    display_name: Default::default(),
-                    body: Default::default(),
-                    annotations: Default::default(),
-                    entity_associations: Default::default(),
-                    visibility: Default::default(),
-                    is_v2: Default::default(),
-                }],
+                groups: vec![
+                    weaver_resolved_schema::registry::Group {
+                        id: "a".to_owned(),
+                        r#type: weaver_semconv::group::GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: vec![weaver_resolved_schema::attribute::AttributeRef(0)],
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: Default::default(),
+                    },
+                    weaver_resolved_schema::registry::Group {
+                        id: "span.v1".to_owned(),
+                        r#type: weaver_semconv::group::GroupType::Span,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: vec![],
+                        span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: Default::default(),
+                    },
+                ],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::from_attributes(vec![
                 weaver_resolved_schema::attribute::Attribute {
@@ -693,7 +824,13 @@ mod tests {
             file_format: "resolved/2.0.0".to_owned(),
             schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
             registry: weaver_resolved_schema::v2::registry::Registry {
-                attribute_groups: vec![],
+                attribute_groups: vec![
+                    weaver_resolved_schema::v2::attribute_group::AttributeGroup {
+                        id: "attribute_group.e".to_owned().into(),
+                        attributes: vec![],
+                        common: Default::default(),
+                    },
+                ],
                 metrics: vec![weaver_resolved_schema::v2::metric::Metric {
                     name: "metric.a".to_owned().into(),
                     instrument: weaver_semconv::group::InstrumentSpec::Counter,
@@ -708,7 +845,16 @@ mod tests {
                     entity_associations: vec![],
                     common: Default::default(),
                 }],
-                spans: vec![],
+                spans: vec![weaver_resolved_schema::v2::span::Span {
+                    r#type: "span.d".to_owned().into(),
+                    kind: weaver_semconv::group::SpanKindSpec::Client,
+                    name: weaver_semconv::v2::span::SpanName {
+                        note: "test".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: Default::default(),
+                }],
                 entities: vec![weaver_resolved_schema::v2::entity::Entity {
                     r#type: "entity.c".to_owned().into(),
                     identity: vec![],
@@ -766,16 +912,25 @@ mod tests {
                 metrics: None,
                 events: None,
                 entities: None,
+                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("span.v1").unwrap(),
+                )]),
+                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("a").unwrap(),
+                )]),
             },
         }];
 
-        // By default V1 example schema has an AttributeGroup, which is currently
-        // hardcoded to return false for filter in `import_groups` unless include_all is true.
+        // By default V1 example schema has an AttributeGroup and a Span.
         let result = d.import_groups(&imports, false, &mut catalog)?;
-        assert!(result.is_empty(), "Attribute groups not imported");
+        assert_eq!(
+            result.len(),
+            2,
+            "Attribute group and span should be imported"
+        );
 
         let result_all = d.import_groups(&imports, true, &mut catalog)?;
-        assert_eq!(result_all.len(), 1, "Include all should import it");
+        assert_eq!(result_all.len(), 2, "Include all should also import both");
 
         Ok(())
     }
@@ -798,14 +953,24 @@ mod tests {
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
                     globset::Glob::new("entity.c").unwrap(),
                 )]),
+                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("span.d").unwrap(),
+                )]),
+                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("attribute_group.e").unwrap(),
+                )]),
             },
         }];
 
         let result = d.import_groups(&imports, false, &mut catalog)?;
-        assert_eq!(result.len(), 3, "Should import metric, event, and entity");
+        assert_eq!(
+            result.len(),
+            5,
+            "Should import metric, event, entity, span and attribute_group"
+        );
 
         let result_all = d.import_groups(&imports, true, &mut catalog)?;
-        assert_eq!(result_all.len(), 3, "Include all should also import all 3");
+        assert_eq!(result_all.len(), 5, "Include all should also import all 5");
 
         Ok(())
     }
@@ -831,17 +996,23 @@ mod tests {
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
                     globset::Glob::new("entity.c").unwrap(),
                 )]),
+                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("span.d").unwrap(),
+                )]),
+                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                    globset::Glob::new("attribute_group.e").unwrap(),
+                )]),
             },
         }];
 
         let result = deps.import_groups(&imports, false, &mut catalog)?;
         // V1 schema has AttributeGroup, which returns false unless include_all.
-        // V2 schema has metric, event, and entity that match.
-        assert_eq!(result.len(), 3);
+        // V2 schema has metric, event, entity, span, and attribute_group that match.
+        assert_eq!(result.len(), 5);
 
         let result_all = deps.import_groups(&imports, true, &mut catalog)?;
-        // V1 (1 group) + V2 (3 groups) = 4 groups.
-        assert_eq!(result_all.len(), 4);
+        // V1 (2 groups) + V2 (5 groups) = 7 groups.
+        assert_eq!(result_all.len(), 7);
 
         Ok(())
     }

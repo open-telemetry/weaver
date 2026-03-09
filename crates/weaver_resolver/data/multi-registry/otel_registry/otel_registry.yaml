@@ -79,3 +79,19 @@ groups:
       emitted prior to the `session.start` event.
     attributes:
       - ref: error.type
+
+  - id: span.server.request
+    type: span
+    span_kind: server
+    name: server.request
+    brief: >
+      A server request span.
+    attributes:
+      - ref: error.type
+
+  - id: group.server.attributes
+    type: attribute_group
+    brief: >
+      A group of server attributes.
+    attributes:
+      - ref: error.type

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SemConvSpecV2",
-  "description": "A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).",
+  "description": "A semconv file is a collection of attributes, signals, groups,\nand imports.",
   "type": "object",
   "properties": {
     "attribute_groups": {
@@ -45,6 +45,11 @@
       "items": {
         "$ref": "#/$defs/Event"
       }
+    },
+    "file_format": {
+      "description": "The file format version.",
+      "type": "string",
+      "const": "definition/2"
     },
     "imports": {
       "description": "A list of imports referencing groups defined in a dependent registry.",
@@ -921,6 +926,16 @@
       "description": "Imports are used to reference groups defined in a dependent registry.",
       "type": "object",
       "properties": {
+        "attribute_groups": {
+          "description": "A list of attribute_group group id wildcards.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/GroupWildcard"
+          }
+        },
         "entities": {
           "description": "A list of entity group name wildcards.",
           "type": [
@@ -943,6 +958,16 @@
         },
         "metrics": {
           "description": "A list of metric group metric_name wildcards.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/GroupWildcard"
+          }
+        },
+        "spans": {
+          "description": "A list of span group name wildcards.",
           "type": [
             "array",
             "null"
