@@ -1,0 +1,34 @@
+{
+  "attributes": [
+    {
+      "name": "local.attr",
+      "type": "string",
+      "brief": "local attribute",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "local.group.attr",
+      "type": "string",
+      "brief": "local group attribute",
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "my.attr.1",
+      "type": "int",
+      "brief": "test attr 1",
+      "requirement_level": "required",
+      "stability": "stable",
+      "annotations": {}
+    },
+    {
+      "name": "my.attr.1",
+      "type": "int",
+      "brief": "test attr 1",
+      "requirement_level": "recommended",
+      "stability": "stable",
+      "annotations": {}
+    }
+  ]
+}

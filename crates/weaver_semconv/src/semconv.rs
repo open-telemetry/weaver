@@ -62,6 +62,14 @@ pub struct Imports {
     /// A list of entity group name wildcards.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entities: Option<Vec<GroupWildcard>>,
+
+    /// A list of span group name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spans: Option<Vec<GroupWildcard>>,
+
+    /// A list of attribute_group group id wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attribute_groups: Option<Vec<GroupWildcard>>,
 }
 
 /// A wrapper for a [`Versioned`] with its provenance.
@@ -496,6 +504,10 @@ mod tests {
             - db.*
           entities:
             - host
+          spans:
+            - db.*
+          attribute_groups:
+            - db.*
         "#;
 
         let semconv_spec = semconv_from_file(spec)
@@ -533,6 +545,28 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .entities
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            semconv_spec
+                .imports
+                .as_ref()
+                .unwrap()
+                .spans
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            semconv_spec
+                .imports
+                .as_ref()
+                .unwrap()
+                .attribute_groups
                 .as_ref()
                 .unwrap()
                 .len(),

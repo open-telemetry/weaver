@@ -1,0 +1,40 @@
+file_format: resolved/2.0.0
+schema_url: https://opentelemetry.io/schemas/1.0.0
+attribute_catalog:
+- key: a
+  type: string
+  brief: test a
+  stability: stable
+- key: my.attr.1
+  type: int
+  brief: test attr 1
+  stability: stable
+registry:
+  attributes:
+    - 0
+    - 1
+  attribute_groups:
+    - id: imported.group.a
+      attributes:
+        - 1
+      brief: a fun group
+      note: a group note
+      stability: stable
+  spans:
+    - type: imported.span.a
+      name:
+        note: span name
+      kind: client
+      attributes:
+        - base: 1
+          requirement_level: required
+      brief: a fun span
+      note: a span note
+      stability: stable
+  metrics:
+  events:
+  entities:
+refinements:
+  spans:
+  metrics:
+  events:
