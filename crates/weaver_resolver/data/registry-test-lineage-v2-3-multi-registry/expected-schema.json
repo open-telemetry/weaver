@@ -1,0 +1,207 @@
+{
+  "file_format": "resolved/2.0.0",
+  "schema_url": "https://opentelemetry.io/schemas/1.0.0",
+  "attribute_catalog": [
+    {
+      "key": "custom.attr1",
+      "type": "string",
+      "examples": [
+        "ex1"
+      ],
+      "brief": "Attribute 1",
+      "stability": "stable"
+    },
+    {
+      "key": "custom.attr2",
+      "type": "string",
+      "examples": [
+        "ex2"
+      ],
+      "brief": "Attribute 2",
+      "stability": "stable"
+    }
+  ],
+  "registry": {
+    "attributes": [],
+    "attribute_groups": [],
+    "spans": [
+      {
+        "type": "test.base.app.refinement",
+        "kind": "client",
+        "name": {
+          "note": "span.test.base.app.refinement"
+        },
+        "attributes": [
+          {
+            "base": 1,
+            "requirement_level": "required"
+          }
+        ],
+        "brief": "A test span refinement.",
+        "note": "This note overrides the base span imported from source.",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "opentelemetry.io/schemas",
+            "path": "data/registry-test-lineage-v2-3-multi-registry/registry/app.yaml"
+          },
+          "attributes": {
+            "custom.attr2": {
+              "source": {
+                "raw_attribute": "span.test.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "required"
+          }
+        ],
+        "brief": "A test metric refinement.",
+        "note": "This note overrides the base metric imported from source.",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "opentelemetry.io/schemas",
+            "path": "data/registry-test-lineage-v2-3-multi-registry/registry/app.yaml"
+          },
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "raw_attribute": "metric.test.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "events": [],
+    "entities": []
+  },
+  "refinements": {
+    "spans": [
+      {
+        "id": "test.base.app.refinement",
+        "type": "test.base.app.refinement",
+        "kind": "client",
+        "name": {
+          "note": "span.test.base.app.refinement"
+        },
+        "attributes": [
+          {
+            "base": 1,
+            "requirement_level": "required"
+          }
+        ],
+        "brief": "A test span refinement.",
+        "note": "This note overrides the base span imported from source.",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "opentelemetry.io/schemas",
+            "path": "data/registry-test-lineage-v2-3-multi-registry/registry/app.yaml"
+          },
+          "refines": "test.base",
+          "locally_overridden_fields": [
+            "brief",
+            "note"
+          ],
+          "inherited_fields": [
+            "stability"
+          ],
+          "attributes": {
+            "custom.attr2": {
+              "source": {
+                "raw_attribute": "span.test.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "id": "test.base",
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "required"
+          }
+        ],
+        "brief": "A test metric refinement.",
+        "note": "This note overrides the base metric imported from source.",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "opentelemetry.io/schemas",
+            "path": "data/registry-test-lineage-v2-3-multi-registry/registry/app.yaml"
+          },
+          "refines": "test.base",
+          "locally_overridden_fields": [
+            "brief",
+            "note"
+          ],
+          "inherited_fields": [
+            "stability"
+          ],
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "raw_attribute": "metric.test.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "events": []
+  }
+}

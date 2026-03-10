@@ -38,6 +38,8 @@ pub(crate) struct GroupSummary {
     pub unit: Option<String>,
     /// Specifies the kind of the span.
     pub span_kind: Option<SpanKindSpec>,
+    /// The name of the event or entity.
+    pub name: Option<String>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
@@ -59,8 +61,23 @@ impl GroupSummary {
             instrument: group.instrument.clone(),
             unit: group.unit.clone(),
             span_kind: group.span_kind.clone(),
+            name: group.name.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
+        }
+    }
+
+    /// Returns the signal name for this group summary.
+    pub(crate) fn signal_name(&self) -> Option<&str> {
+        match self.r#type {
+            GroupType::AttributeGroup => None,
+            GroupType::Span => self.name.as_deref(),
+            GroupType::Event => self.name.as_deref(),
+            GroupType::Metric => self.metric_name.as_deref(),
+            GroupType::MetricGroup => None,
+            GroupType::Entity => self.name.as_deref(),
+            GroupType::Scope => None,
+            GroupType::Undefined => None,
         }
     }
 }
@@ -701,12 +718,14 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    lineage: None,
                 }],
                 events: vec![weaver_resolved_schema::v2::event::Event {
                     name: "event.b".to_owned().into(),
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    lineage: None,
                 }],
                 spans: vec![],
                 entities: vec![weaver_resolved_schema::v2::entity::Entity {

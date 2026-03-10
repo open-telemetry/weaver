@@ -1,0 +1,29 @@
+file_format: definition/2
+attributes:
+  - key: custom.attr1
+    type: string
+    brief: 'Attribute 1'
+    stability: stable
+    examples: ['ex1']
+  - key: custom.attr2
+    type: int
+    brief: 'Attribute 2'
+    stability: stable
+metrics:
+  - name: test.base
+    instrument: counter
+    unit: '1'
+    brief: 'A base metric'
+    stability: stable
+    attributes:
+      - ref: custom.attr1
+      - ref: custom.attr2
+        requirement_level: opt_in
+metric_refinements:
+  - id: metric.test.base.refinement
+    ref: test.base
+    brief: 'A Metric Refinement'
+    note: 'This note overrides the base metric.'
+    attributes:
+      - ref: custom.attr2
+        requirement_level: required

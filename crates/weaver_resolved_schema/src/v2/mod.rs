@@ -35,6 +35,7 @@ pub mod attribute_group;
 pub mod catalog;
 pub mod entity;
 pub mod event;
+pub mod lineage;
 pub mod metric;
 pub mod refinements;
 pub mod registry;
@@ -44,7 +45,7 @@ pub mod stats;
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
@@ -162,7 +163,7 @@ pub fn convert_v1_to_v2(
 ) -> Result<(Vec<Attribute>, Registry, Refinements), crate::error::Error> {
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
-    let attributes: HashSet<Attribute> = c
+    let attributes: std::collections::BTreeSet<Attribute> = c
         .attributes
         .iter()
         .cloned()
@@ -249,11 +250,26 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
+                        lineage: g.lineage.as_ref().map(|l| {
+                            lineage::SignalLineage::from_v1(l.clone(), &group_type_lookup)
+                        }),
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
                         id: span.r#type.clone(),
-                        span,
+                        span: Span {
+                            lineage: None,
+                            ..span.clone()
+                        },
+                        lineage: g.lineage.as_ref().map(|l| {
+                            let mut l = l.clone();
+                            // TODO - how should we handle extend -> extend -> extend chains in v1?
+                            // For now, we just do our best, and make sure V2 -> V1 -> V2 works.
+                            if l.v2_refines.is_none() && l.extends_group.is_none() {
+                                l.v2_refines = Some(span.r#type.to_string());
+                            }
+                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                        }).transpose()?,
                     });
                 } else {
                     // unwrap should be safe because we verified this is a refinement earlier.
@@ -287,7 +303,17 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
+                            lineage: None,
                         },
+                        lineage: g.lineage.as_ref().map(|l| {
+                            let mut l = l.clone();
+                            if l.v2_refines.is_none() {
+                                if let Some(ext) = &l.extends_group {
+                                    l.v2_refines = Some(fix_span_group_id(ext).to_string());
+                                }
+                            }
+                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                        }).transpose()?,
                     });
                 }
             }
@@ -327,17 +353,43 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        lineage: if is_refinement {
+                            None
+                        } else {
+                            g.lineage.as_ref().map(|l| {
+                                lineage::SignalLineage::from_v1(l.clone(), &group_type_lookup)
+                            })
+                        },
                     };
                     if !is_refinement {
                         events.push(event.clone());
                         event_refinements.push(event::EventRefinement {
                             id: event.name.clone(),
-                            event,
+                            event: event::Event {
+                                lineage: None,
+                                ..event.clone()
+                            },
+                            lineage: g.lineage.as_ref().map(|l| {
+                                let mut l = l.clone();
+                                if l.v2_refines.is_none() && l.extends_group.is_none() {
+                                    l.v2_refines = Some(event.name.to_string());
+                                }
+                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                            }).transpose()?,
                         });
                     } else {
                         event_refinements.push(event::EventRefinement {
                             id: fix_group_id("event.", &g.id),
-                            event,
+                            event: event.clone(),
+                            lineage: g.lineage.as_ref().map(|l| {
+                                let mut l = l.clone();
+                                if l.v2_refines.is_none() {
+                                    if let Some(ext) = &l.extends_group {
+                                        l.v2_refines = Some(fix_group_id("event.", ext).to_string());
+                                    }
+                                }
+                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                            }).transpose()?,
                         });
                     }
                 } else {
@@ -395,17 +447,46 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    lineage: if is_refinement {
+                        None
+                    } else {
+                        g.lineage
+                            .as_ref()
+                            .map(|l| lineage::SignalLineage::from_v1(l.clone(), &group_type_lookup))
+                    },
                 };
                 if is_refinement {
                     metric_refinements.push(metric::MetricRefinement {
                         id: fix_group_id("metric.", &g.id),
-                        metric,
+                        metric: Metric {
+                            lineage: None,
+                            ..metric.clone()
+                        },
+                        lineage: g.lineage.as_ref().map(|l| {
+                            let mut l = l.clone();
+                            if l.v2_refines.is_none() {
+                                if let Some(ext) = &l.extends_group {
+                                    l.v2_refines = Some(fix_group_id("metric.", ext).to_string());
+                                }
+                            }
+                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                        }).transpose()?,
                     });
                 } else {
                     metrics.push(metric.clone());
                     metric_refinements.push(metric::MetricRefinement {
                         id: metric.name.clone(),
-                        metric,
+                        metric: Metric {
+                            lineage: None,
+                            ..metric.clone()
+                        },
+                        lineage: g.lineage.as_ref().map(|l| {
+                            let mut l = l.clone();
+                            if l.v2_refines.is_none() && l.extends_group.is_none() {
+                                l.v2_refines = Some(metric.name.to_string());
+                            }
+                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                        }).transpose()?,
                     });
                 }
             }
@@ -476,6 +557,9 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        lineage: g.lineage.as_ref().map(|l| {
+                            lineage::SignalLineage::from_v1(l.clone(), &group_type_lookup)
+                        }),
                     });
                 }
             }
@@ -1013,11 +1097,11 @@ mod tests {
 
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();
         assert!(v2_schema.is_ok());
-        let v2_schema = v2_schema.unwrap();
+        let v2_schema = v2_schema.expect("Failed to convert v1 to v2");
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(
             v2_schema.schema_url,
-            "http://test/schemas/1.0.0".try_into().unwrap()
+            "http://test/schemas/1.0.0".try_into().expect("Failed to create schema url")
         );
     }
 
@@ -1127,6 +1211,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.metrics.push(Metric {
@@ -1136,6 +1221,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1196,6 +1282,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.events.push(Event {
@@ -1208,6 +1295,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());

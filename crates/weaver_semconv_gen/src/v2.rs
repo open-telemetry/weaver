@@ -463,6 +463,7 @@ mod tests {
                     id: "test.common".to_owned().into(),
                     attributes: vec![AttributeRef(0)],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 spans: vec![Span {
                     r#type: "trace.test".to_owned().into(),
@@ -479,6 +480,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 metrics: vec![Metric {
                     name: "test.metric".to_owned().into(),
@@ -492,6 +494,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 events: vec![Event {
                     name: "test.event".to_owned().into(),
@@ -503,6 +506,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 entities: vec![Entity {
                     r#type: "test.entity".to_owned().into(),
@@ -519,6 +523,7 @@ mod tests {
             refinements: Refinements {
                 spans: vec![SpanRefinement {
                     id: "test".to_owned().into(),
+                    lineage: None,
                     span: Span {
                         r#type: "trace.test".to_owned().into(),
                         kind: weaver_semconv::group::SpanKindSpec::Client,
@@ -534,10 +539,12 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
                 }],
                 metrics: vec![MetricRefinement {
                     id: "test".to_owned().into(),
+                    lineage: None,
                     metric: Metric {
                         name: "test.metric".to_owned().into(),
                         instrument: InstrumentSpec::Counter,
@@ -550,10 +557,12 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
                 }],
                 events: vec![EventRefinement {
                     id: "test".to_owned().into(),
+                    lineage: None,
                     event: Event {
                         name: "test.event".to_owned().into(),
                         attributes: vec![EventAttributeRef {
@@ -564,6 +573,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
                 }],
             },

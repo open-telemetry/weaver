@@ -1,6 +1,10 @@
 //! Metric related definitions structs.
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{
+    attribute::AttributeRef,
+    lineage::{RefinementLineage, SignalLineage},
+    Signal,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
@@ -40,6 +44,10 @@ pub struct Metric {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+    /// Lineage for this metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub lineage: Option<SignalLineage>,
 }
 
 /// A special type of reference to attributes that remembers metric-specicific information.
@@ -77,6 +85,10 @@ pub struct MetricRefinement {
     /// The definition of the metric refinement.
     #[serde(flatten)]
     pub metric: Metric,
+    /// Lineage for this metric refinement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub lineage: Option<RefinementLineage>,
 }
 
 impl Signal for Metric {

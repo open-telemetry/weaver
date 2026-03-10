@@ -55,6 +55,18 @@ pub struct GroupLineage {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     pub includes_group: Vec<String>,
+
+    /// (V2 Only) Track inherited fields for accurate V2 schema lineage reconstruction.
+    #[serde(skip)]
+    pub v2_inherited_fields: BTreeSet<String>,
+
+    /// (V2 Only) Track locally overridden fields for accurate V2 schema lineage reconstruction.
+    #[serde(skip)]
+    pub v2_locally_overridden_fields: BTreeSet<String>,
+
+    /// (V2 Only) The ID of the signal being refined.
+    #[serde(skip)]
+    pub v2_refines: Option<String>,
 }
 
 impl AttributeLineage {
@@ -483,7 +495,15 @@ impl GroupLineage {
             extends_group: None,
             attributes: Default::default(),
             includes_group: Default::default(),
+            v2_inherited_fields: Default::default(),
+            v2_locally_overridden_fields: Default::default(),
+            v2_refines: None,
         }
+    }
+
+    /// Declares this group refined another signal (v2 only).
+    pub fn refines(&mut self, refines: &str) {
+        self.v2_refines = Some(refines.to_owned());
     }
 
     /// Declares this group extended another group.
@@ -507,6 +527,11 @@ impl GroupLineage {
         self.attributes.contains_key(attr_id)
     }
 
+    /// Returns an iterator over all attribute lineages.
+    pub fn attributes(&self) -> impl Iterator<Item = (&String, &AttributeLineage)> {
+        self.attributes.iter()
+    }
+
     /// Returns the attribute lineage.
     #[must_use]
     pub fn attribute(&self, attr_id: &str) -> Option<&AttributeLineage> {
@@ -517,5 +542,15 @@ impl GroupLineage {
     #[must_use]
     pub fn provenance(&self) -> &Provenance {
         &self.provenance
+    }
+
+    /// Adds a field as inherited (V2 tracking).
+    pub fn add_v2_inherited_field(&mut self, field: &str) {
+        _ = self.v2_inherited_fields.insert(field.to_owned());
+    }
+
+    /// Adds a field as locally overridden (V2 tracking).
+    pub fn add_v2_locally_overridden_field(&mut self, field: &str) {
+        _ = self.v2_locally_overridden_fields.insert(field.to_owned());
     }
 }

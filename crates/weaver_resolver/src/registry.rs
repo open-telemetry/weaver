@@ -525,6 +525,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     );
                     if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
                         lineage.extends(extends);
+                        if let Some(signal_id) = parent_summary.signal_name() {
+                            lineage.refines(signal_id);
+                        }
                     }
 
                     // Inherit fields for v2 groups.
@@ -544,19 +547,63 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         unresolved_group.group.metric_name = parent_summary.metric_name.clone();
 
                         // Optionally copy over fields if refinements have not set them.
+                        // Track inheritance and overrides for V2 lineage reconstruction.
+
+                        // stability
                         if unresolved_group.group.stability.is_none() {
                             unresolved_group.group.stability = parent_summary.stability.clone();
-                        } else {
+                            if unresolved_group.group.stability.is_some() {
+                                if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                    lineage.add_v2_inherited_field("stability");
+                                }
+                            }
+                        } else if parent_summary.stability.is_some() {
+                            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                lineage.add_v2_locally_overridden_field("stability");
+                            }
                             // TODO: Validate that the refinement cannot be more stable than the definition.
                         }
+
+                        // deprecated
                         if unresolved_group.group.deprecated.is_none() {
                             unresolved_group.group.deprecated = parent_summary.deprecated.clone();
+                            if unresolved_group.group.deprecated.is_some() {
+                                if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                    lineage.add_v2_inherited_field("deprecated");
+                                }
+                            }
+                        } else if parent_summary.deprecated.is_some() {
+                            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                lineage.add_v2_locally_overridden_field("deprecated");
+                            }
                         }
+
+                        // brief
                         if unresolved_group.group.brief.is_empty() {
                             unresolved_group.group.brief = parent_summary.brief.clone();
+                            if !unresolved_group.group.brief.is_empty() {
+                                if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                    lineage.add_v2_inherited_field("brief");
+                                }
+                            }
+                        } else if !parent_summary.brief.is_empty() {
+                            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                lineage.add_v2_locally_overridden_field("brief");
+                            }
                         }
+
+                        // note
                         if unresolved_group.group.note.is_empty() {
                             unresolved_group.group.note = parent_summary.note.clone();
+                            if !unresolved_group.group.note.is_empty() {
+                                if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                    lineage.add_v2_inherited_field("note");
+                                }
+                            }
+                        } else if !parent_summary.note.is_empty() {
+                            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                lineage.add_v2_locally_overridden_field("note");
+                            }
                         }
 
                         // Here we need to do more complicated "merge" logic for fields which require it.
@@ -568,7 +615,22 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                 merged_annotations,
                                 child_annotations,
                             );
+
+                            if parent_summary.annotations.is_some()
+                                && !parent_summary.annotations.as_ref().unwrap().is_empty()
+                            {
+                                if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                    lineage.add_v2_locally_overridden_field("annotations");
+                                }
+                            }
+                        } else if parent_summary.annotations.is_some()
+                            && !parent_summary.annotations.as_ref().unwrap().is_empty()
+                        {
+                            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                lineage.add_v2_inherited_field("annotations");
+                            }
                         }
+
                         unresolved_group.group.annotations = if merged_annotations.is_empty() {
                             None
                         } else {
@@ -944,6 +1006,24 @@ mod tests {
     use crate::LoadedSemconvRegistry;
     use crate::SchemaResolver;
 
+    /// We use this to flag controls of resolver tests.
+    #[derive(serde::Deserialize, Default)]
+    struct TestSettings {
+        /// If true, output the resolved registry in v2 format.
+        #[serde(default)]
+        pub output_v2: bool,
+    }
+
+    const TEST_SETTINGS_FILE: &str = "settings.yaml";
+    const EXPECTED_ERRORS_FILE: &str = "expected-errors.json";
+    const EXPECTED_V1_REGISTRY_FILE: &str = "expected-registry.json";
+    const EXPECTED_V1_CATALOG_FILE: &str = "expected-attribute-catalog.json";
+    const EXPECTED_V2_SCHEMA_FILE: &str = "expected-schema.json";
+    const OBSERVED_ERRORS_FILE: &str = "errors.json";
+    const OBSERVED_V1_CATALOG_FILE: &str = "attribute-catalog.json";
+    const OBSERVED_V1_REGISTRY_FILE: &str = "registry.json";
+    const OBSERVED_V2_SCHEMA_FILE: &str = "schema.json";
+
     /// Test the resolution of semantic convention registries stored in the
     /// data directory. The provided test cases cover the following resolution
     /// scenarios:
@@ -988,6 +1068,16 @@ mod tests {
             // Delete all the files in the observed_output/target directory
             // before generating the new files.
             std::fs::remove_dir_all(format!("observed_output/{test_dir}")).unwrap_or_default();
+            let test_settings_path = PathBuf::from(format!("{test_dir}/{TEST_SETTINGS_FILE}"));
+            let test_settings: TestSettings = if test_settings_path.exists() {
+                let file = OpenOptions::new()
+                    .read(true)
+                    .open(test_settings_path)
+                    .expect("Failed to open test settings file");
+                serde_yaml::from_reader(file).expect("Failed to parse test settings file")
+            } else {
+                TestSettings::default()
+            };
             let observed_output_dir = PathBuf::from(format!("observed_output/{test_dir}"));
             std::fs::create_dir_all(observed_output_dir.clone())
                 .expect("Failed to create observed output directory");
@@ -997,7 +1087,7 @@ mod tests {
             let location: VirtualDirectoryPath = format!("{test_dir}/registry")
                 .try_into()
                 .expect("Failed to parse file directory");
-            let loaded = SchemaResolver::load_semconv_repository(
+            let mut loaded = SchemaResolver::load_semconv_repository(
                 RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
                     .expect("Failed to load registry"),
                 true,
@@ -1045,12 +1135,59 @@ mod tests {
             .into_result_failing_non_fatal()
             .expect("Failed to load semconv specs");
 
+            let deps_dir = PathBuf::from(format!("{test_dir}/dependencies"));
+            if deps_dir.exists() {
+                if let LoadedSemconvRegistry::Unresolved {
+                    ref mut dependencies,
+                    ..
+                } = loaded
+                {
+                    for entry in
+                        std::fs::read_dir(deps_dir).expect("Failed to read dependencies directory")
+                    {
+                        let path = entry.expect("Failed to read dependency entry").path();
+                        if path.is_dir() {
+                            let dep_url_str = format!(
+                                "https://{}/0.1.0",
+                                path.file_name().unwrap().to_str().unwrap()
+                            );
+                            let dep_url: SchemaUrl = dep_url_str
+                                .as_str()
+                                .try_into()
+                                .expect("Invalid dependency schema URL");
+                            let dep_loc: VirtualDirectoryPath = format!("{}", path.display())
+                                .try_into()
+                                .expect("Invalid dependency path");
+                            let dep_loaded = SchemaResolver::load_semconv_repository(
+                                RegistryRepo::try_new(Some(dep_url), &dep_loc, &mut vec![])
+                                    .expect("Failed to load dependency registry"),
+                                true,
+                            )
+                            .ignore(|e| {
+                                matches!(
+                                    e,
+                                    crate::Error::FailToResolveDefinition(
+                                        weaver_semconv::Error::UnstableFileFormat {
+                                            file_format: _,
+                                            provenance: _,
+                                        }
+                                    )
+                                )
+                            })
+                            .into_result_failing_non_fatal()
+                            .expect("Failed to load dependency semconv specs");
+                            dependencies.push(dep_loaded);
+                        }
+                    }
+                }
+            }
+
             // We need to resolve dependencies.
             let schema = SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal();
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
-            let expected_errors_file = format!("{test_dir}/expected-errors.json");
+            let expected_errors_file = format!("{test_dir}/{EXPECTED_ERRORS_FILE}");
             if PathBuf::from(&expected_errors_file).exists() {
                 assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
@@ -1067,69 +1204,108 @@ mod tests {
                 continue;
             }
 
-            let observed_schema = schema.expect("Failed to resolve the registry");
-            let observed_attr_catalog = observed_schema.catalog;
+            // Check v2 output.
+            if test_settings.output_v2 {
+                let v1 = schema.expect("Failed to resolve the registry");
+                let observed_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                    v1.try_into().expect("Failed to convert to v2");
+                // TODO - What sorting do we need for consistent tests?
+                // Write observed output.
+                let observed_schema_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V2_SCHEMA_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_schema_file, &observed_schema)
+                    .expect("Failed to write observed output.");
 
-            // At this point, the normal behavior of this test is to pass.
-            let mut observed_registry = observed_schema.registry;
-            // Force registry URL to consistent string
-            observed_registry.registry_url = "https://127.0.0.1".to_owned();
-            // Now sort groups so we don't get flaky tests.
-            observed_registry.groups.sort_by_key(|g| g.id.to_owned());
+                // Load the expected schema.
+                let expected_schema_file = format!("{test_dir}/{EXPECTED_V2_SCHEMA_FILE}");
+                let expected_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                    serde_json::from_reader(
+                        std::fs::File::open(expected_schema_file)
+                            .expect("Failed to open expected schema"),
+                    )
+                    .expect("Failed to deserialize expected schema");
 
-            // Write observed output.
-            let observed_attr_catalog_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(observed_output_dir.join("attribute-catalog.json"))
-                .expect("Failed to open observed output file");
-            serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
-                .expect("Failed to write observed output.");
+                // Compare observed and expected schema.
+                assert_eq!(
+                    observed_schema,
+                    expected_schema,
+                    "Observed and expected schema don't match for `{}`\nDiff: {}",
+                    test_dir,
+                    weaver_diff::diff_output(
+                        &to_json(&expected_schema),
+                        &to_json(&observed_schema)
+                    )
+                );
+            } else {
+                let observed_schema = schema.expect("Failed to resolve the registry");
+                let observed_attr_catalog = observed_schema.catalog;
 
-            // Load the expected registry and attribute catalog.
-            let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
-            let expected_attr_catalog: weaver_resolved_schema::catalog::Catalog =
-                serde_json::from_reader(
-                    std::fs::File::open(expected_attr_catalog_file)
-                        .expect("Failed to open expected attribute catalog"),
-                )
-                .expect("Failed to deserialize expected attribute catalog");
+                // At this point, the normal behavior of this test is to pass.
+                let mut observed_registry = observed_schema.registry;
+                // Force registry URL to consistent string
+                observed_registry.registry_url = "https://127.0.0.1".to_owned();
+                // Now sort groups so we don't get flaky tests.
+                observed_registry.groups.sort_by_key(|g| g.id.to_owned());
 
-            // Compare values
-            assert_eq!(
+                // Write observed output.
+                let observed_attr_catalog_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V1_CATALOG_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
+                    .expect("Failed to write observed output.");
+
+                // Load the expected registry and attribute catalog.
+                let expected_attr_catalog_file =
+                    format!("{test_dir}/{EXPECTED_V1_CATALOG_FILE}");
+                let expected_attr_catalog: weaver_resolved_schema::catalog::Catalog =
+                    serde_json::from_reader(
+                        std::fs::File::open(expected_attr_catalog_file)
+                            .expect("Failed to open expected attribute catalog"),
+                    )
+                    .expect("Failed to deserialize expected attribute catalog");
+
+                // Compare values
+                assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
                 "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
                 test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
             );
 
-            // Check that the resolved registry matches the expected registry.
-            let expected_registry: Registry = serde_json::from_reader(
-                std::fs::File::open(format!("{test_dir}/expected-registry.json"))
-                    .expect("Failed to open expected registry"),
-            )
-            .expect("Failed to deserialize expected registry");
-
-            // Write observed output.
-            let observed_registry_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(observed_output_dir.join("registry.json"))
-                .expect("Failed to open observed output file");
-            serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
-                .expect("Failed to write observed output.");
-
-            assert_eq!(
-                to_json(&observed_registry),
-                to_json(&expected_registry),
-                "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
-                test_dir,
-                weaver_diff::diff_output(
-                    &to_json(&expected_registry),
-                    &to_json(&observed_registry)
+                // Check that the resolved registry matches the expected registry.
+                let expected_registry: Registry = serde_json::from_reader(
+                    std::fs::File::open(format!("{test_dir}/{EXPECTED_V1_REGISTRY_FILE}"))
+                        .expect("Failed to open expected registry"),
                 )
-            );
+                .expect("Failed to deserialize expected registry");
+
+                // Write observed output.
+                let observed_registry_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V1_REGISTRY_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
+                    .expect("Failed to write observed output.");
+
+                assert_eq!(
+                    to_json(&observed_registry),
+                    to_json(&expected_registry),
+                    "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(
+                        &to_json(&expected_registry),
+                        &to_json(&observed_registry)
+                    )
+                );
+            }
 
             // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
             // println!("{}", yaml);

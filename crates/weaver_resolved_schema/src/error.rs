@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl};
+use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl, RefinementLineageBroken};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -36,6 +36,13 @@ pub enum Error {
         error: String,
     },
 
+    /// A refinement signal could not be found.
+    #[error("Unable to determine refinement lineage for v1 group: {group_id}")]
+    RefinementLineageBroken {
+        /// Group id.
+        group_id: String,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
@@ -63,6 +70,7 @@ impl Error {
                     CompoundError(errors) => errors,
                     e @ AttributeNotFound { .. } => vec![e],
                     e @ EventNameNotFound { .. } => vec![e],
+                    e @ RefinementLineageBroken { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                 })
                 .collect(),

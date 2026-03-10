@@ -1,0 +1,44 @@
+file_format: definition/2
+attributes:
+  - key: custom.attr1
+    type: string
+    brief: 'Attribute 1'
+    stability: stable
+    examples: ['ex1']
+  - key: custom.attr2
+    type: int
+    brief: 'Attribute 2'
+    stability: stable
+
+attribute_groups:
+  - visibility: public
+    id: test.attributes
+    brief: 'A test attribute group'
+    stability: stable
+    attributes:
+      - ref: custom.attr1
+      - ref: custom.attr2
+        requirement_level: required
+
+metrics:
+  - name: test.base
+    brief: 'A base metric'
+    instrument: counter
+    unit: '1'
+    stability: stable
+    attributes:
+      - ref: custom.attr1
+      - ref: custom.attr2
+        requirement_level: opt_in
+
+spans:
+  - type: test.base
+    kind: client
+    brief: 'A base span'
+    stability: stable
+    name:
+      note: 'test.base'
+    attributes:
+      - ref: custom.attr1
+      - ref: custom.attr2
+

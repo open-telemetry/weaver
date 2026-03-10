@@ -1,0 +1,288 @@
+{
+  "file_format": "resolved/2.0.0",
+  "schema_url": "https://default/0.1.0",
+  "attribute_catalog": [
+    {
+      "key": "custom.attr1",
+      "type": "string",
+      "examples": [
+        "ex1"
+      ],
+      "brief": "Attribute 1",
+      "stability": "stable"
+    },
+    {
+      "key": "custom.attr2",
+      "type": "int",
+      "brief": "Attribute 2",
+      "stability": "stable"
+    }
+  ],
+  "registry": {
+    "attributes": [
+      0,
+      1
+    ],
+    "attribute_groups": [
+      {
+        "id": "test.attributes",
+        "attributes": [
+          0,
+          1
+        ],
+        "brief": "A test attribute group",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-1-base-signals/registry/base.yaml"
+          },
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "spans": [
+      {
+        "type": "test.base",
+        "kind": "client",
+        "name": {
+          "note": "test.base"
+        },
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "recommended"
+          }
+        ],
+        "brief": "A base span",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-1-base-signals/registry/base.yaml"
+          },
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "opt_in"
+          }
+        ],
+        "brief": "A base metric",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-1-base-signals/registry/base.yaml"
+          },
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "events": [],
+    "entities": []
+  },
+  "refinements": {
+    "spans": [
+      {
+        "id": "test.base",
+        "type": "test.base",
+        "kind": "client",
+        "name": {
+          "note": "test.base"
+        },
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "recommended"
+          }
+        ],
+        "brief": "A base span",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-1-base-signals/registry/base.yaml"
+          },
+          "refines": "test.base",
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "id": "test.base",
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "opt_in"
+          }
+        ],
+        "brief": "A base metric",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-1-base-signals/registry/base.yaml"
+          },
+          "refines": "test.base",
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-1-base-signals.registry.base"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "events": []
+  }
+}

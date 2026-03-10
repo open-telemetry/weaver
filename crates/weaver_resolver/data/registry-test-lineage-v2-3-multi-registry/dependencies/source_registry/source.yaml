@@ -1,0 +1,34 @@
+file_format: definition/2
+
+attributes:
+  - key: custom.attr1
+    type: string
+    brief: 'Attribute 1'
+    stability: stable
+    examples: ['ex1']
+  - key: custom.attr2
+    type: string
+    brief: 'Attribute 2'
+    stability: stable
+    examples: ['ex2']
+
+metrics:
+  - name: test.base
+    instrument: counter
+    brief: 'A base metric'
+    unit: '1'
+    note: 'This is a base metric note.'
+    stability: stable
+    attributes:
+      - ref: custom.attr1
+
+spans:
+  - type: test.base
+    kind: client
+    stability: stable
+    brief: 'A base span'
+    note: 'This is a base span note.'
+    name:
+      note: 'test.base'
+    attributes:
+      - ref: custom.attr2

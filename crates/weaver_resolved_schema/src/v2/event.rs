@@ -7,7 +7,11 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, CommonFields},
 };
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{
+    attribute::AttributeRef,
+    lineage::{RefinementLineage, SignalLineage},
+    Signal,
+};
 
 /// The definition of an Event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -33,6 +37,11 @@ pub struct Event {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// Lineage for this event.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub lineage: Option<SignalLineage>,
 }
 
 /// A special type of reference to attributes that remembers event-specicific information.
@@ -66,6 +75,11 @@ pub struct EventRefinement {
     /// The definition of the event refinement.
     #[serde(flatten)]
     pub event: Event,
+
+    /// Lineage for this event refinement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub lineage: Option<RefinementLineage>,
 }
 
 impl Signal for Event {

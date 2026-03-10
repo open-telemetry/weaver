@@ -1,0 +1,19 @@
+file_format: definition/2
+
+metric_refinements:
+  - id: metric.test.base.app.refinement
+    ref: test.base
+    brief: 'A test metric refinement.'
+    note: 'This note overrides the base metric imported from source.'
+    attributes:
+      - ref: custom.attr1
+        requirement_level: required
+
+span_refinements:
+  - id: span.test.base.app.refinement
+    ref: test.base
+    brief: 'A test span refinement.'
+    note: 'This note overrides the base span imported from source.'
+    attributes:
+      - ref: custom.attr2
+        requirement_level: required

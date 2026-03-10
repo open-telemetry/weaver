@@ -1,0 +1,200 @@
+{
+  "file_format": "resolved/2.0.0",
+  "schema_url": "https://default/0.1.0",
+  "attribute_catalog": [
+    {
+      "key": "custom.attr1",
+      "type": "string",
+      "examples": [
+        "ex1"
+      ],
+      "brief": "Attribute 1",
+      "stability": "stable"
+    },
+    {
+      "key": "custom.attr2",
+      "type": "int",
+      "brief": "Attribute 2",
+      "stability": "stable"
+    }
+  ],
+  "registry": {
+    "attributes": [
+      0,
+      1
+    ],
+    "attribute_groups": [],
+    "spans": [],
+    "metrics": [
+      {
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "opt_in"
+          }
+        ],
+        "brief": "A base metric",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-2-refinements/registry/refinements.yaml"
+          },
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-2-refinements.registry.refinements"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-2-refinements.registry.refinements"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "events": [],
+    "entities": []
+  },
+  "refinements": {
+    "spans": [],
+    "metrics": [
+      {
+        "id": "test.base",
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "opt_in"
+          }
+        ],
+        "brief": "A base metric",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-2-refinements/registry/refinements.yaml"
+          },
+          "refines": "test.base",
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-2-refinements.registry.refinements"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-2-refinements.registry.refinements"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "test.base.refinement",
+        "name": "test.base",
+        "instrument": "counter",
+        "unit": "1",
+        "attributes": [
+          {
+            "base": 0,
+            "requirement_level": "recommended"
+          },
+          {
+            "base": 1,
+            "requirement_level": "required"
+          }
+        ],
+        "brief": "A Metric Refinement",
+        "note": "This note overrides the base metric.",
+        "stability": "stable",
+        "lineage": {
+          "provenance": {
+            "registry_id": "default",
+            "path": "data/registry-test-lineage-v2-2-refinements/registry/refinements.yaml"
+          },
+          "refines": "test.base",
+          "locally_overridden_fields": [
+            "brief"
+          ],
+          "inherited_fields": [
+            "stability"
+          ],
+          "attributes": {
+            "custom.attr1": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-2-refinements.registry.refinements"
+              },
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "custom.attr2": {
+              "source": {
+                "attribute_group": "registry.data.registry-test-lineage-v2-2-refinements.registry.refinements"
+              },
+              "inherited_fields": [
+                "brief",
+                "note",
+                "stability"
+              ],
+              "locally_overridden_fields": [
+                "requirement_level"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "events": []
+  }
+}
