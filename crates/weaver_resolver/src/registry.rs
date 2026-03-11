@@ -1368,7 +1368,7 @@ groups:
                 visibility: Default::default(),
                 is_v2: false,
                 provenance: Provenance {
-                    registry_id: Default::default(),
+                    schema_url: SchemaUrl::new_unknown(),
                     path: Default::default(),
                 },
             }],
@@ -1456,7 +1456,7 @@ groups:
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Provenance {
-                        registry_id: Default::default(),
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
                     },
                 },
@@ -1490,7 +1490,7 @@ groups:
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Provenance {
-                        registry_id: Default::default(),
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
                     },
                 },
@@ -1524,7 +1524,7 @@ groups:
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Provenance {
-                        registry_id: Default::default(),
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
                     },
                 },
