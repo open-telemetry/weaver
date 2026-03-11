@@ -163,8 +163,7 @@ pub fn convert_v1_to_v2(
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<Attribute> = c
-        .attributes
-        .iter()
+        .attributes()
         .cloned()
         .map(|a| {
             Attribute {
@@ -616,8 +615,7 @@ mod tests {
 
     #[test]
     fn test_convert_span_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([
+        let attrs = vec![
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -660,7 +658,11 @@ mod tests {
                 value: None,
                 role: None,
             },
-        ]);
+        ];
+        let test_refs: Vec<crate::attribute::AttributeRef> = (0..attrs.len())
+            .map(|i| crate::attribute::AttributeRef(i as u32))
+            .collect();
+        let v1_catalog = crate::catalog::Catalog::from_attributes(attrs);
         let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
         refinement_span_lineage.extends("span.my-span");
         refinement_span_lineage
@@ -746,8 +748,7 @@ mod tests {
 
     #[test]
     fn test_convert_metric_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([
+        let attrs = vec![
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -790,7 +791,11 @@ mod tests {
                 value: None,
                 role: None,
             },
-        ]);
+        ];
+        let test_refs: Vec<crate::attribute::AttributeRef> = (0..attrs.len())
+            .map(|i| crate::attribute::AttributeRef(i as u32))
+            .collect();
+        let v1_catalog = crate::catalog::Catalog::from_attributes(attrs);
         let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
         refinement_metric_lineage.extends("metric.http");
         refinement_metric_lineage
@@ -874,8 +879,7 @@ mod tests {
 
     #[test]
     fn test_convert_event_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([Attribute {
+        let attrs = vec![Attribute {
             name: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -895,7 +899,11 @@ mod tests {
             annotations: None,
             value: None,
             role: None,
-        }]);
+        }];
+        let test_refs: Vec<crate::attribute::AttributeRef> = (0..attrs.len())
+            .map(|i| crate::attribute::AttributeRef(i as u32))
+            .collect();
+        let v1_catalog = crate::catalog::Catalog::from_attributes(attrs);
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![Group {
@@ -934,8 +942,7 @@ mod tests {
 
     #[test]
     fn test_convert_entity_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([Attribute {
+        let attrs = vec![Attribute {
             name: "test.key".to_owned(),
             r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                 weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -955,7 +962,11 @@ mod tests {
             annotations: None,
             value: None,
             role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
-        }]);
+        }];
+        let test_refs: Vec<crate::attribute::AttributeRef> = (0..attrs.len())
+            .map(|i| crate::attribute::AttributeRef(i as u32))
+            .collect();
+        let v1_catalog = crate::catalog::Catalog::from_attributes(attrs);
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![Group {

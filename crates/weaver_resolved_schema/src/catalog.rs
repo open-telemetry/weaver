@@ -18,11 +18,11 @@ use weaver_semconv::stability::Stability;
 #[must_use]
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
-    pub attributes: Vec<Attribute>,
+    attributes: Vec<Attribute>,
     /// Attribute definitions available in this registry (including those
     /// from dependencies). Used for cross-registry attribute lookup.
     /// Not serialized — populated only for freshly resolved schemas.
-    pub root_attributes: HashMap<String, (Attribute, String)>,
+    root_attributes: HashMap<String, (Attribute, String)>,
 }
 
 /// Statistics on a catalog.
@@ -43,6 +43,7 @@ pub struct Stats {
 
 impl Catalog {
     /// Creates a catalog from a list of attributes.
+    #[cfg(test)]
     pub fn from_attributes(attributes: Vec<Attribute>) -> Self {
         Self {
             attributes,
@@ -61,17 +62,12 @@ impl Catalog {
         }
     }
 
-    /// Adds attributes to the catalog and returns a list of attribute references.
+    /// Looks up an attribute by name in the root attribute definitions.
     #[must_use]
-    pub fn add_attributes<const N: usize>(
-        &mut self,
-        attributes: [Attribute; N],
-    ) -> Vec<AttributeRef> {
-        let start_index = self.attributes.len();
-        self.attributes.extend(attributes.iter().cloned());
-        (start_index..self.attributes.len())
-            .map(|i| AttributeRef(i as u32))
-            .collect::<Vec<_>>()
+    pub fn root_attribute(&self, name: &str) -> Option<(&Attribute, &str)> {
+        self.root_attributes
+            .get(name)
+            .map(|(attr, group_id)| (attr, group_id.as_str()))
     }
 
     /// Counts the number of attributes in the catalog.
@@ -81,7 +77,7 @@ impl Catalog {
     }
 
     /// Return an iterator over the attributes in the catalog.
-    pub fn iter(&self) -> impl Iterator<Item = &Attribute> {
+    pub fn attributes(&self) -> impl Iterator<Item = &Attribute> {
         self.attributes.iter()
     }
 

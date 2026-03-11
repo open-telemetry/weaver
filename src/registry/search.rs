@@ -137,7 +137,7 @@ impl<'a> SearchApp<'a> {
     fn result_set(&'a self) -> impl Iterator<Item = &'a Attribute> {
         self.schema
             .catalog
-            .iter()
+            .attributes()
             .filter(|a| a.name.contains(self.search_string().as_str()))
     }
 
@@ -366,7 +366,7 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
 fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
     let results = schema
         .catalog()
-        .iter()
+        .attributes()
         .filter(|a| a.name.contains(pattern))
         .map(|a| a.name.to_owned())
         .join("\n");

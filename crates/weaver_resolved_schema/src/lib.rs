@@ -111,7 +111,13 @@ impl ResolvedTelemetrySchema {
         attrs: [Attribute; N],
         deprecated: Option<Deprecated>,
     ) {
-        let attr_refs = self.catalog.add_attributes(attrs);
+        let start = self.catalog.count_attributes();
+        let mut all_attrs = self.catalog.attributes().cloned().collect::<Vec<_>>();
+        all_attrs.extend(attrs);
+        let attr_refs = (start..all_attrs.len())
+            .map(|i| attribute::AttributeRef(i as u32))
+            .collect::<Vec<_>>();
+        self.catalog = Catalog::from_attributes(all_attrs);
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::Metric,
@@ -155,7 +161,13 @@ impl ResolvedTelemetrySchema {
             let al = AttributeLineage::new(group_id);
             lineage.add_attribute_lineage(attr.name.clone(), al);
         }
-        let attr_refs: Vec<attribute::AttributeRef> = self.catalog.add_attributes(attrs);
+        let start = self.catalog.count_attributes();
+        let mut all_attrs = self.catalog.attributes().cloned().collect::<Vec<_>>();
+        all_attrs.extend(attrs);
+        let attr_refs: Vec<attribute::AttributeRef> = (start..all_attrs.len())
+            .map(|i| attribute::AttributeRef(i as u32))
+            .collect();
+        self.catalog = Catalog::from_attributes(all_attrs);
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::AttributeGroup,

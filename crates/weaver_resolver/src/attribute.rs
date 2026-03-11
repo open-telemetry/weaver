@@ -301,11 +301,10 @@ impl AttributeLookup for ResolvedDependency {
 impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
         self.catalog
-            .root_attributes
-            .get(key)
+            .root_attribute(key)
             .map(|(attr, group_id)| AttributeWithGroupId {
                 attribute: attr.clone(),
-                group_id: group_id.clone(),
+                group_id: group_id.to_owned(),
             })
     }
 }
