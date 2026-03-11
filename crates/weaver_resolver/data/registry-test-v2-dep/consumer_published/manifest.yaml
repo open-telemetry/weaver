@@ -1,0 +1,8 @@
+file_format: manifest/2.0.0
+schema_url: https://consumer.example.com/schemas/1.0.0
+description: Consumer registry that depends on the server V2 package.
+dependencies:
+- schema_url: https://server.example.com/schemas/1.0.0
+  registry_path: data/registry-test-v2-dep/published
+stability: development
+resolved_schema_uri: resolved.yaml

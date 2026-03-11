@@ -970,6 +970,7 @@ mod tests {
             // "registry-test-7-spans",
             // "registry-test-8-http",
             // "registry-test-v2-2-multifile",
+            "registry-test-v2-dep", // tested separately in lib.rs
         ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
@@ -1068,7 +1069,8 @@ mod tests {
             }
 
             let observed_schema = schema.expect("Failed to resolve the registry");
-            let observed_attr_catalog = observed_schema.catalog;
+            let observed_attr_catalog: Vec<_> =
+                observed_schema.catalog.attributes().cloned().collect();
 
             // At this point, the normal behavior of this test is to pass.
             let mut observed_registry = observed_schema.registry;
@@ -1089,18 +1091,17 @@ mod tests {
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
-            let expected_attr_catalog: weaver_resolved_schema::catalog::Catalog =
-                serde_json::from_reader(
-                    std::fs::File::open(expected_attr_catalog_file)
-                        .expect("Failed to open expected attribute catalog"),
-                )
-                .expect("Failed to deserialize expected attribute catalog");
+            let expected_attr_catalog_attrs: Vec<Attribute> = serde_json::from_reader(
+                std::fs::File::open(expected_attr_catalog_file)
+                    .expect("Failed to open expected attribute catalog"),
+            )
+            .expect("Failed to deserialize expected attribute catalog");
 
             // Compare values
             assert_eq!(
-                observed_attr_catalog, expected_attr_catalog,
+                observed_attr_catalog, expected_attr_catalog_attrs,
                 "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
-                test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
+                test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog_attrs), &to_json(&observed_attr_catalog))
             );
 
             // Check that the resolved registry matches the expected registry.
