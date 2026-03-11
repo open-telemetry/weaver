@@ -4,8 +4,7 @@
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
 use crate::attribute::{Attribute, AttributeRef};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
@@ -15,13 +14,15 @@ use weaver_semconv::stability::Stability;
 /// Attribute references are used to refer to attributes in the catalog.
 ///
 /// Note : In the future, this catalog could be extended with other entities.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[must_use]
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute>,
+    /// Attribute definitions available in this registry (including those
+    /// from dependencies). Used for cross-registry attribute lookup.
+    /// Not serialized — populated only for freshly resolved schemas.
+    pub root_attributes: HashMap<String, (Attribute, String)>,
 }
 
 /// Statistics on a catalog.
@@ -43,7 +44,21 @@ pub struct Stats {
 impl Catalog {
     /// Creates a catalog from a list of attributes.
     pub fn from_attributes(attributes: Vec<Attribute>) -> Self {
-        Self { attributes }
+        Self {
+            attributes,
+            root_attributes: HashMap::new(),
+        }
+    }
+
+    /// Creates a catalog from a list of attributes and root attribute definitions.
+    pub fn from_attributes_and_root(
+        attributes: Vec<Attribute>,
+        root_attributes: HashMap<String, (Attribute, String)>,
+    ) -> Self {
+        Self {
+            attributes,
+            root_attributes,
+        }
     }
 
     /// Adds attributes to the catalog and returns a list of attribute references.
@@ -57,15 +72,6 @@ impl Catalog {
         (start_index..self.attributes.len())
             .map(|i| AttributeRef(i as u32))
             .collect::<Vec<_>>()
-    }
-
-    /// Returns the attribute name from an attribute ref if it exists
-    /// in the catalog or None if it does not exist.
-    #[must_use]
-    pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<&str> {
-        self.attributes
-            .get(attribute_ref.0 as usize)
-            .map(|attr| attr.name.as_ref())
     }
 
     /// Counts the number of attributes in the catalog.

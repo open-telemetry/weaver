@@ -2,4 +2,7 @@ description: App registry that depends on the consumer V2 package.
 schema_url: https://app.example.com/schemas/1.0.0
 dependencies:
   - schema_url: https://consumer.example.com/schemas/1.0.0
-    registry_path: data/registry-test-v2-dep/consumer_published
+    # TODO: this only works with definition registry, but not with
+    # resolved one, because resolved does not know how to get
+    # attributes from transitive dependencies.
+    registry_path: data/registry-test-v2-dep/consumer_registry

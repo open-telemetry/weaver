@@ -1,8 +1,0 @@
-file_format: manifest/2.0.0
-schema_url: https://app.example.com/schemas/1.0.0
-description: App registry that depends on the consumer V2 package.
-dependencies:
-- schema_url: https://consumer.example.com/schemas/1.0.0
-  registry_path: ./consumer_registry
-stability: development
-resolved_schema_uri: http://foo.bar/1.2.3

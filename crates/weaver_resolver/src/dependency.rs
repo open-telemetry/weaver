@@ -702,7 +702,7 @@ fn build_globset(wildcards: Option<&Vec<GroupWildcard>>) -> Result<GlobSet, Erro
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use std::error::Error;
+    use std::{collections::HashMap, error::Error};
     use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 
     use crate::dependency::{GroupRefinementLookup, ResolvedDependency};
@@ -790,8 +790,8 @@ mod tests {
                     },
                 ],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::from_attributes(vec![
-                weaver_resolved_schema::attribute::Attribute {
+            catalog: weaver_resolved_schema::catalog::Catalog::from_attributes_and_root(
+                vec![weaver_resolved_schema::attribute::Attribute {
                     name: "a.test".to_owned(),
                     r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                         weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -809,14 +809,14 @@ mod tests {
                     annotations: Default::default(),
                     value: Default::default(),
                     role: Default::default(),
-                },
-            ]),
+                }],
+                HashMap::new(),
+            ),
             resource: None,
             instrumentation_library: None,
             dependencies: vec![],
             versions: None,
             registry_manifest: None,
-            root_attributes: Default::default(),
         }
     }
 

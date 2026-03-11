@@ -1009,7 +1009,6 @@ mod tests {
             dependencies: vec![],
             versions: None,
             registry_manifest: None,
-            root_attributes: Default::default(),
         };
 
         let v2_schema: Result<ResolvedTelemetrySchema, _> = v1_schema.try_into();

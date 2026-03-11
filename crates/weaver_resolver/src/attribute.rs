@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::attribute::{self};
+use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -53,16 +54,6 @@ impl AttributeCatalog {
             .attribute_refs
             .entry(attr)
             .or_insert_with(|| AttributeRef(next_id))
-    }
-
-    /// Drains the attribute definitions from the catalog.
-    /// Should be called before `drain_attributes`.
-    #[must_use]
-    pub fn drain_root_attributes(&mut self) -> HashMap<String, (attribute::Attribute, String)> {
-        self.root_attributes
-            .drain()
-            .map(|(k, v)| (k, (v.attribute, v.group_id)))
-            .collect()
     }
 
     /// Returns a list of deduplicated attributes ordered by their references.
@@ -272,6 +263,21 @@ impl AttributeCatalog {
     }
 }
 
+impl From<AttributeCatalog> for Catalog {
+    fn from(attr_catalog: AttributeCatalog) -> Self {
+        let root_attributes = attr_catalog
+            .root_attributes
+            .into_iter()
+            .map(|(k, v)| (k, (v.attribute, v.group_id)))
+            .collect();
+        let mut attributes: Vec<(attribute::Attribute, AttributeRef)> =
+            attr_catalog.attribute_refs.into_iter().collect();
+        attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
+        let attributes = attributes.into_iter().map(|(attr, _)| attr).collect();
+        Catalog::from_attributes_and_root(attributes, root_attributes)
+    }
+}
+
 /// Helper trait for abstracting over V1 and V2 schema.
 trait AttributeLookup {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId>;
@@ -294,7 +300,8 @@ impl AttributeLookup for ResolvedDependency {
 
 impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
-        self.root_attributes
+        self.catalog
+            .root_attributes
             .get(key)
             .map(|(attr, group_id)| AttributeWithGroupId {
                 attribute: attr.clone(),

@@ -9,7 +9,6 @@ use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
 use crate::registry::resolve_registry_with_dependencies;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
@@ -124,21 +123,17 @@ impl SchemaResolver {
             include_unreferenced,
         )
         .map(move |resolved_registry| {
-            let root_attributes = attr_catalog.drain_root_attributes();
-            let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
-
             ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),
                 schema_url: schema_url.as_str().to_owned(),
                 registry_id: schema_url.name().to_owned(),
                 registry: resolved_registry,
-                catalog,
+                catalog: attr_catalog.into(),
                 resource: None,
                 instrumentation_library: None,
                 dependencies: vec![],
                 versions: None, // ToDo LQ: Implement this!
                 registry_manifest: manifest,
-                root_attributes,
             }
         })
     }
@@ -474,6 +469,9 @@ mod tests {
 
     #[test]
     fn test_v2_three_layer_dependency_resolution() -> Result<(), weaver_semconv::Error> {
+        // TODO: this only works with definition registry, but not with
+        // resolved one, because resolved does not know how to get
+        // attributes from transitive dependencies.
         // Test that briefs are correctly inherited through two levels of V2 dependencies:
         // app_registry -> consumer_registry -> published (server definitions)
         let registry_path = VirtualDirectoryPath::LocalFolder {
