@@ -110,7 +110,7 @@
     },
     {
       customType: "regex",
-      description: "Update Cargo Dist TOML CI Actions",
+      description: "Update Cargo Dist YAML CI Actions Template",
       managerFilePatterns: [
         ".github/build-setup.yml",
       ],
