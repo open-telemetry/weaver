@@ -716,7 +716,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, YamlValue};
+    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
@@ -724,7 +724,10 @@ mod tests {
     /// No error should be emitted.
     #[test]
     fn test_valid_semconv_registry() {
-        let result = SemConvRegistry::try_from_path_pattern("main", "data/*.yaml")
+        let schema_url: SchemaUrl = "https://main/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let result = SemConvRegistry::try_from_path_pattern(schema_url, "data/*.yaml")
             .into_result_failing_non_fatal();
         assert!(result.is_ok(), "{:#?}", result.err().unwrap());
     }
@@ -732,8 +735,11 @@ mod tests {
     #[test]
     fn test_invalid_semconv_registry() {
         let yaml_files = vec!["data/invalid/*.yaml"];
+        let schema_url: SchemaUrl = "https://main/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
         for yaml in yaml_files {
-            let result = SemConvRegistry::try_from_path_pattern("main", yaml)
+            let result = SemConvRegistry::try_from_path_pattern(schema_url.clone(), yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

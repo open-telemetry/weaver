@@ -905,9 +905,11 @@ mod tests {
         use crate::dependency::ImportableDependency;
         let d = example_v1_schema();
         let mut catalog = crate::attribute::AttributeCatalog::default();
-
+        let schema_url =
+            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
+                .expect("Failed to create schema_url");
         let imports = vec![weaver_semconv::group::ImportsWithProvenance {
-            provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
+            provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: None,
                 events: None,
@@ -940,9 +942,11 @@ mod tests {
         use crate::dependency::ImportableDependency;
         let d = example_v2_schema();
         let mut catalog = crate::attribute::AttributeCatalog::default();
-
+        let schema_url =
+            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
+                .expect("Failed to create schema_url");
         let imports = vec![weaver_semconv::group::ImportsWithProvenance {
-            provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
+            provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
                     globset::Glob::new("metric.a").unwrap(),
@@ -983,9 +987,11 @@ mod tests {
             ResolvedDependency::V2(Box::new(example_v2_schema())),
         ];
         let mut catalog = crate::attribute::AttributeCatalog::default();
-
+        let schema_url =
+            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
+                .expect("Failed to create schema_url");
         let imports = vec![weaver_semconv::group::ImportsWithProvenance {
-            provenance: weaver_semconv::provenance::Provenance::new("test", "file"),
+            provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
                     globset::Glob::new("metric.a").unwrap(),

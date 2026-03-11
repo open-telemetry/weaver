@@ -12,7 +12,7 @@
       "name": "android.device.app.lifecycle",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/mobile-events.yaml"
         }
       }
@@ -25,7 +25,7 @@
       "name": "browser.test.event_with_body_details",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       },
@@ -69,7 +69,7 @@
       "name": "browser.test.event_with_fields",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       },
@@ -105,7 +105,7 @@
       "name": "client.exception.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       },
@@ -165,7 +165,7 @@
       "name": "device.app.lifecycle",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       },
@@ -263,7 +263,7 @@
       "name": "trace_feature_flag",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/trace-events.yaml"
         }
       }
@@ -279,7 +279,7 @@
       "name": "ios.device.app.lifecycle",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/mobile-events.yaml"
         }
       }
@@ -297,7 +297,7 @@
       "name": "feature_flag",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         },
         "attributes": {
@@ -345,7 +345,7 @@
       "name": "some.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         },
         "attributes": {
@@ -370,7 +370,7 @@
       "name": "empty.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       }
@@ -387,7 +387,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/referenced-attributes.yaml"
         }
       }
@@ -402,7 +402,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/referenced-attributes.yaml"
         }
       }
@@ -419,7 +419,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/referenced-attributes.yaml"
         }
       }
@@ -433,7 +433,7 @@
       "name": "string.body.detailed.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       },
@@ -458,7 +458,7 @@
       "name": "string.body.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       },
@@ -484,7 +484,7 @@
       "name": "test_evt.session",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/trace-events.yaml"
         },
         "attributes": {
@@ -514,7 +514,7 @@
       "name": "test_evt.with_attr",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/trace-events.yaml"
         },
         "attributes": {
@@ -547,7 +547,7 @@
       "name": "exception",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-4-events/registry/trace-events.yaml"
         },
         "attributes": {

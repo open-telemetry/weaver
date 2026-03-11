@@ -25,7 +25,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "attributes": {
@@ -244,7 +244,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -555,7 +555,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -882,7 +882,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -1100,7 +1100,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -1378,7 +1378,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -1592,7 +1592,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -1819,7 +1819,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -2046,7 +2046,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -2273,7 +2273,7 @@
       "span_kind": "client",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/trace-database.yaml"
         },
         "extends_group": "db",
@@ -2513,7 +2513,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/registry-db.yaml"
         }
       }
@@ -2535,7 +2535,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/registry-http.yaml"
         }
       }
@@ -2563,7 +2563,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/registry-network.yaml"
         }
       }
@@ -2581,7 +2581,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/registry-url.yaml"
         }
       }
@@ -2595,7 +2595,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/registry-user-agent.yaml"
         }
       }
@@ -2610,7 +2610,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-7-spans/registry/registry-server.yaml"
         }
       }

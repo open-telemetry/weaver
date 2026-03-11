@@ -661,7 +661,8 @@ mod tests {
                 role: None,
             },
         ]);
-        let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        let mut refinement_span_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_span_lineage.extends("span.my-span");
         refinement_span_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
@@ -791,7 +792,8 @@ mod tests {
                 role: None,
             },
         ]);
-        let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        let mut refinement_metric_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_metric_lineage.extends("metric.http");
         refinement_metric_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));

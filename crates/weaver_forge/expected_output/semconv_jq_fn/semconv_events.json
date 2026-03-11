@@ -86,7 +86,7 @@
     "lineage": {
       "provenance": {
         "path": "data/registry/mobile-events.yaml",
-        "registry_id": "default"
+        "schema_url": "https://default/1.0.0"
       }
     },
     "name": "device.app.lifecycle",
@@ -199,7 +199,7 @@
       },
       "provenance": {
         "path": "data/registry/trace-exception.yaml",
-        "registry_id": "default"
+        "schema_url": "https://default/1.0.0"
       }
     },
     "name": "exception",
