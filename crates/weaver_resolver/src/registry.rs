@@ -1069,7 +1069,8 @@ mod tests {
             }
 
             let observed_schema = schema.expect("Failed to resolve the registry");
-            let observed_attr_catalog: Vec<_> = observed_schema.catalog.attributes().cloned().collect();
+            let observed_attr_catalog: Vec<_> =
+                observed_schema.catalog.attributes().cloned().collect();
 
             // At this point, the normal behavior of this test is to pass.
             let mut observed_registry = observed_schema.registry;

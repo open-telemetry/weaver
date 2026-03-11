@@ -274,7 +274,7 @@ impl From<AttributeCatalog> for Catalog {
             attr_catalog.attribute_refs.into_iter().collect();
         attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
         let attributes = attributes.into_iter().map(|(attr, _)| attr).collect();
-        Catalog::from_attributes_and_root(attributes, root_attributes)
+        Catalog::new(attributes, root_attributes)
     }
 }
 

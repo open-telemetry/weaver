@@ -111,13 +111,13 @@ impl ResolvedTelemetrySchema {
         attrs: [Attribute; N],
         deprecated: Option<Deprecated>,
     ) {
-        let start = self.catalog.count_attributes();
-        let mut all_attrs = self.catalog.attributes().cloned().collect::<Vec<_>>();
-        all_attrs.extend(attrs);
-        let attr_refs = (start..all_attrs.len())
-            .map(|i| attribute::AttributeRef(i as u32))
-            .collect::<Vec<_>>();
-        self.catalog = Catalog::from_attributes(all_attrs);
+        let mut builder = catalog::CatalogBuilder::default();
+        for attr in self.catalog.attributes() {
+            let _ = builder.add(attr.clone(), None);
+        }
+        let attr_refs: Vec<attribute::AttributeRef> =
+            attrs.into_iter().map(|a| builder.add(a, None)).collect();
+        self.catalog = builder.build();
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::Metric,
@@ -161,13 +161,13 @@ impl ResolvedTelemetrySchema {
             let al = AttributeLineage::new(group_id);
             lineage.add_attribute_lineage(attr.name.clone(), al);
         }
-        let start = self.catalog.count_attributes();
-        let mut all_attrs = self.catalog.attributes().cloned().collect::<Vec<_>>();
-        all_attrs.extend(attrs);
-        let attr_refs: Vec<attribute::AttributeRef> = (start..all_attrs.len())
-            .map(|i| attribute::AttributeRef(i as u32))
-            .collect();
-        self.catalog = Catalog::from_attributes(all_attrs);
+        let mut builder = catalog::CatalogBuilder::default();
+        for attr in self.catalog.attributes() {
+            let _ = builder.add(attr.clone(), None);
+        }
+        let attr_refs: Vec<attribute::AttributeRef> =
+            attrs.into_iter().map(|a| builder.add(a, None)).collect();
+        self.catalog = builder.build();
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::AttributeGroup,

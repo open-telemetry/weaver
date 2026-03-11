@@ -17,7 +17,9 @@ use weaver_semconv::stability::Stability;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[must_use]
 pub struct Catalog {
-    /// Catalog of attributes used in the schema.
+    /// Catalog of attribute definitions and refinements used in the schema.
+    /// Contains elements with the same attribute key.
+    /// Use root_attributes for original attribute definitions.
     attributes: Vec<Attribute>,
     /// Attribute definitions available in this registry (including those
     /// from dependencies). Used for cross-registry attribute lookup.
@@ -41,18 +43,38 @@ pub struct Stats {
     pub deprecated_count: usize,
 }
 
-impl Catalog {
-    /// Creates a catalog from a list of attributes.
-    #[cfg(test)]
-    pub fn from_attributes(attributes: Vec<Attribute>) -> Self {
-        Self {
-            attributes,
-            root_attributes: HashMap::new(),
+/// A builder for constructing a [`Catalog`] in tests.
+#[cfg(test)]
+#[derive(Default)]
+pub struct CatalogBuilder {
+    attributes: Vec<Attribute>,
+    root_attributes: HashMap<String, (Attribute, String)>,
+}
+
+#[cfg(test)]
+impl CatalogBuilder {
+    /// Adds an attribute to the catalog. If `group_id` is `Some`, the attribute
+    /// is also registered as a root definition for cross-registry lookup.
+    pub fn add(&mut self, attr: Attribute, group_id: Option<&str>) -> AttributeRef {
+        if let Some(gid) = group_id {
+            let _ = self
+                .root_attributes
+                .insert(attr.name.clone(), (attr.clone(), gid.to_owned()));
         }
+        let idx = self.attributes.len();
+        self.attributes.push(attr);
+        AttributeRef(idx as u32)
     }
 
+    /// Builds the [`Catalog`].
+    pub fn build(self) -> Catalog {
+        Catalog::new(self.attributes, self.root_attributes)
+    }
+}
+
+impl Catalog {
     /// Creates a catalog from a list of attributes and root attribute definitions.
-    pub fn from_attributes_and_root(
+    pub fn new(
         attributes: Vec<Attribute>,
         root_attributes: HashMap<String, (Attribute, String)>,
     ) -> Self {

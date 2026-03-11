@@ -790,7 +790,7 @@ mod tests {
                     },
                 ],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::from_attributes_and_root(
+            catalog: weaver_resolved_schema::catalog::Catalog::new(
                 vec![weaver_resolved_schema::attribute::Attribute {
                     name: "a.test".to_owned(),
                     r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
