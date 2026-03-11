@@ -131,13 +131,12 @@
         ".github/workflows/release.yml",
       ],
       matchStrings: [
-        "uses: (?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40})"
+        "uses: \"?(?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40})"
       ],
       datasourceTemplate: "github-tags",
       versioningTemplate: "semver",
       currentValueTemplate: "0.0.0",
       extractVersionTemplate: "^v(?<version>.*)$",
-      autoReplaceStringTemplate: "uses: {{depName}}@{{newDigest}}",
       depTypeTemplate: "action",
     },
     {

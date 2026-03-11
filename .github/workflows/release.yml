@@ -132,11 +132,11 @@ jobs:
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
+        uses: "pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061"
         with:
           "package_json_file": "ui/package.json"
       - name: "Setup Node.js"
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        uses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238"
         with:
           "cache": "pnpm"
           "cache-dependency-path": "ui/package-lock.json"
