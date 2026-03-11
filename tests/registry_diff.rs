@@ -2,14 +2,13 @@
 
 //! Test the registry diff command.
 
-use assert_cmd::Command;
 use weaver_version::schema_changes::SchemaChanges;
 
 /// This test checks the CLI interface for the registry diff command.
 /// This test doesn't count for the coverage report as it runs a separate process.
 #[test]
 fn test_cli_interface() {
-    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("weaver");
     let output = cmd
         .arg("registry")
         .arg("diff")

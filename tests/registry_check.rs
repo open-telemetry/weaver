@@ -2,7 +2,6 @@
 
 //! Test the registry check command.
 
-use assert_cmd::Command;
 
 /// This test checks the CLI interface for the registry check command.
 /// This test doesn't count for the coverage report as it runs a separate process.
@@ -11,7 +10,7 @@ fn test_cli_interface() {
     // Test OTel official semantic convention registry.
     // This test requires internet access to fetch the registry.
     // This registry should always be valid!
-    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("weaver");
     let output = cmd
         .arg("registry")
         .arg("check")
@@ -24,7 +23,7 @@ fn test_cli_interface() {
     // Test a local semantic convention registry.
     // There are policy violations in this registry.
     // This test should fail with a non-zero exit code and display the policy violations.
-    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("weaver");
     let output = cmd
         .arg("--quiet")
         .arg("registry")

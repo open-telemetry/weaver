@@ -10,7 +10,7 @@
 
 use std::vec;
 
-use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
+
 use crate::schema_url::SchemaUrl;
 use crate::stability::Stability;
 use crate::Error;
@@ -275,7 +275,7 @@ impl RegistryManifest {
 
         // Check if this is a legacy manifest file
         let is_legacy = if let Some(file_name) = manifest_path_buf.file_name() {
-            file_name == LEGACY_REGISTRY_MANIFEST
+            file_name == "registry.yaml"
         } else {
             false
         };

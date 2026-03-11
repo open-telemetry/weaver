@@ -180,7 +180,7 @@ impl<'a> SearchApp<'a> {
             let mut text = vec![
                 Line::from(vec![
                     Span::styled("Id   : ", Style::default().fg(Color::Blue)),
-                    Span::raw(result.name.to_owned()),
+                    Span::raw(result.name.clone()),
                 ]),
                 Line::from(vec![
                     Span::styled("Type : ", Style::default().fg(Color::Blue)),
@@ -368,7 +368,7 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
         .catalog()
         .iter()
         .filter(|a| a.name.contains(pattern))
-        .map(|a| a.name.to_owned())
+        .map(|a| a.name.clone())
         .join("\n");
     println!("{results}");
 }

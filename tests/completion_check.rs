@@ -2,12 +2,11 @@
 
 //! Test the completion command.
 
-use assert_cmd::Command;
 
 /// This test checks the CLI interface for the completion command.
 #[test]
 fn test_generate_completion() {
-    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("weaver");
     let output = cmd
         .arg("completion")
         .arg("bash")
@@ -25,7 +24,7 @@ fn test_generate_completion() {
 /// This test checks the CLI interface for the completion command with --completion-file.
 #[test]
 fn test_generate_completion_with_file() {
-    let mut cmd_stdout = Command::cargo_bin("weaver").unwrap();
+    let mut cmd_stdout = assert_cmd::cargo::cargo_bin_cmd!("weaver");
     let stdout_output = cmd_stdout
         .arg("completion")
         .arg("bash")
@@ -36,7 +35,7 @@ fn test_generate_completion_with_file() {
     let stdout = String::from_utf8(stdout_output.stdout).expect("Invalid UTF-8");
 
     let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-    let mut cmd_file = Command::cargo_bin("weaver").unwrap();
+    let mut cmd_file = assert_cmd::cargo::cargo_bin_cmd!("weaver");
     let file_output = cmd_file
         .arg("completion")
         .arg("bash")

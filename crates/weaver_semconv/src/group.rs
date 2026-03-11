@@ -149,6 +149,7 @@ pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {
     /// Validation logic for the group.
+    #[allow(deprecated)]
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
 

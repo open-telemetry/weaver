@@ -29,7 +29,7 @@ fn find_manifest_path(registry_path: &Path) -> Option<PathBuf> {
         return Some(registry_path.to_path_buf());
     }
     let manifest_path = registry_path.join(REGISTRY_MANIFEST);
-    let legacy_path = registry_path.join(LEGACY_REGISTRY_MANIFEST);
+    let legacy_path = registry_path.join("registry.yaml");
     if manifest_path.exists() {
         log_info(format!(
             "Found registry manifest: {}",

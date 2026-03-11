@@ -13,7 +13,7 @@ use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
 use crate::Error;
@@ -295,7 +295,7 @@ fn load_definition_repository(
             && (extension == "yaml" || extension == "yml")
             && file_name != "schema-next.yaml"
             && file_name != REGISTRY_MANIFEST
-            && file_name != LEGACY_REGISTRY_MANIFEST
+            && file_name != "registry.yaml"
     }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();

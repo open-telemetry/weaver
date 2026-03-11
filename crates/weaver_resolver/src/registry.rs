@@ -619,15 +619,13 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                 child_annotations,
                             );
 
-                            if parent_summary.annotations.is_some()
-                                && !parent_summary.annotations.as_ref().unwrap().is_empty()
+                            if parent_summary.annotations.as_ref().is_some_and(|a| !a.is_empty())
                             {
                                 if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
                                     lineage.add_v2_locally_overridden_field("annotations");
                                 }
                             }
-                        } else if parent_summary.annotations.is_some()
-                            && !parent_summary.annotations.as_ref().unwrap().is_empty()
+                        } else if parent_summary.annotations.as_ref().is_some_and(|a| !a.is_empty())
                         {
                             if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
                                 lineage.add_v2_inherited_field("annotations");

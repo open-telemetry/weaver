@@ -326,7 +326,7 @@ impl AttributeLookup for V1Schema {
                 })
                 .map(|a| AttributeWithGroupId {
                     attribute: a,
-                    group_id: g.id.to_owned(),
+                    group_id: g.id.clone(),
                 })
         });
         result

@@ -46,6 +46,7 @@ pub struct AttributeLineage {
 
 impl AttributeLineage {
     /// Creates a new attribute lineage.
+    #[must_use]
     pub fn new(source: AttributeSource) -> Self {
         Self {
             source,
@@ -75,6 +76,7 @@ pub struct SignalLineage {
 
 impl SignalLineage {
     /// Creates a new SignalLineage with the given provenance.
+    #[must_use]
     pub fn new(provenance: Provenance) -> Self {
         Self {
             provenance,
@@ -127,6 +129,7 @@ pub struct RefinementLineage {
 
 impl RefinementLineage {
     /// Creates a new RefinementLineage.
+    #[must_use]
     pub fn new(provenance: Provenance, refines: String) -> Self {
         Self {
             provenance,

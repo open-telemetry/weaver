@@ -37,6 +37,7 @@ impl Default for Stability {
 }
 
 /// Implements a human readable display for the stability.
+#[allow(deprecated)]
 impl Display for Stability {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -1,6 +1,6 @@
 //! Version 2 of semantic convention schema.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
