@@ -407,12 +407,15 @@ fn resolve_attribute_references(
                 .clone()
                 .into_iter()
                 .filter_map(|attr| {
+                    let is_v2_base_signal = unresolved_group.group.is_v2()
+                        && !unresolved_group.group.is_v2_refinement();
                     let attr_ref = attr_catalog.resolve(
                         &unresolved_group.group.id,
                         &unresolved_group.group.prefix,
                         &attr.spec,
                         unresolved_group.group.lineage.as_mut(),
                         &ureg.dependencies,
+                        is_v2_base_signal,
                     );
                     if let Some(attr_ref) = attr_ref {
                         // Attribute reference resolved successfully.
@@ -1262,8 +1265,7 @@ mod tests {
                     .expect("Failed to write observed output.");
 
                 // Load the expected registry and attribute catalog.
-                let expected_attr_catalog_file =
-                    format!("{test_dir}/{EXPECTED_V1_CATALOG_FILE}");
+                let expected_attr_catalog_file = format!("{test_dir}/{EXPECTED_V1_CATALOG_FILE}");
                 let expected_attr_catalog: weaver_resolved_schema::catalog::Catalog =
                     serde_json::from_reader(
                         std::fs::File::open(expected_attr_catalog_file)

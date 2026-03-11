@@ -27,8 +27,7 @@
               "stability"
             ],
             "locally_overridden_fields": [
-              "examples",
-              "requirement_level"
+              "examples"
             ]
           },
           "server.port": {
@@ -39,8 +38,7 @@
               "stability"
             ],
             "locally_overridden_fields": [
-              "note",
-              "requirement_level"
+              "note"
             ]
           }
         }

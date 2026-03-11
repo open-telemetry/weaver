@@ -56,7 +56,6 @@
                 "brief",
                 "examples",
                 "note",
-                "requirement_level",
                 "stability"
               ]
             },
@@ -68,9 +67,6 @@
                 "brief",
                 "note",
                 "stability"
-              ],
-              "locally_overridden_fields": [
-                "requirement_level"
               ]
             }
           }
@@ -115,7 +111,6 @@
                 "brief",
                 "examples",
                 "note",
-                "requirement_level",
                 "stability"
               ]
             },
@@ -127,9 +122,6 @@
                 "brief",
                 "note",
                 "stability"
-              ],
-              "locally_overridden_fields": [
-                "requirement_level"
               ]
             }
           }

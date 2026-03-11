@@ -5,7 +5,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl, RefinementLineageBroken};
+use crate::error::Error::{
+    AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl, RefinementLineageBroken,
+};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]

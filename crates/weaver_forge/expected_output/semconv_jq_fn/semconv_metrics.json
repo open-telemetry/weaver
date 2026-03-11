@@ -139,9 +139,6 @@
                 "note",
                 "stability"
               ],
-              "locally_overridden_fields": [
-                "requirement_level"
-              ],
               "source_group": "registry.data.registry.registry-http"
             },
             "http.response.status_code": {
@@ -151,8 +148,7 @@
               ],
               "locally_overridden_fields": [
                 "brief",
-                "examples",
-                "requirement_level"
+                "examples"
               ],
               "source_group": "registry.data.registry.registry-http"
             },
@@ -163,8 +159,7 @@
                 "stability"
               ],
               "locally_overridden_fields": [
-                "brief",
-                "requirement_level"
+                "brief"
               ],
               "source_group": "server"
             },
@@ -175,8 +170,7 @@
                 "stability"
               ],
               "locally_overridden_fields": [
-                "brief",
-                "requirement_level"
+                "brief"
               ],
               "source_group": "server"
             },
@@ -187,8 +181,7 @@
                 "stability"
               ],
               "locally_overridden_fields": [
-                "examples",
-                "requirement_level"
+                "examples"
               ],
               "source_group": "registry.url"
             }

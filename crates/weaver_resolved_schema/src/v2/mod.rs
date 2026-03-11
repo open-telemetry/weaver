@@ -261,15 +261,19 @@ pub fn convert_v1_to_v2(
                             lineage: None,
                             ..span.clone()
                         },
-                        lineage: g.lineage.as_ref().map(|l| {
-                            let mut l = l.clone();
-                            // TODO - how should we handle extend -> extend -> extend chains in v1?
-                            // For now, we just do our best, and make sure V2 -> V1 -> V2 works.
-                            if l.v2_refines.is_none() && l.extends_group.is_none() {
-                                l.v2_refines = Some(span.r#type.to_string());
-                            }
-                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
-                        }).transpose()?,
+                        lineage: g
+                            .lineage
+                            .as_ref()
+                            .map(|l| {
+                                let mut l = l.clone();
+                                // TODO - how should we handle extend -> extend -> extend chains in v1?
+                                // For now, we just do our best, and make sure V2 -> V1 -> V2 works.
+                                if l.v2_refines.is_none() && l.extends_group.is_none() {
+                                    l.v2_refines = Some(span.r#type.to_string());
+                                }
+                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                            })
+                            .transpose()?,
                     });
                 } else {
                     // unwrap should be safe because we verified this is a refinement earlier.
@@ -305,15 +309,19 @@ pub fn convert_v1_to_v2(
                             attributes: span_attributes,
                             lineage: None,
                         },
-                        lineage: g.lineage.as_ref().map(|l| {
-                            let mut l = l.clone();
-                            if l.v2_refines.is_none() {
-                                if let Some(ext) = &l.extends_group {
-                                    l.v2_refines = Some(fix_span_group_id(ext).to_string());
+                        lineage: g
+                            .lineage
+                            .as_ref()
+                            .map(|l| {
+                                let mut l = l.clone();
+                                if l.v2_refines.is_none() {
+                                    if let Some(ext) = &l.extends_group {
+                                        l.v2_refines = Some(fix_span_group_id(ext).to_string());
+                                    }
                                 }
-                            }
-                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
-                        }).transpose()?,
+                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                            })
+                            .transpose()?,
                     });
                 }
             }
@@ -369,27 +377,44 @@ pub fn convert_v1_to_v2(
                                 lineage: None,
                                 ..event.clone()
                             },
-                            lineage: g.lineage.as_ref().map(|l| {
-                                let mut l = l.clone();
-                                if l.v2_refines.is_none() && l.extends_group.is_none() {
-                                    l.v2_refines = Some(event.name.to_string());
-                                }
-                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
-                            }).transpose()?,
+                            lineage: g
+                                .lineage
+                                .as_ref()
+                                .map(|l| {
+                                    let mut l = l.clone();
+                                    if l.v2_refines.is_none() && l.extends_group.is_none() {
+                                        l.v2_refines = Some(event.name.to_string());
+                                    }
+                                    lineage::RefinementLineage::from_v1(
+                                        &g.id,
+                                        l,
+                                        &group_type_lookup,
+                                    )
+                                })
+                                .transpose()?,
                         });
                     } else {
                         event_refinements.push(event::EventRefinement {
                             id: fix_group_id("event.", &g.id),
                             event: event.clone(),
-                            lineage: g.lineage.as_ref().map(|l| {
-                                let mut l = l.clone();
-                                if l.v2_refines.is_none() {
-                                    if let Some(ext) = &l.extends_group {
-                                        l.v2_refines = Some(fix_group_id("event.", ext).to_string());
+                            lineage: g
+                                .lineage
+                                .as_ref()
+                                .map(|l| {
+                                    let mut l = l.clone();
+                                    if l.v2_refines.is_none() {
+                                        if let Some(ext) = &l.extends_group {
+                                            l.v2_refines =
+                                                Some(fix_group_id("event.", ext).to_string());
+                                        }
                                     }
-                                }
-                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
-                            }).transpose()?,
+                                    lineage::RefinementLineage::from_v1(
+                                        &g.id,
+                                        l,
+                                        &group_type_lookup,
+                                    )
+                                })
+                                .transpose()?,
                         });
                     }
                 } else {
@@ -462,15 +487,20 @@ pub fn convert_v1_to_v2(
                             lineage: None,
                             ..metric.clone()
                         },
-                        lineage: g.lineage.as_ref().map(|l| {
-                            let mut l = l.clone();
-                            if l.v2_refines.is_none() {
-                                if let Some(ext) = &l.extends_group {
-                                    l.v2_refines = Some(fix_group_id("metric.", ext).to_string());
+                        lineage: g
+                            .lineage
+                            .as_ref()
+                            .map(|l| {
+                                let mut l = l.clone();
+                                if l.v2_refines.is_none() {
+                                    if let Some(ext) = &l.extends_group {
+                                        l.v2_refines =
+                                            Some(fix_group_id("metric.", ext).to_string());
+                                    }
                                 }
-                            }
-                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
-                        }).transpose()?,
+                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                            })
+                            .transpose()?,
                     });
                 } else {
                     metrics.push(metric.clone());
@@ -480,13 +510,17 @@ pub fn convert_v1_to_v2(
                             lineage: None,
                             ..metric.clone()
                         },
-                        lineage: g.lineage.as_ref().map(|l| {
-                            let mut l = l.clone();
-                            if l.v2_refines.is_none() && l.extends_group.is_none() {
-                                l.v2_refines = Some(metric.name.to_string());
-                            }
-                            lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
-                        }).transpose()?,
+                        lineage: g
+                            .lineage
+                            .as_ref()
+                            .map(|l| {
+                                let mut l = l.clone();
+                                if l.v2_refines.is_none() && l.extends_group.is_none() {
+                                    l.v2_refines = Some(metric.name.to_string());
+                                }
+                                lineage::RefinementLineage::from_v1(&g.id, l, &group_type_lookup)
+                            })
+                            .transpose()?,
                     });
                 }
             }
@@ -1101,7 +1135,9 @@ mod tests {
         assert_eq!(v2_schema.file_format, V2_RESOLVED_FILE_FORMAT);
         assert_eq!(
             v2_schema.schema_url,
-            "http://test/schemas/1.0.0".try_into().expect("Failed to create schema url")
+            "http://test/schemas/1.0.0"
+                .try_into()
+                .expect("Failed to create schema url")
         );
     }
 

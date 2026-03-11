@@ -68,7 +68,6 @@
               "annotations",
               "brief",
               "note",
-              "requirement_level",
               "stability"
             ]
           }

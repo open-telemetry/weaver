@@ -123,6 +123,7 @@ impl AttributeCatalog {
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
+        is_v2_base_signal: bool,
     ) -> Option<AttributeRef> {
         match attr {
             AttributeSpec::Ref {
@@ -187,6 +188,19 @@ impl AttributeCatalog {
                         annotations: attr_lineage
                             .annotations(annotations, &root_attr.attribute.annotations),
                     };
+
+                    if is_v2_base_signal {
+                        // For V2 base signals, do not track requirement_level and sampling_relevant
+                        // as local overrides since they establish the baseline.
+                        _ = attr_lineage
+                            .locally_overridden_fields
+                            .remove("requirement_level");
+                        _ = attr_lineage.inherited_fields.remove("requirement_level");
+                        _ = attr_lineage
+                            .locally_overridden_fields
+                            .remove("sampling_relevant");
+                        _ = attr_lineage.inherited_fields.remove("sampling_relevant");
+                    }
 
                     let attr_ref = self.attribute_ref(resolved_attr.clone());
 

@@ -472,6 +472,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 metrics: vec![metric::Metric {
                     name: SignalId::from("my-metric".to_owned()),
@@ -485,6 +486,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 events: vec![event::Event {
                     name: SignalId::from("my-event".to_owned()),
@@ -496,6 +498,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 entities: vec![v2::entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
@@ -528,7 +531,9 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
+                    lineage: None,
                 }],
                 metrics: vec![metric::MetricRefinement {
                     id: SignalId::from("my-refined-metric".to_owned()),
@@ -544,7 +549,9 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
+                    lineage: None,
                 }],
                 events: vec![event::EventRefinement {
                     id: SignalId::from("my-refined-event".to_owned()),
@@ -558,7 +565,9 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
+                    lineage: None,
                 }],
             },
         };
@@ -629,6 +638,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 metrics: vec![],
                 events: vec![],

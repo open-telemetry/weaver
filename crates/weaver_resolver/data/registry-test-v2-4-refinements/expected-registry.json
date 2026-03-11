@@ -21,7 +21,6 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -124,7 +123,6 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level",
               "stability"
             ]
           }
@@ -249,7 +247,6 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level",
               "stability"
             ]
           }

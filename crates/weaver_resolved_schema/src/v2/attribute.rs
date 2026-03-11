@@ -12,7 +12,9 @@ use weaver_semconv::{
 use crate::v2::Signal;
 
 /// The definition of an Attribute.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, PartialOrd, Ord)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, PartialOrd, Ord,
+)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct Attribute {
