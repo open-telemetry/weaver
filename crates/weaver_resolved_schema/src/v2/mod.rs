@@ -615,7 +615,7 @@ mod tests {
 
     #[test]
     fn test_convert_span_v1_to_v2() {
-        let mut builder = crate::catalog::CatalogBuilder::default();
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
         let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
@@ -751,7 +751,7 @@ mod tests {
 
     #[test]
     fn test_convert_metric_v1_to_v2() {
-        let mut builder = crate::catalog::CatalogBuilder::default();
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
         let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
@@ -885,7 +885,7 @@ mod tests {
 
     #[test]
     fn test_convert_event_v1_to_v2() {
-        let mut builder = crate::catalog::CatalogBuilder::default();
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
         let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_convert_entity_v1_to_v2() {
-        let mut builder = crate::catalog::CatalogBuilder::default();
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
         let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),

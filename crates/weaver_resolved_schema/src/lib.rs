@@ -111,12 +111,11 @@ impl ResolvedTelemetrySchema {
         attrs: [Attribute; N],
         deprecated: Option<Deprecated>,
     ) {
-        let mut builder = catalog::CatalogBuilder::default();
-        for attr in self.catalog.attributes() {
-            let _ = builder.add(attr.clone(), None);
-        }
-        let attr_refs: Vec<attribute::AttributeRef> =
-            attrs.into_iter().map(|a| builder.add(a, None)).collect();
+        let mut builder = catalog::test_utils::CatalogBuilder::from_catalog(&self.catalog);
+        let attr_refs: Vec<attribute::AttributeRef> = attrs
+            .into_iter()
+            .map(|a| builder.add(a, Some(group_id)))
+            .collect();
         self.catalog = builder.build();
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
@@ -161,12 +160,11 @@ impl ResolvedTelemetrySchema {
             let al = AttributeLineage::new(group_id);
             lineage.add_attribute_lineage(attr.name.clone(), al);
         }
-        let mut builder = catalog::CatalogBuilder::default();
-        for attr in self.catalog.attributes() {
-            let _ = builder.add(attr.clone(), None);
-        }
-        let attr_refs: Vec<attribute::AttributeRef> =
-            attrs.into_iter().map(|a| builder.add(a, None)).collect();
+        let mut builder = catalog::test_utils::CatalogBuilder::from_catalog(&self.catalog);
+        let attr_refs: Vec<attribute::AttributeRef> = attrs
+            .into_iter()
+            .map(|a| builder.add(a, Some(group_id)))
+            .collect();
         self.catalog = builder.build();
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
