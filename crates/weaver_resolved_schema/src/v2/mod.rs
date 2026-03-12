@@ -165,26 +165,25 @@ pub fn convert_v1_to_v2(
     let attributes: HashSet<Attribute> = c
         .attributes()
         .cloned()
-        .map(|a| {
-            Attribute {
-                key: a.name,
-                r#type: a.r#type,
-                examples: a.examples,
-                common: CommonFields {
-                    brief: a.brief,
-                    note: a.note,
-                    // TODO - Check this assumption.
-                    stability: a
-                        .stability
-                        .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                    deprecated: a.deprecated,
-                    annotations: a.annotations.unwrap_or_default(),
-                },
-            }
+        .map(|a| Attribute {
+            key: a.name,
+            r#type: a.r#type,
+            examples: a.examples,
+            common: CommonFields {
+                brief: a.brief,
+                note: a.note,
+                stability: a
+                    .stability
+                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                deprecated: a.deprecated,
+                annotations: a.annotations.unwrap_or_default(),
+            },
         })
         .collect();
+    let mut attributes: Vec<Attribute> = attributes.into_iter().collect();
+    attributes.sort_by(|a, b| a.key.cmp(&b.key));
 
-    let v2_catalog = Catalog::from_attributes(attributes.into_iter().collect());
+    let v2_catalog = Catalog::from_attributes(attributes);
 
     // Create a lookup so we can check inheritance.
     let mut group_type_lookup = HashMap::new();
@@ -485,7 +484,7 @@ pub fn convert_v1_to_v2(
     }
 
     // Now we need to hunt for attribute definitions
-    let mut attributes = Vec::new();
+    let mut attribute_refs = HashSet::new();
     for g in r.groups.iter() {
         for a in g.attributes.iter() {
             if let Some(attr) = c.attribute(a) {
@@ -497,7 +496,7 @@ pub fn convert_v1_to_v2(
                     .is_none();
                 if is_def {
                     if let Some(v2) = v2_catalog.convert_ref(attr) {
-                        attributes.push(v2);
+                        let _ = attribute_refs.insert(v2);
                     } else {
                         // TODO logic error!
                     }
@@ -505,6 +504,17 @@ pub fn convert_v1_to_v2(
             }
         }
     }
+    let mut attributes: Vec<_> = attribute_refs.into_iter().collect();
+    attributes.sort();
+    spans.sort_by(|a, b| a.r#type.cmp(&b.r#type));
+    metrics.sort_by(|a, b| a.name.cmp(&b.name));
+    events.sort_by(|a, b| a.name.cmp(&b.name));
+    entities.sort_by(|a, b| a.r#type.cmp(&b.r#type));
+    attribute_groups.sort_by(|a, b| a.id.cmp(&b.id));
+
+    span_refinements.sort_by(|a, b| a.id.cmp(&b.id));
+    metric_refinements.sort_by(|a, b| a.id.cmp(&b.id));
+    event_refinements.sort_by(|a, b| a.id.cmp(&b.id));
 
     let v2_registry = Registry {
         attributes,

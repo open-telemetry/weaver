@@ -1115,7 +1115,7 @@
         {
           "id": "cache",
           "value": "cache",
-          "brief": "InterSystems Cach\u00e9",
+          "brief": "InterSystems Caché",
           "stability": "stable"
         },
         {
@@ -1438,7 +1438,7 @@
         {
           "id": "cache",
           "value": "cache",
-          "brief": "InterSystems Cach\u00e9",
+          "brief": "InterSystems Caché",
           "stability": "stable"
         },
         {
