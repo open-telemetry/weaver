@@ -181,9 +181,7 @@ pub fn convert_v1_to_v2(
         })
         .collect();
 
-    let mut sorted_attributes = attributes.into_iter().collect::<Vec<_>>();
-    sorted_attributes.sort_by(|a, b| a.key.cmp(&b.key));
-    let v2_catalog = Catalog::from_attributes(sorted_attributes);
+    let v2_catalog = Catalog::from_attributes(attributes.into_iter().collect());
 
     // Create a lookup so we can check inheritance.
     let mut group_type_lookup = HashMap::new();
