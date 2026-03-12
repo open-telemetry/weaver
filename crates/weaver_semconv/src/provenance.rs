@@ -26,7 +26,7 @@ pub struct Provenance {
 
 impl Display for Provenance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.schema_url, self.path)
+        write!(f, "{}:{}", self.schema_url.name(), self.path)
     }
 }
 
