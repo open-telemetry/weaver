@@ -918,11 +918,13 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
 mod tests {
     use rand::rng;
     use rand::seq::SliceRandom;
+    use serde::Deserialize;
     use std::cmp::Ordering;
     use std::collections::HashMap;
     use std::error::Error;
     use std::fs::OpenOptions;
     use std::path::PathBuf;
+    use weaver_resolved_schema::v2::ResolvedTelemetrySchema;
     use weaver_semconv::schema_url::SchemaUrl;
 
     use glob::glob;
@@ -943,6 +945,23 @@ mod tests {
     use crate::registry::UnresolvedRegistry;
     use crate::LoadedSemconvRegistry;
     use crate::SchemaResolver;
+
+    /// Settings for resolution tests.
+    #[derive(Serialize, Deserialize, Default)]
+    struct TestSettings {
+        /// If true, output the resolved schema as v2.
+        #[serde(default)]
+        output_v2: bool,
+    }
+
+    const TEST_SETTINGS_FILE: &str = "settings.yaml";
+    const EXPECTED_ERRORS_FILE: &str = "expected-errors.json";
+    const EXPECTED_V1_CATALOG_FILE: &str = "expected-attribute-catalog.json";
+    const EXPECTED_V1_REGISTRY_FILE: &str = "expected-registry.json";
+    const OBSERVED_V1_CATALOG_FILE: &str = "attribute-catalog.json";
+    const OBSERVED_V1_REGISTRY_FILE: &str = "registry.json";
+    const EXPECTED_V2_SCHEMA_FILE: &str = "expected-schema.yaml";
+    const OBSERVED_V2_SCHEMA_FILE: &str = "schema.yaml";
 
     /// Test the resolution of semantic convention registries stored in the
     /// data directory. The provided test cases cover the following resolution
@@ -985,6 +1004,16 @@ mod tests {
                 continue;
             }
             println!("Testing `{test_dir}`");
+
+            // Load settings.
+            let settings_file = format!("{test_dir}/{TEST_SETTINGS_FILE}");
+            let settings: TestSettings = if PathBuf::from(&settings_file).exists() {
+                let settings_str =
+                    std::fs::read_to_string(&settings_file).expect("Failed to read settings file");
+                serde_yaml::from_str(&settings_str).expect("Failed to parse settings file")
+            } else {
+                TestSettings::default()
+            };
 
             // Delete all the files in the observed_output/target directory
             // before generating the new files.
@@ -1051,7 +1080,7 @@ mod tests {
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
-            let expected_errors_file = format!("{test_dir}/expected-errors.json");
+            let expected_errors_file = format!("{test_dir}/{EXPECTED_ERRORS_FILE}");
             if PathBuf::from(&expected_errors_file).exists() {
                 assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
@@ -1068,72 +1097,104 @@ mod tests {
                 continue;
             }
 
-            let observed_schema = schema.expect("Failed to resolve the registry");
-            let observed_attr_catalog: Vec<_> =
-                observed_schema.catalog.attributes().cloned().collect();
+            // Split between v1 and v2 output checking.
+            if settings.output_v2 {
+                // Output our V2 schema.
+                let observed_schema: ResolvedTelemetrySchema = schema
+                    .expect("Failed to resolve the registry")
+                    .try_into()
+                    .expect("Failed to convert to v2 schema");
+                let observed_schema_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V2_SCHEMA_FILE))
+                    .expect("Failed to open observed output file");
+                serde_yaml::to_writer(observed_schema_file, &observed_schema)
+                    .expect("Failed to write observed output.");
 
-            // At this point, the normal behavior of this test is to pass.
-            let mut observed_registry = observed_schema.registry;
-            // Force registry URL to consistent string
-            observed_registry.registry_url = "https://127.0.0.1".to_owned();
-            // Now sort groups so we don't get flaky tests.
-            observed_registry.groups.sort_by_key(|g| g.id.to_owned());
+                // Check that the resolved registry matches the expected registry.
+                let expected_schema: ResolvedTelemetrySchema = serde_yaml::from_reader(
+                    std::fs::File::open(format!("{test_dir}/{EXPECTED_V2_SCHEMA_FILE}"))
+                        .expect("Failed to open expected schema"),
+                )
+                .expect("Failed to deserialize expected schema");
 
-            // Write observed output.
-            let observed_attr_catalog_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(observed_output_dir.join("attribute-catalog.json"))
-                .expect("Failed to open observed output file");
-            serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
-                .expect("Failed to write observed output.");
+                assert_eq!(
+                    to_json(&observed_schema),
+                    to_json(&expected_schema),
+                    "Expected and observed schema don't match for `{}`.\nDiff from expected:\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(
+                        &to_json(&expected_schema),
+                        &to_json(&observed_schema)
+                    )
+                );
+            } else {
+                let observed_schema = schema.expect("Failed to resolve the registry");
+                let observed_attr_catalog: Vec<_> =
+                    observed_schema.catalog.attributes().cloned().collect();
 
-            // Load the expected registry and attribute catalog.
-            let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
-            let expected_attr_catalog_attrs: Vec<Attribute> = serde_json::from_reader(
-                std::fs::File::open(expected_attr_catalog_file)
-                    .expect("Failed to open expected attribute catalog"),
-            )
-            .expect("Failed to deserialize expected attribute catalog");
+                // At this point, the normal behavior of this test is to pass.
+                let mut observed_registry = observed_schema.registry;
+                // Force registry URL to consistent string
+                observed_registry.registry_url = "https://127.0.0.1".to_owned();
+                // Now sort groups so we don't get flaky tests.
+                observed_registry.groups.sort_by_key(|g| g.id.to_owned());
 
-            // Compare values
-            assert_eq!(
+                // Write observed output.
+                let observed_attr_catalog_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V1_CATALOG_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
+                    .expect("Failed to write observed output.");
+
+                // Load the expected registry and attribute catalog.
+                let expected_attr_catalog_file = format!("{test_dir}/{EXPECTED_V1_CATALOG_FILE}");
+                let expected_attr_catalog_attrs: Vec<Attribute> = serde_json::from_reader(
+                    std::fs::File::open(expected_attr_catalog_file)
+                        .expect("Failed to open expected attribute catalog"),
+                )
+                .expect("Failed to deserialize expected attribute catalog");
+
+                // Compare values
+                assert_eq!(
                 observed_attr_catalog, expected_attr_catalog_attrs,
                 "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
                 test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog_attrs), &to_json(&observed_attr_catalog))
             );
 
-            // Check that the resolved registry matches the expected registry.
-            let expected_registry: Registry = serde_json::from_reader(
-                std::fs::File::open(format!("{test_dir}/expected-registry.json"))
-                    .expect("Failed to open expected registry"),
-            )
-            .expect("Failed to deserialize expected registry");
-
-            // Write observed output.
-            let observed_registry_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(observed_output_dir.join("registry.json"))
-                .expect("Failed to open observed output file");
-            serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
-                .expect("Failed to write observed output.");
-
-            assert_eq!(
-                to_json(&observed_registry),
-                to_json(&expected_registry),
-                "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
-                test_dir,
-                weaver_diff::diff_output(
-                    &to_json(&expected_registry),
-                    &to_json(&observed_registry)
+                // Check that the resolved registry matches the expected registry.
+                let expected_registry: Registry = serde_json::from_reader(
+                    std::fs::File::open(format!("{test_dir}/{EXPECTED_V1_REGISTRY_FILE}"))
+                        .expect("Failed to open expected registry"),
                 )
-            );
+                .expect("Failed to deserialize expected registry");
 
-            // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
-            // println!("{}", yaml);
+                // Write observed output.
+                let observed_registry_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V1_REGISTRY_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
+                    .expect("Failed to write observed output.");
+
+                assert_eq!(
+                    to_json(&observed_registry),
+                    to_json(&expected_registry),
+                    "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(
+                        &to_json(&expected_registry),
+                        &to_json(&observed_registry)
+                    )
+                );
+            }
         }
     }
 

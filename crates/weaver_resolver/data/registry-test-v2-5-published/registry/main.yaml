@@ -1,0 +1,32 @@
+file_format: 'definition/2'
+attributes:
+  - key: local.attr
+    type: string
+    brief: local attribute
+    stability: stable
+  - key: local.group.attr
+    type: string
+    brief: local group attribute
+    stability: stable
+spans:
+- type: local-span
+  name:
+    note: span
+  brief: a local span
+  note: a local span note
+  kind: client
+  stability: stable
+  attributes:
+  - ref: local.attr
+attribute_groups:
+- id: local.group
+  brief: local group
+  visibility: public
+  stability: stable
+  attributes:
+  - ref: local.group.attr
+imports:
+  spans:
+    - imported.*
+  attribute_groups:
+    - imported.*

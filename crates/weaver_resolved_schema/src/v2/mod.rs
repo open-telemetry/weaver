@@ -165,22 +165,19 @@ pub fn convert_v1_to_v2(
     let attributes: HashSet<Attribute> = c
         .attributes()
         .cloned()
-        .map(|a| {
-            Attribute {
-                key: a.name,
-                r#type: a.r#type,
-                examples: a.examples,
-                common: CommonFields {
-                    brief: a.brief,
-                    note: a.note,
-                    // TODO - Check this assumption.
-                    stability: a
-                        .stability
-                        .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                    deprecated: a.deprecated,
-                    annotations: a.annotations.unwrap_or_default(),
-                },
-            }
+        .map(|a| Attribute {
+            key: a.name,
+            r#type: a.r#type,
+            examples: a.examples,
+            common: CommonFields {
+                brief: a.brief,
+                note: a.note,
+                stability: a
+                    .stability
+                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                deprecated: a.deprecated,
+                annotations: a.annotations.unwrap_or_default(),
+            },
         })
         .collect();
 
@@ -505,6 +502,8 @@ pub fn convert_v1_to_v2(
             }
         }
     }
+    attributes.sort_by(|a, b| a.0.cmp(&b.0));
+    attributes.dedup();
 
     let v2_registry = Registry {
         attributes,
