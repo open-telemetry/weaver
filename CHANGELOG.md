@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+# [0.22.0] - 2026-03-13
+
+- [FEATURE] Migrating ui to react ([#1147](https://github.com/open-telemetry/weaver/pull/1147))
+- Initial cut at supporting refinements in v2 syntax. ([#1250](https://github.com/open-telemetry/weaver/pull/1250))
+- Support imports for all signal types and public attribute groups. ([#1267](https://github.com/open-telemetry/weaver/pull/1267))
+- Allow resolving from resolved schema using Manifest file. ([#1160](https://github.com/open-telemetry/weaver/pull/1160))
+- Create ootb docs generation signal registry ([#1166](https://github.com/open-telemetry/weaver/pull/1166))
+- Add json schema for policy findings, make context optional ([#1270](https://github.com/open-telemetry/weaver/pull/1270))
+- JQ helper v2 for spans: fixes and improvements ([#1251](https://github.com/open-telemetry/weaver/pull/1251))
+- Change replaceStringTemplate to autoReplaceStringTemplate ([#1222](https://github.com/open-telemetry/weaver/pull/1222))
+- Fix package command not producing output due to warnings ([#1271](https://github.com/open-telemetry/weaver/pull/1271))
+- Fix resolution for dependencies ([#1280](https://github.com/open-telemetry/weaver/pull/1280))
+- Fix stability/ordering issues in v2 publishing ([#1282](https://github.com/open-telemetry/weaver/pull/1282))
 - Add support for git references in the registry url ([#182](https://github.com/open-telemetry/weaver/issues/182) by @sebasnabas)
 - New feature ([#1153](https://github.com/open-telemetry/weaver/issues/1153)) - Live-check now has a `/health` endpoint that can be used in long-running scenarios to confirm readiness and liveness of the live-check server. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
 - New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
