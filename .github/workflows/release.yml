@@ -139,12 +139,12 @@ jobs:
         uses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238"
         with:
           "cache": "pnpm"
-          "cache-dependency-path": "ui/package-lock.json"
+          "cache-dependency-path": "ui/pnpm-lock.yaml"
           "node-version-file": ".nvmrc"
       - name: "Install UI dependencies"
-        run: "pnpm install --frozen-lockfile"
+        run: "cd ui && pnpm install --frozen-lockfile"
       - name: "Build UI"
-        run: "pnpm build"
+        run: "cd ui && pnpm build"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest

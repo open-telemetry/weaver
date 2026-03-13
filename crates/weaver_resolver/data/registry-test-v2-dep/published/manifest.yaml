@@ -1,0 +1,5 @@
+file_format: manifest/2.0.0
+schema_url: https://server.example.com/schemas/1.0.0
+description: Server semantic conventions.
+stability: development
+resolved_schema_uri: resolved.yaml

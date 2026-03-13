@@ -96,7 +96,7 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     let resolved_v2: ResolvedV2 = resolved.try_into()?;
     resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
 
-    if !diag_msgs.is_empty() {
+    if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
@@ -119,9 +119,10 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
         "Registry packaged successfully to `{}`",
         args.output.display()
     ));
+
     Ok(ExitDirectives {
         exit_code: 0,
-        warnings: None,
+        warnings: (!diag_msgs.is_empty()).then_some(diag_msgs),
     })
 }
 

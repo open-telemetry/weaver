@@ -51,6 +51,8 @@ pub enum JsonSchemaType {
     PublicationManifestV2,
     /// Definition manifest describing unpublished registry.
     DefinitionManifestV2,
+    /// The JSON schema of a policy finding returned by Rego policies.
+    PolicyFinding,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
@@ -74,6 +76,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
         JsonSchemaType::PublicationManifestV2 => {
             schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
         }
+        JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
     };
 
     if let Some(p) = &args.output {

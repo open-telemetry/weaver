@@ -351,6 +351,8 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the publication manifest produced by `weaver registry package`
   - `definition-manifest-v2`:
     Definition manifest describing unpublished registry
+  - `policy-finding`:
+    The JSON schema of a policy finding returned by Rego policies
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command

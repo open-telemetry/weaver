@@ -1,0 +1,12 @@
+file_format: definition/2
+metrics:
+  - name: app.request.count
+    brief: Count of app requests.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      - ref: server.address
+        requirement_level: required
+      - ref: server.port
+        requirement_level: recommended

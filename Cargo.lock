@@ -3248,9 +3248,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.21.3"
+version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "once_cell_polyfill"
@@ -3260,9 +3260,9 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "openssl"
-version = "0.10.75"
+version = "0.10.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08838db121398ad17ab8531ce9de97b244589089e290a384c900cb9ff7434328"
+checksum = "951c002c75e16ea2c65b8c7e4d3d51d5530d8dfa7d060b4776828c88cfb18ecf"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -3307,9 +3307,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.111"
+version = "0.9.112"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82cab2d520aa75e3c58898289429321eb788c3106963d0dc886ec7a5f4adc321"
+checksum = "57d55af3b3e226502be1526dfdba67ab0e9c96fc293004e79576b2b9edb0dbdb"
 dependencies = [
  "cc",
  "libc",
@@ -5712,7 +5712,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "assert_cmd",
  "axum",
@@ -5764,7 +5764,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "globset",
  "miette",
@@ -5780,7 +5780,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "dirs",
  "log",
@@ -5795,7 +5795,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "dirs",
  "flate2",
@@ -5821,7 +5821,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -5830,7 +5830,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "futures-util",
  "miette",
@@ -5849,7 +5849,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -5888,7 +5888,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "log",
  "miette",
@@ -5912,7 +5912,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_mcp"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "log",
  "miette",
@@ -5941,7 +5941,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "log",
  "schemars",
@@ -5955,7 +5955,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "glob",
  "globset",
@@ -5978,7 +5978,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_search"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5989,7 +5989,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "glob",
  "globset",
@@ -6014,7 +6014,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "miette",
  "nom 8.0.0",
@@ -6031,7 +6031,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "schemars",
  "semver",

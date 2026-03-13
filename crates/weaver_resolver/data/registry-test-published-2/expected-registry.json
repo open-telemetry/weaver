@@ -1,0 +1,99 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "imported.group.a",
+      "type": "attribute_group",
+      "brief": "a fun group",
+      "note": "a group note",
+      "stability": "stable",
+      "attributes": [
+        3
+      ],
+      "annotations": {}
+    },
+    {
+      "id": "imported.span.a",
+      "type": "span",
+      "brief": "a fun span",
+      "note": "a span note",
+      "stability": "stable",
+      "attributes": [
+        2
+      ],
+      "span_kind": "client",
+      "name": "imported.span.a",
+      "annotations": {}
+    },
+    {
+      "id": "local.group",
+      "type": "attribute_group",
+      "brief": "local group",
+      "stability": "stable",
+      "attributes": [
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "acme.com/schemas",
+          "path": "data/registry-test-published-2/registry/main.yaml"
+        },
+        "attributes": {
+          "local.group.attr": {
+            "source_group": "registry.data.registry-test-published-2.registry.main",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.data.registry-test-published-2.registry.main",
+      "type": "attribute_group",
+      "brief": "<synthetic v2>",
+      "attributes": [
+        0,
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "acme.com/schemas",
+          "path": "data/registry-test-published-2/registry/main.yaml"
+        }
+      }
+    },
+    {
+      "id": "span.local-span",
+      "type": "span",
+      "brief": "a local span",
+      "note": "a local span note",
+      "stability": "stable",
+      "attributes": [
+        0
+      ],
+      "span_kind": "client",
+      "name": "local-span",
+      "lineage": {
+        "provenance": {
+          "registry_id": "acme.com/schemas",
+          "path": "data/registry-test-published-2/registry/main.yaml"
+        },
+        "attributes": {
+          "local.attr": {
+            "source_group": "registry.data.registry-test-published-2.registry.main",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

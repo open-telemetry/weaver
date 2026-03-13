@@ -926,6 +926,16 @@
       "description": "Imports are used to reference groups defined in a dependent registry.",
       "type": "object",
       "properties": {
+        "attribute_groups": {
+          "description": "A list of attribute_group group id wildcards.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/GroupWildcard"
+          }
+        },
         "entities": {
           "description": "A list of entity group name wildcards.",
           "type": [
@@ -948,6 +958,16 @@
         },
         "metrics": {
           "description": "A list of metric group metric_name wildcards.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/GroupWildcard"
+          }
+        },
+        "spans": {
+          "description": "A list of span group name wildcards.",
           "type": [
             "array",
             "null"

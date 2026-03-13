@@ -142,9 +142,9 @@ fn check_attributes<T: CheckableAttribute>(
             };
             advice_list.push(PolicyFinding {
                 id: advice_type,
-                context: json!({
+                context: Some(json!({
                     ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: key.to_owned()
-                }),
+                })),
                 message,
                 level: advice_level,
                 signal_type: sample.signal_type(),

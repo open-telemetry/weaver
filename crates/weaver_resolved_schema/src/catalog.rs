@@ -4,8 +4,7 @@
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
 use crate::attribute::{Attribute, AttributeRef};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
@@ -15,13 +14,17 @@ use weaver_semconv::stability::Stability;
 /// Attribute references are used to refer to attributes in the catalog.
 ///
 /// Note : In the future, this catalog could be extended with other entities.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[must_use]
 pub struct Catalog {
-    /// Catalog of attributes used in the schema.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) attributes: Vec<Attribute>,
+    /// Catalog of attribute definitions and refinements used in the schema.
+    /// Contains elements with the same attribute key.
+    /// Use root_attributes for original attribute definitions.
+    attributes: Vec<Attribute>,
+    /// Attribute definitions available in this registry (including those
+    /// from dependencies). Used for cross-registry attribute lookup.
+    /// Not serialized — populated only for freshly resolved schemas.
+    root_attributes: HashMap<String, (Attribute, String)>,
 }
 
 /// Statistics on a catalog.
@@ -41,31 +44,23 @@ pub struct Stats {
 }
 
 impl Catalog {
-    /// Creates a catalog from a list of attributes.
-    pub fn from_attributes(attributes: Vec<Attribute>) -> Self {
-        Self { attributes }
+    /// Creates a catalog from a list of attributes and root attribute definitions.
+    pub fn new(
+        attributes: Vec<Attribute>,
+        root_attributes: HashMap<String, (Attribute, String)>,
+    ) -> Self {
+        Self {
+            attributes,
+            root_attributes,
+        }
     }
 
-    /// Adds attributes to the catalog and returns a list of attribute references.
+    /// Looks up an attribute by name in the root attribute definitions.
     #[must_use]
-    pub fn add_attributes<const N: usize>(
-        &mut self,
-        attributes: [Attribute; N],
-    ) -> Vec<AttributeRef> {
-        let start_index = self.attributes.len();
-        self.attributes.extend(attributes.iter().cloned());
-        (start_index..self.attributes.len())
-            .map(|i| AttributeRef(i as u32))
-            .collect::<Vec<_>>()
-    }
-
-    /// Returns the attribute name from an attribute ref if it exists
-    /// in the catalog or None if it does not exist.
-    #[must_use]
-    pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<&str> {
-        self.attributes
-            .get(attribute_ref.0 as usize)
-            .map(|attr| attr.name.as_ref())
+    pub fn root_attribute(&self, name: &str) -> Option<(&Attribute, &str)> {
+        self.root_attributes
+            .get(name)
+            .map(|(attr, group_id)| (attr, group_id.as_str()))
     }
 
     /// Counts the number of attributes in the catalog.
@@ -75,7 +70,7 @@ impl Catalog {
     }
 
     /// Return an iterator over the attributes in the catalog.
-    pub fn iter(&self) -> impl Iterator<Item = &Attribute> {
+    pub fn attributes(&self) -> impl Iterator<Item = &Attribute> {
         self.attributes.iter()
     }
 
@@ -137,6 +132,50 @@ impl Catalog {
                 .iter()
                 .filter(|attr| attr.deprecated.is_some())
                 .count(),
+        }
+    }
+}
+
+#[cfg(test)]
+/// Test utilities for building [`Catalog`] instances.
+pub mod test_utils {
+    use super::*;
+
+    /// A builder for constructing a [`Catalog`] in tests.
+    #[derive(Default)]
+    pub struct CatalogBuilder {
+        attributes: Vec<Attribute>,
+        root_attributes: HashMap<String, (Attribute, String)>,
+    }
+
+    impl CatalogBuilder {
+        /// Creates a builder pre-populated with all attributes from an existing catalog.
+        /// Root attributes are not copied — use [`CatalogBuilder::add`] with a `group_id` for that.
+        #[must_use]
+        pub fn from_catalog(catalog: &Catalog) -> Self {
+            let mut builder = Self::default();
+            for attr in catalog.attributes() {
+                let _ = builder.add(attr.clone(), None);
+            }
+            builder
+        }
+
+        /// Adds an attribute to the catalog. If `group_id` is `Some`, the attribute
+        /// is also registered as a root definition for cross-registry lookup.
+        pub fn add(&mut self, attr: Attribute, group_id: Option<&str>) -> AttributeRef {
+            if let Some(gid) = group_id {
+                let _ = self
+                    .root_attributes
+                    .insert(attr.name.clone(), (attr.clone(), gid.to_owned()));
+            }
+            let idx = self.attributes.len();
+            self.attributes.push(attr);
+            AttributeRef(idx as u32)
+        }
+
+        /// Builds the [`Catalog`].
+        pub fn build(self) -> Catalog {
+            Catalog::new(self.attributes, self.root_attributes)
         }
     }
 }

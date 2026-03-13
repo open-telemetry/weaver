@@ -10,7 +10,6 @@ use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::{Group, Registry};
 use crate::resource::Resource;
-use schemars::JsonSchema;
 use serde::Serialize;
 use std::collections::HashMap;
 use weaver_semconv::deprecated::Deprecated;
@@ -46,8 +45,7 @@ pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0.0";
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Debug, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
     pub file_format: String,
@@ -61,14 +59,11 @@ pub struct ResolvedTelemetrySchema {
     /// and signals.
     pub catalog: Catalog,
     /// Resource definition (only for application).
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<Resource>,
     /// Definition of the instrumentation library for the instrumented application or library.
     /// Or none if the resolved telemetry schema represents a semantic convention registry.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub instrumentation_library: Option<InstrumentationLibrary>,
     /// The list of dependencies of the current instrumentation application or library.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<InstrumentationLibrary>,
     /// Definitions for each schema version in this family.
     /// Note: the ordering of versions is defined according to semver
@@ -76,7 +71,6 @@ pub struct ResolvedTelemetrySchema {
     /// This section is described in more details in the OTEP 0152 and in a dedicated
     /// section below.
     /// <https://github.com/open-telemetry/oteps/blob/main/text/0152-telemetry-schemas.md>
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub versions: Option<Versions>,
     /// The manifest of the registry.
     pub registry_manifest: Option<RegistryManifest>,
@@ -117,7 +111,12 @@ impl ResolvedTelemetrySchema {
         attrs: [Attribute; N],
         deprecated: Option<Deprecated>,
     ) {
-        let attr_refs = self.catalog.add_attributes(attrs);
+        let mut builder = catalog::test_utils::CatalogBuilder::from_catalog(&self.catalog);
+        let attr_refs: Vec<attribute::AttributeRef> = attrs
+            .into_iter()
+            .map(|a| builder.add(a, Some(group_id)))
+            .collect();
+        self.catalog = builder.build();
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::Metric,
@@ -161,7 +160,12 @@ impl ResolvedTelemetrySchema {
             let al = AttributeLineage::new(group_id);
             lineage.add_attribute_lineage(attr.name.clone(), al);
         }
-        let attr_refs: Vec<attribute::AttributeRef> = self.catalog.add_attributes(attrs);
+        let mut builder = catalog::test_utils::CatalogBuilder::from_catalog(&self.catalog);
+        let attr_refs: Vec<attribute::AttributeRef> = attrs
+            .into_iter()
+            .map(|a| builder.add(a, Some(group_id)))
+            .collect();
+        self.catalog = builder.build();
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
             r#type: GroupType::AttributeGroup,
@@ -525,19 +529,8 @@ impl ResolvedTelemetrySchema {
 mod tests {
     use crate::attribute::Attribute;
     use crate::ResolvedTelemetrySchema;
-    use schemars::schema_for;
-    use serde_json::to_string_pretty;
     use weaver_semconv::deprecated::Deprecated;
     use weaver_version::schema_changes::{SchemaItemChange, SchemaItemType};
-
-    #[test]
-    fn test_json_schema_gen() {
-        // Ensure the JSON schema can be generated for the ResolvedTelemetrySchema
-        let schema = schema_for!(ResolvedTelemetrySchema);
-
-        // Ensure the schema can be serialized to a string
-        assert!(to_string_pretty(&schema).is_ok());
-    }
 
     #[test]
     fn no_diff() {
