@@ -351,7 +351,7 @@ mod tests {
             ],
         };
 
-        let catalog = Catalog::from_attributes(vec![]);
+        let catalog = Catalog::default();
 
         // Convert to resolved registry
         let resolved = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)

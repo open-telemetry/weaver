@@ -22,6 +22,7 @@ use crate::Error;
 const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// The result of loading a semantic convention URL prior to resolution.
+#[allow(clippy::large_enum_variant)]
 pub enum LoadedSemconvRegistry {
     /// The semconv repository was unresolved and needs to be run through resolution.
     Unresolved {

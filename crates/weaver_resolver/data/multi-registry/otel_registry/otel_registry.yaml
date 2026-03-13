@@ -9,6 +9,13 @@ groups:
         stability: stable
         requirement_level: recommended
         examples: "Ex"
+  - id: db.client.metrics
+    type: attribute_group
+    brief: DB client metric attributes.
+    attributes:
+      - ref: error.type
+        brief: The type of database error.
+
   - id: otel.unused
     type: attribute_group
     brief: Unused attributes from the OTEL Registry.

@@ -165,25 +165,21 @@ pub fn convert_v1_to_v2(
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<Attribute> = c
-        .attributes
-        .iter()
+        .attributes()
         .cloned()
-        .map(|a| {
-            Attribute {
-                key: a.name,
-                r#type: a.r#type,
-                examples: a.examples,
-                common: CommonFields {
-                    brief: a.brief,
-                    note: a.note,
-                    // TODO - Check this assumption.
-                    stability: a
-                        .stability
-                        .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                    deprecated: a.deprecated,
-                    annotations: a.annotations.unwrap_or_default(),
-                },
-            }
+        .map(|a| Attribute {
+            key: a.name,
+            r#type: a.r#type,
+            examples: a.examples,
+            common: CommonFields {
+                brief: a.brief,
+                note: a.note,
+                stability: a
+                    .stability
+                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                deprecated: a.deprecated,
+                annotations: a.annotations.unwrap_or_default(),
+            },
         })
         .collect();
 
@@ -251,6 +247,7 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
+                        lineage: None,
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
@@ -289,6 +286,7 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
+                            lineage: None,
                         },
                     });
                 }
@@ -329,6 +327,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        lineage: None,
                     };
                     if !is_refinement {
                         events.push(event.clone());
@@ -397,6 +396,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    lineage: None,
                 };
                 if is_refinement {
                     metric_refinements.push(metric::MetricRefinement {
@@ -448,6 +448,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    lineage: None,
                 });
             }
             GroupType::AttributeGroup => {
@@ -508,6 +509,8 @@ pub fn convert_v1_to_v2(
             }
         }
     }
+    attributes.sort_by(|a, b| a.0.cmp(&b.0));
+    attributes.dedup();
 
     let v2_registry = Registry {
         attributes,
@@ -618,8 +621,8 @@ mod tests {
 
     #[test]
     fn test_convert_span_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -641,6 +644,9 @@ mod tests {
                 value: None,
                 role: None,
             },
+            None,
+        );
+        let ref1 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -662,7 +668,10 @@ mod tests {
                 value: None,
                 role: None,
             },
-        ]);
+            None,
+        );
+        let test_refs = [ref0, ref1];
+        let v1_catalog = builder.build();
         let mut refinement_span_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_span_lineage.extends("span.my-span");
@@ -749,8 +758,8 @@ mod tests {
 
     #[test]
     fn test_convert_metric_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -772,6 +781,9 @@ mod tests {
                 value: None,
                 role: None,
             },
+            None,
+        );
+        let ref1 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -793,7 +805,10 @@ mod tests {
                 value: None,
                 role: None,
             },
-        ]);
+            None,
+        );
+        let test_refs = [ref0, ref1];
+        let v1_catalog = builder.build();
         let mut refinement_metric_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_metric_lineage.extends("metric.http");
@@ -878,28 +893,33 @@ mod tests {
 
     #[test]
     fn test_convert_event_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([Attribute {
-            name: "test.key".to_owned(),
-            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
-            brief: "".to_owned(),
-            examples: None,
-            tag: None,
-            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-            ),
-            sampling_relevant: None,
-            note: "".to_owned(),
-            stability: Some(Stability::Stable),
-            deprecated: None,
-            prefix: false,
-            tags: None,
-            annotations: None,
-            value: None,
-            role: None,
-        }]);
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let test_refs = [ref0];
+        let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![Group {
@@ -938,28 +958,33 @@ mod tests {
 
     #[test]
     fn test_convert_entity_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([Attribute {
-            name: "test.key".to_owned(),
-            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
-            brief: "".to_owned(),
-            examples: None,
-            tag: None,
-            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-            ),
-            sampling_relevant: None,
-            note: "".to_owned(),
-            stability: Some(Stability::Stable),
-            deprecated: None,
-            prefix: false,
-            tags: None,
-            annotations: None,
-            value: None,
-            role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
-        }]);
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
+            },
+            None,
+        );
+        let test_refs = [ref0];
+        let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![Group {
@@ -1003,7 +1028,7 @@ mod tests {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
             registry_id: "my-registry".to_owned(),
-            catalog: crate::catalog::Catalog::from_attributes(vec![]),
+            catalog: crate::catalog::Catalog::default(),
             registry: crate::registry::Registry {
                 registry_url: "http://another/url/1.0".to_owned(),
                 groups: vec![],
@@ -1131,6 +1156,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.metrics.push(Metric {
@@ -1140,6 +1166,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1165,6 +1192,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.entities.push(Entity {
@@ -1177,6 +1205,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1200,6 +1229,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.events.push(Event {
@@ -1212,6 +1242,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());

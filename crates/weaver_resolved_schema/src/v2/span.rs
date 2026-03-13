@@ -8,7 +8,7 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::{Signal, attribute::AttributeRef, lineage::SignalLineage};
+use crate::v2::{attribute::AttributeRef, lineage::SignalLineage, Signal};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

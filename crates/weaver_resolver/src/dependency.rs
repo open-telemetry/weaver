@@ -702,7 +702,7 @@ fn build_globset(wildcards: Option<&Vec<GroupWildcard>>) -> Result<GlobSet, Erro
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use std::error::Error;
+    use std::{collections::HashMap, error::Error};
     use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 
     use crate::dependency::{GroupRefinementLookup, ResolvedDependency};
@@ -790,8 +790,8 @@ mod tests {
                     },
                 ],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::from_attributes(vec![
-                weaver_resolved_schema::attribute::Attribute {
+            catalog: weaver_resolved_schema::catalog::Catalog::new(
+                vec![weaver_resolved_schema::attribute::Attribute {
                     name: "a.test".to_owned(),
                     r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
                         weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
@@ -809,8 +809,9 @@ mod tests {
                     annotations: Default::default(),
                     value: Default::default(),
                     role: Default::default(),
-                },
-            ]),
+                }],
+                HashMap::new(),
+            ),
             resource: None,
             instrumentation_library: None,
             dependencies: vec![],
@@ -838,12 +839,14 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    lineage: None,
                 }],
                 events: vec![weaver_resolved_schema::v2::event::Event {
                     name: "event.b".to_owned().into(),
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    lineage: None,
                 }],
                 spans: vec![weaver_resolved_schema::v2::span::Span {
                     r#type: "span.d".to_owned().into(),
@@ -854,12 +857,14 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    lineage: None,
                 }],
                 entities: vec![weaver_resolved_schema::v2::entity::Entity {
                     r#type: "entity.c".to_owned().into(),
                     identity: vec![],
                     description: vec![],
                     common: Default::default(),
+                    lineage: None,
                 }],
                 attributes: vec![],
             },

@@ -9,7 +9,6 @@ use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
 use crate::registry::resolve_registry_with_dependencies;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
@@ -124,14 +123,12 @@ impl SchemaResolver {
             include_unreferenced,
         )
         .map(move |resolved_registry| {
-            let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
-
             ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),
                 schema_url: schema_url.as_str().to_owned(),
                 registry_id: schema_url.name().to_owned(),
                 registry: resolved_registry,
-                catalog,
+                catalog: attr_catalog.into(),
                 resource: None,
                 instrumentation_library: None,
                 dependencies: vec![],
@@ -246,6 +243,9 @@ mod tests {
                                     attr.requirement_level,
                                     RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
                                 );
+                                // The brief should come from the original definition in otel.registry,
+                                // NOT from db.client.metrics which refines it with a different brief.
+                                assert_eq!(attr.brief, "The error type.".to_owned());
                             }
                             _ => {
                                 panic!("Unexpected attribute name: {}", attr.name);
@@ -390,6 +390,123 @@ mod tests {
             }
             WResult::FatalErr(fatal) => {
                 panic!("Unexpected fatal error in three-registry chain: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_v2_dependency_resolution() -> Result<(), weaver_semconv::Error> {
+        // Test that a consumer registry can resolve attribute refs from a pre-resolved V2 dependency.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/consumer_registry".to_owned(),
+        };
+
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect("Failed to load consumer registry");
+
+        let resolved = SchemaResolver::resolve(loaded, false);
+        match resolved {
+            WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                let metrics = resolved_registry.groups(GroupType::Metric);
+                let metric = metrics
+                    .get("metric.consumer.request.count")
+                    .expect("metric.consumer.request.count not found");
+
+                assert_eq!(metric.attributes.len(), 2);
+
+                let mut attr_names = HashSet::new();
+                for attr_ref in &metric.attributes {
+                    let attr = resolved_registry
+                        .catalog
+                        .attribute(attr_ref)
+                        .expect("Failed to resolve attribute ref");
+                    _ = attr_names.insert(attr.name.clone());
+                    match attr.name.as_str() {
+                        "server.address" => {
+                            // requirement_level overridden to required in consumer
+                            assert_eq!(
+                                attr.requirement_level,
+                                RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+                            );
+                            assert_eq!(attr.brief, "Server address.");
+                            assert_eq!(
+                                attr.r#type,
+                                weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String
+                                )
+                            );
+                        }
+                        "server.port" => {
+                            // brief overridden locally in consumer
+                            assert_eq!(attr.brief, "The server port used by the consumer.");
+                            // type still comes from the V2 dependency
+                            assert_eq!(
+                                attr.r#type,
+                                weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::Int
+                                )
+                            );
+                        }
+                        _ => panic!("Unexpected attribute: {}", attr.name),
+                    }
+                }
+
+                assert!(attr_names.contains("server.address"));
+                assert!(attr_names.contains("server.port"));
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Failed to resolve consumer registry: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_v2_three_layer_dependency_resolution() -> Result<(), weaver_semconv::Error> {
+        // TODO: this only works with definition registry, but not with
+        // resolved one, because resolved does not know how to get
+        // attributes from transitive dependencies.
+        // Test that briefs are correctly inherited through two levels of V2 dependencies:
+        // app_registry -> consumer_registry -> published (server definitions)
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/app_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect("Failed to load app registry");
+
+        let resolved = SchemaResolver::resolve(loaded, false);
+        match resolved {
+            WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                let metrics = resolved_registry.groups(GroupType::Metric);
+                let metric = metrics
+                    .get("metric.app.request.count")
+                    .expect("metric.app.request.count not found");
+                assert_eq!(metric.attributes.len(), 2);
+                for attr_ref in &metric.attributes {
+                    let attr = resolved_registry
+                        .catalog
+                        .attribute(attr_ref)
+                        .expect("Failed to resolve attribute ref");
+                    match attr.name.as_str() {
+                        // Briefs must come from the original definitions in published/,
+                        // two V2 dependency hops away.
+                        "server.address" => assert_eq!(attr.brief, "Server address."),
+                        "server.port" => assert_eq!(attr.brief, "Server port."),
+                        _ => panic!("Unexpected attribute: {}", attr.name),
+                    }
+                }
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Failed to resolve app registry: {fatal}");
             }
         }
 

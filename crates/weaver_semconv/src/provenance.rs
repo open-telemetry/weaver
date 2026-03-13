@@ -2,10 +2,10 @@
 
 //! The provenance of a semantic convention specification file.
 
+use crate::schema_url::SchemaUrl;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use crate::schema_url::SchemaUrl;
 
 /// The provenance a semantic convention specification file.
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]

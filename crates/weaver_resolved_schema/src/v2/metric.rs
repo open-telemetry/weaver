@@ -1,6 +1,6 @@
 //! Metric related definitions structs.
 
-use crate::v2::{Signal, attribute::AttributeRef, lineage::SignalLineage};
+use crate::v2::{attribute::AttributeRef, lineage::SignalLineage, Signal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{

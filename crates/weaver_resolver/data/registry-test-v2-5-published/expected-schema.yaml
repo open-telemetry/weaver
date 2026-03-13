@@ -1,0 +1,76 @@
+file_format: resolved/2.0.0
+schema_url: https://opentelemetry.io/schemas/1.0.0
+attribute_catalog:
+- key: local.attr
+  type: string
+  brief: local attribute
+  stability: stable
+- key: local.group.attr
+  type: string
+  brief: local group attribute
+  stability: stable
+- key: my.attr.1
+  type: int
+  brief: test attr 1
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  - 2
+  attribute_groups:
+  - id: local.group
+    attributes:
+    - 1
+    brief: local group
+    stability: stable
+  spans:
+  - type: imported.span.a
+    kind: client
+    name:
+      note: imported.span.a
+    attributes:
+    - base: 2
+      requirement_level: required
+    brief: a fun span
+    note: a span note
+    stability: stable
+  - type: local-span
+    kind: client
+    name:
+      note: local-span
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: a local span
+    note: a local span note
+    stability: stable
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans:
+  - id: imported.span.a
+    type: imported.span.a
+    kind: client
+    name:
+      note: imported.span.a
+    attributes:
+    - base: 2
+      requirement_level: required
+    brief: a fun span
+    note: a span note
+    stability: stable
+  - id: local-span
+    type: local-span
+    kind: client
+    name:
+      note: local-span
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: a local span
+    note: a local span note
+    stability: stable
+  metrics: []
+  events: []
