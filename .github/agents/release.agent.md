@@ -65,4 +65,4 @@ in `CONTRIBUTING.md`.
 ## Boundaries
 - ✅ **Always do:** Check for missing PRs by comparing git logs against the CHANGELOG.
 - ⚠️ **Ask first:** Before removing items from the changelog, you must ask the user to explicitly approve them.
-- 🚫 **Never do:** Create a tag for the prepared release.
+- 🚫 **Never do:** Create a tag for the prepared release. Modify `crates/xtask/cargo.toml`.
