@@ -49,16 +49,22 @@ in `CONTRIBUTING.md`.
    ```bash
    git diff
    ```
-8. **Commit the changes:** Ensure all modifications are tracked and commit them ONLY AFTER the user has explicitly approved the changes in the previous step.
-   ```bash
-   git add .
-   git commit -m "Prepare release vX.Y.Z"
-   ```
-9. **Push the branch:**
-   ```bash
-   git push origin prepare-release-vX.Y.Z
-   ```
-10. **Open a Pull Request:** Use the GitHub CLI or API to open a PR from `prepare-release-vX.Y.Z` to `main`. Ask the user to review the PR, request reviews from approvers, and wait for it to be merged.
+> **Important — push mechanism in the Copilot coding-agent sandbox**
+>
+> In this environment, `git push` and `gh pr create` are blocked. The only way to commit and push changes is via the `report_progress` tool. When calling `report_progress`:
+>
+> - Set `commitMessage` to a short commit message (e.g. `"Prepare release vX.Y.Z"`).
+> - Set `prDescription` to a markdown checklist of completed and remaining steps.
+>
+> The tool automatically runs `git add .`, `git commit`, and `git push` on your behalf.
+>
+> A draft Pull Request targeting `main` is already open on the branch before you start — the Copilot system creates it automatically. You do not need to open a new PR. Simply pushing commits to the branch (via `report_progress`) will update the existing PR automatically.
+
+**Revised steps 8–10:**
+
+8. After the user approves the diff, call `report_progress` with the commit message `"Prepare release vX.Y.Z"` and a full markdown checklist as the PR description. This commits and pushes all changes in one step.
+9. Verify the push succeeded by checking the output of `report_progress`. If it reports a successful push, the PR is updated. No further action is needed to "open" a PR.
+10. Inform the user that the PR is ready for review and remind them of the post-merge manual steps (creating the signed tag).
 
 > Note: The user (a maintainer) must manually perform the post-merge steps (creating a signed tag `git tag -s vX.Y.Z` and pushing it upstream) as these require GPG keys and specific permissions.
 
