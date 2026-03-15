@@ -35,7 +35,9 @@ pub mod attribute_group;
 pub mod catalog;
 pub mod entity;
 pub mod event;
+pub mod lineage;
 pub mod metric;
+pub mod provenance;
 pub mod refinements;
 pub mod registry;
 pub mod span;
@@ -245,6 +247,7 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
+                        lineage: None,
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
@@ -283,6 +286,7 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
+                            lineage: None,
                         },
                     });
                 }
@@ -323,6 +327,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        lineage: None,
                     };
                     if !is_refinement {
                         events.push(event.clone());
@@ -391,6 +396,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    lineage: None,
                 };
                 if is_refinement {
                     metric_refinements.push(metric::MetricRefinement {
@@ -442,6 +448,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    lineage: None,
                 });
             }
             GroupType::AttributeGroup => {
@@ -665,7 +672,8 @@ mod tests {
         );
         let test_refs = [ref0, ref1];
         let v1_catalog = builder.build();
-        let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        let mut refinement_span_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_span_lineage.extends("span.my-span");
         refinement_span_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
@@ -801,7 +809,8 @@ mod tests {
         );
         let test_refs = [ref0, ref1];
         let v1_catalog = builder.build();
-        let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        let mut refinement_metric_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_metric_lineage.extends("metric.http");
         refinement_metric_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
@@ -1147,6 +1156,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.metrics.push(Metric {
@@ -1156,6 +1166,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1181,6 +1192,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.entities.push(Entity {
@@ -1193,6 +1205,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1216,6 +1229,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            lineage: None,
         });
         let mut latest = empty_v2_schema();
         latest.registry.events.push(Event {
@@ -1228,6 +1242,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
+            lineage: None,
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());

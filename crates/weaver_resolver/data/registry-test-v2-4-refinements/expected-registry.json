@@ -12,7 +12,7 @@
       "name": "base.entity",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "attributes": {
@@ -43,7 +43,7 @@
       "name": "entity.refined.entity",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "extends_group": "entity.base.entity",
@@ -83,7 +83,7 @@
       "name": "base.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         }
       }
@@ -96,7 +96,7 @@
       "name": "event.refined.event",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "extends_group": "event.base.event"
@@ -115,7 +115,7 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "attributes": {
@@ -157,7 +157,7 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "extends_group": "metric.base.metric",
@@ -196,7 +196,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         }
       }
@@ -210,7 +210,7 @@
       "name": "base.span",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         }
       }
@@ -224,7 +224,7 @@
       "name": "span.refined.span",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "extends_group": "span.base.span"
@@ -240,7 +240,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
         "attributes": {

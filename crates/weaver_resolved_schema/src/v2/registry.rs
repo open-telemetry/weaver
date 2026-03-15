@@ -277,6 +277,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                lineage: None,
             }],
             metrics: vec![Metric {
                 name: "test.metric".to_owned().into(),
@@ -291,6 +292,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                lineage: None,
             }],
             events: vec![],
             entities: vec![Entity {
@@ -309,6 +311,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                lineage: None,
             }],
             attributes: vec![AttributeRef(0)],
         };

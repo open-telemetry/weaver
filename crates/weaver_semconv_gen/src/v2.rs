@@ -479,6 +479,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 metrics: vec![Metric {
                     name: "test.metric".to_owned().into(),
@@ -492,6 +493,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 events: vec![Event {
                     name: "test.event".to_owned().into(),
@@ -503,6 +505,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
                 entities: vec![Entity {
                     r#type: "test.entity".to_owned().into(),
@@ -514,6 +517,7 @@ mod tests {
                     }],
                     description: vec![],
                     common: CommonFields::default(),
+                    lineage: None,
                 }],
             },
             refinements: Refinements {
@@ -534,6 +538,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
                 }],
                 metrics: vec![MetricRefinement {
@@ -550,6 +555,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
                 }],
                 events: vec![EventRefinement {
@@ -564,6 +570,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        lineage: None,
                     },
                 }],
             },
