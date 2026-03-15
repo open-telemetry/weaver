@@ -145,10 +145,6 @@ jobs:
         run: "cd ui && pnpm install --frozen-lockfile"
       - name: "Build UI"
         run: "cd ui && pnpm build"
-      - uses: swatinem/rust-cache@v2
-        with:
-          key: ${{ join(matrix.targets, '-') }}
-          cache-provider: ${{ matrix.cache_provider }}
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest
