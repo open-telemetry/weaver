@@ -39,13 +39,4 @@ impl Provenance {
             path: path.replace('\\', "/"),
         }
     }
-
-    /// Creates an undefined `Provenance` instance.
-    #[must_use]
-    pub fn undefined() -> Self {
-        Provenance {
-            schema_url: SchemaUrl::new_unknown(),
-            path: "undefined".to_owned(),
-        }
-    }
 }

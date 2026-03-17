@@ -64,7 +64,7 @@ pub struct UnresolvedGroup {
     pub is_v2: bool,
 
     /// The provenance of the group (URL or path).
-    pub provenance: Provenance,
+    pub provenance: Option<Provenance>,
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
@@ -214,7 +214,9 @@ fn check_uniqueness<K, KF, EF>(
     for group in registry.groups.iter() {
         if let Some(key) = key_fn(group) {
             let provenances = keys.entry(key).or_default();
-            provenances.push(group.provenance());
+            if let Some(p) = group.provenance() {
+                provenances.push(p);
+            }
         }
     }
 
@@ -323,7 +325,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             is_v2: group.spec.is_v2,
         },
         attributes: attrs,
-        provenance: group.provenance,
+        provenance: Some(group.provenance),
         include_groups: group.spec.include_groups,
         visibility: group.spec.visibility,
         is_v2: group.spec.is_v2,
@@ -1367,10 +1369,10 @@ groups:
                 include_groups: Default::default(),
                 visibility: Default::default(),
                 is_v2: false,
-                provenance: Provenance {
+                provenance: Some(Provenance {
                     schema_url: SchemaUrl::new_unknown(),
                     path: Default::default(),
-                },
+                }),
             }],
             imports: vec![],
             dependencies: vec![],
@@ -1455,10 +1457,10 @@ groups:
                     include_groups: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    provenance: Provenance {
+                    provenance: Some(Provenance {
                         schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
                 UnresolvedGroup {
                     group: Group {
@@ -1489,10 +1491,10 @@ groups:
                     include_groups: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    provenance: Provenance {
+                    provenance: Some(Provenance {
                         schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
                 UnresolvedGroup {
                     group: Group {
@@ -1523,10 +1525,10 @@ groups:
                     include_groups: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    provenance: Provenance {
+                    provenance: Some(Provenance {
                         schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
             ],
             imports: vec![],

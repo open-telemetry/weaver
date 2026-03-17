@@ -263,7 +263,6 @@ mod tests {
     use crate::semconv::{SemConvSpecV1, SemConvSpecWithProvenance, Versioned};
     use crate::Error;
 
-    use schemars::Schema;
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
