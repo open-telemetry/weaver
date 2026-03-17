@@ -324,7 +324,7 @@ pub async fn filter_registry(
                 let mut res = Vec::new();
                 match err {
                     weaver_forge::error::Error::FilterError { details, .. } => {
-                        res.extend(details.clone())
+                        res.extend(details.clone());
                     }
                     weaver_forge::error::Error::CompoundError(errs) => {
                         for sub in errs {
