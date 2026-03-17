@@ -47,6 +47,7 @@ pub struct RegistryDiffArgs {
     pub(crate) diagnostic: DiagnosticArgs,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum VersionedDiff {
     V1(crate::weaver::Diff),
     V2(crate::weaver::DiffV2),

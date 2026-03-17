@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Publish and document missing JSON schemas. Add `head_schema_url`/`baseline_schema_url` to diff v2. ([#1106](https://github.com/open-telemetry/weaver/pull/1106) by @lmolkova)
+
 # [0.22.1] - 2026-03-13
 
 - Fix: Update release workflow for pnpm migration (use pnpm lockfile instead of npm lockfile). ([#1289](https://github.com/open-telemetry/weaver/pull/1289) by @jerbly)
