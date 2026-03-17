@@ -91,7 +91,7 @@ pub enum Error {
         /// The unresolved attribute reference.
         attribute_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: Option<Provenance>,
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An unresolved `extends` clause reference.
@@ -102,7 +102,7 @@ pub enum Error {
         /// The unresolved `extends` clause reference.
         extends_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: Option<Provenance>,
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An unresolved `include` reference.
@@ -113,7 +113,7 @@ pub enum Error {
         /// The unresolved `include` reference.
         include_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: Option<Provenance>,
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An invalid Schema path.

@@ -432,7 +432,7 @@ fn resolve_attribute_references(
                             errors.push(Error::UnresolvedAttributeRef {
                                 group_id: unresolved_group.group.id.clone(),
                                 attribute_ref: r#ref.clone(),
-                                provenance: unresolved_group.provenance.clone(),
+                                provenance: unresolved_group.provenance.clone().map(Box::new),
                             });
                         }
                         Some(attr)
@@ -588,7 +588,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
                         extends_ref: extends.clone(),
-                        provenance: unresolved_group.provenance.clone(),
+                        provenance: unresolved_group.provenance.clone().map(Box::new),
                     });
                 }
             } else if !unresolved_group.include_groups.is_empty() {
@@ -624,7 +624,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         errors.push(Error::UnresolvedExtendsRef {
                             group_id: unresolved_group.group.id.clone(),
                             extends_ref: include_group.clone(),
-                            provenance: unresolved_group.provenance.clone(),
+                            provenance: unresolved_group.provenance.clone().map(Box::new),
                         });
                         all_resolved = false;
                     }

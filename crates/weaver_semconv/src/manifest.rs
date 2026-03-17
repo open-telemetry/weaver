@@ -363,6 +363,7 @@ pub struct PublicationRegistryManifest {
 impl PublicationRegistryManifest {
     /// Creates a `PublicationRegistryManifest` from a `DefinitionRegistryManifest` and a
     /// `resolved_schema_uri` pointing to where the resolved schema will be published.
+    #[must_use]
     pub fn try_from_registry_manifest(
         registry_manifest: &DefinitionRegistryManifest,
         resolved_schema_uri: String,

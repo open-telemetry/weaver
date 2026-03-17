@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 /// The provenance a semantic convention specification file.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema,
+)]
 pub struct Provenance {
     /// The schema URL where this was specified.
     ///

@@ -4,7 +4,6 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::sync::OnceLock;
 
 /// Represents the schema URL of a registry, which serves as a unique identifier for the registry
 /// along with its version.
@@ -12,33 +11,20 @@ use std::sync::OnceLock;
 pub struct SchemaUrl {
     /// The schema URL string.
     url: String,
+    // The byte range of the name within `url`.
     #[serde(skip)]
     #[schemars(skip)]
-    name: OnceLock<String>,
+    name_range: std::ops::Range<usize>,
+    // The byte range of the version within `url`.
     #[serde(skip)]
     #[schemars(skip)]
-    version: OnceLock<String>,
+    version_range: std::ops::Range<usize>,
 }
 
 impl SchemaUrl {
-    /// Create a new SchemaUrl from a string.
-    #[must_use]
-    fn new(url: String) -> Self {
-        Self {
-            url,
-            name: OnceLock::new(),
-            version: OnceLock::new(),
-        }
-    }
-
-    /// Get the URL as a string.
-    pub fn as_str(&self) -> &str {
-        &self.url
-    }
-
-    /// Validate the schema URL format.
-    pub fn validate(&self) -> Result<(), String> {
-        let parsed = url::Url::parse(&self.url).map_err(|e| format!("Invalid schema URL: {e}"))?;
+    /// Create a new SchemaUrl from a string, computing and caching the component offsets.
+    fn new(url: String) -> Result<Self, String> {
+        let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid schema URL: {e}"))?;
         let has_path = parsed
             .path_segments()
             .map(|segments| segments.filter(|s| !s.is_empty()).count() > 0)
@@ -47,48 +33,52 @@ impl SchemaUrl {
         if !has_path {
             return Err("The schema URL must have at least one path segment.".to_owned());
         }
+
+        let scheme_end = url
+            .find("://")
+            .map(|i| i + 3)
+            .ok_or_else(|| "The schema URL must have a valid scheme.".to_owned())?;
+
+        let url_end = url.find('?').or_else(|| url.find('#')).unwrap_or(url.len());
+        let clean_url = url[..url_end].trim_end_matches('/');
+
+        let last_slash = clean_url.rfind('/').unwrap_or(scheme_end.saturating_sub(1));
+        if last_slash < scheme_end {
+            return Err("The schema URL must have at least one path segment.".to_owned());
+        }
+
+        let name_range = scheme_end..last_slash;
+        let version_range = (last_slash + 1)..clean_url.len();
+
+        Ok(Self {
+            url,
+            name_range,
+            version_range,
+        })
+    }
+
+    /// Get the URL as a string.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.url
+    }
+
+    /// Validate the schema URL format.
+    pub fn validate(&self) -> Result<(), String> {
+        // Validation is now performed during creation.
         Ok(())
     }
 
     /// Returns the registry name, derived from the schema URL.
     #[must_use]
     pub fn name(&self) -> &str {
-        self.name.get_or_init(|| {
-            let parsed_url = url::Url::parse(&self.url).expect("schema_url must be valid");
-            let path = parsed_url.path().trim_matches('/');
-            let mut segments: Vec<&str> = path.split('/').collect();
-            if !segments.is_empty() {
-                _ = segments.pop();
-            }
-
-            // Construct authority from host and port (replaces deprecated authority() method)
-            let authority = match (parsed_url.host_str(), parsed_url.port()) {
-                (Some(host), Some(port)) => format!("{}:{}", host, port),
-                (Some(host), None) => host.to_owned(),
-                _ => String::new(),
-            };
-
-            if segments.is_empty() {
-                return authority;
-            }
-
-            format!("{}/{}", authority, segments.join("/"))
-        })
+        &self.url[self.name_range.clone()]
     }
 
     /// Returns the registry version, derived from the schema URL.
     #[must_use]
     pub fn version(&self) -> &str {
-        self.version.get_or_init(|| {
-            let parsed_url = url::Url::parse(&self.url).expect("schema_url must be valid");
-            parsed_url
-                .path()
-                .trim_matches('/')
-                .rsplit('/')
-                .next()
-                .unwrap_or("")
-                .to_owned()
-        })
+        &self.url[self.version_range.clone()]
     }
 
     /// Create a SchemaUrl from name and version.
@@ -108,7 +98,7 @@ impl SchemaUrl {
     /// Returns a default unknown schema URL.
     #[must_use]
     pub fn new_unknown() -> Self {
-        Self::new("https://unknown/unknown".to_owned())
+        Self::new("https://unknown/unknown".to_owned()).expect("unknown schema URL is valid")
     }
 }
 
@@ -119,6 +109,18 @@ impl PartialEq for SchemaUrl {
 }
 
 impl Eq for SchemaUrl {}
+
+impl PartialOrd for SchemaUrl {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SchemaUrl {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.url.cmp(&other.url)
+    }
+}
 
 impl std::hash::Hash for SchemaUrl {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -156,9 +158,7 @@ impl TryFrom<&str> for SchemaUrl {
     type Error = String;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let schema_url = Self::new(value.to_owned());
-        schema_url.validate()?;
-        Ok(schema_url)
+        Self::new(value.to_owned())
     }
 }
 
@@ -166,9 +166,7 @@ impl TryFrom<String> for SchemaUrl {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let schema_url = Self::new(value);
-        schema_url.validate()?;
-        Ok(schema_url)
+        Self::new(value)
     }
 }
 

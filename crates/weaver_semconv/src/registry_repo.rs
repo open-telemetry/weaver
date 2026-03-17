@@ -185,6 +185,7 @@ impl RegistryRepo {
     }
 
     /// Returns the registry schema URL.
+    #[must_use]
     pub fn schema_url(&self) -> &SchemaUrl {
         &self.schema_url
     }
