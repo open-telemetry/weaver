@@ -13,6 +13,50 @@ use weaver_resolved_schema::attribute::AttributeRef;
 
 use crate::error::Error::CompoundError;
 
+/// A 1-based line and column position for marking errors in source code.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct Location {
+    /// The 1-based line number.
+    pub line: usize,
+    /// The 1-based column number.
+    pub col: usize,
+}
+
+/// A parsed span representing the location of a source code token.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct Source {
+    /// The starting coordinates.
+    pub start: Location,
+    /// The optional ending coordinates.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end: Option<Location>,
+}
+
+/// A structured container defining a syntax error.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct FilterErrorDetail {
+    /// The detailed string reason for failure.
+    pub error: String,
+    /// The span data marking the failed position.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Source>,
+}
+
+impl std::fmt::Display for FilterErrorDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(src) = &self.source {
+            write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error)
+        } else {
+            write!(f, "{}", self.error)
+        }
+    }
+}
+
+// A helper for `thiserror` to format the vector of details
+fn format_details(details: &[FilterErrorDetail]) -> String {
+    details.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(",\n")
+}
+
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
 #[non_exhaustive]
@@ -161,12 +205,12 @@ pub enum Error {
     },
 
     /// Filter error.
-    #[error("Filter '{filter}' failed: {error}")]
+    #[error("Filter '{filter}' failed: {}", format_details(.details))]
     FilterError {
         /// Filter that caused the error.
         filter: String,
-        /// Error message.
-        error: String,
+        /// Structured syntax errors
+        details: Vec<FilterErrorDetail>,
     },
 
     /// Import JQ package error.
