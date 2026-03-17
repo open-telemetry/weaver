@@ -54,7 +54,11 @@ impl std::fmt::Display for FilterErrorDetail {
 
 // A helper for `thiserror` to format the vector of details
 fn format_details(details: &[FilterErrorDetail]) -> String {
-    details.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(",\n")
+    details
+        .iter()
+        .map(|d| d.to_string())
+        .collect::<Vec<_>>()
+        .join(",\n")
 }
 
 /// Errors emitted by this crate.

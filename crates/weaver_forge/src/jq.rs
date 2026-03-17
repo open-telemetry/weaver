@@ -136,7 +136,7 @@ fn get_source(whole: &str, part: &str) -> Option<Source> {
 
         let mut current_line = 1;
         let mut current_col = 1;
-        
+
         for c in whole[..offset_start].chars() {
             if c == '\n' {
                 current_line += 1;
@@ -145,7 +145,10 @@ fn get_source(whole: &str, part: &str) -> Option<Source> {
                 current_col += 1;
             }
         }
-        let start = Location { line: current_line, col: current_col };
+        let start = Location {
+            line: current_line,
+            col: current_col,
+        };
 
         for c in whole[offset_start..offset_end].chars() {
             if c == '\n' {
@@ -155,9 +158,15 @@ fn get_source(whole: &str, part: &str) -> Option<Source> {
                 current_col += 1;
             }
         }
-        let end = Location { line: current_line, col: current_col };
-        
-        Some(Source { start, end: Some(end) })
+        let end = Location {
+            line: current_line,
+            col: current_col,
+        };
+
+        Some(Source {
+            start,
+            end: Some(end),
+        })
     } else {
         None
     }
@@ -166,15 +175,17 @@ fn get_source(whole: &str, part: &str) -> Option<Source> {
 /// Turns loading errors from jaq into structured details.
 fn load_errors(errs: jaq_core::load::Errors<&str, JqFileType>) -> Vec<FilterErrorDetail> {
     use jaq_core::load::Error;
-    errs.into_iter().flat_map(|(file, err)| {
-        let code = file.code;
-        let result: Vec<FilterErrorDetail> = match err {
-            Error::Io(errs) => errs.into_iter().map(report_io).collect(),
-            Error::Lex(errs) => errs.into_iter().map(|e| report_lex(code, e)).collect(),
-            Error::Parse(errs) => errs.into_iter().map(|e| report_parse(code, e)).collect(),
-        };
-        result
-    }).collect()
+    errs.into_iter()
+        .flat_map(|(file, err)| {
+            let code = file.code;
+            let result: Vec<FilterErrorDetail> = match err {
+                Error::Io(errs) => errs.into_iter().map(report_io).collect(),
+                Error::Lex(errs) => errs.into_iter().map(|e| report_lex(code, e)).collect(),
+                Error::Parse(errs) => errs.into_iter().map(|e| report_parse(code, e)).collect(),
+            };
+            result
+        })
+        .collect()
 }
 
 /// Turns compile errors from jaq into structured details.
@@ -183,7 +194,8 @@ fn compile_errors(errs: jaq_core::compile::Errors<&str, JqFileType>) -> Vec<Filt
         .flat_map(|(file, errs)| {
             let code = file.code;
             errs.into_iter().map(move |e| report_compile(code, e))
-        }).collect()
+        })
+        .collect()
 }
 
 /// Turns IO errors from JQ into structured details.
@@ -203,7 +215,10 @@ fn report_lex(code: &str, (expected, span): jaq_core::load::lex::Error<&str>) ->
 }
 
 /// Turns parsing errors from JQ into structured details.
-fn report_parse(code: &str, (expected, span): jaq_core::load::parse::Error<&str>) -> FilterErrorDetail {
+fn report_parse(
+    code: &str,
+    (expected, span): jaq_core::load::parse::Error<&str>,
+) -> FilterErrorDetail {
     FilterErrorDetail {
         error: format!("expected {}", expected.as_str()),
         source: get_source(code, span),
@@ -211,7 +226,10 @@ fn report_parse(code: &str, (expected, span): jaq_core::load::parse::Error<&str>
 }
 
 /// Turns errors coming from JAQ compile phase into structured details.
-fn report_compile(code: &str, (found, undefined): jaq_core::compile::Error<&str>) -> FilterErrorDetail {
+fn report_compile(
+    code: &str,
+    (found, undefined): jaq_core::compile::Error<&str>,
+) -> FilterErrorDetail {
     use jaq_core::compile::Undefined::Filter;
     let wnoa = |exp, got| format!("wrong number of arguments (expected {exp}, found {got})");
     let msg = match (found, undefined) {
