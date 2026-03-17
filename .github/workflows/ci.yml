@@ -298,34 +298,42 @@ jobs:
         run: |
           cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o /tmp/semconv.schema.v2.json
           cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o /tmp/semconv.resolved.v2.json
+          cargo run -- --quiet registry json-schema -j materialized-registry-v2 -o /tmp/semconv.materialized.v2.json
+          cargo run -- --quiet registry json-schema -j diff-v2 -o /tmp/semconv.diff.v2.json
           cargo run -- --quiet registry json-schema -j policy-finding -o /tmp/policy.finding.json
+          cargo run -- --quiet registry json-schema -j publication-manifest-v2 -o /tmp/publication-manifest.v2.json
+          cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o /tmp/definition-manifest.v2.json
       - name: Check generated files are up-to-date
         run: |
           failed=0
 
-          if ! diff -q docs/usage.md /tmp/usage.md > /dev/null 2>&1; then
-            echo "docs/usage.md is out of date. Run 'cargo run -- --quiet markdown-help > docs/usage.md' to regenerate it."
-            diff docs/usage.md /tmp/usage.md
-            failed=1
-          fi
+          check_file() {
+            local repo_file="$1"
+            local tmp_file="$2"
+            local regen_cmd="$3"
+            if ! diff -q "$repo_file" "$tmp_file" > /dev/null 2>&1; then
+              echo "$repo_file is out of date. Run '$regen_cmd' to regenerate it."
+              diff "$repo_file" "$tmp_file"
+              failed=1
+            fi
+          }
 
-          if ! diff -q schemas/semconv.schema.v2.json /tmp/semconv.schema.v2.json > /dev/null 2>&1; then
-            echo "schemas/semconv.schema.v2.json is out of date. Run 'cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json' to regenerate it."
-            diff schemas/semconv.schema.v2.json /tmp/semconv.schema.v2.json
-            failed=1
-          fi
-
-          if ! diff -q schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json > /dev/null 2>&1; then
-            echo "schemas/semconv.resolved.v2.json is out of date. Run 'cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json' to regenerate it."
-            diff schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json
-            failed=1
-          fi
-
-          if ! diff -q schemas/policy.finding.json /tmp/policy.finding.json > /dev/null 2>&1; then
-            echo "schemas/policy.finding.json is out of date. Run 'cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json' to regenerate it."
-            diff schemas/policy.finding.json /tmp/policy.finding.json
-            failed=1
-          fi
+          check_file docs/usage.md /tmp/usage.md \
+            "cargo run -- --quiet markdown-help > docs/usage.md"
+          check_file schemas/semconv.schema.v2.json /tmp/semconv.schema.v2.json \
+            "cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json"
+          check_file schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json \
+            "cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json"
+          check_file schemas/policy.finding.json /tmp/policy.finding.json \
+            "cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json"
+          check_file schemas/semconv.materialized.v2.json /tmp/semconv.materialized.v2.json \
+            "cargo run -- --quiet registry json-schema -j materialized-registry-v2 -o ./schemas/semconv.materialized.v2.json"
+          check_file schemas/semconv.diff.v2.json /tmp/semconv.diff.v2.json \
+            "cargo run -- --quiet registry json-schema -j diff-v2 -o ./schemas/semconv.diff.v2.json"
+          check_file schemas/publication-manifest.v2.json /tmp/publication-manifest.v2.json \
+            "cargo run -- --quiet registry json-schema -j publication-manifest-v2 -o ./schemas/publication-manifest.v2.json"
+          check_file schemas/definition-manifest.v2.json /tmp/definition-manifest.v2.json \
+            "cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o ./schemas/definition-manifest.v2.json"
 
           exit $failed
   coverage:

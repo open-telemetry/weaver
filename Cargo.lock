@@ -6038,6 +6038,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "thiserror 2.0.18",
+ "weaver_semconv",
 ]
 
 [[package]]
