@@ -2,44 +2,43 @@
 
 //! The provenance of a semantic convention specification file.
 
+use crate::schema_url::SchemaUrl;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::sync::Arc;
 
 /// The provenance a semantic convention specification file.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema,
+)]
 pub struct Provenance {
-    /// The registry id containing the specification file.
-    /// A registry id is an identifier defined in the `registry_manifest.yaml` file.
-    pub registry_id: Arc<str>,
+    /// The schema URL where this was specified.
+    ///
+    /// The Schema url contains the registry id and the version of the schema.
+    /// It can be used to detect conflicts or resolve multiple "ids" existing across
+    /// dependency chains but being the same thing, conceptually.
+    pub schema_url: SchemaUrl,
 
     /// The path to the specification file.
+    ///
+    /// This is the path is only available *locally*. When publishing resolved schemas,
+    /// this field is not included.
     pub path: String,
 }
 
 impl Display for Provenance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.registry_id, self.path)
+        write!(f, "{}:{}", self.schema_url, self.path)
     }
 }
 
 impl Provenance {
     /// Creates a new `Provenance` instance.
     #[must_use]
-    pub fn new(registry_id: &str, path: &str) -> Self {
+    pub fn new(schema_url: SchemaUrl, path: &str) -> Self {
         Provenance {
-            registry_id: Arc::from(registry_id),
+            schema_url,
             path: path.replace('\\', "/"),
-        }
-    }
-
-    /// Creates an undefined `Provenance` instance.
-    #[must_use]
-    pub fn undefined() -> Self {
-        Provenance {
-            registry_id: Arc::from("undefined"),
-            path: "undefined".to_owned(),
         }
     }
 }

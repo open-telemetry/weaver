@@ -17,7 +17,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
         "extends_group": "attributes.http.common",
@@ -134,7 +134,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
         "attributes": {
@@ -218,7 +218,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
         "extends_group": "attributes.http.common",
@@ -348,7 +348,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/messaging-common.yaml"
         },
         "attributes": {
@@ -442,7 +442,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "messaging.attributes.common",
@@ -565,7 +565,7 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "metric.messaging.attributes",
@@ -688,7 +688,7 @@
       "unit": "{message}",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "metric.messaging.attributes",
@@ -811,7 +811,7 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "metric.messaging.attributes",
@@ -934,7 +934,7 @@
       "unit": "{message}",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "metric.messaging.attributes",
@@ -1057,7 +1057,7 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "metric.messaging.attributes",
@@ -1180,7 +1180,7 @@
       "unit": "{message}",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "extends_group": "metric.messaging.attributes",
@@ -1292,7 +1292,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/registry-error.yaml"
         }
       }
@@ -1314,7 +1314,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/registry-http.yaml"
         }
       }
@@ -1357,7 +1357,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/registry-messaging.yaml"
         }
       }
@@ -1385,7 +1385,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/registry-network.yaml"
         }
       }
@@ -1403,7 +1403,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/registry-url.yaml"
         }
       }
@@ -1418,7 +1418,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-3-extends/registry/registry-server.yaml"
         }
       }

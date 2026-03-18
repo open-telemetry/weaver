@@ -154,7 +154,10 @@ impl ResolvedTelemetrySchema {
     ) {
         use crate::lineage::GroupLineage;
         use weaver_semconv::provenance::Provenance;
-        let mut lineage = GroupLineage::new(Provenance::new("", ""));
+        let mut lineage = GroupLineage::new(Provenance::new(
+            weaver_semconv::schema_url::SchemaUrl::new_unknown(),
+            "",
+        ));
         for attr in &attrs {
             use crate::lineage::AttributeLineage;
             let al = AttributeLineage::new(group_id);
