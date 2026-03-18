@@ -198,7 +198,7 @@
           ],
           "provenance": {
             "path": "data/registry/http.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "http.client.request.duration",
@@ -220,7 +220,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.class.count",
@@ -237,7 +237,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.class.loaded",
@@ -254,7 +254,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.class.unloaded",
@@ -271,7 +271,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.cpu.count",
@@ -288,7 +288,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.cpu.recent_utilization",
@@ -306,7 +306,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.cpu.time",
@@ -348,7 +348,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.gc.duration",
@@ -434,7 +434,7 @@
           "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.memory.committed",
@@ -520,7 +520,7 @@
           "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.memory.limit",
@@ -623,7 +623,7 @@
           "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.memory.used",
@@ -709,7 +709,7 @@
           "extends_group": "attributes.jvm.memory",
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.memory.used_after_last_gc",
@@ -784,7 +784,7 @@
         "lineage": {
           "provenance": {
             "path": "data/registry/jvm-metrics.yaml",
-            "registry_id": "default"
+            "schema_url": "https://default/1.0.0"
           }
         },
         "metric_name": "jvm.thread.count",

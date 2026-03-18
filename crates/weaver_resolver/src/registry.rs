@@ -64,7 +64,7 @@ pub struct UnresolvedGroup {
     pub is_v2: bool,
 
     /// The provenance of the group (URL or path).
-    pub provenance: Provenance,
+    pub provenance: Option<Provenance>,
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
@@ -214,7 +214,9 @@ fn check_uniqueness<K, KF, EF>(
     for group in registry.groups.iter() {
         if let Some(key) = key_fn(group) {
             let provenances = keys.entry(key).or_default();
-            provenances.push(group.provenance());
+            if let Some(p) = group.provenance() {
+                provenances.push(p);
+            }
         }
     }
 
@@ -323,7 +325,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             is_v2: group.spec.is_v2,
         },
         attributes: attrs,
-        provenance: group.provenance,
+        provenance: Some(group.provenance),
         include_groups: group.spec.include_groups,
         visibility: group.spec.visibility,
         is_v2: group.spec.is_v2,
@@ -430,7 +432,7 @@ fn resolve_attribute_references(
                             errors.push(Error::UnresolvedAttributeRef {
                                 group_id: unresolved_group.group.id.clone(),
                                 attribute_ref: r#ref.clone(),
-                                provenance: unresolved_group.provenance.clone(),
+                                provenance: unresolved_group.provenance.clone().map(Box::new),
                             });
                         }
                         Some(attr)
@@ -586,7 +588,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
                         extends_ref: extends.clone(),
-                        provenance: unresolved_group.provenance.clone(),
+                        provenance: unresolved_group.provenance.clone().map(Box::new),
                     });
                 }
             } else if !unresolved_group.include_groups.is_empty() {
@@ -622,7 +624,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         errors.push(Error::UnresolvedExtendsRef {
                             group_id: unresolved_group.group.id.clone(),
                             extends_ref: include_group.clone(),
-                            provenance: unresolved_group.provenance.clone(),
+                            provenance: unresolved_group.provenance.clone().map(Box::new),
                         });
                         all_resolved = false;
                     }
@@ -1367,10 +1369,10 @@ groups:
                 include_groups: Default::default(),
                 visibility: Default::default(),
                 is_v2: false,
-                provenance: Provenance {
-                    registry_id: Default::default(),
+                provenance: Some(Provenance {
+                    schema_url: SchemaUrl::new_unknown(),
                     path: Default::default(),
-                },
+                }),
             }],
             imports: vec![],
             dependencies: vec![],
@@ -1455,10 +1457,10 @@ groups:
                     include_groups: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    provenance: Provenance {
-                        registry_id: Default::default(),
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
                 UnresolvedGroup {
                     group: Group {
@@ -1489,10 +1491,10 @@ groups:
                     include_groups: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    provenance: Provenance {
-                        registry_id: Default::default(),
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
                 UnresolvedGroup {
                     group: Group {
@@ -1523,10 +1525,10 @@ groups:
                     include_groups: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    provenance: Provenance {
-                        registry_id: Default::default(),
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
             ],
             imports: vec![],
