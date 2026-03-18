@@ -34,21 +34,23 @@ impl SchemaUrl {
             return Err("The schema URL must have at least one path segment.".to_owned());
         }
 
-        let scheme_end = url
-            .find("://")
-            .map(|i| i + 3)
-            .ok_or_else(|| "The schema URL must have a valid scheme.".to_owned())?;
-
-        let url_end = url.find('?').or_else(|| url.find('#')).unwrap_or(url.len());
-        let clean_url = url[..url_end].trim_end_matches('/');
-
-        let last_slash = clean_url.rfind('/').unwrap_or(scheme_end.saturating_sub(1));
-        if last_slash < scheme_end {
-            return Err("The schema URL must have at least one path segment.".to_owned());
-        }
-
-        let name_range = scheme_end..last_slash;
-        let version_range = (last_slash + 1)..clean_url.len();
+        let scheme_len = parsed.scheme().len();
+        let host_offset = url[scheme_len..]
+            .find(|c: char| c.is_alphanumeric() || c == '[') // `[` is for possible IPv6.
+            .ok_or_else(|| "The schema URL has an invalid host structure.".to_owned())?;
+        let scheme_end = scheme_len + host_offset;
+        let full_path = parsed.path();
+        let path_start = url
+            .find(full_path)
+            .ok_or_else(|| "The schema URL has an invalid path structure.".to_owned())?;
+        
+        let trimmed_path = full_path.trim_end_matches('/');
+        let last_slash = trimmed_path
+            .rfind('/')
+            .ok_or_else(|| "The schema URL has an invalid path structure.".to_owned())?;
+        
+        let name_range = scheme_end..(path_start + last_slash);
+        let version_range = (path_start + last_slash + 1)..(path_start + trimmed_path.len());
 
         Ok(Self {
             url,
