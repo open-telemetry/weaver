@@ -44,12 +44,12 @@ impl SchemaUrl {
             .find(full_path)
             .map(|i| i + scheme_end)
             .ok_or_else(|| "The schema URL has an invalid path structure.".to_owned())?;
-        
+
         let trimmed_path = full_path.trim_end_matches('/');
         let last_slash = trimmed_path
             .rfind('/')
             .ok_or_else(|| "The schema URL has an invalid path structure.".to_owned())?;
-        
+
         let name_range = scheme_end..(path_start + last_slash);
         let version_range = (path_start + last_slash + 1)..(path_start + trimmed_path.len());
 
