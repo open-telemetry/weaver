@@ -69,3 +69,17 @@ impl SchemaChanges {
         self.registry.is_empty()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schema_changes_default() {
+        let changes = SchemaChanges::default();
+        assert_eq!(changes.head_schema_url, SchemaUrl::new_unknown());
+        assert_eq!(changes.baseline_schema_url, SchemaUrl::new_unknown());
+        assert!(changes.registry.is_empty());
+        assert!(changes.is_empty());
+    }
+}
