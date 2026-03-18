@@ -40,8 +40,9 @@ impl SchemaUrl {
             .ok_or_else(|| "The schema URL has an invalid host structure.".to_owned())?;
         let scheme_end = scheme_len + host_offset;
         let full_path = parsed.path();
-        let path_start = url
+        let path_start = url[scheme_end..]
             .find(full_path)
+            .map(|i| i + scheme_end)
             .ok_or_else(|| "The schema URL has an invalid path structure.".to_owned())?;
         
         let trimmed_path = full_path.trim_end_matches('/');
