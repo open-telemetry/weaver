@@ -1,0 +1,25 @@
+file_format: definition/2
+metrics:
+  - name: consumer.request.count
+    brief: Count of consumer requests.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      - ref: server.address
+        requirement_level: required
+      - ref: server.port
+        requirement_level: recommended
+        brief: The server port used by the consumer.
+  - name: consumer.request.active
+    brief: Number of active consumer requests.
+    instrument: updowncounter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      - ref: server.address
+        brief: Yet another description.
+        requirement_level: required
+      - ref: server.port
+        requirement_level: recommended
+        brief: The server port used by the consumer.

@@ -46,10 +46,12 @@ groups ::= semconv [imports]
 
 semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
 
-imports := [metrics] [events] [entities]
+imports := [metrics] [events] [entities] [spans] [attribute_groups]
 metrics := <wildcard> {<wildcard>}         # e.g. "db.*"
 events := <wildcard> {<wildcard>}          # e.g. "db.*"
-entities := <wildcard> {<wildcard>}        # e.g. "host", "service.*
+entities := <wildcard> {<wildcard>}        # e.g. "host", "service.*"
+spans := <wildcard> {<wildcard>}           # e.g. "http.*"
+attribute_groups := <wildcard> {<wildcard>} # e.g. "client.*"
 
 extends_or_attributes ::= (extends | attributes | (extends attributes))
 

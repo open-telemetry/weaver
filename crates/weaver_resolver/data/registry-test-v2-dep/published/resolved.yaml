@@ -1,0 +1,57 @@
+file_format: resolved/2.0.0
+schema_url: https://server.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Different brief
+  note: Different note
+  stability: stable
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Server address.
+  stability: stable
+registry:
+  attributes:
+  - 2
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Duration of server requests.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: server.request.duration
+    name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Duration of server requests.
+    stability: stable
+  events: []

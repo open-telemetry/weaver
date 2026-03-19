@@ -31,7 +31,8 @@ impl From<Catalog> for Vec<Attribute> {
 
 impl Catalog {
     /// Creates a catalog from a list of attributes.
-    pub(crate) fn from_attributes(attributes: Vec<Attribute>) -> Self {
+    pub(crate) fn from_attributes(mut attributes: Vec<Attribute>) -> Self {
+        attributes.sort_by(|a, b| a.key.cmp(&b.key));
         let mut lookup: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         for (idx, attr) in attributes.iter().enumerate() {
             lookup.entry(attr.key.clone()).or_default().push(idx);

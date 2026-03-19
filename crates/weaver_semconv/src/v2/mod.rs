@@ -13,8 +13,9 @@ use crate::{
     semconv::{Imports, SemConvSpecV1},
     stability::Stability,
     v2::{
-        attribute::AttributeDef, attribute_group::AttributeGroup, entity::Entity, event::Event,
-        metric::Metric, span::Span,
+        attribute::AttributeDef, attribute_group::AttributeGroup, entity::Entity,
+        entity::EntityRefinement, event::Event, event::EventRefinement, metric::Metric,
+        metric::MetricRefinement, span::Span, span::SpanRefinement,
     },
     YamlValue,
 };
@@ -50,7 +51,8 @@ pub struct CommonFields {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-/// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
+/// A semconv file is a collection of attributes, signals, groups,
+/// and imports.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SemConvSpecV2 {
@@ -73,12 +75,46 @@ pub struct SemConvSpecV2 {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) attribute_groups: Vec<AttributeGroup>,
 
+    /// A collection of semantic convention refinements for Entity signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) entity_refinements: Vec<EntityRefinement>,
+    /// A collection of semantic convention refinements for Event signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) event_refinements: Vec<EventRefinement>,
+    /// A collection of semantic convention refinements for Metric signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) metric_refinements: Vec<MetricRefinement>,
+    /// A collection of semantic convention refinements for Span signals.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) span_refinements: Vec<SpanRefinement>,
+
     /// A list of imports referencing groups defined in a dependent registry.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) imports: Option<Imports>,
 }
 
 impl SemConvSpecV2 {
+    /// Returns the JSON Schema for this type, with `file_format` injected as a
+    /// documented-only property. The field is intentionally absent from the Rust
+    /// struct (it is stripped before serde deserialization) but must appear in
+    /// the schema for IDE auto-complete and documentation purposes.
+    #[must_use]
+    pub fn output_schema() -> schemars::Schema {
+        let mut schema =
+            serde_json::to_value(schemars::schema_for!(Self)).expect("Failed to serialize schema");
+        if let Some(props) = schema.get_mut("properties").and_then(|p| p.as_object_mut()) {
+            let _ = props.insert(
+                "file_format".to_owned(),
+                serde_json::json!({
+                    "description": "The file format version.",
+                    "type": "string",
+                    "const": "definition/2"
+                }),
+            );
+        }
+        serde_json::from_value(schema).expect("Failed to deserialize schema")
+    }
+
     /// Converts the version 2 schema into the version 1 group spec.
     pub(crate) fn into_v1_specification(self, file_name: &str) -> SemConvSpecV1 {
         log::debug!("Translating v2 spec into v1 spec for {file_name}");
@@ -96,6 +132,7 @@ impl SemConvSpecV2 {
                     .map(|a| a.into_v1_attribute())
                     .collect(),
                 brief: "<synthetic v2>".to_owned(),
+                is_v2: true,
                 ..Default::default()
             });
         }
@@ -111,6 +148,24 @@ impl SemConvSpecV2 {
                 .map(|ag| ag.into_v1_group()),
         );
 
+        // Add all refinements
+        groups.extend(
+            self.entity_refinements
+                .into_iter()
+                .map(|e| e.into_v1_group()),
+        );
+        groups.extend(
+            self.event_refinements
+                .into_iter()
+                .map(|e| e.into_v1_group()),
+        );
+        groups.extend(
+            self.metric_refinements
+                .into_iter()
+                .map(|m| m.into_v1_group()),
+        );
+        groups.extend(self.span_refinements.into_iter().map(|s| s.into_v1_group()));
+
         SemConvSpecV1 {
             groups,
             imports: self.imports,
@@ -125,6 +180,10 @@ impl SemConvSpecV2 {
             && self.metrics.is_empty()
             && self.spans.is_empty()
             && self.attribute_groups.is_empty()
+            && self.entity_refinements.is_empty()
+            && self.event_refinements.is_empty()
+            && self.metric_refinements.is_empty()
+            && self.span_refinements.is_empty()
     }
 }
 
@@ -208,6 +267,7 @@ groups:
 - id: registry.test_attribute_group
   type: attribute_group
   brief: <synthetic v2>
+  is_v2: true
   attributes:
   - id: test.attribute
     type: int
@@ -219,6 +279,7 @@ groups:
   name: my_entity
   brief: Test entity
   stability: stable
+  is_v2: true
   attributes:
   - ref: some_attr
     role: identifying
@@ -229,11 +290,13 @@ groups:
   name: my_event
   brief: Test event
   stability: stable
+  is_v2: true
 - id: metric.my_metric
   type: metric
   metric_name: my_metric
   brief: Test metric
   stability: stable
+  is_v2: true
   instrument: histogram
   unit: s
   include_groups:
@@ -244,9 +307,11 @@ groups:
   name: my_span
   span_kind: client
   stability: stable
+  is_v2: true
 - id: test
   type: attribute_group
   brief: test
+  is_v2: true
   attributes:
   - ref: test.attribute
   visibility: internal
@@ -254,6 +319,106 @@ imports:
   metrics:
   - foo/*
 "#,
+        );
+    }
+
+    #[test]
+    fn test_refinements() {
+        parse_and_translate(
+            r#"
+metric_refinements:
+  - id: metric.my.refined.metric
+    ref: base.metric
+    brief: Refined metric brief
+span_refinements:
+  - id: span.my.refined.span
+    ref: base.span
+event_refinements:
+  - id: event.my.refined.event
+    ref: base.event
+    brief: Refined event brief
+entity_refinements:
+  - id: entity.my.refined.entity
+    ref: base.entity
+    brief: Refined entity brief
+"#,
+            r#"
+groups:
+- id: entity.my.refined.entity
+  type: entity
+  name: entity.my.refined.entity
+  brief: Refined entity brief
+  extends: entity.base.entity
+  is_v2: true
+- id: event.my.refined.event
+  type: event
+  name: event.my.refined.event
+  brief: Refined event brief
+  extends: event.base.event
+  is_v2: true
+- id: metric.my.refined.metric
+  type: metric
+  brief: Refined metric brief
+  extends: metric.base.metric
+  is_v2: true
+- id: span.my.refined.span
+  type: span
+  brief: ""
+  name: span.my.refined.span
+  extends: span.base.span
+  is_v2: true
+"#,
+        );
+    }
+
+    #[test]
+    fn test_semconv_spec_v2_is_empty() {
+        let empty_spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+        assert!(empty_spec.is_empty());
+
+        let non_empty_spec = SemConvSpecV2 {
+            attributes: vec![AttributeDef {
+                key: "test".to_owned(),
+                r#type: crate::attribute::AttributeType::PrimitiveOrArray(
+                    crate::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                examples: None,
+                common: CommonFields {
+                    brief: "test".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            ..empty_spec.clone()
+        };
+        assert!(!non_empty_spec.is_empty());
+    }
+
+    #[test]
+    fn test_output_schema_contains_file_format() {
+        let schema = SemConvSpecV2::output_schema();
+        let value = serde_json::to_value(&schema).expect("Failed to serialize schema");
+        let file_format = value
+            .get("properties")
+            .and_then(|p| p.get("file_format"))
+            .expect("Expected 'file_format' in schema properties");
+        assert_eq!(
+            file_format.get("const").and_then(|v| v.as_str()),
+            Some("definition/2")
         );
     }
 }

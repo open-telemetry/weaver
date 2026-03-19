@@ -22,8 +22,10 @@ use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
+use crate::dependency::GroupSummary;
+
 /// A registry containing unresolved groups.
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct UnresolvedRegistry {
     /// The semantic convention registry containing resolved groups.
     pub registry: Registry,
@@ -58,8 +60,11 @@ pub struct UnresolvedGroup {
     /// Visibility of the group.
     pub visibility: Option<AttributeGroupVisibilitySpec>,
 
+    /// True if the group was defined using the v2 syntax.
+    pub is_v2: bool,
+
     /// The provenance of the group (URL or path).
-    pub provenance: Provenance,
+    pub provenance: Option<Provenance>,
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
@@ -155,7 +160,14 @@ pub(crate) fn resolve_registry_with_dependencies(
     check_uniqueness(
         &result,
         &mut errors,
-        |group| group.metric_name.clone(),
+        |group| {
+            // Ignore refinement duplicates, as they namespace differently.
+            if group.is_v2_refinement() {
+                None
+            } else {
+                group.metric_name.clone()
+            }
+        },
         |metric_name, provenances| DuplicateMetricName {
             metric_name,
             provenances,
@@ -165,7 +177,14 @@ pub(crate) fn resolve_registry_with_dependencies(
     check_uniqueness(
         &result,
         &mut errors,
-        |group| group.name.clone(),
+        |group| {
+            // Ignore refinement duplicates, as they namespace differently.
+            if group.is_v2_refinement() {
+                None
+            } else {
+                group.name.clone()
+            }
+        },
         |group_name, provenances| DuplicateGroupName {
             group_name,
             provenances,
@@ -195,7 +214,9 @@ fn check_uniqueness<K, KF, EF>(
     for group in registry.groups.iter() {
         if let Some(key) = key_fn(group) {
             let provenances = keys.entry(key).or_default();
-            provenances.push(group.provenance());
+            if let Some(p) = group.provenance() {
+                provenances.push(p);
+            }
         }
     }
 
@@ -301,11 +322,13 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             annotations: group.spec.annotations,
             entity_associations: group.spec.entity_associations,
             visibility: group.spec.visibility.clone(),
+            is_v2: group.spec.is_v2,
         },
         attributes: attrs,
-        provenance: group.provenance,
+        provenance: Some(group.provenance),
         include_groups: group.spec.include_groups,
         visibility: group.spec.visibility,
+        is_v2: group.spec.is_v2,
     }
 }
 
@@ -341,11 +364,13 @@ fn resolve_dependency_imports(
     let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
     for group in groups {
         let provenance = group.provenance();
+        let is_v2 = group.is_v2();
         ureg.groups.push(UnresolvedGroup {
             group,
             attributes: vec![],
             include_groups: vec![],
             visibility: None,
+            is_v2,
             provenance,
         });
     }
@@ -407,7 +432,7 @@ fn resolve_attribute_references(
                             errors.push(Error::UnresolvedAttributeRef {
                                 group_id: unresolved_group.group.id.clone(),
                                 attribute_ref: r#ref.clone(),
-                                provenance: unresolved_group.provenance.clone(),
+                                provenance: unresolved_group.provenance.clone().map(Box::new),
                             });
                         }
                         Some(attr)
@@ -436,7 +461,7 @@ fn resolve_attribute_references(
 
 /// Helper function to add a resolved group to the index and update its state
 fn add_resolved_group_to_index(
-    group_index: &mut HashMap<String, Vec<UnresolvedAttribute>>,
+    group_index: &mut HashMap<String, GroupSummary>,
     unresolved_group: &mut UnresolvedGroup,
     resolved_group_count: &mut usize,
 ) {
@@ -451,10 +476,9 @@ fn add_resolved_group_to_index(
     );
     _ = unresolved_group.group.extends.take();
     unresolved_group.include_groups.clear();
-    _ = group_index.insert(
-        unresolved_group.group.id.clone(),
-        unresolved_group.attributes.clone(),
-    );
+    let mut summary = GroupSummary::from_without_attributes(&unresolved_group.group);
+    summary.attributes = unresolved_group.attributes.clone();
+    _ = group_index.insert(unresolved_group.group.id.clone(), summary);
     *resolved_group_count += 1;
 }
 /// The resolution process is iterative. The process stops when all the
@@ -467,7 +491,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         let mut errors = vec![];
         let mut resolved_group_count = 0;
 
-        // Create a map group_id -> attributes for groups
+        // Create a map group_id -> group_summary for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
         let dependencies = &ureg.dependencies;
@@ -483,25 +507,77 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         .map(|a| a.spec.id().clone())
                         .collect::<Vec<_>>()
                 );
-                _ = group_index.insert(group.group.id.clone(), group.attributes.clone());
+                let mut summary = GroupSummary::from_without_attributes(&group.group);
+                summary.attributes = group.attributes.clone();
+                _ = group_index.insert(group.group.id.clone(), summary);
             }
         }
         // Iterate over all groups and resolve the `extends` clauses.
         for unresolved_group in ureg.groups.iter_mut() {
             // TODO - also look in dependencies.
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
-                if let Some(attrs) =
-                    lookup_group_attributes_with_dependencies(dependencies, &group_index, extends)
+                if let Some(parent_summary) =
+                    lookup_group_with_dependencies(dependencies, &group_index, extends)
                 {
                     unresolved_group.attributes = resolve_inheritance_attrs_unified(
                         &unresolved_group.group.id,
                         &unresolved_group.attributes,
-                        vec![(extends, &attrs)],
+                        vec![(extends, &parent_summary.attributes)],
                         unresolved_group.group.lineage.as_mut(),
                     );
                     if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
                         lineage.extends(extends);
                     }
+
+                    // Inherit fields for v2 groups.
+                    if unresolved_group.is_v2 {
+                        if unresolved_group.group.r#type != parent_summary.r#type {
+                            errors.push(Error::InvalidRefinement {
+                                refinement_id: unresolved_group.group.id.clone(),
+                                r#ref: extends.clone(),
+                                refinement_type: format!("{:?}", unresolved_group.group.r#type),
+                                signal_type: format!("{:?}", parent_summary.r#type),
+                            });
+                        }
+                        // Copy over fields refinements MUST use.
+                        unresolved_group.group.instrument = parent_summary.instrument.clone();
+                        unresolved_group.group.unit = parent_summary.unit.clone();
+                        unresolved_group.group.span_kind = parent_summary.span_kind;
+                        unresolved_group.group.metric_name = parent_summary.metric_name.clone();
+
+                        // Optionally copy over fields if refinements have not set them.
+                        if unresolved_group.group.stability.is_none() {
+                            unresolved_group.group.stability = parent_summary.stability.clone();
+                        } else {
+                            // TODO: Validate that the refinement cannot be more stable than the definition.
+                        }
+                        if unresolved_group.group.deprecated.is_none() {
+                            unresolved_group.group.deprecated = parent_summary.deprecated.clone();
+                        }
+                        if unresolved_group.group.brief.is_empty() {
+                            unresolved_group.group.brief = parent_summary.brief.clone();
+                        }
+                        if unresolved_group.group.note.is_empty() {
+                            unresolved_group.group.note = parent_summary.note.clone();
+                        }
+
+                        // Here we need to do more complicated "merge" logic for fields which require it.
+                        // Merge annotations
+                        let mut merged_annotations =
+                            parent_summary.annotations.clone().unwrap_or_default();
+                        if let Some(child_annotations) = &unresolved_group.group.annotations {
+                            merged_annotations = crate::merge::merge_annotations(
+                                merged_annotations,
+                                child_annotations,
+                            );
+                        }
+                        unresolved_group.group.annotations = if merged_annotations.is_empty() {
+                            None
+                        } else {
+                            Some(merged_annotations)
+                        };
+                    }
+
                     add_resolved_group_to_index(
                         &mut group_index,
                         unresolved_group,
@@ -512,7 +588,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
                         extends_ref: extends.clone(),
-                        provenance: unresolved_group.provenance.clone(),
+                        provenance: unresolved_group.provenance.clone().map(Box::new),
                     });
                 }
             } else if !unresolved_group.include_groups.is_empty() {
@@ -522,11 +598,11 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 let mut all_resolved = true;
 
                 for include_group in unresolved_group.include_groups.iter() {
-                    if let Some(attrs) = group_index.get(include_group) {
+                    if let Some(summary) = group_index.get(include_group) {
                         // check if any attribute in the attrs is already in the all_attrs
                         // and fail - this is a diamond include problem and is not allowed.
                         // Otherwise add all of them to all_attrs
-                        for attr in attrs {
+                        for attr in &summary.attributes {
                             if attr_ids.contains_key(&attr.spec.id()) {
                                 errors.push(Error::DuplicateAttributeId {
                                     group_ids: unresolved_group.include_groups.clone(),
@@ -537,7 +613,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                 _ = attr_ids.insert(attr.spec.id().clone(), attr);
                             }
                         }
-                        _ = attrs_by_group.insert(include_group.clone(), attrs);
+                        _ = attrs_by_group.insert(include_group.clone(), &summary.attributes);
 
                         // We'll need to reverse engineer if it was a private group later in V2 mapping.
                         if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
@@ -548,7 +624,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         errors.push(Error::UnresolvedExtendsRef {
                             group_id: unresolved_group.group.id.clone(),
                             extends_ref: include_group.clone(),
-                            provenance: unresolved_group.provenance.clone(),
+                            provenance: unresolved_group.provenance.clone().map(Box::new),
                         });
                         all_resolved = false;
                     }
@@ -787,19 +863,17 @@ fn resolve_inheritance_attr(
 // We do NOT borrow the index as mutable when iterating over groups, but
 // Rust's type system is not advanced enough to know about partial mutable
 // borrowing of a reference.
-fn lookup_group_attributes_with_dependencies(
+fn lookup_group_with_dependencies(
     dependencies: &[ResolvedDependency],
-    local_index: &HashMap<String, Vec<UnresolvedAttribute>>,
+    local_index: &HashMap<String, GroupSummary>,
     id: &str,
-) -> Option<Vec<UnresolvedAttribute>> {
+) -> Option<GroupSummary> {
     // First check our direct groups.
-    if let Some(attrs) = local_index.get(id) {
-        return Some(attrs.clone());
+    if let Some(summary) = local_index.get(id) {
+        return Some(summary.clone());
     }
     // Now check dependencies in order.
-    dependencies
-        .iter()
-        .find_map(|d| d.lookup_group_attributes(id))
+    dependencies.iter().find_map(|d| d.lookup_group_summary(id))
 }
 
 /// This will sort the clean and sort the attribute catalog and registry.
@@ -846,11 +920,13 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
 mod tests {
     use rand::rng;
     use rand::seq::SliceRandom;
+    use serde::Deserialize;
     use std::cmp::Ordering;
     use std::collections::HashMap;
     use std::error::Error;
     use std::fs::OpenOptions;
     use std::path::PathBuf;
+    use weaver_resolved_schema::v2::ResolvedTelemetrySchema;
     use weaver_semconv::schema_url::SchemaUrl;
 
     use glob::glob;
@@ -871,6 +947,23 @@ mod tests {
     use crate::registry::UnresolvedRegistry;
     use crate::LoadedSemconvRegistry;
     use crate::SchemaResolver;
+
+    /// Settings for resolution tests.
+    #[derive(Serialize, Deserialize, Default)]
+    struct TestSettings {
+        /// If true, output the resolved schema as v2.
+        #[serde(default)]
+        output_v2: bool,
+    }
+
+    const TEST_SETTINGS_FILE: &str = "settings.yaml";
+    const EXPECTED_ERRORS_FILE: &str = "expected-errors.json";
+    const EXPECTED_V1_CATALOG_FILE: &str = "expected-attribute-catalog.json";
+    const EXPECTED_V1_REGISTRY_FILE: &str = "expected-registry.json";
+    const OBSERVED_V1_CATALOG_FILE: &str = "attribute-catalog.json";
+    const OBSERVED_V1_REGISTRY_FILE: &str = "registry.json";
+    const EXPECTED_V2_SCHEMA_FILE: &str = "expected-schema.yaml";
+    const OBSERVED_V2_SCHEMA_FILE: &str = "schema.yaml";
 
     /// Test the resolution of semantic convention registries stored in the
     /// data directory. The provided test cases cover the following resolution
@@ -898,6 +991,7 @@ mod tests {
             // "registry-test-7-spans",
             // "registry-test-8-http",
             // "registry-test-v2-2-multifile",
+            "registry-test-v2-dep", // tested separately in lib.rs
         ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
@@ -912,6 +1006,16 @@ mod tests {
                 continue;
             }
             println!("Testing `{test_dir}`");
+
+            // Load settings.
+            let settings_file = format!("{test_dir}/{TEST_SETTINGS_FILE}");
+            let settings: TestSettings = if PathBuf::from(&settings_file).exists() {
+                let settings_str =
+                    std::fs::read_to_string(&settings_file).expect("Failed to read settings file");
+                serde_yaml::from_str(&settings_str).expect("Failed to parse settings file")
+            } else {
+                TestSettings::default()
+            };
 
             // Delete all the files in the observed_output/target directory
             // before generating the new files.
@@ -978,12 +1082,12 @@ mod tests {
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
-            let expected_errors_file = format!("{test_dir}/expected-errors.json");
+            let expected_errors_file = format!("{test_dir}/{EXPECTED_ERRORS_FILE}");
             if PathBuf::from(&expected_errors_file).exists() {
                 assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
-                let observed_errors = serde_json::to_string(&schema).unwrap();
+                let observed_errors = serde_json::to_string(&schema.err()).unwrap();
                 // Write observed errors.
                 assert_eq!(
                     canonicalize_json_string(&observed_errors).unwrap(),
@@ -995,72 +1099,104 @@ mod tests {
                 continue;
             }
 
-            let observed_schema = schema.expect("Failed to resolve the registry");
-            let observed_attr_catalog = observed_schema.catalog;
+            // Split between v1 and v2 output checking.
+            if settings.output_v2 {
+                // Output our V2 schema.
+                let observed_schema: ResolvedTelemetrySchema = schema
+                    .expect("Failed to resolve the registry")
+                    .try_into()
+                    .expect("Failed to convert to v2 schema");
+                let observed_schema_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V2_SCHEMA_FILE))
+                    .expect("Failed to open observed output file");
+                serde_yaml::to_writer(observed_schema_file, &observed_schema)
+                    .expect("Failed to write observed output.");
 
-            // At this point, the normal behavior of this test is to pass.
-            let mut observed_registry = observed_schema.registry;
-            // Force registry URL to consistent string
-            observed_registry.registry_url = "https://127.0.0.1".to_owned();
-            // Now sort groups so we don't get flaky tests.
-            observed_registry.groups.sort_by_key(|g| g.id.to_owned());
+                // Check that the resolved registry matches the expected registry.
+                let expected_schema: ResolvedTelemetrySchema = serde_yaml::from_reader(
+                    std::fs::File::open(format!("{test_dir}/{EXPECTED_V2_SCHEMA_FILE}"))
+                        .expect("Failed to open expected schema"),
+                )
+                .expect("Failed to deserialize expected schema");
 
-            // Write observed output.
-            let observed_attr_catalog_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(observed_output_dir.join("attribute-catalog.json"))
-                .expect("Failed to open observed output file");
-            serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
-                .expect("Failed to write observed output.");
+                assert_eq!(
+                    to_json(&observed_schema),
+                    to_json(&expected_schema),
+                    "Expected and observed schema don't match for `{}`.\nDiff from expected:\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(
+                        &to_json(&expected_schema),
+                        &to_json(&observed_schema)
+                    )
+                );
+            } else {
+                let observed_schema = schema.expect("Failed to resolve the registry");
+                let observed_attr_catalog: Vec<_> =
+                    observed_schema.catalog.attributes().cloned().collect();
 
-            // Load the expected registry and attribute catalog.
-            let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
-            let expected_attr_catalog: weaver_resolved_schema::catalog::Catalog =
-                serde_json::from_reader(
+                // At this point, the normal behavior of this test is to pass.
+                let mut observed_registry = observed_schema.registry;
+                // Force registry URL to consistent string
+                observed_registry.registry_url = "https://127.0.0.1".to_owned();
+                // Now sort groups so we don't get flaky tests.
+                observed_registry.groups.sort_by_key(|g| g.id.to_owned());
+
+                // Write observed output.
+                let observed_attr_catalog_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V1_CATALOG_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
+                    .expect("Failed to write observed output.");
+
+                // Load the expected registry and attribute catalog.
+                let expected_attr_catalog_file = format!("{test_dir}/{EXPECTED_V1_CATALOG_FILE}");
+                let expected_attr_catalog_attrs: Vec<Attribute> = serde_json::from_reader(
                     std::fs::File::open(expected_attr_catalog_file)
                         .expect("Failed to open expected attribute catalog"),
                 )
                 .expect("Failed to deserialize expected attribute catalog");
 
-            // Compare values
-            assert_eq!(
-                observed_attr_catalog, expected_attr_catalog,
+                // Compare values
+                assert_eq!(
+                observed_attr_catalog, expected_attr_catalog_attrs,
                 "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
-                test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
+                test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog_attrs), &to_json(&observed_attr_catalog))
             );
 
-            // Check that the resolved registry matches the expected registry.
-            let expected_registry: Registry = serde_json::from_reader(
-                std::fs::File::open(format!("{test_dir}/expected-registry.json"))
-                    .expect("Failed to open expected registry"),
-            )
-            .expect("Failed to deserialize expected registry");
-
-            // Write observed output.
-            let observed_registry_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(observed_output_dir.join("registry.json"))
-                .expect("Failed to open observed output file");
-            serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
-                .expect("Failed to write observed output.");
-
-            assert_eq!(
-                observed_registry,
-                expected_registry,
-                "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
-                test_dir,
-                weaver_diff::diff_output(
-                    &to_json(&expected_registry),
-                    &to_json(&observed_registry)
+                // Check that the resolved registry matches the expected registry.
+                let expected_registry: Registry = serde_json::from_reader(
+                    std::fs::File::open(format!("{test_dir}/{EXPECTED_V1_REGISTRY_FILE}"))
+                        .expect("Failed to open expected registry"),
                 )
-            );
+                .expect("Failed to deserialize expected registry");
 
-            // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
-            // println!("{}", yaml);
+                // Write observed output.
+                let observed_registry_file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(observed_output_dir.join(OBSERVED_V1_REGISTRY_FILE))
+                    .expect("Failed to open observed output file");
+                serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
+                    .expect("Failed to write observed output.");
+
+                assert_eq!(
+                    to_json(&observed_registry),
+                    to_json(&expected_registry),
+                    "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(
+                        &to_json(&expected_registry),
+                        &to_json(&observed_registry)
+                    )
+                );
+            }
         }
     }
 
@@ -1227,14 +1363,16 @@ groups:
                     annotations: Default::default(),
                     entity_associations: Default::default(),
                     visibility: Default::default(),
+                    is_v2: false,
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
                 visibility: Default::default(),
-                provenance: Provenance {
-                    registry_id: Default::default(),
+                is_v2: false,
+                provenance: Some(Provenance {
+                    schema_url: SchemaUrl::new_unknown(),
                     path: Default::default(),
-                },
+                }),
             }],
             imports: vec![],
             dependencies: vec![],
@@ -1313,14 +1451,16 @@ groups:
                         annotations: Default::default(),
                         entity_associations: Default::default(),
                         visibility: Default::default(),
+                        is_v2: false,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     visibility: Default::default(),
-                    provenance: Provenance {
-                        registry_id: Default::default(),
+                    is_v2: false,
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
                 UnresolvedGroup {
                     group: Group {
@@ -1345,14 +1485,16 @@ groups:
                         annotations: Default::default(),
                         entity_associations: Default::default(),
                         visibility: Default::default(),
+                        is_v2: false,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     visibility: Default::default(),
-                    provenance: Provenance {
-                        registry_id: Default::default(),
+                    is_v2: false,
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
                 UnresolvedGroup {
                     group: Group {
@@ -1377,14 +1519,16 @@ groups:
                         annotations: Default::default(),
                         entity_associations: Default::default(),
                         visibility: Default::default(),
+                        is_v2: false,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     visibility: Default::default(),
-                    provenance: Provenance {
-                        registry_id: Default::default(),
+                    is_v2: false,
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
                         path: Default::default(),
-                    },
+                    }),
                 },
             ],
             imports: vec![],

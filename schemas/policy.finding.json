@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PolicyFinding",
+  "description": "Enum representing the different types of findings from enforcement policies.",
+  "type": "object",
+  "properties": {
+    "context": {
+      "description": "The context associated with the finding e.g. { \"attribute_name\": \"foo.bar\", \"attribute_value\": \"bar\" }\nThe context should contain all dynamic parts of the message\nContext values may be used with custom templates and filters to customize reports."
+    },
+    "id": {
+      "description": "The id of violation e.g. \"is_deprecated\". This should be a short,\nmachine-readable string that categorizes the finding.",
+      "type": "string"
+    },
+    "level": {
+      "description": "The level of the finding e.g. \"violation\", \"informational\"",
+      "$ref": "#/$defs/FindingLevel"
+    },
+    "message": {
+      "description": "The human-readable message of the finding e.g. \"This attribute 'foo.bar' is deprecated, reason: 'use foo.baz'\"\nThe message, along with signal_name and signal_type, should contain enough information to understand the advice and\nidentify the issue and how to fix it.\nSome of the values used in the message may be also present in the `context` field to support report customization.",
+      "type": "string"
+    },
+    "signal_name": {
+      "description": "The signal name the finding applies to e.g. \"http.server.request.duration\".",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "signal_type": {
+      "description": "The signal type the finding applies to: \"span\", \"metric\", \"entity\", \"log\" (aka \"event\"), or \"profile\"",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "message",
+    "level"
+  ],
+  "$defs": {
+    "FindingLevel": {
+      "description": "The level of a finding.",
+      "oneOf": [
+        {
+          "description": "Useful context without action needed.",
+          "type": "string",
+          "const": "information"
+        },
+        {
+          "description": "Suggested change that would improve things.",
+          "type": "string",
+          "const": "improvement"
+        },
+        {
+          "description": "Something that breaks compliance rules.",
+          "type": "string",
+          "const": "violation"
+        }
+      ]
+    }
+  }
+}

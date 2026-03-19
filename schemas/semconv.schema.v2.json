@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SemConvSpecV2",
-  "description": "A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).",
+  "description": "A semconv file is a collection of attributes, signals, groups,\nand imports.",
   "type": "object",
   "properties": {
     "attribute_groups": {
@@ -25,12 +25,31 @@
         "$ref": "#/$defs/Entity"
       }
     },
+    "entity_refinements": {
+      "description": "A collection of semantic convention refinements for Entity signals.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EntityRefinement"
+      }
+    },
+    "event_refinements": {
+      "description": "A collection of semantic convention refinements for Event signals.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EventRefinement"
+      }
+    },
     "events": {
       "description": "A collection of semantic conventions for Event signals.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Event"
       }
+    },
+    "file_format": {
+      "description": "The file format version.",
+      "type": "string",
+      "const": "definition/2"
     },
     "imports": {
       "description": "A list of imports referencing groups defined in a dependent registry.",
@@ -43,11 +62,25 @@
         }
       ]
     },
+    "metric_refinements": {
+      "description": "A collection of semantic convention refinements for Metric signals.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MetricRefinement"
+      }
+    },
     "metrics": {
       "description": "A collection of semantic conventions for Metric signals.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Metric"
+      }
+    },
+    "span_refinements": {
+      "description": "A collection of semantic convention refinements for Span signals.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SpanRefinement"
       }
     },
     "spans": {
@@ -495,6 +528,75 @@
         "stability"
       ]
     },
+    "EntityRefinement": {
+      "description": "A refinement of an existing entity.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the signal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "description": "Specifies if the signal is deprecated.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "description": "The additional attributes to describe the Entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeRef"
+          }
+        },
+        "id": {
+          "description": "The ID of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the signal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "The name of the entity being refined.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "stability": {
+          "description": "Refines the stability of the signal.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ref"
+      ]
+    },
     "EnumEntriesSpec": {
       "description": "Possible enum entries.",
       "type": "object",
@@ -618,6 +720,82 @@
         "name",
         "brief",
         "stability"
+      ]
+    },
+    "EventRefinement": {
+      "description": "A refinement of an existing event.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that belong to the semantic convention.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeOrGroupRef"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the signal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "description": "Specifies if the signal is deprecated.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this event should be associated with.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The ID of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the signal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "The name of the event being refined.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "stability": {
+          "description": "Refines the stability of the signal.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ref"
       ]
     },
     "Examples": {
@@ -748,6 +926,16 @@
       "description": "Imports are used to reference groups defined in a dependent registry.",
       "type": "object",
       "properties": {
+        "attribute_groups": {
+          "description": "A list of attribute_group group id wildcards.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/GroupWildcard"
+          }
+        },
         "entities": {
           "description": "A list of entity group name wildcards.",
           "type": [
@@ -770,6 +958,16 @@
         },
         "metrics": {
           "description": "A list of metric group metric_name wildcards.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/GroupWildcard"
+          }
+        },
+        "spans": {
+          "description": "A list of span group name wildcards.",
           "type": [
             "array",
             "null"
@@ -874,6 +1072,82 @@
         "unit",
         "brief",
         "stability"
+      ]
+    },
+    "MetricRefinement": {
+      "description": "A refinement of an existing metric.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that belong to the semantic convention.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeOrGroupRef"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the signal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "description": "Specifies if the signal is deprecated.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this metric should be associated with.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The ID of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the signal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "The name of the metric being refined.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "stability": {
+          "description": "Refines the stability of the signal.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ref"
       ]
     },
     "PrimitiveOrArrayTypeSpec": {
@@ -1203,6 +1477,82 @@
       "additionalProperties": false,
       "required": [
         "note"
+      ]
+    },
+    "SpanRefinement": {
+      "description": "A refinement of an existing span.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the signal.\nNote: This field is currently not propagated during resolution.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "attributes": {
+          "description": "List of attributes that belong to the semantic convention.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanAttributeOrGroupRef"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "description": "Specifies if the signal is deprecated.\nNote: This field is currently not propagated during resolution.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_associations": {
+          "description": "Which resources this span should be associated with.\nNote: This field is currently not propagated during resolution.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The ID of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the signal.\nNote: This field is currently not propagated during resolution.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "The name of the span being refined.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "stability": {
+          "description": "Refines the stability of the signal.\nNote: This field is currently not propagated during resolution.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ref"
       ]
     },
     "Stability": {

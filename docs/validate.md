@@ -26,7 +26,7 @@ A finding object contains the following fields:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | string | Yes | A short, machine-readable identifier that categorizes the finding (e.g., `"is_deprecated"`, `"invalid_format"`) |
-| `context` | object | Yes | A JSON object containing all dynamic information about the finding. Values here can be used with custom templates and filters to generate reports |
+| `context` | object | No | A JSON object containing all dynamic information about the finding. Values here can be used with custom templates and filters to generate reports |
 | `message` | string | Yes | A human-readable description of the finding that explains what was detected and how to fix it |
 | `level` | string | Yes | The severity level: `"information"`, `"improvement"`, or `"violation"` |
 | `signal_type` | string | No | The type of telemetry signal this finding applies to: `"span"`, `"metric"`, `"log"`, `"entity"`, or `"profile"` |

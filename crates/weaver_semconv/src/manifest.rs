@@ -2,11 +2,11 @@
 
 //! Contains the definitions for the semantic conventions registry manifest.
 //!
-//! This struct is used to specify the registry, including its name, version,
-//! description, and few other details.
-//!
-//! In the future, this struct may be extended to include additional information
-//! such as the registry's owner, maintainers, and dependencies.
+//! Two manifest types are defined here:
+//! - [`DefinitionRegistryManifest`]: the definition manifest for an unpublished registry
+//! - [`PublicationRegistryManifest`]: the publication manifest produced by `weaver registry package`
+//!   (strict, always includes `resolved_schema_uri`).
+//! - [`RegistryManifest`]: an enum discriminated by `file_format` that can be either
 
 use std::vec;
 
@@ -22,18 +22,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 use weaver_common::vdir::VirtualDirectoryPath;
 
-/// Represents the information of a semantic convention registry manifest.
-///
-/// This information defines the registry's name, version, description, and schema
-/// base url.
-#[derive(Serialize, Debug, Clone, JsonSchema)]
-pub struct RegistryManifest {
-    /// The file format for this registry.
-    ///
-    /// No value is assumed to be `manifest/2.0.0`
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub file_format: Option<String>,
+/// The file format version of the publication manifest.
+pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0.0";
 
+/// Represents the definition manifest for a semantic convention registry.
+///
+/// This is used when developing a registry before it is published.
+/// See [`PublicationRegistryManifest`] for the stricter publication form produced
+/// by `weaver registry package`.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct DefinitionRegistryManifest {
     /// The schema URL for this registry.
     /// This URL is populated before registry is published and is used as
     /// a unique identifier of the registry. It MUST follow OTel schema URL format, which is:
@@ -59,12 +57,38 @@ pub struct RegistryManifest {
     #[serde(default)]
     pub stability: Stability,
 
-    /// The location of the resolved telemetry schema, if available.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolved_schema_uri: Option<String>,
-
     #[serde(skip)]
     deserialization_warnings: Vec<String>,
+}
+
+impl DefinitionRegistryManifest {
+    /// Returns the registry name, which is derived from the schema URL.
+    /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
+    /// the registry name would be `opentelemetry.io/schemas/sub-component`
+    #[must_use]
+    pub fn name(&self) -> &str {
+        self.schema_url.name()
+    }
+
+    /// Returns the registry version, which is derived from the schema URL.
+    /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
+    /// the registry version would be `1.0.0`
+    #[must_use]
+    pub fn version(&self) -> &str {
+        self.schema_url.version()
+    }
+
+    /// Creates a new `DefinitionRegistryManifest` from a schema URL with default values.
+    #[must_use]
+    pub fn from_schema_url(schema_url: SchemaUrl) -> Self {
+        Self {
+            schema_url,
+            description: None,
+            dependencies: vec![],
+            stability: Stability::Development,
+            deserialization_warnings: vec![],
+        }
+    }
 }
 
 /// Represents a dependency of a semantic convention registry.
@@ -120,60 +144,105 @@ impl<'de> Deserialize<'de> for Dependency {
     }
 }
 
-impl<'de> Deserialize<'de> for RegistryManifest {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct RegistryManifestHelper {
-            file_format: Option<String>,
-            schema_url: Option<SchemaUrl>,
-            description: Option<String>,
-            #[allow(deprecated)]
-            semconv_version: Option<String>,
-            #[allow(deprecated)]
-            schema_base_url: Option<String>,
-            #[serde(default)]
-            dependencies: Vec<Dependency>,
-            #[serde(default)]
-            stability: Stability,
-            resolved_schema_uri: Option<String>,
-        }
+/// Raw helper for deserializing a manifest before validation.
+/// All fields are optional so we can decide on the variant first, then validate.
+#[derive(Deserialize)]
+struct RawManifestFields {
+    file_format: Option<String>,
+    schema_url: Option<SchemaUrl>,
+    description: Option<String>,
+    #[allow(deprecated)]
+    semconv_version: Option<String>,
+    #[allow(deprecated)]
+    schema_base_url: Option<String>,
+    #[serde(default)]
+    dependencies: Vec<Dependency>,
+    #[serde(default)]
+    stability: Stability,
+    resolved_schema_uri: Option<String>,
+}
 
-        let helper = RegistryManifestHelper::deserialize(deserializer)?;
-        let mut warnings = vec![];
-
-        let schema_url = if let Some(url) = helper.schema_url {
-            url
+impl RawManifestFields {
+    /// Convert to [`RegistryManifest`], reporting errors relative to `path`.
+    fn into_manifest(self, path: &std::path::Path) -> Result<RegistryManifest, Error> {
+        if self.file_format.as_deref() == Some(PUBLICATION_MANIFEST_FILE_FORMAT) {
+            let schema_url = self
+                .schema_url
+                .ok_or_else(|| Error::InvalidPublicationManifest {
+                    path: path.to_path_buf(),
+                    details: "missing required field 'schema_url'".into(),
+                })?;
+            let resolved_schema_uri =
+                self.resolved_schema_uri
+                    .ok_or_else(|| Error::InvalidPublicationManifest {
+                        path: path.to_path_buf(),
+                        details: "missing required field 'resolved_schema_uri'".into(),
+                    })?;
+            Ok(RegistryManifest::Publication(PublicationRegistryManifest {
+                file_format: PUBLICATION_MANIFEST_FILE_FORMAT.to_owned(),
+                schema_url,
+                description: self.description,
+                dependencies: self.dependencies,
+                stability: self.stability,
+                resolved_schema_uri,
+            }))
         } else {
-            // Fall back to deprecated fields
-            let base_url = helper.schema_base_url.as_ref().ok_or_else(|| {
-               serde::de::Error::custom(
-                   "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided",
-               )
-            })?;
-
-            let version = helper.semconv_version.as_ref().ok_or_else(|| {
-                serde::de::Error::custom(
-                    "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided",
-                )
-            })?;
-
-            warnings.push("The 'semconv_version' and 'schema_base_url' fields are deprecated in favor of 'schema_url'.".to_owned());
-            SchemaUrl::try_from_name_version(base_url, version).map_err(serde::de::Error::custom)?
-        };
-
-        Ok(RegistryManifest {
-            file_format: helper.file_format,
-            schema_url,
-            description: helper.description,
-            dependencies: helper.dependencies,
-            stability: helper.stability,
-            resolved_schema_uri: helper.resolved_schema_uri,
-            deserialization_warnings: warnings,
-        })
+            let mut warnings = vec![];
+            if let Some(ref fmt) = self.file_format {
+                return Err(InvalidRegistryManifest {
+                    path: path.to_path_buf(),
+                    error: format!(
+                        "Unknown file_format '{fmt}'. Expected '{PUBLICATION_MANIFEST_FILE_FORMAT}' or no file_format for a definition manifest."
+                    ),
+                });
+            }
+            let schema_url = if let Some(url) = self.schema_url {
+                url
+            } else {
+                let base_url =
+                    self.schema_base_url.as_ref().ok_or_else(|| InvalidRegistryManifest {
+                        path: path.to_path_buf(),
+                        error: "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided".into(),
+                    })?;
+                let version =
+                    self.semconv_version.as_ref().ok_or_else(|| InvalidRegistryManifest {
+                        path: path.to_path_buf(),
+                        error: "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided".into(),
+                    })?;
+                warnings.push(
+                    "The 'semconv_version' and 'schema_base_url' fields are deprecated in favor of 'schema_url'."
+                        .to_owned(),
+                );
+                SchemaUrl::try_from_name_version(base_url, version).map_err(|e| {
+                    InvalidRegistryManifest {
+                        path: path.to_path_buf(),
+                        error: e,
+                    }
+                })?
+            };
+            Ok(RegistryManifest::Definition(DefinitionRegistryManifest {
+                schema_url,
+                description: self.description,
+                dependencies: self.dependencies,
+                stability: self.stability,
+                deserialization_warnings: warnings,
+            }))
+        }
     }
+}
+
+/// A registry manifest that can be either a definition or a publication manifest.
+///
+/// The `file_format` field is the discriminator:
+/// - `"manifest/2.0.0"` → [`PublicationRegistryManifest`]
+/// - absent → [`DefinitionRegistryManifest`]
+#[derive(Debug, Clone, JsonSchema)]
+#[serde(untagged)]
+pub enum RegistryManifest {
+    /// A definition manifest (used when developing a registry).
+    Definition(DefinitionRegistryManifest),
+    /// A publication manifest (produced by `weaver registry package`).
+    Publication(PublicationRegistryManifest),
 }
 
 impl RegistryManifest {
@@ -197,11 +266,12 @@ impl RegistryManifest {
             error: e.to_string(),
         })?;
         let reader = std::io::BufReader::new(file);
-        let manifest: RegistryManifest =
+        let raw: RawManifestFields =
             serde_yaml::from_reader(reader).map_err(|e| InvalidRegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
             })?;
+        let manifest = raw.into_manifest(&manifest_path_buf)?;
 
         // Check if this is a legacy manifest file
         let is_legacy = if let Some(file_name) = manifest_path_buf.file_name() {
@@ -216,42 +286,95 @@ impl RegistryManifest {
             });
         }
 
-        nfes.extend(manifest.deserialization_warnings.iter().map(|w| {
-            DeprecatedSyntaxInRegistryManifest {
-                path: manifest_path_buf.clone(),
-                error: w.clone(),
-            }
-        }));
+        if let RegistryManifest::Definition(ref def) = manifest {
+            nfes.extend(def.deserialization_warnings.iter().map(|w| {
+                DeprecatedSyntaxInRegistryManifest {
+                    path: manifest_path_buf.clone(),
+                    error: w.clone(),
+                }
+            }));
+        }
+
         Ok(manifest)
     }
 
+    /// Returns the schema URL of the registry.
+    #[must_use]
+    pub fn schema_url(&self) -> &SchemaUrl {
+        match self {
+            RegistryManifest::Definition(m) => &m.schema_url,
+            RegistryManifest::Publication(m) => &m.schema_url,
+        }
+    }
+
     /// Returns the registry name, which is derived from the schema URL.
-    /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
-    /// the registry name would be `opentelemetry.io/schemas/sub-component`
     #[must_use]
     pub fn name(&self) -> &str {
-        self.schema_url.name()
+        self.schema_url().name()
     }
 
     /// Returns the registry version, which is derived from the schema URL.
-    /// For example, if the schema URL is `https://opentelemetry.io/schemas/sub-component/1.0.0`,
-    /// the registry version would be `1.0.0`
     #[must_use]
     pub fn version(&self) -> &str {
-        self.schema_url.version()
+        self.schema_url().version()
     }
 
-    /// Creates a new `RegistryManifest` from a schema URL with default values.
+    /// Returns the dependencies of the registry.
     #[must_use]
-    pub fn from_schema_url(schema_url: SchemaUrl) -> Self {
+    pub fn dependencies(&self) -> &[Dependency] {
+        match self {
+            RegistryManifest::Definition(m) => &m.dependencies,
+            RegistryManifest::Publication(m) => &m.dependencies,
+        }
+    }
+}
+
+/// Represents the publication manifest for a packaged semantic convention registry.
+///
+/// This is produced by `weaver registry package` and describes the contents of
+/// a self-contained registry artifact, including its resolved schema location.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct PublicationRegistryManifest {
+    /// The file format version of this publication manifest.
+    /// Always `"manifest/2.0.0"`in this version.
+    #[schemars(extend("const" = "manifest/2.0.0"))]
+    pub file_format: String,
+
+    /// The schema URL for this registry.
+    /// Uniquely identifies the registry and its version.
+    pub schema_url: SchemaUrl,
+
+    /// An optional description of the registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// List of the registry's dependencies.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub dependencies: Vec<Dependency>,
+
+    /// The stability of this registry.
+    #[serde(default)]
+    pub stability: Stability,
+
+    /// URI pointing to the resolved telemetry schema included in this package.
+    pub resolved_schema_uri: String,
+}
+
+impl PublicationRegistryManifest {
+    /// Creates a `PublicationRegistryManifest` from a `DefinitionRegistryManifest` and a
+    /// `resolved_schema_uri` pointing to where the resolved schema will be published.
+    #[must_use]
+    pub fn try_from_registry_manifest(
+        registry_manifest: &DefinitionRegistryManifest,
+        resolved_schema_uri: String,
+    ) -> Self {
         Self {
-            file_format: None,
-            schema_url,
-            description: None,
-            dependencies: vec![],
-            resolved_schema_uri: None,
-            stability: Stability::Development,
-            deserialization_warnings: vec![],
+            file_format: PUBLICATION_MANIFEST_FILE_FORMAT.to_owned(),
+            schema_url: registry_manifest.schema_url.clone(),
+            description: registry_manifest.description.clone(),
+            dependencies: registry_manifest.dependencies.clone(),
+            stability: registry_manifest.stability.clone(),
+            resolved_schema_uri,
         }
     }
 }
@@ -472,6 +595,126 @@ registry_path: "./registry"
                 .iter()
                 .any(|w| matches!(w, DeprecatedSyntaxInRegistryManifest { .. })),
             "Expected a DeprecatedSyntaxInRegistryManifest warning, got: {warnings:?}"
+        );
+    }
+
+    fn manifest_from_yaml(yaml: &str) -> Result<RegistryManifest, Error> {
+        use std::io::Write;
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(yaml.as_bytes()).unwrap();
+        RegistryManifest::try_from_file(tmp.path(), &mut vec![])
+    }
+
+    #[test]
+    fn test_unknown_file_format_is_rejected() {
+        let result = manifest_from_yaml(
+            r#"
+file_format: "garbage/1.0.0"
+schema_url: "https://example.com/schemas/1.0.0"
+"#,
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown file_format"));
+    }
+
+    #[test]
+    fn test_definition_manifest_parsed_as_definition_variant() {
+        let manifest = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+description: "A test registry"
+stability: stable
+"#,
+        )
+        .expect("Failed to load RegistryManifest");
+
+        assert!(
+            matches!(manifest, RegistryManifest::Definition(_)),
+            "expected Definition variant, got {manifest:?}"
+        );
+    }
+
+    #[test]
+    fn test_publication_manifest_parsed_as_publication_variant() {
+        let manifest = manifest_from_yaml(
+            r#"
+file_format: "manifest/2.0.0"
+schema_url: "https://example.com/schemas/1.0.0"
+resolved_schema_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+"#,
+        )
+        .expect("Failed to load RegistryManifest");
+
+        assert!(
+            matches!(manifest, RegistryManifest::Publication(_)),
+            "expected Publication variant, got {manifest:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+    use crate::stability::Stability;
+
+    fn manifest_from_yaml(yaml: &str) -> Result<RegistryManifest, Error> {
+        use std::io::Write;
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(yaml.as_bytes()).unwrap();
+        RegistryManifest::try_from_file(tmp.path(), &mut vec![])
+    }
+
+    #[test]
+    fn test_from_registry_manifest() {
+        let manifest = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+description: "A test registry"
+stability: stable
+"#,
+        )
+        .expect("Failed to load RegistryManifest");
+
+        let RegistryManifest::Definition(definition) = manifest else {
+            panic!("Expected a Definition manifest");
+        };
+
+        let resolved_schema_uri = "https://example.com/resolved/1.0.0/resolved.yaml".to_owned();
+        let publication = PublicationRegistryManifest::try_from_registry_manifest(
+            &definition,
+            resolved_schema_uri.clone(),
+        );
+
+        assert_eq!(publication.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
+        assert_eq!(
+            publication.schema_url.as_str(),
+            "https://example.com/schemas/1.0.0"
+        );
+        assert_eq!(publication.description.as_deref(), Some("A test registry"));
+        assert_eq!(publication.stability, Stability::Stable);
+        assert!(publication.dependencies.is_empty());
+        assert_eq!(publication.resolved_schema_uri, resolved_schema_uri);
+    }
+
+    #[test]
+    fn test_publication_manifest_parsed_as_publication_variant() {
+        // A manifest with file_format "manifest/2.0.0" and resolved_schema_uri
+        // is parsed as the Publication variant.
+        let manifest = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+file_format: "manifest/2.0.0"
+resolved_schema_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+"#,
+        )
+        .expect("Failed to load RegistryManifest");
+
+        assert!(
+            matches!(manifest, RegistryManifest::Publication(_)),
+            "expected Publication variant, got {manifest:?}"
         );
     }
 }

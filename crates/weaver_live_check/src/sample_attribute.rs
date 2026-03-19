@@ -155,7 +155,11 @@ impl SampleAttribute {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
                 if advice.id == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
-                    if let Some(template_name) = advice.context["template_name"].as_str() {
+                    if let Some(template_name) = advice
+                        .context
+                        .as_ref()
+                        .and_then(|c| c["template_name"].as_str())
+                    {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }

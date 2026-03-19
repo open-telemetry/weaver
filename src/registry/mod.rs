@@ -15,6 +15,7 @@ use crate::registry::infer::RegistryInferArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::RegistryLiveCheckArgs;
 use crate::registry::mcp::RegistryMcpArgs;
+use crate::registry::package::RegistryPackageArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -33,6 +34,7 @@ mod json_schema;
 mod live_check;
 mod mcp;
 mod otlp;
+mod package;
 mod resolve;
 mod search;
 mod stats;
@@ -52,6 +54,18 @@ pub enum Error {
 
     #[error(transparent)]
     Schema(#[from] weaver_resolved_schema::error::Error),
+
+    /// Packaging requires a v2 registry
+    #[error("Packaging is only supported for v2 registries. Pass `--v2` to enable v2 schema.")]
+    PackagingRequiresV2,
+
+    /// Packaging requires a manifest file
+    #[error("Registry `{registry}` does not contain a manifest file")]
+    PackagingRequiresManifest { registry: String },
+
+    /// Failed to write an output file during packaging
+    #[error("Failed to write output file `{path}`: {error}")]
+    OutputWrite { path: PathBuf, error: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -94,13 +108,8 @@ pub enum RegistrySubCommand {
     /// The process exits with a code of 0 if the generation is successful.
     #[clap(verbatim_doc_comment)]
     Generate(RegistryGenerateArgs),
-    /// Resolves a semantic convention registry.
-    ///
-    /// Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
-    ///
-    /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
-    ///
-    /// The process exits with a code of 0 if the resolution is successful.
+    /// DEPRECATED - Resolves a semantic convention registry. This command is deprecated and will be removed in a future version.
+    /// Please use 'weaver registry generate' or 'weaver registry package' instead.
     #[clap(verbatim_doc_comment)]
     Resolve(RegistryResolveArgs),
     /// DEPRECATED - Searches a registry. This command is deprecated and will be removed in a future version.
@@ -148,6 +157,10 @@ pub enum RegistrySubCommand {
     /// Generates a schema file by inferring the schema from a OTLP message.
     #[clap(verbatim_doc_comment)]
     Infer(RegistryInferArgs),
+
+    /// Packages a semantic convention registry into a self-contained artifact.
+    #[clap(verbatim_doc_comment)]
+    Package(RegistryPackageArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -237,6 +250,9 @@ pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
         }
         RegistrySubCommand::Infer(args) => {
             CmdResult::new(infer::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Package(args) => {
+            CmdResult::new(package::command(args), Some(args.diagnostic.clone()))
         }
     }
 }

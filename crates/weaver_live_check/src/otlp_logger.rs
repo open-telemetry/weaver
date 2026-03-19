@@ -167,7 +167,9 @@ fn build_finding_attributes(
     }
 
     // Flatten and add finding context
-    attributes.extend(flatten_finding_context(&finding.context));
+    if let Some(context) = &finding.context {
+        attributes.extend(flatten_finding_context(context));
+    }
 
     // Add resource attributes from the parent signal.
     // Resource attributes are always flat primitives, not nested objects.
@@ -308,7 +310,7 @@ mod tests {
         level: FindingLevel,
         signal_type: Option<&str>,
         signal_name: Option<&str>,
-        context: serde_json::Value,
+        context: Option<serde_json::Value>,
     ) -> PolicyFinding {
         PolicyFinding {
             id: id.to_owned(),
@@ -462,10 +464,10 @@ mod tests {
             FindingLevel::Violation,
             Some("span"),
             Some("test.span"),
-            json!({
+            Some(json!({
                 "attribute": "test.attr",
                 "expected": "value"
-            }),
+            })),
         );
 
         emitter.emit_finding(&finding, &sample_ref, &parent_signal);
@@ -491,7 +493,7 @@ mod tests {
                 level,
                 None,
                 None,
-                json!({}),
+                None,
             );
             emitter.emit_finding(&finding, &sample_ref, &parent_signal);
         }
@@ -511,7 +513,7 @@ mod tests {
             FindingLevel::Improvement,
             Some("metric"),
             Some("test.metric"),
-            json!({
+            Some(json!({
                 "nested": {
                     "level1": {
                         "level2": "deep_value"
@@ -524,7 +526,7 @@ mod tests {
                     "bool": true,
                     "null": null
                 }
-            }),
+            })),
         );
 
         emitter.emit_finding(&finding, &sample_ref, &parent_signal);
@@ -624,7 +626,7 @@ mod tests {
             FindingLevel::Information,
             Some("span"),
             Some("test.span"),
-            json!({}),
+            None,
         );
 
         let attrs = build_finding_attributes(&finding, &sample_ref, &parent_signal);
@@ -666,7 +668,7 @@ mod tests {
             FindingLevel::Violation,
             None,
             None,
-            json!({}),
+            None,
         );
 
         let attrs = build_finding_attributes(&finding, &sample_ref, &parent_signal);
