@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
+- Publish and document missing JSON schemas. Add `head_schema_url`/`baseline_schema_url` to diff v2. ([#1106](https://github.com/open-telemetry/weaver/pull/1106) by @lmolkova)
 
 # [0.22.1] - 2026-03-13
 
