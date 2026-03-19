@@ -29,11 +29,10 @@ tempfile.workspace = true
 dirs = "6.0.0"
 gix = { version = "0.79.0", default-features = false, features = [
     "comfort",
-    "blocking-http-transport-reqwest-native-tls",
+    "blocking-http-transport-reqwest-rust-tls",
     "max-performance-safe",
     "worktree-mutation",
 ] }
-openssl.workspace = true
 flate2 = "1.1.4"
 tar = "0.4.43"
 zip = "5.1.1"
