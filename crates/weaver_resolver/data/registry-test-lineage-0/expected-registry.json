@@ -12,7 +12,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-lineage-0/registry/groups.yaml"
         }
       }
@@ -26,7 +26,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-lineage-0/registry/groups.yaml"
         }
       }
@@ -43,7 +43,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-lineage-0/registry/groups.yaml"
         },
         "attributes": {
