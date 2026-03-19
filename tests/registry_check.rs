@@ -52,3 +52,23 @@ fn test_cli_interface() {
     // - 1 deprecated string note
     assert_eq!(json_value.len(), 31);
 }
+
+#[test]
+fn test_published_v2_registry_check() {
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let result = cmd
+        .arg("registry")
+        .arg("check")
+        .arg("--v2")
+        .arg("-r")
+        .arg("tests/published_v2_registry/")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(
+        result.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+}

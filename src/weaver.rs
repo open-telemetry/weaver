@@ -35,7 +35,7 @@ impl<'a> WeaverEngine<'a> {
         }
     }
 
-    /// Loads (and resolves) "raw" definitions, executing all policies there-in.
+    /// Loads  previously resolved schemas or loads and resolves "raw" definitions, executing all policies there-in.
     pub fn load_and_resolve_main(
         &self,
         diag_msgs: &mut DiagnosticMessages,
@@ -86,8 +86,6 @@ impl<'a> WeaverEngine<'a> {
             policy_engine,
         })
     }
-    // TODO - figure out how to load a remote *and pre-resolved* repository.
-    // fn load_resolved() -> Resolved {}
 
     /// Resolves a loaded set of weaver definitions into a Resolved Registry.
     pub fn resolve(
@@ -96,20 +94,50 @@ impl<'a> WeaverEngine<'a> {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Resolved, Error> {
         let registry_path_repr: String = loaded.loaded.registry_path_repr().to_owned();
-        let resolved =
-            SchemaResolver::resolve(loaded.loaded, self.registry_config.include_unreferenced)
+        let res_v1 = match loaded.loaded {
+            LoadedSemconvRegistry::Unresolved { .. } | LoadedSemconvRegistry::Resolved(_) => {
+                let resolved = SchemaResolver::resolve(
+                    loaded.loaded,
+                    self.registry_config.include_unreferenced,
+                )
                 .capture_non_fatal_errors(diag_msgs)?;
 
-        // This creates the template/json friendly registry.
-        let template =
-            ResolvedRegistry::try_from_resolved_registry(&resolved.registry, resolved.catalog())?;
+                // This creates the template/json friendly registry.
+                let template = ResolvedRegistry::try_from_resolved_registry(
+                    &resolved.registry,
+                    resolved.catalog(),
+                )?;
 
-        Ok(Resolved {
-            resolved_schema: resolved,
-            template_schema: template,
-            registry_path_repr,
-            policy_engine: loaded.policy_engine,
-        })
+                Resolved::V1(ResolvedV1 {
+                    resolved_schema: resolved,
+                    template_schema: template,
+                    registry_path_repr,
+                    policy_engine: loaded.policy_engine,
+                })
+            }
+            LoadedSemconvRegistry::ResolvedV2(resolved) => {
+                if !self.registry_config.v2 {
+                    diag_msgs.extend(Error::V2FlagMissingWarning.into());
+                }
+                let template =
+                    weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                        resolved.clone(),
+                    )?;
+                return Ok(Resolved::V2(ResolvedV2 {
+                    resolved_schema: resolved,
+                    template_schema: template,
+                    registry_path_repr,
+                    policy_engine: loaded.policy_engine,
+                }));
+            }
+        };
+
+        if self.registry_config.v2 {
+            if let Resolved::V1(v) = res_v1 {
+                return Ok(Resolved::V2(v.try_into()?));
+            }
+        }
+        Ok(res_v1)
     }
 }
 
@@ -147,13 +175,58 @@ impl Loaded {
 /// A resolved weaver repository. Could have been derived from raw definitions or loaded directly.
 ///
 /// Contains the optimised schema, a template schema and optional policy engine.
-pub struct Resolved {
+pub enum Resolved {
+    V1(ResolvedV1),
+    V2(ResolvedV2),
+}
+
+impl Resolved {
+    pub fn check_after_resolution_policy(
+        &self,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<(), Error> {
+        match self {
+            Resolved::V1(v) => v.check_after_resolution_policy(diag_msgs),
+            Resolved::V2(v) => v.check_after_resolution_policy(diag_msgs),
+        }
+    }
+
+    pub fn diff(&self, baseline: &Resolved) -> Result<DiffResult, Error> {
+        match (self, baseline) {
+            (Resolved::V1(h), Resolved::V1(b)) => Ok(DiffResult::V1(h.diff(b))),
+            (Resolved::V2(h), Resolved::V2(b)) => Ok(DiffResult::V2(h.diff(b))),
+            _ => Err(Error::IncompatibleRegistries),
+        }
+    }
+
+    pub fn check_comparison_after_resolution(
+        &self,
+        baseline: &Resolved,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<(), Error> {
+        match (self, baseline) {
+            (Resolved::V1(h), Resolved::V1(b)) => h.check_comparison_after_resolution(b, diag_msgs),
+            (Resolved::V2(h), Resolved::V2(b)) => h.check_comparison_after_resolution(b, diag_msgs),
+            _ => Err(Error::IncompatibleRegistries),
+        }
+    }
+}
+
+pub enum DiffResult {
+    V1(Diff),
+    V2(DiffV2),
+}
+
+/// A resolved weaver repository. Could have been derived from raw definitions or loaded directly.
+///
+/// Contains the optimised schema, a template schema and optional policy engine.
+pub struct ResolvedV1 {
     resolved_schema: ResolvedTelemetrySchema,
     template_schema: ResolvedRegistry,
     registry_path_repr: String,
     policy_engine: Option<Engine>,
 }
-impl Resolved {
+impl ResolvedV1 {
     /// Returns the resolved schema.
     pub fn resolved_schema(&self) -> &ResolvedTelemetrySchema {
         &self.resolved_schema
@@ -172,11 +245,6 @@ impl Resolved {
     /// Drops resolved and just gives the template schema.
     pub fn into_template_schema(self) -> ResolvedRegistry {
         self.template_schema
-    }
-
-    /// Converts ourselves into a V2 resolved registry.
-    pub fn try_into_v2(self) -> Result<ResolvedV2, Error> {
-        self.try_into()
     }
 
     /// Checks after resolution policies.
@@ -211,7 +279,7 @@ impl Resolved {
     /// Compares this resolved vs. a baseline.
     pub fn check_comparison_after_resolution(
         &self,
-        baseline: &Resolved,
+        baseline: &ResolvedV1,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<(), Error> {
         if let Some(engine) = self.policy_engine.as_ref() {
@@ -335,14 +403,18 @@ impl ResolvedV2 {
     /// Calculates the difference between this and another schema.
     pub fn diff(&self, other: &ResolvedV2) -> DiffV2 {
         let changes = self.resolved_schema.diff(&other.resolved_schema);
-        DiffV2 { changes }
+        DiffV2 {
+            changes,
+            head_semconv_version: self.template_schema.schema_url.version().to_string(),
+            baseline_semconv_version: other.template_schema.schema_url.version().to_string(),
+        }
     }
 }
 
-impl TryFrom<Resolved> for ResolvedV2 {
+impl TryFrom<ResolvedV1> for ResolvedV2 {
     type Error = Error;
 
-    fn try_from(value: Resolved) -> Result<Self, Self::Error> {
+    fn try_from(value: ResolvedV1) -> Result<Self, Self::Error> {
         let resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
             value.resolved_schema.try_into()?;
         let template_schema =
@@ -370,15 +442,54 @@ impl Diff {
     }
 }
 
-/// The difference between two resolved repositories.
+#[derive(serde::Serialize)]
+pub struct DiffV2Context<'a> {
+    pub changes: std::collections::HashMap<String, &'a Vec<weaver_version::v2::SchemaItemChange>>,
+    pub head: DiffManifest,
+    pub baseline: DiffManifest,
+}
+
+#[derive(serde::Serialize)]
+pub struct DiffManifest {
+    pub semconv_version: String,
+}
+
+/// The difference between two resolved v2 repositories.
 pub struct DiffV2 {
     changes: weaver_version::v2::SchemaChanges,
+    head_semconv_version: String,
+    baseline_semconv_version: String,
 }
 
 impl DiffV2 {
     /// Returns the context we'll use to render diffs.
-    pub fn as_template_context(&self) -> &weaver_version::v2::SchemaChanges {
-        &self.changes
+    pub fn as_template_context(&self) -> DiffV2Context<'_> {
+        let mut changes_map = std::collections::HashMap::new();
+        let _ = changes_map.insert(
+            "registry_attributes".to_owned(),
+            &self.changes.registry.attribute_changes,
+        );
+        let _ = changes_map.insert(
+            "attribute_groups".to_owned(),
+            &self.changes.registry.attribute_group_changes,
+        );
+        let _ = changes_map.insert("metrics".to_owned(), &self.changes.registry.metric_changes);
+        let _ = changes_map.insert("events".to_owned(), &self.changes.registry.event_changes);
+        let _ = changes_map.insert("spans".to_owned(), &self.changes.registry.span_changes);
+        let _ = changes_map.insert(
+            "resources".to_owned(),
+            &self.changes.registry.entity_changes,
+        );
+
+        DiffV2Context {
+            changes: changes_map,
+            head: DiffManifest {
+                semconv_version: self.head_semconv_version.clone(),
+            },
+            baseline: DiffManifest {
+                semconv_version: self.baseline_semconv_version.clone(),
+            },
+        }
     }
 }
 
@@ -398,6 +509,11 @@ pub enum Error {
     Forge(#[from] weaver_forge::error::Error),
     #[error(transparent)]
     ResolvedSchema(#[from] weaver_resolved_schema::error::Error),
+    #[error("Cannot compare or diff a V1 registry with a V2 registry")]
+    IncompatibleRegistries,
+    #[error("Loaded a V2 resolved registry without the `--v2` flag. The V2 schema will be used.")]
+    #[diagnostic(severity(warning))]
+    V2FlagMissingWarning,
 }
 // TODO - transparently convert to diagnostic messages.
 impl From<Error> for DiagnosticMessages {
