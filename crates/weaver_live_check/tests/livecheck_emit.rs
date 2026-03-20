@@ -81,7 +81,7 @@ fn make_finding(
         level,
         signal_type: signal_type.map(|s| s.to_owned()),
         signal_name: signal_name.map(|s| s.to_owned()),
-        context,
+        context: Some(context),
     }
 }
 

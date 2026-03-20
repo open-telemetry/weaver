@@ -113,7 +113,11 @@ impl OtlpEmitter {
         let level = GeneratedFindingLevel::from(&finding.level);
         let signal_type: Option<SignalType> =
             finding.signal_type.as_deref().and_then(|s| s.parse().ok());
-        let context_attrs = flatten_finding_context(&finding.context);
+        let context_attrs = finding
+            .context
+            .as_ref()
+            .map(flatten_finding_context)
+            .unwrap_or_default();
         let resource_attrs = parent_signal
             .resource()
             .map(|r| flatten_resource_attributes(&r.attributes))
