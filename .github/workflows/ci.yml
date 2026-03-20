@@ -342,6 +342,7 @@ jobs:
       - name: Regenerate Rust code
         run: >
           docker run --rm
+          -u "$(id -u):$(id -g)"
           -v "${{ github.workspace }}":/home/weaver/source
           otel/weaver:latest
           registry generate
@@ -352,6 +353,7 @@ jobs:
       - name: Regenerate documentation
         run: >
           docker run --rm
+          -u "$(id -u):$(id -g)"
           -v "${{ github.workspace }}":/home/weaver/source
           otel/weaver:latest
           registry generate

@@ -72,6 +72,7 @@ This runs both generation steps and formats the output. You can also run them in
 
 ```sh
 docker run --rm \
+  -u "$(id -u):$(id -g)" \
   -v "$(pwd)":/home/weaver/source \
   otel/weaver:latest \
   registry generate \
@@ -88,6 +89,7 @@ This produces [`finding.md`](finding.md).
 
 ```sh
 docker run --rm \
+  -u "$(id -u):$(id -g)" \
   -v "$(pwd)":/home/weaver/source \
   otel/weaver:latest \
   registry generate \
