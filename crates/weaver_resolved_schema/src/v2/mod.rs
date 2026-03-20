@@ -166,6 +166,23 @@ pub fn convert_v1_to_v2(
     r: crate::registry::Registry,
     dependencies: BTreeSet<SchemaUrl>,
 ) -> Result<(Vec<Attribute>, Registry, Refinements, BTreeSet<SchemaUrl>), crate::error::Error> {
+    let deps_list: Vec<_> = dependencies.iter().cloned().collect();
+
+    let get_provenance = |g: &crate::registry::Group| -> provenance::Provenance {
+        let mut prov = provenance::Provenance::default();
+        if let Some(p) = g.provenance() {
+            prov.path = p.path.clone();
+            if p.schema_url.to_string() != r.registry_url {
+                // Note: if idx is not found, it means this came from *ourselves* not from a dependency.
+                // In that instance we don't fill out dependency provenance.
+                if let Some(idx) = deps_list.iter().position(|u| u == &p.schema_url) {
+                    prov.source = Some(provenance::DependencyRef(idx as u32));
+                }
+            }
+        }
+        prov
+    };
+
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<Attribute> = c
@@ -205,7 +222,6 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut attribute_groups = Vec::new();
     for g in r.groups.iter() {
-        // TODO: We need to convert lineage to a lookup against the dependency dictionary.
         match g.r#type {
             GroupType::Span => {
                 // Check if we extend another span.
@@ -331,7 +347,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
-                        provenance: Default::default(),
+                        provenance: get_provenance(g),
                     };
                     if !is_refinement {
                         events.push(event.clone());
@@ -400,7 +416,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
-                    provenance: Default::default(),
+                    provenance: get_provenance(g),
                 };
                 if is_refinement {
                     metric_refinements.push(metric::MetricRefinement {
@@ -452,7 +468,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
-                    provenance: Default::default(),
+                    provenance: get_provenance(g),
                 });
             }
             GroupType::AttributeGroup => {
@@ -1010,7 +1026,7 @@ mod tests {
                 instrument: None,
                 unit: None,
                 name: Some("my-entity".to_owned()),
-                lineage: None,
+                lineage: Some(GroupLineage::new(Provenance::new("https://my.dependency.url/1.0.0".try_into().unwrap(), "/path/to/source.yaml"))),
                 display_name: None,
                 body: None,
                 annotations: None,
@@ -1019,13 +1035,18 @@ mod tests {
                 is_v2: false,
             }],
         };
-        let dependencies = BTreeSet::new();
-        let (_, v2_registry, _, _) = convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+        let mut dependencies = BTreeSet::new();
+        let _ = dependencies.insert("https://my.dependency.url/1.0.0".try_into().unwrap());
+        let (_, v2_registry, _, deps_out) = convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
             .expect("Failed to convert v1 to v2");
+        assert_eq!(deps_out.len(), 1);
+        assert!(deps_out.contains(&"https://my.dependency.url/1.0.0".try_into().unwrap()));
         assert_eq!(v2_registry.entities.len(), 1);
         if let Some(entity) = v2_registry.entities.first() {
             assert_eq!(entity.r#type, "my-entity".to_owned().into());
             assert_eq!(entity.identity.len(), 1);
+            assert_eq!(entity.provenance.source, Some(provenance::DependencyRef(0)));
+            assert_eq!(entity.provenance.path, "/path/to/source.yaml");
         }
     }
 
