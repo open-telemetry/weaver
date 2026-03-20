@@ -455,6 +455,7 @@ mod tests {
                 examples: None,
                 common: CommonFields::default(),
             }],
+            dependencies: std::collections::BTreeSet::new(),
             registry: v2::registry::Registry {
                 attributes: vec![attribute::AttributeRef(0)],
                 spans: vec![span::Span {
@@ -612,6 +613,7 @@ mod tests {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".try_into().unwrap(),
             attribute_catalog: vec![],
+            dependencies: std::collections::BTreeSet::new(),
             registry: v2::registry::Registry {
                 attributes: vec![], // No attributes - This is the logic bug.
                 spans: vec![span::Span {

@@ -814,7 +814,7 @@ mod tests {
             ),
             resource: None,
             instrumentation_library: None,
-            dependencies: vec![],
+            dependencies: std::collections::BTreeSet::new(),
             versions: None,
             registry_manifest: None,
         }
@@ -870,6 +870,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            dependencies: std::collections::BTreeSet::new(),
         }
     }
 

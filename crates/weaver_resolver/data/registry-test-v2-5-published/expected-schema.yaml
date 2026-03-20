@@ -74,3 +74,5 @@ refinements:
     stability: stable
   metrics: []
   events: []
+dependencies:
+- https://opentelemetry.io/schemas/1.0.0

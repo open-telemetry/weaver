@@ -457,6 +457,7 @@ mod tests {
                 examples: None,
                 common: CommonFields::default(),
             }],
+            dependencies: std::collections::BTreeSet::new(),
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![AttributeGroup {

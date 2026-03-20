@@ -1,6 +1,6 @@
 //! Version 2 of semantic convention schema.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ use crate::{
         attribute::Attribute,
         attribute_group::AttributeGroup,
         catalog::{AttributeCatalog, Catalog},
+
         entity::Entity,
         metric::Metric,
         refinements::Refinements,
@@ -57,7 +58,12 @@ pub struct ResolvedTelemetrySchema {
     pub registry: Registry,
     /// Refinements for the registry
     pub refinements: Refinements,
+    /// The list of dependencies of the current instrumentation application or library.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub dependencies: BTreeSet<SchemaUrl>,
 }
+
+
 
 impl ResolvedTelemetrySchema {
     /// Statistics about this schema.
@@ -121,8 +127,8 @@ impl ResolvedTelemetrySchema {
 impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     type Error = crate::error::Error;
     fn try_from(value: crate::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
-        let (attribute_catalog, registry, refinements) =
-            convert_v1_to_v2(value.catalog, value.registry)?;
+        let (attribute_catalog, registry, refinements, dependencies) =
+            convert_v1_to_v2(value.catalog, value.registry, value.dependencies)?;
         let schema_url_str = value.schema_url.clone();
         let schema_url: SchemaUrl =
             value
@@ -139,9 +145,11 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
             attribute_catalog,
             registry,
             refinements,
+            dependencies,
         })
     }
 }
+
 
 fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
     if group_id.starts_with(prefix) {
@@ -159,7 +167,8 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
-) -> Result<(Vec<Attribute>, Registry, Refinements), crate::error::Error> {
+    dependencies: BTreeSet<SchemaUrl>,
+) -> Result<(Vec<Attribute>, Registry, Refinements, BTreeSet<SchemaUrl>), crate::error::Error> {
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<Attribute> = c
@@ -198,6 +207,7 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut attribute_groups = Vec::new();
     for g in r.groups.iter() {
+        // TODO: We need to convert lineage to a lookup against the dependency dictionary.
         match g.r#type {
             GroupType::Span => {
                 // Check if we extend another span.
@@ -518,7 +528,7 @@ pub fn convert_v1_to_v2(
         metrics: metric_refinements,
         events: event_refinements,
     };
-    Ok((v2_catalog.into(), v2_registry, v2_refinements))
+    Ok((v2_catalog.into(), v2_registry, v2_refinements, dependencies))
 }
 
 /// A trait that defines a signal, used for performing "diff"
@@ -723,9 +733,9 @@ mod tests {
                 },
             ],
         };
-
-        let (catalog, v2_registry, v2_refinements) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let dependencies = BTreeSet::new();
+        let (catalog, v2_registry, v2_refinements, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(catalog.len(), 1);
         // Assert one attribute shows up, due to lineage.
@@ -860,9 +870,9 @@ mod tests {
                 },
             ],
         };
-
-        let (_, v2_registry, v2_refinements) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let dependencies = BTreeSet::new();
+        let (_, v2_registry, v2_refinements, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
@@ -940,9 +950,10 @@ mod tests {
                 is_v2: false,
             }],
         };
+        let dependencies = BTreeSet::new();
 
-        let (_, v2_registry, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let (_, v2_registry, _, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.events.len(), 1);
         if let Some(event) = v2_registry.events.first() {
             assert_eq!(event.name, "my-event".to_owned().into());
@@ -1005,9 +1016,9 @@ mod tests {
                 is_v2: false,
             }],
         };
-
-        let (_, v2_registry, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let dependencies = BTreeSet::new();
+        let (_, v2_registry, _, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.entities.len(), 1);
         if let Some(entity) = v2_registry.entities.first() {
             assert_eq!(entity.r#type, "my-entity".to_owned().into());
@@ -1017,6 +1028,9 @@ mod tests {
 
     #[test]
     fn test_try_from_v1_to_v2() {
+        let mut dependencies = BTreeSet::new();
+        let _ = dependencies.insert("http://dependency/url/1.0.0".try_into().unwrap());
+        
         let v1_schema = crate::ResolvedTelemetrySchema {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
@@ -1028,7 +1042,7 @@ mod tests {
             },
             instrumentation_library: None,
             resource: None,
-            dependencies: vec![],
+            dependencies: dependencies.clone(),
             versions: None,
             registry_manifest: None,
         };
@@ -1041,6 +1055,7 @@ mod tests {
             v2_schema.schema_url,
             "http://test/schemas/1.0.0".try_into().unwrap()
         );
+        assert_eq!(v2_schema.dependencies, dependencies);
     }
 
     #[test]
@@ -1265,6 +1280,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            dependencies: BTreeSet::new(),
         }
     }
 }
