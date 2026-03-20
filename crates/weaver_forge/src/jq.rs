@@ -58,9 +58,9 @@ pub fn execute_jq(
     let modules = loader
         .load(&arena, program)
         .map_err(load_errors)
-        .map_err(|e| Error::FilterError {
+        .map_err(|details| Error::FilterError {
             filter: filter_expr.to_owned(),
-            error: e,
+            details,
         })?;
 
     let (names, values) = prepare_jq_context(params);
@@ -73,9 +73,9 @@ pub fn execute_jq(
         .with_funs(funs.map(|x| x))
         .compile(modules)
         .map_err(compile_errors)
-        .map_err(|e| Error::FilterError {
+        .map_err(|details| Error::FilterError {
             filter: filter_expr.to_owned(),
-            error: e,
+            details,
         })?;
     let inputs = RcIter::new(core::iter::empty());
     let ctx = Ctx::new(values, &inputs);
@@ -94,11 +94,13 @@ pub fn execute_jq(
     if !errs.is_empty() {
         return Err(Error::FilterError {
             filter: filter_expr.to_owned(),
-            error: errs
+            details: errs
                 .into_iter()
-                .map(|e| format!("{e}"))
-                .collect::<Vec<String>>()
-                .join(",\n"),
+                .map(|e| FilterErrorDetail {
+                    error: format!("{e}"),
+                    source: None,
+                })
+                .collect(),
         });
     }
 
@@ -120,57 +122,124 @@ pub fn execute_jq(
 }
 
 // JAQ errors must be parsed and synthesized.  All of this code is adapted from `jaq/src/main.rs`.
+use crate::error::{FilterErrorDetail, Location, Source};
 
-/// Converts all errors from jaq into a single string.
-fn errors_to_string<Reports: Iterator<Item = String>>(reports: Reports) -> String {
-    reports.into_iter().collect()
-}
+fn get_source(whole: &str, part: &str) -> Option<Source> {
+    let whole_start = whole.as_ptr() as usize;
+    let whole_end = whole_start + whole.len();
+    let part_start = part.as_ptr() as usize;
+    let part_end = part_start + part.len();
 
-/// Turns loading errors from jaq into raw strings.
-fn load_errors(errs: jaq_core::load::Errors<&str, JqFileType>) -> String {
-    use jaq_core::load::Error;
-    let errs = errs.into_iter().flat_map(|(_, err)| {
-        let result: Vec<String> = match err {
-            Error::Io(errs) => errs.into_iter().map(report_io).collect(),
-            Error::Lex(errs) => errs.into_iter().map(report_lex).collect(),
-            Error::Parse(errs) => errs.into_iter().map(report_parse).collect(),
+    if part_start >= whole_start && part_end <= whole_end {
+        let offset_start = part_start - whole_start;
+        let offset_end = part_end - whole_start;
+
+        let mut current_line = 1;
+        let mut current_col = 1;
+
+        for c in whole[..offset_start].chars() {
+            if c == '\n' {
+                current_line += 1;
+                current_col = 1;
+            } else {
+                current_col += 1;
+            }
+        }
+        let start = Location {
+            line: current_line,
+            col: current_col,
         };
-        result
-    });
-    errors_to_string(errs)
+
+        for c in whole[offset_start..offset_end].chars() {
+            if c == '\n' {
+                current_line += 1;
+                current_col = 1;
+            } else {
+                current_col += 1;
+            }
+        }
+        let end = Location {
+            line: current_line,
+            col: current_col,
+        };
+
+        Some(Source {
+            start,
+            end: Some(end),
+        })
+    } else {
+        None
+    }
 }
 
-/// Turns compile errors from jaq into raw strings.
-fn compile_errors(errs: jaq_core::compile::Errors<&str, JqFileType>) -> String {
-    let errs = errs
-        .into_iter()
-        .flat_map(|(_, errs)| errs.into_iter().map(report_compile));
-    errors_to_string(errs)
+/// Turns loading errors from jaq into structured details.
+fn load_errors(errs: jaq_core::load::Errors<&str, JqFileType>) -> Vec<FilterErrorDetail> {
+    use jaq_core::load::Error;
+    errs.into_iter()
+        .flat_map(|(file, err)| {
+            let code = file.code;
+            let result: Vec<FilterErrorDetail> = match err {
+                Error::Io(errs) => errs.into_iter().map(report_io).collect(),
+                Error::Lex(errs) => errs.into_iter().map(|e| report_lex(code, e)).collect(),
+                Error::Parse(errs) => errs.into_iter().map(|e| report_parse(code, e)).collect(),
+            };
+            result
+        })
+        .collect()
 }
 
-/// Turns IO errors from JQ into raw strings.
-fn report_io((path, error): (&str, String)) -> String {
-    format!("could not load file {path}: {error}")
+/// Turns compile errors from jaq into structured details.
+fn compile_errors(errs: jaq_core::compile::Errors<&str, JqFileType>) -> Vec<FilterErrorDetail> {
+    errs.into_iter()
+        .flat_map(|(file, errs)| {
+            let code = file.code;
+            errs.into_iter().map(move |e| report_compile(code, e))
+        })
+        .collect()
 }
 
-/// Turns lexing errors from JQ into raw strings.
-fn report_lex((expected, _): jaq_core::load::lex::Error<&str>) -> String {
-    format!("expected {}", expected.as_str())
+/// Turns IO errors from JQ into structured details.
+fn report_io((path, error): (&str, String)) -> FilterErrorDetail {
+    FilterErrorDetail {
+        error: format!("could not load file {path}: {error}"),
+        source: None,
+    }
 }
 
-/// Turns parsing errors from JQ into raw strings.
-fn report_parse((expected, _): jaq_core::load::parse::Error<&str>) -> String {
-    format!("expected {}", expected.as_str())
+/// Turns lexing errors from JQ into structured details.
+fn report_lex(code: &str, (expected, span): jaq_core::load::lex::Error<&str>) -> FilterErrorDetail {
+    FilterErrorDetail {
+        error: format!("expected {}", expected.as_str()),
+        source: get_source(code, span),
+    }
 }
 
-/// Turns errors coming from JAQ compile phase into raw strings.
-fn report_compile((found, undefined): jaq_core::compile::Error<&str>) -> String {
+/// Turns parsing errors from JQ into structured details.
+fn report_parse(
+    code: &str,
+    (expected, span): jaq_core::load::parse::Error<&str>,
+) -> FilterErrorDetail {
+    FilterErrorDetail {
+        error: format!("expected {}", expected.as_str()),
+        source: get_source(code, span),
+    }
+}
+
+/// Turns errors coming from JAQ compile phase into structured details.
+fn report_compile(
+    code: &str,
+    (found, undefined): jaq_core::compile::Error<&str>,
+) -> FilterErrorDetail {
     use jaq_core::compile::Undefined::Filter;
     let wnoa = |exp, got| format!("wrong number of arguments (expected {exp}, found {got})");
-    match (found, undefined) {
+    let msg = match (found, undefined) {
         ("reduce", Filter(arity)) => wnoa("2", arity),
         ("foreach", Filter(arity)) => wnoa("2 or 3", arity),
         (_, undefined) => format!("undefined {}", undefined.as_str()),
+    };
+    FilterErrorDetail {
+        error: msg,
+        source: get_source(code, found),
     }
 }
 
