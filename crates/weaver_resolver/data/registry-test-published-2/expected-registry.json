@@ -35,7 +35,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "acme.com/schemas",
+          "schema_url": "https://acme.com/schemas/0.1.0",
           "path": "data/registry-test-published-2/registry/main.yaml"
         },
         "attributes": {
@@ -61,7 +61,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "acme.com/schemas",
+          "schema_url": "https://acme.com/schemas/0.1.0",
           "path": "data/registry-test-published-2/registry/main.yaml"
         }
       }
@@ -79,7 +79,7 @@
       "name": "local-span",
       "lineage": {
         "provenance": {
-          "registry_id": "acme.com/schemas",
+          "schema_url": "https://acme.com/schemas/0.1.0",
           "path": "data/registry-test-published-2/registry/main.yaml"
         },
         "attributes": {

@@ -34,3 +34,25 @@ fn test_cli_interface() {
     // => 5*5 = 25 schema changes.
     assert_eq!(schema_changes.count_changes(), 25);
 }
+
+#[test]
+fn test_published_v2_registry_diff() {
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let result = cmd
+        .arg("registry")
+        .arg("diff")
+        .arg("--v2")
+        .arg("-r")
+        .arg("tests/published_v2_registry/")
+        .arg("--baseline-registry")
+        .arg("tests/published_v2_registry/")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(
+        result.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+}

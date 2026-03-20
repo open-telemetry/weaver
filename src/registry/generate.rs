@@ -15,7 +15,7 @@ use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
@@ -111,14 +111,14 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
         params,
         OutputTarget::Directory(args.output.clone()),
     )?;
-    // Resolve v1 and v2 schema, based on user request.
-    if args.registry.v2 {
-        let resolved_v2: ResolvedV2 = resolved.try_into()?;
-        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        output.generate(&resolved_v2.template_schema())?;
-    } else {
-        resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        output.generate(&resolved.template_schema())?;
+    resolved.check_after_resolution_policy(&mut diag_msgs)?;
+    match &resolved {
+        crate::weaver::Resolved::V2(v) => {
+            output.generate(v.template_schema())?;
+        }
+        crate::weaver::Resolved::V1(v) => {
+            output.generate(v.template_schema())?;
+        }
     }
 
     if !diag_msgs.is_empty() {
