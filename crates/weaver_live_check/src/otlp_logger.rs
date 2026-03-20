@@ -313,7 +313,7 @@ mod tests {
         level: FindingLevel,
         signal_type: Option<&str>,
         signal_name: Option<&str>,
-        context: serde_json::Value,
+        context: Option<serde_json::Value>,
     ) -> PolicyFinding {
         PolicyFinding {
             id: id.to_owned(),
@@ -495,10 +495,10 @@ mod tests {
             FindingLevel::Violation,
             Some("span"),
             Some("test.span"),
-            json!({
+            Some(json!({
                 "attribute": "test.attr",
                 "expected": "value"
-            }),
+            })),
         );
 
         emitter.emit_finding(&finding, &sample_ref, &parent_signal);
@@ -524,7 +524,7 @@ mod tests {
                 level,
                 None,
                 None,
-                json!({}),
+                None,
             );
             emitter.emit_finding(&finding, &sample_ref, &parent_signal);
         }
@@ -544,7 +544,7 @@ mod tests {
             FindingLevel::Improvement,
             Some("metric"),
             Some("test.metric"),
-            json!({
+            Some(json!({
                 "nested": {
                     "level1": {
                         "level2": "deep_value"
@@ -557,7 +557,7 @@ mod tests {
                     "bool": true,
                     "null": null
                 }
-            }),
+            })),
         );
 
         emitter.emit_finding(&finding, &sample_ref, &parent_signal);

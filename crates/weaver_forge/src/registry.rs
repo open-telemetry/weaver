@@ -298,6 +298,7 @@ mod tests {
                     entity_associations: vec![],
                     annotations: None,
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "apple.group".to_owned(),
@@ -321,6 +322,7 @@ mod tests {
                     entity_associations: vec![],
                     annotations: None,
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "middle.group".to_owned(),
@@ -344,11 +346,12 @@ mod tests {
                     entity_associations: vec![],
                     annotations: None,
                     visibility: None,
+                    is_v2: false,
                 },
             ],
         };
 
-        let catalog = Catalog::from_attributes(vec![]);
+        let catalog = Catalog::default();
 
         // Convert to resolved registry
         let resolved = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)

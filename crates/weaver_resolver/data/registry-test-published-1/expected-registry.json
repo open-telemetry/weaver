@@ -58,7 +58,7 @@
       "name": "my-span",
       "lineage": {
         "provenance": {
-          "registry_id": "acme.com/schemas",
+          "schema_url": "https://acme.com/schemas/0.1.0",
           "path": "data/registry-test-published-1/registry/main.yaml"
         },
         "attributes": {

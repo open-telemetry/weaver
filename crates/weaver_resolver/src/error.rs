@@ -84,36 +84,36 @@ pub enum Error {
     },
 
     /// An unresolved attribute reference.
-    #[error("The following attribute reference is not resolved for the group '{group_id}'.\nAttribute reference: {attribute_ref}\nProvenance: {provenance}")]
+    #[error("The following attribute reference is not resolved for the group '{group_id}'.\nAttribute reference: {attribute_ref}\nProvenance: {provenance:?}")]
     UnresolvedAttributeRef {
         /// The id of the group containing the attribute reference.
         group_id: String,
         /// The unresolved attribute reference.
         attribute_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: Provenance,
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An unresolved `extends` clause reference.
-    #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance}")]
+    #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance:?}")]
     UnresolvedExtendsRef {
         /// The id of the group containing the `extends` clause reference.
         group_id: String,
         /// The unresolved `extends` clause reference.
         extends_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: Provenance,
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An unresolved `include` reference.
-    #[error("The following `include` reference is not resolved for the group '{group_id}'.\n`include` reference: {include_ref}\nProvenance: {provenance}")]
+    #[error("The following `include` reference is not resolved for the group '{group_id}'.\n`include` reference: {include_ref}\nProvenance: {provenance:?}")]
     UnresolvedIncludeRef {
         /// The id of the group containing the `include` reference.
         group_id: String,
         /// The unresolved `include` reference.
         include_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: Provenance,
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An invalid Schema path.
@@ -151,6 +151,19 @@ pub enum Error {
         metric_name: String,
         /// The provenances where this metric name is duplicated.
         provenances: Vec<Provenance>,
+    },
+
+    /// An invalid `extends` clause type.
+    #[error("Refinement `{refinement_id}` of type `{refinement_type}` cannot refine signal `{ref}` of type `{signal_type}`.")]
+    InvalidRefinement {
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The reference being refined.
+        r#ref: String,
+        /// The type of the refinement.
+        refinement_type: String,
+        /// The type of the refined signal.
+        signal_type: String,
     },
 
     /// A duplicate attribute id error.

@@ -2,13 +2,18 @@
 
 //! The new way we want to define spans going forward.
 
+use std::collections::BTreeMap;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     attribute::AttributeSpec,
+    deprecated::Deprecated,
     group::{GroupSpec, GroupType, SpanKindSpec},
+    stability::Stability,
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    YamlValue,
 };
 
 /// A reference to an attribute group for spans.
@@ -77,6 +82,47 @@ pub struct Span {
     pub common: CommonFields,
 }
 
+/// A refinement of an existing span.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpanRefinement {
+    /// The ID of the refinement.
+    pub id: SignalId,
+    /// The name of the span being refined.
+    pub r#ref: SignalId,
+    /// List of attributes that belong to the semantic convention.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<SpanAttributeOrGroupRef>,
+    /// Which resources this span should be associated with.
+    /// Note: This field is currently not propagated during resolution.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
+
+    /// Refines the brief description of the signal.
+    /// Note: This field is currently not propagated during resolution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// Refines the more elaborate description of the signal.
+    /// Note: This field is currently not propagated during resolution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Refines the stability of the signal.
+    /// Note: This field is currently not propagated during resolution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stability: Option<Stability>,
+    /// Specifies if the signal is deprecated.
+    /// Note: This field is currently not propagated during resolution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
+    /// Additional annotations for the signal.
+    /// Note: This field is currently not propagated during resolution.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
+}
+
 impl Span {
     /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
@@ -108,6 +154,43 @@ impl Span {
             },
             entity_associations: self.entity_associations,
             visibility: None,
+            is_v2: true,
+        }
+    }
+}
+
+impl SpanRefinement {
+    /// Converts a v2 span refinement into a v1 GroupSpec.
+    #[must_use]
+    pub fn into_v1_group(self) -> GroupSpec {
+        let (attribute_refs, include_groups) = split_span_attributes_and_groups(self.attributes);
+        GroupSpec {
+            id: self.id.to_string(),
+            r#type: GroupType::Span,
+            brief: self.brief.unwrap_or_default(),
+            note: self.note.unwrap_or_default(),
+            prefix: Default::default(),
+            extends: Some(format!("span.{}", &self.r#ref)),
+            include_groups,
+            stability: self.stability,
+            deprecated: self.deprecated,
+            attributes: attribute_refs,
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: Some(format!("{}", &self.id)),
+            display_name: None,
+            body: None,
+            annotations: if self.annotations.is_empty() {
+                None
+            } else {
+                Some(self.annotations)
+            },
+            entity_associations: self.entity_associations,
+            visibility: None,
+            is_v2: true,
         }
     }
 }
@@ -191,6 +274,35 @@ brief: Test span
 name: my_span
 span_kind: client
 stability: stable
+is_v2: true
+"#,
+        );
+    }
+
+    fn parse_and_translate_refinement(v2: &str, v1: &str) {
+        let span = serde_yaml::from_str::<SpanRefinement>(v2).expect("Failed to parse YAML string");
+        let expected =
+            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
+        assert_eq!(expected, span.into_v1_group());
+    }
+
+    #[test]
+    fn test_span_refinement_translation() {
+        parse_and_translate_refinement(
+            // V2 - SpanRefinement
+            r#"id: span.refinement.my_span
+ref: my_span
+brief: Test span refinement
+stability: stable
+"#,
+            // V1 - Group
+            r#"id: span.refinement.my_span
+type: span
+brief: Test span refinement
+name: span.refinement.my_span
+extends: span.my_span
+stability: stable
+is_v2: true
 "#,
         );
     }

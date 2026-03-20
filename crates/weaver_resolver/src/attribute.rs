@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::attribute::{self};
+use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -262,6 +263,21 @@ impl AttributeCatalog {
     }
 }
 
+impl From<AttributeCatalog> for Catalog {
+    fn from(attr_catalog: AttributeCatalog) -> Self {
+        let root_attributes = attr_catalog
+            .root_attributes
+            .into_iter()
+            .map(|(k, v)| (k, (v.attribute, v.group_id)))
+            .collect();
+        let mut attributes: Vec<(attribute::Attribute, AttributeRef)> =
+            attr_catalog.attribute_refs.into_iter().collect();
+        attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
+        let attributes = attributes.into_iter().map(|(attr, _)| attr).collect();
+        Catalog::new(attributes, root_attributes)
+    }
+}
+
 /// Helper trait for abstracting over V1 and V2 schema.
 trait AttributeLookup {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId>;
@@ -284,45 +300,20 @@ impl AttributeLookup for ResolvedDependency {
 
 impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
-        // TODO - fast lookup, not a table scan...
-        // Because of how the algorithm works, we need to looks across
-        // *all possible* groups for an attribute.
-        // Note: This *only* works with lineage and breaks otherwise.
-        let result = self.registry.groups.iter().find_map(|g| {
-            g.attributes
-                .iter()
-                .find_map(|ar| {
-                    self.catalog
-                        .attribute(ar)
-                        .filter(|a| a.name == key)
-                        .and_then(|a| {
-                            let lineage = g
-                                .lineage
-                                .as_ref()
-                                .and_then(|l| l.attribute(&a.name))
-                                .filter(|al| al.source_group == g.id);
-                            // We defined the attribute.
-                            if lineage.is_none() {
-                                Some(a.clone())
-                            } else {
-                                // We did not define the attribute.
-                                None
-                            }
-                        })
-                })
-                .map(|a| AttributeWithGroupId {
-                    attribute: a,
-                    group_id: g.id.to_owned(),
-                })
-        });
-        result
+        self.catalog
+            .root_attribute(key)
+            .map(|(attr, group_id)| AttributeWithGroupId {
+                attribute: attr.clone(),
+                group_id: group_id.to_owned(),
+            })
     }
 }
 
 impl AttributeLookup for V2Schema {
     fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
         let fake_group_id = format!("v2_dependency.{}", self.schema_url.name());
-        self.attribute_catalog.iter().find_map(|attr| {
+        self.registry.attributes.iter().find_map(|attr_ref| {
+            let attr = self.attribute_catalog.get(attr_ref.0 as usize)?;
             if attr.key == key {
                 Some(AttributeWithGroupId {
                     attribute: attribute::Attribute {

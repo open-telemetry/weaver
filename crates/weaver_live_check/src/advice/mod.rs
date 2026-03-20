@@ -40,7 +40,7 @@ pub trait Advisor {
 /// Fluent builder for creating PolicyFinding instances with automatic emission
 pub struct FindingBuilder {
     id: String,
-    context: JsonValue,
+    context: Option<JsonValue>,
     message: String,
     level: FindingLevel,
     signal_type: Option<String>,
@@ -52,7 +52,7 @@ impl FindingBuilder {
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
-            context: JsonValue::Null,
+            context: None,
             message: String::new(),
             level: FindingLevel::Information,
             signal_type: None,
@@ -63,7 +63,7 @@ impl FindingBuilder {
     /// Set the context JSON for this finding
     #[must_use]
     pub fn context(mut self, context: JsonValue) -> Self {
-        self.context = context;
+        self.context = Some(context);
         self
     }
 

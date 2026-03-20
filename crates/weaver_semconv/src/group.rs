@@ -133,6 +133,13 @@ pub struct GroupSpec {
     #[serde(skip_serializing)]
     #[schemars(skip)]
     pub visibility: Option<AttributeGroupVisibilitySpec>,
+
+    /// True if the group was defined using the v2 syntax.
+    /// This is used during resolution to apply v2-specific inheritance rules.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub is_v2: bool,
 }
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
@@ -718,6 +725,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
         assert!(group
             .validate("<test>")
@@ -885,6 +893,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
         assert!(group
             .validate("<test>")
@@ -1184,6 +1193,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
         assert!(group
             .validate("<test>")
@@ -1401,6 +1411,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
         assert!(group
             .validate("<test>")
@@ -1547,6 +1558,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
         assert!(group
             .validate("<test>")
@@ -1719,6 +1731,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1873,6 +1886,7 @@ mod tests {
             annotations: None,
             entity_associations: Vec::new(),
             visibility: None,
+            is_v2: false,
         };
 
         // Check group with duplicate attributes.
@@ -1935,6 +1949,7 @@ mod tests {
             annotations: None,
             entity_associations: vec!["test".to_owned()],
             visibility: None,
+            is_v2: false,
         };
         assert!(group
             .validate("<test>")

@@ -1,0 +1,75 @@
+file_format: resolved/2.0.0
+schema_url: https://consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: The server port used by the consumer.
+  stability: stable
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Server address.
+  stability: stable
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Yet another description.
+  stability: stable
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: consumer.request.active
+    instrument: updowncounter
+    unit: '{request}'
+    attributes:
+    - base: 2
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Number of active consumer requests.
+    stability: stable
+  - name: consumer.request.count
+    instrument: counter
+    unit: '{request}'
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Count of consumer requests.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: consumer.request.active
+    name: consumer.request.active
+    instrument: updowncounter
+    unit: '{request}'
+    attributes:
+    - base: 2
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Number of active consumer requests.
+    stability: stable
+  - id: consumer.request.count
+    name: consumer.request.count
+    instrument: counter
+    unit: '{request}'
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Count of consumer requests.
+    stability: stable
+  events: []

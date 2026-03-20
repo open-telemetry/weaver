@@ -310,11 +310,7 @@ impl AccumulatedSamples {
                 stability: Some(Stability::Development),
                 metric_name: Some(metric.name.clone()),
                 instrument: Some(metric.instrument.clone()),
-                unit: if metric.unit.is_empty() {
-                    None
-                } else {
-                    Some(metric.unit.clone())
-                },
+                unit: Some(metric.unit.clone()),
                 attributes,
                 ..Default::default()
             });
@@ -1174,7 +1170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_semconv_spec_metric_empty_unit_is_none() {
+    fn test_to_semconv_spec_metric_empty_unit_is_empty_string() {
         let mut acc = AccumulatedSamples::new();
 
         let metric = SampleMetric {
@@ -1191,7 +1187,7 @@ mod tests {
         let registry = acc.to_semconv_spec();
 
         let group = &registry.groups[0];
-        assert!(group.unit.is_none());
+        assert_eq!(group.unit, Some(String::new()));
     }
 
     #[test]

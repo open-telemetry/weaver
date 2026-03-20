@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["*.cast", "**/*.yaml", "**/*.svg", "**/allowed-external-types.toml"]
+extend-exclude = ["*.cast", "**/*.yaml", "**/*.json", "**/*.svg", "**/allowed-external-types.toml"]
 
 [default.extend-words]
 ratatui = "ratatui"
