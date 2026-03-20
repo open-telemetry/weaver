@@ -7,7 +7,7 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, CommonFields},
 };
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
 /// The definition of an Entity signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -26,6 +26,10 @@ pub struct Entity {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of the Entity.
+    #[serde(default)]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers entity-specicific information.

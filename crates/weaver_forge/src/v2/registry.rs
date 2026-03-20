@@ -454,6 +454,7 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields::default(),
+                provenance: Default::default(),
             }],
             dependencies: std::collections::BTreeSet::new(),
             registry: v2::registry::Registry {
@@ -486,6 +487,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![event::Event {
                     name: SignalId::from("my-event".to_owned()),
@@ -497,6 +499,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 entities: vec![v2::entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
@@ -508,6 +511,7 @@ mod tests {
                     }],
                     description: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 attribute_groups: vec![],
             },
@@ -545,6 +549,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 events: vec![event::EventRefinement {
@@ -559,6 +564,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
             },

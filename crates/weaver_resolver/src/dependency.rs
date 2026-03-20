@@ -839,12 +839,14 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![weaver_resolved_schema::v2::event::Event {
                     name: "event.b".to_owned().into(),
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 spans: vec![weaver_resolved_schema::v2::span::Span {
                     r#type: "span.d".to_owned().into(),
@@ -861,6 +863,7 @@ mod tests {
                     identity: vec![],
                     description: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 attributes: vec![],
             },

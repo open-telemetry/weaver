@@ -104,7 +104,6 @@ impl ResolvedTelemetrySchema {
         }
     }
 
-
     #[cfg(test)]
     pub(crate) fn add_metric_group<const N: usize>(
         &mut self,
@@ -156,10 +155,7 @@ impl ResolvedTelemetrySchema {
     ) {
         use crate::lineage::GroupLineage;
         use weaver_semconv::provenance::Provenance;
-        let mut lineage = GroupLineage::new(Provenance::new(
-            SchemaUrl::new_unknown(),
-            "",
-        ));
+        let mut lineage = GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), ""));
         for attr in &attrs {
             use crate::lineage::AttributeLineage;
             let al = AttributeLineage::new(group_id);

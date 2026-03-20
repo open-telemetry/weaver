@@ -113,7 +113,7 @@ impl SchemaResolver {
             }
         };
         let mut attr_catalog = AttributeCatalog::default();
-        
+
         let mut dependencies = std::collections::BTreeSet::new();
         for d in &resolved_dependencies {
             match d {
@@ -151,7 +151,6 @@ impl SchemaResolver {
                 registry_manifest: manifest,
             }
         })
-
     }
 
     /// Loads a semantic convention repository.

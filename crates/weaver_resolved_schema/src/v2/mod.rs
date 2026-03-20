@@ -20,7 +20,6 @@ use crate::{
         attribute::Attribute,
         attribute_group::AttributeGroup,
         catalog::{AttributeCatalog, Catalog},
-
         entity::Entity,
         metric::Metric,
         refinements::Refinements,
@@ -37,6 +36,7 @@ pub mod catalog;
 pub mod entity;
 pub mod event;
 pub mod metric;
+pub mod provenance;
 pub mod refinements;
 pub mod registry;
 pub mod span;
@@ -62,8 +62,6 @@ pub struct ResolvedTelemetrySchema {
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub dependencies: BTreeSet<SchemaUrl>,
 }
-
-
 
 impl ResolvedTelemetrySchema {
     /// Statistics about this schema.
@@ -150,7 +148,6 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     }
 }
 
-
 fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
     if group_id.starts_with(prefix) {
         group_id.trim_start_matches(prefix).to_owned().into()
@@ -187,6 +184,7 @@ pub fn convert_v1_to_v2(
                 deprecated: a.deprecated,
                 annotations: a.annotations.unwrap_or_default(),
             },
+            provenance: Default::default(),
         })
         .collect();
 
@@ -333,6 +331,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        provenance: Default::default(),
                     };
                     if !is_refinement {
                         events.push(event.clone());
@@ -401,6 +400,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    provenance: Default::default(),
                 };
                 if is_refinement {
                     metric_refinements.push(metric::MetricRefinement {
@@ -452,6 +452,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    provenance: Default::default(),
                 });
             }
             GroupType::AttributeGroup => {
@@ -735,7 +736,8 @@ mod tests {
         };
         let dependencies = BTreeSet::new();
         let (catalog, v2_registry, v2_refinements, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+                .expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(catalog.len(), 1);
         // Assert one attribute shows up, due to lineage.
@@ -872,7 +874,8 @@ mod tests {
         };
         let dependencies = BTreeSet::new();
         let (_, v2_registry, v2_refinements, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+                .expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
@@ -952,8 +955,8 @@ mod tests {
         };
         let dependencies = BTreeSet::new();
 
-        let (_, v2_registry, _, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
+        let (_, v2_registry, _, _) = convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+            .expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.events.len(), 1);
         if let Some(event) = v2_registry.events.first() {
             assert_eq!(event.name, "my-event".to_owned().into());
@@ -1017,8 +1020,8 @@ mod tests {
             }],
         };
         let dependencies = BTreeSet::new();
-        let (_, v2_registry, _, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry, dependencies).expect("Failed to convert v1 to v2");
+        let (_, v2_registry, _, _) = convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+            .expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.entities.len(), 1);
         if let Some(entity) = v2_registry.entities.first() {
             assert_eq!(entity.r#type, "my-entity".to_owned().into());
@@ -1030,7 +1033,7 @@ mod tests {
     fn test_try_from_v1_to_v2() {
         let mut dependencies = BTreeSet::new();
         let _ = dependencies.insert("http://dependency/url/1.0.0".try_into().unwrap());
-        
+
         let v1_schema = crate::ResolvedTelemetrySchema {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
@@ -1074,6 +1077,7 @@ mod tests {
                 deprecated: None,
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         baseline.registry.attributes.push(AttributeRef(0));
         let changes = baseline.diff(&baseline);
@@ -1096,6 +1100,7 @@ mod tests {
                 deprecated: None,
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         baseline.registry.attributes.push(AttributeRef(0));
         let mut latest = empty_v2_schema();
@@ -1115,6 +1120,7 @@ mod tests {
                 }),
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         latest.attribute_catalog.push(AttributeV2 {
             key: "test.key.new".to_owned(),
@@ -1129,6 +1135,7 @@ mod tests {
                 deprecated: None,
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         latest.registry.attributes.push(AttributeRef(0));
         latest.registry.attributes.push(AttributeRef(1));
@@ -1164,6 +1171,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
         latest.registry.metrics.push(Metric {
@@ -1173,6 +1181,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1198,6 +1207,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
         latest.registry.entities.push(Entity {
@@ -1210,6 +1220,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1233,6 +1244,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
         latest.registry.events.push(Event {
@@ -1245,6 +1257,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
+            provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());

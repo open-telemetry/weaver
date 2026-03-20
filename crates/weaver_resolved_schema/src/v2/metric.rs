@@ -1,6 +1,6 @@
 //! Metric related definitions structs.
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
@@ -40,6 +40,10 @@ pub struct Metric {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of this metric.
+    #[serde(default)]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers metric-specicific information.
