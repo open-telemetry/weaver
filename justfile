@@ -35,8 +35,8 @@ upgrade:
     cargo upgrade
 
 generate:
-    docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd)":/home/weaver/source otel/weaver:latest registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 rust /home/weaver/source/crates/weaver_live_check/src/
-    docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd)":/home/weaver/source otel/weaver:latest registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 markdown /home/weaver/source/crates/weaver_live_check/docs/
+    docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd)":/home/weaver/source otel/weaver:latest registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 rust /home/weaver/source/crates/weaver_live_check/src/
+    docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd)":/home/weaver/source otel/weaver:latest registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 markdown /home/weaver/source/crates/weaver_live_check/docs/
     cargo fmt -p weaver_live_check
 
 validate-workspace:

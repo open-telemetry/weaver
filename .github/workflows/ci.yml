@@ -343,6 +343,7 @@ jobs:
         run: >
           docker run --rm
           -u "$(id -u):$(id -g)"
+          -e HOME=/tmp
           -v "${{ github.workspace }}":/home/weaver/source
           otel/weaver:latest
           registry generate
@@ -354,6 +355,7 @@ jobs:
         run: >
           docker run --rm
           -u "$(id -u):$(id -g)"
+          -e HOME=/tmp
           -v "${{ github.workspace }}":/home/weaver/source
           otel/weaver:latest
           registry generate
