@@ -15,7 +15,7 @@ use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;

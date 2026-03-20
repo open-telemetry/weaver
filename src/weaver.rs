@@ -405,8 +405,8 @@ impl ResolvedV2 {
         let changes = self.resolved_schema.diff(&other.resolved_schema);
         DiffV2 {
             changes,
-            head_semconv_version: self.template_schema.schema_url.version().to_string(),
-            baseline_semconv_version: other.template_schema.schema_url.version().to_string(),
+            head_semconv_version: self.template_schema.schema_url.version().to_owned(),
+            baseline_semconv_version: other.template_schema.schema_url.version().to_owned(),
         }
     }
 }

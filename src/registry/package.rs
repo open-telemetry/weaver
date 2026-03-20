@@ -15,7 +15,7 @@ use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry package` sub-command

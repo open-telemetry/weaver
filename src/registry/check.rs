@@ -3,7 +3,7 @@
 //! Check a semantic convention registry.
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use log::info;

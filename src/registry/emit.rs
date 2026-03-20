@@ -10,7 +10,7 @@ use weaver_common::log_success;
 use weaver_emit::{emit, ExporterConfig, RegistryVersion};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry emit` sub-command
