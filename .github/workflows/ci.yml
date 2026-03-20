@@ -368,10 +368,8 @@ jobs:
       - name: Check generated files are up-to-date
         run: |
           if ! git diff --exit-code -- \
-            crates/weaver_live_check/src/generated/attributes.rs \
-            crates/weaver_live_check/src/generated/events.rs \
-            crates/weaver_live_check/src/generated/entities.rs \
-            crates/weaver_live_check/docs/finding.md; then
+            crates/weaver_live_check/src/generated/ \
+            crates/weaver_live_check/docs/; then
             echo ""
             echo "Generated files are out of date. Run 'just generate' and commit the results."
             exit 1
