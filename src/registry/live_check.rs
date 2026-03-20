@@ -236,13 +236,15 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut diag_msgs = DiagnosticMessages::empty();
     let weaver = WeaverEngine::new(&args.registry, &args.policy);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
-    let registry = if args.registry.v2 {
-        let resolved_v2 = resolved.try_into_v2()?;
-        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        VersionedRegistry::V2(Box::new(resolved_v2.into_template_schema()))
-    } else {
-        resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        VersionedRegistry::V1(Box::new(resolved.into_template_schema()))
+    let registry = match resolved {
+        crate::weaver::Resolved::V2(resolved_v2) => {
+            resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
+            VersionedRegistry::V2(Box::new(resolved_v2.into_template_schema()))
+        }
+        crate::weaver::Resolved::V1(resolved_v1) => {
+            resolved_v1.check_after_resolution_policy(&mut diag_msgs)?;
+            VersionedRegistry::V1(Box::new(resolved_v1.into_template_schema()))
+        }
     };
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());

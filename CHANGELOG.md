@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
 
 # [0.22.1] - 2026-03-13
