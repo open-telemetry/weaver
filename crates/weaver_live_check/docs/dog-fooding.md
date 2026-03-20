@@ -59,17 +59,27 @@ finding-related Rust types, constants, entity structs, and log record builders f
 
 ## Generating
 
-From the repository root:
+Code generation uses the published `otel/weaver` Docker image so that a broken local build
+cannot prevent regeneration (bootstrap safety). From the repository root, the simplest way is:
+
+```sh
+just generate
+```
+
+This runs both generation steps and formats the output. You can also run them individually:
 
 ### Documentation
 
 ```sh
-cargo run -- registry generate \
-  --registry crates/weaver_live_check/model/ \
-  --templates crates/weaver_live_check/templates/ \
+docker run --rm \
+  -v "$(pwd)":/home/weaver/source \
+  otel/weaver:latest \
+  registry generate \
+  --registry /home/weaver/source/crates/weaver_live_check/model/ \
+  --templates /home/weaver/source/crates/weaver_live_check/templates/ \
   --v2 \
   markdown \
-  crates/weaver_live_check/docs/
+  /home/weaver/source/crates/weaver_live_check/docs/
 ```
 
 This produces [`finding.md`](finding.md).
@@ -77,20 +87,26 @@ This produces [`finding.md`](finding.md).
 ### Rust code
 
 ```sh
-./target/release/weaver registry generate \
-  --registry crates/weaver_live_check/model/ \
-  --templates crates/weaver_live_check/templates/ \
+docker run --rm \
+  -v "$(pwd)":/home/weaver/source \
+  otel/weaver:latest \
+  registry generate \
+  --registry /home/weaver/source/crates/weaver_live_check/model/ \
+  --templates /home/weaver/source/crates/weaver_live_check/templates/ \
   --v2 \
   rust \
-  crates/weaver_live_check/src/
+  /home/weaver/source/crates/weaver_live_check/src/
 ```
-
-> **Note**: Use the release binary (`./target/release/weaver`) for Rust code generation, not
-> `cargo run`, to avoid bootstrapping issues when the generated files are in an invalid state.
 
 This produces [`../src/generated/attributes.rs`](../src/generated/attributes.rs),
 [`../src/generated/events.rs`](../src/generated/events.rs), and
 [`../src/generated/entities.rs`](../src/generated/entities.rs).
+
+### CI check
+
+The `check-generated` CI job uses the Docker image to regenerate all files, formats them with
+`cargo fmt`, and verifies there is no diff. This avoids the bootstrap paradox — the published
+Docker image is always a known-good binary, independent of the current source state.
 
 ## How It Works
 

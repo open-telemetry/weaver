@@ -10,7 +10,6 @@
 #![allow(clippy::print_stdout)]
 #![allow(clippy::print_stderr)]
 
-mod check_generated;
 mod history;
 mod validate;
 
@@ -23,7 +22,6 @@ fn main() -> anyhow::Result<()> {
         Some(task) => match task.as_str() {
             "validate" => validate::run(),
             "history" => history::run(std::env::args().nth(2)),
-            "check-generated" => check_generated::run(),
             "help" => print_help(),
             _ => {
                 eprintln!("Unknown task: {task}");
@@ -44,7 +42,6 @@ Tasks:
   - validate: Validate the entire structure of the weaver project.
   - history: Run registry check on semconv models within back compatibility range.
              Optionally provide a start semver e.g. `history 1.29.0`.
-  - check-generated: Check that generated live_check code and docs are up to date.
 "
     );
     Ok(())

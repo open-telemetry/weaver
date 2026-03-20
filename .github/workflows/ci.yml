@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: none
     name: CI
-    needs: [test, msrv, docs, rustfmt, clippy, check-usage-docs]
+    needs: [test, msrv, docs, rustfmt, clippy, check-usage-docs, check-generated]
     runs-on: ubuntu-latest
     steps:
       - name: Done
@@ -67,9 +67,6 @@ jobs:
         run: cargo test --workspace --no-default-features
       - name: History check
         run: cargo xtask history
-      - name: Check generated files are up to date
-        if: matrix.os == 'ubuntu-latest'
-        run: cargo xtask check-generated
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
@@ -331,6 +328,50 @@ jobs:
           fi
 
           exit $failed
+  check-generated:
+    name: Check generated live_check code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Regenerate Rust code
+        run: >
+          docker run --rm
+          -v "${{ github.workspace }}":/home/weaver/source
+          otel/weaver:latest
+          registry generate
+          --registry /home/weaver/source/crates/weaver_live_check/model/
+          --templates /home/weaver/source/crates/weaver_live_check/templates/
+          --v2 rust
+          /home/weaver/source/crates/weaver_live_check/src/
+      - name: Regenerate documentation
+        run: >
+          docker run --rm
+          -v "${{ github.workspace }}":/home/weaver/source
+          otel/weaver:latest
+          registry generate
+          --registry /home/weaver/source/crates/weaver_live_check/model/
+          --templates /home/weaver/source/crates/weaver_live_check/templates/
+          --v2 markdown
+          /home/weaver/source/crates/weaver_live_check/docs/
+      - name: Format generated code
+        run: cargo fmt -p weaver_live_check
+      - name: Check generated files are up-to-date
+        run: |
+          if ! git diff --exit-code -- \
+            crates/weaver_live_check/src/generated/attributes.rs \
+            crates/weaver_live_check/src/generated/events.rs \
+            crates/weaver_live_check/src/generated/entities.rs \
+            crates/weaver_live_check/docs/finding.md; then
+            echo ""
+            echo "Generated files are out of date. Run 'just generate' and commit the results."
+            exit 1
+          fi
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
