@@ -5921,6 +5921,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "weaver_checker",
  "weaver_forge",
  "weaver_live_check",
  "weaver_search",

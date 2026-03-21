@@ -10,9 +10,12 @@
 
 mod types;
 
-pub use types::{ScoredResult, SearchResult, SearchType};
+pub use types::{
+    NamespaceAttribute, NamespaceInfo, ScoredResult, SearchResult, SearchType, Suggestion,
+    SuggestionReason,
+};
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use weaver_forge::v2::{
@@ -45,6 +48,8 @@ pub struct SearchContext {
     event_index: HashMap<String, Arc<Event>>,
     /// Entities indexed by type.
     entity_index: HashMap<String, Arc<Entity>>,
+    /// Namespace separator for attribute keys (default: ".").
+    separator: String,
 }
 
 /// A searchable item from the registry containing the full object.
@@ -62,9 +67,18 @@ enum SearchableItem {
 }
 
 impl SearchContext {
-    /// Build a search context from a resolved registry.
+    /// Build a search context from a resolved registry with the default separator (".").
     #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
+        Self::from_registry_with_separator(registry, ".".to_owned())
+    }
+
+    /// Build a search context from a resolved registry with a custom namespace separator.
+    #[must_use]
+    pub fn from_registry_with_separator(
+        registry: &ForgeResolvedRegistry,
+        separator: String,
+    ) -> Self {
         let mut items = Vec::new();
         let mut attr_index = HashMap::new();
         let mut template_index = HashMap::new();
@@ -128,6 +142,7 @@ impl SearchContext {
             span_index,
             event_index,
             entity_index,
+            separator,
         }
     }
 
@@ -176,7 +191,7 @@ impl SearchContext {
                 (results, total)
             } else {
                 // Non-empty query - search mode with scoring
-                search_mode_with_total(items, q, limit)
+                search_mode_with_total(items, q, limit, &self.separator)
             }
         } else {
             // No query - browse mode
@@ -240,6 +255,242 @@ impl SearchContext {
     pub fn get_entity(&self, entity_type: &str) -> Option<Arc<Entity>> {
         self.entity_index.get(entity_type).map(Arc::clone)
     }
+
+    // ==========================================================================
+    // Namespace Browsing and Batch Lookup Methods
+    // ==========================================================================
+
+    /// Browse the namespace hierarchy of attribute keys.
+    ///
+    /// If `prefix` is None or empty, returns top-level namespaces.
+    /// If `prefix` is provided (e.g., "http.request"), returns child namespaces
+    /// and direct attributes under that prefix.
+    #[must_use]
+    pub fn browse_namespace(&self, prefix: Option<&str>) -> NamespaceInfo {
+        let prefix = prefix.unwrap_or("").trim_end_matches(self.separator.as_str());
+        let sep = &self.separator;
+
+        let mut child_ns_set: BTreeSet<String> = BTreeSet::new();
+        let mut direct_attrs: Vec<NamespaceAttribute> = Vec::new();
+        let mut total_count = 0usize;
+        let mut max_depth = 0usize;
+
+        // Iterate all attribute keys (regular + template)
+        let all_keys = self
+            .attr_index
+            .iter()
+            .chain(self.template_index.iter());
+
+        for (key, attr) in all_keys {
+            let remainder = if prefix.is_empty() {
+                Some(key.as_str())
+            } else if let Some(rest) = key.strip_prefix(prefix) {
+                rest.strip_prefix(sep.as_str())
+            } else {
+                None
+            };
+
+            let Some(remainder) = remainder else {
+                continue;
+            };
+
+            total_count += 1;
+
+            // Calculate depth of this key relative to the prefix
+            let depth = remainder.matches(sep.as_str()).count() + 1;
+            if depth > max_depth {
+                max_depth = depth;
+            }
+
+            // Check if this is a direct attribute or in a child namespace
+            if let Some(next_sep_pos) = remainder.find(sep.as_str()) {
+                // Has more segments — extract the child namespace
+                let child_segment = &remainder[..next_sep_pos];
+                let child_ns = if prefix.is_empty() {
+                    child_segment.to_owned()
+                } else {
+                    format!("{prefix}{sep}{child_segment}")
+                };
+                let _ = child_ns_set.insert(child_ns);
+            } else {
+                // Leaf attribute directly in this namespace
+                direct_attrs.push(NamespaceAttribute::from_attribute(key.clone(), attr));
+            }
+        }
+
+        direct_attrs.sort_by(|a, b| a.key.cmp(&b.key));
+
+        NamespaceInfo {
+            prefix: prefix.to_owned(),
+            child_namespaces: child_ns_set.into_iter().collect(),
+            attributes: direct_attrs,
+            total_attribute_count: total_count,
+            max_depth,
+        }
+    }
+
+    /// Suggest closest-matching attribute keys for a possibly incorrect name.
+    ///
+    /// Uses multiple candidate generation strategies to find likely matches,
+    /// letting the LLM caller make the final semantic judgment.
+    ///
+    /// Strategies:
+    /// 1. Separator normalization (e.g., `_` → `.`)
+    /// 2. Token overlap (shared segments)
+    /// 3. Prefix match (shared prefix)
+    /// 4. Fuzzy search (existing scoring)
+    #[must_use]
+    pub fn suggest(&self, name: &str, limit: usize) -> Vec<Suggestion> {
+        let limit = limit.min(20);
+        let mut seen = HashSet::new();
+        let mut suggestions = Vec::new();
+
+        // Strategy 1: Separator normalization
+        let normalized = name.replace(['_', '-'], &self.separator);
+
+        if normalized != name {
+            if let Some(attr) = self.attr_index.get(&normalized) {
+                let _ = seen.insert(normalized.clone());
+                suggestions.push(Suggestion {
+                    key: normalized,
+                    brief: attr.common.brief.clone(),
+                    reason: SuggestionReason::SeparatorNormalized,
+                });
+            }
+        }
+
+        // Check exact match
+        if let Some(attr) = self.attr_index.get(name) {
+            if seen.insert(name.to_owned()) {
+                suggestions.push(Suggestion {
+                    key: name.to_owned(),
+                    brief: attr.common.brief.clone(),
+                    reason: SuggestionReason::ExactMatch,
+                });
+            }
+        }
+
+        // Strategy 2: Token overlap — find keys sharing >= N-1 tokens
+        let input_tokens: Vec<&str> = name
+            .split(|c: char| self.separator.contains(c) || c == '_' || c == '-')
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if input_tokens.len() >= 2 {
+            let min_match = input_tokens.len() - 1;
+            for (key, attr) in &self.attr_index {
+                if seen.contains(key) {
+                    continue;
+                }
+                let key_tokens: Vec<&str> = key
+                    .split(|c: char| self.separator.contains(c) || c == '_')
+                    .filter(|s| !s.is_empty())
+                    .collect();
+
+                let matching = input_tokens
+                    .iter()
+                    .filter(|t| key_tokens.iter().any(|kt| kt == *t))
+                    .count();
+
+                if matching >= min_match {
+                    let _ = seen.insert(key.clone());
+                    suggestions.push(Suggestion {
+                        key: key.clone(),
+                        brief: attr.common.brief.clone(),
+                        reason: SuggestionReason::TokenOverlap,
+                    });
+                }
+            }
+        }
+
+        // Strategy 3: Shared prefix match
+        let sep = &self.separator;
+        let input_segments: Vec<&str> = name.split(sep.as_str()).collect();
+
+        if input_segments.len() >= 2 {
+            for prefix_len in (1..input_segments.len()).rev() {
+                let prefix = input_segments[..prefix_len].join(sep);
+                let prefix_with_sep = format!("{prefix}{sep}");
+
+                let mut prefix_matches: Vec<Suggestion> = Vec::new();
+                for (key, attr) in &self.attr_index {
+                    if seen.contains(key) {
+                        continue;
+                    }
+                    if key.starts_with(&prefix_with_sep) {
+                        prefix_matches.push(Suggestion {
+                            key: key.clone(),
+                            brief: attr.common.brief.clone(),
+                            reason: SuggestionReason::SharedPrefix,
+                        });
+                    }
+                }
+
+                if !prefix_matches.is_empty() {
+                    prefix_matches.sort_by(|a, b| a.key.cmp(&b.key));
+                    suggestions.extend(
+                        prefix_matches
+                            .into_iter()
+                            .filter(|s| seen.insert(s.key.clone())),
+                    );
+                    break;
+                }
+            }
+        }
+
+        // Strategy 4: Fuzzy search using existing scoring
+        // Score directly against attribute fields to avoid Arc::clone overhead
+        let mut scored: Vec<(u32, &str, &Attribute)> = self
+            .attr_index
+            .iter()
+            .filter(|(key, _)| !seen.contains(*key))
+            .filter_map(|(key, attr)| {
+                let score = score_attribute(name, attr, &self.separator);
+                if score > 0 {
+                    Some((score, key.as_str(), attr.as_ref()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        scored.sort_by(|a, b| b.0.cmp(&a.0));
+
+        for (_, key, attr) in scored {
+            if seen.insert(key.to_owned()) {
+                suggestions.push(Suggestion {
+                    key: key.to_owned(),
+                    brief: attr.common.brief.clone(),
+                    reason: SuggestionReason::FuzzySearch,
+                });
+            }
+        }
+
+        suggestions.truncate(limit);
+        suggestions
+    }
+
+    /// Batch lookup of attribute keys against the registry.
+    ///
+    /// Returns (found, missing) where found includes lightweight attribute summaries
+    /// and missing contains the keys that were not found.
+    #[must_use]
+    pub fn check_attributes(&self, keys: &[String]) -> (Vec<NamespaceAttribute>, Vec<String>) {
+        let mut found = Vec::new();
+        let mut missing = Vec::new();
+
+        for key in keys {
+            if let Some(attr) = self.attr_index.get(key) {
+                found.push(NamespaceAttribute::from_attribute(key.clone(), attr));
+            } else if let Some(template) = self.find_template(key) {
+                found.push(NamespaceAttribute::from_attribute(key.clone(), &template));
+            } else {
+                missing.push(key.clone());
+            }
+        }
+
+        (found, missing)
+    }
 }
 
 /// Search mode with total count: perform fuzzy matching with scoring and return (results, total).
@@ -247,11 +498,12 @@ fn search_mode_with_total(
     items: Vec<&SearchableItem>,
     query: &str,
     limit: usize,
+    separator: &str,
 ) -> (Vec<SearchResult>, usize) {
     let mut scored_items: Vec<(u32, &SearchableItem)> = items
         .into_iter()
         .filter_map(|item| {
-            let score = score_match(query, item);
+            let score = score_match(query, item, separator);
             if score > 0 {
                 Some((score, item))
             } else {
@@ -390,34 +642,62 @@ impl SearchableItem {
 /// - Brief contains query: 40 points
 /// - Note contains query: 20 points
 /// - Deprecated items: score divided by 10 (heavily demoted)
-fn score_match(query: &str, item: &SearchableItem) -> u32 {
+fn score_match(query: &str, item: &SearchableItem, separator: &str) -> u32 {
     let query_lower = query.to_lowercase();
     let id_lower = item.id().to_lowercase();
     let brief_lower = item.brief().to_lowercase();
     let note_lower = item.note().to_lowercase();
 
+    score_fields(
+        &query_lower,
+        &id_lower,
+        &brief_lower,
+        &note_lower,
+        item.is_deprecated(),
+        separator,
+    )
+}
+
+/// Score an attribute directly without wrapping in `SearchableItem`.
+/// Avoids `Arc::clone` overhead when scoring from `suggest()`.
+fn score_attribute(query: &str, attr: &Attribute, separator: &str) -> u32 {
+    let query_lower = query.to_lowercase();
+    let id_lower = attr.key.to_lowercase();
+    let brief_lower = attr.common.brief.to_lowercase();
+    let note_lower = attr.common.note.to_lowercase();
+    let is_deprecated = attr.common.deprecated.is_some();
+
+    score_fields(&query_lower, &id_lower, &brief_lower, &note_lower, is_deprecated, separator)
+}
+
+/// Core scoring logic shared by `score_match` and `score_attribute`.
+fn score_fields(
+    query_lower: &str,
+    id_lower: &str,
+    brief_lower: &str,
+    note_lower: &str,
+    is_deprecated: bool,
+    separator: &str,
+) -> u32 {
     let mut score = 0;
 
-    // Exact match
     if id_lower == query_lower {
         score = 100;
-    }
-    // Name starts with query
-    else if id_lower.starts_with(&query_lower) {
+    } else if id_lower.starts_with(query_lower) {
         score = 80;
-    }
-    // Name contains query
-    else if id_lower.contains(&query_lower) {
+    } else if id_lower.contains(query_lower) {
         score = 70;
     } else {
-        // Token matching - all query tokens found in name
+        let sep = separator;
         let query_tokens: Vec<&str> = query_lower
-            .split(|c: char| c == '.' || c == '_' || c.is_whitespace())
+            .split(|c: char| sep.contains(c) || c == '_' || c.is_whitespace())
             .filter(|s| !s.is_empty())
             .collect();
 
         if !query_tokens.is_empty() {
-            let id_tokens: Vec<&str> = id_lower.split(['.', '_']).collect();
+            let id_tokens: Vec<&str> = id_lower
+                .split(|c: char| sep.contains(c) || c == '_')
+                .collect();
 
             let all_tokens_match = query_tokens
                 .iter()
@@ -425,17 +705,11 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 
             if all_tokens_match {
                 score = 60;
-            }
-            // Brief contains query
-            else if brief_lower.contains(&query_lower) {
+            } else if brief_lower.contains(query_lower) {
                 score = 40;
-            }
-            // Note contains query
-            else if note_lower.contains(&query_lower) {
+            } else if note_lower.contains(query_lower) {
                 score = 20;
-            }
-            // Also check if individual query tokens appear in brief/note
-            else {
+            } else {
                 let all_in_brief = query_tokens.iter().all(|qt| brief_lower.contains(qt));
                 if all_in_brief {
                     score = 35;
@@ -446,22 +720,15 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
                     }
                 }
             }
-        } else {
-            // Brief contains query
-            if brief_lower.contains(&query_lower) {
-                score = 40;
-            }
-            // Note contains query
-            else if note_lower.contains(&query_lower) {
-                score = 20;
-            }
+        } else if brief_lower.contains(query_lower) {
+            score = 40;
+        } else if note_lower.contains(query_lower) {
+            score = 20;
         }
     }
 
-    // Heavily demote deprecated items - divide score by 10
-    if item.is_deprecated() && score > 0 {
+    if is_deprecated && score > 0 {
         score /= 10;
-        // Ensure at least 1 if there was a match
         if score == 0 {
             score = 1;
         }
@@ -632,21 +899,21 @@ mod tests {
     fn test_exact_match_scores_highest() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request.method", &item), 100);
+        assert_eq!(score_match("http.request.method", &item, "."), 100);
     }
 
     #[test]
     fn test_starts_with_scores_high() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request", &item), 80);
+        assert_eq!(score_match("http.request", &item, "."), 80);
     }
 
     #[test]
     fn test_contains_scores_medium() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("request.method", &item), 70);
+        assert_eq!(score_match("request.method", &item, "."), 70);
     }
 
     #[test]
@@ -658,14 +925,14 @@ mod tests {
             false,
         );
 
-        assert_eq!(score_match("verb", &item), 40);
+        assert_eq!(score_match("verb", &item, "."), 40);
     }
 
     #[test]
     fn test_no_match_scores_zero() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("database", &item), 0);
+        assert_eq!(score_match("database", &item, "."), 0);
     }
 
     #[test]
@@ -673,10 +940,10 @@ mod tests {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", true);
 
         // Exact match for deprecated item: 100 / 10 = 10
-        assert_eq!(score_match("http.request.method", &item), 10);
+        assert_eq!(score_match("http.request.method", &item, "."), 10);
 
         // Starts with for deprecated item: 80 / 10 = 8
-        assert_eq!(score_match("http.request", &item), 8);
+        assert_eq!(score_match("http.request", &item, "."), 8);
     }
 
     // =========================================================================
@@ -918,5 +1185,235 @@ mod tests {
         let dev_item = SearchableItem::Attribute(Arc::new(dev_attr));
 
         assert_eq!(dev_item.stability(), &Stability::Development);
+    }
+
+    // =========================================================================
+    // Namespace Browsing Tests
+    // =========================================================================
+
+    #[test]
+    fn test_browse_namespace_top_level() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let info = ctx.browse_namespace(None);
+
+        assert_eq!(info.prefix, "");
+        // Top-level namespaces from test data: db, experimental, http, test
+        assert!(info.child_namespaces.contains(&"db".to_owned()));
+        assert!(info.child_namespaces.contains(&"http".to_owned()));
+        assert!(info.child_namespaces.contains(&"experimental".to_owned()));
+        assert!(info.child_namespaces.contains(&"test".to_owned()));
+        // No attributes directly at top level
+        assert!(info.attributes.is_empty());
+        assert_eq!(info.total_attribute_count, 5);
+        assert!(info.max_depth >= 2);
+    }
+
+    #[test]
+    fn test_browse_namespace_with_prefix() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let info = ctx.browse_namespace(Some("http"));
+
+        assert_eq!(info.prefix, "http");
+        assert!(info.child_namespaces.contains(&"http.request".to_owned()));
+        assert!(info.child_namespaces.contains(&"http.response".to_owned()));
+        assert_eq!(info.total_attribute_count, 2);
+    }
+
+    #[test]
+    fn test_browse_namespace_leaf() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // http.request has one direct attribute: http.request.method
+        let info = ctx.browse_namespace(Some("http.request"));
+
+        assert_eq!(info.prefix, "http.request");
+        assert!(info.child_namespaces.is_empty());
+        assert_eq!(info.attributes.len(), 1);
+        assert_eq!(info.attributes[0].key, "http.request.method");
+    }
+
+    #[test]
+    fn test_browse_namespace_nonexistent() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let info = ctx.browse_namespace(Some("nonexistent"));
+
+        assert_eq!(info.total_attribute_count, 0);
+        assert!(info.child_namespaces.is_empty());
+        assert!(info.attributes.is_empty());
+        assert_eq!(info.max_depth, 0);
+    }
+
+    #[test]
+    fn test_browse_namespace_empty_string() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Empty string should behave like None (top-level)
+        let info = ctx.browse_namespace(Some(""));
+        assert_eq!(info.prefix, "");
+        assert_eq!(info.total_attribute_count, 5);
+    }
+
+    // =========================================================================
+    // Check Attributes Tests
+    // =========================================================================
+
+    #[test]
+    fn test_check_attributes_all_found() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let keys = vec![
+            "http.request.method".to_owned(),
+            "db.system".to_owned(),
+        ];
+        let (found, missing) = ctx.check_attributes(&keys);
+
+        assert_eq!(found.len(), 2);
+        assert!(missing.is_empty());
+        assert_eq!(found[0].key, "http.request.method");
+        assert_eq!(found[1].key, "db.system");
+    }
+
+    #[test]
+    fn test_check_attributes_all_missing() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let keys = vec![
+            "nonexistent.one".to_owned(),
+            "nonexistent.two".to_owned(),
+        ];
+        let (found, missing) = ctx.check_attributes(&keys);
+
+        assert!(found.is_empty());
+        assert_eq!(missing.len(), 2);
+    }
+
+    #[test]
+    fn test_check_attributes_mixed() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let keys = vec![
+            "http.request.method".to_owned(),
+            "nonexistent.attr".to_owned(),
+            "db.system".to_owned(),
+        ];
+        let (found, missing) = ctx.check_attributes(&keys);
+
+        assert_eq!(found.len(), 2);
+        assert_eq!(missing.len(), 1);
+        assert_eq!(missing[0], "nonexistent.attr");
+    }
+
+    #[test]
+    fn test_check_attributes_empty_input() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (found, missing) = ctx.check_attributes(&[]);
+
+        assert!(found.is_empty());
+        assert!(missing.is_empty());
+    }
+
+    #[test]
+    fn test_check_attributes_template_matching() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // "test.template.foo" should match the template "test.template"
+        let keys = vec!["test.template.foo".to_owned()];
+        let (found, missing) = ctx.check_attributes(&keys);
+
+        assert_eq!(found.len(), 1);
+        assert!(missing.is_empty());
+        assert_eq!(found[0].key, "test.template.foo");
+    }
+
+    // =========================================================================
+    // Suggest Tests
+    // =========================================================================
+
+    #[test]
+    fn test_suggest_exact_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let suggestions = ctx.suggest("http.request.method", 5);
+
+        assert!(!suggestions.is_empty());
+        assert_eq!(suggestions[0].key, "http.request.method");
+    }
+
+    #[test]
+    fn test_suggest_wrong_separator() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Underscores instead of dots
+        let suggestions = ctx.suggest("http_request_method", 5);
+
+        assert!(!suggestions.is_empty());
+        // First suggestion should be the normalized version
+        assert_eq!(suggestions[0].key, "http.request.method");
+        assert_eq!(suggestions[0].reason, SuggestionReason::SeparatorNormalized);
+    }
+
+    #[test]
+    fn test_suggest_partial_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Wrong last segment, but shared prefix "http.request"
+        let suggestions = ctx.suggest("http.request.verb", 5);
+
+        assert!(!suggestions.is_empty());
+        // Should find http.request.method via shared_prefix or token_overlap
+        let has_method = suggestions.iter().any(|s| s.key == "http.request.method");
+        assert!(has_method);
+    }
+
+    #[test]
+    fn test_suggest_no_match() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let suggestions = ctx.suggest("zzzzz.completely.unknown", 5);
+
+        // Should return empty or only low-quality matches
+        // (no tokens overlap, no prefix match, no separator fix)
+        assert!(suggestions.is_empty() || suggestions.iter().all(|s| s.reason == SuggestionReason::FuzzySearch));
+    }
+
+    #[test]
+    fn test_suggest_limit() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let suggestions = ctx.suggest("http", 2);
+
+        assert!(suggestions.len() <= 2);
+    }
+
+    #[test]
+    fn test_suggest_hyphen_separator() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Hyphens instead of dots
+        let suggestions = ctx.suggest("http-request-method", 5);
+
+        assert!(!suggestions.is_empty());
+        assert_eq!(suggestions[0].key, "http.request.method");
+        assert_eq!(suggestions[0].reason, SuggestionReason::SeparatorNormalized);
     }
 }

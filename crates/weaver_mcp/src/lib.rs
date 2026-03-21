@@ -3,7 +3,7 @@
 //! MCP (Model Context Protocol) server for the semantic convention registry.
 //!
 //! This crate provides an MCP server that exposes the semantic conventions
-//! registry to LLMs. It supports 7 tools:
+//! registry to LLMs. It supports 10 tools:
 //!
 //! - `search` - Search across all registry items
 //! - `get_attribute` - Get a specific attribute by key
@@ -12,6 +12,9 @@
 //! - `get_event` - Get a specific event by name
 //! - `get_entity` - Get a specific entity by type
 //! - `live_check` - Validate telemetry samples against the registry
+//! - `browse_namespace` - Browse attribute namespace hierarchy
+//! - `check_attributes` - Batch lookup of attribute keys
+//! - `suggest` - Get suggestions for misspelled attribute names
 //!
 //! The server uses the rmcp SDK with JSON-RPC 2.0 over stdio for communication.
 
@@ -27,7 +30,7 @@ use rmcp::ServiceExt;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 
 /// Configuration for the MCP server.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct McpConfig {
     /// Path to custom Rego advice policies directory.
     /// If None, default built-in policies are used.
@@ -36,6 +39,20 @@ pub struct McpConfig {
     /// Path to a jq preprocessor script for Rego policies.
     /// The script transforms registry data before passing to Rego.
     pub advice_preprocessor: Option<PathBuf>,
+
+    /// Namespace separator used in attribute keys (default: ".").
+    /// Used by namespace browsing, suggest, and search token splitting.
+    pub namespace_separator: String,
+}
+
+impl Default for McpConfig {
+    fn default() -> Self {
+        Self {
+            advice_policies: None,
+            advice_preprocessor: None,
+            namespace_separator: ".".to_owned(),
+        }
+    }
 }
 
 /// Error type for MCP operations.
@@ -136,6 +153,7 @@ mod tests {
         let config = McpConfig {
             advice_policies: Some(PathBuf::from("/path/to/policies")),
             advice_preprocessor: Some(PathBuf::from("/path/to/preprocessor.jq")),
+            namespace_separator: ".".to_owned(),
         };
         assert_eq!(
             config.advice_policies,

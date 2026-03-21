@@ -38,6 +38,11 @@ pub struct RegistryMcpArgs {
     /// versus processing the data for every sample.
     #[arg(long)]
     pub advice_preprocessor: Option<PathBuf>,
+
+    /// Namespace separator used in attribute keys. Defaults to ".".
+    /// Used by namespace browsing, suggest, and search token splitting.
+    #[arg(long, default_value = ".")]
+    pub namespace_separator: String,
 }
 
 /// Run the MCP server for the semantic convention registry.
@@ -71,6 +76,7 @@ pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, Diagnost
     let config = weaver_mcp::McpConfig {
         advice_policies: args.advice_policies.clone(),
         advice_preprocessor: args.advice_preprocessor.clone(),
+        namespace_separator: args.namespace_separator.clone(),
     };
 
     // Run the MCP server
