@@ -56,6 +56,7 @@ pub struct NamespaceAttribute {
 
 impl NamespaceAttribute {
     /// Create from an attribute key and a full `Attribute` reference.
+    #[must_use]
     pub fn from_attribute(key: String, attr: &Attribute) -> Self {
         Self {
             key,

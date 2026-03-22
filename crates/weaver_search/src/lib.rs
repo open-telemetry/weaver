@@ -370,7 +370,9 @@ impl SearchContext {
             }
         }
 
-        // Strategy 2: Token overlap — find keys sharing >= N-1 tokens
+        // Strategy 2: Token overlap — find keys sharing >= N-1 of the input's N tokens.
+        // This catches cases where the input has the right segments but wrong structure
+        // (e.g., `stepfunction.state_machine_arn` → `aws.stepfunctions.state_machine.arn`).
         let input_tokens: Vec<&str> = name
             .split(|c: char| self.separator.contains(c) || c == '_' || c == '-')
             .filter(|s| !s.is_empty())

@@ -3,7 +3,7 @@
 //! MCP (Model Context Protocol) server for the semantic convention registry.
 //!
 //! This crate provides an MCP server that exposes the semantic conventions
-//! registry to LLMs. It supports 10 tools:
+//! registry to LLMs. It supports 9 tools:
 //!
 //! - `search` - Search across all registry items
 //! - `get_attribute` - Get a specific attribute by key
@@ -11,9 +11,8 @@
 //! - `get_span` - Get a specific span by type
 //! - `get_event` - Get a specific event by name
 //! - `get_entity` - Get a specific entity by type
-//! - `live_check` - Validate telemetry samples against the registry
+//! - `live_check` - Validate telemetry samples (with full/findings_only/counts_only output modes)
 //! - `browse_namespace` - Browse attribute namespace hierarchy
-//! - `check_attributes` - Batch lookup of attribute keys
 //! - `suggest` - Get suggestions for misspelled attribute names
 //!
 //! The server uses the rmcp SDK with JSON-RPC 2.0 over stdio for communication.

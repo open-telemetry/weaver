@@ -20,7 +20,6 @@ use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
 use weaver_live_check::live_checker::LiveChecker;
-use weaver_checker::FindingLevel;
 use weaver_live_check::{
     DisabledStatistics, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
     VersionedRegistry,
@@ -41,7 +40,6 @@ use crate::McpConfig;
 /// - `get_entity` - Get a specific entity by type
 /// - `live_check` - Validate telemetry samples against the registry
 /// - `browse_namespace` - Browse attribute namespace hierarchy
-/// - `check_attributes` - Batch lookup of attribute keys
 /// - `suggest` - Get suggestions for misspelled attribute names
 #[derive(Clone)]
 pub struct WeaverMcpService {
@@ -108,51 +106,163 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
     ]
 }
 
-/// Check if a `LiveCheckResult` has actionable findings (Violation or Improvement).
-fn is_actionable(result: &Option<LiveCheckResult>) -> bool {
-    match result {
-        Some(r) => matches!(
-            r.highest_advice_level,
-            Some(FindingLevel::Violation) | Some(FindingLevel::Improvement)
-        ),
-        None => false,
+/// Extract all findings from a `LiveCheckResult` as compact JSON values.
+/// Includes all levels (Violation, Improvement, Information) so the caller can decide relevance.
+fn extract_findings(result: &Option<LiveCheckResult>) -> Vec<serde_json::Value> {
+    let Some(r) = result else { return vec![] };
+    r.all_advice
+        .iter()
+        .map(|f| {
+            json!({
+                "id": f.id,
+                "level": f.level,
+                "message": f.message,
+            })
+        })
+        .collect()
+}
+
+/// Extract actionable findings from all attributes in a slice.
+fn extract_attr_findings(
+    attrs: &[weaver_live_check::sample_attribute::SampleAttribute],
+) -> Vec<serde_json::Value> {
+    let mut out = Vec::new();
+    for a in attrs {
+        let findings = extract_findings(&a.live_check_result);
+        if !findings.is_empty() {
+            out.push(json!({
+                "name": a.name,
+                "findings": findings,
+            }));
+        }
+    }
+    out
+}
+
+/// Collect compact findings from all samples. Returns one entry per sample that has findings.
+fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
+    let mut out = Vec::new();
+    for sample in samples {
+        match sample {
+            Sample::Attribute(a) => {
+                let findings = extract_findings(&a.live_check_result);
+                if !findings.is_empty() {
+                    out.push(json!({"name": a.name, "findings": findings}));
+                }
+            }
+            Sample::Span(s) => {
+                let mut parts = extract_findings(&s.live_check_result);
+                let attr_findings = extract_attr_findings(&s.attributes);
+                if !parts.is_empty() || !attr_findings.is_empty() {
+                    out.push(json!({
+                        "type": "span",
+                        "findings": parts,
+                        "attribute_findings": attr_findings,
+                    }));
+                }
+                // Check nested span events/links attributes
+                for evt in &s.span_events {
+                    parts = extract_attr_findings(&evt.attributes);
+                    if !parts.is_empty() {
+                        out.push(json!({"type": "span_event", "attribute_findings": parts}));
+                    }
+                }
+            }
+            Sample::SpanEvent(e) => {
+                let parts = extract_attr_findings(&e.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "span_event", "attribute_findings": parts}));
+                }
+            }
+            Sample::SpanLink(l) => {
+                let parts = extract_attr_findings(&l.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "span_link", "attribute_findings": parts}));
+                }
+            }
+            Sample::Resource(r) => {
+                let parts = extract_attr_findings(&r.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "resource", "attribute_findings": parts}));
+                }
+            }
+            Sample::Metric(m) => {
+                let findings = extract_findings(&m.live_check_result);
+                if !findings.is_empty() {
+                    out.push(json!({"name": m.name, "type": "metric", "findings": findings}));
+                }
+            }
+            Sample::Log(l) => {
+                let parts = extract_attr_findings(&l.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "log", "attribute_findings": parts}));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Accumulate finding counts from a `LiveCheckResult` (all levels).
+fn count_findings_from_result(
+    result: &Option<LiveCheckResult>,
+    counts: &mut std::collections::HashMap<String, usize>,
+) {
+    let Some(r) = result else { return };
+    for f in &r.all_advice {
+        *counts.entry(f.id.clone()).or_insert(0) += 1;
     }
 }
 
-/// Check if a sample has actionable findings (violations or improvements) at any level.
-fn has_actionable_findings(sample: &Sample) -> bool {
-    match sample {
-        Sample::Attribute(a) => is_actionable(&a.live_check_result),
-        Sample::Span(s) => {
-            is_actionable(&s.live_check_result)
-                || s.attributes.iter().any(|a| is_actionable(&a.live_check_result))
-                || s.span_events.iter().any(|e| {
-                    is_actionable(&e.live_check_result)
-                        || e.attributes.iter().any(|a| is_actionable(&a.live_check_result))
-                })
-                || s.span_links.iter().any(|l| {
-                    is_actionable(&l.live_check_result)
-                        || l.attributes.iter().any(|a| is_actionable(&a.live_check_result))
-                })
-        }
-        Sample::SpanEvent(e) => {
-            is_actionable(&e.live_check_result)
-                || e.attributes.iter().any(|a| is_actionable(&a.live_check_result))
-        }
-        Sample::SpanLink(l) => {
-            is_actionable(&l.live_check_result)
-                || l.attributes.iter().any(|a| is_actionable(&a.live_check_result))
-        }
-        Sample::Resource(r) => {
-            is_actionable(&r.live_check_result)
-                || r.attributes.iter().any(|a| is_actionable(&a.live_check_result))
-        }
-        Sample::Metric(m) => is_actionable(&m.live_check_result),
-        Sample::Log(l) => {
-            is_actionable(&l.live_check_result)
-                || l.attributes.iter().any(|a| is_actionable(&a.live_check_result))
+/// Accumulate actionable finding counts from a slice of sample attributes.
+fn count_findings_from_attrs(
+    attrs: &[weaver_live_check::sample_attribute::SampleAttribute],
+    counts: &mut std::collections::HashMap<String, usize>,
+) {
+    for a in attrs {
+        count_findings_from_result(&a.live_check_result, counts);
+    }
+}
+
+/// Collect aggregate counts of findings by finding id (e.g., "missing_attribute": 48).
+fn collect_finding_counts(samples: &[Sample]) -> std::collections::HashMap<String, usize> {
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+    for sample in samples {
+        match sample {
+            Sample::Attribute(a) => count_findings_from_result(&a.live_check_result, &mut counts),
+            Sample::Span(s) => {
+                count_findings_from_result(&s.live_check_result, &mut counts);
+                count_findings_from_attrs(&s.attributes, &mut counts);
+                for evt in &s.span_events {
+                    count_findings_from_result(&evt.live_check_result, &mut counts);
+                    count_findings_from_attrs(&evt.attributes, &mut counts);
+                }
+                for link in &s.span_links {
+                    count_findings_from_result(&link.live_check_result, &mut counts);
+                    count_findings_from_attrs(&link.attributes, &mut counts);
+                }
+            }
+            Sample::SpanEvent(e) => {
+                count_findings_from_result(&e.live_check_result, &mut counts);
+                count_findings_from_attrs(&e.attributes, &mut counts);
+            }
+            Sample::SpanLink(l) => {
+                count_findings_from_result(&l.live_check_result, &mut counts);
+                count_findings_from_attrs(&l.attributes, &mut counts);
+            }
+            Sample::Resource(r) => {
+                count_findings_from_result(&r.live_check_result, &mut counts);
+                count_findings_from_attrs(&r.attributes, &mut counts);
+            }
+            Sample::Metric(m) => count_findings_from_result(&m.live_check_result, &mut counts),
+            Sample::Log(l) => {
+                count_findings_from_result(&l.live_check_result, &mut counts);
+                count_findings_from_attrs(&l.attributes, &mut counts);
+            }
         }
     }
+    counts
 }
 
 #[tool_handler]
@@ -277,15 +387,30 @@ pub struct GetEntityParams {
     entity_type: String,
 }
 
+/// Controls the output format for live_check results.
+#[derive(Debug, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LiveCheckOutput {
+    /// Return all samples with full live_check_result details (default).
+    #[default]
+    Full,
+    /// Return only samples with violations or improvements, in a compact format:
+    /// `[{name, findings: [{id, level, message}]}]`. Omits clean samples entirely.
+    FindingsOnly,
+    /// Return only aggregate counts by finding type:
+    /// `{missing_attribute: 48, deprecated: 1, ...}`.
+    CountsOnly,
+}
+
 /// Parameters for the live check tool.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct LiveCheckParams {
     /// Array of telemetry samples to check (attributes, spans, metrics, logs, or resources).
     samples: Vec<Sample>,
-    /// If true, only return samples that have violations or improvements.
-    /// Samples with no advice or only informational findings are omitted.
+    /// Controls the output format. Default: "full" (all samples with full details).
+    /// Use "findings_only" for compact output, or "counts_only" for aggregate counts.
     #[serde(default)]
-    summary_only: bool,
+    output: LiveCheckOutput,
 }
 
 /// Parameters for the browse_namespace tool.
@@ -295,13 +420,6 @@ pub struct BrowseNamespaceParams {
     /// Omit or pass empty string to list top-level namespaces.
     #[serde(default)]
     prefix: Option<String>,
-}
-
-/// Parameters for the check_attributes tool.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CheckAttributesParams {
-    /// Array of attribute keys to look up.
-    keys: Vec<String>,
 }
 
 /// Parameters for the suggest tool.
@@ -435,9 +553,11 @@ impl WeaverMcpService {
     #[tool(
         name = "live_check",
         description = "Run live-check on telemetry samples against the semantic conventions \
-                       registry. Returns the samples with live_check_result fields populated \
-                       containing advice and findings. Set summary_only to true to only return \
-                       samples with violations or improvements (omitting clean passes)."
+                       registry. Control output verbosity with the 'output' parameter: \
+                       'full' (default) returns all samples with complete details; \
+                       'findings_only' returns a compact list of just the findings \
+                       (name, id, level, message) omitting clean samples; \
+                       'counts_only' returns aggregate counts by finding type."
     )]
     fn live_check(&self, Parameters(params): Parameters<LiveCheckParams>) -> String {
         let mut samples = params.samples;
@@ -459,20 +579,32 @@ impl WeaverMcpService {
             }
         }
 
-        if params.summary_only {
-            let total = samples.len();
-            let filtered: Vec<&Sample> = samples
-                .iter()
-                .filter(|s| has_actionable_findings(s))
-                .collect();
-            let result_json = json!({
-                "samples_with_findings": filtered,
-                "total_samples_checked": total,
-                "samples_with_findings_count": filtered.len(),
-            });
-            serde_json::to_string_pretty(&result_json).unwrap_or_else(|e| format!("Error: {e}"))
-        } else {
-            serde_json::to_string_pretty(&samples).unwrap_or_else(|e| format!("Error: {e}"))
+        match params.output {
+            LiveCheckOutput::Full => {
+                serde_json::to_string_pretty(&samples)
+                    .unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            LiveCheckOutput::FindingsOnly => {
+                let findings = collect_compact_findings(&samples);
+                let total = samples.len();
+                let result_json = json!({
+                    "findings": findings,
+                    "total_samples_checked": total,
+                    "samples_with_findings": findings.len(),
+                });
+                serde_json::to_string_pretty(&result_json)
+                    .unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            LiveCheckOutput::CountsOnly => {
+                let counts = collect_finding_counts(&samples);
+                let total = samples.len();
+                let result_json = json!({
+                    "counts": counts,
+                    "total_samples_checked": total,
+                });
+                serde_json::to_string_pretty(&result_json)
+                    .unwrap_or_else(|e| format!("Error: {e}"))
+            }
         }
     }
 
@@ -492,28 +624,6 @@ impl WeaverMcpService {
             .search_context
             .browse_namespace(params.prefix.as_deref());
         serde_json::to_string_pretty(&info).unwrap_or_else(|e| format!("Error: {e}"))
-    }
-
-    /// Batch lookup of attribute keys against the registry.
-    #[tool(
-        name = "check_attributes",
-        description = "Batch lookup of attribute keys against the registry. \
-                       Pass an array of attribute keys and get back which ones exist (found) \
-                       and which don't (missing). Much faster than calling get_attribute \
-                       for each key individually."
-    )]
-    fn check_attributes(
-        &self,
-        Parameters(params): Parameters<CheckAttributesParams>,
-    ) -> String {
-        let (found, missing) = self.search_context.check_attributes(&params.keys);
-        let result_json = json!({
-            "found": found,
-            "missing": missing,
-            "found_count": found.len(),
-            "missing_count": missing.len(),
-        });
-        serde_json::to_string_pretty(&result_json).unwrap_or_else(|e| format!("Error: {e}"))
     }
 
     /// Get suggestions for a possibly misspelled attribute name.
@@ -936,7 +1046,7 @@ mod tests {
 
         let params = LiveCheckParams {
             samples: vec![sample],
-            summary_only: false,
+            output: LiveCheckOutput::Full,
         };
 
         let result = service.live_check(Parameters(params));
@@ -966,7 +1076,7 @@ mod tests {
 
         let params = LiveCheckParams {
             samples: vec![],
-            summary_only: false,
+            output: LiveCheckOutput::Full,
         };
 
         let result = service.live_check(Parameters(params));
@@ -1005,29 +1115,6 @@ mod tests {
 
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["prefix"], "http");
-    }
-
-    // =========================================================================
-    // Check Attributes Tool Tests
-    // =========================================================================
-
-    #[test]
-    fn test_check_attributes_tool() {
-        let service = create_test_service();
-
-        let params = CheckAttributesParams {
-            keys: vec![
-                "http.request.method".to_owned(),
-                "nonexistent.attr".to_owned(),
-            ],
-        };
-        let result = service.check_attributes(Parameters(params));
-
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["found_count"], 1);
-        assert_eq!(parsed["missing_count"], 1);
-        assert!(parsed.get("found").is_some());
-        assert!(parsed.get("missing").is_some());
     }
 
     // =========================================================================
@@ -1070,18 +1157,19 @@ mod tests {
 
         let params = LiveCheckParams {
             samples: vec![sample],
-            summary_only: true,
+            output: LiveCheckOutput::FindingsOnly,
         };
 
         let result = service.live_check(Parameters(params));
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["total_samples_checked"], 1);
-        // Clean sample should be filtered out in summary mode
-        assert!(parsed.get("samples_with_findings").is_some());
+        // Clean sample should produce no findings
+        assert!(parsed.get("findings").is_some());
+        assert_eq!(parsed["findings"].as_array().unwrap().len(), 0);
     }
 
     #[test]
-    fn test_live_check_summary_mode_with_findings() {
+    fn test_live_check_findings_only_with_violations() {
         let service = create_test_service();
 
         // An unknown attribute should produce a "missing_attribute" violation
@@ -1095,17 +1183,47 @@ mod tests {
 
         let params = LiveCheckParams {
             samples: vec![sample],
-            summary_only: true,
+            output: LiveCheckOutput::FindingsOnly,
         };
 
         let result = service.live_check(Parameters(params));
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["total_samples_checked"], 1);
-        assert_eq!(parsed["samples_with_findings_count"], 1);
+        assert_eq!(parsed["samples_with_findings"], 1);
+        // Should have compact findings with id/level/message
+        let findings = parsed["findings"].as_array().unwrap();
+        assert!(!findings.is_empty());
+        assert!(findings[0].get("findings").is_some());
     }
 
     #[test]
-    fn test_live_check_default_not_summary() {
+    fn test_live_check_counts_only() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "nonexistent.bogus.attr",
+                "value": "test"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::CountsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["total_samples_checked"], 1);
+        assert!(parsed.get("counts").is_some());
+        // Should have missing_attribute count
+        let counts = &parsed["counts"];
+        assert!(counts.get("missing_attribute").is_some());
+    }
+
+    #[test]
+    fn test_live_check_full_output() {
         let service = create_test_service();
 
         let sample: Sample = serde_json::from_value(serde_json::json!({
@@ -1118,12 +1236,12 @@ mod tests {
 
         let params = LiveCheckParams {
             samples: vec![sample],
-            summary_only: false,
+            output: LiveCheckOutput::Full,
         };
 
         let result = service.live_check(Parameters(params));
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        // Non-summary mode returns an array of all samples
+        // Full mode returns an array of all samples
         assert!(parsed.is_array());
     }
 }
