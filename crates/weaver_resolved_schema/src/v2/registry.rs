@@ -259,6 +259,7 @@ mod test {
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },
+            provenance: Default::default(),
         }];
         let registry = Registry {
             attribute_groups: vec![],
@@ -277,6 +278,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             metrics: vec![Metric {
                 name: "test.metric".to_owned().into(),
@@ -291,6 +293,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             events: vec![],
             entities: vec![Entity {
@@ -309,6 +312,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             attributes: vec![AttributeRef(0)],
         };

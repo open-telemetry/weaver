@@ -113,6 +113,21 @@ impl SchemaResolver {
             }
         };
         let mut attr_catalog = AttributeCatalog::default();
+
+        let mut dependencies = std::collections::BTreeSet::new();
+        for d in &resolved_dependencies {
+            match d {
+                ResolvedDependency::V1(schema) => {
+                    if let Ok(url) = SchemaUrl::try_from(schema.schema_url.as_str()) {
+                        _ = dependencies.insert(url);
+                    }
+                }
+                ResolvedDependency::V2(schema) => {
+                    _ = dependencies.insert(schema.schema_url.clone());
+                }
+            }
+        }
+
         // TODO - Do something with non_fatal_errors if we need to.
         resolve_registry_with_dependencies(
             &mut attr_catalog,
@@ -131,7 +146,7 @@ impl SchemaResolver {
                 catalog: attr_catalog.into(),
                 resource: None,
                 instrumentation_library: None,
-                dependencies: vec![],
+                dependencies,
                 versions: None, // ToDo LQ: Implement this!
                 registry_manifest: manifest,
             }

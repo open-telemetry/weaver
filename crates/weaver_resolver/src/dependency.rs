@@ -211,6 +211,16 @@ impl ImportableDependency for V2Schema {
     ) -> Result<Vec<Group>, Error> {
         let mut result = vec![];
 
+        // Helper to map V2 provenance to V1 provenance.
+        let get_source_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| -> weaver_semconv::provenance::Provenance {
+            let url = if let Some(dep_ref) = &prov.source {
+                self.dependencies.iter().nth(dep_ref.0 as usize).cloned().unwrap_or_else(|| self.schema_url.clone())
+            } else {
+                self.schema_url.clone()
+            };
+            weaver_semconv::provenance::Provenance::new(url, &prov.path)
+        };
+
         // First import metrics.  These are *by name* and come from the registry.
         // This is the closest to V1 ref syntax we have.
         let metrics_imports_matcher =
@@ -227,11 +237,10 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
-                    attr,
-                    ar.requirement_level.clone(),
-                    None,
-                )));
+                attributes.push(attribute_catalog.attribute_ref_with_group(
+                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                    format!("v2_dependency.{}", self.schema_url.name()),
+                ));
             }
             result.push(Group {
                 id: m.id().to_owned(),
@@ -249,8 +258,9 @@ impl ImportableDependency for V2Schema {
                 instrument: Some(m.instrument.clone()),
                 unit: Some(m.unit.clone()),
                 name: None,
-                // TODO - fill this out.
-                lineage: None,
+                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                    get_source_provenance(&m.provenance),
+                )),
                 display_name: None,
                 body: None,
                 annotations: Some(m.common.annotations.clone()),
@@ -275,11 +285,10 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
-                    attr,
-                    ar.requirement_level.clone(),
-                    None,
-                )));
+                attributes.push(attribute_catalog.attribute_ref_with_group(
+                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                    format!("v2_dependency.{}", self.schema_url.name()),
+                ));
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -297,8 +306,9 @@ impl ImportableDependency for V2Schema {
                 instrument: None,
                 unit: None,
                 name: Some(e.name.to_string()),
-                // TODO - fill this out.
-                lineage: None,
+                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                    get_source_provenance(&e.provenance),
+                )),
                 display_name: None,
                 body: None,
                 annotations: Some(e.common.annotations.clone()),
@@ -324,11 +334,14 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
-                    attr,
-                    ar.requirement_level.clone(),
-                    Some(AttributeRole::Identifying),
-                )));
+                attributes.push(attribute_catalog.attribute_ref_with_group(
+                    convert_v2_attribute(
+                        attr,
+                        ar.requirement_level.clone(),
+                        Some(AttributeRole::Identifying),
+                    ),
+                    format!("v2_dependency.{}", self.schema_url.name()),
+                ));
             }
             for ar in e.description.iter() {
                 // TODO - this should be non-panic errors.
@@ -338,11 +351,14 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
-                    attr,
-                    ar.requirement_level.clone(),
-                    Some(AttributeRole::Descriptive),
-                )));
+                attributes.push(attribute_catalog.attribute_ref_with_group(
+                    convert_v2_attribute(
+                        attr,
+                        ar.requirement_level.clone(),
+                        Some(AttributeRole::Descriptive),
+                    ),
+                    format!("v2_dependency.{}", self.schema_url.name()),
+                ));
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -360,8 +376,9 @@ impl ImportableDependency for V2Schema {
                 instrument: None,
                 unit: None,
                 name: Some(e.r#type.to_string()),
-                // TODO - fill this out.
-                lineage: None,
+                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                    get_source_provenance(&e.provenance),
+                )),
                 display_name: None,
                 body: None,
                 annotations: Some(e.common.annotations.clone()),
@@ -386,11 +403,10 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
-                    attr,
-                    ar.requirement_level.clone(),
-                    None,
-                )));
+                attributes.push(attribute_catalog.attribute_ref_with_group(
+                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                    format!("v2_dependency.{}", self.schema_url.name()),
+                ));
             }
             result.push(Group {
                 id: s.id().to_owned(),
@@ -408,7 +424,9 @@ impl ImportableDependency for V2Schema {
                 instrument: None,
                 unit: None,
                 name: Some(s.r#type.to_string()),
-                lineage: None,
+                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                    get_source_provenance(&s.provenance),
+                )),
                 display_name: None,
                 body: None,
                 annotations: Some(s.common.annotations.clone()),
@@ -436,11 +454,10 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref(convert_v2_attribute(
-                    attr,
-                    RequirementLevel::default(),
-                    None,
-                )));
+                attributes.push(attribute_catalog.attribute_ref_with_group(
+                    convert_v2_attribute(attr, RequirementLevel::default(), None),
+                    format!("v2_dependency.{}", self.schema_url.name()),
+                ));
             }
             result.push(Group {
                 id: ag.id().to_owned(),
@@ -814,7 +831,7 @@ mod tests {
             ),
             resource: None,
             instrumentation_library: None,
-            dependencies: vec![],
+            dependencies: std::collections::BTreeSet::new(),
             versions: None,
             registry_manifest: None,
         }
@@ -830,6 +847,7 @@ mod tests {
                         id: "attribute_group.e".to_owned().into(),
                         attributes: vec![],
                         common: Default::default(),
+                        provenance: Default::default(),
                     },
                 ],
                 metrics: vec![weaver_resolved_schema::v2::metric::Metric {
@@ -839,12 +857,14 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![weaver_resolved_schema::v2::event::Event {
                     name: "event.b".to_owned().into(),
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 spans: vec![weaver_resolved_schema::v2::span::Span {
                     r#type: "span.d".to_owned().into(),
@@ -855,12 +875,14 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 entities: vec![weaver_resolved_schema::v2::entity::Entity {
                     r#type: "entity.c".to_owned().into(),
                     identity: vec![],
                     description: vec![],
                     common: Default::default(),
+                    provenance: Default::default(),
                 }],
                 attributes: vec![],
             },
@@ -870,6 +892,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            dependencies: std::collections::BTreeSet::new(),
         }
     }
 

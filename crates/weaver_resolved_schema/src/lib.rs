@@ -11,10 +11,11 @@ use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::{Group, Registry};
 use crate::resource::Resource;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::manifest::RegistryManifest;
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_version::schema_changes::{SchemaChanges, SchemaItemChange, SchemaItemType};
 use weaver_version::Versions;
 
@@ -64,7 +65,7 @@ pub struct ResolvedTelemetrySchema {
     /// Or none if the resolved telemetry schema represents a semantic convention registry.
     pub instrumentation_library: Option<InstrumentationLibrary>,
     /// The list of dependencies of the current instrumentation application or library.
-    pub dependencies: Vec<InstrumentationLibrary>,
+    pub dependencies: BTreeSet<SchemaUrl>,
     /// Definitions for each schema version in this family.
     /// Note: the ordering of versions is defined according to semver
     /// version number ordering rules.
@@ -97,7 +98,7 @@ impl ResolvedTelemetrySchema {
             catalog: Catalog::default(),
             resource: None,
             instrumentation_library: None,
-            dependencies: vec![],
+            dependencies: BTreeSet::new(),
             versions: None,
             registry_manifest: None,
         }
@@ -154,10 +155,7 @@ impl ResolvedTelemetrySchema {
     ) {
         use crate::lineage::GroupLineage;
         use weaver_semconv::provenance::Provenance;
-        let mut lineage = GroupLineage::new(Provenance::new(
-            weaver_semconv::schema_url::SchemaUrl::new_unknown(),
-            "",
-        ));
+        let mut lineage = GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), ""));
         for attr in &attrs {
             use crate::lineage::AttributeLineage;
             let al = AttributeLineage::new(group_id);
