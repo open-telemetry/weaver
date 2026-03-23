@@ -57,6 +57,25 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tempfile::TempDir;
 
+/// When true, git clone operations use `open::Options::default()` which reads
+/// global/system git config and enables credential helpers for private repos.
+/// When false (default), uses `open::Options::isolated()` for hermetic clones.
+static ALLOW_GIT_CREDENTIALS: AtomicBool = AtomicBool::new(false);
+
+/// Enable git credential helper support for clone operations.
+/// When enabled, git operations will read global/system git config,
+/// allowing credential helpers (e.g., osxkeychain, git-credential-manager)
+/// to authenticate with private repositories.
+pub fn enable_git_credentials() {
+    ALLOW_GIT_CREDENTIALS.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Returns true if git credential helper support is enabled.
+#[must_use]
+pub fn is_git_credentials_enabled() -> bool {
+    ALLOW_GIT_CREDENTIALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// The extension for a tar gz archive.
 const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
@@ -392,7 +411,11 @@ impl VirtualDirectory {
                 destination_must_be_empty: true,
                 fs_capabilities: None,
             },
-            open::Options::default(),
+            if is_git_credentials_enabled() {
+                open::Options::default()
+            } else {
+                open::Options::isolated()
+            },
         )
         .map_err(|e| GitError {
             repo_url: url.to_owned(),
@@ -1016,5 +1039,20 @@ mod tests {
         .parse::<VirtualDirectoryPath>()
         .unwrap();
         check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_git_credentials_flag() {
+        use super::{enable_git_credentials, is_git_credentials_enabled, ALLOW_GIT_CREDENTIALS};
+
+        // Reset to known state (tests may run in any order)
+        ALLOW_GIT_CREDENTIALS.store(false, std::sync::atomic::Ordering::Relaxed);
+
+        assert!(!is_git_credentials_enabled());
+        enable_git_credentials();
+        assert!(is_git_credentials_enabled());
+
+        // Reset for other tests
+        ALLOW_GIT_CREDENTIALS.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
