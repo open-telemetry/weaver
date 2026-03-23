@@ -183,25 +183,59 @@ pub fn convert_v1_to_v2(
         prov
     };
 
+    let attr_provenance = |a: &crate::attribute::Attribute| -> provenance::Provenance {
+        // Try to find which group first defined an attribute, using V1 lineage.
+        for group in r.groups.iter() {
+            if let Some(lineage) = group.lineage.as_ref() {
+                if let Some(attr_lineage) = lineage.attribute(&a.name) {
+                    if attr_lineage.source_group == group.id {
+                        return get_provenance(group);
+                    }
+                }
+            }
+        }
+
+        // Fallback: check where it was first defined using the Catalog's root_attribute.
+        if let Some((_, source_group_id)) = c.root_attribute(&a.name) {
+            // Is it a local group?
+            if let Some(group) = r.groups.iter().find(|g| g.id == *source_group_id) {
+                return get_provenance(group);
+            }
+            // Is it a V2 dependency group?
+            if let Some(dep_name) = source_group_id.strip_prefix("v2_dependency.") {
+                let mut prov = provenance::Provenance::default();
+                if let Some(idx) = deps_list.iter().position(|u| u.name() == dep_name) {
+                    prov.source = Some(provenance::DependencyRef(idx as u32));
+                }
+                return prov;
+            }
+        }
+
+        provenance::Provenance::default()
+    };
+
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<Attribute> = c
         .attributes()
         .cloned()
-        .map(|a| Attribute {
-            key: a.name,
-            r#type: a.r#type,
-            examples: a.examples,
-            common: CommonFields {
-                brief: a.brief,
-                note: a.note,
-                stability: a
-                    .stability
-                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                deprecated: a.deprecated,
-                annotations: a.annotations.unwrap_or_default(),
-            },
-            provenance: Default::default(),
+        .map(|a| {
+            let provenance = attr_provenance(&a);
+            Attribute {
+                key: a.name,
+                r#type: a.r#type,
+                examples: a.examples,
+                common: CommonFields {
+                    brief: a.brief,
+                    note: a.note,
+                    stability: a
+                        .stability
+                        .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                    deprecated: a.deprecated,
+                    annotations: a.annotations.unwrap_or_default(),
+                },
+                provenance,
+            }
         })
         .collect();
 
@@ -269,6 +303,7 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
+                        provenance: get_provenance(g),
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
@@ -307,6 +342,7 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
+                            provenance: get_provenance(g),
                         },
                     });
                 }
@@ -499,6 +535,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        provenance: get_provenance(g),
                     });
                 }
             }
@@ -1026,7 +1063,10 @@ mod tests {
                 instrument: None,
                 unit: None,
                 name: Some("my-entity".to_owned()),
-                lineage: Some(GroupLineage::new(Provenance::new("https://my.dependency.url/1.0.0".try_into().unwrap(), "/path/to/source.yaml"))),
+                lineage: Some(GroupLineage::new(Provenance::new(
+                    "https://my.dependency.url/1.0.0".try_into().unwrap(),
+                    "/path/to/source.yaml",
+                ))),
                 display_name: None,
                 body: None,
                 annotations: None,

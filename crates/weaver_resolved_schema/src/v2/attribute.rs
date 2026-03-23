@@ -34,6 +34,7 @@ pub struct Attribute {
     pub common: CommonFields,
     /// The provenance of the attribute.
     #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
     pub provenance: Provenance,
 }
 

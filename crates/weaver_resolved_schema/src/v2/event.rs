@@ -36,6 +36,7 @@ pub struct Event {
 
     /// The provenance of the Event.
     #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
     pub provenance: Provenance,
 }
 

@@ -474,6 +474,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![metric::Metric {
                     name: SignalId::from("my-metric".to_owned()),
@@ -529,10 +530,11 @@ mod tests {
                             requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
                                 weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
                             ),
-                            sampling_relevant: Some(false),
+                            sampling_relevant: Some(true),
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 metrics: vec![metric::MetricRefinement {
@@ -637,6 +639,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![],
                 events: vec![],

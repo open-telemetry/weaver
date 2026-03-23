@@ -278,6 +278,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             metrics: vec![Metric {
                 name: "test.metric".to_owned().into(),

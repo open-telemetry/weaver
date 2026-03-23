@@ -56,6 +56,25 @@ impl AttributeCatalog {
             .or_insert_with(|| AttributeRef(next_id))
     }
 
+    /// Returns an attribute ref from the catalog and also registers the attribute
+    /// in `root_attributes` so its provenance is recorded.
+    pub fn attribute_ref_with_group(
+        &mut self,
+        attr: attribute::Attribute,
+        group_id: String,
+    ) -> AttributeRef {
+        let attr_name = attr.name.clone();
+        let attr_ref = self.attribute_ref(attr.clone());
+        _ = self
+            .root_attributes
+            .entry(attr_name)
+            .or_insert_with(|| AttributeWithGroupId {
+                attribute: attr,
+                group_id,
+            });
+        attr_ref
+    }
+
     /// Returns a list of deduplicated attributes ordered by their references.
     #[must_use]
     pub fn drain_attributes(self) -> Vec<attribute::Attribute> {

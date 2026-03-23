@@ -24,6 +24,17 @@ pub struct Provenance {
     pub path: String,
 }
 
+impl Provenance {
+    /// Returns true if this provenance is empty (i.e. the attribute or signal was defined locally).
+    ///
+    /// Note: Path is *not* serialized out, so this will be true for local attributes
+    /// even if a path is set.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.source.is_none()
+    }
+}
+
 /// Reference to a dependency in the dependency list of this catalog.
 #[derive(
     Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema, Hash,

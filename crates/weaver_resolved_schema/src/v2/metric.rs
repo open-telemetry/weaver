@@ -43,6 +43,7 @@ pub struct Metric {
 
     /// The provenance of this metric.
     #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
     pub provenance: Provenance,
 }
 

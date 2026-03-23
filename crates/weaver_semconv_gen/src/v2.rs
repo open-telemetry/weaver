@@ -465,6 +465,7 @@ mod tests {
                     id: "test.common".to_owned().into(),
                     attributes: vec![AttributeRef(0)],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 spans: vec![Span {
                     r#type: "trace.test".to_owned().into(),
@@ -481,6 +482,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![Metric {
                     name: "test.metric".to_owned().into(),
@@ -539,6 +541,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 metrics: vec![MetricRefinement {
