@@ -392,7 +392,7 @@ impl VirtualDirectory {
                 destination_must_be_empty: true,
                 fs_capabilities: None,
             },
-            open::Options::isolated(),
+            open::Options::default(),
         )
         .map_err(|e| GitError {
             repo_url: url.to_owned(),

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 - Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
+- Fix: Use default git open options instead of isolated mode when cloning repositories, enabling system credential helpers (e.g. `osxkeychain`, `manager`, `libsecret`) for private repository access. ([#1306](https://github.com/open-telemetry/weaver/pull/1306) by @jerbly)
 
 # [0.22.1] - 2026-03-13
 
