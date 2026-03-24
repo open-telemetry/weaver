@@ -11,6 +11,14 @@
         "$ref": "#/$defs/Attribute"
       }
     },
+    "dependencies": {
+      "description": "The list of dependencies of the current instrumentation application or library.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SchemaUrl"
+      },
+      "uniqueItems": true
+    },
     "file_format": {
       "description": "Version of the file structure.",
       "type": "string"
@@ -82,6 +90,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -139,6 +151,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the AttributeGroup.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -207,6 +223,12 @@
           "const": "opt_in"
         }
       ]
+    },
+    "DependencyRef": {
+      "description": "Reference to a dependency in the dependency list of this catalog.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
     },
     "Deprecated": {
       "description": "The different ways to deprecate an attribute, a metric, ...",
@@ -333,6 +355,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the Entity.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -483,6 +509,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the Event.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -565,6 +595,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the Event.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -761,6 +795,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of this metric.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -854,6 +892,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of this metric.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -921,6 +963,23 @@
           "const": "boolean[]"
         }
       ]
+    },
+    "Provenance": {
+      "description": "The provenance of a semantic convention attribute or signal.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "The dependency that defined this attribute or signal.\n\nIf empty, then the signal was defined locally for this registry.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DependencyRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "Refinements": {
       "description": "Semantic convention refinements.\n\nRefinements are a specialization of a signal that can be used to optimise documentation,\nor code generation. A refinement will *always* match the conventions defined by the\nsignal it refines. Refinements cannot be inferred from signals over the wire (e.g. OTLP).\nThis is because any identifying feature of a refinement is used purely for codegen but has\nno storage location in OTLP.\n\nNote: Refinements will always include a \"base\" refinement for every signal definition.\n      For example, if a Metric signal named `my_metric` is defined, there will be\n      a metric refinement named `my_metric` as well.\n      This allows code generation to *only* interact with refinements, if desired, to\n      provide optimised methods for generating telemetry signals.",
@@ -1129,6 +1188,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the Span.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -1272,6 +1335,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the Span.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
