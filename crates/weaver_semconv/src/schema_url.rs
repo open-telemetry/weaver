@@ -8,16 +8,19 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// Represents the schema URL of a registry, which serves as a unique identifier for the registry
 /// along with its version.
 #[derive(Debug, Clone, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SchemaUrl {
     /// The schema URL string.
     url: String,
     // The byte range of the name within `url`.
     #[serde(skip)]
     #[schemars(skip)]
+    #[cfg_attr(feature = "openapi", schema(ignore))]
     name_range: std::ops::Range<usize>,
     // The byte range of the version within `url`.
     #[serde(skip)]
     #[schemars(skip)]
+    #[cfg_attr(feature = "openapi", schema(ignore))]
     version_range: std::ops::Range<usize>,
 }
 

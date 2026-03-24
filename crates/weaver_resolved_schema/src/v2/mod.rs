@@ -45,6 +45,7 @@ pub mod stats;
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.

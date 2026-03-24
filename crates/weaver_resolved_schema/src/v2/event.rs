@@ -11,6 +11,7 @@ use crate::v2::{attribute::AttributeRef, Signal};
 
 /// The definition of an Event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
@@ -37,6 +38,7 @@ pub struct Event {
 
 /// A special type of reference to attributes that remembers event-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct EventAttributeRef {
     /// Reference, by index, to the attribute catalog.
@@ -55,6 +57,7 @@ pub struct EventAttributeRef {
 /// e.g. for HTTP events, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
 /// client library, and drops optional or extraneous information from the underlying http event.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct EventRefinement {
     /// The identity of the refinement
     pub id: SignalId,

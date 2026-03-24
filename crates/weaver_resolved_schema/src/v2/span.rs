@@ -12,6 +12,7 @@ use crate::v2::{attribute::AttributeRef, Signal};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Span {
     /// The type of the Span. This denotes the identity
@@ -43,6 +44,7 @@ pub struct Span {
 
 /// A special type of reference to attributes that remembers span-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SpanAttributeRef {
     /// Reference, by index, to the attribute catalog.
@@ -65,6 +67,7 @@ pub struct SpanAttributeRef {
 /// e.g. for HTTP spans, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
 /// client library, and drops optional or extraneous information from the underlying http span.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SpanRefinement {
     /// The identity of the refinement
     pub id: SignalId,
