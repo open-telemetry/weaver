@@ -308,9 +308,13 @@ fn compare_requirement_level(
 ) -> Result<std::cmp::Ordering, minijinja::Error> {
     fn sort_ordinal_for_requirement(attribute: &Value) -> Result<i32, minijinja::Error> {
         let level = attribute.get_attr("requirement_level")?;
-        // Default to recommended when requirement_level is not present.
+        // When requirement_level is absent this is a v2 attribute (e.g. from an
+        // AttributeGroup) that has no requirement-level concept. Place these
+        // attributes at ordinal 0 so they are grouped together at the front of
+        // the sorted list, separate from v1 attributes that carry an explicit
+        // requirement level.
         if level.is_undefined() {
-            return Ok(3);
+            return Ok(0);
         }
         if level
             .get_attr("conditionally_required")
@@ -2335,7 +2339,9 @@ mod tests {
 
     #[test]
     fn test_attribute_sort_missing_requirement_level() {
-        // Attributes without a requirement_level should default to "recommended" (ordinal 3).
+        // Attributes without a requirement_level are v2 attributes (e.g. from
+        // AttributeGroup). They receive ordinal 0 so they are grouped at the
+        // front of the list, separate from v1 attributes with explicit levels.
         let attributes: Vec<serde_json::Value> = vec![
             json!({"key": "no_req.b"}),
             json!({"key": "req.a", "requirement_level": "required"}),
@@ -2353,11 +2359,11 @@ mod tests {
             .map(|item| item.get_attr("key").unwrap().as_str().unwrap().to_owned())
             .collect();
         let expected_keys: Vec<String> = vec![
-            // Required first
-            "req.a".to_owned(),
-            // Missing requirement_level defaults to recommended
+            // Missing requirement_level (v2 attributes) sorted first (ordinal 0)
             "no_req.a".to_owned(),
             "no_req.b".to_owned(),
+            // Required second
+            "req.a".to_owned(),
             // OptIn last
             "opt.a".to_owned(),
         ];
