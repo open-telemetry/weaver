@@ -308,6 +308,10 @@ fn compare_requirement_level(
 ) -> Result<std::cmp::Ordering, minijinja::Error> {
     fn sort_ordinal_for_requirement(attribute: &Value) -> Result<i32, minijinja::Error> {
         let level = attribute.get_attr("requirement_level")?;
+        // Default to recommended when requirement_level is not present.
+        if level.is_undefined() {
+            return Ok(3);
+        }
         if level
             .get_attr("conditionally_required")
             .is_ok_and(|v| !v.is_undefined())
@@ -2326,6 +2330,42 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_attribute_sort_missing_requirement_level() {
+        // Attributes without a requirement_level should default to "recommended" (ordinal 3).
+        let attributes: Vec<serde_json::Value> = vec![
+            json!({"key": "no_req.b"}),
+            json!({"key": "req.a", "requirement_level": "required"}),
+            json!({"key": "no_req.a"}),
+            json!({"key": "opt.a", "requirement_level": "opt_in"}),
+        ];
+        let result =
+            attribute_sort(Value::from_serialize(&attributes)).expect("Failed to sort attributes");
+        let result_seq = result
+            .try_iter()
+            .expect("Result was not a sequence!")
+            .collect::<Vec<_>>();
+        let keys: Vec<String> = result_seq
+            .iter()
+            .map(|item| item.get_attr("key").unwrap().as_str().unwrap().to_owned())
+            .collect();
+        let expected_keys: Vec<String> = vec![
+            // Required first
+            "req.a".to_owned(),
+            // Missing requirement_level defaults to recommended
+            "no_req.a".to_owned(),
+            "no_req.b".to_owned(),
+            // OptIn last
+            "opt.a".to_owned(),
+        ];
+        for (idx, (result, expected)) in keys.iter().zip(expected_keys.iter()).enumerate() {
+            assert_eq!(
+                result, expected,
+                "Expected item @ {idx} to have key {expected}, found {keys:?}"
+            );
         }
     }
 
