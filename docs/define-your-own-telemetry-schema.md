@@ -32,9 +32,6 @@ dependencies:
 ```
 
 > **Current limitations**:
-> - The `schema_base_url` field is not currently used by the weaver tool. It is
-    intended for future use once telemetry schema v2 is fully specified and
-    implemented.
 > - Weaver supports a maximum of 10 registry levels without circular
     dependencies. In practice, this is not a limitation, even for complex
     enterprise environments.

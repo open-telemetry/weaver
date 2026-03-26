@@ -130,7 +130,7 @@ The following sections describe the changes needed in the semantic convention re
 ### Directory Structure
 
 The directory structure of a registry remains mostly unchanged, with the addition of a new file called
-`registry_manifest.yaml`. This file contains the registry metadata, such as the name, version, and description.
+`manifest.yaml`. This file contains the registry metadata, such as the name, version, and description.
 It is required for published registries or registries with dependencies on other registries.
 
 ```text
@@ -139,10 +139,10 @@ registry_root/
   domain_2/
   ...
   resources/
-  registry_manifest.yaml
+  manifest.yaml
 ```
 
-### `registry_manifest.yaml` File
+### `manifest.yaml` File
 
 This file is used to describe the registry and its dependencies. It is optional for standalone registries
 but required for published registries or registries with dependencies on other registries.
