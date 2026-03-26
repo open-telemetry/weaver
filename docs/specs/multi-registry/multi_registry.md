@@ -189,7 +189,7 @@ implementation detail. The specific mechanism will be described later.
 > mechanism.
 
 Sections such as [Registry Resolution](#registry-resolution), [Registry Packaging](#registry-packaging), and 
-[Registry Publication](#registry-publication) provide more details on how the `registry_manifest.yaml` file
+[Registry Publication](#registry-publication) provide more details on how the `manifest.yaml` file
 is used in these processes.
 
 ### Semantic Convention File Structure
@@ -206,7 +206,7 @@ required:
 Currently, a reference follows dot notation (e.g., `ref: client.address`). When there is no ambiguity or conflict
 detected by Weaver, this notation is sufficient. However, when a conflict occurs, the user must disambiguate the
 reference by prefixing it with the registry name or alias (e.g., `ref: otel:client.address`). The prefix corresponds
-to the registry name as defined in the `registry_manifest.yaml` file under the `dependencies` section. A colon is used
+to the registry name as defined in the `manifest.yaml` file under the `dependencies` section. A colon is used
 as a separator between the name and the attribute or group name. References to groups or attributes defined in the
 local registry are never prefixed.
 
@@ -237,12 +237,12 @@ group imported by reference.
 References to experimental telemetry objects across registries are allowed under certain conditions:
 
 - An telemetry object referencing an experimental telemetry object must also be marked as experimental.
-- The flag `allow_experimental_ref` in the `registry_manifest.yaml` file must be set to `true`.
+- The flag `allow_experimental_ref` in the `manifest.yaml` file must be set to `true`.
 
 ### Registry Resolution
 
 The registry resolution process needs to handle more complex scenarios, especially when dealing with multiple
-registries. It begins by parsing the `registry_manifest.yaml` file of the registry being resolved. All registries listed
+registries. It begins by parsing the `manifest.yaml` file of the registry being resolved. All registries listed
 under `dependencies` are loaded, parsed, and passed to the conflict resolution stage (assuming that any published
 registries have already completed their resolution process). The dependencies of registries form a directed acyclic
 graph. Each registry may be maintained by different owners and have different release schedules, which can introduce
@@ -276,7 +276,7 @@ are not considered mergeable even if they are structurally equivalent. This is b
 different registries without coordination, meaning their similarity is likely coincidental. While it would be
 technically possible to merge them automatically, this is not currently allowed for safety.
 If automatic merging becomes a common request, a specific configuration option in the
-`registry_manifest.yaml` file could enable this behavior.
+`manifest.yaml` file could enable this behavior.
 
 The detection mechanism for circular dependencies must be expanded to identify circular dependencies
 between registries.
@@ -325,7 +325,7 @@ consume. The packaging process is responsible for:
 - Serializing the resolved registry into a single file (exact format TBD). This file is self-contained and does not
   contain complex constructs like `ref`, `extends`, etc. However, the provenance of the telemetry objects/fields is included
   to support the multi-registry resolution process described earlier.
-- Creating a compressed file containing the resolved registry and the `registry_manifest.yaml` file. The registry package
+- Creating a compressed file containing the resolved registry and the `manifest.yaml` file. The registry package
   is named `<name>-<version>.gz`.
 
 The provenance information must include the name, version, and URL of the registry where the telemetry object is
@@ -347,7 +347,7 @@ file and the `<name>-latest.gz` file are automatically stored in the directory.
 ### Registry Update
 
 For any published registry, Weaver can discover the latest version by fetching the file located at
-`<repository>/<name>-latest.gz` and parsing the `registry_manifest.yaml` file. This mechanism allows Weaver to
+`<repository>/<name>-latest.gz` and parsing the `manifest.yaml` file. This mechanism allows Weaver to
 automatically suggest the latest version of dependencies.
 
 ## Resolved Semantic Convention Registry Format
