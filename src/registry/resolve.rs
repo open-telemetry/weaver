@@ -13,7 +13,7 @@ use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{PolicyError, ResolvedV2, WeaverEngine};
+use crate::weaver::{PolicyError, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -92,18 +92,12 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
         .map_err(DiagnosticMessages::from)?;
 
-    if args.registry.v2 {
-        let resolved_v2: ResolvedV2 = resolved.try_into()?;
-        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        output
-            .generate(&resolved_v2.template_schema())
-            .map_err(DiagnosticMessages::from)?;
-    } else {
-        resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        output
-            .generate(&resolved.template_schema())
-            .map_err(DiagnosticMessages::from)?;
+    resolved.check_after_resolution_policy(&mut diag_msgs)?;
+    match &resolved {
+        crate::weaver::Resolved::V1(v) => output.generate(v.template_schema()),
+        crate::weaver::Resolved::V2(v) => output.generate(v.template_schema()),
     }
+    .map_err(DiagnosticMessages::from)?;
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -129,6 +123,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -161,6 +156,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
