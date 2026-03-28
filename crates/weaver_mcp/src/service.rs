@@ -40,7 +40,6 @@ use crate::McpConfig;
 /// - `get_entity` - Get a specific entity by type
 /// - `live_check` - Validate telemetry samples against the registry
 /// - `browse_namespace` - Browse attribute namespace hierarchy
-/// - `suggest` - Get suggestions for misspelled attribute names
 #[derive(Clone)]
 pub struct WeaverMcpService {
     search_context: Arc<SearchContext>,
@@ -203,68 +202,6 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
     out
 }
 
-/// Accumulate finding counts from a `LiveCheckResult` (all levels).
-fn count_findings_from_result(
-    result: &Option<LiveCheckResult>,
-    counts: &mut std::collections::HashMap<String, usize>,
-) {
-    let Some(r) = result else { return };
-    for f in &r.all_advice {
-        *counts.entry(f.id.clone()).or_insert(0) += 1;
-    }
-}
-
-/// Accumulate actionable finding counts from a slice of sample attributes.
-fn count_findings_from_attrs(
-    attrs: &[weaver_live_check::sample_attribute::SampleAttribute],
-    counts: &mut std::collections::HashMap<String, usize>,
-) {
-    for a in attrs {
-        count_findings_from_result(&a.live_check_result, counts);
-    }
-}
-
-/// Collect aggregate counts of findings by finding id (e.g., "missing_attribute": 48).
-fn collect_finding_counts(samples: &[Sample]) -> std::collections::HashMap<String, usize> {
-    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-
-    for sample in samples {
-        match sample {
-            Sample::Attribute(a) => count_findings_from_result(&a.live_check_result, &mut counts),
-            Sample::Span(s) => {
-                count_findings_from_result(&s.live_check_result, &mut counts);
-                count_findings_from_attrs(&s.attributes, &mut counts);
-                for evt in &s.span_events {
-                    count_findings_from_result(&evt.live_check_result, &mut counts);
-                    count_findings_from_attrs(&evt.attributes, &mut counts);
-                }
-                for link in &s.span_links {
-                    count_findings_from_result(&link.live_check_result, &mut counts);
-                    count_findings_from_attrs(&link.attributes, &mut counts);
-                }
-            }
-            Sample::SpanEvent(e) => {
-                count_findings_from_result(&e.live_check_result, &mut counts);
-                count_findings_from_attrs(&e.attributes, &mut counts);
-            }
-            Sample::SpanLink(l) => {
-                count_findings_from_result(&l.live_check_result, &mut counts);
-                count_findings_from_attrs(&l.attributes, &mut counts);
-            }
-            Sample::Resource(r) => {
-                count_findings_from_result(&r.live_check_result, &mut counts);
-                count_findings_from_attrs(&r.attributes, &mut counts);
-            }
-            Sample::Metric(m) => count_findings_from_result(&m.live_check_result, &mut counts),
-            Sample::Log(l) => {
-                count_findings_from_result(&l.live_check_result, &mut counts);
-                count_findings_from_attrs(&l.attributes, &mut counts);
-            }
-        }
-    }
-    counts
-}
-
 #[tool_handler]
 impl ServerHandler for WeaverMcpService {
     fn get_info(&self) -> ServerInfo {
@@ -394,12 +331,9 @@ pub enum LiveCheckOutput {
     /// Return all samples with full live_check_result details (default).
     #[default]
     Full,
-    /// Return only samples with violations or improvements, in a compact format:
+    /// Return only samples with findings, in a compact format:
     /// `[{name, findings: [{id, level, message}]}]`. Omits clean samples entirely.
     FindingsOnly,
-    /// Return only aggregate counts by finding type:
-    /// `{missing_attribute: 48, deprecated: 1, ...}`.
-    CountsOnly,
 }
 
 /// Parameters for the live check tool.
@@ -408,7 +342,7 @@ pub struct LiveCheckParams {
     /// Array of telemetry samples to check (attributes, spans, metrics, logs, or resources).
     samples: Vec<Sample>,
     /// Controls the output format. Default: "full" (all samples with full details).
-    /// Use "findings_only" for compact output, or "counts_only" for aggregate counts.
+    /// Use "findings_only" for compact output omitting clean samples.
     #[serde(default)]
     output: LiveCheckOutput,
 }
@@ -420,20 +354,6 @@ pub struct BrowseNamespaceParams {
     /// Omit or pass empty string to list top-level namespaces.
     #[serde(default)]
     prefix: Option<String>,
-}
-
-/// Parameters for the suggest tool.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct SuggestParams {
-    /// The attribute name to find suggestions for (may be misspelled or use wrong separators).
-    name: String,
-    /// Maximum suggestions to return (1-20, default 5).
-    #[serde(default = "default_suggest_limit")]
-    limit: usize,
-}
-
-fn default_suggest_limit() -> usize {
-    5
 }
 
 // =============================================================================
@@ -556,8 +476,7 @@ impl WeaverMcpService {
                        registry. Control output verbosity with the 'output' parameter: \
                        'full' (default) returns all samples with complete details; \
                        'findings_only' returns a compact list of just the findings \
-                       (name, id, level, message) omitting clean samples; \
-                       'counts_only' returns aggregate counts by finding type."
+                       (name, id, level, message) omitting clean samples."
     )]
     fn live_check(&self, Parameters(params): Parameters<LiveCheckParams>) -> String {
         let mut samples = params.samples;
@@ -595,16 +514,6 @@ impl WeaverMcpService {
                 serde_json::to_string_pretty(&result_json)
                     .unwrap_or_else(|e| format!("Error: {e}"))
             }
-            LiveCheckOutput::CountsOnly => {
-                let counts = collect_finding_counts(&samples);
-                let total = samples.len();
-                let result_json = json!({
-                    "counts": counts,
-                    "total_samples_checked": total,
-                });
-                serde_json::to_string_pretty(&result_json)
-                    .unwrap_or_else(|e| format!("Error: {e}"))
-            }
         }
     }
 
@@ -626,18 +535,6 @@ impl WeaverMcpService {
         serde_json::to_string_pretty(&info).unwrap_or_else(|e| format!("Error: {e}"))
     }
 
-    /// Get suggestions for a possibly misspelled attribute name.
-    #[tool(
-        name = "suggest",
-        description = "Get 'did you mean?' suggestions for a possibly misspelled attribute name. \
-                       Handles common mistakes like wrong separators (underscore vs dot), \
-                       transposed segments, and typos. Returns closest matches with reasons."
-    )]
-    fn suggest(&self, Parameters(params): Parameters<SuggestParams>) -> String {
-        let limit = params.limit.min(20);
-        let suggestions = self.search_context.suggest(&params.name, limit);
-        serde_json::to_string_pretty(&suggestions).unwrap_or_else(|e| format!("Error: {e}"))
-    }
 }
 
 #[cfg(test)]
@@ -1118,28 +1015,7 @@ mod tests {
     }
 
     // =========================================================================
-    // Suggest Tool Tests
-    // =========================================================================
-
-    #[test]
-    fn test_suggest_tool() {
-        let service = create_test_service();
-
-        let params = SuggestParams {
-            name: "http_request_method".to_owned(),
-            limit: 5,
-        };
-        let result = service.suggest(Parameters(params));
-
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert!(parsed.is_array());
-        let arr = parsed.as_array().unwrap();
-        assert!(!arr.is_empty());
-        assert_eq!(arr[0]["key"], "http.request.method");
-    }
-
-    // =========================================================================
-    // Live Check Summary Mode Tests
+    // Live Check Output Mode Tests
     // =========================================================================
 
     #[test]
@@ -1194,32 +1070,6 @@ mod tests {
         let findings = parsed["findings"].as_array().unwrap();
         assert!(!findings.is_empty());
         assert!(findings[0].get("findings").is_some());
-    }
-
-    #[test]
-    fn test_live_check_counts_only() {
-        let service = create_test_service();
-
-        let sample: Sample = serde_json::from_value(serde_json::json!({
-            "attribute": {
-                "name": "nonexistent.bogus.attr",
-                "value": "test"
-            }
-        }))
-        .unwrap();
-
-        let params = LiveCheckParams {
-            samples: vec![sample],
-            output: LiveCheckOutput::CountsOnly,
-        };
-
-        let result = service.live_check(Parameters(params));
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["total_samples_checked"], 1);
-        assert!(parsed.get("counts").is_some());
-        // Should have missing_attribute count
-        let counts = &parsed["counts"];
-        assert!(counts.get("missing_attribute").is_some());
     }
 
     #[test]
