@@ -81,33 +81,6 @@ pub struct NamespaceInfo {
     pub max_depth: usize,
 }
 
-/// Why a suggestion was produced.
-#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum SuggestionReason {
-    /// Input matched after replacing `_`/`-` with the namespace separator.
-    SeparatorNormalized,
-    /// Input is already an exact match in the registry.
-    ExactMatch,
-    /// Input tokens overlap with the suggested key's tokens.
-    TokenOverlap,
-    /// Input shares a namespace prefix with the suggested key.
-    SharedPrefix,
-    /// Matched via general fuzzy search scoring.
-    FuzzySearch,
-}
-
-/// A suggestion for a possibly misspelled or incorrect attribute name.
-#[derive(Debug, Serialize, Clone)]
-pub struct Suggestion {
-    /// The suggested attribute key.
-    pub key: String,
-    /// Short description.
-    pub brief: String,
-    /// Which strategy produced this suggestion.
-    pub reason: SuggestionReason,
-}
-
 /// A single search result containing a full object with its relevance score.
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(tag = "result_type", rename_all = "lowercase")]

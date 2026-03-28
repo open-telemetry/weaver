@@ -500,8 +500,7 @@ impl WeaverMcpService {
 
         match params.output {
             LiveCheckOutput::Full => {
-                serde_json::to_string_pretty(&samples)
-                    .unwrap_or_else(|e| format!("Error: {e}"))
+                serde_json::to_string_pretty(&samples).unwrap_or_else(|e| format!("Error: {e}"))
             }
             LiveCheckOutput::FindingsOnly => {
                 let findings = collect_compact_findings(&samples);
@@ -511,8 +510,7 @@ impl WeaverMcpService {
                     "total_samples_checked": total,
                     "samples_with_findings": findings.len(),
                 });
-                serde_json::to_string_pretty(&result_json)
-                    .unwrap_or_else(|e| format!("Error: {e}"))
+                serde_json::to_string_pretty(&result_json).unwrap_or_else(|e| format!("Error: {e}"))
             }
         }
     }
@@ -525,16 +523,12 @@ impl WeaverMcpService {
                        Pass a prefix like 'http.request' to see its children and attributes. \
                        Returns child namespaces, direct attributes, total count, and depth."
     )]
-    fn browse_namespace(
-        &self,
-        Parameters(params): Parameters<BrowseNamespaceParams>,
-    ) -> String {
+    fn browse_namespace(&self, Parameters(params): Parameters<BrowseNamespaceParams>) -> String {
         let info = self
             .search_context
             .browse_namespace(params.prefix.as_deref());
         serde_json::to_string_pretty(&info).unwrap_or_else(|e| format!("Error: {e}"))
     }
-
 }
 
 #[cfg(test)]
@@ -684,26 +678,6 @@ mod tests {
     // =========================================================================
     // MCP-Specific Behavior Tests
     // =========================================================================
-
-    #[test]
-    fn test_get_attribute_not_found_message_format() {
-        // The not-found message should contain the attribute key
-        let key = "nonexistent.attr";
-        let expected_msg = format!("Attribute '{}' not found in registry", key);
-
-        // We verify the format matches what the service returns
-        assert!(expected_msg.contains(key));
-        assert!(expected_msg.contains("not found"));
-    }
-
-    #[test]
-    fn test_get_metric_not_found_message_format() {
-        let name = "nonexistent.metric";
-        let expected_msg = format!("Metric '{}' not found in registry", name);
-
-        assert!(expected_msg.contains(name));
-        assert!(expected_msg.contains("not found"));
-    }
 
     #[test]
     fn test_search_params_default_limit() {
@@ -998,7 +972,10 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert!(parsed.get("child_namespaces").is_some());
         assert!(parsed.get("total_attribute_count").is_some());
-        assert!(parsed["child_namespaces"].as_array().unwrap().contains(&json!("http")));
+        assert!(parsed["child_namespaces"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("http")));
     }
 
     #[test]

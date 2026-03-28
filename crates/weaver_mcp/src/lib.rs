@@ -39,7 +39,7 @@ pub struct McpConfig {
     pub advice_preprocessor: Option<PathBuf>,
 
     /// Namespace separator used in attribute keys (default: ".").
-    /// Used by namespace browsing, suggest, and search token splitting.
+    /// Used by namespace browsing and search token splitting.
     pub namespace_separator: String,
 }
 
