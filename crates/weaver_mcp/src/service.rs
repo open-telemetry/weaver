@@ -1071,4 +1071,137 @@ mod tests {
         // Full mode returns an array of all samples
         assert!(parsed.is_array());
     }
+
+    #[test]
+    fn test_live_check_findings_only_validates_finding_structure() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "nonexistent.attr",
+                "value": "test"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let findings = parsed["findings"].as_array().unwrap();
+        assert!(!findings.is_empty());
+        // Each finding entry should have name and findings array
+        let entry = &findings[0];
+        assert!(entry.get("name").is_some());
+        let inner = entry["findings"].as_array().unwrap();
+        assert!(!inner.is_empty());
+        // Each inner finding should have id, level, message
+        let finding = &inner[0];
+        assert!(finding.get("id").is_some());
+        assert!(finding.get("level").is_some());
+        assert!(finding.get("message").is_some());
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_with_bad_attributes() {
+        let service = create_test_service();
+
+        // Span with unknown attributes exercises extract_attr_findings via the Span path
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span": {
+                "name": "GET /users",
+                "kind": "server",
+                "attributes": [
+                    { "name": "nonexistent.span.attr", "value": "bad" },
+                    { "name": "http.request.method", "value": "GET" }
+                ]
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let findings = parsed["findings"].as_array().unwrap();
+        // Should have findings from the span (at least for the bad attribute)
+        assert!(
+            !findings.is_empty(),
+            "Span with unknown attribute should produce findings"
+        );
+        // Should have attribute_findings in the span entry
+        let span_entry = findings
+            .iter()
+            .find(|f| f.get("type").and_then(|t| t.as_str()) == Some("span"));
+        assert!(
+            span_entry.is_some(),
+            "Should have a span-typed finding entry"
+        );
+        let attr_findings = span_entry.unwrap()["attribute_findings"].as_array().unwrap();
+        assert!(!attr_findings.is_empty());
+        assert_eq!(attr_findings[0]["name"], "nonexistent.span.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_mixed_clean_and_bad() {
+        let service = create_test_service();
+
+        let clean: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": "http.request.method", "value": "GET" }
+        }))
+        .unwrap();
+
+        let bad: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": "totally.fake.attr", "value": "x" }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![clean, bad],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["total_samples_checked"], 2);
+        // Only the bad sample should appear in findings
+        let findings = parsed["findings"].as_array().unwrap();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0]["name"], "totally.fake.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_resource_with_bad_attributes() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "resource": {
+                "attributes": [
+                    { "name": "nonexistent.resource.attr", "value": "bad" }
+                ]
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let findings = parsed["findings"].as_array().unwrap();
+        assert!(!findings.is_empty());
+        let entry = &findings[0];
+        assert_eq!(entry["type"], "resource");
+        let attr_findings = entry["attribute_findings"].as_array().unwrap();
+        assert!(!attr_findings.is_empty());
+        assert_eq!(attr_findings[0]["name"], "nonexistent.resource.attr");
+    }
 }

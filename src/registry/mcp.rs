@@ -40,7 +40,7 @@ pub struct RegistryMcpArgs {
     pub advice_preprocessor: Option<PathBuf>,
 
     /// Namespace separator used in attribute keys. Defaults to ".".
-    /// Used by namespace browsing, suggest, and search token splitting.
+    /// Used by namespace browsing and search token splitting.
     #[arg(long, default_value = ".")]
     pub namespace_separator: String,
 }
