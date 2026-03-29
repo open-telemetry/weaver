@@ -1143,7 +1143,9 @@ mod tests {
             span_entry.is_some(),
             "Should have a span-typed finding entry"
         );
-        let attr_findings = span_entry.unwrap()["attribute_findings"].as_array().unwrap();
+        let attr_findings = span_entry.unwrap()["attribute_findings"]
+            .as_array()
+            .unwrap();
         assert!(!attr_findings.is_empty());
         assert_eq!(attr_findings[0]["name"], "nonexistent.span.attr");
     }
