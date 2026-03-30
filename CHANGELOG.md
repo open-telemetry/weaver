@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix ([#1323](https://github.com/open-telemetry/weaver/issues/1323)) - Live-check: treat observed `int` as compatible with expected `double` attribute type, avoiding false violations from OTLP serializers (e.g. JS) that emit `int_value` for integral numbers. ([#1331](https://github.com/open-telemetry/weaver/pull/1331) by @jerbly)
 - Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
 - Add `--allow-git-credentials` global flag to enable system credential helpers (e.g. `osxkeychain`, `git-credential-manager`) when cloning private registries. By default, git operations remain isolated for security. ([#1306](https://github.com/open-telemetry/weaver/pull/1306) by @jerbly)
