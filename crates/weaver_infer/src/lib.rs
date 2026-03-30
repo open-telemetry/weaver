@@ -476,7 +476,13 @@ fn sanitize_id(name: &str) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+    use weaver_live_check::sample_log::SampleLog;
+    use weaver_live_check::sample_metric::{
+        DataPoints, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint,
+        SampleNumberDataPoint,
+    };
     use weaver_live_check::sample_span::SampleSpanEvent;
+    use weaver_live_check::sample_span::SampleSpanLink;
     use weaver_semconv::group::SpanKindSpec;
 
     // ============================================
@@ -572,6 +578,125 @@ mod tests {
         let current = Some(Examples::Strings(vec!["a".to_owned()]));
         let result = add_example(current.clone(), &json!(123));
         assert_eq!(result, current);
+    }
+
+    fn assert_add_example_cases(cases: &[(&str, Option<Examples>, Value, Option<Examples>)]) {
+        for (name, current, value, expected) in cases {
+            assert_eq!(
+                add_example(current.clone(), value),
+                expected.clone(),
+                "case: {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_add_example_ignores_complex_values() {
+        assert_add_example_cases(&[
+            ("array values are ignored", None, json!([1, 2, 3]), None),
+            (
+                "object values are ignored",
+                None,
+                json!({"key": "value"}),
+                None,
+            ),
+        ]);
+    }
+
+    #[test]
+    fn test_add_example_bool_paths() {
+        assert_add_example_cases(&[
+            (
+                "same bool stays scalar",
+                Some(Examples::Bool(true)),
+                json!(true),
+                Some(Examples::Bool(true)),
+            ),
+            (
+                "different bool promotes to array",
+                Some(Examples::Bool(true)),
+                json!(false),
+                Some(Examples::Bools(vec![true, false])),
+            ),
+            (
+                "bool array appends new value",
+                Some(Examples::Bools(vec![true])),
+                json!(false),
+                Some(Examples::Bools(vec![true, false])),
+            ),
+        ]);
+    }
+
+    #[test]
+    fn test_add_example_int_paths() {
+        assert_add_example_cases(&[
+            (
+                "different int promotes to array",
+                Some(Examples::Int(42)),
+                json!(7),
+                Some(Examples::Ints(vec![42, 7])),
+            ),
+            (
+                "float does not update int example",
+                Some(Examples::Int(42)),
+                json!(1.5),
+                Some(Examples::Int(42)),
+            ),
+            (
+                "int array appends new value",
+                Some(Examples::Ints(vec![1, 2])),
+                json!(3),
+                Some(Examples::Ints(vec![1, 2, 3])),
+            ),
+        ]);
+    }
+
+    #[test]
+    fn test_add_example_double_paths() {
+        use weaver_common::ordered_float::OrderedF64;
+
+        assert_add_example_cases(&[
+            (
+                "same double stays scalar",
+                Some(Examples::Double(OrderedF64(1.5))),
+                json!(1.5),
+                Some(Examples::Double(OrderedF64(1.5))),
+            ),
+            (
+                "different double promotes to array",
+                Some(Examples::Double(OrderedF64(1.5))),
+                json!(2.5),
+                Some(Examples::Doubles(vec![OrderedF64(1.5), OrderedF64(2.5)])),
+            ),
+            (
+                "double array appends new value",
+                Some(Examples::Doubles(vec![OrderedF64(1.5), OrderedF64(2.5)])),
+                json!(3.5),
+                Some(Examples::Doubles(vec![
+                    OrderedF64(1.5),
+                    OrderedF64(2.5),
+                    OrderedF64(3.5),
+                ])),
+            ),
+        ]);
+    }
+
+    #[test]
+    fn test_add_example_string_paths() {
+        assert_add_example_cases(&[
+            (
+                "same string stays scalar",
+                Some(Examples::String("same".to_owned())),
+                json!("same"),
+                Some(Examples::String("same".to_owned())),
+            ),
+            (
+                "string array appends new value",
+                Some(Examples::Strings(vec!["a".to_owned()])),
+                json!("b"),
+                Some(Examples::Strings(vec!["a".to_owned(), "b".to_owned()])),
+            ),
+        ]);
     }
 
     // ============================================
@@ -867,6 +992,178 @@ mod tests {
         assert!(acc.events.contains_key("user.login"));
     }
 
+    #[test]
+    fn test_accumulated_samples_add_sample_dispatches_variants() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_sample(Sample::Resource(SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("checkout")),
+                live_check_result: None,
+            }],
+            live_check_result: None,
+        }));
+        acc.add_sample(Sample::Attribute(SampleAttribute {
+            name: "deployment.environment".to_owned(),
+            r#type: Some(PrimitiveOrArrayTypeSpec::String),
+            value: Some(json!("prod")),
+            live_check_result: None,
+        }));
+        acc.add_sample(Sample::Span(SampleSpan {
+            name: "ProcessOrder".to_owned(),
+            kind: SpanKindSpec::Server,
+            status: None,
+            attributes: vec![],
+            span_events: vec![],
+            span_links: vec![],
+            live_check_result: None,
+            resource: None,
+        }));
+        acc.add_sample(Sample::Metric(SampleMetric {
+            name: "requests.total".to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::Counter),
+            unit: "{request}".to_owned(),
+            data_points: None,
+            live_check_result: None,
+            resource: None,
+        }));
+        acc.add_sample(Sample::Log(SampleLog {
+            event_name: "user.login".to_owned(),
+            severity_number: Some(9),
+            severity_text: Some("INFO".to_owned()),
+            body: Some("login success".to_owned()),
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            live_check_result: None,
+            resource: None,
+        }));
+        acc.add_sample(Sample::SpanEvent(SampleSpanEvent {
+            name: "ignored".to_owned(),
+            attributes: vec![],
+            live_check_result: None,
+        }));
+        acc.add_sample(Sample::SpanLink(SampleSpanLink {
+            attributes: vec![],
+            live_check_result: None,
+        }));
+
+        assert_eq!(acc.stats(), (2, 1, 1, 1));
+        assert!(acc.resources.contains_key("service.name"));
+        assert!(acc.resources.contains_key("deployment.environment"));
+        assert!(acc.spans.contains_key("ProcessOrder"));
+        assert!(acc.metrics.contains_key("requests.total"));
+        assert!(acc.events.contains_key("user.login"));
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_metric_ignores_unsupported_instrument() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_metric(SampleMetric {
+            name: "unsupported.summary".to_owned(),
+            instrument: SampleInstrument::Unsupported("Summary".to_owned()),
+            unit: String::new(),
+            data_points: None,
+            live_check_result: None,
+            resource: None,
+        });
+
+        assert!(acc.is_empty());
+        assert!(!acc.metrics.contains_key("unsupported.summary"));
+    }
+
+    #[test]
+    fn test_accumulated_samples_add_metric_collects_all_data_point_attributes() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_metric(SampleMetric {
+            name: "http.server.active_requests".to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::UpDownCounter),
+            unit: "{request}".to_owned(),
+            data_points: Some(DataPoints::Number(vec![SampleNumberDataPoint {
+                attributes: vec![SampleAttribute {
+                    name: "server.address".to_owned(),
+                    r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                    value: Some(json!("api.example.com")),
+                    live_check_result: None,
+                }],
+                value: json!(3),
+                flags: 0,
+                exemplars: vec![],
+                live_check_result: None,
+            }])),
+            live_check_result: None,
+            resource: None,
+        });
+        acc.add_metric(SampleMetric {
+            name: "http.server.duration".to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
+            unit: "ms".to_owned(),
+            data_points: Some(DataPoints::Histogram(vec![SampleHistogramDataPoint {
+                attributes: vec![SampleAttribute {
+                    name: "http.request.method".to_owned(),
+                    r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                    value: Some(json!("GET")),
+                    live_check_result: None,
+                }],
+                count: 1,
+                sum: Some(12.5),
+                bucket_counts: vec![1],
+                explicit_bounds: vec![50.0],
+                min: Some(12.5),
+                max: Some(12.5),
+                flags: 0,
+                exemplars: vec![],
+                live_check_result: None,
+            }])),
+            live_check_result: None,
+            resource: None,
+        });
+        acc.add_metric(SampleMetric {
+            name: "queue.latency".to_owned(),
+            instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
+            unit: "s".to_owned(),
+            data_points: Some(DataPoints::ExponentialHistogram(vec![
+                SampleExponentialHistogramDataPoint {
+                    attributes: vec![SampleAttribute {
+                        name: "queue.name".to_owned(),
+                        r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                        value: Some(json!("payments")),
+                        live_check_result: None,
+                    }],
+                    count: 1,
+                    sum: Some(0.75),
+                    scale: 0,
+                    zero_count: 0,
+                    positive: None,
+                    negative: None,
+                    flags: 0,
+                    min: Some(0.75),
+                    max: Some(0.75),
+                    zero_threshold: 0.0,
+                    exemplars: vec![],
+                    live_check_result: None,
+                },
+            ])),
+            live_check_result: None,
+            resource: None,
+        });
+
+        assert_eq!(acc.stats(), (0, 0, 3, 0));
+        assert!(acc.metrics["http.server.active_requests"]
+            .attributes
+            .contains_key("server.address"));
+        assert!(acc.metrics["http.server.duration"]
+            .attributes
+            .contains_key("http.request.method"));
+        assert!(acc.metrics["queue.latency"]
+            .attributes
+            .contains_key("queue.name"));
+    }
+
     // ============================================
     // Tests for to_semconv_spec()
     // ============================================
@@ -1001,6 +1298,57 @@ mod tests {
         assert_eq!(group.id, "event.user.signup");
         assert_eq!(group.r#type, GroupType::Event);
         assert_eq!(group.name, Some("user.signup".to_owned()));
+    }
+
+    #[test]
+    fn test_to_semconv_spec_with_span_event_group() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_span(SampleSpan {
+            name: "HandleCheckout".to_owned(),
+            kind: SpanKindSpec::Server,
+            status: None,
+            attributes: vec![],
+            span_events: vec![SampleSpanEvent {
+                name: "exception".to_owned(),
+                attributes: vec![
+                    SampleAttribute {
+                        name: "z.attr".to_owned(),
+                        r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                        value: Some(json!("last")),
+                        live_check_result: None,
+                    },
+                    SampleAttribute {
+                        name: "a.attr".to_owned(),
+                        r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                        value: Some(json!("first")),
+                        live_check_result: None,
+                    },
+                ],
+                live_check_result: None,
+            }],
+            span_links: vec![],
+            live_check_result: None,
+            resource: None,
+        });
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.groups.len(), 2);
+        let span_event_group = registry
+            .groups
+            .iter()
+            .find(|group| group.id == "span_event.exception")
+            .expect("span event group should exist");
+
+        assert_eq!(span_event_group.r#type, GroupType::Event);
+        assert_eq!(span_event_group.name, Some("exception".to_owned()));
+        let attr_ids: Vec<_> = span_event_group
+            .attributes
+            .iter()
+            .map(|attribute| attribute.id())
+            .collect();
+        assert_eq!(attr_ids, vec!["a.attr", "z.attr"]);
     }
 
     #[test]
