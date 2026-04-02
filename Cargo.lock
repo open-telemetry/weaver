@@ -5745,6 +5745,7 @@ dependencies = [
  "weaver_diff",
  "weaver_emit",
  "weaver_forge",
+ "weaver_infer",
  "weaver_live_check",
  "weaver_mcp",
  "weaver_resolved_schema",
@@ -5876,6 +5877,19 @@ dependencies = [
  "weaver_diff",
  "weaver_resolved_schema",
  "weaver_resolver",
+ "weaver_semconv",
+]
+
+[[package]]
+name = "weaver_infer"
+version = "0.22.1"
+dependencies = [
+ "convert_case",
+ "log",
+ "serde",
+ "serde_json",
+ "weaver_common",
+ "weaver_live_check",
  "weaver_semconv",
 ]
 
