@@ -109,7 +109,7 @@ Browse the namespace hierarchy of attribute keys. Useful for understanding the r
 
 - Pass no prefix to see root namespaces (e.g., `http`, `db`, `cloud`)
 - Pass a prefix like `http.request` to see attributes in that namespace and sub-namespaces
-- Returns child namespaces, direct attributes, total count, and depth
+- Returns sub-namespaces, direct attributes, total count, and depth
 
 ## Example Prompts
 
@@ -131,7 +131,7 @@ Here are some example prompts:
 
 ### Browsing the Registry
 
-> "What top-level namespaces exist in the registry?"
+> "What root namespaces exist in the registry?"
 
 > "Show me all attributes under the cloud namespace"
 

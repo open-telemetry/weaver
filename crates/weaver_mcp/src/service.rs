@@ -351,7 +351,7 @@ pub struct LiveCheckParams {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct BrowseNamespaceParams {
     /// Namespace prefix to browse (e.g., "http", "http.request", "db").
-    /// Omit or pass empty string to list top-level namespaces.
+    /// Omit or pass empty string to list root namespaces.
     #[serde(default)]
     prefix: Option<String>,
 }
@@ -519,9 +519,9 @@ impl WeaverMcpService {
     #[tool(
         name = "browse_namespace",
         description = "Browse the namespace hierarchy of semantic convention attributes. \
-                       Pass no prefix to see top-level namespaces (e.g., 'http', 'db', 'cloud'). \
-                       Pass a prefix like 'http.request' to see its children and attributes. \
-                       Returns child namespaces, direct attributes, total count, and depth."
+                       Pass no prefix to see root namespaces (e.g., 'http', 'db', 'cloud'). \
+                       Pass a prefix like 'http.request' to see its sub-namespaces and attributes. \
+                       Returns sub-namespaces, direct attributes, total count, and depth."
     )]
     fn browse_namespace(&self, Parameters(params): Parameters<BrowseNamespaceParams>) -> String {
         let info = self
@@ -963,16 +963,16 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_browse_namespace_tool_top_level() {
+    fn test_browse_namespace_tool_root() {
         let service = create_test_service();
 
         let params = BrowseNamespaceParams { prefix: None };
         let result = service.browse_namespace(Parameters(params));
 
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert!(parsed.get("child_namespaces").is_some());
+        assert!(parsed.get("sub_namespaces").is_some());
         assert!(parsed.get("total_attribute_count").is_some());
-        assert!(parsed["child_namespaces"]
+        assert!(parsed["sub_namespaces"]
             .as_array()
             .unwrap()
             .contains(&json!("http")));

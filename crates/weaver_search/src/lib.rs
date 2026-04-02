@@ -259,8 +259,8 @@ impl SearchContext {
 
     /// Browse the namespace hierarchy of attribute keys.
     ///
-    /// If `prefix` is None or empty, returns top-level namespaces.
-    /// If `prefix` is provided (e.g., "http.request"), returns child namespaces
+    /// If `prefix` is None or empty, returns root namespaces.
+    /// If `prefix` is provided (e.g., "http.request"), returns sub-namespaces
     /// and direct attributes under that prefix.
     #[must_use]
     pub fn browse_namespace(&self, prefix: Option<&str>) -> NamespaceInfo {
@@ -269,7 +269,7 @@ impl SearchContext {
             .trim_end_matches(self.separator.as_str());
         let sep = &self.separator;
 
-        let mut child_ns_set: BTreeSet<String> = BTreeSet::new();
+        let mut sub_ns_set: BTreeSet<String> = BTreeSet::new();
         let mut direct_attrs: Vec<NamespaceAttribute> = Vec::new();
         let mut total_count = 0usize;
         let mut max_depth = 0usize;
@@ -298,16 +298,16 @@ impl SearchContext {
                 max_depth = depth;
             }
 
-            // Check if this is a direct attribute or in a child namespace
+            // Check if this is a direct attribute or in a sub-namespace
             if let Some(next_sep_pos) = remainder.find(sep.as_str()) {
-                // Has more segments — extract the child namespace
-                let child_segment = &remainder[..next_sep_pos];
-                let child_ns = if prefix.is_empty() {
-                    child_segment.to_owned()
+                // Has more segments — extract the sub-namespace
+                let sub_segment = &remainder[..next_sep_pos];
+                let sub_ns = if prefix.is_empty() {
+                    sub_segment.to_owned()
                 } else {
-                    format!("{prefix}{sep}{child_segment}")
+                    format!("{prefix}{sep}{sub_segment}")
                 };
-                let _ = child_ns_set.insert(child_ns);
+                let _ = sub_ns_set.insert(sub_ns);
             } else {
                 // Leaf attribute directly in this namespace
                 direct_attrs.push(NamespaceAttribute::from_attribute(key.clone(), attr));
@@ -318,7 +318,7 @@ impl SearchContext {
 
         NamespaceInfo {
             prefix: prefix.to_owned(),
-            child_namespaces: child_ns_set.into_iter().collect(),
+            sub_namespaces: sub_ns_set.into_iter().collect(),
             attributes: direct_attrs,
             total_attribute_count: total_count,
             max_depth,
@@ -1013,19 +1013,19 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_browse_namespace_top_level() {
+    fn test_browse_namespace_root() {
         let registry = make_test_registry();
         let ctx = SearchContext::from_registry(&registry);
 
         let info = ctx.browse_namespace(None);
 
         assert_eq!(info.prefix, "");
-        // Top-level namespaces from test data: db, experimental, http, test
-        assert!(info.child_namespaces.contains(&"db".to_owned()));
-        assert!(info.child_namespaces.contains(&"http".to_owned()));
-        assert!(info.child_namespaces.contains(&"experimental".to_owned()));
-        assert!(info.child_namespaces.contains(&"test".to_owned()));
-        // No attributes directly at top level
+        // Root namespaces from test data: db, experimental, http, test
+        assert!(info.sub_namespaces.contains(&"db".to_owned()));
+        assert!(info.sub_namespaces.contains(&"http".to_owned()));
+        assert!(info.sub_namespaces.contains(&"experimental".to_owned()));
+        assert!(info.sub_namespaces.contains(&"test".to_owned()));
+        // No attributes directly at root level
         assert!(info.attributes.is_empty());
         assert_eq!(info.total_attribute_count, 5);
         assert!(info.max_depth >= 2);
@@ -1039,8 +1039,8 @@ mod tests {
         let info = ctx.browse_namespace(Some("http"));
 
         assert_eq!(info.prefix, "http");
-        assert!(info.child_namespaces.contains(&"http.request".to_owned()));
-        assert!(info.child_namespaces.contains(&"http.response".to_owned()));
+        assert!(info.sub_namespaces.contains(&"http.request".to_owned()));
+        assert!(info.sub_namespaces.contains(&"http.response".to_owned()));
         assert_eq!(info.total_attribute_count, 2);
     }
 
@@ -1053,7 +1053,7 @@ mod tests {
         let info = ctx.browse_namespace(Some("http.request"));
 
         assert_eq!(info.prefix, "http.request");
-        assert!(info.child_namespaces.is_empty());
+        assert!(info.sub_namespaces.is_empty());
         assert_eq!(info.attributes.len(), 1);
         assert_eq!(info.attributes[0].key, "http.request.method");
     }
@@ -1066,7 +1066,7 @@ mod tests {
         let info = ctx.browse_namespace(Some("nonexistent"));
 
         assert_eq!(info.total_attribute_count, 0);
-        assert!(info.child_namespaces.is_empty());
+        assert!(info.sub_namespaces.is_empty());
         assert!(info.attributes.is_empty());
         assert_eq!(info.max_depth, 0);
     }
@@ -1076,7 +1076,7 @@ mod tests {
         let registry = make_test_registry();
         let ctx = SearchContext::from_registry(&registry);
 
-        // Empty string should behave like None (top-level)
+        // Empty string should behave like None (root)
         let info = ctx.browse_namespace(Some(""));
         assert_eq!(info.prefix, "");
         assert_eq!(info.total_attribute_count, 5);

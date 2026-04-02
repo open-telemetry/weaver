@@ -69,11 +69,11 @@ impl NamespaceAttribute {
 /// Information about a namespace and its contents.
 #[derive(Debug, Serialize, Clone)]
 pub struct NamespaceInfo {
-    /// The namespace prefix. Empty string for top-level.
+    /// The namespace prefix. Empty string for root.
     pub prefix: String,
-    /// Direct child namespaces (next level only).
-    pub child_namespaces: Vec<String>,
-    /// Attributes directly in this namespace (not in child namespaces).
+    /// Direct sub-namespaces (next level only).
+    pub sub_namespaces: Vec<String>,
+    /// Attributes directly in this namespace (not in sub-namespaces).
     pub attributes: Vec<NamespaceAttribute>,
     /// Total number of attributes under this prefix (including all descendants).
     pub total_attribute_count: usize,
