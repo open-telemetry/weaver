@@ -107,8 +107,8 @@ The tool runs built-in advisors (deprecated, stability, type, enum) to provide f
 
 Browse the namespace hierarchy of attribute keys. Useful for understanding the registry structure.
 
-- Pass no prefix to see top-level namespaces (e.g., `http`, `db`, `cloud`)
-- Pass a prefix like `http.request` to see its children and direct attributes
+- Pass no prefix to see root namespaces (e.g., `http`, `db`, `cloud`)
+- Pass a prefix like `http.request` to see attributes in that namespace and sub-namespaces
 - Returns child namespaces, direct attributes, total count, and depth
 
 ## Example Prompts
@@ -143,4 +143,4 @@ Here are some example prompts:
 
 ### Validating Telemetry
 
-> "Check these attributes against the registry: http.method=GET, http.status_code=200"
+> "Check these attributes against the registry: http.request.method=GET, http.response.status_code=200"
