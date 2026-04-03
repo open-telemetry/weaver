@@ -558,6 +558,9 @@ The server communicates over stdio using JSON-RPC.
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting
+
+  Default value: `.`
 
 
 
