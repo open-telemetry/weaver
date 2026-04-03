@@ -312,7 +312,7 @@ fn compare_requirement_level(
         // the list). In practice, mixing attributes that have a
         // requirement_level with those that do not is not expected.
         // With v2, we could be sorting a list of attributes where each
-        // attribute has requirement level or none of them do. 
+        // attribute has requirement level or none of them do.
         if level.is_undefined() {
             return Ok(0);
         }
