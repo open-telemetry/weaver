@@ -34,17 +34,18 @@ You should see the weaver tools available. Try asking:
 
 ## Available Tools
 
-The MCP server exposes 7 tools:
+The MCP server exposes 8 tools:
 
-| Tool            | Description                                                                     |
-| --------------- | ------------------------------------------------------------------------------- |
-| `search`        | Search across all registry items (attributes, metrics, spans, events, entities) |
-| `get_attribute` | Get detailed information about a specific attribute by key                      |
-| `get_metric`    | Get detailed information about a specific metric by name                        |
-| `get_span`      | Get detailed information about a specific span by type                          |
-| `get_event`     | Get detailed information about a specific event by name                         |
-| `get_entity`    | Get detailed information about a specific entity by type                        |
-| `live_check`    | Validate telemetry samples against the registry                                 |
+| Tool               | Description                                                                     |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `search`           | Search across all registry items (attributes, metrics, spans, events, entities) |
+| `get_attribute`    | Get detailed information about a specific attribute by key                      |
+| `get_metric`       | Get detailed information about a specific metric by name                        |
+| `get_span`         | Get detailed information about a specific span by type                          |
+| `get_event`        | Get detailed information about a specific event by name                         |
+| `get_entity`       | Get detailed information about a specific entity by type                        |
+| `live_check`       | Validate telemetry samples against the registry                                 |
+| `browse_namespace` | Browse attribute namespace hierarchy by prefix                                  |
 
 ### Search Tool
 
@@ -67,7 +68,12 @@ Each get tool retrieves detailed information about a specific item:
 
 ### Live Check Tool
 
-Validates telemetry samples against the semantic conventions registry. Pass an array of samples (attributes, spans, metrics, logs, or resources) and receive them back with `live_check_result` fields populated containing advice and findings.
+Validates telemetry samples against the semantic conventions registry. Pass an array of samples (attributes, spans, metrics, logs, or resources) and receive advice and findings.
+
+**Output modes** (controlled by the `output` parameter):
+
+- `full` (default) — Returns all samples with complete `live_check_result` details
+- `findings_only` — Returns a compact list of just the findings (`name`, `id`, `level`, `message`), omitting clean samples
 
 Example input:
 
@@ -85,7 +91,8 @@ Example input:
         ]
       }
     }
-  ]
+  ],
+  "output": "findings_only"
 }
 ```
 
@@ -95,6 +102,14 @@ The tool runs built-in advisors (deprecated, stability, type, enum) to provide f
 - Non-stable items (experimental/development)
 - Type mismatches (e.g., string vs int)
 - Invalid enum values
+
+### Browse Namespace Tool
+
+Browse the namespace hierarchy of attribute keys. Useful for understanding the registry structure.
+
+- Pass no prefix to see root namespaces (e.g., `http`, `db`, `cloud`)
+- Pass a prefix like `http.request` to see attributes in that namespace and sub-namespaces
+- Returns sub-namespaces, direct attributes, total count, and depth
 
 ## Example Prompts
 
@@ -114,8 +129,18 @@ Here are some example prompts:
 
 > "What is the http.server.request.duration metric?"
 
+### Browsing the Registry
+
+> "What root namespaces exist in the registry?"
+
+> "Show me all attributes under the cloud namespace"
+
 ### Instrumentation Guidance
 
 > "I'm adding tracing to a gRPC service. What semantic conventions should I follow?"
 
 > "How should I instrument a Redis client according to OpenTelemetry conventions?"
+
+### Validating Telemetry
+
+> "Check these attributes against the registry: http.request.method=GET, http.response.status_code=200"

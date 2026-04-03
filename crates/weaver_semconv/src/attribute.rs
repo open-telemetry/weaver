@@ -320,6 +320,11 @@ impl PrimitiveOrArrayTypeSpec {
         match (self, other) {
             (PrimitiveOrArrayTypeSpec::Any, _) => true,
             (_, PrimitiveOrArrayTypeSpec::Any) => true,
+            // An observed int is compatible with an expected double, because
+            // OTLP serializers (notably JS) emit int_value for integral numbers
+            // even when the semantic convention declares the attribute as double.
+            (PrimitiveOrArrayTypeSpec::Int, PrimitiveOrArrayTypeSpec::Double) => true,
+            (PrimitiveOrArrayTypeSpec::Ints, PrimitiveOrArrayTypeSpec::Doubles) => true,
             _ => self == other,
         }
     }
@@ -1389,6 +1394,14 @@ mod tests {
         assert!(PrimitiveOrArrayTypeSpec::Int.is_compatible(&PrimitiveOrArrayTypeSpec::Any));
         assert!(PrimitiveOrArrayTypeSpec::Any.is_compatible(&PrimitiveOrArrayTypeSpec::Double));
         assert!(PrimitiveOrArrayTypeSpec::Any.is_compatible(&PrimitiveOrArrayTypeSpec::Any));
+
+        // Int is compatible with Double (OTLP serializers emit int_value for integral doubles)
+        assert!(PrimitiveOrArrayTypeSpec::Int.is_compatible(&PrimitiveOrArrayTypeSpec::Double));
+        assert!(PrimitiveOrArrayTypeSpec::Ints.is_compatible(&PrimitiveOrArrayTypeSpec::Doubles));
+
+        // But Double is NOT compatible with Int (a true double cannot satisfy an int requirement)
+        assert!(!PrimitiveOrArrayTypeSpec::Double.is_compatible(&PrimitiveOrArrayTypeSpec::Int));
+        assert!(!PrimitiveOrArrayTypeSpec::Doubles.is_compatible(&PrimitiveOrArrayTypeSpec::Ints));
     }
 }
 
