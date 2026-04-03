@@ -308,11 +308,9 @@ fn compare_requirement_level(
 ) -> Result<std::cmp::Ordering, minijinja::Error> {
     fn sort_ordinal_for_requirement(attribute: &Value) -> Result<i32, minijinja::Error> {
         let level = attribute.get_attr("requirement_level")?;
-        // When requirement_level is absent this is a v2 attribute (e.g. from an
-        // AttributeGroup) that has no requirement-level concept. Place these
-        // attributes at ordinal 0 so they are grouped together at the front of
-        // the sorted list, separate from v1 attributes that carry an explicit
-        // requirement level.
+        // Attributes without a requirement_level sort to ordinal 0 (front of
+        // the list). In practice, mixing attributes that have a
+        // requirement_level with those that do not is not expected.
         if level.is_undefined() {
             return Ok(0);
         }
