@@ -47,12 +47,6 @@ pub struct RegistryDiffArgs {
     pub(crate) diagnostic: DiagnosticArgs,
 }
 
-#[allow(clippy::large_enum_variant)]
-enum VersionedDiff {
-    V1(crate::weaver::Diff),
-    V2(crate::weaver::DiffV2),
-}
-
 /// Generate a diff between two versions of a semantic convention registry.
 pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
