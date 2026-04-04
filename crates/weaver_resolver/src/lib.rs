@@ -113,7 +113,6 @@ impl SchemaResolver {
             }
         };
         let mut attr_catalog = AttributeCatalog::default();
-
         // TODO - Do something with non_fatal_errors if we need to.
         resolve_registry_with_dependencies(
             &mut attr_catalog,
