@@ -12,8 +12,9 @@
       }
     },
     "file_format": {
-      "description": "Version of the file structure.",
-      "type": "string"
+      "description": "Version of the file structure.\nAlways `\"resolved/2.0\"` in this version.",
+      "type": "string",
+      "const": "resolved/2.0"
     },
     "refinements": {
       "description": "Refinements for the registry",

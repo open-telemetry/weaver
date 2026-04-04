@@ -67,6 +67,8 @@ jobs:
         run: cargo test --workspace --no-default-features
       - name: History check
         run: cargo xtask history
+      - name: Schema compat check
+        run: cargo xtask schema-compat
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
