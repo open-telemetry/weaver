@@ -205,7 +205,8 @@ pub fn run() -> anyhow::Result<()> {
     println!("Comparing schemas against {tag}");
 
     // name → (baseline_format, current_format, removed, added)
-    let mut failures: BTreeMap<&str, (String, String, Vec<String>, Vec<String>)> = BTreeMap::new();
+    type FailureEntry = (String, String, Vec<String>, Vec<String>);
+    let mut failures: BTreeMap<&str, FailureEntry> = BTreeMap::new();
 
     for (cli_arg, repo_path, name) in CHECKS {
         print!("  Checking {name} ... ");
