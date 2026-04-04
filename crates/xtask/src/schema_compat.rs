@@ -74,10 +74,7 @@ fn read_file_at_tag(repo: &Repository, tag: &str, file_path: &str) -> anyhow::Re
     let id = reference
         .into_fully_peeled_id()
         .context("failed to peel tag to commit")?;
-    let commit = id
-        .object()
-        .context("failed to get object")?
-        .into_commit();
+    let commit = id.object().context("failed to get object")?.into_commit();
     let tree = commit.tree().context("failed to get tree")?;
     let entry = tree
         .lookup_entry_by_path(file_path)
@@ -87,8 +84,7 @@ fn read_file_at_tag(repo: &Repository, tag: &str, file_path: &str) -> anyhow::Re
         .object()
         .context("failed to get blob object")?
         .into_blob();
-    String::from_utf8(blob.data.clone())
-        .with_context(|| format!("{file_path} is not valid UTF-8"))
+    String::from_utf8(blob.data.clone()).with_context(|| format!("{file_path} is not valid UTF-8"))
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -209,8 +205,7 @@ pub fn run() -> anyhow::Result<()> {
     println!("Comparing schemas against {tag}");
 
     // name → (baseline_format, current_format, removed, added)
-    let mut failures: BTreeMap<&str, (String, String, Vec<String>, Vec<String>)> =
-        BTreeMap::new();
+    let mut failures: BTreeMap<&str, (String, String, Vec<String>, Vec<String>)> = BTreeMap::new();
 
     for (cli_arg, repo_path, name) in CHECKS {
         print!("  Checking {name} ... ");
@@ -266,7 +261,10 @@ pub fn run() -> anyhow::Result<()> {
          when adding fields, or bump the major version for removals.\n\n"
     );
     for (name, (baseline_fmt, current_fmt, removed, added)) in &failures {
-        writeln!(msg, "=== {name} === (baseline: {baseline_fmt}, current: {current_fmt})")?;
+        writeln!(
+            msg,
+            "=== {name} === (baseline: {baseline_fmt}, current: {current_fmt})"
+        )?;
         if !removed.is_empty() {
             writeln!(
                 msg,
