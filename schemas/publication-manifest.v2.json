@@ -19,9 +19,9 @@
       ]
     },
     "file_format": {
-      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0.0\"`in this version.",
+      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0\"`in this version.",
       "type": "string",
-      "const": "manifest/2.0.0"
+      "const": "manifest/2.0"
     },
     "resolved_schema_uri": {
       "description": "URI pointing to the resolved telemetry schema included in this package.",

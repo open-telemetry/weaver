@@ -1,4 +1,4 @@
-file_format: resolved/2.0.0
+file_format: resolved/2.0
 schema_url: https://opentelemetry.io/schemas/1.0.0
 attribute_catalog:
 - key: a
