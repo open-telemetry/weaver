@@ -39,7 +39,7 @@ pub const OTEL_REGISTRY_ID: &str = "OTEL";
 
 /// Version string denoting V1 resolved schema.
 pub(crate) const V1_RESOLVED_FILE_FORMAT: &str = "resolved/1.0.0";
-/// Version string dentoing V2 resolved scehma.
+/// Version string denoting V2 resolved schema.
 pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0.0";
 
 /// A Resolved Telemetry Schema.
