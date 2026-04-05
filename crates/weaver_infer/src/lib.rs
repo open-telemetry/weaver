@@ -253,7 +253,9 @@ impl AccumulatedSamples {
                     .keys()
                     .map(|name| span_attribute_ref(name))
                     .collect::<Vec<_>>();
-                attributes.sort_by(|left, right| span_attribute_ref_name(left).cmp(span_attribute_ref_name(right)));
+                attributes.sort_by(|left, right| {
+                    span_attribute_ref_name(left).cmp(span_attribute_ref_name(right))
+                });
 
                 Span {
                     r#type: SignalId::from(span.name.clone()),
@@ -584,18 +586,20 @@ fn collect_attribute_defs<'a>(
             ..
         } = attribute
         {
-            let _ = attribute_defs.entry(id.clone()).or_insert_with(|| AttributeDef {
-                key: id.clone(),
-                r#type: r#type.clone(),
-                examples: examples.clone(),
-                common: CommonFields {
-                    brief: brief.clone().unwrap_or_default(),
-                    note: note.clone(),
-                    stability: stability.clone().unwrap_or(Stability::Development),
-                    deprecated: deprecated.clone(),
-                    annotations: annotations.clone().unwrap_or_default(),
-                },
-            });
+            let _ = attribute_defs
+                .entry(id.clone())
+                .or_insert_with(|| AttributeDef {
+                    key: id.clone(),
+                    r#type: r#type.clone(),
+                    examples: examples.clone(),
+                    common: CommonFields {
+                        brief: brief.clone().unwrap_or_default(),
+                        note: note.clone(),
+                        stability: stability.clone().unwrap_or(Stability::Development),
+                        deprecated: deprecated.clone(),
+                        annotations: annotations.clone().unwrap_or_default(),
+                    },
+                });
         }
     }
 }
@@ -1533,7 +1537,11 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        let attr_ids: Vec<_> = registry.attributes.iter().map(|attribute| attribute.key.as_str()).collect();
+        let attr_ids: Vec<_> = registry
+            .attributes
+            .iter()
+            .map(|attribute| attribute.key.as_str())
+            .collect();
         assert_eq!(attr_ids, vec!["a.attr", "m.attr", "z.attr"]);
     }
 
@@ -1565,7 +1573,10 @@ mod tests {
         assert_eq!(registry.attributes.len(), 1);
         assert_eq!(registry.attributes[0].key, "shared.attr");
         assert_eq!(registry.entities[0].identity[0].r#ref, "shared.attr");
-        assert_eq!(attribute_or_group_ref_name(&registry.events[0].attributes[0]), "shared.attr");
+        assert_eq!(
+            attribute_or_group_ref_name(&registry.events[0].attributes[0]),
+            "shared.attr"
+        );
     }
 
     #[test]
