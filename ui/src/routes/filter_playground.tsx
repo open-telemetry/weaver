@@ -57,6 +57,8 @@ function FilterPlayground() {
   const handleExecute = async () => {
     setLoading(true)
     setErrorDetails(null)
+    setError(null)
+    setResult(null)
     try {
       const data = await filterRegistry(filter)
       setResult(data)

@@ -332,4 +332,11 @@ mod tests {
             "Expected execute error, but got '{msg}'"
         );
     }
+
+    #[test]
+    fn test_report_io_error() {
+        let detail = super::report_io(("test_file.jq", "permission denied".to_owned()));
+        assert_eq!(detail.error, "could not load file test_file.jq: permission denied");
+        assert!(detail.source.is_none());
+    }
 }
