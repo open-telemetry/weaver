@@ -63,7 +63,10 @@ fn run_serve(args: &ServeCommand) -> Result<ExitDirectives, DiagnosticMessages> 
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry
-    let resolved_v2 = resolved.try_into_v2()?;
+    let resolved_v2 = match resolved {
+        crate::weaver::Resolved::V1(v) => v.try_into().map_err(DiagnosticMessages::from_error)?,
+        crate::weaver::Resolved::V2(v) => v,
+    };
     let forge_registry = resolved_v2.into_template_schema();
 
     if !diag_msgs.is_empty() {

@@ -1,36 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Test the registry stats command.
+//! Test the registry search command.
 
 use assert_cmd::Command;
 
-/// This test checks the CLI interface for the registry stats command.
-/// This test doesn't count for the coverage report as it runs a separate process.
 #[test]
-fn test_cli_interface() {
+fn test_published_v2_registry_search() {
     let mut cmd = Command::cargo_bin("weaver").unwrap();
-    let output = cmd
+    let result = cmd
         .arg("registry")
-        .arg("stats")
+        .arg("search")
         .arg("-r")
-        .arg("tests/custom_registry")
+        .arg("tests/published_v2_registry/")
         .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");
 
     assert!(
-        output.status.success(),
-        "Process did not exit successfully. Stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        !result.status.success(),
+        "expected failure for search without --v2, stderr: {}",
+        String::from_utf8_lossy(&result.stderr)
     );
-}
 
-#[test]
-fn test_published_v2_registry_stats() {
     let mut cmd = Command::cargo_bin("weaver").unwrap();
     let result = cmd
         .arg("registry")
-        .arg("stats")
+        .arg("search")
         .arg("--v2")
         .arg("-r")
         .arg("tests/published_v2_registry/")
@@ -39,8 +34,8 @@ fn test_published_v2_registry_stats() {
         .expect("failed to execute process");
 
     assert!(
-        result.status.success(),
-        "expected success, stderr: {}",
+        !result.status.success(),
+        "expected failure for search with --v2, stderr: {}",
         String::from_utf8_lossy(&result.stderr)
     );
 }

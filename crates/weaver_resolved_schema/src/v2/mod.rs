@@ -78,6 +78,8 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         // TODO - get manifests
         SchemaChanges {
+            head_schema_url: self.schema_url.clone(),
+            baseline_schema_url: baseline_schema.schema_url.clone(),
             registry: self.registry_diff(baseline_schema),
         }
     }
