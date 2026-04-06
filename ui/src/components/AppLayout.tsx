@@ -29,7 +29,7 @@ export function AppLayout() {
   const activeSchema = (() => {
     if (!isActive('/schema')) return null
     const schemaParam = new URLSearchParams(location.search).get('schema')
-    return schemaParam || 'ForgeRegistryV2'
+    return schemaParam || 'MaterializedRegistryV2'
   })()
 
   const closeSidebar = () => {
@@ -168,14 +168,14 @@ export function AppLayout() {
           <li>
             <button
               onClick={() => {
-                navigate({ to: '/schema', search: { schema: 'ForgeRegistryV2' } })
+                navigate({ to: '/schema', search: { schema: 'MaterializedRegistryV2' } })
                 closeSidebar()
               }}
               className={
-                activeSchema === 'ForgeRegistryV2' ? 'active' : ''
+                activeSchema === 'MaterializedRegistryV2' ? 'active' : ''
               }
             >
-              ForgeRegistryV2
+              MaterializedRegistryV2
             </button>
           </li>
           <li>

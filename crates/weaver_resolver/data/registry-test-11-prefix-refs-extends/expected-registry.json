@@ -12,7 +12,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/client.yaml"
         },
         "attributes": {
@@ -43,7 +43,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/geo.yaml"
         }
       }
@@ -61,7 +61,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/usage.yaml"
         },
         "attributes": {
@@ -126,7 +126,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/usage2.yaml"
         },
         "extends_group": "usage",

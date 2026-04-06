@@ -456,10 +456,9 @@ impl Group {
 
     /// Returns the provenance of the group.
     #[must_use]
-    pub fn provenance(&self) -> Provenance {
-        match &self.lineage {
-            Some(lineage) => lineage.provenance().to_owned(),
-            None => Provenance::undefined(),
-        }
+    pub fn provenance(&self) -> Option<Provenance> {
+        self.lineage
+            .as_ref()
+            .map(|lineage| lineage.provenance().to_owned())
     }
 }

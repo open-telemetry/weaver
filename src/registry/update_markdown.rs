@@ -110,20 +110,20 @@ pub(crate) fn command(
     };
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
-    let generator: Box<dyn MarkdownSnippetGenerator> = if args.registry.v2 {
-        let resolved_v2 = resolved.try_into_v2()?;
-        // TODO - extract both resolved and template in one go.
-        let template_schema = resolved_v2.template_schema().clone();
-        Box::new(SnipperGeneratorV2::new(
-            resolved_v2.into_resolved_schema(),
-            template_schema,
+    let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
+        crate::weaver::Resolved::V2(resolved_v2) => {
+            // TODO - extract both resolved and template in one go.
+            let template_schema = resolved_v2.template_schema().clone();
+            Box::new(SnipperGeneratorV2::new(
+                resolved_v2.into_resolved_schema(),
+                template_schema,
+                output,
+            ))
+        }
+        crate::weaver::Resolved::V1(resolved_v1) => Box::new(SnippetGenerator::new(
+            resolved_v1.into_resolved_schema(),
             output,
-        ))
-    } else {
-        Box::new(SnippetGenerator::new(
-            resolved.into_resolved_schema(),
-            output,
-        ))
+        )),
     };
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
@@ -196,6 +196,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: "data/update_markdown/markdown".to_owned(),
@@ -235,6 +236,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: markdown_dir.to_owned(),

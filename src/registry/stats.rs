@@ -3,7 +3,7 @@
 //! Compute stats on a semantic convention registry.
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::{include_dir, Dir};
@@ -58,19 +58,6 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
         args.registry.registry
     );
 
-    if args.registry.v2 {
-        compute_v2(args)?;
-    } else {
-        compute_v1(args)?;
-    }
-
-    Ok(ExitDirectives {
-        exit_code: 0,
-        warnings: None,
-    })
-}
-
-fn compute_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy_config = PolicyArgs {
         policies: vec![],
@@ -79,39 +66,7 @@ fn compute_v2(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     };
     let weaver = WeaverEngine::new(&args.registry, &policy_config);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
-    let resolved_v2: ResolvedV2 = resolved.try_into()?;
 
-    let target = OutputTarget::from_optional_dir(args.output.as_ref());
-    let mut output = OutputProcessor::new(
-        &args.format,
-        "stats",
-        Some(&DEFAULT_STATS_TEMPLATES),
-        Some(args.templates.clone()),
-        target,
-    )
-    .map_err(DiagnosticMessages::from)?;
-
-    let context = StatsContext {
-        version: "v2",
-        stats: resolved_v2.resolved_schema().stats(),
-    };
-    output
-        .generate(&context)
-        .map_err(DiagnosticMessages::from)?;
-    Ok(())
-}
-
-fn compute_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
-    let mut diag_msgs = DiagnosticMessages::empty();
-    let policy_config = PolicyArgs {
-        policies: vec![],
-        skip_policies: true,
-        display_policy_coverage: false,
-    };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config);
-    let loaded = weaver.load_main_definitions(&mut diag_msgs)?;
-
-    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
     }
@@ -126,12 +81,29 @@ fn compute_v1(args: &RegistryStatsArgs) -> Result<(), DiagnosticMessages> {
     )
     .map_err(DiagnosticMessages::from)?;
 
-    let context = StatsContext {
-        version: "v1",
-        stats: resolved.resolved_schema().stats(),
-    };
-    output
-        .generate(&context)
-        .map_err(DiagnosticMessages::from)?;
-    Ok(())
+    match resolved {
+        crate::weaver::Resolved::V1(v) => {
+            let context = StatsContext {
+                version: "v1",
+                stats: v.resolved_schema().stats(),
+            };
+            output
+                .generate(&context)
+                .map_err(DiagnosticMessages::from)?;
+        }
+        crate::weaver::Resolved::V2(v) => {
+            let context = StatsContext {
+                version: "v2",
+                stats: v.resolved_schema().stats(),
+            };
+            output
+                .generate(&context)
+                .map_err(DiagnosticMessages::from)?;
+        }
+    }
+
+    Ok(ExitDirectives {
+        exit_code: 0,
+        warnings: None,
+    })
 }

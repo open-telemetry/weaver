@@ -39,7 +39,7 @@ pub const OTEL_REGISTRY_ID: &str = "OTEL";
 
 /// Version string denoting V1 resolved schema.
 pub(crate) const V1_RESOLVED_FILE_FORMAT: &str = "resolved/1.0.0";
-/// Version string dentoing V2 resolved scehma.
+/// Version string denoting V2 resolved schema.
 pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0.0";
 
 /// A Resolved Telemetry Schema.
@@ -154,7 +154,10 @@ impl ResolvedTelemetrySchema {
     ) {
         use crate::lineage::GroupLineage;
         use weaver_semconv::provenance::Provenance;
-        let mut lineage = GroupLineage::new(Provenance::new("", ""));
+        let mut lineage = GroupLineage::new(Provenance::new(
+            weaver_semconv::schema_url::SchemaUrl::new_unknown(),
+            "",
+        ));
         for attr in &attrs {
             use crate::lineage::AttributeLineage;
             let al = AttributeLineage::new(group_id);

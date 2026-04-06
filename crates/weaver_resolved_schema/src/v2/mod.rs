@@ -74,6 +74,8 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         // TODO - get manifests
         SchemaChanges {
+            head_schema_url: self.schema_url.clone(),
+            baseline_schema_url: baseline_schema.schema_url.clone(),
             registry: self.registry_diff(baseline_schema),
         }
     }
@@ -665,7 +667,8 @@ mod tests {
         );
         let test_refs = [ref0, ref1];
         let v1_catalog = builder.build();
-        let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        let mut refinement_span_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_span_lineage.extends("span.my-span");
         refinement_span_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
@@ -801,7 +804,8 @@ mod tests {
         );
         let test_refs = [ref0, ref1];
         let v1_catalog = builder.build();
-        let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+        let mut refinement_metric_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_metric_lineage.extends("metric.http");
         refinement_metric_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
