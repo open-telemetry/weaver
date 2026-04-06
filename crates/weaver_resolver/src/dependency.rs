@@ -15,7 +15,7 @@ use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::stability::Stability;
 
-use crate::{attribute::AttributeCatalog, Error};
+use crate::{attribute::{AttributeCatalog, AttributeSource}, Error};
 
 /// A summary of a group, used during refinement and extends resolution, along with its unresolved attributes.
 #[derive(Debug, Clone)]
@@ -237,9 +237,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_group(
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    format!("v2_dependency.{}", self.schema_url.name()),
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 ));
             }
             result.push(Group {
@@ -285,9 +287,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_group(
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    format!("v2_dependency.{}", self.schema_url.name()),
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 ));
             }
             result.push(Group {
@@ -334,13 +338,15 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_group(
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(
                         attr,
                         ar.requirement_level.clone(),
                         Some(AttributeRole::Identifying),
                     ),
-                    format!("v2_dependency.{}", self.schema_url.name()),
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 ));
             }
             for ar in e.description.iter() {
@@ -351,13 +357,15 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_group(
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(
                         attr,
                         ar.requirement_level.clone(),
                         Some(AttributeRole::Descriptive),
                     ),
-                    format!("v2_dependency.{}", self.schema_url.name()),
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 ));
             }
             result.push(Group {
@@ -403,9 +411,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_group(
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    format!("v2_dependency.{}", self.schema_url.name()),
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 ));
             }
             result.push(Group {
@@ -454,9 +464,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_group(
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, RequirementLevel::default(), None),
-                    format!("v2_dependency.{}", self.schema_url.name()),
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 ));
             }
             result.push(Group {
@@ -748,6 +760,8 @@ mod tests {
         );
         Ok(())
     }
+
+
 
     fn example_v1_schema() -> V1Schema {
         V1Schema {

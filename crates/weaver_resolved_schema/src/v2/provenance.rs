@@ -46,3 +46,22 @@ impl Display for DependencyRef {
         write!(f, "DependencyRef({})", self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_provenance_is_empty() {
+        let mut prov = Provenance::default();
+        assert!(prov.is_empty());
+        prov.source = Some(DependencyRef(1));
+        assert!(!prov.is_empty());
+    }
+
+    #[test]
+    fn test_dependency_ref_display() {
+        let dep_ref = DependencyRef(42);
+        assert_eq!(format!("{}", dep_ref), "DependencyRef(42)");
+    }
+}

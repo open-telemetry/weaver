@@ -202,6 +202,8 @@ pub fn convert_v1_to_v2(
                 return get_provenance(group);
             }
             // Is it a V2 dependency group?
+            // See crates/weaver_resolver/src/attribute.rs for more information on this
+            // workaround for V2 -> V1 -> V2.
             if let Some(dep_name) = source_group_id.strip_prefix("v2_dependency.") {
                 let mut prov = provenance::Provenance::default();
                 if let Some(idx) = deps_list.iter().position(|u| u.name() == dep_name) {
