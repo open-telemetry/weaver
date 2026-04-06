@@ -15,7 +15,10 @@ use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::stability::Stability;
 
-use crate::{attribute::{AttributeCatalog, AttributeSource}, Error};
+use crate::{
+    attribute::{AttributeCatalog, AttributeSource},
+    Error,
+};
 
 /// A summary of a group, used during refinement and extends resolution, along with its unresolved attributes.
 #[derive(Debug, Clone)]
@@ -760,8 +763,6 @@ mod tests {
         );
         Ok(())
     }
-
-
 
     fn example_v1_schema() -> V1Schema {
         V1Schema {
