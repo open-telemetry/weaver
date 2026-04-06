@@ -342,7 +342,7 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the V2 definition
   - `resolved-registry-v2`:
     The JSON schema of the V2 resolved registry
-  - `forge-registry-v2`:
+  - `materialized-registry-v2`:
     The JSON schema we send to Rego / Jinja
   - `diff`:
     The JSON schema of the diff
