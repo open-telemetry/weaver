@@ -153,6 +153,17 @@ export function AppLayout() {
               Stats
             </button>
           </li>
+          <li>
+            <button
+              onClick={() => {
+                navigate({ to: '/filter_playground' })
+                closeSidebar()
+              }}
+              className={isActive('/filter_playground') ? 'active' : ''}
+            >
+              Filter (JQ) Playground
+            </button>
+          </li>
           <li className="menu-title mt-4">Schema</li>
           <li>
             <button
