@@ -317,10 +317,33 @@ pub async fn filter_registry(
     let filter = params.filter.as_deref().unwrap_or(".");
     match run_filter_raw(&state.registry, filter) {
         Ok(v) => Json(v).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("{e}")})),
-        )
-            .into_response(),
+        Err(e) => {
+            fn extract_details(
+                err: &weaver_forge::error::Error,
+            ) -> Vec<weaver_forge::error::FilterErrorDetail> {
+                let mut res = Vec::new();
+                match err {
+                    weaver_forge::error::Error::FilterError { details, .. } => {
+                        res.extend(details.clone());
+                    }
+                    weaver_forge::error::Error::CompoundError(errs) => {
+                        for sub in errs {
+                            res.extend(extract_details(sub));
+                        }
+                    }
+                    _ => {}
+                }
+                res
+            }
+
+            let mut result = json!({"error": format!("{e}")});
+            let details = extract_details(&e);
+
+            if !details.is_empty() {
+                result["details"] = serde_json::to_value(details).unwrap_or_default();
+            }
+
+            (StatusCode::BAD_REQUEST, Json(result)).into_response()
+        }
     }
 }
