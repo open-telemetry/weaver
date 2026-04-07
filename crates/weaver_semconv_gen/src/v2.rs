@@ -449,7 +449,7 @@ mod tests {
 
     fn test_registry() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: "resolved/2.0.0".to_owned(),
+            file_format: "resolved/2.0".to_owned(),
             schema_url: "https://todo/1.0.0".try_into().unwrap(),
             attribute_catalog: vec![Attribute {
                 key: "attr1".to_owned(),

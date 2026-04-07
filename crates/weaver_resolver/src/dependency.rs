@@ -822,7 +822,7 @@ mod tests {
 
     fn example_v2_schema() -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
         weaver_resolved_schema::v2::ResolvedTelemetrySchema {
-            file_format: "resolved/2.0.0".to_owned(),
+            file_format: "resolved/2.0".to_owned(),
             schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
             registry: weaver_resolved_schema::v2::registry::Registry {
                 attribute_groups: vec![

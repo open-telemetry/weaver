@@ -6519,6 +6519,7 @@ dependencies = [
  "assert_cmd",
  "gix",
  "semver",
+ "serde_json",
  "toml",
 ]
 
