@@ -28,11 +28,11 @@ const CHECKS: &[(&str, &str, &str)] = &[
         "schemas/publication-manifest.v2.json",
         "PublicationManifestV2",
     ),
-//     (
-//         "resolved-registry-v2",
-//         "schemas/semconv.resolved.v2.json",
-//         "ResolvedRegistryV2",
-//     ),
+    //     (
+    //         "resolved-registry-v2",
+    //         "schemas/semconv.resolved.v2.json",
+    //         "ResolvedRegistryV2",
+    //     ),
 ];
 
 #[cfg(not(tarpaulin_include))]
