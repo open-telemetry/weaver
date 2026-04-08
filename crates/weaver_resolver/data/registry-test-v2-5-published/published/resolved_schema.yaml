@@ -1,4 +1,4 @@
-file_format: resolved/2.0.0
+file_format: resolved/2.0
 schema_url: https://example.com/schemas/1.2.3
 attribute_catalog:
 - key: a

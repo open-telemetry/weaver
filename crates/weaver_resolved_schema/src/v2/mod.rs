@@ -49,6 +49,8 @@ pub mod stats;
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
+    /// Always `"resolved/2.0"` in this version.
+    #[schemars(extend("const" = "resolved/2.0"))]
     pub file_format: String,
     /// Schema URL that this file is published at.
     pub schema_url: SchemaUrl,
