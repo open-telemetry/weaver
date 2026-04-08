@@ -537,6 +537,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         V2Attribute {
                             key: "test.enum".to_owned(),
@@ -570,6 +571,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         V2Attribute {
                             key: "test.deprecated".to_owned(),
@@ -591,6 +593,7 @@ mod tests {
                                 ),
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         V2Attribute {
                             key: "test.template".to_owned(),
@@ -606,6 +609,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                     ],
                     attribute_groups: vec![],
@@ -801,6 +805,7 @@ mod tests {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
@@ -824,6 +829,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         V2Metric {
                             name: "system.memory.usage".to_owned().into(),
@@ -843,6 +849,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                     ],
                     spans: vec![],
@@ -1011,6 +1018,7 @@ mod tests {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
@@ -1042,6 +1050,7 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     }],
                     events: vec![],
                     entities: vec![],
@@ -1512,6 +1521,7 @@ mod tests {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             };
 
             let session_previous_id_attr = V2Attribute {
@@ -1527,6 +1537,7 @@ mod tests {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
@@ -1576,6 +1587,7 @@ mod tests {
                                     annotations
                                 },
                             },
+                            provenance: Default::default(),
                         },
                         V2Event {
                             name: "example.event".to_owned().into(),
@@ -1597,6 +1609,7 @@ mod tests {
                                     annotations
                                 },
                             },
+                            provenance: Default::default(),
                         },
                     ],
                     entities: vec![],
