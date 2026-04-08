@@ -454,7 +454,9 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields::default(),
+                provenance: Default::default(),
             }],
+            dependencies: std::collections::BTreeSet::new(),
             registry: v2::registry::Registry {
                 attributes: vec![attribute::AttributeRef(0)],
                 spans: vec![span::Span {
@@ -472,6 +474,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![metric::Metric {
                     name: SignalId::from("my-metric".to_owned()),
@@ -485,6 +488,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![event::Event {
                     name: SignalId::from("my-event".to_owned()),
@@ -496,6 +500,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 entities: vec![v2::entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
@@ -507,6 +512,7 @@ mod tests {
                     }],
                     description: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 attribute_groups: vec![],
             },
@@ -524,10 +530,11 @@ mod tests {
                             requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
                                 weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
                             ),
-                            sampling_relevant: Some(false),
+                            sampling_relevant: Some(true),
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 metrics: vec![metric::MetricRefinement {
@@ -544,6 +551,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 events: vec![event::EventRefinement {
@@ -558,6 +566,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
             },
@@ -612,6 +621,7 @@ mod tests {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".try_into().unwrap(),
             attribute_catalog: vec![],
+            dependencies: std::collections::BTreeSet::new(),
             registry: v2::registry::Registry {
                 attributes: vec![], // No attributes - This is the logic bug.
                 spans: vec![span::Span {
@@ -629,6 +639,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![],
                 events: vec![],

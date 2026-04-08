@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::v2::{signal_id::SignalId, CommonFields};
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
 /// Public attribute group.
 ///
@@ -27,6 +27,11 @@ pub struct AttributeGroup {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of the AttributeGroup.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 impl Signal for AttributeGroup {

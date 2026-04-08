@@ -8,7 +8,7 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -39,6 +39,11 @@ pub struct Span {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of the Span.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers span-specicific information.

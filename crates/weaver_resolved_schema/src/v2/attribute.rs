@@ -9,7 +9,7 @@ use weaver_semconv::{
     v2::CommonFields,
 };
 
-use crate::v2::Signal;
+use crate::v2::{provenance::Provenance, Signal};
 
 /// The definition of an Attribute.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
@@ -32,6 +32,10 @@ pub struct Attribute {
     /// Common fields (like brief, note, attributes).
     #[serde(flatten)]
     pub common: CommonFields,
+    /// The provenance of the attribute.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 /// Reference to an attribute in the catalog.
