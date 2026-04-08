@@ -20,17 +20,19 @@ const WEAVER_REPO_URL: &str = "https://github.com/open-telemetry/weaver.git";
 const TEMP_REPO_DIR: &str = "schema-compat-temp-repo";
 
 /// (weaver json-schema CLI arg, path in repo, display name)
+// Temporarily disabled compat testing for V2 schemas.
+// TODO: Enable testing when V2 schemas are marked stable.
 const CHECKS: &[(&str, &str, &str)] = &[
     (
         "publication-manifest-v2",
         "schemas/publication-manifest.v2.json",
         "PublicationManifestV2",
     ),
-    (
-        "resolved-registry-v2",
-        "schemas/semconv.resolved.v2.json",
-        "ResolvedRegistryV2",
-    ),
+//     (
+//         "resolved-registry-v2",
+//         "schemas/semconv.resolved.v2.json",
+//         "ResolvedRegistryV2",
+//     ),
 ];
 
 #[cfg(not(tarpaulin_include))]
