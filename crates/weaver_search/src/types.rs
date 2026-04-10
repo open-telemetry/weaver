@@ -11,6 +11,7 @@ use weaver_forge::v2::entity::Entity;
 use weaver_forge::v2::event::Event;
 use weaver_forge::v2::metric::Metric;
 use weaver_forge::v2::span::Span;
+use weaver_semconv::stability::Stability;
 
 /// Generic wrapper that adds a relevance score to any searchable object.
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -40,6 +41,44 @@ pub enum SearchType {
     Event,
     /// Search only entities.
     Entity,
+}
+
+/// A lightweight attribute summary used by `browse_namespace` and `check_attributes`.
+#[derive(Debug, Serialize, Clone)]
+pub struct NamespaceAttribute {
+    /// The attribute key.
+    pub key: String,
+    /// Short description.
+    pub brief: String,
+    /// Stability level.
+    pub stability: Stability,
+}
+
+impl NamespaceAttribute {
+    /// Create from an attribute key and a full `Attribute` reference.
+    #[must_use]
+    pub fn from_attribute(key: String, attr: &Attribute) -> Self {
+        Self {
+            key,
+            brief: attr.common.brief.clone(),
+            stability: attr.common.stability.clone(),
+        }
+    }
+}
+
+/// Information about a namespace and its contents.
+#[derive(Debug, Serialize, Clone)]
+pub struct NamespaceInfo {
+    /// The namespace prefix. Empty string for root.
+    pub prefix: String,
+    /// Direct sub-namespaces (next level only).
+    pub sub_namespaces: Vec<String>,
+    /// Attributes directly in this namespace (not in sub-namespaces).
+    pub attributes: Vec<NamespaceAttribute>,
+    /// Total number of attributes under this prefix (including all descendants).
+    pub total_attribute_count: usize,
+    /// Maximum depth of the hierarchy under this prefix.
+    pub max_depth: usize,
 }
 
 /// A single search result containing a full object with its relevance score.

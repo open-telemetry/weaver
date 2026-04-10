@@ -129,6 +129,9 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.future {
         enable_future_mode();
     }
+    if cli.allow_git_credentials {
+        weaver_common::vdir::enable_git_credentials();
+    }
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),

@@ -1,6 +1,6 @@
 //! Version 2 of semantic convention schema.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ pub mod catalog;
 pub mod entity;
 pub mod event;
 pub mod metric;
+pub mod provenance;
 pub mod refinements;
 pub mod registry;
 pub mod span;
@@ -48,6 +49,8 @@ pub mod stats;
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
+    /// Always `"resolved/2.0"` in this version.
+    #[schemars(extend("const" = "resolved/2.0"))]
     pub file_format: String,
     /// Schema URL that this file is published at.
     pub schema_url: SchemaUrl,
@@ -57,6 +60,9 @@ pub struct ResolvedTelemetrySchema {
     pub registry: Registry,
     /// Refinements for the registry
     pub refinements: Refinements,
+    /// The list of dependencies of the current instrumentation application or library.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub dependencies: BTreeSet<SchemaUrl>,
 }
 
 impl ResolvedTelemetrySchema {
@@ -74,6 +80,8 @@ impl ResolvedTelemetrySchema {
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         // TODO - get manifests
         SchemaChanges {
+            head_schema_url: self.schema_url.clone(),
+            baseline_schema_url: baseline_schema.schema_url.clone(),
             registry: self.registry_diff(baseline_schema),
         }
     }
@@ -121,8 +129,8 @@ impl ResolvedTelemetrySchema {
 impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     type Error = crate::error::Error;
     fn try_from(value: crate::ResolvedTelemetrySchema) -> Result<Self, Self::Error> {
-        let (attribute_catalog, registry, refinements) =
-            convert_v1_to_v2(value.catalog, value.registry)?;
+        let (attribute_catalog, registry, refinements, dependencies) =
+            convert_v1_to_v2(value.catalog, value.registry, value.dependencies)?;
         let schema_url_str = value.schema_url.clone();
         let schema_url: SchemaUrl =
             value
@@ -139,6 +147,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
             attribute_catalog,
             registry,
             refinements,
+            dependencies,
         })
     }
 }
@@ -159,14 +168,65 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
     r: crate::registry::Registry,
-) -> Result<(Vec<Attribute>, Registry, Refinements), crate::error::Error> {
+    dependencies: BTreeSet<SchemaUrl>,
+) -> Result<(Vec<Attribute>, Registry, Refinements, BTreeSet<SchemaUrl>), crate::error::Error> {
+    let deps_list: Vec<_> = dependencies.iter().cloned().collect();
+
+    let get_provenance = |g: &crate::registry::Group| -> provenance::Provenance {
+        let mut prov = provenance::Provenance::default();
+        if let Some(p) = g.provenance() {
+            prov.path = p.path.clone();
+            if p.schema_url.to_string() != r.registry_url {
+                // Note: if idx is not found, it means this came from *ourselves* not from a dependency.
+                // In that instance we don't fill out dependency provenance.
+                if let Some(idx) = deps_list.iter().position(|u| u == &p.schema_url) {
+                    prov.source = Some(provenance::DependencyRef(idx as u32));
+                }
+            }
+        }
+        prov
+    };
+
+    let attr_provenance = |a: &crate::attribute::Attribute| -> provenance::Provenance {
+        // Try to find which group first defined an attribute, using V1 lineage.
+        for group in r.groups.iter() {
+            if let Some(lineage) = group.lineage.as_ref() {
+                if let Some(attr_lineage) = lineage.attribute(&a.name) {
+                    if attr_lineage.source_group == group.id {
+                        return get_provenance(group);
+                    }
+                }
+            }
+        }
+
+        // Fallback: check where it was first defined using the Catalog's root_attribute.
+        if let Some((_, source_group_id)) = c.root_attribute(&a.name) {
+            // Is it a local group?
+            if let Some(group) = r.groups.iter().find(|g| g.id == *source_group_id) {
+                return get_provenance(group);
+            }
+            // Is it a V2 dependency group?
+            // See crates/weaver_resolver/src/attribute.rs for more information on this
+            // workaround for V2 -> V1 -> V2.
+            if let Some(dep_name) = source_group_id.strip_prefix("v2_dependency.") {
+                let mut prov = provenance::Provenance::default();
+                if let Some(idx) = deps_list.iter().position(|u| u.name() == dep_name) {
+                    prov.source = Some(provenance::DependencyRef(idx as u32));
+                }
+                return prov;
+            }
+        }
+
+        provenance::Provenance::default()
+    };
+
     // When pulling attributes, as we collapse things, we need to filter
     // to just unique.
     let attributes: HashSet<Attribute> = c
-        .attributes
-        .iter()
+        .attributes()
         .cloned()
         .map(|a| {
+            let provenance = attr_provenance(&a);
             Attribute {
                 key: a.name,
                 r#type: a.r#type,
@@ -174,13 +234,13 @@ pub fn convert_v1_to_v2(
                 common: CommonFields {
                     brief: a.brief,
                     note: a.note,
-                    // TODO - Check this assumption.
                     stability: a
                         .stability
                         .unwrap_or(weaver_semconv::stability::Stability::Alpha),
                     deprecated: a.deprecated,
                     annotations: a.annotations.unwrap_or_default(),
                 },
+                provenance,
             }
         })
         .collect();
@@ -249,6 +309,7 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
+                        provenance: get_provenance(g),
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
@@ -287,6 +348,7 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
+                            provenance: get_provenance(g),
                         },
                     });
                 }
@@ -327,6 +389,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        provenance: get_provenance(g),
                     };
                     if !is_refinement {
                         events.push(event.clone());
@@ -395,6 +458,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    provenance: get_provenance(g),
                 };
                 if is_refinement {
                     metric_refinements.push(metric::MetricRefinement {
@@ -446,6 +510,7 @@ pub fn convert_v1_to_v2(
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
+                    provenance: get_provenance(g),
                 });
             }
             GroupType::AttributeGroup => {
@@ -476,6 +541,7 @@ pub fn convert_v1_to_v2(
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
+                        provenance: get_provenance(g),
                     });
                 }
             }
@@ -506,6 +572,8 @@ pub fn convert_v1_to_v2(
             }
         }
     }
+    attributes.sort_by(|a, b| a.0.cmp(&b.0));
+    attributes.dedup();
 
     let v2_registry = Registry {
         attributes,
@@ -520,7 +588,7 @@ pub fn convert_v1_to_v2(
         metrics: metric_refinements,
         events: event_refinements,
     };
-    Ok((v2_catalog.into(), v2_registry, v2_refinements))
+    Ok((v2_catalog.into(), v2_registry, v2_refinements, dependencies))
 }
 
 /// A trait that defines a signal, used for performing "diff"
@@ -616,8 +684,8 @@ mod tests {
 
     #[test]
     fn test_convert_span_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -639,6 +707,9 @@ mod tests {
                 value: None,
                 role: None,
             },
+            None,
+        );
+        let ref1 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -660,8 +731,12 @@ mod tests {
                 value: None,
                 role: None,
             },
-        ]);
-        let mut refinement_span_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+            None,
+        );
+        let test_refs = [ref0, ref1];
+        let v1_catalog = builder.build();
+        let mut refinement_span_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_span_lineage.extends("span.my-span");
         refinement_span_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
@@ -690,6 +765,7 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -713,12 +789,14 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
             ],
         };
-
-        let (catalog, v2_registry, v2_refinements) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let dependencies = BTreeSet::new();
+        let (catalog, v2_registry, v2_refinements, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+                .expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(catalog.len(), 1);
         // Assert one attribute shows up, due to lineage.
@@ -744,8 +822,8 @@ mod tests {
 
     #[test]
     fn test_convert_metric_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -767,6 +845,9 @@ mod tests {
                 value: None,
                 role: None,
             },
+            None,
+        );
+        let ref1 = builder.add(
             Attribute {
                 name: "test.key".to_owned(),
                 r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
@@ -788,8 +869,12 @@ mod tests {
                 value: None,
                 role: None,
             },
-        ]);
-        let mut refinement_metric_lineage = GroupLineage::new(Provenance::new("tmp", "tmp"));
+            None,
+        );
+        let test_refs = [ref0, ref1];
+        let v1_catalog = builder.build();
+        let mut refinement_metric_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
         refinement_metric_lineage.extends("metric.http");
         refinement_metric_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
@@ -818,6 +903,7 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -841,12 +927,14 @@ mod tests {
                     annotations: None,
                     entity_associations: vec![],
                     visibility: None,
+                    is_v2: false,
                 },
             ],
         };
-
-        let (_, v2_registry, v2_refinements) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let dependencies = BTreeSet::new();
+        let (_, v2_registry, v2_refinements, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+                .expect("Failed to convert v1 to v2");
         // assert only ONE attribute due to sharing.
         assert_eq!(v2_registry.attributes.len(), 1);
         // assert attribute fields not shared show up on ref in span.
@@ -870,28 +958,33 @@ mod tests {
 
     #[test]
     fn test_convert_event_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([Attribute {
-            name: "test.key".to_owned(),
-            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
-            brief: "".to_owned(),
-            examples: None,
-            tag: None,
-            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-            ),
-            sampling_relevant: None,
-            note: "".to_owned(),
-            stability: Some(Stability::Stable),
-            deprecated: None,
-            prefix: false,
-            tags: None,
-            annotations: None,
-            value: None,
-            role: None,
-        }]);
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let test_refs = [ref0];
+        let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![Group {
@@ -916,11 +1009,13 @@ mod tests {
                 annotations: None,
                 entity_associations: vec![],
                 visibility: None,
+                is_v2: false,
             }],
         };
+        let dependencies = BTreeSet::new();
 
-        let (_, v2_registry, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let (_, v2_registry, _, _) = convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+            .expect("Failed to convert v1 to v2");
         assert_eq!(v2_registry.events.len(), 1);
         if let Some(event) = v2_registry.events.first() {
             assert_eq!(event.name, "my-event".to_owned().into());
@@ -929,28 +1024,33 @@ mod tests {
 
     #[test]
     fn test_convert_entity_v1_to_v2() {
-        let mut v1_catalog = crate::catalog::Catalog::from_attributes(vec![]);
-        let test_refs = v1_catalog.add_attributes([Attribute {
-            name: "test.key".to_owned(),
-            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
-            brief: "".to_owned(),
-            examples: None,
-            tag: None,
-            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-            ),
-            sampling_relevant: None,
-            note: "".to_owned(),
-            stability: Some(Stability::Stable),
-            deprecated: None,
-            prefix: false,
-            tags: None,
-            annotations: None,
-            value: None,
-            role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
-        }]);
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
+            },
+            None,
+        );
+        let test_refs = [ref0];
+        let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![Group {
@@ -969,38 +1069,50 @@ mod tests {
                 instrument: None,
                 unit: None,
                 name: Some("my-entity".to_owned()),
-                lineage: None,
+                lineage: Some(GroupLineage::new(Provenance::new(
+                    "https://my.dependency.url/1.0.0".try_into().unwrap(),
+                    "/path/to/source.yaml",
+                ))),
                 display_name: None,
                 body: None,
                 annotations: None,
                 entity_associations: vec![],
                 visibility: None,
+                is_v2: false,
             }],
         };
-
-        let (_, v2_registry, _) =
-            convert_v1_to_v2(v1_catalog, v1_registry).expect("Failed to convert v1 to v2");
+        let mut dependencies = BTreeSet::new();
+        let _ = dependencies.insert("https://my.dependency.url/1.0.0".try_into().unwrap());
+        let (_, v2_registry, _, deps_out) = convert_v1_to_v2(v1_catalog, v1_registry, dependencies)
+            .expect("Failed to convert v1 to v2");
+        assert_eq!(deps_out.len(), 1);
+        assert!(deps_out.contains(&"https://my.dependency.url/1.0.0".try_into().unwrap()));
         assert_eq!(v2_registry.entities.len(), 1);
         if let Some(entity) = v2_registry.entities.first() {
             assert_eq!(entity.r#type, "my-entity".to_owned().into());
             assert_eq!(entity.identity.len(), 1);
+            assert_eq!(entity.provenance.source, Some(provenance::DependencyRef(0)));
+            assert_eq!(entity.provenance.path, "/path/to/source.yaml");
         }
     }
 
     #[test]
     fn test_try_from_v1_to_v2() {
+        let mut dependencies = BTreeSet::new();
+        let _ = dependencies.insert("http://dependency/url/1.0.0".try_into().unwrap());
+
         let v1_schema = crate::ResolvedTelemetrySchema {
             file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
             registry_id: "my-registry".to_owned(),
-            catalog: crate::catalog::Catalog::from_attributes(vec![]),
+            catalog: crate::catalog::Catalog::default(),
             registry: crate::registry::Registry {
                 registry_url: "http://another/url/1.0".to_owned(),
                 groups: vec![],
             },
             instrumentation_library: None,
             resource: None,
-            dependencies: vec![],
+            dependencies: dependencies.clone(),
             versions: None,
             registry_manifest: None,
         };
@@ -1013,6 +1125,7 @@ mod tests {
             v2_schema.schema_url,
             "http://test/schemas/1.0.0".try_into().unwrap()
         );
+        assert_eq!(v2_schema.dependencies, dependencies);
     }
 
     #[test]
@@ -1031,6 +1144,7 @@ mod tests {
                 deprecated: None,
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         baseline.registry.attributes.push(AttributeRef(0));
         let changes = baseline.diff(&baseline);
@@ -1053,6 +1167,7 @@ mod tests {
                 deprecated: None,
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         baseline.registry.attributes.push(AttributeRef(0));
         let mut latest = empty_v2_schema();
@@ -1072,6 +1187,7 @@ mod tests {
                 }),
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         latest.attribute_catalog.push(AttributeV2 {
             key: "test.key.new".to_owned(),
@@ -1086,6 +1202,7 @@ mod tests {
                 deprecated: None,
                 annotations: Default::default(),
             },
+            provenance: Default::default(),
         });
         latest.registry.attributes.push(AttributeRef(0));
         latest.registry.attributes.push(AttributeRef(1));
@@ -1121,6 +1238,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
         latest.registry.metrics.push(Metric {
@@ -1130,6 +1248,7 @@ mod tests {
             attributes: vec![],
             entity_associations: vec![],
             common: CommonFields::default(),
+            provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1155,6 +1274,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
         latest.registry.entities.push(Entity {
@@ -1167,6 +1287,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1190,6 +1311,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
         latest.registry.events.push(Event {
@@ -1202,6 +1324,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
+            provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
         assert!(!diff.is_empty());
@@ -1237,6 +1360,7 @@ mod tests {
                 metrics: vec![],
                 events: vec![],
             },
+            dependencies: BTreeSet::new(),
         }
     }
 }

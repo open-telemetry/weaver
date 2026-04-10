@@ -32,6 +32,14 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub future: bool,
 
+    /// Allow git credential helpers when cloning registries from private repositories.
+    /// By default, git operations are isolated and cannot access global git config
+    /// or credential helpers. Enable this flag to authenticate with private registries
+    /// using your system's configured git credential helpers (e.g., osxkeychain,
+    /// git-credential-manager).
+    #[arg(long, global = true)]
+    pub allow_git_credentials: bool,
+
     /// List of supported commands
     #[command(subcommand)]
     pub command: Option<Commands>,

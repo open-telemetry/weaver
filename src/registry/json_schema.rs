@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
-use weaver_semconv::semconv::Versioned;
+use weaver_semconv::semconv::SemConvSpecV1;
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
@@ -42,13 +42,17 @@ pub enum JsonSchemaType {
     /// The JSON schema of the V2 resolved registry.
     ResolvedRegistryV2,
     /// The JSON schema we send to Rego / Jinja.
-    ForgeRegistryV2,
+    MaterializedRegistryV2,
     /// The JSON schema of the diff
     Diff,
     /// The JSON schema of the diff V2
     DiffV2,
-    /// The JSON schema of the `.weaver.toml` configuration file.
-    WeaverConfig,
+    /// The JSON schema of the publication manifest produced by `weaver registry package`.
+    PublicationManifestV2,
+    /// Definition manifest describing unpublished registry.
+    DefinitionManifestV2,
+    /// The JSON schema of a policy finding returned by Rego policies.
+    PolicyFinding,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
@@ -56,17 +60,23 @@ pub enum JsonSchemaType {
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
-        JsonSchemaType::SemconvGroup => schema_for!(Versioned),
-        JsonSchemaType::SemconvDefinitionV2 => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpecV1),
+        JsonSchemaType::SemconvDefinitionV2 => weaver_semconv::v2::SemConvSpecV2::output_schema(),
         JsonSchemaType::ResolvedRegistryV2 => {
             schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
         }
-        JsonSchemaType::ForgeRegistryV2 => {
+        JsonSchemaType::MaterializedRegistryV2 => {
             schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
         }
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
-        JsonSchemaType::WeaverConfig => schema_for!(weaver_config::WeaverConfig),
+        JsonSchemaType::DefinitionManifestV2 => {
+            schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
+        }
+        JsonSchemaType::PublicationManifestV2 => {
+            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
+        }
+        JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
     };
 
     if let Some(p) = &args.output {
@@ -107,6 +117,7 @@ mod tests {
                 debug: 0,
                 quiet: false,
                 future: false,
+                allow_git_credentials: false,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
                         json_schema: json_schema_type.clone(),

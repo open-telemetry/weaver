@@ -10,11 +10,35 @@ Additionally, Weaver has its own CNCF slack channel at [#otel-weaver](https://cl
 
 ## Our Development Process
 
+For an overview of the project architecture and crate descriptions, see [docs/architecture.md](docs/architecture.md).
+For a guide on making schema changes, see [docs/developer-guide.md](docs/developer-guide.md).
+
 ### How to build  and test a change
 
 Run `cargo xtask validate` to check the structure of the project.
 
-Run `cargo test --all` to run the tests.
+Run `cargo test --all` to run the tests. Alternatively, use
+[`cargo-nextest`](https://nexte.st/) for faster and better-formatted test output:
+
+You can install it with:
+
+```bash
+cargo install cargo-nextest --locked
+```
+
+and run all tests with:
+
+```bash
+cargo nextest run --all
+```
+
+to run tests related to specific package, use `-p {package}`
+
+```bash
+cargo nextest run -p {package}
+```
+
+See [docs/architecture.md](docs/architecture.md) for the full list of packages and their descriptions.
 
 Run `cargo build` to build a local binary for any additional tests. The resulting binary will be placed in the `./output` directory.
 
@@ -24,6 +48,14 @@ NOTE: You will need to run `pnpm build` in the `ui` directory prior to running a
 
 ```bash
 cargo run -- --quiet markdown-help > docs/usage.md
+```
+
+**When making changes to the semconv schema definitions, regenerate the JSON schema files by running:**
+
+```bash
+cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json
+cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json
+cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json
 ```
 
 **Run `just` before any push to pre-validate all the steps performed by CI.**
@@ -172,11 +204,10 @@ For github groups see the [codeowners](CODEOWNERS) file.
 - [Jeremy Blythe](https://github.com/jerbly) Evertz
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
 - [Laurent Quérel](https://github.com/lquerel) F5 Networks
+- [Liudmila Molkova](https://github.com/lmolkova), Grafana Labs
 
 For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 
 ### Approvers
-
-- [Liudmila Molkova](https://github.com/lmolkova), Grafana Labs
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).

@@ -8,10 +8,12 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::attribute::{self};
+use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::attribute::AttributeSpec;
+use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::dependency::ResolvedDependency;
 
@@ -23,16 +25,25 @@ pub struct AttributeCatalog {
     #[serde(skip)]
     /// A map of root attributes indexed by their name.
     /// Root attributes are attributes that doesn't inherit from another attribute.
-    root_attributes: HashMap<String, AttributeWithGroupId>,
+    root_attributes: HashMap<String, AttributeWithSource>,
 }
 
-#[derive(Debug, PartialEq)]
-/// The Attribute with its group ID.
-pub struct AttributeWithGroupId {
+#[derive(Debug, PartialEq, Clone)]
+/// The source of an attribute (local or dependency).
+pub enum AttributeSource {
+    /// The attribute is defined locally in a group.
+    Local { group_id: String },
+    /// The attribute is defined in a dependency schema.
+    Dependency { schema_url: SchemaUrl },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+/// The Attribute with its source.
+pub struct AttributeWithSource {
     /// The attribute.
     pub attribute: attribute::Attribute,
-    /// The group ID.
-    pub group_id: String,
+    /// The source.
+    pub source: AttributeSource,
 }
 
 impl AttributeCatalog {
@@ -53,6 +64,25 @@ impl AttributeCatalog {
             .attribute_refs
             .entry(attr)
             .or_insert_with(|| AttributeRef(next_id))
+    }
+
+    /// Returns an attribute ref from the catalog and also registers the attribute
+    /// in `root_attributes` so its provenance is recorded.
+    pub fn attribute_ref_with_provenance(
+        &mut self,
+        attr: attribute::Attribute,
+        source: AttributeSource,
+    ) -> AttributeRef {
+        let attr_name = attr.name.clone();
+        let attr_ref = self.attribute_ref(attr.clone());
+        _ = self
+            .root_attributes
+            .entry(attr_name)
+            .or_insert_with(|| AttributeWithSource {
+                attribute: attr,
+                source,
+            });
+        attr_ref
     }
 
     /// Returns a list of deduplicated attributes ordered by their references.
@@ -140,7 +170,7 @@ impl AttributeCatalog {
                 role,
             } => {
                 let name;
-                let mut root_attr: Option<&AttributeWithGroupId> = self.root_attributes.get(r#ref);
+                let mut root_attr: Option<&AttributeWithSource> = self.root_attributes.get(r#ref);
                 // If we fail to find an attribute, check dependencies first.
                 if root_attr.is_none() {
                     if let Some(at) = dependencies.lookup_attribute(r#ref) {
@@ -149,7 +179,15 @@ impl AttributeCatalog {
                     }
                 }
                 if let Some(root_attr) = root_attr {
-                    let mut attr_lineage = AttributeLineage::new(&root_attr.group_id);
+                    let mut attr_lineage = match &root_attr.source {
+                        AttributeSource::Local { group_id } => AttributeLineage::new(group_id),
+                        AttributeSource::Dependency { schema_url } => {
+                            // Note: We didn't want to break V1 schema - so we encode v2 schema_url tracking via
+                            // this special string for now. This can round-trip for now, but looks odd when using
+                            // V2 with V1 output.  We expect this to be temporary.
+                            AttributeLineage::new(&format!("v2_dependency.{}", schema_url.name()))
+                        }
+                    };
 
                     if *prefix {
                         // depending on the prefix we either create embedded attribute or normal reference
@@ -201,9 +239,11 @@ impl AttributeCatalog {
                         // we need to add it to the dictionary of resolved attributes
                         _ = self.root_attributes.insert(
                             name,
-                            AttributeWithGroupId {
+                            AttributeWithSource {
                                 attribute: resolved_attr,
-                                group_id: group_id.to_owned(),
+                                source: AttributeSource::Local {
+                                    group_id: group_id.to_owned(),
+                                },
                             },
                         );
                     }
@@ -251,9 +291,11 @@ impl AttributeCatalog {
 
                 _ = self.root_attributes.insert(
                     id.to_owned(),
-                    AttributeWithGroupId {
+                    AttributeWithSource {
                         attribute: attr.clone(),
-                        group_id: group_id.to_owned(),
+                        source: AttributeSource::Local {
+                            group_id: group_id.to_owned(),
+                        },
                     },
                 );
                 Some(self.attribute_ref(attr))
@@ -262,19 +304,42 @@ impl AttributeCatalog {
     }
 }
 
+impl From<AttributeCatalog> for Catalog {
+    fn from(attr_catalog: AttributeCatalog) -> Self {
+        let root_attributes = attr_catalog
+            .root_attributes
+            .into_iter()
+            .map(|(k, v)| {
+                let source_str = match v.source {
+                    AttributeSource::Local { group_id } => group_id,
+                    AttributeSource::Dependency { schema_url } => {
+                        format!("v2_dependency.{}", schema_url.name())
+                    }
+                };
+                (k, (v.attribute, source_str))
+            })
+            .collect();
+        let mut attributes: Vec<(attribute::Attribute, AttributeRef)> =
+            attr_catalog.attribute_refs.into_iter().collect();
+        attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
+        let attributes = attributes.into_iter().map(|(attr, _)| attr).collect();
+        Catalog::new(attributes, root_attributes)
+    }
+}
+
 /// Helper trait for abstracting over V1 and V2 schema.
 trait AttributeLookup {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId>;
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource>;
 }
 
 impl AttributeLookup for Vec<ResolvedDependency> {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
         self.iter().find_map(|d| d.lookup_attribute(key))
     }
 }
 
 impl AttributeLookup for ResolvedDependency {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
         match self {
             ResolvedDependency::V1(schema) => schema.lookup_attribute(key),
             ResolvedDependency::V2(schema) => schema.lookup_attribute(key),
@@ -283,48 +348,24 @@ impl AttributeLookup for ResolvedDependency {
 }
 
 impl AttributeLookup for V1Schema {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
-        // TODO - fast lookup, not a table scan...
-        // Because of how the algorithm works, we need to looks across
-        // *all possible* groups for an attribute.
-        // Note: This *only* works with lineage and breaks otherwise.
-        let result = self.registry.groups.iter().find_map(|g| {
-            g.attributes
-                .iter()
-                .find_map(|ar| {
-                    self.catalog
-                        .attribute(ar)
-                        .filter(|a| a.name == key)
-                        .and_then(|a| {
-                            let lineage = g
-                                .lineage
-                                .as_ref()
-                                .and_then(|l| l.attribute(&a.name))
-                                .filter(|al| al.source_group == g.id);
-                            // We defined the attribute.
-                            if lineage.is_none() {
-                                Some(a.clone())
-                            } else {
-                                // We did not define the attribute.
-                                None
-                            }
-                        })
-                })
-                .map(|a| AttributeWithGroupId {
-                    attribute: a,
-                    group_id: g.id.to_owned(),
-                })
-        });
-        result
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
+        self.catalog
+            .root_attribute(key)
+            .map(|(attr, group_id)| AttributeWithSource {
+                attribute: attr.clone(),
+                source: AttributeSource::Local {
+                    group_id: group_id.to_owned(),
+                },
+            })
     }
 }
 
 impl AttributeLookup for V2Schema {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithGroupId> {
-        let fake_group_id = format!("v2_dependency.{}", self.schema_url.name());
-        self.attribute_catalog.iter().find_map(|attr| {
+    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
+        self.registry.attributes.iter().find_map(|attr_ref| {
+            let attr = self.attribute_catalog.get(attr_ref.0 as usize)?;
             if attr.key == key {
-                Some(AttributeWithGroupId {
+                Some(AttributeWithSource {
                     attribute: attribute::Attribute {
                         name: attr.key.clone(),
                         r#type: attr.r#type.clone(),
@@ -344,7 +385,9 @@ impl AttributeLookup for V2Schema {
                         value: None,
                         role: None,
                     },
-                    group_id: fake_group_id.clone(),
+                    source: AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    },
                 })
             } else {
                 None

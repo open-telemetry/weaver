@@ -1,0 +1,3 @@
+schema_url: https://test/schemas/1.0.0
+description: A test registry for packaging tests.
+stability: stable

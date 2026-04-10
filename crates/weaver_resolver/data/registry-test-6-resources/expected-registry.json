@@ -15,7 +15,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-6-resources/registry/resource-browser.yaml"
         },
         "attributes": {
@@ -43,7 +43,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
         }
       }

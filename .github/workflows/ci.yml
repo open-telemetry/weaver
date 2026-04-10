@@ -45,7 +45,7 @@ jobs:
       - name: Verify pnpm is available
         run: pnpm --version
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
@@ -67,6 +67,8 @@ jobs:
         run: cargo test --workspace --no-default-features
       - name: History check
         run: cargo xtask history
+      - name: Schema compat check
+        run: cargo xtask schema-compat
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
@@ -89,7 +91,7 @@ jobs:
       - name: Verify pnpm is available
         run: pnpm --version
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: ${{ env.MSRV }}
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
@@ -124,7 +126,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
@@ -150,7 +152,7 @@ jobs:
       - name: Verify pnpm is available
         run: pnpm --version
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
@@ -173,7 +175,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           # Not MSRV because its harder to jump between versions and people are
           # more likely to have stable
@@ -232,7 +234,7 @@ jobs:
       - name: Verify pnpm is available
         run: pnpm --version
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "stable"
           components: clippy
@@ -259,14 +261,14 @@ jobs:
           | sarif-fmt
         continue-on-error: true
       - name: Upload
-        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
       - name: Report status
         run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
   check-usage-docs:
-    name: Check usage docs
+    name: Check usage docs and schemas
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -282,7 +284,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: ui/pnpm-lock.yaml
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
@@ -294,13 +296,48 @@ jobs:
         working-directory: ./ui
       - name: Regenerate usage docs
         run: cargo run -- --quiet markdown-help > /tmp/usage.md
-      - name: Check docs/usage.md is up-to-date
+      - name: Regenerate schema files
         run: |
-          if ! diff -q docs/usage.md /tmp/usage.md > /dev/null 2>&1; then
-            echo "docs/usage.md is out of date. Run 'cargo run -- --quiet markdown-help > docs/usage.md' to regenerate it."
-            diff docs/usage.md /tmp/usage.md
-            exit 1
-          fi
+          cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o /tmp/semconv.schema.v2.json
+          cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o /tmp/semconv.resolved.v2.json
+          cargo run -- --quiet registry json-schema -j materialized-registry-v2 -o /tmp/semconv.materialized.v2.json
+          cargo run -- --quiet registry json-schema -j diff-v2 -o /tmp/semconv.diff.v2.json
+          cargo run -- --quiet registry json-schema -j policy-finding -o /tmp/policy.finding.json
+          cargo run -- --quiet registry json-schema -j publication-manifest-v2 -o /tmp/publication-manifest.v2.json
+          cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o /tmp/definition-manifest.v2.json
+      - name: Check generated files are up-to-date
+        run: |
+          failed=0
+
+          check_file() {
+            local repo_file="$1"
+            local tmp_file="$2"
+            local regen_cmd="$3"
+            if ! diff -q "$repo_file" "$tmp_file" > /dev/null 2>&1; then
+              echo "$repo_file is out of date. Run '$regen_cmd' to regenerate it."
+              diff "$repo_file" "$tmp_file"
+              failed=1
+            fi
+          }
+
+          check_file docs/usage.md /tmp/usage.md \
+            "cargo run -- --quiet markdown-help > docs/usage.md"
+          check_file schemas/semconv.schema.v2.json /tmp/semconv.schema.v2.json \
+            "cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json"
+          check_file schemas/semconv.resolved.v2.json /tmp/semconv.resolved.v2.json \
+            "cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json"
+          check_file schemas/policy.finding.json /tmp/policy.finding.json \
+            "cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json"
+          check_file schemas/semconv.materialized.v2.json /tmp/semconv.materialized.v2.json \
+            "cargo run -- --quiet registry json-schema -j materialized-registry-v2 -o ./schemas/semconv.materialized.v2.json"
+          check_file schemas/semconv.diff.v2.json /tmp/semconv.diff.v2.json \
+            "cargo run -- --quiet registry json-schema -j diff-v2 -o ./schemas/semconv.diff.v2.json"
+          check_file schemas/publication-manifest.v2.json /tmp/publication-manifest.v2.json \
+            "cargo run -- --quiet registry json-schema -j publication-manifest-v2 -o ./schemas/publication-manifest.v2.json"
+          check_file schemas/definition-manifest.v2.json /tmp/definition-manifest.v2.json \
+            "cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o ./schemas/definition-manifest.v2.json"
+
+          exit $failed
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
@@ -308,7 +345,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
@@ -317,7 +354,7 @@ jobs:
       - name: Gather coverage
         run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*'
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: open-telemetry/weaver

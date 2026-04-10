@@ -10,7 +10,7 @@ use weaver_common::log_success;
 use weaver_emit::{emit, ExporterConfig, RegistryVersion};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry emit` sub-command
@@ -53,23 +53,25 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
     };
     let weaver = WeaverEngine::new(&args.registry, &args.policy);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
-    if args.registry.v2 {
-        let resolved_v2: ResolvedV2 = resolved.try_into()?;
-        info!("Emitting v2 registry `{}`", args.registry.registry);
-        emit(
-            RegistryVersion::V2(resolved_v2.template_schema()),
-            &args.registry.registry.to_string(),
-            &exporter_config,
-        )
-        .combine_diag_msgs_with(&diag_msgs)?;
-    } else {
-        info!("Emitting v1 registry `{}`", args.registry.registry);
-        emit(
-            RegistryVersion::V1(resolved.template_schema()),
-            &args.registry.registry.to_string(),
-            &exporter_config,
-        )
-        .combine_diag_msgs_with(&diag_msgs)?;
+    match resolved {
+        crate::weaver::Resolved::V2(v) => {
+            info!("Emitting v2 registry `{}`", args.registry.registry);
+            emit(
+                RegistryVersion::V2(v.template_schema()),
+                &args.registry.registry.to_string(),
+                &exporter_config,
+            )
+            .combine_diag_msgs_with(&diag_msgs)?;
+        }
+        crate::weaver::Resolved::V1(v) => {
+            info!("Emitting v1 registry `{}`", args.registry.registry);
+            emit(
+                RegistryVersion::V1(v.template_schema()),
+                &args.registry.registry.to_string(),
+                &exporter_config,
+            )
+            .combine_diag_msgs_with(&diag_msgs)?;
+        }
     }
     log_success(format!("Emitted registry `{}`", args.registry.registry));
 
@@ -97,6 +99,7 @@ mod tests {
             debug: 1,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Emit(RegistryEmitArgs {
                     registry: RegistryArgs {

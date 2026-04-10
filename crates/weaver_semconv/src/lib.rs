@@ -358,6 +358,24 @@ pub enum Error {
         error: String,
     },
 
+    /// A publication registry manifest is invalid.
+    #[error("The publication manifest at {path:?} is invalid: {details}")]
+    #[diagnostic(severity(Error))]
+    InvalidPublicationManifest {
+        /// The path to the publication manifest file.
+        path: PathBuf,
+        /// Details about what is wrong.
+        details: String,
+    },
+
+    /// A publication manifest was passed where a definition registry was expected.
+    #[error("Registry `{schema_url}` contains a publication manifest; `weaver registry package` requires a definition registry as input.")]
+    #[diagnostic(severity(Error))]
+    UnexpectedPublicationManifest {
+        /// The schema URL of the publication manifest.
+        schema_url: String,
+    },
+
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -698,7 +716,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, YamlValue};
+    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
@@ -706,7 +724,10 @@ mod tests {
     /// No error should be emitted.
     #[test]
     fn test_valid_semconv_registry() {
-        let result = SemConvRegistry::try_from_path_pattern("main", "data/*.yaml")
+        let schema_url: SchemaUrl = "https://main/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let result = SemConvRegistry::try_from_path_pattern(schema_url, "data/*.yaml")
             .into_result_failing_non_fatal();
         assert!(result.is_ok(), "{:#?}", result.err().unwrap());
     }
@@ -714,8 +735,11 @@ mod tests {
     #[test]
     fn test_invalid_semconv_registry() {
         let yaml_files = vec!["data/invalid/*.yaml"];
+        let schema_url: SchemaUrl = "https://main/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
         for yaml in yaml_files {
-            let result = SemConvRegistry::try_from_path_pattern("main", yaml)
+            let result = SemConvRegistry::try_from_path_pattern(schema_url.clone(), yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

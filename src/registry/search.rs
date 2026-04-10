@@ -137,7 +137,7 @@ impl<'a> SearchApp<'a> {
     fn result_set(&'a self) -> impl Iterator<Item = &'a Attribute> {
         self.schema
             .catalog
-            .iter()
+            .attributes()
             .filter(|a| a.name.contains(self.search_string().as_str()))
     }
 
@@ -366,7 +366,7 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
 fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
     let results = schema
         .catalog()
-        .iter()
+        .attributes()
         .filter(|a| a.name.contains(pattern))
         .map(|a| a.name.to_owned())
         .join("\n");
@@ -375,11 +375,6 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
 
 pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Resolving registry `{}`", args.registry.registry);
-
-    // Check for V2 schema incompatibility
-    if args.registry.v2 {
-        return Err(DiagnosticMessages::from_error(Error::V2SchemaIncompatible));
-    }
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy_config = PolicyArgs {
@@ -396,13 +391,17 @@ pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, Diagn
     log::warn!("It is not compatible with V2 schema.");
     log::warn!("Please search the generated documentation instead.");
 
-    // We should have two modes:
-    // 1. a single input we take in and directly output some rendered result.
-    // 2. An interactive UI
+    let schema_v1 = match resolved {
+        crate::weaver::Resolved::V1(v) => v.into_resolved_schema(),
+        crate::weaver::Resolved::V2(_) => {
+            return Err(DiagnosticMessages::from_error(Error::V2SchemaIncompatible))
+        }
+    };
+
     if let Some(pattern) = args.search_string.as_ref() {
-        run_command_line_search(resolved.resolved_schema(), pattern);
+        run_command_line_search(&schema_v1, pattern);
     } else if stdout().is_terminal() {
-        run_ui(resolved.resolved_schema()).map_err(DiagnosticMessages::from_error)?;
+        run_ui(&schema_v1).map_err(DiagnosticMessages::from_error)?;
     } else {
         // TODO - custom error
         println!("Error: Could not find a terminal, and no search string was provided.");

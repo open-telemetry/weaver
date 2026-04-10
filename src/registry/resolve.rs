@@ -7,13 +7,20 @@ use std::path::PathBuf;
 use clap::Args;
 
 use log::info;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use miette::Diagnostic;
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{PolicyError, ResolvedV2, WeaverEngine};
+use crate::weaver::{PolicyError, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
+
+#[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
+enum Error {
+    #[error("The 'weaver registry resolve' command is deprecated and will be removed in a future version. Please use 'weaver registry generate' or 'weaver registry package' instead.")]
+    Deprecated,
+}
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
@@ -51,8 +58,15 @@ pub struct RegistryResolveArgs {
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
 pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, DiagnosticMessages> {
-    info!("Resolving registry `{}`", args.registry.registry);
+    // Display deprecation warning
+    if is_future_mode_enabled() {
+        return Err(DiagnosticMessages::from_error(Error::Deprecated));
+    }
 
+    log::warn!("The 'weaver registry resolve' command is deprecated and will be removed in a future version.");
+    log::warn!("Please use 'weaver registry generate' or 'weaver registry package' instead.");
+
+    info!("Resolving registry `{}`", args.registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
     let weaver = WeaverEngine::new(&args.registry, &args.policy);
     let registry_path = &args.registry.registry;
@@ -78,18 +92,12 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
     let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
         .map_err(DiagnosticMessages::from)?;
 
-    if args.registry.v2 {
-        let resolved_v2: ResolvedV2 = resolved.try_into()?;
-        resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
-        output
-            .generate(&resolved_v2.template_schema())
-            .map_err(DiagnosticMessages::from)?;
-    } else {
-        resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        output
-            .generate(&resolved.template_schema())
-            .map_err(DiagnosticMessages::from)?;
+    resolved.check_after_resolution_policy(&mut diag_msgs)?;
+    match &resolved {
+        crate::weaver::Resolved::V1(v) => output.generate(v.template_schema()),
+        crate::weaver::Resolved::V2(v) => output.generate(v.template_schema()),
     }
+    .map_err(DiagnosticMessages::from)?;
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -115,6 +123,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -147,6 +156,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {

@@ -11,6 +11,12 @@
         1
       ],
       "name": "imported.entity.a",
+      "lineage": {
+        "provenance": {
+          "schema_url": "https://opentelemetry.io/schemas/1.0.0",
+          "path": ""
+        }
+      },
       "annotations": {}
     },
     {
@@ -23,6 +29,12 @@
         2
       ],
       "name": "imported.event.a",
+      "lineage": {
+        "provenance": {
+          "schema_url": "https://opentelemetry.io/schemas/1.0.0",
+          "path": ""
+        }
+      },
       "annotations": {},
       "entity_associations": [
         "imported.entity.a"
@@ -40,6 +52,12 @@
       "metric_name": "imported.metric.a",
       "instrument": "histogram",
       "unit": "s",
+      "lineage": {
+        "provenance": {
+          "schema_url": "https://opentelemetry.io/schemas/1.0.0",
+          "path": ""
+        }
+      },
       "annotations": {},
       "entity_associations": [
         "imported.entity.a"
@@ -58,7 +76,7 @@
       "name": "my-span",
       "lineage": {
         "provenance": {
-          "registry_id": "acme.com/schemas",
+          "schema_url": "https://acme.com/schemas/0.1.0",
           "path": "data/registry-test-published-1/registry/main.yaml"
         },
         "attributes": {

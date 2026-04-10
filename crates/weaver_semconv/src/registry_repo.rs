@@ -105,8 +105,9 @@ impl RegistryRepo {
         let manifest_path = find_manifest_path(registry.path());
         if let Some(ref path) = manifest_path {
             let registry_manifest = RegistryManifest::try_from_file(path, nfes)?;
+            let schema_url = registry_manifest.schema_url().clone();
             Ok(Self {
-                schema_url: registry_manifest.schema_url.clone(),
+                schema_url,
                 registry,
                 manifest: Some(registry_manifest),
                 manifest_path,
@@ -157,7 +158,10 @@ impl RegistryRepo {
     #[must_use]
     pub fn resolved_schema_uri(&self) -> Option<VirtualDirectoryPath> {
         let manifest = self.manifest.as_ref()?;
-        let resolved_uri: &str = manifest.resolved_schema_uri.as_ref()?;
+        let resolved_uri: &str = match manifest {
+            RegistryManifest::Publication(m) => &m.resolved_schema_uri,
+            RegistryManifest::Definition(_) => return None,
+        };
         match get_path_type(resolved_uri) {
             weaver_common::PathType::RelativePath => {
                 // We need to understand if the manifest URI is the same as the registry URI.
@@ -181,6 +185,7 @@ impl RegistryRepo {
     }
 
     /// Returns the registry schema URL.
+    #[must_use]
     pub fn schema_url(&self) -> &SchemaUrl {
         &self.schema_url
     }

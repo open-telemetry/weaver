@@ -13,7 +13,7 @@
       "name": "host",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-lineage-3/registry/groups.yaml"
         },
         "attributes": {
@@ -53,7 +53,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-lineage-3/registry/groups.yaml"
         }
       }

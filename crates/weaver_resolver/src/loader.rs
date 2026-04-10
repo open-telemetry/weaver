@@ -22,6 +22,7 @@ use crate::Error;
 const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// The result of loading a semantic convention URL prior to resolution.
+#[allow(clippy::large_enum_variant)]
 pub enum LoadedSemconvRegistry {
     /// The semconv repository was unresolved and needs to be run through resolution.
     Unresolved {
@@ -46,6 +47,7 @@ impl LoadedSemconvRegistry {
     pub fn create_from_string(spec: &str) -> Result<LoadedSemconvRegistry, Error> {
         use std::io::Write;
         use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_semconv::schema_url::SchemaUrl;
         let path: VirtualDirectoryPath = "data".try_into().expect("Bad fake path for test");
         let repo =
             RegistryRepo::try_new(None, &path, &mut vec![]).map_err(|e| Error::InvalidUrl {
@@ -64,7 +66,7 @@ impl LoadedSemconvRegistry {
                 error: format!("Failed to write to temp file: {e}"),
             })?;
         let spec_with_provenance =
-            SemConvSpecWithProvenance::from_file("default", temp_file.path())
+            SemConvSpecWithProvenance::from_file(SchemaUrl::new_unknown(), temp_file.path())
                 .into_result_failing_non_fatal()
                 .map_err(|e| Error::InvalidUrl {
                     url: "test string".to_owned(),
@@ -206,13 +208,13 @@ fn load_semconv_repository_recursive(
         if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
             load_resolved_repository(&resolved_url)
         } else {
-            if manifest.dependencies.len() > 1 {
+            if manifest.dependencies().len() > 1 {
                 todo!("Multiple dependencies is not supported yet.")
             }
             // Load dependencies.
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors: Vec<Error> = vec![];
-            for d in manifest.dependencies.iter() {
+            for d in manifest.dependencies().iter() {
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
                     Ok(d_repo) => {
@@ -317,7 +319,7 @@ fn load_definition_repository(
 
                     // TODO - less confusing way to load semconv specs.
                     vec![SemConvRegistry::semconv_spec_from_file(
-                        registry_repo.name(),
+                        registry_repo.schema_url().clone(),
                         entry.path(),
                         |path| {
                             // Replace the local path with the git URL combined with the relative path
