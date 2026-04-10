@@ -13,6 +13,7 @@ use crate::v2::{provenance::Provenance, Signal};
 
 /// The definition of an Attribute.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct Attribute {
@@ -42,6 +43,7 @@ pub struct Attribute {
 #[derive(
     Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema, Hash,
 )]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AttributeRef(pub u32);
 
 impl Display for AttributeRef {

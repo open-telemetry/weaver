@@ -27,6 +27,7 @@ use crate::v2::{
 ///
 /// Note: The registry does not include signal refinements.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Registry {
     /// Catalog of attributes definitions.
