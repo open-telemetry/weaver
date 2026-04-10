@@ -1,4 +1,4 @@
-file_format: manifest/2.0.0
+file_format: manifest/2.0
 stability: stable
 schema_url: https://opentelemetry.io/schemas/1.0.0
 resolved_schema_uri: resolved_schema.yaml

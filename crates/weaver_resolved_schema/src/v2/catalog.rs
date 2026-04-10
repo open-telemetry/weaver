@@ -133,6 +133,7 @@ mod test {
                 deprecated: None,
                 annotations: annotations.clone(),
             },
+            provenance: Default::default(),
         }]);
 
         let result = catalog.convert_ref(&crate::attribute::Attribute {

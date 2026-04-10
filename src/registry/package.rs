@@ -187,7 +187,7 @@ mod tests {
             serde_yaml::from_str(&resolved_content).expect("resolved.yaml is not valid YAML");
         assert_eq!(
             resolved["file_format"].as_str(),
-            Some("resolved/2.0.0"),
+            Some("resolved/2.0"),
             "resolved.yaml does not contain the expected v2 resolved schema file_format"
         );
 

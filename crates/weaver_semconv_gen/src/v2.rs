@@ -449,20 +449,23 @@ mod tests {
 
     fn test_registry() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: "resolved/2.0.0".to_owned(),
+            file_format: "resolved/2.0".to_owned(),
             schema_url: "https://todo/1.0.0".try_into().unwrap(),
             attribute_catalog: vec![Attribute {
                 key: "attr1".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields::default(),
+                provenance: Default::default(),
             }],
+            dependencies: std::collections::BTreeSet::new(),
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![AttributeGroup {
                     id: "test.common".to_owned().into(),
                     attributes: vec![AttributeRef(0)],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 spans: vec![Span {
                     r#type: "trace.test".to_owned().into(),
@@ -479,6 +482,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![Metric {
                     name: "test.metric".to_owned().into(),
@@ -492,6 +496,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![Event {
                     name: "test.event".to_owned().into(),
@@ -503,6 +508,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 entities: vec![Entity {
                     r#type: "test.entity".to_owned().into(),
@@ -514,6 +520,7 @@ mod tests {
                     }],
                     description: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
             },
             refinements: Refinements {
@@ -534,6 +541,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 metrics: vec![MetricRefinement {
@@ -550,6 +558,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 events: vec![EventRefinement {
@@ -564,6 +573,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
             },

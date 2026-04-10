@@ -308,6 +308,14 @@ fn compare_requirement_level(
 ) -> Result<std::cmp::Ordering, minijinja::Error> {
     fn sort_ordinal_for_requirement(attribute: &Value) -> Result<i32, minijinja::Error> {
         let level = attribute.get_attr("requirement_level")?;
+        // Attributes without a requirement_level sort to ordinal 0 (front of
+        // the list). In practice, mixing attributes that have a
+        // requirement_level with those that do not is not expected.
+        // With v2, we could be sorting a list of attributes where each
+        // attribute has requirement level or none of them do.
+        if level.is_undefined() {
+            return Ok(0);
+        }
         if level
             .get_attr("conditionally_required")
             .is_ok_and(|v| !v.is_undefined())
@@ -2326,6 +2334,44 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_attribute_sort_missing_requirement_level() {
+        // Attributes without a requirement_level are v2 attributes (e.g. from
+        // AttributeGroup). They receive ordinal 0 so they are grouped at the
+        // front of the list, separate from v1 attributes with explicit levels.
+        let attributes: Vec<serde_json::Value> = vec![
+            json!({"key": "no_req.b"}),
+            json!({"key": "req.a", "requirement_level": "required"}),
+            json!({"key": "no_req.a"}),
+            json!({"key": "opt.a", "requirement_level": "opt_in"}),
+        ];
+        let result =
+            attribute_sort(Value::from_serialize(&attributes)).expect("Failed to sort attributes");
+        let result_seq = result
+            .try_iter()
+            .expect("Result was not a sequence!")
+            .collect::<Vec<_>>();
+        let keys: Vec<String> = result_seq
+            .iter()
+            .map(|item| item.get_attr("key").unwrap().as_str().unwrap().to_owned())
+            .collect();
+        let expected_keys: Vec<String> = vec![
+            // Missing requirement_level (v2 attributes) sorted first (ordinal 0)
+            "no_req.a".to_owned(),
+            "no_req.b".to_owned(),
+            // Required second
+            "req.a".to_owned(),
+            // OptIn last
+            "opt.a".to_owned(),
+        ];
+        for (idx, (result, expected)) in keys.iter().zip(expected_keys.iter()).enumerate() {
+            assert_eq!(
+                result, expected,
+                "Expected item @ {idx} to have key {expected}, found {keys:?}"
+            );
         }
     }
 

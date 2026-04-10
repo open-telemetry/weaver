@@ -10,9 +10,9 @@
 
 mod types;
 
-pub use types::{ScoredResult, SearchResult, SearchType};
+pub use types::{NamespaceAttribute, NamespaceInfo, ScoredResult, SearchResult, SearchType};
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use weaver_forge::v2::{
@@ -45,6 +45,8 @@ pub struct SearchContext {
     event_index: HashMap<String, Arc<Event>>,
     /// Entities indexed by type.
     entity_index: HashMap<String, Arc<Entity>>,
+    /// Namespace separator for attribute keys (default: ".").
+    separator: String,
 }
 
 /// A searchable item from the registry containing the full object.
@@ -62,9 +64,18 @@ enum SearchableItem {
 }
 
 impl SearchContext {
-    /// Build a search context from a resolved registry.
+    /// Build a search context from a resolved registry with the default separator (".").
     #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
+        Self::from_registry_with_separator(registry, ".".to_owned())
+    }
+
+    /// Build a search context from a resolved registry with a custom namespace separator.
+    #[must_use]
+    pub fn from_registry_with_separator(
+        registry: &ForgeResolvedRegistry,
+        separator: String,
+    ) -> Self {
         let mut items = Vec::new();
         let mut attr_index = HashMap::new();
         let mut template_index = HashMap::new();
@@ -128,6 +139,7 @@ impl SearchContext {
             span_index,
             event_index,
             entity_index,
+            separator,
         }
     }
 
@@ -176,7 +188,7 @@ impl SearchContext {
                 (results, total)
             } else {
                 // Non-empty query - search mode with scoring
-                search_mode_with_total(items, q, limit)
+                search_mode_with_total(items, q, limit, &self.separator)
             }
         } else {
             // No query - browse mode
@@ -240,6 +252,78 @@ impl SearchContext {
     pub fn get_entity(&self, entity_type: &str) -> Option<Arc<Entity>> {
         self.entity_index.get(entity_type).map(Arc::clone)
     }
+
+    // ==========================================================================
+    // Namespace Browsing and Batch Lookup Methods
+    // ==========================================================================
+
+    /// Browse the namespace hierarchy of attribute keys.
+    ///
+    /// If `prefix` is None or empty, returns root namespaces.
+    /// If `prefix` is provided (e.g., "http.request"), returns sub-namespaces
+    /// and direct attributes under that prefix.
+    #[must_use]
+    pub fn browse_namespace(&self, prefix: Option<&str>) -> NamespaceInfo {
+        let prefix = prefix
+            .unwrap_or("")
+            .trim_end_matches(self.separator.as_str());
+        let sep = &self.separator;
+
+        let mut sub_ns_set: BTreeSet<String> = BTreeSet::new();
+        let mut direct_attrs: Vec<NamespaceAttribute> = Vec::new();
+        let mut total_count = 0usize;
+        let mut max_depth = 0usize;
+
+        // Iterate all attribute keys (regular + template)
+        let all_keys = self.attr_index.iter().chain(self.template_index.iter());
+
+        for (key, attr) in all_keys {
+            let remainder = if prefix.is_empty() {
+                Some(key.as_str())
+            } else if let Some(rest) = key.strip_prefix(prefix) {
+                rest.strip_prefix(sep.as_str())
+            } else {
+                None
+            };
+
+            let Some(remainder) = remainder else {
+                continue;
+            };
+
+            total_count += 1;
+
+            // Calculate depth of this key relative to the prefix
+            let depth = remainder.matches(sep.as_str()).count() + 1;
+            if depth > max_depth {
+                max_depth = depth;
+            }
+
+            // Check if this is a direct attribute or in a sub-namespace
+            if let Some(next_sep_pos) = remainder.find(sep.as_str()) {
+                // Has more segments — extract the sub-namespace
+                let sub_segment = &remainder[..next_sep_pos];
+                let sub_ns = if prefix.is_empty() {
+                    sub_segment.to_owned()
+                } else {
+                    format!("{prefix}{sep}{sub_segment}")
+                };
+                let _ = sub_ns_set.insert(sub_ns);
+            } else {
+                // Leaf attribute directly in this namespace
+                direct_attrs.push(NamespaceAttribute::from_attribute(key.clone(), attr));
+            }
+        }
+
+        direct_attrs.sort_by(|a, b| a.key.cmp(&b.key));
+
+        NamespaceInfo {
+            prefix: prefix.to_owned(),
+            sub_namespaces: sub_ns_set.into_iter().collect(),
+            attributes: direct_attrs,
+            total_attribute_count: total_count,
+            max_depth,
+        }
+    }
 }
 
 /// Search mode with total count: perform fuzzy matching with scoring and return (results, total).
@@ -247,11 +331,12 @@ fn search_mode_with_total(
     items: Vec<&SearchableItem>,
     query: &str,
     limit: usize,
+    separator: &str,
 ) -> (Vec<SearchResult>, usize) {
     let mut scored_items: Vec<(u32, &SearchableItem)> = items
         .into_iter()
         .filter_map(|item| {
-            let score = score_match(query, item);
+            let score = score_match(query, item, separator);
             if score > 0 {
                 Some((score, item))
             } else {
@@ -390,34 +475,50 @@ impl SearchableItem {
 /// - Brief contains query: 40 points
 /// - Note contains query: 20 points
 /// - Deprecated items: score divided by 10 (heavily demoted)
-fn score_match(query: &str, item: &SearchableItem) -> u32 {
+fn score_match(query: &str, item: &SearchableItem, separator: &str) -> u32 {
     let query_lower = query.to_lowercase();
     let id_lower = item.id().to_lowercase();
     let brief_lower = item.brief().to_lowercase();
     let note_lower = item.note().to_lowercase();
 
+    score_fields(
+        &query_lower,
+        &id_lower,
+        &brief_lower,
+        &note_lower,
+        item.is_deprecated(),
+        separator,
+    )
+}
+
+/// Core scoring logic used by `score_match`.
+fn score_fields(
+    query_lower: &str,
+    id_lower: &str,
+    brief_lower: &str,
+    note_lower: &str,
+    is_deprecated: bool,
+    separator: &str,
+) -> u32 {
     let mut score = 0;
 
-    // Exact match
     if id_lower == query_lower {
         score = 100;
-    }
-    // Name starts with query
-    else if id_lower.starts_with(&query_lower) {
+    } else if id_lower.starts_with(query_lower) {
         score = 80;
-    }
-    // Name contains query
-    else if id_lower.contains(&query_lower) {
+    } else if id_lower.contains(query_lower) {
         score = 70;
     } else {
-        // Token matching - all query tokens found in name
+        let sep = separator;
         let query_tokens: Vec<&str> = query_lower
-            .split(|c: char| c == '.' || c == '_' || c.is_whitespace())
+            .split(|c: char| sep.contains(c) || c == '_' || c.is_whitespace())
             .filter(|s| !s.is_empty())
             .collect();
 
         if !query_tokens.is_empty() {
-            let id_tokens: Vec<&str> = id_lower.split(['.', '_']).collect();
+            let id_tokens: Vec<&str> = id_lower
+                .split(|c: char| sep.contains(c) || c == '_')
+                .collect();
 
             let all_tokens_match = query_tokens
                 .iter()
@@ -425,17 +526,11 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
 
             if all_tokens_match {
                 score = 60;
-            }
-            // Brief contains query
-            else if brief_lower.contains(&query_lower) {
+            } else if brief_lower.contains(query_lower) {
                 score = 40;
-            }
-            // Note contains query
-            else if note_lower.contains(&query_lower) {
+            } else if note_lower.contains(query_lower) {
                 score = 20;
-            }
-            // Also check if individual query tokens appear in brief/note
-            else {
+            } else {
                 let all_in_brief = query_tokens.iter().all(|qt| brief_lower.contains(qt));
                 if all_in_brief {
                     score = 35;
@@ -446,22 +541,15 @@ fn score_match(query: &str, item: &SearchableItem) -> u32 {
                     }
                 }
             }
-        } else {
-            // Brief contains query
-            if brief_lower.contains(&query_lower) {
-                score = 40;
-            }
-            // Note contains query
-            else if note_lower.contains(&query_lower) {
-                score = 20;
-            }
+        } else if brief_lower.contains(query_lower) {
+            score = 40;
+        } else if note_lower.contains(query_lower) {
+            score = 20;
         }
     }
 
-    // Heavily demote deprecated items - divide score by 10
-    if item.is_deprecated() && score > 0 {
+    if is_deprecated && score > 0 {
         score /= 10;
-        // Ensure at least 1 if there was a match
         if score == 0 {
             score = 1;
         }
@@ -632,21 +720,21 @@ mod tests {
     fn test_exact_match_scores_highest() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request.method", &item), 100);
+        assert_eq!(score_match("http.request.method", &item, "."), 100);
     }
 
     #[test]
     fn test_starts_with_scores_high() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request", &item), 80);
+        assert_eq!(score_match("http.request", &item, "."), 80);
     }
 
     #[test]
     fn test_contains_scores_medium() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("request.method", &item), 70);
+        assert_eq!(score_match("request.method", &item, "."), 70);
     }
 
     #[test]
@@ -658,14 +746,14 @@ mod tests {
             false,
         );
 
-        assert_eq!(score_match("verb", &item), 40);
+        assert_eq!(score_match("verb", &item, "."), 40);
     }
 
     #[test]
     fn test_no_match_scores_zero() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("database", &item), 0);
+        assert_eq!(score_match("database", &item, "."), 0);
     }
 
     #[test]
@@ -673,10 +761,10 @@ mod tests {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", true);
 
         // Exact match for deprecated item: 100 / 10 = 10
-        assert_eq!(score_match("http.request.method", &item), 10);
+        assert_eq!(score_match("http.request.method", &item, "."), 10);
 
         // Starts with for deprecated item: 80 / 10 = 8
-        assert_eq!(score_match("http.request", &item), 8);
+        assert_eq!(score_match("http.request", &item, "."), 8);
     }
 
     // =========================================================================
@@ -918,5 +1006,79 @@ mod tests {
         let dev_item = SearchableItem::Attribute(Arc::new(dev_attr));
 
         assert_eq!(dev_item.stability(), &Stability::Development);
+    }
+
+    // =========================================================================
+    // Namespace Browsing Tests
+    // =========================================================================
+
+    #[test]
+    fn test_browse_namespace_root() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let info = ctx.browse_namespace(None);
+
+        assert_eq!(info.prefix, "");
+        // Root namespaces from test data: db, experimental, http, test
+        assert!(info.sub_namespaces.contains(&"db".to_owned()));
+        assert!(info.sub_namespaces.contains(&"http".to_owned()));
+        assert!(info.sub_namespaces.contains(&"experimental".to_owned()));
+        assert!(info.sub_namespaces.contains(&"test".to_owned()));
+        // No attributes directly at root level
+        assert!(info.attributes.is_empty());
+        assert_eq!(info.total_attribute_count, 5);
+        assert!(info.max_depth >= 2);
+    }
+
+    #[test]
+    fn test_browse_namespace_with_prefix() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let info = ctx.browse_namespace(Some("http"));
+
+        assert_eq!(info.prefix, "http");
+        assert!(info.sub_namespaces.contains(&"http.request".to_owned()));
+        assert!(info.sub_namespaces.contains(&"http.response".to_owned()));
+        assert_eq!(info.total_attribute_count, 2);
+    }
+
+    #[test]
+    fn test_browse_namespace_leaf() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // http.request has one direct attribute: http.request.method
+        let info = ctx.browse_namespace(Some("http.request"));
+
+        assert_eq!(info.prefix, "http.request");
+        assert!(info.sub_namespaces.is_empty());
+        assert_eq!(info.attributes.len(), 1);
+        assert_eq!(info.attributes[0].key, "http.request.method");
+    }
+
+    #[test]
+    fn test_browse_namespace_nonexistent() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        let info = ctx.browse_namespace(Some("nonexistent"));
+
+        assert_eq!(info.total_attribute_count, 0);
+        assert!(info.sub_namespaces.is_empty());
+        assert!(info.attributes.is_empty());
+        assert_eq!(info.max_depth, 0);
+    }
+
+    #[test]
+    fn test_browse_namespace_empty_string() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Empty string should behave like None (root)
+        let info = ctx.browse_namespace(Some(""));
+        assert_eq!(info.prefix, "");
+        assert_eq!(info.total_attribute_count, 5);
     }
 }

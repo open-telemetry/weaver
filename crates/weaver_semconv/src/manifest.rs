@@ -23,7 +23,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use weaver_common::vdir::VirtualDirectoryPath;
 
 /// The file format version of the publication manifest.
-pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0.0";
+pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0";
 
 /// Represents the definition manifest for a semantic convention registry.
 ///
@@ -234,7 +234,7 @@ impl RawManifestFields {
 /// A registry manifest that can be either a definition or a publication manifest.
 ///
 /// The `file_format` field is the discriminator:
-/// - `"manifest/2.0.0"` → [`PublicationRegistryManifest`]
+/// - `"manifest/2.0"` → [`PublicationRegistryManifest`]
 /// - absent → [`DefinitionRegistryManifest`]
 #[derive(Debug, Clone, JsonSchema)]
 #[serde(untagged)]
@@ -336,8 +336,8 @@ impl RegistryManifest {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct PublicationRegistryManifest {
     /// The file format version of this publication manifest.
-    /// Always `"manifest/2.0.0"`in this version.
-    #[schemars(extend("const" = "manifest/2.0.0"))]
+    /// Always `"manifest/2.0"`in this version.
+    #[schemars(extend("const" = "manifest/2.0"))]
     pub file_format: String,
 
     /// The schema URL for this registry.
@@ -641,7 +641,7 @@ stability: stable
     fn test_publication_manifest_parsed_as_publication_variant() {
         let manifest = manifest_from_yaml(
             r#"
-file_format: "manifest/2.0.0"
+file_format: "manifest/2.0"
 schema_url: "https://example.com/schemas/1.0.0"
 resolved_schema_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
 "#,
@@ -701,12 +701,12 @@ stability: stable
 
     #[test]
     fn test_publication_manifest_parsed_as_publication_variant() {
-        // A manifest with file_format "manifest/2.0.0" and resolved_schema_uri
+        // A manifest with file_format "manifest/2.0" and resolved_schema_uri
         // is parsed as the Publication variant.
         let manifest = manifest_from_yaml(
             r#"
 schema_url: "https://example.com/schemas/1.0.0"
-file_format: "manifest/2.0.0"
+file_format: "manifest/2.0"
 resolved_schema_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
 "#,
         )

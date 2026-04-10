@@ -32,7 +32,7 @@ function Schema() {
       setLoading(true)
       setError(null)
 
-      const schemaParam = search.schema || 'ForgeRegistryV2'
+      const schemaParam = search.schema || 'MaterializedRegistryV2'
 
       try {
         const data = await getSchema(schemaParam)
@@ -70,7 +70,7 @@ function Schema() {
       search: (prev: SchemaSearch) => ({
         ...prev,
         type: name,
-        schema: prev.schema || 'ForgeRegistryV2'
+        schema: prev.schema || 'MaterializedRegistryV2'
       })
     })
   }
@@ -81,7 +81,7 @@ function Schema() {
       search: (prev: SchemaSearch) => ({
         ...prev,
         type: 'root',
-        schema: prev.schema || 'ForgeRegistryV2'
+        schema: prev.schema || 'MaterializedRegistryV2'
       })
     })
   }
