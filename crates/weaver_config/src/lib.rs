@@ -4,11 +4,22 @@
 //!
 //! Discovery walks up from the current working directory to find the first
 //! `.weaver.toml` file. The `--config` CLI option can override this.
+//!
+//! # Modules
+//!
+//! - [`live_check`] — Config structs for the `registry live-check` subcommand.
+//! - [`overrides`] — Trait and macro for CLI-to-config override logic.
 
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use weaver_checker::FindingLevel;
+
+pub mod live_check;
+mod overrides;
+
+// Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
+pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
+pub use overrides::{CliOverrides, FieldMapping};
 
 /// The filename to search for during discovery.
 const CONFIG_FILENAME: &str = ".weaver.toml";
@@ -18,53 +29,7 @@ const CONFIG_FILENAME: &str = ".weaver.toml";
 #[serde(default)]
 pub struct WeaverConfig {
     /// Live-check specific configuration.
-    pub live_check: Option<LiveCheckConfig>,
-}
-
-/// Configuration for the live-check subcommand.
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
-pub struct LiveCheckConfig {
-    /// Overrides modify finding levels. Each targets findings by ID (or list of IDs).
-    /// Optional `signal_type` scopes the override to a specific signal type.
-    #[serde(default)]
-    pub finding_overrides: Vec<FindingOverride>,
-
-    /// Filters control which findings are dropped. A filter without `signal_type`
-    /// applies globally; a filter with `signal_type` applies only to that signal type.
-    #[serde(default)]
-    pub finding_filters: Vec<FindingFilter>,
-}
-
-/// An override that modifies the level of findings matching the given ID(s).
-/// Optional `signal_type` scopes the override to a specific signal type.
-#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-pub struct FindingOverride {
-    /// The finding IDs to match.
-    pub id: Vec<String>,
-    /// The new level to assign to matching findings.
-    pub level: FindingLevel,
-    /// Optional signal type scope (e.g., "span", "metric", "log").
-    pub signal_type: Option<String>,
-}
-
-/// A filter that drops findings by ID exclusion or minimum level.
-/// Optional `signal_type` scopes the filter to a specific signal type.
-#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-pub struct FindingFilter {
-    /// Drop findings with these IDs.
-    pub exclude: Option<Vec<String>>,
-    /// Drop all findings below this level.
-    pub min_level: Option<FindingLevel>,
-    /// Optional signal type scope. When set, this filter only applies to
-    /// findings with a matching signal_type.
-    pub signal_type: Option<String>,
-    /// Drop all findings for samples with these names.
-    /// For attribute samples, this matches the attribute key — e.g.
-    /// `["trace.parent_id", "trace.span_id"]` suppresses all findings
-    /// (e.g. `missing_attribute`) for those attribute keys.
-    #[serde(default)]
-    pub exclude_samples: Vec<String>,
+    pub live_check: LiveCheckConfig,
 }
 
 /// Discover a `.weaver.toml` file by walking up from the given directory.
@@ -102,17 +67,17 @@ pub fn load(path: &Path) -> Result<WeaverConfig, ConfigError> {
 
 /// Discover and load a `.weaver.toml` starting from the given directory.
 ///
-/// Returns `None` if no config file is found. Returns an error if a file is found
-/// but cannot be parsed.
+/// Returns `None` if no config file is found. When a config is found, returns
+/// both the parsed config and the path it was loaded from.
 ///
 /// # Errors
 ///
 /// Returns an error if the discovered file cannot be read or parsed.
-pub fn discover_and_load(start: &Path) -> Result<Option<WeaverConfig>, ConfigError> {
+pub fn discover_and_load(start: &Path) -> Result<Option<(PathBuf, WeaverConfig)>, ConfigError> {
     match discover(start) {
         Some(path) => {
-            log::info!("Found config file: {}", path.display());
-            load(&path).map(Some)
+            let config = load(&path)?;
+            Ok(Some((path, config)))
         }
         None => Ok(None),
     }
@@ -145,124 +110,11 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn test_parse_full_config() {
-        let toml = r#"
-[[live_check.finding_overrides]]
-id = ["not_stable", "missing_attribute"]
-level = "violation"
-
-[[live_check.finding_overrides]]
-id = ["not_stable"]
-level = "information"
-signal_type = "span"
-
-# Global filter (no signal_type)
-[[live_check.finding_filters]]
-exclude = ["deprecated", "missing_namespace"]
-min_level = "improvement"
-
-# Scoped filter (with signal_type)
-[[live_check.finding_filters]]
-signal_type = "span"
-exclude = ["not_stable"]
-"#;
-        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let live_check = config.live_check.expect("live_check should be present");
-
-        assert_eq!(live_check.finding_overrides.len(), 2);
-        assert_eq!(
-            live_check.finding_overrides[0].id,
-            vec!["not_stable".to_owned(), "missing_attribute".to_owned()]
-        );
-        assert_eq!(
-            live_check.finding_overrides[0].level,
-            FindingLevel::Violation
-        );
-        assert!(live_check.finding_overrides[0].signal_type.is_none());
-
-        assert_eq!(
-            live_check.finding_overrides[1].id,
-            vec!["not_stable".to_owned()]
-        );
-        assert_eq!(
-            live_check.finding_overrides[1].level,
-            FindingLevel::Information
-        );
-        assert_eq!(
-            live_check.finding_overrides[1].signal_type.as_deref(),
-            Some("span")
-        );
-
-        assert_eq!(live_check.finding_filters.len(), 2);
-
-        // Global filter (no signal_type)
-        assert!(live_check.finding_filters[0].signal_type.is_none());
-        assert_eq!(
-            live_check.finding_filters[0].exclude.as_deref(),
-            Some(&["deprecated".to_owned(), "missing_namespace".to_owned()][..])
-        );
-        assert_eq!(
-            live_check.finding_filters[0].min_level,
-            Some(FindingLevel::Improvement)
-        );
-
-        // Scoped filter (with signal_type)
-        assert_eq!(
-            live_check.finding_filters[1].signal_type.as_deref(),
-            Some("span")
-        );
-        assert_eq!(
-            live_check.finding_filters[1].exclude.as_deref(),
-            Some(&["not_stable".to_owned()][..])
-        );
-    }
-
-    #[test]
-    fn test_parse_empty_config() {
-        let config: WeaverConfig = toml::from_str("").expect("Failed to parse empty TOML");
-        assert!(config.live_check.is_none());
-    }
-
-    #[test]
-    fn test_parse_partial_config() {
-        let toml = r#"
-[[live_check.finding_filters]]
-min_level = "violation"
-"#;
-        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let live_check = config.live_check.expect("live_check should be present");
-        assert!(live_check.finding_overrides.is_empty());
-        assert_eq!(live_check.finding_filters.len(), 1);
-        assert_eq!(
-            live_check.finding_filters[0].min_level,
-            Some(FindingLevel::Violation)
-        );
-        assert!(live_check.finding_filters[0].exclude.is_none());
-        assert!(live_check.finding_filters[0].signal_type.is_none());
-    }
-
-    #[test]
-    fn test_id_list() {
-        let toml = r#"
-[[live_check.finding_overrides]]
-id = ["a", "b", "c"]
-level = "violation"
-"#;
-        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let live_check = config.live_check.expect("live_check");
-        assert_eq!(
-            live_check.finding_overrides[0].id,
-            vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]
-        );
-    }
-
-    #[test]
     fn test_discover_walks_up() {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let nested = dir.path().join("a").join("b").join("c");
         fs::create_dir_all(&nested).expect("Failed to create dirs");
 
-        // Place config at the root of the temp dir
         fs::write(dir.path().join(CONFIG_FILENAME), "[live_check]")
             .expect("Failed to write config");
 
@@ -288,52 +140,9 @@ level = "information"
         fs::write(dir.path().join(CONFIG_FILENAME), config_content)
             .expect("Failed to write config");
 
-        let config = discover_and_load(dir.path())
+        let (path, _config) = discover_and_load(dir.path())
             .expect("Failed to load config")
             .expect("Config should be found");
-        assert!(config.live_check.is_some());
-    }
-
-    #[test]
-    fn test_parse_exclude_samples() {
-        let toml = r#"
-[[live_check.finding_filters]]
-exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
-
-[[live_check.finding_filters]]
-signal_type = "span"
-exclude_samples = ["custom.internal_id"]
-exclude = ["not_stable"]
-"#;
-        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let live_check = config.live_check.expect("live_check should be present");
-        assert_eq!(live_check.finding_filters.len(), 2);
-
-        // Global filter with exclude_samples only
-        let f0 = &live_check.finding_filters[0];
-        assert!(f0.signal_type.is_none());
-        assert!(f0.exclude.is_none());
-        assert!(f0.min_level.is_none());
-        assert_eq!(
-            f0.exclude_samples,
-            vec!["trace.parent_id", "trace.span_id", "trace.trace_id"]
-        );
-
-        // Scoped filter combining exclude_samples with exclude
-        let f1 = &live_check.finding_filters[1];
-        assert_eq!(f1.signal_type.as_deref(), Some("span"));
-        assert_eq!(f1.exclude.as_deref(), Some(&["not_stable".to_owned()][..]));
-        assert_eq!(f1.exclude_samples, vec!["custom.internal_id"]);
-    }
-
-    #[test]
-    fn test_parse_exclude_samples_defaults_to_empty() {
-        let toml = r#"
-[[live_check.finding_filters]]
-min_level = "violation"
-"#;
-        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let live_check = config.live_check.expect("live_check should be present");
-        assert!(live_check.finding_filters[0].exclude_samples.is_empty());
+        assert_eq!(path, dir.path().join(CONFIG_FILENAME));
     }
 }

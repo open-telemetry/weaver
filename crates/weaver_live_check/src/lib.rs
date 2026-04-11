@@ -466,8 +466,8 @@ impl LiveCheckResult {
 
     /// Add an advice to the result and update the highest advice level.
     ///
-    /// When a `FindingModifier` is provided, the finding may be modified (level
-    /// override) or dropped (filter exclusion) before being stored.
+    /// When a `FindingModifier` is provided, the finding may be dropped
+    /// (filter exclusion) before being stored.
     ///
     /// `sample` is the sample that produced this finding, used by
     /// `exclude_samples` filters to inspect and match on it.
@@ -479,7 +479,7 @@ impl LiveCheckResult {
     ) {
         let advice = if let Some(modifier) = modifier {
             match modifier.apply(advice, sample) {
-                Some(modified) => modified,
+                Some(kept) => kept,
                 None => return, // Excluded by filter
             }
         } else {
@@ -495,8 +495,8 @@ impl LiveCheckResult {
 
     /// Add a list of advice to the result and update the highest advice level.
     ///
-    /// When a `FindingModifier` is provided, each finding may be modified or
-    /// dropped before being stored.
+    /// When a `FindingModifier` is provided, each finding may be dropped
+    /// (filter exclusion) before being stored.
     pub fn add_advice_list(
         &mut self,
         advice: Vec<PolicyFinding>,

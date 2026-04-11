@@ -155,34 +155,45 @@ make_finding(id, level, context, message) := {
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
-## Finding Modification
+## Project Configuration (`.weaver.toml`)
 
-Findings can be modified or filtered through a `.weaver.toml` configuration file. Weaver discovers this file by walking up from the current working directory, or you can specify one directly with `--config <path>`.
+All `live-check` CLI flags can also be set in a `.weaver.toml` file at the root of your project. Weaver discovers it by walking up from the current working directory, or you can specify a path directly with `--config <path>`. CLI flags always take precedence over config values; config values take precedence over hardcoded defaults.
 
-A JSON Schema can be generated to provide IDE support (autocomplete, validation) when editing `.weaver.toml`:
+A JSON Schema can be generated for IDE support (autocomplete, validation):
 
 ```sh
 weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.json
 ```
 
-### Overrides
-
-Overrides change the level of findings that match by ID. An optional `signal_type` scopes the override to a specific signal type. When multiple overrides match, the first one wins.
+### Live-check settings
 
 ```toml
-# Escalate these findings to violations
-[[live_check.finding_overrides]]
-id = ["not_stable", "missing_attribute"]
-level = "violation"
+[live_check]
+input_source = "otlp"
+input_format = "json"
+format = "ansi"
+templates = "live_check_templates"
+no_stream = false
+no_stats = false
+output = "reports"
+advice_policies = "policies"
+advice_preprocessor = "preprocessor.jq"
 
-# Downgrade not_stable to information, but only for spans
-[[live_check.finding_overrides]]
-id = ["not_stable"]
-level = "information"
-signal_type = "span"
+[live_check.otlp]
+grpc_address = "0.0.0.0"
+grpc_port = 4317
+admin_port = 4320
+inactivity_timeout = 10
+
+[live_check.emit]
+otlp_logs = false
+otlp_logs_endpoint = "http://localhost:4317"
+otlp_logs_stdout = false
 ```
 
-### Filters
+Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+### Finding filters
 
 Filters drop findings entirely. Use `exclude` to drop by ID, `min_level` to drop findings below a threshold, and `exclude_samples` to drop all findings for specific sample names. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type.
 
@@ -203,8 +214,6 @@ exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
 ```
 
 The `exclude_samples` filter matches by sample name: attribute key for attributes, span name for spans, metric name for metrics, event name for logs, and span event name for span events. It can be combined with other filter fields, for example scoping to a specific `signal_type`.
-
-Overrides are applied first, then filters. This means a finding can be overridden to a new level and then filtered based on that new level.
 
 ## Output
 

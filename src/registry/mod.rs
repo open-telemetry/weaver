@@ -23,7 +23,9 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::log_info;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_config::CliOverrides;
 
 mod check;
 mod diff;
@@ -66,6 +68,10 @@ pub enum Error {
     /// Failed to write an output file during packaging
     #[error("Failed to write output file `{path}`: {error}")]
     OutputWrite { path: PathBuf, error: String },
+
+    /// Configuration error (loading or parsing `.weaver.toml`)
+    #[error("{error}")]
+    Config { error: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -211,6 +217,45 @@ pub struct PolicyArgs {
     pub display_policy_coverage: bool,
 }
 
+/// Load configuration for a command that implements `CliOverrides`.
+///
+/// Applies the standard layering: defaults → `.weaver.toml` → CLI overrides.
+/// Logs the config file path when one is found.
+pub fn load_config<A: CliOverrides>(args: &A) -> Result<A::Config, DiagnosticMessages> {
+    let found = if let Some(path) = args.config_path() {
+        Some((
+            path.clone(),
+            weaver_config::load(path).map_err(|e| {
+                DiagnosticMessages::from(Error::Config {
+                    error: e.to_string(),
+                })
+            })?,
+        ))
+    } else {
+        let cwd = std::env::current_dir().map_err(|e| {
+            DiagnosticMessages::from(Error::Config {
+                error: format!("Failed to get current directory: {e}"),
+            })
+        })?;
+        weaver_config::discover_and_load(&cwd).map_err(|e| {
+            DiagnosticMessages::from(Error::Config {
+                error: e.to_string(),
+            })
+        })?
+    };
+
+    let mut config = match found {
+        Some((path, weaver_config)) => {
+            log_info(format!("Found config: {}", path.display()));
+            A::extract_config(&weaver_config)
+        }
+        None => A::Config::default(),
+    };
+
+    args.apply_overrides(&mut config);
+    Ok(config)
+}
+
 /// Manage a semantic convention registry and return the exit code.
 pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
     match &command.command {
@@ -254,5 +299,133 @@ pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
         RegistrySubCommand::Package(args) => {
             CmdResult::new(package::command(args), Some(args.diagnostic.clone()))
         }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use crate::cli::Cli;
+    use clap::CommandFactory;
+    use schemars::schema_for;
+    use std::collections::BTreeSet;
+    use weaver_config::CliOverrides;
+
+    /// Collect all leaf property names from a JSON schema value, flattening
+    /// nested objects. For nested objects like `otlp.grpc_port`, produces
+    /// `otlp_grpc_port`. Resolves `$ref` pointers against the root schema.
+    fn schema_field_names(
+        value: &serde_json::Value,
+        root: &serde_json::Value,
+        prefix: &str,
+        out: &mut BTreeSet<String>,
+    ) {
+        let Some(obj) = value.as_object() else {
+            return;
+        };
+        let Some(properties) = obj.get("properties").and_then(|v| v.as_object()) else {
+            return;
+        };
+        for (name, sub_schema) in properties {
+            let full_name = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}_{name}")
+            };
+            // Resolve $ref if present (e.g. "#/$defs/LiveCheckOtlpConfig")
+            let resolved = sub_schema
+                .as_object()
+                .and_then(|o| o.get("$ref"))
+                .and_then(|r| r.as_str())
+                .and_then(|ref_path| {
+                    let path = ref_path.strip_prefix("#/")?;
+                    let mut current = root;
+                    for segment in path.split('/') {
+                        current = current.get(segment)?;
+                    }
+                    Some(current)
+                })
+                .unwrap_or(sub_schema);
+
+            let is_nested = resolved
+                .as_object()
+                .and_then(|o| o.get("properties"))
+                .is_some();
+            if is_nested {
+                schema_field_names(resolved, root, &full_name, out);
+            } else {
+                let _ = out.insert(full_name);
+            }
+        }
+    }
+
+    /// Assert that every config field has a corresponding CLI arg and vice versa
+    /// for a given `CliOverrides` implementor.
+    ///
+    /// Uses schemars `JsonSchema` to discover config fields and clap `CommandFactory`
+    /// to discover CLI args. The mapping metadata comes from the `CliOverrides` trait
+    /// methods: `config_only_fields()`, `cli_only_args()`, and `field_mappings()`.
+    ///
+    /// This is fully automatic — adding a config field or CLI arg without the
+    /// corresponding counterpart causes a test failure with no manual test upkeep.
+    pub(crate) fn assert_config_cli_consistency<A: CliOverrides>() {
+        let config_only: BTreeSet<&str> = A::config_only_fields().iter().copied().collect();
+        let cli_only: BTreeSet<&str> = A::cli_only_args().iter().copied().collect();
+        let name_mappings = A::field_mappings();
+
+        // Extract config field names from the JSON schema
+        let schema = schema_for!(A::Config);
+        let root = schema.as_value();
+        let mut config_fields = BTreeSet::new();
+        schema_field_names(root, root, "", &mut config_fields);
+
+        // Extract CLI arg names from clap introspection
+        let cmd = Cli::command();
+        let registry_cmd = cmd
+            .get_subcommands()
+            .find(|c| c.get_name() == "registry")
+            .expect("registry subcommand");
+        let sub_cmd = registry_cmd
+            .get_subcommands()
+            .find(|c| c.get_name() == A::SUBCOMMAND)
+            .unwrap_or_else(|| panic!("subcommand '{}' not found", A::SUBCOMMAND));
+        let cli_args: BTreeSet<String> = sub_cmd
+            .get_arguments()
+            .filter_map(|arg| arg.get_long())
+            .map(|name| name.replace('-', "_"))
+            .collect();
+
+        // Map config field names to their CLI equivalents
+        let mapped_config: BTreeSet<String> = config_fields
+            .iter()
+            .filter(|f| !config_only.contains(f.as_str()))
+            .map(|f| {
+                name_mappings
+                    .iter()
+                    .find(|m| m.config_name == f.as_str())
+                    .map_or_else(|| f.clone(), |m| m.cli_name.to_owned())
+            })
+            .collect();
+
+        let cli_comparable: BTreeSet<String> = cli_args
+            .iter()
+            .filter(|a| !cli_only.contains(a.as_str()))
+            .cloned()
+            .collect();
+
+        let missing_cli: Vec<_> = mapped_config.difference(&cli_comparable).collect();
+        let missing_config: Vec<_> = cli_comparable.difference(&mapped_config).collect();
+
+        assert!(
+            missing_cli.is_empty(),
+            "[{cmd}] Config fields without CLI args: {missing_cli:?}\n\
+             Add a CLI arg, or list in `config_only_fields()`/`field_mappings()`.",
+            cmd = A::SUBCOMMAND,
+        );
+        assert!(
+            missing_config.is_empty(),
+            "[{cmd}] CLI args without config fields: {missing_config:?}\n\
+             Add a config field, or list in `cli_only_args()`.",
+            cmd = A::SUBCOMMAND,
+        );
     }
 }

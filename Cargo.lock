@@ -5815,6 +5815,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_config"
+version = "0.22.1"
+dependencies = [
+ "log",
+ "schemars",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.18",
+ "toml",
+ "weaver_checker",
+]
+
+[[package]]
 name = "weaver_diff"
 version = "0.22.1"
 dependencies = [
