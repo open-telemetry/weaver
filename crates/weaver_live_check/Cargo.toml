@@ -29,11 +29,11 @@ tokio.workspace = true
 strum = { version = "0.27.2", features = ["derive"] }
 
 [dev-dependencies]
-assert_cmd = "=2.1.2"
-portpicker = "=0.1.1"
-tempfile = "=3.27.0"
+assert_cmd = "2.2.0"
+portpicker = "0.1.1"
+tempfile = "3.27.0"
 serde_yaml.workspace = true
-serial_test = "=3.2.0"
+serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
 
