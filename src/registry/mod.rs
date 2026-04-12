@@ -169,6 +169,10 @@ pub enum RegistrySubCommand {
     Package(RegistryPackageArgs),
 }
 
+/// Default value for `--registry`.
+pub const DEFAULT_REGISTRY: &str =
+    "https://github.com/open-telemetry/semantic-conventions.git[model]";
+
 /// Set of parameters used to specify a semantic convention registry.
 #[derive(Args, Debug, Clone)]
 pub struct RegistryArgs {
@@ -176,11 +180,7 @@ pub struct RegistryArgs {
     /// convention registry. For Git URLs, a reference can be specified
     /// using the `@refspec` syntax and a sub-folder can be specified
     /// using the `[sub-folder]` syntax after the URL.
-    #[arg(
-        short = 'r',
-        long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
-    )]
+    #[arg(short = 'r', long, default_value = DEFAULT_REGISTRY)]
     pub registry: VirtualDirectoryPath,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
@@ -230,9 +230,7 @@ pub struct PolicyArgs {
 /// change.
 pub fn apply_registry_config(args: &mut RegistryArgs, config: &weaver_config::RegistryConfig) {
     if let Some(path) = &config.path {
-        // Only override if the CLI arg is still the clap default
-        let default_registry = "https://github.com/open-telemetry/semantic-conventions.git[model]";
-        if args.registry.to_string() == default_registry {
+        if args.registry.to_string() == DEFAULT_REGISTRY {
             if let Ok(parsed) = path.parse() {
                 args.registry = parsed;
             }
@@ -265,29 +263,6 @@ pub fn apply_policy_config(args: &mut PolicyArgs, config: &weaver_config::Policy
     if let Some(v) = config.skip {
         if !args.skip_policies {
             args.skip_policies = v;
-        }
-    }
-}
-
-/// Apply shared diagnostics config onto a `DiagnosticArgs`.
-#[allow(dead_code)]
-pub fn apply_diagnostics_config(
-    args: &mut crate::DiagnosticArgs,
-    config: &weaver_config::DiagnosticsConfig,
-) {
-    if let Some(fmt) = &config.format {
-        if args.diagnostic_format == "ansi" {
-            args.diagnostic_format.clone_from(fmt);
-        }
-    }
-    if let Some(tpl) = &config.template {
-        if args.diagnostic_template.as_os_str() == "diagnostic_templates" {
-            args.diagnostic_template.clone_from(tpl);
-        }
-    }
-    if let Some(v) = config.stdout {
-        if !args.diagnostic_stdout {
-            args.diagnostic_stdout = v;
         }
     }
 }

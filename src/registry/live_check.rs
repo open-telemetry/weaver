@@ -294,11 +294,10 @@ fn generate_report(
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    // Load config: defaults -> .weaver.toml -> CLI overrides.
     let (config, weaver_config) = load_config(args)?;
 
-    // Apply shared config overrides to the flattened args.
-    // Clone because the match arm binds immutably.
+    // `args` is borrowed immutably from the dispatch chain, so shared overrides
+    // need owned copies to mutate.
     let mut registry_args = args.registry.clone();
     let mut policy_args = args.policy.clone();
     if let Some(wc) = &weaver_config {
