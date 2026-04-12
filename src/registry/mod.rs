@@ -222,6 +222,12 @@ pub struct PolicyArgs {
 ///
 /// Config values only apply when the CLI arg has its default value — explicit
 /// CLI flags always win.
+///
+/// TODO(phase 2): rework this to use the standard `CliOverrides` pattern once
+/// `RegistryArgs`/`PolicyArgs`/`DiagnosticArgs` are converted to `Option<T>`
+/// fields and downstream callers take resolved `Config` structs. The current
+/// "compare against clap default" heuristic is fragile and breaks if defaults
+/// change.
 pub fn apply_registry_config(args: &mut RegistryArgs, config: &weaver_config::RegistryConfig) {
     if let Some(path) = &config.path {
         // Only override if the CLI arg is still the clap default
