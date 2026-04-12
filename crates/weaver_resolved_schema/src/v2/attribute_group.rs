@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::v2::{signal_id::SignalId, CommonFields};
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
 /// Public attribute group.
 ///
@@ -15,6 +15,7 @@ use crate::v2::{attribute::AttributeRef, Signal};
 /// a temporary structure could be made to contain all of them and report
 /// the bundle as a group to different signals.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct AttributeGroup {
@@ -27,6 +28,11 @@ pub struct AttributeGroup {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of the AttributeGroup.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 impl Signal for AttributeGroup {

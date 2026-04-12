@@ -29,7 +29,7 @@ export function AppLayout() {
   const activeSchema = (() => {
     if (!isActive('/schema')) return null
     const schemaParam = new URLSearchParams(location.search).get('schema')
-    return schemaParam || 'ForgeRegistryV2'
+    return schemaParam || 'MaterializedRegistryV2'
   })()
 
   const closeSidebar = () => {
@@ -153,18 +153,29 @@ export function AppLayout() {
               Stats
             </button>
           </li>
+          <li>
+            <button
+              onClick={() => {
+                navigate({ to: '/filter_playground' })
+                closeSidebar()
+              }}
+              className={isActive('/filter_playground') ? 'active' : ''}
+            >
+              Filter (JQ) Playground
+            </button>
+          </li>
           <li className="menu-title mt-4">Schema</li>
           <li>
             <button
               onClick={() => {
-                navigate({ to: '/schema', search: { schema: 'ForgeRegistryV2' } })
+                navigate({ to: '/schema', search: { schema: 'MaterializedRegistryV2' } })
                 closeSidebar()
               }}
               className={
-                activeSchema === 'ForgeRegistryV2' ? 'active' : ''
+                activeSchema === 'MaterializedRegistryV2' ? 'active' : ''
               }
             >
-              ForgeRegistryV2
+              MaterializedRegistryV2
             </button>
           </li>
           <li>

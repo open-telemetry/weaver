@@ -15,7 +15,7 @@ use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry package` sub-command
@@ -93,7 +93,10 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     let loaded = weaver.load_definitions(repo, &mut diag_msgs)?;
     let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
 
-    let resolved_v2: ResolvedV2 = resolved.try_into()?;
+    let resolved_v2 = match resolved {
+        crate::weaver::Resolved::V2(v) => v,
+        crate::weaver::Resolved::V1(v) => v.try_into()?,
+    };
     resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
 
     if diag_msgs.has_error() {
@@ -184,7 +187,7 @@ mod tests {
             serde_yaml::from_str(&resolved_content).expect("resolved.yaml is not valid YAML");
         assert_eq!(
             resolved["file_format"].as_str(),
-            Some("resolved/2.0.0"),
+            Some("resolved/2.0"),
             "resolved.yaml does not contain the expected v2 resolved schema file_format"
         );
 

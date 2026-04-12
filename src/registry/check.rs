@@ -3,7 +3,7 @@
 //! Check a semantic convention registry.
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{ResolvedV2, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use log::info;
@@ -53,20 +53,10 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
         None
     };
 
-    if args.registry.v2 {
-        let v2_main: ResolvedV2 = main_resolved.try_into()?;
-        v2_main.check_after_resolution_policy(&mut diag_msgs)?;
-        if let Some(b1) = baseline {
-            let v2_baseline: ResolvedV2 = b1.try_into()?;
-            v2_main.check_comparison_after_resolution(&v2_baseline, &mut diag_msgs)?;
-        }
-    } else {
-        // Check policies.
-        main_resolved.check_after_resolution_policy(&mut diag_msgs)?;
-        // Now the comparison.
-        if let Some(b) = baseline {
-            main_resolved.check_comparison_after_resolution(&b, &mut diag_msgs)?;
-        }
+    main_resolved.check_after_resolution_policy(&mut diag_msgs)?;
+    // Now the comparison.
+    if let Some(b) = baseline {
+        main_resolved.check_comparison_after_resolution(&b, &mut diag_msgs)?;
     }
 
     if !diag_msgs.is_empty() {
@@ -96,6 +86,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
@@ -126,6 +117,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {

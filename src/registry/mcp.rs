@@ -38,6 +38,11 @@ pub struct RegistryMcpArgs {
     /// versus processing the data for every sample.
     #[arg(long)]
     pub advice_preprocessor: Option<PathBuf>,
+
+    /// Namespace separator used in attribute keys. Defaults to ".".
+    /// Used by namespace browsing and search token splitting.
+    #[arg(long, default_value = ".")]
+    pub namespace_separator: String,
 }
 
 /// Run the MCP server for the semantic convention registry.
@@ -58,7 +63,10 @@ pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, Diagnost
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry
-    let resolved_v2 = resolved.try_into_v2()?;
+    let resolved_v2 = match resolved {
+        crate::weaver::Resolved::V1(v) => v.try_into().map_err(DiagnosticMessages::from_error)?,
+        crate::weaver::Resolved::V2(v) => v,
+    };
     let forge_registry = resolved_v2.into_template_schema();
 
     info!("Starting MCP server (communicating over stdio)");
@@ -68,6 +76,7 @@ pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, Diagnost
     let config = weaver_mcp::McpConfig {
         advice_policies: args.advice_policies.clone(),
         advice_preprocessor: args.advice_preprocessor.clone(),
+        namespace_separator: args.namespace_separator.clone(),
     };
 
     // Run the MCP server

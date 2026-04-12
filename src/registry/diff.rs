@@ -47,11 +47,6 @@ pub struct RegistryDiffArgs {
     pub(crate) diagnostic: DiagnosticArgs,
 }
 
-enum VersionedDiff {
-    V1(crate::weaver::Diff),
-    V2(crate::weaver::DiffV2),
-}
-
 /// Generate a diff between two versions of a semantic convention registry.
 pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
@@ -74,16 +69,9 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     let baseline = weaver.load_definitions(baseline_registry_repo, &mut diag_msgs)?;
     let main_resolved = weaver.resolve(main, &mut diag_msgs)?;
     let baseline_resolved = weaver.resolve(baseline, &mut diag_msgs)?;
-    // Generate diff.
-    let diff = if args.registry.v2 {
-        VersionedDiff::V2(
-            main_resolved
-                .try_into_v2()?
-                .diff(&baseline_resolved.try_into_v2()?),
-        )
-    } else {
-        VersionedDiff::V1(main_resolved.diff(&baseline_resolved))
-    };
+    let diff = main_resolved
+        .diff(&baseline_resolved)
+        .map_err(DiagnosticMessages::from_error)?;
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
@@ -99,8 +87,8 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
     )?;
 
     match diff {
-        VersionedDiff::V1(d) => output.generate(d.as_template_context()),
-        VersionedDiff::V2(d) => output.generate(d.as_template_context()),
+        crate::weaver::DiffResult::V1(d) => output.generate(d.as_template_context()),
+        crate::weaver::DiffResult::V2(d) => output.generate(&d.as_template_context()),
     }
     .map_err(DiagnosticMessages::from)?;
 
@@ -127,6 +115,7 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Diff(RegistryDiffArgs {
                     registry: RegistryArgs {

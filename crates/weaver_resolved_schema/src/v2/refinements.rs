@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 ///       This allows code generation to *only* interact with refinements, if desired, to
 ///       provide optimised methods for generating telemetry signals.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Refinements {
     /// A  list of span refinements.

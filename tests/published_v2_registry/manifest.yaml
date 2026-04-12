@@ -1,0 +1,5 @@
+file_format: manifest/2.0
+schema_url: https://test/schemas/1.0.0
+description: A test registry for packaging tests.
+stability: stable
+resolved_schema_uri: resolved.yaml
