@@ -49,6 +49,7 @@ pub trait CliOverrides {
 
     /// Config fields that intentionally have no CLI counterpart.
     /// Each entry should include a reason comment in the impl.
+    #[must_use]
     fn config_only_fields() -> &'static [&'static str] {
         &[]
     }
@@ -56,12 +57,14 @@ pub trait CliOverrides {
     /// CLI args that intentionally have no config counterpart.
     /// Includes args from flattened sub-structs (registry, policy, diagnostic)
     /// and any args that control config loading itself.
+    #[must_use]
     fn cli_only_args() -> &'static [&'static str] {
         &[]
     }
 
     /// Name mappings for fields where the flattened config name differs
     /// from the CLI arg name.
+    #[must_use]
     fn field_mappings() -> &'static [FieldMapping] {
         &[]
     }

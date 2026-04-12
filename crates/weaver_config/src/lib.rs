@@ -16,10 +16,12 @@ use std::path::{Path, PathBuf};
 
 pub mod live_check;
 mod overrides;
+pub mod registry;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
 pub use overrides::{CliOverrides, FieldMapping};
+pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
 
 /// The filename to search for during discovery.
 const CONFIG_FILENAME: &str = ".weaver.toml";
@@ -28,6 +30,12 @@ const CONFIG_FILENAME: &str = ".weaver.toml";
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
 #[serde(default)]
 pub struct WeaverConfig {
+    /// Shared registry settings (apply to all subcommands that accept them).
+    pub registry: RegistryConfig,
+    /// Shared policy settings (apply to all subcommands that accept them).
+    pub policy: PolicyConfig,
+    /// Shared diagnostic output settings (apply to all subcommands that accept them).
+    pub diagnostics: DiagnosticsConfig,
     /// Live-check specific configuration.
     pub live_check: LiveCheckConfig,
 }

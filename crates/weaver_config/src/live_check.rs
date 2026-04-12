@@ -16,6 +16,7 @@ use weaver_checker::FindingLevel;
 /// mutation — no intermediate merge structs needed.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 #[serde(default)]
+#[schemars(inline)]
 pub struct LiveCheckConfig {
     /// Filters control which findings are dropped. A filter without `signal_type`
     /// applies globally; a filter with `signal_type` applies only to that signal type.

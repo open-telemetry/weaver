@@ -295,7 +295,16 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let mut exit_code = 0;
 
     // Load config: defaults -> .weaver.toml -> CLI overrides.
-    let config = load_config(args)?;
+    let (config, weaver_config) = load_config(args)?;
+
+    // Apply shared config overrides to the flattened args.
+    // Clone because the match arm binds immutably.
+    let mut registry_args = args.registry.clone();
+    let mut policy_args = args.policy.clone();
+    if let Some(wc) = &weaver_config {
+        super::apply_registry_config(&mut registry_args, &wc.registry);
+        super::apply_policy_config(&mut policy_args, &wc.policy);
+    }
 
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());
@@ -329,10 +338,10 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     info!("Weaver Registry Live Check");
 
     // Prepare the registry
-    info!("Resolving registry `{}`", args.registry.registry);
+    info!("Resolving registry `{}`", registry_args.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let weaver = WeaverEngine::new(&registry_args, &policy_args);
     let resolved_registry = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let registry = match resolved_registry {
         crate::weaver::Resolved::V2(resolved_v2) => {
@@ -519,7 +528,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
     log_success(format!(
         "Performed live check for registry `{}`",
-        args.registry.registry
+        registry_args.registry
     ));
 
     if diag_msgs.has_error() {

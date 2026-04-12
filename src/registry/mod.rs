@@ -170,7 +170,7 @@ pub enum RegistrySubCommand {
 }
 
 /// Set of parameters used to specify a semantic convention registry.
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct RegistryArgs {
     /// Local folder, Git repo URL, or Git archive URL of the semantic
     /// convention registry. For Git URLs, a reference can be specified
@@ -200,7 +200,7 @@ pub struct RegistryArgs {
 }
 
 /// Set of common parameters used for policy checks.
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct PolicyArgs {
     /// Optional list of policy files or directories to check against the files of the semantic
     /// convention registry.  If a directory is provided all `.rego` files in the directory will be
@@ -217,11 +217,87 @@ pub struct PolicyArgs {
     pub display_policy_coverage: bool,
 }
 
+/// Apply shared registry config onto a `RegistryArgs`, using config values
+/// as defaults that CLI flags can override.
+///
+/// Config values only apply when the CLI arg has its default value — explicit
+/// CLI flags always win.
+pub fn apply_registry_config(args: &mut RegistryArgs, config: &weaver_config::RegistryConfig) {
+    if let Some(path) = &config.path {
+        // Only override if the CLI arg is still the clap default
+        let default_registry = "https://github.com/open-telemetry/semantic-conventions.git[model]";
+        if args.registry.to_string() == default_registry {
+            if let Ok(parsed) = path.parse() {
+                args.registry = parsed;
+            }
+        }
+    }
+    if let Some(v) = config.follow_symlinks {
+        if !args.follow_symlinks {
+            args.follow_symlinks = v;
+        }
+    }
+    if let Some(v) = config.include_unreferenced {
+        if !args.include_unreferenced {
+            args.include_unreferenced = v;
+        }
+    }
+    if let Some(v) = config.v2 {
+        if !args.v2 {
+            args.v2 = v;
+        }
+    }
+}
+
+/// Apply shared policy config onto a `PolicyArgs`.
+pub fn apply_policy_config(args: &mut PolicyArgs, config: &weaver_config::PolicyConfig) {
+    if let Some(paths) = &config.paths {
+        if args.policies.is_empty() {
+            args.policies = paths.iter().filter_map(|p| p.parse().ok()).collect();
+        }
+    }
+    if let Some(v) = config.skip {
+        if !args.skip_policies {
+            args.skip_policies = v;
+        }
+    }
+}
+
+/// Apply shared diagnostics config onto a `DiagnosticArgs`.
+#[allow(dead_code)]
+pub fn apply_diagnostics_config(
+    args: &mut crate::DiagnosticArgs,
+    config: &weaver_config::DiagnosticsConfig,
+) {
+    if let Some(fmt) = &config.format {
+        if args.diagnostic_format == "ansi" {
+            args.diagnostic_format.clone_from(fmt);
+        }
+    }
+    if let Some(tpl) = &config.template {
+        if args.diagnostic_template.as_os_str() == "diagnostic_templates" {
+            args.diagnostic_template.clone_from(tpl);
+        }
+    }
+    if let Some(v) = config.stdout {
+        if !args.diagnostic_stdout {
+            args.diagnostic_stdout = v;
+        }
+    }
+}
+
 /// Load configuration for a command that implements `CliOverrides`.
 ///
 /// Applies the standard layering: defaults → `.weaver.toml` → CLI overrides.
 /// Logs the config file path when one is found.
-pub fn load_config<A: CliOverrides>(args: &A) -> Result<A::Config, DiagnosticMessages> {
+///
+/// Returns the command-specific config and the loaded `WeaverConfig` (if found).
+/// The caller can use the `WeaverConfig` to apply shared overrides to
+/// `RegistryArgs`, `PolicyArgs`, and `DiagnosticArgs` via the `apply_*_config`
+/// helper functions.
+pub fn load_config<A: CliOverrides>(
+    args: &A,
+) -> Result<(A::Config, Option<weaver_config::WeaverConfig>), DiagnosticMessages> {
     let found = if let Some(path) = args.config_path() {
         Some((
             path.clone(),
@@ -244,16 +320,16 @@ pub fn load_config<A: CliOverrides>(args: &A) -> Result<A::Config, DiagnosticMes
         })?
     };
 
-    let mut config = match found {
-        Some((path, weaver_config)) => {
+    let (mut config, weaver_config) = match found {
+        Some((path, wc)) => {
             log_info(format!("Found config: {}", path.display()));
-            A::extract_config(&weaver_config)
+            (A::extract_config(&wc), Some(wc))
         }
-        None => A::Config::default(),
+        None => (A::Config::default(), None),
     };
 
     args.apply_overrides(&mut config);
-    Ok(config)
+    Ok((config, weaver_config))
 }
 
 /// Manage a semantic convention registry and return the exit code.
