@@ -20,6 +20,10 @@ thiserror.workspace = true
 serde.workspace = true
 schemars.workspace = true
 log.workspace = true
+utoipa = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
+
+[features]
+openapi = ["utoipa", "weaver_semconv/openapi"]
