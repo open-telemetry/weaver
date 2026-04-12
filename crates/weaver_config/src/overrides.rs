@@ -3,8 +3,8 @@
 //! Trait and helpers for CLI-to-config override logic.
 //!
 //! Each command's `*Args` struct implements [`CliOverrides`] to declare how CLI
-//! flags map onto its config section. The [`override_if_set!`] macro reduces
-//! the per-field override to a single line.
+//! flags map onto its config section. The [`crate::override_if_set!`] macro
+//! reduces the per-field override to a single line.
 
 use schemars::JsonSchema;
 use std::path::PathBuf;

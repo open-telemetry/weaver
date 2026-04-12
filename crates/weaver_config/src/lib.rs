@@ -4,11 +4,6 @@
 //!
 //! Discovery walks up from the current working directory to find the first
 //! `.weaver.toml` file. The `--config` CLI option can override this.
-//!
-//! # Modules
-//!
-//! - [`live_check`] — Config structs for the `registry live-check` subcommand.
-//! - [`overrides`] — Trait and macro for CLI-to-config override logic.
 
 use schemars::JsonSchema;
 use serde::Deserialize;
