@@ -81,6 +81,15 @@ pub enum Error {
         error: String,
     },
 
+    /// A remote file download failed.
+    #[error("Failed to download remote file `{url}`: {error}")]
+    RemoteFileDownloadFailed {
+        /// The URL that was being downloaded
+        url: String,
+        /// The error message
+        error: String,
+    },
+
     /// An invalid registry archive.
     #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
     UnsupportedRegistryArchive {
