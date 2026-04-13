@@ -7,12 +7,23 @@
 //! - A local filesystem directory.
 //! - A local archive file (`.tar.gz` or `.zip`).
 //! - A remote archive file (`.tar.gz` or `.zip`) accessible via HTTP(S).
+//! - A remote individual file accessible via HTTP(S) (e.g. a published registry manifest).
 //! - A Git repository accessible via HTTP(S).
 //!
 //! It handles the fetching, extraction, and temporary storage management transparently.
 //!
-//! It uses a specific string format to represent these sources, potentially including
-//! Git refspecs (tags/branches/commits) or sub-folders within archives/repositories.
+//! # HTTP Authentication
+//!
+//! Remote downloads (both archives and individual files) support Bearer token authentication.
+//! Set the token at startup via [`set_http_auth_token`], typically from the
+//! `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN` environment variable. When a token is configured,
+//! all HTTP requests include `Authorization: Bearer <token>` and `User-Agent: weaver` headers.
+//!
+//! For GitHub private release assets, browser-style download URLs
+//! (`https://github.com/{owner}/{repo}/releases/download/{tag}/{file}`) are automatically
+//! normalized to GitHub API asset URLs, since the browser URLs do not support token-based
+//! authentication. The API release metadata is cached per release to avoid redundant calls
+//! when downloading multiple assets from the same release.
 //!
 //! # String Format
 //!
@@ -34,6 +45,8 @@
 //! - Git repo (tag `v1.0`, sub-folder `schemas`): `https://github.com/user/repo.git@v1.0[schemas]`
 //! - Remote archive: `https://example.com/archive.tar.gz`
 //! - Remote archive with sub-folder: `https://example.com/archive.zip[data/files]`
+//! - Remote file: `https://example.com/registry/manifest.yaml`
+//! - GitHub release asset: `https://github.com/org/repo/releases/download/v1.0.0/manifest.yaml`
 
 use crate::vdir::VirtualDirectoryPath::{
     GitRepo, LocalArchive, LocalFolder, RemoteArchive, RemoteFile,

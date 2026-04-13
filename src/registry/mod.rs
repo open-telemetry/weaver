@@ -166,10 +166,17 @@ pub enum RegistrySubCommand {
 /// Set of parameters used to specify a semantic convention registry.
 #[derive(Args, Debug)]
 pub struct RegistryArgs {
-    /// Local folder, Git repo URL, or Git archive URL of the semantic
-    /// convention registry. For Git URLs, a reference can be specified
-    /// using the `@refspec` syntax and a sub-folder can be specified
-    /// using the `[sub-folder]` syntax after the URL.
+    /// Local folder, Git repo URL, Git archive URL, or remote file URL
+    /// of the semantic convention registry. For Git URLs, a reference
+    /// can be specified using the `@refspec` syntax and a sub-folder
+    /// can be specified using the `[sub-folder]` syntax after the URL.
+    ///
+    /// For remote files (e.g. a published registry manifest), pass the
+    /// URL directly. GitHub release asset URLs are supported and will be
+    /// resolved automatically via the GitHub API.
+    ///
+    /// To authenticate with private repositories, set the
+    /// WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
     #[arg(
         short = 'r',
         long,

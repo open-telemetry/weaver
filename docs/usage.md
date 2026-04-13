@@ -89,7 +89,11 @@ The process exits with a code of 0 if the registry validation is successful.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -144,7 +148,11 @@ The process exits with a code of 0 if the generation is successful.
 * `-c`, `--config <CONFIG>` — List of `weaver.yaml` configuration files to use. When there is a conflict, the last one will override the previous ones for the keys that are defined in both
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -181,7 +189,11 @@ Please use 'weaver registry generate' or 'weaver registry package' instead.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -225,7 +237,11 @@ DEPRECATED - Searches a registry. This command is deprecated and will be removed
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -254,7 +270,11 @@ Calculate a set of general statistics on a semantic convention registry
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -291,7 +311,11 @@ Update markdown files that contain markers indicating the templates used to upda
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -379,7 +403,11 @@ This diff can then be rendered in multiple formats:
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -415,7 +443,11 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -454,7 +486,11 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -539,7 +575,11 @@ The server communicates over stdio using JSON-RPC.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -605,7 +645,11 @@ Packages a semantic convention registry into a self-contained artifact.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
@@ -696,7 +740,11 @@ Start the API server (Experimental)
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, Git archive URL, or remote file URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL.
+
+   For remote files (e.g. a published registry manifest), pass the URL directly. GitHub release asset URLs are supported and will be resolved automatically via the GitHub API.
+
+   To authenticate with private repositories, set the WEAVER_HTTP_AUTH_TOKEN or GITHUB_TOKEN environment variable.
 
   Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
 * `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false

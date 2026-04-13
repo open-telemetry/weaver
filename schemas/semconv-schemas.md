@@ -55,7 +55,12 @@ Properties:
     the dependency is resolved by its `schema_url` alone. Can be:
     - A local directory or archive (`.zip`, `.tar.gz`)
     - A remote archive URL
+    - A remote file URL (e.g. a published registry manifest)
     - A Git repository URL
+    - A GitHub release asset URL (automatically resolved via the GitHub API)
+
+    For private repositories, set the `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN`
+    environment variable to authenticate HTTP downloads.
 
 For example, a definition manifest for a registry that extends OTel semantic conventions:
 
