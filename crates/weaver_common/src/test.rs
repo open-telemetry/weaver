@@ -58,6 +58,57 @@ impl ServeStaticFiles {
     }
 }
 
+/// An HTTP server that requires Bearer token authentication to serve static files.
+/// Returns 401 Unauthorized if the `Authorization: Bearer <token>` header is missing or wrong.
+pub struct ServeStaticFilesWithAuth {
+    kill_switch: Sender<()>,
+    port: u16,
+}
+
+impl Drop for ServeStaticFilesWithAuth {
+    fn drop(&mut self) {
+        let _ = self.kill_switch.send(());
+    }
+}
+
+impl ServeStaticFilesWithAuth {
+    /// Creates a new auth-checking HTTP server.
+    /// Only requests with `Authorization: Bearer <expected_token>` will receive files.
+    pub fn from(
+        static_path: impl Into<PathBuf>,
+        expected_token: impl Into<String>,
+    ) -> Result<Self, HttpServerError> {
+        let static_path = static_path.into();
+        let expected_token = expected_token.into();
+        let server = Server::new("127.0.0.1:0", move |request| {
+            let auth = request.header("Authorization").unwrap_or_default();
+            let expected = format!("Bearer {expected_token}");
+            if auth != expected {
+                return rouille::Response::text("Unauthorized").with_status_code(401);
+            }
+            match_assets(request, &static_path)
+        })
+        .map_err(|e| HttpServerError {
+            error: e.to_string(),
+        })?;
+        let port = server.server_addr().port();
+        let (_, kill_switch) = server.stoppable();
+        Ok(Self { kill_switch, port })
+    }
+
+    /// Returns the port of the server.
+    #[must_use]
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Returns the URL of a file.
+    #[must_use]
+    pub fn relative_path_to_url(&self, file: &str) -> String {
+        format!("http://127.0.0.1:{}/{}", self.port, file)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::test::ServeStaticFiles;

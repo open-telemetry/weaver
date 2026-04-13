@@ -54,7 +54,7 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
 /// When true, git clone operations use `open::Options::default()` which reads
@@ -74,6 +74,24 @@ pub fn enable_git_credentials() {
 #[must_use]
 pub fn is_git_credentials_enabled() -> bool {
     ALLOW_GIT_CREDENTIALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Optional Bearer token for authenticating HTTP requests when downloading remote archives.
+/// Set via `set_http_auth_token()`, typically from the `WEAVER_HTTP_AUTH_TOKEN` or
+/// `GITHUB_TOKEN` environment variable.
+static HTTP_AUTH_TOKEN: Mutex<Option<String>> = Mutex::new(None);
+
+/// Set the Bearer token used for HTTP authentication when downloading remote archives.
+pub fn set_http_auth_token(token: String) {
+    if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
+        *guard = Some(token);
+    }
+}
+
+/// Returns the configured HTTP auth token, if any.
+#[must_use]
+pub fn http_auth_token() -> Option<String> {
+    HTTP_AUTH_TOKEN.lock().ok().and_then(|guard| guard.clone())
 }
 
 /// The extension for a tar gz archive.
@@ -697,8 +715,14 @@ impl VirtualDirectory {
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
 
-        // Download the archive from the URL
-        let response = ureq::get(url).call().map_err(|e| InvalidRegistryArchive {
+        // Download the archive from the URL, attaching Bearer auth if a token is configured.
+        let mut request = ureq::get(url);
+        if let Some(token) = http_auth_token() {
+            request = request
+                .header("Authorization", &format!("Bearer {token}"))
+                .header("User-Agent", "weaver");
+        }
+        let response = request.call().map_err(|e| InvalidRegistryArchive {
             archive: url.to_owned(),
             error: e.to_string(),
         })?;
@@ -1054,5 +1078,63 @@ mod tests {
 
         // Reset for other tests
         ALLOW_GIT_CREDENTIALS.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    #[test]
+    fn test_http_auth_token() {
+        use super::{http_auth_token, set_http_auth_token, HTTP_AUTH_TOKEN};
+
+        // Reset to known state
+        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
+            *guard = None;
+        }
+
+        assert!(http_auth_token().is_none());
+        set_http_auth_token("test-token-123".to_owned());
+        assert_eq!(http_auth_token().as_deref(), Some("test-token-123"));
+
+        // Reset for other tests
+        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
+            *guard = None;
+        }
+    }
+
+    /// Tests that remote archive downloads work with and without Bearer auth.
+    /// Combined into one test because `HTTP_AUTH_TOKEN` is shared global state
+    /// and parallel tests would race on it.
+    #[test]
+    fn test_remote_archive_auth() {
+        use super::HTTP_AUTH_TOKEN;
+        use crate::test::ServeStaticFilesWithAuth;
+
+        let token = "secret-test-token";
+
+        let server = ServeStaticFilesWithAuth::from("tests/test_data", token)
+            .expect("failed to start auth server");
+        let url = server.relative_path_to_url("semconv_registry_v1.26.0.tar.gz");
+
+        // Without a token, the auth server should reject the request.
+        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
+            *guard = None;
+        }
+        let registry_path = format!("{url}[model]")
+            .parse::<VirtualDirectoryPath>()
+            .expect("failed to parse registry path");
+        let result = VirtualDirectory::try_new(&registry_path);
+        assert!(result.is_err(), "expected error when no auth token is set");
+
+        // With the correct token, the download should succeed.
+        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
+            *guard = Some(token.to_owned());
+        }
+        let registry_path = format!("{url}[model]")
+            .parse::<VirtualDirectoryPath>()
+            .expect("failed to parse registry path");
+        check_archive(registry_path, Some("general.yaml"));
+
+        // Reset for other tests
+        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
+            *guard = None;
+        }
     }
 }

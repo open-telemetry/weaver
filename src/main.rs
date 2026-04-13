@@ -132,6 +132,15 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.allow_git_credentials {
         weaver_common::vdir::enable_git_credentials();
     }
+    // Read HTTP auth token from environment for authenticated remote archive downloads.
+    // WEAVER_HTTP_AUTH_TOKEN takes precedence; GITHUB_TOKEN is the fallback.
+    if let Ok(token) =
+        std::env::var("WEAVER_HTTP_AUTH_TOKEN").or_else(|_| std::env::var("GITHUB_TOKEN"))
+    {
+        if !token.is_empty() {
+            weaver_common::vdir::set_http_auth_token(token);
+        }
+    }
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),
