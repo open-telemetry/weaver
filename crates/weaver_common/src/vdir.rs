@@ -51,6 +51,7 @@ use regex::Regex;
 use rouille::url::Url;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File};
 use std::io;
@@ -82,45 +83,65 @@ pub fn is_git_credentials_enabled() -> bool {
     ALLOW_GIT_CREDENTIALS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Optional Bearer token for authenticating HTTP requests when downloading remote archives.
-/// Set via `set_http_auth_token()`, typically from the `WEAVER_HTTP_AUTH_TOKEN` or
-/// `GITHUB_TOKEN` environment variable.
+/// Optional Bearer token for authenticating HTTP requests when downloading
+/// remote archives and files. Set via `set_http_auth_token()`, typically from
+/// the `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN` environment variable at startup.
 static HTTP_AUTH_TOKEN: Mutex<Option<String>> = Mutex::new(None);
 
 /// Set the Bearer token used for HTTP authentication when downloading remote archives.
 pub fn set_http_auth_token(token: String) {
-    if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
-        *guard = Some(token);
-    }
+    *HTTP_AUTH_TOKEN
+        .lock()
+        .expect("HTTP_AUTH_TOKEN mutex poisoned") = Some(token);
 }
 
 /// Returns the configured HTTP auth token, if any.
 #[must_use]
 pub fn http_auth_token() -> Option<String> {
-    HTTP_AUTH_TOKEN.lock().ok().and_then(|guard| guard.clone())
+    HTTP_AUTH_TOKEN
+        .lock()
+        .expect("HTTP_AUTH_TOKEN mutex poisoned")
+        .clone()
 }
 
-/// Creates a ureq [`Agent`] configured for authenticated HTTP downloads.
+/// Shared ureq [`Agent`] configured for authenticated HTTP downloads.
 ///
 /// Uses `RedirectAuthHeaders::SameHost` so that the `Authorization` header
 /// is preserved across same-host redirects (needed for GitHub API asset
 /// downloads that redirect within `*.github.com`) but stripped on
-/// cross-origin redirects.
-fn make_http_agent() -> Agent {
+/// cross-origin redirects. The agent is shared so that connection pooling
+/// benefits multiple downloads in the same run.
+static HTTP_AGENT: Lazy<Agent> = Lazy::new(|| {
     Config::builder()
         .max_redirects(10)
         .redirect_auth_headers(RedirectAuthHeaders::SameHost)
         .build()
         .into()
+});
+
+/// Attaches Bearer auth and User-Agent headers to a request if a token is configured.
+fn attach_auth<B>(request: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
+    let request = request.header("User-Agent", "weaver");
+    match http_auth_token() {
+        Some(token) => request.header("Authorization", &format!("Bearer {token}")),
+        None => request,
+    }
 }
+
+/// Cache for GitHub release API responses, keyed by `(owner, repo, tag)`.
+/// Avoids duplicate API calls when multiple files are downloaded from the same release
+/// (e.g. manifest.yaml then resolved.yaml).
+static GITHUB_RELEASE_CACHE: Lazy<Mutex<HashMap<String, serde_json::Value>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// If `url` is a GitHub browser-style release asset URL, resolve it to the
 /// API asset URL (which accepts Bearer token auth). Any other URL is returned
-/// unchanged.
+/// unchanged. Release metadata is cached so that downloading multiple assets
+/// from the same release only makes one API call.
 ///
 /// Browser form: `https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}`
 /// API form:     `https://api.github.com/repos/{owner}/{repo}/releases/assets/{id}`
-fn normalize_github_url(url: &str, agent: &Agent) -> Result<String, Error> {
+fn normalize_github_url(url: &str) -> Result<String, Error> {
     let Some(rest) = url.strip_prefix("https://github.com/") else {
         return Ok(url.to_owned());
     };
@@ -129,56 +150,55 @@ fn normalize_github_url(url: &str, agent: &Agent) -> Result<String, Error> {
         return Ok(url.to_owned());
     }
     let (owner, repo, tag, filename) = (parts[0], parts[1], parts[4], parts[5]);
+    let err = |msg: String| RemoteFileDownloadFailed {
+        url: url.to_owned(),
+        error: msg,
+    };
 
-    let api_url = format!("https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag}");
-    let mut req = agent
-        .get(&api_url)
-        .header("Accept", "application/vnd.github+json")
-        .header("User-Agent", "weaver");
-    if let Some(token) = http_auth_token() {
-        req = req.header("Authorization", &format!("Bearer {token}"));
-    }
-    let body: String = req
-        .call()
-        .map_err(|e| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: format!("GitHub API request failed: {e}"),
-        })?
-        .into_body()
-        .read_to_string()
-        .map_err(|e| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: format!("Failed to read GitHub API response: {e}"),
-        })?;
-
-    let release: serde_json::Value =
-        serde_json::from_str(&body).map_err(|e| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: format!("Failed to parse GitHub API response: {e}"),
-        })?;
+    let cache_key = format!("{owner}/{repo}/{tag}");
+    let release = {
+        let cache = GITHUB_RELEASE_CACHE
+            .lock()
+            .expect("GitHub release cache lock poisoned");
+        cache.get(&cache_key).cloned()
+    };
+    let release = if let Some(cached) = release {
+        cached
+    } else {
+        let api_url = format!("https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag}");
+        let req = attach_auth(
+            HTTP_AGENT
+                .get(&api_url)
+                .header("Accept", "application/vnd.github+json"),
+        );
+        let body: String = req
+            .call()
+            .map_err(|e| err(format!("GitHub API request failed: {e}")))?
+            .into_body()
+            .read_to_string()
+            .map_err(|e| err(format!("Failed to read GitHub API response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| err(format!("Failed to parse GitHub API response: {e}")))?;
+        _ = GITHUB_RELEASE_CACHE
+            .lock()
+            .expect("GitHub release cache lock poisoned")
+            .insert(cache_key, parsed.clone());
+        parsed
+    };
 
     let assets = release["assets"]
         .as_array()
-        .ok_or_else(|| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: "GitHub release has no assets".to_owned(),
-        })?;
+        .ok_or_else(|| err("GitHub release has no assets".to_owned()))?;
 
     let asset = assets
         .iter()
         .find(|a| a["name"].as_str() == Some(filename))
-        .ok_or_else(|| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: format!("Asset '{filename}' not found in release '{tag}'"),
-        })?;
+        .ok_or_else(|| err(format!("Asset '{filename}' not found in release '{tag}'")))?;
 
     asset["url"]
         .as_str()
         .map(|s| s.to_owned())
-        .ok_or_else(|| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: "Asset missing 'url' field".to_owned(),
-        })
+        .ok_or_else(|| err("Asset missing 'url' field".to_owned()))
 }
 
 /// The extension for a tar gz archive.
@@ -818,24 +838,13 @@ impl VirtualDirectory {
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
 
-        // Download the archive from the URL, attaching Bearer auth if a token is configured.
-        let agent = make_http_agent();
-        let mut request = agent.get(url);
-        if let Some(token) = http_auth_token() {
-            request = request
-                .header("Authorization", &format!("Bearer {token}"))
-                .header("User-Agent", "weaver");
-        }
-        let response = request.call().map_err(|e| InvalidRegistryArchive {
-            archive: url.to_owned(),
-            error: e.to_string(),
-        })?;
-        if response.status() != 200 {
-            return Err(InvalidRegistryArchive {
-                archive: url.to_owned(),
-                error: format!("HTTP status code: {}", response.status()),
-            });
-        }
+        let response =
+            attach_auth(HTTP_AGENT.get(url))
+                .call()
+                .map_err(|e| InvalidRegistryArchive {
+                    archive: url.to_owned(),
+                    error: e.to_string(),
+                })?;
 
         // Parse the URL to get the file name
         let parsed_url = Url::parse(url).map_err(|e| InvalidRegistryArchive {
@@ -861,9 +870,6 @@ impl VirtualDirectory {
             error: e.to_string(),
         })?;
 
-        // Write the response body to the file.
-        // The number of bytes written is ignored as the `try_from_local_archive` function
-        // will handle the archive extraction and return an error if the archive is invalid.
         _ = io::copy(&mut response.into_body().into_reader(), &mut file).map_err(|e| {
             InvalidRegistryArchive {
                 archive: url.to_owned(),
@@ -892,40 +898,25 @@ impl VirtualDirectory {
         vdir_path: String,
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
-        let agent = make_http_agent();
+        let err = |msg: String| RemoteFileDownloadFailed {
+            url: url.to_owned(),
+            error: msg,
+        };
 
         // Normalize GitHub browser URLs to API URLs for auth support.
-        let resolved_url = normalize_github_url(url, &agent)?;
+        let resolved_url = normalize_github_url(url)?;
 
-        // Download the file, attaching Bearer auth if a token is configured.
-        let mut request = agent.get(&resolved_url);
-        if let Some(token) = http_auth_token() {
-            request = request
-                .header("Authorization", &format!("Bearer {token}"))
-                .header("User-Agent", "weaver");
-        }
+        let mut request = attach_auth(HTTP_AGENT.get(&resolved_url));
         // For GitHub API asset downloads, Accept: application/octet-stream
         // triggers the redirect to the actual file content.
         if resolved_url.starts_with("https://api.github.com/") {
             request = request.header("Accept", "application/octet-stream");
         }
-        let response = request.call().map_err(|e| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: e.to_string(),
-        })?;
-        if response.status() != 200 {
-            return Err(RemoteFileDownloadFailed {
-                url: url.to_owned(),
-                error: format!("HTTP status code: {}", response.status()),
-            });
-        }
+        let response = request.call().map_err(|e| err(e.to_string()))?;
 
         // Use the original URL for the filename (not the resolved API URL which
         // has an opaque numeric asset ID).
-        let parsed_url = Url::parse(url).map_err(|e| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: e.to_string(),
-        })?;
+        let parsed_url = Url::parse(url).map_err(|e| err(e.to_string()))?;
         let file_name = parsed_url
             .path_segments()
             .and_then(|mut segments| segments.next_back())
@@ -933,18 +924,9 @@ impl VirtualDirectory {
             .unwrap_or("downloaded_file");
 
         let save_path = tmp_path.join(file_name);
-
-        let mut file = File::create(&save_path).map_err(|e| RemoteFileDownloadFailed {
-            url: url.to_owned(),
-            error: e.to_string(),
-        })?;
-
-        _ = io::copy(&mut response.into_body().into_reader(), &mut file).map_err(|e| {
-            RemoteFileDownloadFailed {
-                url: url.to_owned(),
-                error: e.to_string(),
-            }
-        })?;
+        let mut file = File::create(&save_path).map_err(|e| err(e.to_string()))?;
+        _ = io::copy(&mut response.into_body().into_reader(), &mut file)
+            .map_err(|e| err(e.to_string()))?;
 
         Ok(Self {
             vdir_path,

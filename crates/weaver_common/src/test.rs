@@ -14,19 +14,38 @@ pub struct HttpServerError {
     error: String,
 }
 
-/// A struct that serves static files from a directory.
-pub struct ServeStaticFiles {
+/// Internal test HTTP server holding the kill switch and port.
+struct TestHttpServer {
     kill_switch: Sender<()>,
     port: u16,
 }
 
-impl Drop for ServeStaticFiles {
-    /// Stops the HTTP server.
+impl Drop for TestHttpServer {
     fn drop(&mut self) {
-        // If we fail to kill the server, ignore it.
         let _ = self.kill_switch.send(());
     }
 }
+
+impl TestHttpServer {
+    fn new(
+        server: Server<impl Fn(&rouille::Request) -> rouille::Response + Send + Sync + 'static>,
+    ) -> Self {
+        let port = server.server_addr().port();
+        let (_, kill_switch) = server.stoppable();
+        Self { kill_switch, port }
+    }
+
+    fn port(&self) -> u16 {
+        self.port
+    }
+
+    fn relative_path_to_url(&self, file: &str) -> String {
+        format!("http://127.0.0.1:{}/{}", self.port, file)
+    }
+}
+
+/// A struct that serves static files from a directory.
+pub struct ServeStaticFiles(TestHttpServer);
 
 impl ServeStaticFiles {
     /// Creates a new HTTP server that serves static files from a directory.
@@ -39,37 +58,26 @@ impl ServeStaticFiles {
         .map_err(|e| HttpServerError {
             error: e.to_string(),
         })?;
-        let port = server.server_addr().port();
-        let (_, kill_switch) = server.stoppable();
-        Ok(Self { kill_switch, port })
+        Ok(Self(TestHttpServer::new(server)))
     }
 
     /// Returns the port of the server.
     #[must_use]
     pub fn port(&self) -> u16 {
-        self.port
+        self.0.port()
     }
 
     /// Returns the URL of a file.
     /// The file path should be relative to the static path.
     #[must_use]
     pub fn relative_path_to_url(&self, file: &str) -> String {
-        format!("http://127.0.0.1:{}/{}", self.port, file)
+        self.0.relative_path_to_url(file)
     }
 }
 
 /// An HTTP server that requires Bearer token authentication to serve static files.
 /// Returns 401 Unauthorized if the `Authorization: Bearer <token>` header is missing or wrong.
-pub struct ServeStaticFilesWithAuth {
-    kill_switch: Sender<()>,
-    port: u16,
-}
-
-impl Drop for ServeStaticFilesWithAuth {
-    fn drop(&mut self) {
-        let _ = self.kill_switch.send(());
-    }
-}
+pub struct ServeStaticFilesWithAuth(TestHttpServer);
 
 impl ServeStaticFilesWithAuth {
     /// Creates a new auth-checking HTTP server.
@@ -91,21 +99,19 @@ impl ServeStaticFilesWithAuth {
         .map_err(|e| HttpServerError {
             error: e.to_string(),
         })?;
-        let port = server.server_addr().port();
-        let (_, kill_switch) = server.stoppable();
-        Ok(Self { kill_switch, port })
+        Ok(Self(TestHttpServer::new(server)))
     }
 
     /// Returns the port of the server.
     #[must_use]
     pub fn port(&self) -> u16 {
-        self.port
+        self.0.port()
     }
 
     /// Returns the URL of a file.
     #[must_use]
     pub fn relative_path_to_url(&self, file: &str) -> String {
-        format!("http://127.0.0.1:{}/{}", self.port, file)
+        self.0.relative_path_to_url(file)
     }
 }
 
