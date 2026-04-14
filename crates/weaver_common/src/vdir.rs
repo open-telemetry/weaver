@@ -22,8 +22,9 @@
 //! For GitHub private release assets, browser-style download URLs
 //! (`https://github.com/{owner}/{repo}/releases/download/{tag}/{file}`) are automatically
 //! normalized to GitHub API asset URLs, since the browser URLs do not support token-based
-//! authentication. The API release metadata is cached per release to avoid redundant calls
-//! when downloading multiple assets from the same release.
+//! authentication. This applies to both individual files (e.g. `manifest.yaml`) and
+//! archive assets (`.zip`, `.tar.gz`). The API release metadata is cached per release to
+//! avoid redundant calls when downloading multiple assets from the same release.
 //!
 //! # String Format
 //!
@@ -43,10 +44,22 @@
 //! - Local archive with sub-folder: `data.zip[specific_dir]`
 //! - Git repo (default branch): `https://github.com/user/repo.git`
 //! - Git repo (tag `v1.0`, sub-folder `schemas`): `https://github.com/user/repo.git@v1.0[schemas]`
+//! - Git repo without `.git` suffix (inferred from `@refspec` or `[sub_folder]`):
+//!   `https://github.com/user/repo@v1.0[schemas]`
 //! - Remote archive: `https://example.com/archive.tar.gz`
 //! - Remote archive with sub-folder: `https://example.com/archive.zip[data/files]`
 //! - Remote file: `https://example.com/registry/manifest.yaml`
 //! - GitHub release asset: `https://github.com/org/repo/releases/download/v1.0.0/manifest.yaml`
+//!
+//! # Disambiguating HTTP(S) URLs
+//!
+//! An HTTP(S) `source` is classified as follows (in order):
+//! 1. `.zip` or `.tar.gz` suffix → remote archive.
+//! 2. `.git` suffix, or presence of `@refspec` or `[sub_folder]` → Git repo. (Neither
+//!    `@refspec` nor `[sub_folder]` is meaningful for a single remote file, so their
+//!    presence is treated as a reliable signal of a Git repo even when the `.git`
+//!    suffix is omitted.)
+//! 3. Otherwise → remote file.
 
 use crate::vdir::VirtualDirectoryPath::{
     GitRepo, LocalArchive, LocalFolder, RemoteArchive, RemoteFile,
@@ -141,6 +154,30 @@ fn attach_auth<B>(request: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
     }
 }
 
+/// Download `url` into `save_path` with Bearer auth. GitHub browser-style
+/// release URLs (for both individual files and archive assets) are transparently
+/// normalized to API asset URLs so that token auth works for private repos.
+fn download_to_file(
+    url: &str,
+    save_path: &Path,
+    map_err: impl Fn(String) -> Error,
+) -> Result<(), Error> {
+    let resolved_url = normalize_github_url(url)?;
+
+    let mut request = attach_auth(HTTP_AGENT.get(&resolved_url));
+    // For GitHub API asset downloads, `Accept: application/octet-stream`
+    // triggers the redirect to the actual file content.
+    if resolved_url.starts_with("https://api.github.com/") {
+        request = request.header("Accept", "application/octet-stream");
+    }
+    let response = request.call().map_err(|e| map_err(e.to_string()))?;
+
+    let mut file = File::create(save_path).map_err(|e| map_err(e.to_string()))?;
+    _ = io::copy(&mut response.into_body().into_reader(), &mut file)
+        .map_err(|e| map_err(e.to_string()))?;
+    Ok(())
+}
+
 /// Cache for GitHub release API responses, keyed by `(owner, repo, tag)`.
 /// Avoids duplicate API calls when multiple files are downloaded from the same release
 /// (e.g. manifest.yaml then resolved.yaml).
@@ -155,14 +192,9 @@ static GITHUB_RELEASE_CACHE: Lazy<Mutex<HashMap<String, serde_json::Value>>> =
 /// Browser form: `https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}`
 /// API form:     `https://api.github.com/repos/{owner}/{repo}/releases/assets/{id}`
 fn normalize_github_url(url: &str) -> Result<String, Error> {
-    let Some(rest) = url.strip_prefix("https://github.com/") else {
+    let Some((owner, repo, tag, filename)) = parse_github_release_url(url) else {
         return Ok(url.to_owned());
     };
-    let parts: Vec<&str> = rest.splitn(6, '/').collect();
-    if parts.len() != 6 || parts[2] != "releases" || parts[3] != "download" {
-        return Ok(url.to_owned());
-    }
-    let (owner, repo, tag, filename) = (parts[0], parts[1], parts[4], parts[5]);
     let err = |msg: String| RemoteFileDownloadFailed {
         url: url.to_owned(),
         error: msg,
@@ -199,6 +231,31 @@ fn normalize_github_url(url: &str) -> Result<String, Error> {
         parsed
     };
 
+    find_asset_url(&release, filename, tag, url)
+}
+
+/// Parse a GitHub browser-style release asset URL into its components.
+/// Returns `None` if the URL does not match the expected pattern.
+fn parse_github_release_url(url: &str) -> Option<(&str, &str, &str, &str)> {
+    let rest = url.strip_prefix("https://github.com/")?;
+    let parts: Vec<&str> = rest.splitn(6, '/').collect();
+    if parts.len() != 6 || parts[2] != "releases" || parts[3] != "download" {
+        return None;
+    }
+    Some((parts[0], parts[1], parts[4], parts[5]))
+}
+
+/// Find the API asset URL for `filename` within a GitHub release JSON response.
+fn find_asset_url(
+    release: &serde_json::Value,
+    filename: &str,
+    tag: &str,
+    url: &str,
+) -> Result<String, Error> {
+    let err = |msg: String| RemoteFileDownloadFailed {
+        url: url.to_owned(),
+        error: msg,
+    };
     let assets = release["assets"]
         .as_array()
         .ok_or_else(|| err("GitHub release has no assets".to_owned()))?;
@@ -410,7 +467,10 @@ impl FromStr for VirtualDirectoryPath {
                     url: source.to_owned(),
                     sub_folder,
                 })
-            } else if source.ends_with(".git") {
+            } else if source.ends_with(".git") || refspec.is_some() || sub_folder.is_some() {
+                // A `@refspec` or `[sub_folder]` only makes sense for a git repo
+                // (or an archive, already handled above), so treat these as GitRepo
+                // even without the `.git` suffix.
                 Ok(Self::GitRepo {
                     url: source.to_owned(),
                     refspec,
@@ -837,6 +897,9 @@ impl VirtualDirectory {
     /// The temporary directory is created in the `.weaver/vdir_cache`.
     /// The temporary directory is deleted when the [`VirtualDirectory`] goes out of scope.
     ///
+    /// GitHub browser-style release archive URLs are automatically normalized to API
+    /// asset URLs so that Bearer token auth works for private repositories.
+    ///
     /// Arguments:
     /// - `id`: The unique identifier for the registry.
     /// - `url`: The URL of the archive.
@@ -850,45 +913,22 @@ impl VirtualDirectory {
         vdir_path: String,
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
-
-        let response =
-            attach_auth(HTTP_AGENT.get(url))
-                .call()
-                .map_err(|e| InvalidRegistryArchive {
-                    archive: url.to_owned(),
-                    error: e.to_string(),
-                })?;
-
-        // Parse the URL to get the file name
-        let parsed_url = Url::parse(url).map_err(|e| InvalidRegistryArchive {
+        let err = |msg: String| InvalidRegistryArchive {
             archive: url.to_owned(),
-            error: e.to_string(),
-        })?;
+            error: msg,
+        };
+
+        // Use the original URL for the filename, not the (possibly GitHub-API-normalized)
+        // download URL, so the archive extension is preserved for `try_from_local_archive`.
+        let parsed_url = Url::parse(url).map_err(|e| err(e.to_string()))?;
         let file_name = parsed_url
             .path_segments()
             .and_then(|mut segments| segments.next_back())
             .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .ok_or("Failed to extract file name from URL")
-            .map_err(|e| InvalidRegistryArchive {
-                archive: url.to_owned(),
-                error: e.to_owned(),
-            })?;
+            .ok_or_else(|| err("Failed to extract file name from URL".to_owned()))?;
 
-        // Create the full path to the save file
         let save_path = tmp_path.join(file_name);
-
-        // Open a file in write mode
-        let mut file = File::create(save_path.clone()).map_err(|e| InvalidRegistryArchive {
-            archive: url.to_owned(),
-            error: e.to_string(),
-        })?;
-
-        _ = io::copy(&mut response.into_body().into_reader(), &mut file).map_err(|e| {
-            InvalidRegistryArchive {
-                archive: url.to_owned(),
-                error: e.to_string(),
-            }
-        })?;
+        download_to_file(url, &save_path, err)?;
 
         Self::try_from_local_archive(
             save_path.to_str().unwrap_or_default(),
@@ -916,18 +956,7 @@ impl VirtualDirectory {
             error: msg,
         };
 
-        // Normalize GitHub browser URLs to API URLs for auth support.
-        let resolved_url = normalize_github_url(url)?;
-
-        let mut request = attach_auth(HTTP_AGENT.get(&resolved_url));
-        // For GitHub API asset downloads, Accept: application/octet-stream
-        // triggers the redirect to the actual file content.
-        if resolved_url.starts_with("https://api.github.com/") {
-            request = request.header("Accept", "application/octet-stream");
-        }
-        let response = request.call().map_err(|e| err(e.to_string()))?;
-
-        // Use the original URL for the filename (not the resolved API URL which
+        // Use the original URL for the filename (not the resolved API URL, which
         // has an opaque numeric asset ID).
         let parsed_url = Url::parse(url).map_err(|e| err(e.to_string()))?;
         let file_name = parsed_url
@@ -937,9 +966,7 @@ impl VirtualDirectory {
             .unwrap_or("downloaded_file");
 
         let save_path = tmp_path.join(file_name);
-        let mut file = File::create(&save_path).map_err(|e| err(e.to_string()))?;
-        _ = io::copy(&mut response.into_body().into_reader(), &mut file)
-            .map_err(|e| err(e.to_string()))?;
+        download_to_file(url, &save_path, err)?;
 
         Ok(Self {
             vdir_path,
@@ -1337,6 +1364,45 @@ mod tests {
             matches!(&path, VirtualDirectoryPath::GitRepo { .. }),
             "Expected GitRepo, got {path:?}"
         );
+
+        // A `@refspec` without `.git` is still a git repo.
+        let path: VirtualDirectoryPath = "https://github.com/org/repo@v1.0.0"
+            .parse()
+            .expect("failed to parse");
+        assert!(
+            matches!(
+                &path,
+                VirtualDirectoryPath::GitRepo { url, refspec: Some(r), sub_folder: None }
+                    if url == "https://github.com/org/repo" && r == "v1.0.0"
+            ),
+            "Expected GitRepo with refspec, got {path:?}"
+        );
+
+        // A `[sub_folder]` without `.git` is still a git repo.
+        let path: VirtualDirectoryPath = "https://github.com/org/repo[model]"
+            .parse()
+            .expect("failed to parse");
+        assert!(
+            matches!(
+                &path,
+                VirtualDirectoryPath::GitRepo { url, refspec: None, sub_folder: Some(s) }
+                    if url == "https://github.com/org/repo" && s == "model"
+            ),
+            "Expected GitRepo with sub_folder, got {path:?}"
+        );
+
+        // Both refspec and sub_folder, no `.git` — still a git repo.
+        let path: VirtualDirectoryPath = "https://github.com/org/repo@v1.0.0[model]"
+            .parse()
+            .expect("failed to parse");
+        assert!(
+            matches!(
+                &path,
+                VirtualDirectoryPath::GitRepo { url, refspec: Some(r), sub_folder: Some(s) }
+                    if url == "https://github.com/org/repo" && r == "v1.0.0" && s == "model"
+            ),
+            "Expected GitRepo with refspec and sub_folder, got {path:?}"
+        );
     }
 
     #[test]
@@ -1347,5 +1413,101 @@ mod tests {
         let vdir = VirtualDirectory::try_new(&vdir_path).expect("failed to download remote file");
         let content = std::fs::read_to_string(vdir.path()).expect("failed to read downloaded file");
         assert_eq!(content, "file: A");
+    }
+
+    #[test]
+    fn test_parse_github_release_url() {
+        use super::parse_github_release_url;
+
+        // Canonical browser-style release asset URL.
+        assert_eq!(
+            parse_github_release_url(
+                "https://github.com/owner/repo/releases/download/v1.0.0/manifest.yaml"
+            ),
+            Some(("owner", "repo", "v1.0.0", "manifest.yaml"))
+        );
+
+        // Filename containing a slash is preserved intact (splitn keeps the tail).
+        assert_eq!(
+            parse_github_release_url("https://github.com/o/r/releases/download/tag/sub/file.yaml"),
+            Some(("o", "r", "tag", "sub/file.yaml"))
+        );
+
+        // Non-GitHub host passes through.
+        assert_eq!(
+            parse_github_release_url("https://example.com/owner/repo/releases/download/v1/f"),
+            None
+        );
+
+        // GitHub URL that isn't a release asset download.
+        assert_eq!(
+            parse_github_release_url("https://github.com/owner/repo/blob/main/README.md"),
+            None
+        );
+
+        // Too few path segments.
+        assert_eq!(
+            parse_github_release_url("https://github.com/owner/repo/releases/download/v1"),
+            None
+        );
+
+        // Already-resolved API URL passes through (not a browser URL).
+        assert_eq!(
+            parse_github_release_url(
+                "https://api.github.com/repos/owner/repo/releases/assets/12345"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn test_normalize_github_url_passthrough() {
+        use super::normalize_github_url;
+
+        // Non-matching URLs must not trigger network calls and must come back unchanged.
+        for url in [
+            "https://example.com/file.yaml",
+            "https://github.com/owner/repo/blob/main/README.md",
+            "https://api.github.com/repos/owner/repo/releases/assets/12345",
+            "http://127.0.0.1:8080/manifest.yaml",
+        ] {
+            assert_eq!(normalize_github_url(url).expect("should pass through"), url);
+        }
+    }
+
+    #[test]
+    fn test_find_asset_url() {
+        use super::find_asset_url;
+        use crate::Error::RemoteFileDownloadFailed;
+
+        let release = serde_json::json!({
+            "assets": [
+                { "name": "manifest.yaml", "url": "https://api.github.com/a/1" },
+                { "name": "resolved.yaml", "url": "https://api.github.com/a/2" },
+            ]
+        });
+
+        assert_eq!(
+            find_asset_url(&release, "manifest.yaml", "v1", "orig").expect("found"),
+            "https://api.github.com/a/1"
+        );
+
+        // Asset missing.
+        let err = find_asset_url(&release, "missing.yaml", "v1", "orig").expect_err("not found");
+        assert!(
+            matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("missing.yaml") && error.contains("v1"))
+        );
+
+        // Release has no `assets` array.
+        let empty = serde_json::json!({});
+        let err = find_asset_url(&empty, "manifest.yaml", "v1", "orig").expect_err("no assets");
+        assert!(
+            matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("no assets"))
+        );
+
+        // Asset entry missing `url`.
+        let no_url = serde_json::json!({ "assets": [{ "name": "manifest.yaml" }] });
+        let err = find_asset_url(&no_url, "manifest.yaml", "v1", "orig").expect_err("missing url");
+        assert!(matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("'url'")));
     }
 }
