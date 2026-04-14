@@ -54,11 +54,10 @@
 //! # Disambiguating HTTP(S) URLs
 //!
 //! An HTTP(S) `source` is classified as follows (in order):
-//! 1. `.zip` or `.tar.gz` suffix → remote archive.
-//! 2. `.git` suffix, or presence of `@refspec` or `[sub_folder]` → Git repo. (Neither
-//!    `@refspec` nor `[sub_folder]` is meaningful for a single remote file, so their
-//!    presence is treated as a reliable signal of a Git repo even when the `.git`
-//!    suffix is omitted.)
+//! 1. `.zip` or `.tar.gz` suffix → remote archive (may carry a `[sub_folder]`).
+//! 2. `.git` suffix, or presence of `@refspec` or `[sub_folder]` → Git repo. Once
+//!    archives are ruled out, a `@refspec` or `[sub_folder]` is a reliable signal
+//!    of a Git repo, so the `.git` suffix is not required.
 //! 3. Otherwise → remote file.
 
 use crate::vdir::VirtualDirectoryPath::{
@@ -468,9 +467,10 @@ impl FromStr for VirtualDirectoryPath {
                     sub_folder,
                 })
             } else if source.ends_with(".git") || refspec.is_some() || sub_folder.is_some() {
-                // A `@refspec` or `[sub_folder]` only makes sense for a git repo
-                // (or an archive, already handled above), so treat these as GitRepo
-                // even without the `.git` suffix.
+                // Archives (`.zip` / `.tar.gz`) are already handled above. Of the
+                // remaining HTTP(S) sources, only a Git repo can meaningfully carry
+                // a `@refspec` or a `[sub_folder]`, so their presence classifies the
+                // URL as `GitRepo` even when the `.git` suffix is omitted.
                 Ok(Self::GitRepo {
                     url: source.to_owned(),
                     refspec,
