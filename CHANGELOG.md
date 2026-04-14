@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Publish and document missing JSON schemas. Add `head_schema_url`/`baseline_schema_url` to diff v2. ([#1106](https://github.com/open-telemetry/weaver/pull/1106) by @lmolkova)
 - Add `--allow-git-credentials` global flag to enable system credential helpers (e.g. `osxkeychain`, `git-credential-manager`) when cloning private registries. By default, git operations remain isolated for security. ([#1306](https://github.com/open-telemetry/weaver/pull/1306) by @jerbly)
 - MCP: Add `browse_namespace` tool and `findings_only` output mode for `live_check`. Add configurable namespace separator via `--namespace-separator`. ([#1324](https://github.com/open-telemetry/weaver/pull/1324) by @jerbly)
+- New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries via `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN` env vars, including GitHub private release assets. ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
 
 # [0.22.1] - 2026-03-13
 
