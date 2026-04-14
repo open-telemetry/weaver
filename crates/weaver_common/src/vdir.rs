@@ -191,6 +191,12 @@ static GITHUB_RELEASE_CACHE: Lazy<Mutex<HashMap<String, serde_json::Value>>> =
 /// Browser form: `https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}`
 /// API form:     `https://api.github.com/repos/{owner}/{repo}/releases/assets/{id}`
 fn normalize_github_url(url: &str) -> Result<String, Error> {
+    normalize_github_url_with_api_base(url, "https://api.github.com")
+}
+
+/// Variant of [`normalize_github_url`] with a configurable API base URL for testing.
+/// The `api_base` must not end with a trailing slash.
+fn normalize_github_url_with_api_base(url: &str, api_base: &str) -> Result<String, Error> {
     let Some((owner, repo, tag, filename)) = parse_github_release_url(url) else {
         return Ok(url.to_owned());
     };
@@ -209,7 +215,7 @@ fn normalize_github_url(url: &str) -> Result<String, Error> {
     let release = if let Some(cached) = release {
         cached
     } else {
-        let api_url = format!("https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag}");
+        let api_url = format!("{api_base}/repos/{owner}/{repo}/releases/tags/{tag}");
         let req = attach_auth(
             HTTP_AGENT
                 .get(&api_url)
@@ -1473,6 +1479,107 @@ mod tests {
         ] {
             assert_eq!(normalize_github_url(url).expect("should pass through"), url);
         }
+    }
+
+    #[test]
+    fn test_normalize_github_url_resolves_asset() {
+        use super::normalize_github_url_with_api_base;
+        use crate::test::{MockGitHubApi, MockRelease};
+
+        let api = MockGitHubApi::start(vec![MockRelease {
+            owner: "owner_a".to_owned(),
+            repo: "repo_a".to_owned(),
+            tag: "v1.0.0".to_owned(),
+            assets: vec![
+                ("manifest.yaml".to_owned(), b"manifest body".to_vec()),
+                ("resolved.yaml".to_owned(), b"resolved body".to_vec()),
+            ],
+        }])
+        .expect("mock API failed to start");
+
+        let browser_url =
+            "https://github.com/owner_a/repo_a/releases/download/v1.0.0/manifest.yaml";
+        let resolved = normalize_github_url_with_api_base(browser_url, &api.base_url())
+            .expect("normalize should succeed");
+        assert_eq!(resolved, format!("{}/assets/manifest.yaml", api.base_url()));
+    }
+
+    #[test]
+    fn test_normalize_github_url_caches_release() {
+        use super::normalize_github_url_with_api_base;
+        use crate::test::{MockGitHubApi, MockRelease};
+
+        let api = MockGitHubApi::start(vec![MockRelease {
+            owner: "owner_b".to_owned(),
+            repo: "repo_b".to_owned(),
+            tag: "v2.0.0".to_owned(),
+            assets: vec![
+                ("manifest.yaml".to_owned(), b"m".to_vec()),
+                ("resolved.yaml".to_owned(), b"r".to_vec()),
+            ],
+        }])
+        .expect("mock API failed to start");
+
+        // Two different assets from the same release should hit the tags endpoint once.
+        for filename in ["manifest.yaml", "resolved.yaml"] {
+            let url =
+                format!("https://github.com/owner_b/repo_b/releases/download/v2.0.0/{filename}");
+            _ = normalize_github_url_with_api_base(&url, &api.base_url())
+                .expect("normalize should succeed");
+        }
+        assert_eq!(
+            api.request_count(),
+            1,
+            "release metadata should be cached across asset lookups"
+        );
+    }
+
+    #[test]
+    fn test_normalize_github_url_missing_asset() {
+        use super::normalize_github_url_with_api_base;
+        use crate::test::{MockGitHubApi, MockRelease};
+        use crate::Error::RemoteFileDownloadFailed;
+
+        let api = MockGitHubApi::start(vec![MockRelease {
+            owner: "owner_c".to_owned(),
+            repo: "repo_c".to_owned(),
+            tag: "v3.0.0".to_owned(),
+            assets: vec![("manifest.yaml".to_owned(), b"m".to_vec())],
+        }])
+        .expect("mock API failed to start");
+
+        let browser_url = "https://github.com/owner_c/repo_c/releases/download/v3.0.0/missing.yaml";
+        let err = normalize_github_url_with_api_base(browser_url, &api.base_url())
+            .expect_err("missing asset should error");
+        assert!(
+            matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("missing.yaml")),
+            "unexpected error: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_normalize_github_url_api_404() {
+        use super::normalize_github_url_with_api_base;
+        use crate::test::{MockGitHubApi, MockRelease};
+        use crate::Error::RemoteFileDownloadFailed;
+
+        // Mock serves a release for a different tag, so the requested tag 404s.
+        let api = MockGitHubApi::start(vec![MockRelease {
+            owner: "owner_d".to_owned(),
+            repo: "repo_d".to_owned(),
+            tag: "v4.0.0".to_owned(),
+            assets: vec![("manifest.yaml".to_owned(), b"m".to_vec())],
+        }])
+        .expect("mock API failed to start");
+
+        let browser_url =
+            "https://github.com/owner_d/repo_d/releases/download/nonexistent/manifest.yaml";
+        let err = normalize_github_url_with_api_base(browser_url, &api.base_url())
+            .expect_err("unknown tag should error");
+        assert!(
+            matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("GitHub API request failed")),
+            "unexpected error: {err:?}"
+        );
     }
 
     #[test]
