@@ -1,6 +1,8 @@
 //! Catalog of attributes and other.
 
 use std::collections::BTreeMap;
+use std::hash::Hasher;
+use std::hash::{DefaultHasher, Hash};
 
 use crate::v2::attribute::{Attribute, AttributeRef};
 use schemars::JsonSchema;
@@ -32,7 +34,13 @@ impl From<Catalog> for Vec<Attribute> {
 impl Catalog {
     /// Creates a catalog from a list of attributes.
     pub(crate) fn from_attributes(mut attributes: Vec<Attribute>) -> Self {
-        attributes.sort_by(|a, b| a.key.cmp(&b.key));
+        attributes.sort_by_cached_key(|attr| {
+            (attr.key.clone(), {
+                let mut s = DefaultHasher::new();
+                attr.hash(&mut s);
+                s.finish()
+            })
+        });
         let mut lookup: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         for (idx, attr) in attributes.iter().enumerate() {
             lookup.entry(attr.key.clone()).or_default().push(idx);

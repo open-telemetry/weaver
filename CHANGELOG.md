@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix attribute catalog sorting for attributes with the same key when converting from v1 to v2 catalog. ([#1359](https://github.com/open-telemetry/weaver/pull/1359) by @michaelvanstraten) 
 - Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
 
