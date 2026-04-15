@@ -617,6 +617,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
@@ -631,6 +632,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 metrics: vec![
                     Metric {
@@ -646,6 +648,7 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                     Metric {
                         name: SignalId::from("test.counter".to_owned()),
@@ -660,6 +663,7 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                     Metric {
                         name: SignalId::from("test.gauge".to_owned()),
@@ -674,6 +678,7 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                     Metric {
                         name: SignalId::from("test.histogram".to_owned()),
@@ -688,6 +693,7 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                 ],
                 events: vec![Event {
@@ -708,6 +714,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
@@ -721,6 +728,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 entities: vec![],
             },
