@@ -9,6 +9,7 @@ import { Route as MetricRoute } from './routes/metric.$name'
 import { Route as SpanRoute } from './routes/span.$type'
 import { Route as EventRoute } from './routes/event.$name'
 import { Route as EntityRoute } from './routes/entity.$type'
+import { Route as FilterPlaygroundRoute } from './routes/filter_playground'
 
 export const routeTree = RootRoute.addChildren([
   IndexRoute,
@@ -21,4 +22,5 @@ export const routeTree = RootRoute.addChildren([
   SpanRoute,
   EventRoute,
   EntityRoute,
+  FilterPlaygroundRoute,
 ])

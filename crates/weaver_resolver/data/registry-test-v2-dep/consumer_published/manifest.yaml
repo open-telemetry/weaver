@@ -1,4 +1,4 @@
-file_format: manifest/2.0.0
+file_format: manifest/2.0
 schema_url: https://consumer.example.com/schemas/1.0.0
 description: Consumer registry that depends on the server V2 package.
 dependencies:

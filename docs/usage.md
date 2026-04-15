@@ -42,6 +42,7 @@ Manage semantic convention registry and telemetry schema workflows (OpenTelemetr
 * `--debug` — Turn debugging information on. Use twice (--debug --debug) for trace-level logs
 * `--quiet` — Turn the quiet mode on (i.e., minimal output)
 * `--future` — Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
+* `--allow-git-credentials` — Allow git credential helpers when cloning registries from private repositories. By default, git operations are isolated and cannot access global git config or credential helpers. Enable this flag to authenticate with private registries using your system's configured git credential helpers (e.g., osxkeychain, git-credential-manager)
 
 
 
@@ -341,7 +342,7 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     The JSON schema of the V2 definition
   - `resolved-registry-v2`:
     The JSON schema of the V2 resolved registry
-  - `forge-registry-v2`:
+  - `materialized-registry-v2`:
     The JSON schema we send to Rego / Jinja
   - `diff`:
     The JSON schema of the diff
@@ -557,6 +558,9 @@ The server communicates over stdio using JSON-RPC.
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting
+
+  Default value: `.`
 
 
 

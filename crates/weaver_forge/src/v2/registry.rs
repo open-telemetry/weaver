@@ -1,5 +1,6 @@
 //! Version two of registry specification.
 
+use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
@@ -84,6 +85,21 @@ impl ForgeResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
+        let deps_list: Vec<_> = schema.dependencies.iter().cloned().collect();
+        let resolve_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| {
+            let source = prov
+                .source
+                .and_then(|r| deps_list.get(r.0 as usize).cloned());
+            Provenance {
+                source,
+                path: if prov.path.is_empty() {
+                    None
+                } else {
+                    Some(prov.path.clone())
+                },
+            }
+        };
+
         let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
             schema.attribute_catalog.attribute(r)
         };
@@ -98,6 +114,7 @@ impl ForgeResolvedRegistry {
                 r#type: a.r#type.clone(),
                 examples: a.examples.clone(),
                 common: a.common.clone(),
+                provenance: resolve_provenance(&a.provenance),
             })
             .collect();
 
@@ -113,6 +130,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -132,6 +150,7 @@ impl ForgeResolvedRegistry {
                 attributes,
                 entity_associations: metric.entity_associations,
                 common: metric.common,
+                provenance: resolve_provenance(&metric.provenance),
             });
         }
         metrics.sort_by(|l, r| l.name.cmp(&r.name));
@@ -149,6 +168,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -170,6 +190,7 @@ impl ForgeResolvedRegistry {
                     attributes,
                     entity_associations: metric.metric.entity_associations,
                     common: metric.metric.common,
+                    provenance: resolve_provenance(&metric.metric.provenance),
                 },
             });
         }
@@ -187,6 +208,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                         sampling_relevant: ar.sampling_relevant,
@@ -207,6 +229,7 @@ impl ForgeResolvedRegistry {
                 attributes,
                 entity_associations: span.entity_associations,
                 common: span.common,
+                provenance: resolve_provenance(&span.provenance),
             });
         }
         spans.sort_by(|l, r| l.r#type.cmp(&r.r#type));
@@ -223,6 +246,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                         sampling_relevant: ar.sampling_relevant,
@@ -245,6 +269,7 @@ impl ForgeResolvedRegistry {
                     attributes,
                     entity_associations: span.span.entity_associations,
                     common: span.span.common,
+                    provenance: resolve_provenance(&span.span.provenance),
                 },
             });
         }
@@ -262,6 +287,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -279,6 +305,7 @@ impl ForgeResolvedRegistry {
                 attributes,
                 entity_associations: event.entity_associations,
                 common: event.common,
+                provenance: resolve_provenance(&event.provenance),
             });
         }
         events.sort_by(|l, r| l.name.cmp(&r.name));
@@ -297,6 +324,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -316,6 +344,7 @@ impl ForgeResolvedRegistry {
                     attributes,
                     entity_associations: event.event.entity_associations,
                     common: event.event.common,
+                    provenance: resolve_provenance(&event.event.provenance),
                 },
             });
         }
@@ -333,6 +362,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -356,6 +386,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -373,6 +404,7 @@ impl ForgeResolvedRegistry {
                 identity,
                 description,
                 common: e.common,
+                provenance: resolve_provenance(&e.provenance),
             });
         }
         entities.sort_by(|l, r| l.r#type.cmp(&r.r#type));
@@ -388,6 +420,7 @@ impl ForgeResolvedRegistry {
                         r#type: a.r#type.clone(),
                         examples: a.examples.clone(),
                         common: a.common.clone(),
+                        provenance: resolve_provenance(&a.provenance),
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
@@ -402,6 +435,7 @@ impl ForgeResolvedRegistry {
                 id: ag.id,
                 attributes,
                 common: ag.common.clone(),
+                provenance: resolve_provenance(&ag.provenance),
             });
         }
 
@@ -454,7 +488,16 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields::default(),
+                provenance: v2::provenance::Provenance {
+                    source: Some(v2::provenance::DependencyRef(0)),
+                    path: "some/path".to_owned(),
+                },
             }],
+            dependencies: {
+                let mut deps = std::collections::BTreeSet::new();
+                let _ = deps.insert("https://example.com/dependency".try_into().unwrap());
+                deps
+            },
             registry: v2::registry::Registry {
                 attributes: vec![attribute::AttributeRef(0)],
                 spans: vec![span::Span {
@@ -472,6 +515,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![metric::Metric {
                     name: SignalId::from("my-metric".to_owned()),
@@ -485,6 +529,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![event::Event {
                     name: SignalId::from("my-event".to_owned()),
@@ -496,6 +541,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 entities: vec![v2::entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
@@ -507,6 +553,7 @@ mod tests {
                     }],
                     description: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 attribute_groups: vec![],
             },
@@ -524,10 +571,11 @@ mod tests {
                             requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
                                 weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
                             ),
-                            sampling_relevant: Some(false),
+                            sampling_relevant: Some(true),
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 metrics: vec![metric::MetricRefinement {
@@ -544,6 +592,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
                 events: vec![event::EventRefinement {
@@ -558,6 +607,7 @@ mod tests {
                         }],
                         entity_associations: vec![],
                         common: CommonFields::default(),
+                        provenance: Default::default(),
                     },
                 }],
             },
@@ -574,6 +624,13 @@ mod tests {
         assert_eq!(forge_registry.refinements.spans.len(), 1);
         assert_eq!(forge_registry.refinements.metrics.len(), 1);
         assert_eq!(forge_registry.refinements.events.len(), 1);
+
+        let attr = &forge_registry.registry.attributes[0];
+        assert_eq!(
+            attr.provenance.source,
+            Some("https://example.com/dependency".try_into().unwrap())
+        );
+        assert_eq!(attr.provenance.path, Some("some/path".to_owned()));
 
         let span = &forge_registry.registry.spans[0];
         assert_eq!(span.r#type, "my-span".to_owned().into());
@@ -612,6 +669,7 @@ mod tests {
             file_format: "2.0.0".to_owned(),
             schema_url: "https://example.com/schema".try_into().unwrap(),
             attribute_catalog: vec![],
+            dependencies: std::collections::BTreeSet::new(),
             registry: v2::registry::Registry {
                 attributes: vec![], // No attributes - This is the logic bug.
                 spans: vec![span::Span {
@@ -629,6 +687,7 @@ mod tests {
                     }],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 metrics: vec![],
                 events: vec![],

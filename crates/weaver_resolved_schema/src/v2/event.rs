@@ -7,10 +7,11 @@ use weaver_semconv::{
     v2::{signal_id::SignalId, CommonFields},
 };
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
 /// The definition of an Event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
@@ -33,10 +34,16 @@ pub struct Event {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of the Event.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers event-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct EventAttributeRef {
     /// Reference, by index, to the attribute catalog.
@@ -55,6 +62,7 @@ pub struct EventAttributeRef {
 /// e.g. for HTTP events, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
 /// client library, and drops optional or extraneous information from the underlying http event.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct EventRefinement {
     /// The identity of the refinement
     pub id: SignalId,

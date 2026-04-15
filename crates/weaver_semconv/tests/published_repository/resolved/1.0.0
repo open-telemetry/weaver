@@ -1,4 +1,4 @@
-file_format: manifest/2.0.0
+file_format: manifest/2.0
 description: Test repository that has been resolved.
 schema_url: http://resolved/1.0.0
 repository_url: https://github.com/open-telemetry/weaver.git

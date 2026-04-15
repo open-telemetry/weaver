@@ -27,6 +27,7 @@ use crate::v2::{
 ///
 /// Note: The registry does not include signal refinements.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Registry {
     /// Catalog of attributes definitions.
@@ -259,6 +260,7 @@ mod test {
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },
+            provenance: Default::default(),
         }];
         let registry = Registry {
             attribute_groups: vec![],
@@ -277,6 +279,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             metrics: vec![Metric {
                 name: "test.metric".to_owned().into(),
@@ -291,6 +294,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             events: vec![],
             entities: vec![Entity {
@@ -309,6 +313,7 @@ mod test {
                     deprecated: None,
                     annotations: BTreeMap::new(),
                 },
+                provenance: Default::default(),
             }],
             attributes: vec![AttributeRef(0)],
         };

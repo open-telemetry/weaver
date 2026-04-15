@@ -90,6 +90,7 @@ weaver_forge = { path = "crates/weaver_forge", features = ["openapi"] }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
+weaver_infer = { path = "crates/weaver_infer" }
 weaver_search = { path = "crates/weaver_search" }
 weaver_mcp = { path = "crates/weaver_mcp" }
 weaver_version = { path = "crates/weaver_version" }
@@ -136,7 +137,7 @@ weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
 tempfile.workspace = true
 ureq.workspace = true
-assert_cmd = "=2.1.2"
+assert_cmd = "=2.2.0"
 portpicker = "=0.1.1"
 
 [build-dependencies]
@@ -198,7 +199,7 @@ checked_conversions = "warn"
 create_dir = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
-empty_enum = "warn"
+empty_enums = "warn"
 enum_glob_use = "warn"
 exit = "warn"
 expl_impl_clone_on_copy = "warn"
