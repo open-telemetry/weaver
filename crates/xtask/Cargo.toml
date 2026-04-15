@@ -12,7 +12,7 @@ rust-version.workspace = true
 anyhow.workspace = true
 assert_cmd = "2.0.17"
 serde_json.workspace = true
-gix = { version = "0.79.0", default-features = false, features = [
+gix = { version = "0.81.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
