@@ -9,9 +9,8 @@ use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSp
 
 use super::{Advisor, FindingBuilder};
 use crate::{
-    otlp_logger::OtlpEmitter, Error, Sample, SampleRef, VersionedAttribute, VersionedSignal,
-    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY, ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY,
-    UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
+    otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that reports if the given value is not a defined variant in the enum
@@ -65,27 +64,21 @@ impl Advisor for EnumAdvisor {
                             }
 
                             if !is_found {
-                                let finding = FindingBuilder::new(
-                                    UNDEFINED_ENUM_VARIANT_ADVICE_TYPE,
-                                )
-                                .context(json!({
-                                    ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: &sample_attribute.name,
-                                    ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
-                                }))
-                                .message(format!(
+                                let finding = FindingBuilder::new(FindingId::UndefinedEnumVariant)
+                                    .context(json!({
+                                        ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &sample_attribute.name,
+                                        ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: attribute_value,
+                                    }))
+                                    .message(format!(
                                     "Enum attribute '{}' has value '{}' which is not documented.",
                                     sample_attribute.name,
                                     attribute_value
                                         .as_str()
                                         .unwrap_or(&attribute_value.to_string())
                                 ))
-                                .level(FindingLevel::Information)
-                                .signal(signal)
-                                .build_and_emit(
-                                    &sample,
-                                    otlp_emitter.as_deref(),
-                                    signal,
-                                );
+                                    .level(FindingLevel::Information)
+                                    .signal(signal)
+                                    .build_and_emit(&sample, otlp_emitter.as_deref(), signal);
 
                                 return Ok(vec![finding]);
                             }

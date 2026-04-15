@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: none
     name: CI
-    needs: [test, msrv, docs, rustfmt, clippy, check-usage-docs]
+    needs: [test, msrv, docs, rustfmt, clippy, check-usage-docs, check-generated]
     runs-on: ubuntu-latest
     steps:
       - name: Done
@@ -338,6 +338,52 @@ jobs:
             "cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o ./schemas/definition-manifest.v2.json"
 
           exit $failed
+  check-generated:
+    name: Check generated live_check code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Regenerate Rust code
+        run: >
+          docker run --rm
+          -u "$(id -u):$(id -g)"
+          -e HOME=/tmp
+          -v "${{ github.workspace }}":/home/weaver/source
+          otel/weaver:latest
+          registry generate
+          --registry /home/weaver/source/crates/weaver_live_check/model/
+          --templates /home/weaver/source/crates/weaver_live_check/templates/
+          --v2 rust
+          /home/weaver/source/crates/weaver_live_check/src/
+      - name: Regenerate documentation
+        run: >
+          docker run --rm
+          -u "$(id -u):$(id -g)"
+          -e HOME=/tmp
+          -v "${{ github.workspace }}":/home/weaver/source
+          otel/weaver:latest
+          registry generate
+          --registry /home/weaver/source/crates/weaver_live_check/model/
+          --templates /home/weaver/source/crates/weaver_live_check/templates/
+          --v2 markdown
+          /home/weaver/source/crates/weaver_live_check/docs/
+      - name: Format generated code
+        run: cargo fmt -p weaver_live_check
+      - name: Check generated files are up-to-date
+        run: |
+          if ! git diff --exit-code -- \
+            crates/weaver_live_check/src/generated/ \
+            crates/weaver_live_check/docs/; then
+            echo ""
+            echo "Generated files are out of date. Run 'just generate' and commit the results."
+            exit 1
+          fi
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
@@ -352,7 +398,7 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Gather coverage
-        run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*'
+        run: cargo tarpaulin --workspace --output-dir coverage --out lcov --ignore-tests -e xtask -e weaver --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*' 'crates/weaver_live_check/tests/*'
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:

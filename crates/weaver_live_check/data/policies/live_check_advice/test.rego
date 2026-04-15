@@ -9,7 +9,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
     advice_type := "contains_test"
     advice_level := "violation"
     advice_context := {
-        "attribute_name": input.sample.attribute.name
+        "attribute_key": input.sample.attribute.name
     }
     message := sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
 }

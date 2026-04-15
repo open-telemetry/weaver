@@ -2,6 +2,12 @@
 
 Live check is a developer tool for assessing sample telemetry and providing findings for improvement.
 
+> **Dog-fooding**: Live Check uses Weaver's own semantic convention model and template engine to
+> define its `finding` schema, generate Rust types and constants, and generate reference
+> documentation — all from [`model/live_check.yaml`](model/live_check.yaml). An integration test
+> validates the emitted OTLP log records against the model, catching any drift between the
+> generated code and the schema. See [Dog-fooding](docs/dog-fooding.md) for details.
+
 A Semantic Convention `Registry` is loaded for comparison with samples. `Ingesters` transform various input formats and sources into intermediary representations to be assessed by `Advisors`. The `PolicyFinding` produced is transformed via jinja templates to the required output format for downstream consumption.
 
 ```mermaid
@@ -88,7 +94,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 - `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log` or `resource`
 - `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name
 - `context`: _any_ - a map that describes details about the finding in a structured way,
-  for example `{ "attribute_name": "foo.bar", "attribute_value": "bar" }`.
+  for example `{ "attribute_key": "foo.bar", "attribute_value": "bar" }`.
 - `message`: _string_ - verbose string describing the finding. It contains the same details as `context` but
   is formatted and human-readable.
 
@@ -100,7 +106,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
         "level": "violation",
         "id": "missing_attribute",
         "message": "Attribute `hello` does not exist in the registry.",
-        "context": { "attribute_name": "hello" },
+        "context": { "attribute_key": "hello" },
         "signal_name": "http.client.request.duration",
         "signal_type": "metric"
       }
@@ -132,7 +138,7 @@ deny contains make_finding(id, level, context, message) if {
 	id := "contains_test"
 	level := "violation"
 	context := {
-		"attribute_name": input.sample.attribute.name
+		"attribute_key": input.sample.attribute.name
 	}
 	message := sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
 }
@@ -254,6 +260,9 @@ weaver registry live-check --emit-otlp-logs --otlp-logs-stdout
 
 ### Log Record Structure
 
+> For the full auto-generated reference of finding attributes, enum values, and the event schema,
+> see [docs/finding.md](docs/finding.md).
+
 Each policy finding is emitted as an OTLP log record with the following structure:
 
 **Body**: The finding message (e.g., "Required attribute 'server.address' is not present.")
@@ -275,10 +284,10 @@ Each policy finding is emitted as an OTLP log record with the following structur
 - `weaver.finding.id`: Finding type identifier (e.g., "required_attribute_not_present")
 - `weaver.finding.level`: Finding level as string ("violation", "improvement", "information")
 - `weaver.finding.context.<key>`: Key-value pairs provided in the context. Each pair is recorded as a single attribute.
-- `weaver.finding.sample_type`: Sample type (e.g., "attribute", "span", "metric")
-- `weaver.finding.signal_type`: Signal type (e.g., "span", "event", "metric")
-- `weaver.finding.signal_name`: Signal name (e.g., event name or metric name)
-- `weaver.finding.resource_attribute.<key>`: Resource attributes from the original telemetry source that produced the finding
+- `weaver.finding.sample.type`: Sample type (e.g., "attribute", "span", "metric")
+- `weaver.finding.signal.type`: Signal type (e.g., "span", "metric", "log")
+- `weaver.finding.signal.name`: Signal name (e.g., event name or metric name)
+- `weaver.finding.resource.attribute.<key>`: Resource attributes from the original telemetry source that produced the finding
 
 ## Continuous Running Sessions
 
