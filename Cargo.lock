@@ -5956,6 +5956,7 @@ dependencies = [
  "weaver_semconv",
  "weaver_semconv_gen",
  "weaver_version",
+ "zip",
 ]
 
 [[package]]
