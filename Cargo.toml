@@ -68,6 +68,7 @@ convert_case = "0.11"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.10.0"
+zip = "5.1.1"
 
 # Features definition =========================================================
 [features]
@@ -139,6 +140,7 @@ tempfile.workspace = true
 ureq.workspace = true
 assert_cmd = "=2.2.0"
 portpicker = "=0.1.1"
+zip.workspace = true
 
 [build-dependencies]
 tonic-prost-build = "0.14.1"
