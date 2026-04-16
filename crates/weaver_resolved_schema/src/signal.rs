@@ -11,7 +11,7 @@ use crate::metric::MetricRef;
 use crate::tags::Tags;
 
 /// A univariate metric signal.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UnivariateMetric {
     /// References to attributes defined in the catalog.
@@ -25,7 +25,7 @@ pub struct UnivariateMetric {
 }
 
 /// A multivariate metric signal.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MultivariateMetric {
     /// The name of the multivariate metric.
@@ -46,7 +46,7 @@ pub struct MultivariateMetric {
 }
 
 /// An event specification, used for both Span and Log events.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event
@@ -68,7 +68,7 @@ pub struct Event {
 }
 
 /// A span signal.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Span {
     /// The name of the span.
@@ -111,7 +111,7 @@ pub enum SpanKind {
 }
 
 /// A span link specification.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpanLink {
     /// The name of the span link.

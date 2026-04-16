@@ -16,6 +16,7 @@ use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::dependency::ResolvedDependency;
+use crate::Error;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
 #[derive(Deserialize, Debug, Default, PartialEq)]
@@ -153,7 +154,7 @@ impl AttributeCatalog {
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
-    ) -> Option<AttributeRef> {
+    ) -> Result<Option<AttributeRef>, Error> {
         match attr {
             AttributeSpec::Ref {
                 r#ref,
@@ -173,7 +174,7 @@ impl AttributeCatalog {
                 let mut root_attr: Option<&AttributeWithSource> = self.root_attributes.get(r#ref);
                 // If we fail to find an attribute, check dependencies first.
                 if root_attr.is_none() {
-                    if let Some(at) = dependencies.lookup_attribute(r#ref) {
+                    if let Some(at) = dependencies.lookup_attribute(r#ref)? {
                         _ = self.root_attributes.insert(r#ref.to_owned(), at);
                         root_attr = self.root_attributes.get(r#ref);
                     }
@@ -248,9 +249,9 @@ impl AttributeCatalog {
                         );
                     }
 
-                    Some(attr_ref)
+                    Ok(Some(attr_ref))
                 } else {
-                    None
+                    Ok(None)
                 }
             }
             AttributeSpec::Id {
@@ -298,7 +299,7 @@ impl AttributeCatalog {
                         },
                     },
                 );
-                Some(self.attribute_ref(attr))
+                Ok(Some(self.attribute_ref(attr)))
             }
         }
     }
@@ -328,18 +329,66 @@ impl From<AttributeCatalog> for Catalog {
 }
 
 /// Helper trait for abstracting over V1 and V2 schema.
+/// Helper trait for abstracting over V1 and V2 schema.
 trait AttributeLookup {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource>;
+    fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error>;
 }
 
 impl AttributeLookup for Vec<ResolvedDependency> {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
-        self.iter().find_map(|d| d.lookup_attribute(key))
+    fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
+        let mut matches = vec![];
+        for d in self.iter() {
+            if let Some(at) = d.lookup_attribute(key)? {
+                matches.push(at);
+            }
+        }
+        // Check provenance of each match.
+        matches
+            .iter()
+            .try_fold(None, |acc: Option<AttributeWithSource>, m| {
+                match acc {
+                    // No previous match, latest takes over.
+                    None => Ok(Some(m.clone())),
+                    // We have a previous match  - we need to deal with conflicts.
+                    Some(existing) => {
+                        let result: Result<Option<AttributeWithSource>, Error> =
+                            match (&m.source, &existing.source) {
+                                // This should be infeasible if code is accurate. Just pick existing.
+                                (AttributeSource::Local { .. }, AttributeSource::Local { .. }) => {
+                                    Ok(Some(existing))
+                                }
+                                (
+                                    AttributeSource::Local { .. },
+                                    AttributeSource::Dependency { schema_url },
+                                )
+                                | (
+                                    AttributeSource::Dependency { schema_url },
+                                    AttributeSource::Local { .. },
+                                ) => Err(Error::AmbiguousReference {
+                                    r#ref: key.to_owned(),
+                                    schema_url1: "local".to_owned(), // TODO - pull this form the current schema if we can.
+                                    schema_url2: schema_url.to_string(),
+                                }),
+                                (
+                                    AttributeSource::Dependency { schema_url },
+                                    AttributeSource::Dependency {
+                                        schema_url: schema_url2,
+                                    },
+                                ) => Err(Error::AmbiguousReference {
+                                    r#ref: key.to_owned(),
+                                    schema_url1: schema_url.to_string(),
+                                    schema_url2: schema_url2.to_string(),
+                                }),
+                            };
+                        result
+                    }
+                }
+            })
     }
 }
 
 impl AttributeLookup for ResolvedDependency {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
+    fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
         match self {
             ResolvedDependency::V1(schema) => schema.lookup_attribute(key),
             ResolvedDependency::V2(schema) => schema.lookup_attribute(key),
@@ -348,21 +397,22 @@ impl AttributeLookup for ResolvedDependency {
 }
 
 impl AttributeLookup for V1Schema {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
-        self.catalog
+    fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
+        Ok(self
+            .catalog
             .root_attribute(key)
             .map(|(attr, group_id)| AttributeWithSource {
                 attribute: attr.clone(),
                 source: AttributeSource::Local {
                     group_id: group_id.to_owned(),
                 },
-            })
+            }))
     }
 }
 
 impl AttributeLookup for V2Schema {
-    fn lookup_attribute(&self, key: &str) -> Option<AttributeWithSource> {
-        self.registry.attributes.iter().find_map(|attr_ref| {
+    fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
+        Ok(self.registry.attributes.iter().find_map(|attr_ref| {
             let attr = self.attribute_catalog.get(attr_ref.0 as usize)?;
             if attr.key == key {
                 Some(AttributeWithSource {
@@ -392,7 +442,7 @@ impl AttributeLookup for V2Schema {
             } else {
                 None
             }
-        })
+        }))
     }
 }
 
@@ -522,6 +572,167 @@ mod tests {
             prefix: false,
             annotations: None,
             role: None,
+        }
+    }
+
+    #[test]
+    fn test_lookup_attribute_ambiguous_reference() {
+        use weaver_resolved_schema::v2::attribute::Attribute as AttributeV2;
+        use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+
+        let attr1 = AttributeV2 {
+            key: "error.type".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: Default::default(),
+            provenance: Default::default(),
+        };
+
+        let schema1 = V2Schema {
+            file_format: "resolved/2.0".to_owned(),
+            schema_url: "http://test/schema/v1".try_into().unwrap(),
+            attribute_catalog: vec![attr1.clone()],
+            registry: weaver_resolved_schema::v2::registry::Registry {
+                attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: weaver_resolved_schema::v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+            dependencies: Default::default(),
+        };
+
+        let schema2 = V2Schema {
+            file_format: "resolved/2.0".to_owned(),
+            schema_url: "http://test/schema/v2".try_into().unwrap(),
+            attribute_catalog: vec![attr1.clone()],
+            registry: weaver_resolved_schema::v2::registry::Registry {
+                attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: weaver_resolved_schema::v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+            dependencies: Default::default(),
+        };
+
+        let dep1 = ResolvedDependency::V2(Box::new(schema1));
+        let dep2 = ResolvedDependency::V2(Box::new(schema2));
+
+        let deps = vec![dep1, dep2];
+
+        let result = deps.lookup_attribute("error.type");
+        assert!(result.is_err());
+        if let Err(Error::AmbiguousReference { .. }) = result {
+            // ok
+        } else {
+            panic!("Expected AmbiguousReference error, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_lookup_attribute_local_vs_dependency_conflict() {
+        use weaver_resolved_schema::v2::attribute::Attribute as AttributeV2;
+        use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+        use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+        use std::collections::HashMap;
+
+        let attr_name = "error.type";
+
+        // Create V1 Schema (acting as Local source)
+        let mut root_attributes = HashMap::new();
+        let attr_v1 = attribute::Attribute {
+            name: attr_name.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "brief v1".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(Recommended),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        };
+        _ = root_attributes.insert(attr_name.to_owned(), (attr_v1.clone(), "group1".to_owned()));
+
+        let schema_v1 = V1Schema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "http://test/schema/v1".to_owned(),
+            registry_id: "test-registry".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "v1-example".to_owned(),
+                groups: vec![],
+            },
+            catalog: Catalog::new(
+                vec![attr_v1],
+                root_attributes,
+            ),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        // Create V2 Schema (acting as Dependency source)
+        let attr_v2 = AttributeV2 {
+            key: attr_name.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: Default::default(),
+            provenance: Default::default(),
+        };
+
+        let schema_v2 = V2Schema {
+            file_format: "resolved/2.0".to_owned(),
+            schema_url: "http://test/schema/v2".try_into().unwrap(),
+            attribute_catalog: vec![attr_v2],
+            registry: weaver_resolved_schema::v2::registry::Registry {
+                attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: weaver_resolved_schema::v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+            dependencies: Default::default(),
+        };
+
+        let dep1 = ResolvedDependency::V1(Box::new(schema_v1));
+        let dep2 = ResolvedDependency::V2(Box::new(schema_v2));
+
+        let deps = vec![dep1, dep2];
+
+        let result = deps.lookup_attribute(attr_name);
+        assert!(result.is_err());
+        if let Err(Error::AmbiguousReference { r#ref, schema_url1, schema_url2 }) = result {
+            assert_eq!(r#ref, attr_name);
+            assert_eq!(schema_url1, "local");
+            assert_eq!(schema_url2, "http://test/schema/v2");
+        } else {
+            panic!("Expected AmbiguousReference error, got {:?}", result);
         }
     }
 }

@@ -1,0 +1,4 @@
+name: registry_c
+description: Registry C v1.2
+semconv_version: 1.2.0
+schema_base_url: https://example.com/c/
