@@ -644,10 +644,10 @@ mod tests {
 
     #[test]
     fn test_lookup_attribute_local_vs_dependency_conflict() {
+        use std::collections::HashMap;
         use weaver_resolved_schema::v2::attribute::Attribute as AttributeV2;
         use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
         use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-        use std::collections::HashMap;
 
         let attr_name = "error.type";
 
@@ -680,10 +680,7 @@ mod tests {
                 registry_url: "v1-example".to_owned(),
                 groups: vec![],
             },
-            catalog: Catalog::new(
-                vec![attr_v1],
-                root_attributes,
-            ),
+            catalog: Catalog::new(vec![attr_v1], root_attributes),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -727,7 +724,12 @@ mod tests {
 
         let result = deps.lookup_attribute(attr_name);
         assert!(result.is_err());
-        if let Err(Error::AmbiguousReference { r#ref, schema_url1, schema_url2 }) = result {
+        if let Err(Error::AmbiguousReference {
+            r#ref,
+            schema_url1,
+            schema_url2,
+        }) = result
+        {
             assert_eq!(r#ref, attr_name);
             assert_eq!(schema_url1, "local");
             assert_eq!(schema_url2, "http://test/schema/v2");
