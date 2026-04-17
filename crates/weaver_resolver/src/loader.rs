@@ -3,7 +3,6 @@
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
@@ -441,7 +440,6 @@ fn load_definition_repository(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use weaver_semconv::schema_url::SchemaUrl;
 
     use weaver_common::{
