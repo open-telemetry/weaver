@@ -96,8 +96,8 @@ weaver_search = { path = "crates/weaver_search" }
 weaver_mcp = { path = "crates/weaver_mcp" }
 weaver_version = { path = "crates/weaver_version" }
 
-clap = { version = "4.5.41", features = ["derive"] }
-clap_complete = "4.5.55"
+clap = { version = "4.6.1", features = ["derive"] }
+clap_complete = "4.6.2"
 clap-markdown = "0.1"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
@@ -138,7 +138,7 @@ weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
 tempfile.workspace = true
 ureq.workspace = true
-assert_cmd = "=2.2.0"
+assert_cmd = "=2.2.1"
 portpicker = "=0.1.1"
 zip.workspace = true
 
