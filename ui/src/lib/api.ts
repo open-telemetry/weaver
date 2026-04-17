@@ -1,9 +1,46 @@
 const BASE_URL = '/api/v1';
 
+export interface Location {
+  line: number;
+  col: number;
+}
+
+export interface Source {
+  start: Location;
+  end?: Location;
+}
+
+export interface FilterErrorDetail {
+  error: string;
+  source?: Source;
+}
+
+export class ApiError extends Error {
+  details?: FilterErrorDetail[];
+  constructor(message: string, details?: FilterErrorDetail[]) {
+    super(message);
+    this.name = 'ApiError';
+    this.details = details;
+  }
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    let errorMsg = `HTTP error! status: ${response.status}`;
+    let details: FilterErrorDetail[] | undefined;
+    try {
+      const errorData = await response.json();
+      if (errorData && typeof errorData === 'object' && 'error' in errorData) {
+        errorMsg = String(errorData.error);
+        if ('details' in errorData && Array.isArray(errorData.details)) {
+          details = errorData.details;
+        }
+      }
+    } catch (e) {
+      // Ignore parse error, use fallback response status
+    }
+    throw new ApiError(errorMsg, details);
   }
   return response.json() as Promise<T>;
 }
@@ -239,3 +276,10 @@ export async function search(
 export async function getSchema(name: string): Promise<SchemaResponse> {
   return fetchJSON<SchemaResponse>(`${BASE_URL}/schema/${encodeURIComponent(name)}`);
 }
+
+export async function filterRegistry(filter: string): Promise<unknown> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('filter', filter);
+  return fetchJSON<unknown>(`${BASE_URL}/registry/filter?${searchParams.toString()}`);
+}
+

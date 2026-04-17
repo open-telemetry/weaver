@@ -37,7 +37,7 @@ pub async fn health() -> StatusCode {
     get,
     path = "/api/v1/schema/{name}",
     params(
-        ("name" = String, Path, description = "Schema name (ForgeRegistryV2, SemconvDefinitionV2, or LiveCheckSample)")
+        ("name" = String, Path, description = "Schema name (MaterializedRegistryV2, SemconvDefinitionV2, or LiveCheckSample)")
     ),
     responses(
         (status = 200, description = "Requested schema", content_type = "application/json"),
@@ -49,14 +49,14 @@ pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
     let name = name.trim_start_matches('/');
 
     let schema = match name {
-        "ForgeRegistryV2" => schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry),
+        "MaterializedRegistryV2" => schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry),
         "SemconvDefinitionV2" => schema_for!(weaver_semconv::v2::SemConvSpecV2),
         "LiveCheckSample" => schema_for!(weaver_live_check::Sample),
         _ => {
             return (
                 StatusCode::NOT_FOUND,
                 [(axum::http::header::CONTENT_TYPE, "application/json")],
-                json!({"error": format!("Schema '{}' not found. Available schemas: ForgeRegistryV2, SemconvDefinitionV2, LiveCheckSample", name)}).to_string(),
+                json!({"error": format!("Schema '{}' not found. Available schemas: MaterializedRegistryV2, SemconvDefinitionV2, LiveCheckSample", name)}).to_string(),
             ).into_response();
         }
     };
@@ -317,10 +317,33 @@ pub async fn filter_registry(
     let filter = params.filter.as_deref().unwrap_or(".");
     match run_filter_raw(&state.registry, filter) {
         Ok(v) => Json(v).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("{e}")})),
-        )
-            .into_response(),
+        Err(e) => {
+            fn extract_details(
+                err: &weaver_forge::error::Error,
+            ) -> Vec<weaver_forge::error::FilterErrorDetail> {
+                let mut res = Vec::new();
+                match err {
+                    weaver_forge::error::Error::FilterError { details, .. } => {
+                        res.extend(details.clone());
+                    }
+                    weaver_forge::error::Error::CompoundError(errs) => {
+                        for sub in errs {
+                            res.extend(extract_details(sub));
+                        }
+                    }
+                    _ => {}
+                }
+                res
+            }
+
+            let mut result = json!({"error": format!("{e}")});
+            let details = extract_details(&e);
+
+            if !details.is_empty() {
+                result["details"] = serde_json::to_value(details).unwrap_or_default();
+            }
+
+            (StatusCode::BAD_REQUEST, Json(result)).into_response()
+        }
     }
 }

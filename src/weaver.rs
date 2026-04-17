@@ -212,6 +212,10 @@ impl Resolved {
     }
 }
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "We plan to remove the variant in the future, and want DiffV2 (largest) to remain on stack."
+)]
 pub enum DiffResult {
     V1(Diff),
     V2(DiffV2),

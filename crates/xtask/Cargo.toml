@@ -11,12 +11,14 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 assert_cmd = "2.0.17"
-gix = { version = "0.79.0", default-features = false, features = [
+serde_json.workspace = true
+gix = { version = "0.81.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
     "worktree-mutation",
     "blocking-http-transport-reqwest-rust-tls",
+    "sha1",
 ] }
 semver = "1.0.27"
 toml = "0.9.7"

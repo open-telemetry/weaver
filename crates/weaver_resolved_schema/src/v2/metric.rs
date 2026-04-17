@@ -1,6 +1,6 @@
 //! Metric related definitions structs.
 
-use crate::v2::{attribute::AttributeRef, Signal};
+use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
@@ -11,6 +11,7 @@ use weaver_semconv::{
 
 /// The definition of a metric signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Metric {
     /// The name of the metric.
@@ -40,10 +41,16 @@ pub struct Metric {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+
+    /// The provenance of this metric.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers metric-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct MetricAttributeRef {
     /// Reference, by index, to the attribute catalog.
@@ -66,6 +73,7 @@ pub struct MetricAttributeRef {
 /// e.g. for HTTP metrics, there may be a refinement that provides only the necessary information for dealing with Java's HTTP
 /// client library, and drops optional or extraneous information from the underlying http metric.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct MetricRefinement {
     /// The identity of the refinement.
     pub id: SignalId,

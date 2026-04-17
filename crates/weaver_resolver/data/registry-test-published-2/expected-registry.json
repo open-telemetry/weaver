@@ -23,6 +23,12 @@
       ],
       "span_kind": "client",
       "name": "imported.span.a",
+      "lineage": {
+        "provenance": {
+          "schema_url": "https://opentelemetry.io/schemas/1.0.0",
+          "path": ""
+        }
+      },
       "annotations": {}
     },
     {

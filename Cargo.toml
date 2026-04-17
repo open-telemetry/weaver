@@ -68,6 +68,7 @@ convert_case = "0.11"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.10.0"
+zip = "5.1.1"
 
 # Features definition =========================================================
 [features]
@@ -90,6 +91,7 @@ weaver_forge = { path = "crates/weaver_forge", features = ["openapi"] }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
+weaver_infer = { path = "crates/weaver_infer" }
 weaver_search = { path = "crates/weaver_search" }
 weaver_mcp = { path = "crates/weaver_mcp" }
 weaver_version = { path = "crates/weaver_version" }
@@ -138,6 +140,7 @@ tempfile.workspace = true
 ureq.workspace = true
 assert_cmd = "=2.2.0"
 portpicker = "=0.1.1"
+zip.workspace = true
 
 [build-dependencies]
 tonic-prost-build = "0.14.1"
@@ -198,7 +201,7 @@ checked_conversions = "warn"
 create_dir = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
-empty_enum = "warn"
+empty_enums = "warn"
 enum_glob_use = "warn"
 exit = "warn"
 expl_impl_clone_on_copy = "warn"

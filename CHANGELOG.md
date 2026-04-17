@@ -4,10 +4,13 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix attribute catalog sorting for attributes with the same key when converting from v1 to v2 catalog. ([#1359](https://github.com/open-telemetry/weaver/pull/1359) by @michaelvanstraten) 
 - Fix ([#1323](https://github.com/open-telemetry/weaver/issues/1323)) - Live-check: treat observed `int` as compatible with expected `double` attribute type, avoiding false violations from OTLP serializers (e.g. JS) that emit `int_value` for integral numbers. ([#1331](https://github.com/open-telemetry/weaver/pull/1331) by @jerbly)
 - Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
+- Publish and document missing JSON schemas. Add `head_schema_url`/`baseline_schema_url` to diff v2. ([#1106](https://github.com/open-telemetry/weaver/pull/1106) by @lmolkova)
 - Add `--allow-git-credentials` global flag to enable system credential helpers (e.g. `osxkeychain`, `git-credential-manager`) when cloning private registries. By default, git operations remain isolated for security. ([#1306](https://github.com/open-telemetry/weaver/pull/1306) by @jerbly)
+- MCP: Add `browse_namespace` tool and `findings_only` output mode for `live_check`. Add configurable namespace separator via `--namespace-separator`. ([#1324](https://github.com/open-telemetry/weaver/pull/1324) by @jerbly)
 
 # [0.22.1] - 2026-03-13
 
