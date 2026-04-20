@@ -2,13 +2,13 @@ default: pre-push
 
 install:
     rustup update 1.93.0
-    cargo install cargo-machete@0.9.1 --locked
+    cargo install cargo-machete@0.9.2 --locked
     cargo install cargo-depgraph@1.6.0 --locked
-    cargo install cargo-edit@0.13.9 --locked
+    cargo install cargo-edit@0.13.10 --locked
     cargo install cargo-check-external-types@0.4.0 --locked
     cargo install git-cliff@2.12.0 --locked
     cargo install cargo-tarpaulin@0.35.2 --locked
-    cargo install cargo-nextest@0.9.132 --locked
+    cargo install cargo-nextest@0.9.133 --locked
 
 pre-push-check:
     cargo clean
