@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - New feature ([#1247](https://github.com/open-telemetry/weaver/issues/1247), [#1248](https://github.com/open-telemetry/weaver/issues/1248)) - `.weaver.toml` project configuration file for `live-check`. Covers all `live-check` CLI flags plus `[[live_check.finding_filters]]` for dropping findings by ID, minimum level, sample name, and signal type. CLI flags take precedence over config values. Use `--config` or auto-discovery from CWD. ([#1256](https://github.com/open-telemetry/weaver/pull/1256) by @jerbly)
+- Fix attribute catalog sorting for attributes with the same key when converting from v1 to v2 catalog. ([#1359](https://github.com/open-telemetry/weaver/pull/1359) by @michaelvanstraten)
 - Fix ([#1323](https://github.com/open-telemetry/weaver/issues/1323)) - Live-check: treat observed `int` as compatible with expected `double` attribute type, avoiding false violations from OTLP serializers (e.g. JS) that emit `int_value` for integral numbers. ([#1331](https://github.com/open-telemetry/weaver/pull/1331) by @jerbly)
 - Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)

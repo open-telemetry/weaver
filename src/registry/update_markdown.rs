@@ -91,13 +91,12 @@ pub(crate) fn command(
     let params = generate_params_shared(&args.param, &args.params)?;
 
     // Construct a generator if we were given a `--target` argument.
-    let output = {
-        let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
-            Error::InvalidVirtualDirectory {
-                path: args.templates.to_string(),
-                error: e.to_string(),
-            }
+    let templates_dir =
+        VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidVirtualDirectory {
+            path: args.templates.to_string(),
+            error: e.to_string(),
         })?;
+    let output = {
         let loader =
             FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
@@ -188,7 +187,9 @@ mod tests {
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use std::io::Write;
     use weaver_common::vdir::VirtualDirectoryPath;
+    use zip::write::FileOptions;
 
     #[test]
     fn test_registry_update_markdown() {
@@ -263,5 +264,115 @@ mod tests {
         let exit_directive = run_command(&cli);
         // The command should not fail
         assert_ne!(exit_directive.exit_code, 0);
+    }
+
+    // Helper that will construct a zip file from a directory.
+    // This means we can test zip-file extraction and lifetimes but don't need to check in
+    // a binary zip file into git, which is hard to inspect the contents of.
+    fn create_zip_from_dir(src_dir: &str, zip_path: &std::path::Path) {
+        let file = std::fs::File::create(zip_path).expect("failed to create zip file");
+        let mut zip = zip::ZipWriter::new(file);
+
+        for entry in walkdir::WalkDir::new(src_dir) {
+            let entry = entry.expect("failed to read directory entry");
+            let path = entry.path();
+            if path.is_file() {
+                let relative_path = path.strip_prefix(src_dir).expect("failed to strip prefix");
+                let zip_path_in_archive = format!("templates/{}", relative_path.to_str().unwrap());
+                zip.start_file(zip_path_in_archive, FileOptions::<()>::default())
+                    .expect("failed to add file to zip");
+                let content = std::fs::read(path).expect("failed to read file");
+                zip.write_all(&content)
+                    .expect("failed to write to zip file");
+            }
+        }
+        let _ = zip.finish().expect("failed to finish zip file");
+    }
+
+    #[test]
+    fn test_registry_update_markdown_zip_templates() {
+        let schema_dir = "tests/markdown_update_dryrun/model";
+
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let markdown_dir = temp_dir.path().to_path_buf();
+        let zip_path = temp_dir.path().join("templates.zip");
+
+        // Create a zip file for templates from test_data/test_template_package
+        create_zip_from_dir("test_data/test_template_package", &zip_path);
+
+        // Copy test.md to temp_dir so WalkDir finds it.
+        let _ = std::fs::copy(
+            "tests/markdown_update_dryrun/current_output/test.md",
+            markdown_dir.join("test.md"),
+        )
+        .expect("failed to copy test file");
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: markdown_dir.to_str().unwrap().to_owned(),
+                    registry: RegistryArgs {
+                        registry: VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        },
+                        follow_symlinks: false,
+                        include_unreferenced: false,
+                        v2: false,
+                    },
+                    dry_run: false, // Generate files first
+                    attribute_registry_base_url: None,
+                    templates: VirtualDirectoryPath::LocalArchive {
+                        path: zip_path.to_str().unwrap().to_owned(),
+                        sub_folder: None,
+                    },
+                    diagnostic: Default::default(),
+                    target: "markdown".to_owned(),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive = run_command(&cli);
+        assert_eq!(exit_directive.exit_code, 0, "First run (generation) failed");
+
+        // Second run: verify no differences
+        let cli_verify = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: markdown_dir.to_str().unwrap().to_owned(),
+                    registry: RegistryArgs {
+                        registry: VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        },
+                        follow_symlinks: false,
+                        include_unreferenced: false,
+                        v2: false,
+                    },
+                    dry_run: true, // Verify
+                    attribute_registry_base_url: None,
+                    templates: VirtualDirectoryPath::LocalArchive {
+                        path: zip_path.to_str().unwrap().to_owned(),
+                        sub_folder: None,
+                    },
+                    diagnostic: Default::default(),
+                    target: "markdown".to_owned(),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive_verify = run_command(&cli_verify);
+        assert_eq!(
+            exit_directive_verify.exit_code, 0,
+            "Second run (verification) failed"
+        );
     }
 }

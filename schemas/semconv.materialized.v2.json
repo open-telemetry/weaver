@@ -69,6 +69,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -126,6 +130,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the attribute group.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -315,6 +323,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the entity.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -375,6 +387,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
         },
         "requirement_level": {
           "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition`` MUST\nspecify the conditions under which the attribute is required.",
@@ -511,6 +527,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the event.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -567,6 +587,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
         },
         "requirement_level": {
           "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
@@ -641,6 +665,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the event.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -837,6 +865,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the metric.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -899,6 +931,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
         },
         "requirement_level": {
           "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition`` MUST\nspecify the conditions under which the attribute is required.\n\nNote: For attributes that are \"recommended\" or \"opt-in\" - not all metric source will\ncreate timeseries with these attributes, but for any given timeseries instance, the attributes that *were* present\nshould *remain* present. That is - a metric timeseries cannot drop attributes during its lifetime.",
@@ -978,6 +1014,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the metric.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -1045,6 +1085,30 @@
           "const": "boolean[]"
         }
       ]
+    },
+    "Provenance": {
+      "description": "The provenance of a semantic convention attribute or signal in forge.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "The path to the file that specified this attribute or signal.\n\nEmpty if the attribute or signal is from a dependency.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "The dependency that defined this attribute or signal.\n\nEmpty if the attribute or signal is not from a dependency.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "Refinements": {
       "description": "The set of all refinements for a semantic convention registry.\n\nA refinement is a specialization of a signal for a particular purpose,\ne.g. creating a MySQL specific instance of a database span for the purpose\nof codegeneration for MySQL.",
@@ -1253,6 +1317,10 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "provenance": {
+          "description": "The provenance of the span.",
+          "$ref": "#/$defs/Provenance"
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -1315,6 +1383,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
         },
         "requirement_level": {
           "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
@@ -1444,6 +1516,10 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the span.",
+          "$ref": "#/$defs/Provenance"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",

@@ -733,6 +733,7 @@ mod tests {
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },
+            provenance: Default::default(),
         };
         let kv = get_attribute_name_value_v2(&attr);
         assert_eq!(kv, KeyValue::new("test.v2.string", "v2_example"));
