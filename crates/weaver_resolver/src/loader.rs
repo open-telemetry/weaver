@@ -12,7 +12,6 @@ use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-#[allow(deprecated)]
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
@@ -363,7 +362,6 @@ fn load_definition_repository(
             .map(|s| s.starts_with('.'))
             .unwrap_or(false)
     }
-    #[allow(deprecated)]
     fn is_semantic_convention_file(entry: &DirEntry) -> bool {
         let path = entry.path();
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
@@ -625,6 +623,83 @@ mod tests {
             }
             WResult::FatalErr(fatal) => {
                 panic!("Expected success, but got fatal error: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_duplicate_dependency_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/duplicate-dependency/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Duplicate dependency") &&
+                    error_msg.contains("test/dep") &&
+                    error_msg.contains("1.0.0") &&
+                    error_msg.contains("2.0.0"),
+                    "Expected duplicate dependency error mentioning both versions, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to duplicate dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_dependency_not_found() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/dependency-not-found/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Failed to resolve definition") ||
+                    error_msg.contains("No such file or directory"),
+                    "Expected file not found error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to missing dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_version_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/invalid-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Invalid schema URL") &&
+                    error_msg.contains("http://test/dep/v1"),
+                    "Expected invalid schema URL error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to invalid version, but got success");
             }
         }
 

@@ -412,18 +412,12 @@ impl AttributeLookup for Vec<ResolvedDependency> {
             }
         }
 
-        if matches.is_empty() {
-            return Ok(None);
-        }
-
-        let mut matches_iter = matches.into_iter();
-        let mut best = matches_iter.next().expect("matches is not empty");
-
-        for m in matches_iter {
-            best = resolve_conflict(key, best, m)?;
-        }
-
-        Ok(Some(best))
+        matches.into_iter().try_fold(None, |acc, m| {
+            match acc {
+                None => Ok(Some(m)),
+                Some(best) => Ok(Some(resolve_conflict(key, best, m)?)),
+            }
+        })
     }
 }
 
@@ -844,6 +838,95 @@ mod tests {
             assert!(urls.contains(&"http://test/schema2/1.0.0"));
         } else {
             panic!("Expected AmbiguousReference error, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_lookup_attribute_fallback() {
+        use std::collections::HashMap;
+        use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+
+        use weaver_semconv::group::GroupType;
+
+        let attr_name = "fallback.attr";
+        let attr = gen_attr_by_name(attr_name.to_owned(), RequirementLevel::Basic(Recommended));
+
+        // Create catalog with the attribute, but NO root_attributes mapping for it
+        let catalog = Catalog::new(vec![attr.clone()], HashMap::new());
+
+        // Create a group that contains this attribute reference
+        let group = weaver_resolved_schema::registry::Group {
+            id: "group1".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeRef(0)],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+        };
+
+        let schema = V1Schema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "http://test/schema/1.0.0".to_owned(),
+            registry_id: "test-registry".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "v1-example".to_owned(),
+                groups: vec![group],
+            },
+            catalog,
+            resource: None,
+            instrumentation_library: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        let result = schema.lookup_attribute(attr_name);
+        assert!(result.is_ok());
+        let at = result.unwrap();
+        assert!(at.is_some());
+        assert_eq!(at.unwrap().attribute.name, attr_name);
+    }
+
+    #[test]
+    fn test_lookup_attribute_invalid_schema_url() {
+        let mut catalog = AttributeCatalog::default();
+        let attr = gen_attr(1);
+
+        // Add first attribute with invalid semver URL
+        let source1 = AttributeSource::Dependency {
+            schema_url: "http://test/schema/v1".try_into().unwrap(),
+        };
+        let result1 = catalog.attribute_ref_with_provenance(attr.clone(), source1);
+        assert!(result1.is_ok());
+
+        // Add second attribute with invalid semver URL and same name
+        let source2 = AttributeSource::Dependency {
+            schema_url: "http://test/schema/v2".try_into().unwrap(),
+        };
+        
+        // This should fail with InvalidSchemaUrlBadVersion
+        let result2 = catalog.attribute_ref_with_provenance(attr.clone(), source2);
+        assert!(result2.is_err());
+        if let Err(Error::InvalidSchemaUrlBadVersion { url, .. }) = result2 {
+            assert_eq!(url, "http://test/schema/v2");
+        } else {
+            panic!("Expected InvalidSchemaUrlBadVersion error, got {:?}", result2);
         }
     }
 }
