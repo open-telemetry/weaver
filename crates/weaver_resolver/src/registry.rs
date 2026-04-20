@@ -362,9 +362,17 @@ fn resolve_dependency_imports(
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
-    for group in groups {
-        let provenance = group.provenance();
+    for (group, schema_url) in groups {
         let is_v2 = group.is_v2();
+        let prov_url = if let Some(prov) = group.provenance() {
+            prov.schema_url.clone()
+        } else {
+            schema_url
+        };
+        let provenance = Some(Provenance {
+            schema_url: prov_url.clone(),
+            path: "".to_owned(),
+        });
         ureg.groups.push(UnresolvedGroup {
             group,
             attributes: vec![],

@@ -12,6 +12,7 @@ use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+#[allow(deprecated)]
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
@@ -206,13 +207,11 @@ fn load_semconv_repository_recursive(
     // Check for conflict across the graph
     if let Some(prev_schema_url) = visited_registries.get(&registry_name) {
         if prev_schema_url != &schema_url {
-            // TODO: Address version conflicts.
-            // For now, fail fast on any duplicate name with different version.
-            return WResult::FatalErr(Error::DuplicateDependency {
-                name: registry_name,
-                version1: prev_schema_url.version().to_owned(),
-                version2: schema_url.version().to_owned(),
-            });
+            if let Err(e) =
+                check_version_compatibility(&registry_name, prev_schema_url, &schema_url)
+            {
+                return WResult::FatalErr(e);
+            }
         }
     } else {
         let _ = visited_registries.insert(registry_name.clone(), schema_url.clone());
@@ -239,14 +238,13 @@ fn load_semconv_repository_recursive(
 
                 if let Some(prev_schema_url) = seen_dependencies.get(&dep_name) {
                     if prev_schema_url != &d.schema_url {
-                        // TODO: Address version conflicts.
-                        // For now, fail fast on any duplicate name with different version.
-                        let _ = dependency_chain.pop();
-                        return WResult::FatalErr(Error::DuplicateDependency {
-                            name: dep_name,
-                            version1: prev_schema_url.version().to_owned(),
-                            version2: d.schema_url.version().to_owned(),
-                        });
+                        if let Err(e) =
+                            check_version_compatibility(&dep_name, prev_schema_url, &d.schema_url)
+                        {
+                            // Clean up the state of dependency_chain before erroring.
+                            let _ = dependency_chain.pop();
+                            return WResult::FatalErr(e);
+                        }
                     }
                 } else {
                     let _ = seen_dependencies.insert(dep_name, d.schema_url.clone());
@@ -298,6 +296,35 @@ fn load_semconv_repository_recursive(
     }
 }
 
+/// Checks version compatibility between two schema URLs.
+fn check_version_compatibility(
+    registry_name: &str,
+    prev_schema_url: &SchemaUrl,
+    schema_url: &SchemaUrl,
+) -> Result<(), Error> {
+    let prev_v = prev_schema_url
+        .semver()
+        .map_err(|e| Error::InvalidSchemaUrlBadVersion {
+            url: prev_schema_url.to_string(),
+            error: e.to_string(),
+        })?;
+    let cur_v = schema_url
+        .semver()
+        .map_err(|e| Error::InvalidSchemaUrlBadVersion {
+            url: schema_url.to_string(),
+            error: e.to_string(),
+        })?;
+    // TODO - Should we use `VersionReq.parse("^{major}.0.0"))?` instead?
+    if prev_v.major != cur_v.major {
+        return Err(Error::DuplicateDependency {
+            name: registry_name.to_owned(),
+            version1: prev_schema_url.version().to_owned(),
+            version2: schema_url.version().to_owned(),
+        });
+    }
+    Ok(())
+}
+
 /// Loads a resolved repository.
 fn load_resolved_repository(path: &VirtualDirectoryPath) -> WResult<LoadedSemconvRegistry, Error> {
     // TODO - should we handle V1 and V2?
@@ -336,6 +363,7 @@ fn load_definition_repository(
             .map(|s| s.starts_with('.'))
             .unwrap_or(false)
     }
+    #[allow(deprecated)]
     fn is_semantic_convention_file(entry: &DirEntry) -> bool {
         let path = entry.path();
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
@@ -584,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compatible_version_conflict_todo() -> Result<(), Error> {
+    fn test_compatible_version_conflict() -> Result<(), Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/compatible-version-conflict/main".to_owned(),
         };
@@ -592,18 +620,11 @@ mod tests {
         let result = load_semconv_repository(registry_repo, true);
 
         match result {
-            WResult::FatalErr(fatal) => {
-                let error_msg = fatal.to_string();
-                assert!(
-                    error_msg.contains("Duplicate dependency")
-                        && error_msg.contains("example.com/c"),
-                    "Expected duplicate dependency error, got: {error_msg}"
-                );
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                // Success is expected now that compatible versions are allowed.
             }
-            _ => {
-                panic!(
-                    "Expected fatal error due to duplicate dependency (for now), but got success"
-                );
+            WResult::FatalErr(fatal) => {
+                panic!("Expected success, but got fatal error: {fatal}");
             }
         }
 

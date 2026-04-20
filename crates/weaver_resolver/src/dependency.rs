@@ -13,6 +13,7 @@ use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::stability::Stability;
 
 use crate::{
@@ -95,7 +96,7 @@ pub(crate) trait ImportableDependency {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error>;
+    ) -> Result<Vec<(Group, SchemaUrl)>, Error>;
 }
 
 impl ImportableDependency for V1Schema {
@@ -104,7 +105,7 @@ impl ImportableDependency for V1Schema {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
         // Filter imports to only include those from the current registry
         let current_registry_imports: Vec<_> = imports.iter().collect();
 
@@ -155,13 +156,12 @@ impl ImportableDependency for V1Schema {
                     GroupType::Undefined => false,
                 }
         };
-        Ok(self
-            .registry
+        self.registry
             .groups
             .iter()
             .filter(|g| filter(g))
             .cloned()
-            .map(|mut g| {
+            .map(|mut g| -> Result<(Group, SchemaUrl), Error> {
                 // We need to fix all the attribute references in this group to be
                 // against the passed in attribute catalog.
                 let mut attributes = vec![];
@@ -170,13 +170,76 @@ impl ImportableDependency for V1Schema {
                     .iter()
                     .filter_map(|ar| self.catalog().attribute(ar))
                 {
-                    let ar = attribute_catalog.attribute_ref(a.clone());
+                    let source = if let Some((_, source_group_id)) =
+                        self.catalog().root_attribute(&a.name)
+                    {
+                        let group = if let Some(schema_name) =
+                            source_group_id.strip_prefix("v2_dependency.")
+                        {
+                            self.registry.groups.iter().find(|g| {
+                                if let Some(prov) = g.provenance() {
+                                    prov.schema_url.name() == schema_name
+                                } else {
+                                    false
+                                }
+                            })
+                        } else {
+                            self.registry
+                                .groups
+                                .iter()
+                                .find(|g| g.id == *source_group_id)
+                        };
+                        if let Some(group) = group {
+                            if let Some(prov) = group.provenance() {
+                                AttributeSource::Dependency {
+                                    schema_url: prov.schema_url.clone(),
+                                }
+                            } else {
+                                AttributeSource::Dependency {
+                                    schema_url: SchemaUrl::try_from(self.schema_url.as_str())
+                                        .expect("valid schema URL"),
+                                }
+                            }
+                        } else {
+                            AttributeSource::Dependency {
+                                schema_url: SchemaUrl::try_from(self.schema_url.as_str())
+                                    .expect("valid schema URL"),
+                            }
+                        }
+                    } else {
+                        // Fallback: search in all groups to find where this attribute came from
+                        let mut found_source = None;
+                        for group in self.registry.groups.iter() {
+                            if group.attributes.iter().any(|ar| {
+                                if let Some(attr) = self.catalog().attribute(ar) {
+                                    attr.name == a.name
+                                } else {
+                                    false
+                                }
+                            }) {
+                                if let Some(prov) = group.provenance() {
+                                    found_source = Some(AttributeSource::Dependency {
+                                        schema_url: prov.schema_url.clone(),
+                                    });
+                                    break;
+                                }
+                            }
+                        }
+                        found_source.unwrap_or_else(|| AttributeSource::Dependency {
+                            schema_url: SchemaUrl::try_from(self.schema_url.as_str())
+                                .expect("valid schema URL"),
+                        })
+                    };
+                    let ar = attribute_catalog.attribute_ref_with_provenance(a.clone(), source)?;
                     attributes.push(ar);
                 }
                 g.attributes = attributes;
-                g
+                Ok((
+                    g,
+                    SchemaUrl::try_from(self.schema_url.as_str()).expect("valid schema URL"),
+                ))
             })
-            .collect())
+            .collect::<Result<Vec<_>, Error>>()
     }
 }
 
@@ -211,7 +274,7 @@ impl ImportableDependency for V2Schema {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
         let mut result = vec![];
 
         // Helper to map V2 provenance to V1 provenance.
@@ -240,39 +303,54 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                let source = if let Some(dep_ref) = &attr.provenance.source {
+                    AttributeSource::Dependency {
+                        schema_url: self
+                            .dependencies
+                            .iter()
+                            .nth(dep_ref.0 as usize)
+                            .cloned()
+                            .unwrap_or_else(|| self.schema_url.clone()),
+                    }
+                } else {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    }
+                };
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
+                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                    source,
+                )?);
             }
-            result.push(Group {
-                id: m.id().to_owned(),
-                r#type: GroupType::Metric,
-                brief: m.common.brief.clone(),
-                note: m.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(m.common.stability.clone()),
-                deprecated: m.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: Some(m.name.to_string()),
-                instrument: Some(m.instrument.clone()),
-                unit: Some(m.unit.clone()),
-                name: None,
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&m.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(m.common.annotations.clone()),
-                entity_associations: m.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-            });
+            result.push((
+                Group {
+                    id: m.id().to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: m.common.brief.clone(),
+                    note: m.common.note.clone(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(m.common.stability.clone()),
+                    deprecated: m.common.deprecated.clone(),
+                    attributes,
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some(m.name.to_string()),
+                    instrument: Some(m.instrument.clone()),
+                    unit: Some(m.unit.clone()),
+                    name: None,
+                    lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                        get_source_provenance(&m.provenance),
+                    )),
+                    display_name: None,
+                    body: None,
+                    annotations: Some(m.common.annotations.clone()),
+                    entity_associations: m.entity_associations.clone(),
+                    visibility: None,
+                    is_v2: true,
+                },
+                self.schema_url.clone(),
+            ));
         }
 
         // Now event imports.
@@ -295,34 +373,37 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
-            result.push(Group {
-                id: e.id().to_owned(),
-                r#type: GroupType::Event,
-                brief: e.common.brief.clone(),
-                note: e.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(e.common.stability.clone()),
-                deprecated: e.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: Some(e.name.to_string()),
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&e.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(e.common.annotations.clone()),
-                entity_associations: e.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-            });
+            result.push((
+                Group {
+                    id: e.id().to_owned(),
+                    r#type: GroupType::Event,
+                    brief: e.common.brief.clone(),
+                    note: e.common.note.clone(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(e.common.stability.clone()),
+                    deprecated: e.common.deprecated.clone(),
+                    attributes,
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some(e.name.to_string()),
+                    lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                        get_source_provenance(&e.provenance),
+                    )),
+                    display_name: None,
+                    body: None,
+                    annotations: Some(e.common.annotations.clone()),
+                    entity_associations: e.entity_associations.clone(),
+                    visibility: None,
+                    is_v2: true,
+                },
+                self.schema_url.clone(),
+            ));
         }
 
         // Now Entity imports.
@@ -350,7 +431,7 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
             for ar in e.description.iter() {
                 // TODO - this should be non-panic errors.
@@ -369,34 +450,37 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
-            result.push(Group {
-                id: e.id().to_owned(),
-                r#type: GroupType::Entity,
-                brief: e.common.brief.clone(),
-                note: e.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(e.common.stability.clone()),
-                deprecated: e.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: Some(e.r#type.to_string()),
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&e.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(e.common.annotations.clone()),
-                entity_associations: vec![],
-                visibility: None,
-                is_v2: true,
-            });
+            result.push((
+                Group {
+                    id: e.id().to_owned(),
+                    r#type: GroupType::Entity,
+                    brief: e.common.brief.clone(),
+                    note: e.common.note.clone(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(e.common.stability.clone()),
+                    deprecated: e.common.deprecated.clone(),
+                    attributes,
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some(e.r#type.to_string()),
+                    lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                        get_source_provenance(&e.provenance),
+                    )),
+                    display_name: None,
+                    body: None,
+                    annotations: Some(e.common.annotations.clone()),
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: true,
+                },
+                self.schema_url.clone(),
+            ));
         }
 
         // Now Span imports.
@@ -419,34 +503,37 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
-            result.push(Group {
-                id: s.id().to_owned(),
-                r#type: GroupType::Span,
-                brief: s.common.brief.clone(),
-                note: s.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(s.common.stability.clone()),
-                deprecated: s.common.deprecated.clone(),
-                attributes,
-                span_kind: Some(s.kind.clone()),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: Some(s.r#type.to_string()),
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&s.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(s.common.annotations.clone()),
-                entity_associations: s.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-            });
+            result.push((
+                Group {
+                    id: s.id().to_owned(),
+                    r#type: GroupType::Span,
+                    brief: s.common.brief.clone(),
+                    note: s.common.note.clone(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(s.common.stability.clone()),
+                    deprecated: s.common.deprecated.clone(),
+                    attributes,
+                    span_kind: Some(s.kind.clone()),
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: Some(s.r#type.to_string()),
+                    lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                        get_source_provenance(&s.provenance),
+                    )),
+                    display_name: None,
+                    body: None,
+                    annotations: Some(s.common.annotations.clone()),
+                    entity_associations: s.entity_associations.clone(),
+                    visibility: None,
+                    is_v2: true,
+                },
+                self.schema_url.clone(),
+            ));
         }
 
         // Now AttributeGroup imports.
@@ -472,32 +559,35 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
-            result.push(Group {
-                id: ag.id().to_owned(),
-                r#type: GroupType::AttributeGroup,
-                brief: ag.common.brief.clone(),
-                note: ag.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(ag.common.stability.clone()),
-                deprecated: ag.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-                annotations: Some(ag.common.annotations.clone()),
-                entity_associations: vec![],
-                visibility: None,
-                is_v2: true,
-            });
+            result.push((
+                Group {
+                    id: ag.id().to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: ag.common.brief.clone(),
+                    note: ag.common.note.clone(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(ag.common.stability.clone()),
+                    deprecated: ag.common.deprecated.clone(),
+                    attributes,
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    annotations: Some(ag.common.annotations.clone()),
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: true,
+                },
+                self.schema_url.clone(),
+            ));
         }
         Ok(result)
     }
@@ -509,7 +599,7 @@ impl ImportableDependency for ResolvedDependency {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
         match self {
             ResolvedDependency::V1(schema) => {
                 schema.import_groups(imports, include_all, attribute_catalog)
@@ -528,7 +618,7 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
         self.iter()
             .map(|d| d.import_groups(imports, include_all, attribute_catalog))
             .try_fold(vec![], |mut result, next| {

@@ -1,0 +1,9 @@
+imports:
+  attribute_groups:
+    - test.group
+groups:
+  - id: b_group
+    type: attribute_group
+    brief: Group B
+    attributes:
+      - ref: conflict_attr
