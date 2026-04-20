@@ -23,8 +23,8 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_common::log_info;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_common::{log_info, log_warn};
 use weaver_config::CliOverrides;
 
 mod check;
@@ -303,7 +303,7 @@ pub fn load_config<A: CliOverrides>(
 
     let (mut config, weaver_config) = match found {
         Some((path, wc)) => {
-            log_info(format!("Found config: {}", path.display()));
+            log_warn(format!("Experimental! - Found config: {}", path.display()));
             (A::extract_config(&wc), Some(wc))
         }
         None => (A::Config::default(), None),
