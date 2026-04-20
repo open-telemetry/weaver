@@ -23,8 +23,8 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::{log_info, log_warn};
 use weaver_config::CliOverrides;
 
 mod check;
