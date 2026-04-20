@@ -25,16 +25,21 @@ mod registry;
 mod serve;
 mod weaver;
 
+/// Default value for `--diagnostic-format`.
+pub(crate) const DEFAULT_DIAGNOSTIC_FORMAT: &str = "ansi";
+/// Default value for `--diagnostic-template`.
+pub(crate) const DEFAULT_DIAGNOSTIC_TEMPLATE: &str = "diagnostic_templates";
+
 /// Set of parameters used to specify the diagnostic format.
 #[derive(Args, Debug, Clone)]
 pub(crate) struct DiagnosticArgs {
     /// Format used to render the diagnostic messages. Predefined formats are: ansi, json,
     /// gh_workflow_command.
-    #[arg(long, default_value = "ansi")]
+    #[arg(long, default_value = DEFAULT_DIAGNOSTIC_FORMAT)]
     pub(crate) diagnostic_format: String,
 
     /// Path to the directory where the diagnostic templates are located.
-    #[arg(long, default_value = "diagnostic_templates")]
+    #[arg(long, default_value = DEFAULT_DIAGNOSTIC_TEMPLATE)]
     pub(crate) diagnostic_template: PathBuf,
 
     /// Send the output to stdout instead of stderr.
@@ -45,8 +50,8 @@ pub(crate) struct DiagnosticArgs {
 impl Default for DiagnosticArgs {
     fn default() -> Self {
         Self {
-            diagnostic_format: "ansi".to_owned(),
-            diagnostic_template: PathBuf::from("diagnostic_templates"),
+            diagnostic_format: DEFAULT_DIAGNOSTIC_FORMAT.to_owned(),
+            diagnostic_template: PathBuf::from(DEFAULT_DIAGNOSTIC_TEMPLATE),
             diagnostic_stdout: false,
         }
     }

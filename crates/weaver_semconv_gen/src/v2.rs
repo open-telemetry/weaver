@@ -113,6 +113,7 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
                 r#type: attr.r#type.clone(),
                 examples: attr.examples.clone(),
                 common: attr.common.clone(),
+                provenance: Default::default(),
             },
             requirement_level: ar.requirement_level.clone(),
         });
@@ -125,6 +126,7 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
             attributes,
             entity_associations: m.entity_associations.clone(),
             common: m.common.clone(),
+            provenance: Default::default(),
         },
     })
 }
@@ -145,6 +147,7 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
                 r#type: attr.r#type.clone(),
                 examples: attr.examples.clone(),
                 common: attr.common.clone(),
+                provenance: Default::default(),
             },
             requirement_level: ar.requirement_level.clone(),
             sampling_relevant: ar.sampling_relevant,
@@ -158,6 +161,7 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
             kind: s.kind.clone(),
             entity_associations: s.entity_associations.clone(),
             common: s.common.clone(),
+            provenance: Default::default(),
         },
     })
 }
@@ -178,6 +182,7 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
                 r#type: attr.r#type.clone(),
                 examples: attr.examples.clone(),
                 common: attr.common.clone(),
+                provenance: Default::default(),
             },
             requirement_level: ar.requirement_level.clone(),
         });
@@ -188,6 +193,7 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
             attributes,
             entity_associations: s.entity_associations.clone(),
             common: s.common.clone(),
+            provenance: Default::default(),
         },
     })
 }
@@ -208,6 +214,7 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
                 r#type: attr.r#type.clone(),
                 examples: attr.examples.clone(),
                 common: attr.common.clone(),
+                provenance: Default::default(),
             },
             requirement_level: ar.requirement_level.clone(),
         });
@@ -226,6 +233,7 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
                 r#type: attr.r#type.clone(),
                 examples: attr.examples.clone(),
                 common: attr.common.clone(),
+                provenance: Default::default(),
             },
             requirement_level: ar.requirement_level.clone(),
         });
@@ -236,6 +244,7 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
             r#type: s.r#type.clone(),
             identity,
             description,
+            provenance: Default::default(),
         },
     })
 }
@@ -255,6 +264,7 @@ fn resolved_attribute_group<AC: AttributeCatalog>(s: &AttributeGroup, catalog: &
             r#type: attr.r#type.clone(),
             examples: attr.examples.clone(),
             common: attr.common.clone(),
+            provenance: Default::default(),
         });
     }
     ResolvedId::AttributeGroup(ResolvedAttributeGroup {
@@ -262,6 +272,7 @@ fn resolved_attribute_group<AC: AttributeCatalog>(s: &AttributeGroup, catalog: &
             common: s.common.clone(),
             id: s.id.clone(),
             attributes,
+            provenance: Default::default(),
         },
     })
 }
@@ -274,6 +285,7 @@ fn resolved_attribute(attr: &Attribute) -> ResolvedId {
             r#type: attr.r#type.clone(),
             examples: attr.examples.clone(),
             common: attr.common.clone(),
+            provenance: Default::default(),
         },
     })
 }

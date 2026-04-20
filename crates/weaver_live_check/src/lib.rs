@@ -4,6 +4,7 @@
 
 use std::rc::Rc;
 
+use finding_modifier::FindingModifier;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
@@ -28,6 +29,8 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
+/// Finding modifier engine (overrides and filters).
+pub mod finding_modifier;
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.
@@ -233,6 +236,13 @@ impl VersionedSignal {
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// Configuration error.
+    #[error("Configuration error. {error}")]
+    ConfigError {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// Generic ingest error.
     #[error("Fatal error during ingest. {error}")]
     IngestError {
@@ -321,6 +331,23 @@ pub enum SampleRef<'a> {
 }
 
 impl SampleRef<'_> {
+    /// Returns the sample name, if available for this sample type.
+    ///
+    /// For attributes this is the attribute key, for spans/metrics/events
+    /// it is the signal name. Sub-signal types (data points, exemplars,
+    /// span links, resources) do not carry a name.
+    #[must_use]
+    pub fn sample_name(&self) -> Option<&str> {
+        match self {
+            SampleRef::Attribute(attr) => Some(&attr.name),
+            SampleRef::Span(span) => Some(&span.name),
+            SampleRef::SpanEvent(event) => Some(&event.name),
+            SampleRef::Metric(metric) => Some(&metric.name),
+            SampleRef::Log(log) => Some(&log.event_name),
+            _ => None,
+        }
+    }
+
     /// Returns the sample type as a string.
     #[must_use]
     pub fn sample_type(&self) -> &str {
@@ -437,23 +464,47 @@ impl LiveCheckResult {
         }
     }
 
-    /// Add an advice to the result and update the highest advice level
-    pub fn add_advice(&mut self, advice: PolicyFinding) {
-        let advice_level = advice.level.clone();
-        if let Some(previous_highest) = &self.highest_advice_level {
-            if previous_highest < &advice_level {
-                self.highest_advice_level = Some(advice_level);
+    /// Add an advice to the result and update the highest advice level.
+    ///
+    /// When a `FindingModifier` is provided, the finding may be dropped
+    /// (filter exclusion) before being stored.
+    ///
+    /// `sample` is the sample that produced this finding, used by
+    /// `exclude_samples` filters to inspect and match on it.
+    pub fn add_advice(
+        &mut self,
+        advice: PolicyFinding,
+        modifier: Option<&FindingModifier>,
+        sample: &SampleRef<'_>,
+    ) {
+        let advice = if let Some(modifier) = modifier {
+            match modifier.apply(advice, sample) {
+                Some(kept) => kept,
+                None => return, // Excluded by filter
             }
         } else {
-            self.highest_advice_level = Some(advice_level);
-        }
+            advice
+        };
+        let level = advice.level;
+        self.highest_advice_level = Some(
+            self.highest_advice_level
+                .map_or(level, |prev| prev.max(level)),
+        );
         self.all_advice.push(advice);
     }
 
-    /// Add a list of advice to the result and update the highest advice level
-    pub fn add_advice_list(&mut self, advice: Vec<PolicyFinding>) {
+    /// Add a list of advice to the result and update the highest advice level.
+    ///
+    /// When a `FindingModifier` is provided, each finding may be dropped
+    /// (filter exclusion) before being stored.
+    pub fn add_advice_list(
+        &mut self,
+        advice: Vec<PolicyFinding>,
+        modifier: Option<&FindingModifier>,
+        sample: &SampleRef<'_>,
+    ) {
         for advice in advice {
-            self.add_advice(advice);
+            self.add_advice(advice, modifier, sample);
         }
     }
 }
@@ -527,7 +578,11 @@ pub trait Advisable {
                 parent_group.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list);
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &self.as_sample_ref(),
+            );
         }
 
         stats.inc_entity_count(self.entity_type());

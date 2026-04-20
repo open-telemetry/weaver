@@ -1,5 +1,6 @@
 //! Attribute definitions for template schema.
 
+use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
@@ -29,4 +30,8 @@ pub struct Attribute {
     /// Common fields (like brief, note, attributes).
     #[serde(flatten)]
     pub common: CommonFields,
+    /// The provenance of the attribute.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }

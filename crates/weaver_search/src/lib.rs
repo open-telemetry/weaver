@@ -594,6 +594,7 @@ mod tests {
                 },
                 annotations: BTreeMap::new(),
             },
+            provenance: Default::default(),
         }
     }
 
@@ -609,6 +610,7 @@ mod tests {
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },
+            provenance: Default::default(),
         }
     }
 
@@ -626,6 +628,7 @@ mod tests {
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },
+            provenance: Default::default(),
         }
     }
 
@@ -666,6 +669,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 spans: vec![Span {
                     r#type: "http.client".to_owned().into(),
@@ -682,6 +686,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 events: vec![Event {
                     name: "exception".to_owned().into(),
@@ -694,6 +699,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 entities: vec![Entity {
                     r#type: "service".to_owned().into(),
@@ -706,6 +712,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
             },
             refinements: Refinements {

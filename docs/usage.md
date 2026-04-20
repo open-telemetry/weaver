@@ -378,6 +378,8 @@ The produced JSON Schema can be used to generate documentation of the resolved r
     Definition manifest describing unpublished registry
   - `policy-finding`:
     The JSON schema of a policy finding returned by Rego policies
+  - `weaver-config`:
+    The JSON schema of the `.weaver.toml` configuration file
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
@@ -512,52 +514,39 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Default value: `diagnostic_templates`
 * `--diagnostic-stdout` — Send the output to stdout instead of stderr
-* `--input-source <INPUT_SOURCE>` — Where to read the input telemetry from. {file path} | stdin | otlp
-
-  Default value: `otlp`
-* `--input-format <INPUT_FORMAT>` — The format of the input telemetry. (Not required for OTLP). text | json
-
-  Default value: `json`
-* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl (uses serde directly). Other values are treated as template names (e.g., "ansi" uses ansi templates)
-
-  Default value: `ansi`
-* `--templates <TEMPLATES>` — Path to the directory where the templates are located
-
-  Default value: `live_check_templates`
-* `--no-stream` — Disable stream mode. Use this flag to disable streaming output.
+* `--input-source <INPUT_SOURCE>` — Where to read the input telemetry from. {file path} | stdin | otlp (default: otlp)
+* `--input-format <INPUT_FORMAT>` — The format of the input telemetry. (Not required for OTLP). text | json (default: json)
+* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl (uses serde directly). Other values are treated as template names (e.g., "ansi" uses ansi templates). (default: ansi)
+* `--templates <TEMPLATES>` — Path to the directory where the templates are located. (default: live_check_templates)
+* `--no-stream <NO_STREAM>` — Disable stream mode. Use this flag to disable streaming output.
 
    When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP), by default output the live check results for each entity as they are ingested.
 
-  Default value: `false`
-* `--no-stats` — Disable statistics accumulation. This is useful for long-running live check sessions. Typically combined with --emit-otlp-logs and --output=none
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--no-stats <NO_STATS>` — Disable statistics accumulation. This is useful for long-running live check sessions. Typically combined with --emit-otlp-logs and --output=none
+
+  Possible values: `true`, `false`
+
 * `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the report is printed to stdout. Use "none" to disable all template output rendering (useful when emitting OTLP logs). Use "http" to send the report as the response to the /stop request on the admin port
-* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. (default: 0.0.0.0)
+* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. (default: 4317)
+* `--emit-otlp-logs <EMIT_OTLP_LOGS>` — Enable OTLP log emission for live check policy findings
 
-  Default value: `0.0.0.0`
-* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener
+  Possible values: `true`, `false`
 
-  Default value: `4317`
-* `--emit-otlp-logs` — Enable OTLP log emission for live check policy findings
+* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission (default: http://localhost:4317)
+* `--otlp-logs-stdout <OTLP_LOGS_STDOUT>` — Use stdout for OTLP log emission (debug mode)
 
-  Default value: `false`
-* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission
+  Possible values: `true`, `false`
 
-  Default value: `http://localhost:4317`
-* `--otlp-logs-stdout` — Use stdout for OTLP log emission (debug mode)
-
-  Default value: `false`
-* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop)
-
-  Default value: `4320`
-* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
-
-  Default value: `10`
+* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop). (default: 4320)
+* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener. (default: 10)
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives in a stream. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--config <CONFIG_PATH>` — Path to a `.weaver.toml` config file. Skips automatic discovery when set
 
 
 

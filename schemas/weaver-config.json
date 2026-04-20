@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WeaverConfig",
+  "description": "Top-level Weaver configuration.",
+  "type": "object",
+  "properties": {
+    "diagnostics": {
+      "description": "Shared diagnostic output settings (apply to all subcommands that accept them).",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Format for diagnostic messages: `ansi`, `json`, `gh_workflow_command`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "stdout": {
+          "description": "Send diagnostic output to stdout instead of stderr.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "template": {
+          "description": "Path to the directory where the diagnostic templates are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "live_check": {
+      "description": "Live-check specific configuration.",
+      "type": "object",
+      "properties": {
+        "advice_policies": {
+          "description": "Advice policies directory. Overrides the built-in default policies.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_preprocessor": {
+          "description": "Advice preprocessor — a jq script run once over the registry data before\nbeing passed to rego policies.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "emit": {
+          "description": "OTLP log emission settings.",
+          "$ref": "#/$defs/LiveCheckEmitConfig"
+        },
+        "finding_filters": {
+          "description": "Filters control which findings are dropped. A filter without `signal_type`\napplies globally; a filter with `signal_type` applies only to that signal type.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FindingFilter"
+          }
+        },
+        "format": {
+          "description": "Format used to render the report.\nBuiltin formats: `json`, `yaml`, `jsonl`. Other values are template names\n(e.g. `ansi` selects the ansi templates).",
+          "type": "string",
+          "default": "ansi"
+        },
+        "input_format": {
+          "description": "The format of the input telemetry. `text` | `json`. (Not used for OTLP.)",
+          "type": "string",
+          "default": "json"
+        },
+        "input_source": {
+          "description": "Where to read the input telemetry from. `{file path}` | `stdin` | `otlp`.",
+          "type": "string",
+          "default": "otlp"
+        },
+        "no_stats": {
+          "description": "Disable statistics accumulation. Useful for long-running live-check sessions.",
+          "type": "boolean",
+          "default": false
+        },
+        "no_stream": {
+          "description": "Disable stream mode. When set, the report is built up before being rendered.",
+          "type": "boolean",
+          "default": false
+        },
+        "otlp": {
+          "description": "OTLP listener settings (used when `input_source = \"otlp\"`).",
+          "$ref": "#/$defs/LiveCheckOtlpConfig"
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\n`none` disables all template output rendering.\n`http` sends the report as the response to the `/stop` request on the admin port.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.",
+          "type": "string",
+          "default": "live_check_templates"
+        }
+      }
+    },
+    "policy": {
+      "description": "Shared policy settings (apply to all subcommands that accept them).",
+      "type": "object",
+      "properties": {
+        "paths": {
+          "description": "Policy file or directory paths. Directories load all `.rego` files.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        },
+        "skip": {
+          "description": "Skip policy checks entirely.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "registry": {
+      "description": "Shared registry settings (apply to all subcommands that accept them).",
+      "type": "object",
+      "properties": {
+        "follow_symlinks": {
+          "description": "Follow symlinks when loading the registry.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "include_unreferenced": {
+          "description": "Include signals and attributes from dependency registries even if\nnot explicitly referenced.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "path": {
+          "description": "Local folder, Git repo URL, or Git archive URL.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "v2": {
+          "description": "Use version 2 of the schema.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    }
+  },
+  "$defs": {
+    "FindingFilter": {
+      "description": "A filter that drops findings by ID exclusion or minimum level.\nOptional `signal_type` scopes the filter to a specific signal type.",
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "description": "Drop findings with these IDs.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude_samples": {
+          "description": "Drop all findings for samples with these names.\nFor attribute samples, this matches the attribute key — e.g.\n`[\"trace.parent_id\", \"trace.span_id\"]` suppresses all findings\n(e.g. `missing_attribute`) for those attribute keys.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_level": {
+          "description": "Drop all findings below this level.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FindingLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signal_type": {
+          "description": "Optional signal type scope. When set, this filter only applies to\nfindings with a matching signal_type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "FindingLevel": {
+      "description": "The level of a finding.",
+      "oneOf": [
+        {
+          "description": "Useful context without action needed.",
+          "type": "string",
+          "const": "information"
+        },
+        {
+          "description": "Suggested change that would improve things.",
+          "type": "string",
+          "const": "improvement"
+        },
+        {
+          "description": "Something that breaks compliance rules.",
+          "type": "string",
+          "const": "violation"
+        }
+      ]
+    },
+    "LiveCheckEmitConfig": {
+      "description": "OTLP log emission settings for live-check.",
+      "type": "object",
+      "properties": {
+        "otlp_logs": {
+          "description": "Enable OTLP log emission for live-check policy findings.",
+          "type": "boolean",
+          "default": false
+        },
+        "otlp_logs_endpoint": {
+          "description": "OTLP endpoint for log emission.",
+          "type": "string",
+          "default": "http://localhost:4317"
+        },
+        "otlp_logs_stdout": {
+          "description": "Use stdout for OTLP log emission (debug mode).",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LiveCheckOtlpConfig": {
+      "description": "OTLP listener settings for live-check.",
+      "type": "object",
+      "properties": {
+        "admin_port": {
+          "description": "Port used by the HTTP admin port (endpoints: `/stop`, `/health`).",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4320,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "grpc_address": {
+          "description": "Address used by the gRPC OTLP listener.",
+          "type": "string",
+          "default": "0.0.0.0"
+        },
+        "grpc_port": {
+          "description": "Port used by the gRPC OTLP listener.",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "inactivity_timeout": {
+          "description": "Max inactivity time in seconds before stopping the listener.",
+          "type": "integer",
+          "format": "uint64",
+          "default": 10,
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
