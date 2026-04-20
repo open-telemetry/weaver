@@ -137,10 +137,7 @@ impl CumulativeStatistics {
 
     /// Add an advice to the statistics
     pub(crate) fn add_advice(&mut self, advice: &PolicyFinding) {
-        *self
-            .advice_level_counts
-            .entry(advice.level.clone())
-            .or_insert(0) += 1;
+        *self.advice_level_counts.entry(advice.level).or_insert(0) += 1;
         *self
             .advice_type_counts
             .entry(advice.id.clone())
@@ -154,10 +151,7 @@ impl CumulativeStatistics {
 
     /// Add a highest advice level to the statistics
     pub(crate) fn add_highest_advice_level(&mut self, advice: &FindingLevel) {
-        *self
-            .highest_advice_level_counts
-            .entry(advice.clone())
-            .or_insert(0) += 1;
+        *self.highest_advice_level_counts.entry(*advice).or_insert(0) += 1;
     }
 
     /// Increment the no advice count in the statistics

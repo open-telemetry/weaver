@@ -1,0 +1,24 @@
+[package]
+name = "weaver_config"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+weaver_checker = { path = "../weaver_checker" }
+
+serde.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

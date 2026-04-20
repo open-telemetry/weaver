@@ -5944,6 +5944,7 @@ dependencies = [
  "walkdir",
  "weaver_checker",
  "weaver_common",
+ "weaver_config",
  "weaver_diff",
  "weaver_emit",
  "weaver_forge",
@@ -6014,6 +6015,19 @@ dependencies = [
  "url",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "weaver_config"
+version = "0.22.1"
+dependencies = [
+ "log",
+ "schemars",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.18",
+ "toml",
+ "weaver_checker",
 ]
 
 [[package]]
@@ -6115,6 +6129,7 @@ dependencies = [
  "tokio",
  "weaver_checker",
  "weaver_common",
+ "weaver_config",
  "weaver_forge",
  "weaver_resolved_schema",
  "weaver_semconv",
