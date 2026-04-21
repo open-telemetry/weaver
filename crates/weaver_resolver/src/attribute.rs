@@ -60,7 +60,7 @@ impl AttributeCatalog {
 
     /// Returns the reference of the given attribute or creates a new reference if the attribute
     /// does not exist in the catalog.
-    pub fn attribute_ref(&mut self, attr: attribute::Attribute) -> AttributeRef {
+    fn attribute_ref(&mut self, attr: attribute::Attribute) -> AttributeRef {
         let next_id = self.attribute_refs.len() as u32;
         *self
             .attribute_refs
@@ -558,7 +558,12 @@ mod tests {
         // Generate and add 10 attributes to the catalog.
         for i in 0..10 {
             let attr = gen_attr(i);
-            _ = catalog.attribute_ref(attr.clone());
+            _ = catalog.attribute_ref_with_provenance(
+                attr.clone(),
+                AttributeSource::Local {
+                    group_id: "test".to_owned(),
+                },
+            );
         }
 
         // Attributes 2, 4, and 7 are referenced all others are not

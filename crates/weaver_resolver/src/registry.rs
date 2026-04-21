@@ -1310,25 +1310,34 @@ groups:
         // Create 26 attribute refs, and then randomize them.
         let mut attr_refs = vec![];
         for c in 'a'..='z' {
-            attr_refs.push(catalog.attribute_ref(Attribute {
-                name: format!("{c}"),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                brief: Default::default(),
-                examples: Default::default(),
-                tag: Default::default(),
-                requirement_level: Default::default(),
-                sampling_relevant: Default::default(),
-                note: Default::default(),
-                stability: Default::default(),
-                deprecated: Default::default(),
-                prefix: Default::default(),
-                tags: Default::default(),
-                annotations: Default::default(),
-                value: Default::default(),
-                role: Default::default(),
-            }));
+            attr_refs.push(
+                catalog
+                    .attribute_ref_with_provenance(
+                        Attribute {
+                            name: format!("{c}"),
+                            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            brief: Default::default(),
+                            examples: Default::default(),
+                            tag: Default::default(),
+                            requirement_level: Default::default(),
+                            sampling_relevant: Default::default(),
+                            note: Default::default(),
+                            stability: Default::default(),
+                            deprecated: Default::default(),
+                            prefix: Default::default(),
+                            tags: Default::default(),
+                            annotations: Default::default(),
+                            value: Default::default(),
+                            role: Default::default(),
+                        },
+                        crate::attribute::AttributeSource::Local {
+                            group_id: "test".to_owned(),
+                        },
+                    )
+                    .unwrap(),
+            );
         }
 
         // We only need to file out portions here.
@@ -1394,25 +1403,34 @@ groups:
         // Create 26 attribute refs, and then randomize them.
         let mut attr_refs = vec![];
         for c in 'a'..='z' {
-            attr_refs.push(catalog.attribute_ref(Attribute {
-                name: format!("{c}"),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                brief: Default::default(),
-                examples: Default::default(),
-                tag: Default::default(),
-                requirement_level: Default::default(),
-                sampling_relevant: Default::default(),
-                note: Default::default(),
-                stability: Default::default(),
-                deprecated: Default::default(),
-                prefix: Default::default(),
-                tags: Default::default(),
-                annotations: Default::default(),
-                value: Default::default(),
-                role: Default::default(),
-            }));
+            attr_refs.push(
+                catalog
+                    .attribute_ref_with_provenance(
+                        Attribute {
+                            name: format!("{c}"),
+                            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            brief: Default::default(),
+                            examples: Default::default(),
+                            tag: Default::default(),
+                            requirement_level: Default::default(),
+                            sampling_relevant: Default::default(),
+                            note: Default::default(),
+                            stability: Default::default(),
+                            deprecated: Default::default(),
+                            prefix: Default::default(),
+                            tags: Default::default(),
+                            annotations: Default::default(),
+                            value: Default::default(),
+                            role: Default::default(),
+                        },
+                        crate::attribute::AttributeSource::Local {
+                            group_id: "test".to_owned(),
+                        },
+                    )
+                    .unwrap(),
+            );
         }
         // 2. Get a thread-local random number generator (RNG)
         let mut rng = rng();
