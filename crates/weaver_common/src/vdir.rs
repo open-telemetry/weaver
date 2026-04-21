@@ -1330,7 +1330,7 @@ mod tests {
         let resolver = HttpAuthResolver::new(vec![AuthMatchRule {
             url_prefix: server.base_url(),
             name: None,
-            source: TokenSource::Literal(token.to_owned()),
+            source: TokenSource::Token(token.to_owned()),
         }]);
         check_archive_with_auth(registry_path, Some("general.yaml"), &resolver);
     }

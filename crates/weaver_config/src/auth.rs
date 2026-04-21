@@ -9,7 +9,7 @@
 
 use schemars::JsonSchema;
 use serde::Deserialize;
-use weaver_common::http_auth::{AuthMatchRule, HttpAuthResolver, TokenSource as RuntimeTokenSource};
+use weaver_common::http_auth::{AuthMatchRule, HttpAuthResolver, TokenSource};
 
 /// A single entry in the `[[auth]]` array of `.weaver.toml`.
 ///
@@ -38,32 +38,12 @@ pub struct AuthEntry {
     pub token: TokenSource,
 }
 
-/// How a Bearer token is obtained for an [`AuthEntry`].
-#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub enum TokenSource {
-    /// Literal token. Discouraged — prefer `token_env` or `token_command` so the
-    /// token does not end up committed in `.weaver.toml`.
-    Token(String),
-    /// Name of an environment variable to read at fetch time.
-    TokenEnv(String),
-    /// Argv of a helper command. Its first line of stdout is the token. This is
-    /// the standard answer for short-lived tokens (e.g. `["gh", "auth", "token"]`).
-    TokenCommand(Vec<String>),
-}
-
-impl AuthEntry {
-    /// Convert to the runtime [`AuthMatchRule`] used by [`HttpAuthResolver`].
-    #[must_use]
-    pub fn to_match_rule(&self) -> AuthMatchRule {
-        AuthMatchRule {
-            url_prefix: self.url_prefix.clone(),
-            name: self.name.clone(),
-            source: match &self.token {
-                TokenSource::Token(t) => RuntimeTokenSource::Literal(t.clone()),
-                TokenSource::TokenEnv(n) => RuntimeTokenSource::Env(n.clone()),
-                TokenSource::TokenCommand(argv) => RuntimeTokenSource::Command(argv.clone()),
-            },
+impl From<&AuthEntry> for AuthMatchRule {
+    fn from(entry: &AuthEntry) -> Self {
+        Self {
+            url_prefix: entry.url_prefix.clone(),
+            name: entry.name.clone(),
+            source: entry.token.clone(),
         }
     }
 }
@@ -71,12 +51,13 @@ impl AuthEntry {
 /// Build a runtime [`HttpAuthResolver`] from a slice of config entries.
 #[must_use]
 pub fn build_resolver(entries: &[AuthEntry]) -> HttpAuthResolver {
-    HttpAuthResolver::new(entries.iter().map(AuthEntry::to_match_rule).collect())
+    HttpAuthResolver::new(entries.iter().map(AuthMatchRule::from).collect())
 }
 
 #[cfg(test)]
 mod tests {
     use crate::WeaverConfig;
+    use weaver_common::http_auth::TokenSource;
 
     #[test]
     fn parses_all_three_token_modes() {
@@ -99,15 +80,15 @@ token      = "literal"
         assert_eq!(config.auth[0].url_prefix, "https://github.com/acme/");
         assert!(matches!(
             &config.auth[0].token,
-            super::TokenSource::TokenEnv(s) if s == "ACME_GITHUB_TOKEN"
+            TokenSource::TokenEnv(s) if s == "ACME_GITHUB_TOKEN"
         ));
         assert!(matches!(
             &config.auth[1].token,
-            super::TokenSource::TokenCommand(argv) if argv == &vec!["gh".to_owned(), "auth".to_owned(), "token".to_owned()]
+            TokenSource::TokenCommand(argv) if argv == &vec!["gh".to_owned(), "auth".to_owned(), "token".to_owned()]
         ));
         assert!(matches!(
             &config.auth[2].token,
-            super::TokenSource::Token(s) if s == "literal"
+            TokenSource::Token(s) if s == "literal"
         ));
         assert_eq!(config.auth[2].name.as_deref(), Some("acme-internal"));
     }

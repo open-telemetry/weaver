@@ -3,23 +3,32 @@
 //! Per-URL HTTP Bearer-token resolution for remote registry downloads.
 //!
 //! Longest URL-prefix match across the rules in an [`HttpAuthResolver`] wins.
-//! The serde types for the `[[auth]]` section of `.weaver.toml` live in
-//! `weaver_config::auth`.
+//! [`TokenSource`] is also the serde shape for `[[auth]]` entries in
+//! `.weaver.toml` (wrapped by `weaver_config::AuthEntry`).
 
+use schemars::JsonSchema;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// How a Bearer token is obtained for a match rule.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// Also the wire format for the `token` / `token_env` / `token_command` fields
+/// of an `[[auth]]` entry in `.weaver.toml` — the variant name is lowercased
+/// and becomes the field, and exactly one must be set.
+#[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum TokenSource {
-    /// Literal token string.
-    Literal(String),
+    /// Literal token. Discouraged — prefer `TokenEnv` or `TokenCommand` so the
+    /// token does not end up committed in `.weaver.toml`.
+    Token(String),
     /// Name of an environment variable to read at fetch time.
-    Env(String),
-    /// Argv of a helper command; its first stdout line is the token.
-    Command(Vec<String>),
+    TokenEnv(String),
+    /// Argv of a helper command; its first stdout line is the token. The
+    /// standard answer for short-lived tokens (e.g. `["gh", "auth", "token"]`).
+    TokenCommand(Vec<String>),
 }
 
 /// A compiled match rule: a URL prefix and how to materialize its token.
@@ -95,11 +104,9 @@ impl HttpAuthResolver {
 
     fn materialize(&self, rule: &AuthMatchRule) -> Option<String> {
         match &rule.source {
-            TokenSource::Literal(t) => Some(t.clone()),
-            TokenSource::Env(name) => {
-                std::env::var(name).ok().filter(|t| !t.is_empty())
-            }
-            TokenSource::Command(argv) => self.run_command_cached(argv),
+            TokenSource::Token(t) => Some(t.clone()),
+            TokenSource::TokenEnv(name) => std::env::var(name).ok().filter(|t| !t.is_empty()),
+            TokenSource::TokenCommand(argv) => self.run_command_cached(argv),
         }
     }
 
@@ -179,12 +186,12 @@ mod tests {
             AuthMatchRule {
                 url_prefix: "https://github.com/".to_owned(),
                 name: None,
-                source: TokenSource::Literal("broad".to_owned()),
+                source: TokenSource::Token("broad".to_owned()),
             },
             AuthMatchRule {
                 url_prefix: "https://github.com/acme/".to_owned(),
                 name: None,
-                source: TokenSource::Literal("narrow".to_owned()),
+                source: TokenSource::Token("narrow".to_owned()),
             },
         ]);
         assert_eq!(
@@ -208,7 +215,7 @@ mod tests {
         let r = HttpAuthResolver::new(vec![AuthMatchRule {
             url_prefix: "https://x/".to_owned(),
             name: None,
-            source: TokenSource::Env(name.to_owned()),
+            source: TokenSource::TokenEnv(name.to_owned()),
         }]);
         assert_eq!(r.resolve("https://x/a"), Some("from-env".to_owned()));
         unsafe {
@@ -233,7 +240,7 @@ mod tests {
         let r = HttpAuthResolver::new(vec![AuthMatchRule {
             url_prefix: "https://x/".to_owned(),
             name: None,
-            source: TokenSource::Command(argv),
+            source: TokenSource::TokenCommand(argv),
         }]);
         let a = r.resolve("https://x/a").expect("first resolve");
         let b = r.resolve("https://x/b").expect("second resolve");
@@ -246,7 +253,7 @@ mod tests {
         let r = HttpAuthResolver::new(vec![AuthMatchRule {
             url_prefix: "https://x/".to_owned(),
             name: None,
-            source: TokenSource::Command(vec!["definitely-not-a-real-binary-xyz".to_owned()]),
+            source: TokenSource::TokenCommand(vec!["definitely-not-a-real-binary-xyz".to_owned()]),
         }]);
         assert!(r.resolve("https://x/a").is_none());
     }
@@ -258,12 +265,12 @@ mod tests {
             AuthMatchRule {
                 url_prefix: "https://a/".to_owned(),
                 name: None,
-                source: TokenSource::Literal("token-a".to_owned()),
+                source: TokenSource::Token("token-a".to_owned()),
             },
             AuthMatchRule {
                 url_prefix: "https://b/".to_owned(),
                 name: None,
-                source: TokenSource::Literal("token-b".to_owned()),
+                source: TokenSource::Token("token-b".to_owned()),
             },
         ]);
         let r_a = r.clone();

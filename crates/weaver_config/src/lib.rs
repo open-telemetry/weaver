@@ -15,7 +15,8 @@ mod overrides;
 pub mod registry;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
-pub use auth::{build_resolver as build_auth_resolver, AuthEntry, TokenSource};
+pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
+pub use weaver_common::http_auth::TokenSource;
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
 pub use overrides::{CliOverrides, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
