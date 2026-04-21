@@ -88,6 +88,14 @@ impl ResolvedDependency {
     }
 }
 
+/// A group with its source provenance.
+pub struct GroupWithProvenance {
+    /// The group definition.
+    pub group: Group,
+    /// The schema URL of the registry it came from.
+    pub schema_url: SchemaUrl,
+}
+
 /// Allows importing dependencies
 pub(crate) trait ImportableDependency {
     /// Imports groups from the given dependency using the flags provided.
@@ -96,7 +104,7 @@ pub(crate) trait ImportableDependency {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<(Group, SchemaUrl)>, Error>;
+    ) -> Result<Vec<GroupWithProvenance>, Error>;
 }
 
 impl ImportableDependency for V1Schema {
@@ -105,7 +113,7 @@ impl ImportableDependency for V1Schema {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         // Filter imports to only include those from the current registry
         let current_registry_imports: Vec<_> = imports.iter().collect();
 
@@ -161,7 +169,7 @@ impl ImportableDependency for V1Schema {
             .iter()
             .filter(|g| filter(g))
             .cloned()
-            .map(|mut g| -> Result<(Group, SchemaUrl), Error> {
+            .map(|mut g| -> Result<GroupWithProvenance, Error> {
                 // We need to fix all the attribute references in this group to be
                 // against the passed in attribute catalog.
                 let mut attributes = vec![];
@@ -234,10 +242,11 @@ impl ImportableDependency for V1Schema {
                     attributes.push(ar);
                 }
                 g.attributes = attributes;
-                Ok((
-                    g,
-                    SchemaUrl::try_from(self.schema_url.as_str()).expect("valid schema URL"),
-                ))
+                Ok(GroupWithProvenance {
+                    group: g,
+                    schema_url: SchemaUrl::try_from(self.schema_url.as_str())
+                        .expect("valid schema URL"),
+                })
             })
             .collect::<Result<Vec<_>, Error>>()
     }
@@ -274,7 +283,7 @@ impl ImportableDependency for V2Schema {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
 
         // Helper to map V2 provenance to V1 provenance.
@@ -589,7 +598,10 @@ impl ImportableDependency for V2Schema {
                 self.schema_url.clone(),
             ));
         }
-        Ok(result)
+        Ok(result
+            .into_iter()
+            .map(|(group, schema_url)| GroupWithProvenance { group, schema_url })
+            .collect())
     }
 }
 
@@ -599,7 +611,7 @@ impl ImportableDependency for ResolvedDependency {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         match self {
             ResolvedDependency::V1(schema) => {
                 schema.import_groups(imports, include_all, attribute_catalog)
@@ -618,7 +630,7 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<(Group, SchemaUrl)>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         self.iter()
             .map(|d| d.import_groups(imports, include_all, attribute_catalog))
             .try_fold(vec![], |mut result, next| {
