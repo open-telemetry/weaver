@@ -34,10 +34,15 @@ gix = { version = "0.81.0", default-features = false, features = [
     "worktree-mutation",
     "sha1",
 ] }
-openssl.workspace = true
 flate2 = "1.1.4"
 tar = "0.4.43"
 zip.workspace = true
+
+# Use vendored OpenSSL on non-Windows platforms to avoid system OpenSSL deps
+# This enables the "vendored" feature for the openssl crate when building on
+# non-Windows targets.
+[target.'cfg(not(windows))'.dependencies]
+openssl.workspace = true
 
 [dev-dependencies]
 ureq.workspace = true
