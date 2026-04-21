@@ -76,25 +76,20 @@ impl AttributeCatalog {
         source: AttributeSource,
     ) -> Result<AttributeRef, Error> {
         let attr_name = attr.name.clone();
-        let attr_ref = self.attribute_ref(attr.clone());
         let new_attr = AttributeWithSource {
             attribute: attr,
             source,
         };
 
-        let attr_name_clone = attr_name.clone();
-        if let Some(existing) = self.root_attributes.get(&attr_name) {
-            match resolve_conflict(&attr_name, new_attr, existing.clone()) {
-                Ok(resolved) => {
-                    let _ = self.root_attributes.insert(attr_name_clone, resolved);
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+        let winning_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
+            resolve_conflict(&attr_name, new_attr, existing.clone())?
         } else {
-            let _ = self.root_attributes.insert(attr_name_clone, new_attr);
-        }
+            new_attr
+        };
+
+        let attr_ref = self.attribute_ref(winning_attr.attribute.clone());
+        let _ = self.root_attributes.insert(attr_name, winning_attr);
+
         Ok(attr_ref)
     }
 

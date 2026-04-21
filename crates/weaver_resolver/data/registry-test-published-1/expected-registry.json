@@ -8,7 +8,7 @@
       "note": "an entity note",
       "stability": "stable",
       "attributes": [
-        1
+        0
       ],
       "name": "imported.entity.a",
       "lineage": {
@@ -26,7 +26,7 @@
       "note": "an event note",
       "stability": "stable",
       "attributes": [
-        2
+        0
       ],
       "name": "imported.event.a",
       "lineage": {
