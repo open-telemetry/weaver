@@ -668,8 +668,8 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Failed to resolve definition") ||
-                    error_msg.contains("No such file or directory"),
+                    error_msg.contains("Failed to resolve definition")
+                        || error_msg.contains("No such file or directory"),
                     "Expected file not found error, got: {error_msg}"
                 );
             }
@@ -693,8 +693,8 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Invalid schema URL") &&
-                    error_msg.contains("http://test/dep/v1"),
+                    error_msg.contains("Invalid schema URL")
+                        && error_msg.contains("http://test/dep/v1"),
                     "Expected invalid schema URL error, got: {error_msg}"
                 );
             }

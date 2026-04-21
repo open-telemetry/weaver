@@ -412,11 +412,9 @@ impl AttributeLookup for Vec<ResolvedDependency> {
             }
         }
 
-        matches.into_iter().try_fold(None, |acc, m| {
-            match acc {
-                None => Ok(Some(m)),
-                Some(best) => Ok(Some(resolve_conflict(key, best, m)?)),
-            }
+        matches.into_iter().try_fold(None, |acc, m| match acc {
+            None => Ok(Some(m)),
+            Some(best) => Ok(Some(resolve_conflict(key, best, m)?)),
         })
     }
 }
@@ -919,14 +917,17 @@ mod tests {
         let source2 = AttributeSource::Dependency {
             schema_url: "http://test/schema/v2".try_into().unwrap(),
         };
-        
+
         // This should fail with InvalidSchemaUrlBadVersion
         let result2 = catalog.attribute_ref_with_provenance(attr.clone(), source2);
         assert!(result2.is_err());
         if let Err(Error::InvalidSchemaUrlBadVersion { url, .. }) = result2 {
             assert_eq!(url, "http://test/schema/v2");
         } else {
-            panic!("Expected InvalidSchemaUrlBadVersion error, got {:?}", result2);
+            panic!(
+                "Expected InvalidSchemaUrlBadVersion error, got {:?}",
+                result2
+            );
         }
     }
 }
