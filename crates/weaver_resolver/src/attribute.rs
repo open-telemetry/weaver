@@ -421,8 +421,12 @@ impl AttributeLookup for ResolvedDependency {
                 if let Some(mut at) = schema.lookup_attribute(key)? {
                     if let AttributeSource::Local { .. } = at.source {
                         at.source = AttributeSource::Dependency {
-                            schema_url: SchemaUrl::try_from(schema.schema_url.as_str())
-                                .expect("valid schema URL"),
+                            schema_url: SchemaUrl::try_from(schema.schema_url.as_str()).map_err(
+                                |e| Error::InvalidSchemaUrlBadVersion {
+                                    url: schema.schema_url.clone(),
+                                    error: format!("{e}"),
+                                },
+                            )?,
                         };
                     }
                     Ok(Some(at))

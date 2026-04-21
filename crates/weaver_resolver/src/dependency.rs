@@ -289,6 +289,8 @@ impl ImportableDependency for V2Schema {
         // Helper to map V2 provenance to V1 provenance.
         let get_source_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| -> weaver_semconv::provenance::Provenance {
             let url = if let Some(dep_ref) = &prov.source {
+                // TODO - Should we issue some kind of malformed schema error instead of falling back to
+                // taking ownership of the group as our own schema?
                 self.dependencies.iter().nth(dep_ref.0 as usize).cloned().unwrap_or_else(|| self.schema_url.clone())
             } else {
                 self.schema_url.clone()
