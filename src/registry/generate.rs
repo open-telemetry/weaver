@@ -14,7 +14,7 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputProcessor, OutputTarget};
 
-use crate::registry::{Error, PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::vdir::VirtualDirectory;
@@ -90,14 +90,16 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let auth = discover_auth_resolver();
+    let weaver = WeaverEngine::new_with_auth(&args.registry, &args.policy, auth.clone());
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
-    let templates_dir =
-        VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidParams {
+    let templates_dir = VirtualDirectory::try_new_with_auth(&args.templates, &auth).map_err(
+        |e| Error::InvalidParams {
             params_file: PathBuf::from(args.templates.to_string()),
             error: e.to_string(),
-        })?;
+        },
+    )?;
     let loader =
         FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &args.target)?;
     let config = if let Some(paths) = &args.config {

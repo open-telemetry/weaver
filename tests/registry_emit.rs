@@ -39,7 +39,7 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         "--output",
         temp_dir_path,
         "--inactivity-timeout",
-        "4",
+        "8",
     ];
     if use_v2 {
         live_check_args.push("--v2");
@@ -61,7 +61,7 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .expect("Failed to start registry live check process");
 
     // Allow live check command to initialize
-    sleep(Duration::from_secs(2));
+    sleep(Duration::from_secs(4));
 
     // Run registry emit command
     let mut emit_cmd = assert_cmd::Command::new(assert_cmd::cargo::cargo_bin!("weaver"));

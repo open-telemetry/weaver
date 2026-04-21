@@ -10,7 +10,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 
 use crate::{
-    registry::{PolicyArgs, RegistryArgs},
+    registry::{discover_auth_resolver, PolicyArgs, RegistryArgs},
     weaver::WeaverEngine,
     DiagnosticArgs, ExitDirectives,
 };
@@ -382,7 +382,8 @@ pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, Diagn
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+    let weaver =
+        WeaverEngine::new_with_auth(&args.registry, &policy_config, discover_auth_resolver());
     // Load the semantic convention registry into a local cache.
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 

@@ -23,6 +23,7 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::CliOverrides;
@@ -264,6 +265,35 @@ pub fn apply_policy_config(args: &mut PolicyArgs, config: &weaver_config::Policy
         if !args.skip_policies {
             args.skip_policies = v;
         }
+    }
+}
+
+/// Discover `.weaver.toml` from the current working directory and build an
+/// [`HttpAuthResolver`] from its `[[auth]]` entries.
+///
+/// Returns an empty resolver (equivalent to no `[[auth]]` rules) if no config
+/// file is found or if it fails to parse. A parse failure is silently ignored
+/// here because the individual subcommands re-discover and re-report config
+/// errors through their own `load_config` paths; we only need credentials.
+#[must_use]
+pub fn discover_auth_resolver() -> HttpAuthResolver {
+    let Ok(cwd) = std::env::current_dir() else {
+        return HttpAuthResolver::empty();
+    };
+    match weaver_config::discover_and_load(&cwd) {
+        Ok(Some((_path, config))) => weaver_config::build_auth_resolver(&config.auth),
+        _ => HttpAuthResolver::empty(),
+    }
+}
+
+/// Build an [`HttpAuthResolver`] from a previously loaded [`weaver_config::WeaverConfig`].
+/// Used by subcommands that already ran `load_config` and want to avoid
+/// re-discovering the config file.
+#[must_use]
+pub fn auth_resolver_from_config(config: Option<&weaver_config::WeaverConfig>) -> HttpAuthResolver {
+    match config {
+        Some(c) => weaver_config::build_auth_resolver(&c.auth),
+        None => HttpAuthResolver::empty(),
     }
 }
 

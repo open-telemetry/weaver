@@ -14,7 +14,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
 
-use crate::registry::{Error, PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -65,11 +65,12 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     }
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let auth = discover_auth_resolver();
+    let weaver = WeaverEngine::new_with_auth(&args.registry, &args.policy, auth.clone());
     let registry_path = &args.registry.registry;
 
     let mut nfes = vec![];
-    let repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+    let repo = RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, &auth)?;
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
     // we require a definition manifest file to be present for packaging

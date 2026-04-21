@@ -4,7 +4,7 @@
 //! update the specified sections.
 
 use crate::registry::generate::generate_params_shared;
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -89,13 +89,15 @@ pub(crate) fn command(
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params_shared(&args.param, &args.params)?;
+    let auth = discover_auth_resolver();
 
     // Construct a generator if we were given a `--target` argument.
-    let templates_dir =
-        VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidVirtualDirectory {
+    let templates_dir = VirtualDirectory::try_new_with_auth(&args.templates, &auth).map_err(
+        |e| Error::InvalidVirtualDirectory {
             path: args.templates.to_string(),
             error: e.to_string(),
-        })?;
+        },
+    )?;
     let output = {
         let loader =
             FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
@@ -107,7 +109,7 @@ pub(crate) fn command(
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+    let weaver = WeaverEngine::new_with_auth(&args.registry, &policy_config, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
         crate::weaver::Resolved::V2(resolved_v2) => {

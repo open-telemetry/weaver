@@ -4,6 +4,73 @@
   "description": "Top-level Weaver configuration.",
   "type": "object",
   "properties": {
+    "auth": {
+      "description": "Per-URL HTTP authentication entries for downloading remote registries.\nSee [`auth::AuthEntry`] for the schema.",
+      "type": "array",
+      "items": {
+        "description": "A single entry in the `[[auth]]` array of `.weaver.toml`.\n\n```toml\n[[auth]]\nurl_prefix = \"https://github.com/acme/\"\ntoken_env  = \"ACME_GITHUB_TOKEN\"\n\n[[auth]]\nurl_prefix    = \"https://github.com/\"\ntoken_command = [\"gh\", \"auth\", \"token\"]\n```\n\nExactly one of `token`, `token_env`, or `token_command` must be specified.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Optional diagnostic name; not used for matching.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "url_prefix": {
+            "description": "Match any URL whose string starts with this prefix. Longest prefix wins.",
+            "type": "string"
+          }
+        },
+        "oneOf": [
+          {
+            "description": "Literal token. Discouraged — prefer `token_env` or `token_command` so the\ntoken does not end up committed in `.weaver.toml`.",
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "token"
+            ]
+          },
+          {
+            "description": "Name of an environment variable to read at fetch time.",
+            "type": "object",
+            "properties": {
+              "token_env": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "token_env"
+            ]
+          },
+          {
+            "description": "Argv of a helper command. Its first line of stdout is the token. This is\nthe standard answer for short-lived tokens (e.g. `[\"gh\", \"auth\", \"token\"]`).",
+            "type": "object",
+            "properties": {
+              "token_command": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "token_command"
+            ]
+          }
+        ],
+        "required": [
+          "url_prefix"
+        ],
+        "unevaluatedProperties": false
+      }
+    },
     "diagnostics": {
       "description": "Shared diagnostic output settings (apply to all subcommands that accept them).",
       "type": "object",

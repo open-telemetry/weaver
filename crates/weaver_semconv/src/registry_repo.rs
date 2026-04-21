@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use crate::manifest::{Dependency, RegistryManifest};
 use crate::schema_url::SchemaUrl;
 use crate::Error;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{get_path_type, log_info};
 
@@ -75,10 +76,22 @@ pub struct RegistryRepo {
 }
 
 impl RegistryRepo {
-    /// Creates a new `RegistryRepo` from a `Dependency` object that specifies the schema URL and path.
+    /// Creates a new `RegistryRepo` from a `Dependency` object. Uses an empty
+    /// auth resolver; prefer [`Self::try_new_dependency_with_auth`] for code
+    /// paths that may need to pull private remote registries.
     pub fn try_new_dependency(
         dependency: &Dependency,
         nfes: &mut Vec<Error>,
+    ) -> Result<Self, Error> {
+        Self::try_new_dependency_with_auth(dependency, nfes, &HttpAuthResolver::empty())
+    }
+
+    /// Like [`Self::try_new_dependency`] but threads an [`HttpAuthResolver`]
+    /// through for authenticated remote fetches.
+    pub fn try_new_dependency_with_auth(
+        dependency: &Dependency,
+        nfes: &mut Vec<Error>,
+        auth: &HttpAuthResolver,
     ) -> Result<Self, Error> {
         let path = dependency.registry_path.clone().unwrap_or_else(|| {
             // If no registry path is provided, we assume it's the same schema_url.
@@ -87,11 +100,14 @@ impl RegistryRepo {
                 sub_folder: None,
             }
         });
-        Self::try_new(Some(dependency.schema_url.clone()), &path, nfes)
+        Self::try_new_with_auth(Some(dependency.schema_url.clone()), &path, nfes, auth)
     }
 
     /// Creates a new `RegistryRepo` from a schema URL and `RegistryPath` object that
-    /// specifies the location of the registry.
+    /// specifies the location of the registry. Uses an empty auth resolver;
+    /// prefer [`Self::try_new_with_auth`] for code paths that may need to pull
+    /// private remote registries.
+    ///
     /// If there is no manifest and schema URL is not provided, registry
     /// name and version are set to "unknown".
     pub fn try_new(
@@ -99,8 +115,19 @@ impl RegistryRepo {
         registry_path: &VirtualDirectoryPath,
         nfes: &mut Vec<Error>,
     ) -> Result<Self, Error> {
-        let registry =
-            VirtualDirectory::try_new(registry_path).map_err(Error::VirtualDirectoryError)?;
+        Self::try_new_with_auth(schema_url, registry_path, nfes, &HttpAuthResolver::empty())
+    }
+
+    /// Like [`Self::try_new`] but threads an [`HttpAuthResolver`] through for
+    /// authenticated remote fetches.
+    pub fn try_new_with_auth(
+        schema_url: Option<SchemaUrl>,
+        registry_path: &VirtualDirectoryPath,
+        nfes: &mut Vec<Error>,
+        auth: &HttpAuthResolver,
+    ) -> Result<Self, Error> {
+        let registry = VirtualDirectory::try_new_with_auth(registry_path, auth)
+            .map_err(Error::VirtualDirectoryError)?;
         // Try to load manifest
         let manifest_path = find_manifest_path(registry.path());
         if let Some(ref path) = manifest_path {

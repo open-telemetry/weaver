@@ -12,7 +12,7 @@ use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, Diagn
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
 use crate::weaver::{PolicyError, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -68,11 +68,13 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 
     info!("Resolving registry `{}`", args.registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let auth = discover_auth_resolver();
+    let weaver = WeaverEngine::new_with_auth(&args.registry, &args.policy, auth.clone());
     let registry_path = &args.registry.registry;
 
     let mut nfes = vec![];
-    let main_registry_repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+    let main_registry_repo =
+        RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, &auth)?;
 
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 

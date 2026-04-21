@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use clap::Args;
 use log::info;
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -59,7 +59,8 @@ pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, Diagnost
     };
 
     // Use WeaverEngine to load and resolve the registry (always use v2)
-    let weaver = WeaverEngine::new(&args.registry, &policy_args);
+    let weaver =
+        WeaverEngine::new_with_auth(&args.registry, &policy_args, discover_auth_resolver());
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry

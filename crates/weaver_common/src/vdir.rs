@@ -14,10 +14,16 @@
 //!
 //! # HTTP Authentication
 //!
-//! Remote downloads (both archives and individual files) support Bearer token authentication.
-//! Set the token at startup via [`set_http_auth_token`], typically from the
-//! `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN` environment variable. When a token is configured,
-//! all HTTP requests include `Authorization: Bearer <token>` and `User-Agent: weaver` headers.
+//! Remote downloads (archives and individual files) support per-URL Bearer-token
+//! authentication via an [`HttpAuthResolver`]. The resolver is built from the
+//! `[[auth]]` entries in `.weaver.toml` and passed into
+//! [`VirtualDirectory::try_new_with_auth`]. When a rule matches the target URL,
+//! the request carries `Authorization: Bearer <token>` and `User-Agent: weaver`
+//! headers.
+//!
+//! Callers that do not need HTTP auth (e.g. local-only paths, test fixtures)
+//! can use [`VirtualDirectory::try_new`], which is a shim that uses an empty
+//! resolver.
 //!
 //! For GitHub private release assets, browser-style download URLs
 //! (`https://github.com/{owner}/{repo}/releases/download/{tag}/{file}`) are automatically
@@ -60,6 +66,7 @@
 //!    of a Git repo, so the `.git` suffix is not required.
 //! 3. Otherwise → remote file.
 
+use crate::http_auth::HttpAuthResolver;
 use crate::vdir::VirtualDirectoryPath::{
     GitRepo, LocalArchive, LocalFolder, RemoteArchive, RemoteFile,
 };
@@ -108,27 +115,6 @@ pub fn is_git_credentials_enabled() -> bool {
     ALLOW_GIT_CREDENTIALS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Optional Bearer token for authenticating HTTP requests when downloading
-/// remote archives and files. Set via `set_http_auth_token()`, typically from
-/// the `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN` environment variable at startup.
-static HTTP_AUTH_TOKEN: Mutex<Option<String>> = Mutex::new(None);
-
-/// Set the Bearer token used for HTTP authentication when downloading remote archives.
-pub fn set_http_auth_token(token: String) {
-    *HTTP_AUTH_TOKEN
-        .lock()
-        .expect("HTTP_AUTH_TOKEN mutex poisoned") = Some(token);
-}
-
-/// Returns the configured HTTP auth token, if any.
-#[must_use]
-pub fn http_auth_token() -> Option<String> {
-    HTTP_AUTH_TOKEN
-        .lock()
-        .expect("HTTP_AUTH_TOKEN mutex poisoned")
-        .clone()
-}
-
 /// Shared ureq [`Agent`] configured for authenticated HTTP downloads.
 ///
 /// Uses `RedirectAuthHeaders::SameHost` so that the `Authorization` header
@@ -144,26 +130,36 @@ static HTTP_AGENT: Lazy<Agent> = Lazy::new(|| {
         .into()
 });
 
-/// Attaches Bearer auth and User-Agent headers to a request if a token is configured.
-fn attach_auth<B>(request: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
+/// Attach User-Agent and, if the resolver yields a token for `url`, a Bearer
+/// `Authorization` header to `request`. The token lookup is keyed on the
+/// *original* user-supplied URL so that rules configured against
+/// `https://github.com/...` also cover the normalized
+/// `https://api.github.com/...` download that follows.
+fn attach_auth<B>(
+    request: ureq::RequestBuilder<B>,
+    auth: &HttpAuthResolver,
+    url: &str,
+) -> ureq::RequestBuilder<B> {
     let request = request.header("User-Agent", "weaver");
-    match http_auth_token() {
+    match auth.resolve(url) {
         Some(token) => request.header("Authorization", &format!("Bearer {token}")),
         None => request,
     }
 }
 
-/// Download `url` into `save_path` with Bearer auth. GitHub browser-style
-/// release URLs (for both individual files and archive assets) are transparently
-/// normalized to API asset URLs so that token auth works for private repos.
+/// Download `url` into `save_path`, attaching auth for any `[[auth]]` rule
+/// that matches `url`. GitHub browser-style release URLs (for both individual
+/// files and archive assets) are transparently normalized to API asset URLs
+/// so that token auth works for private repos.
 fn download_to_file(
     url: &str,
     save_path: &Path,
+    auth: &HttpAuthResolver,
     map_err: impl Fn(String) -> Error,
 ) -> Result<(), Error> {
-    let resolved_url = normalize_github_url(url)?;
+    let resolved_url = normalize_github_url(url, auth)?;
 
-    let mut request = attach_auth(HTTP_AGENT.get(&resolved_url));
+    let mut request = attach_auth(HTTP_AGENT.get(&resolved_url), auth, url);
     // For GitHub API asset downloads, `Accept: application/octet-stream`
     // triggers the redirect to the actual file content.
     if resolved_url.starts_with("https://api.github.com/") {
@@ -190,13 +186,17 @@ static GITHUB_RELEASE_CACHE: Lazy<Mutex<HashMap<String, serde_json::Value>>> =
 ///
 /// Browser form: `https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}`
 /// API form:     `https://api.github.com/repos/{owner}/{repo}/releases/assets/{id}`
-fn normalize_github_url(url: &str) -> Result<String, Error> {
-    normalize_github_url_with_api_base(url, "https://api.github.com")
+fn normalize_github_url(url: &str, auth: &HttpAuthResolver) -> Result<String, Error> {
+    normalize_github_url_with_api_base(url, "https://api.github.com", auth)
 }
 
 /// Variant of [`normalize_github_url`] with a configurable API base URL for testing.
 /// The `api_base` must not end with a trailing slash.
-fn normalize_github_url_with_api_base(url: &str, api_base: &str) -> Result<String, Error> {
+fn normalize_github_url_with_api_base(
+    url: &str,
+    api_base: &str,
+    auth: &HttpAuthResolver,
+) -> Result<String, Error> {
     let Some((owner, repo, tag, filename)) = parse_github_release_url(url) else {
         return Ok(url.to_owned());
     };
@@ -216,10 +216,14 @@ fn normalize_github_url_with_api_base(url: &str, api_base: &str) -> Result<Strin
         cached
     } else {
         let api_url = format!("{api_base}/repos/{owner}/{repo}/releases/tags/{tag}");
+        // Match auth against the original browser-style URL so users can key
+        // `[[auth]]` rules on `https://github.com/owner/repo/...`.
         let req = attach_auth(
             HTTP_AGENT
                 .get(&api_url)
                 .header("Accept", "application/vnd.github+json"),
+            auth,
+            url,
         );
         let body: String = req
             .call()
@@ -561,7 +565,17 @@ pub struct VirtualDirectory {
 }
 
 impl VirtualDirectory {
-    /// Attempts to construct a new [`VirtualDirectory`] from a given [`VirtualDirectoryPath`].
+    /// Attempts to construct a new [`VirtualDirectory`] with no HTTP auth
+    /// configured. Equivalent to [`Self::try_new_with_auth`] with
+    /// [`HttpAuthResolver::empty`]. Suitable for callers that only resolve
+    /// local paths or for tests.
+    pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
+        Self::try_new_with_auth(vdir_path, &HttpAuthResolver::empty())
+    }
+
+    /// Attempts to construct a new [`VirtualDirectory`] from a given
+    /// [`VirtualDirectoryPath`], using `auth` to resolve credentials for any
+    /// remote HTTP fetches.
     ///
     /// Depending on the variant, this may involve operations such as:
     /// - Cloning Git repositories.
@@ -569,7 +583,10 @@ impl VirtualDirectory {
     /// - Extracting local archives.
     ///
     /// Returns an [`Error`] if any operation fails (e.g. network issues, invalid paths, extraction failures).
-    pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
+    pub fn try_new_with_auth(
+        vdir_path: &VirtualDirectoryPath,
+        auth: &HttpAuthResolver,
+    ) -> Result<Self, Error> {
         let vdir_path_repr = vdir_path.to_string();
         let vdir = match vdir_path {
             LocalFolder { path } => Ok(Self {
@@ -592,11 +609,17 @@ impl VirtualDirectory {
                 // Create a temporary directory for the virtual directory that will be deleted
                 // when the `VirtualDirectory` goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_remote_archive(url, sub_folder.as_ref(), tmp_dir, vdir_path_repr)
+                Self::try_from_remote_archive(
+                    url,
+                    sub_folder.as_ref(),
+                    tmp_dir,
+                    vdir_path_repr,
+                    auth,
+                )
             }
             RemoteFile { url } => {
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_remote_file(url, tmp_dir, vdir_path_repr)
+                Self::try_from_remote_file(url, tmp_dir, vdir_path_repr, auth)
             }
         };
         vdir
@@ -917,6 +940,7 @@ impl VirtualDirectory {
         sub_folder: Option<&String>,
         target_dir: TempDir,
         vdir_path: String,
+        auth: &HttpAuthResolver,
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
         let err = |msg: String| InvalidRegistryArchive {
@@ -934,7 +958,7 @@ impl VirtualDirectory {
             .ok_or_else(|| err("Failed to extract file name from URL".to_owned()))?;
 
         let save_path = tmp_path.join(file_name);
-        download_to_file(url, &save_path, err)?;
+        download_to_file(url, &save_path, auth, err)?;
 
         Self::try_from_local_archive(
             save_path.to_str().unwrap_or_default(),
@@ -955,6 +979,7 @@ impl VirtualDirectory {
         url: &str,
         target_dir: TempDir,
         vdir_path: String,
+        auth: &HttpAuthResolver,
     ) -> Result<Self, Error> {
         let tmp_path = target_dir.path().to_path_buf();
         let err = |msg: String| RemoteFileDownloadFailed {
@@ -972,7 +997,7 @@ impl VirtualDirectory {
             .unwrap_or("downloaded_file");
 
         let save_path = tmp_path.join(file_name);
-        download_to_file(url, &save_path, err)?;
+        download_to_file(url, &save_path, auth, err)?;
 
         Ok(Self {
             vdir_path,
@@ -1286,31 +1311,10 @@ mod tests {
         ALLOW_GIT_CREDENTIALS.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 
-    #[test]
-    fn test_http_auth_token() {
-        use super::{http_auth_token, set_http_auth_token, HTTP_AUTH_TOKEN};
-
-        // Reset to known state
-        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
-            *guard = None;
-        }
-
-        assert!(http_auth_token().is_none());
-        set_http_auth_token("test-token-123".to_owned());
-        assert_eq!(http_auth_token().as_deref(), Some("test-token-123"));
-
-        // Reset for other tests
-        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
-            *guard = None;
-        }
-    }
-
     /// Tests that remote archive downloads work with and without Bearer auth.
-    /// Combined into one test because `HTTP_AUTH_TOKEN` is shared global state
-    /// and parallel tests would race on it.
     #[test]
     fn test_remote_archive_auth() {
-        use super::HTTP_AUTH_TOKEN;
+        use crate::http_auth::{AuthMatchRule, HttpAuthResolver, TokenSource};
         use crate::test::ServeStaticFilesWithAuth;
 
         let token = "secret-test-token";
@@ -1319,29 +1323,33 @@ mod tests {
             .expect("failed to start auth server");
         let url = server.relative_path_to_url("semconv_registry_v1.26.0.tar.gz");
 
-        // Without a token, the auth server should reject the request.
-        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
-            *guard = None;
-        }
         let registry_path = format!("{url}[model]")
             .parse::<VirtualDirectoryPath>()
             .expect("failed to parse registry path");
-        let result = VirtualDirectory::try_new(&registry_path);
-        assert!(result.is_err(), "expected error when no auth token is set");
 
-        // With the correct token, the download should succeed.
-        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
-            *guard = Some(token.to_owned());
-        }
-        let registry_path = format!("{url}[model]")
-            .parse::<VirtualDirectoryPath>()
-            .expect("failed to parse registry path");
-        check_archive(registry_path, Some("general.yaml"));
+        // No rule matches → no auth → server rejects.
+        let empty = HttpAuthResolver::empty();
+        let result = VirtualDirectory::try_new_with_auth(&registry_path, &empty);
+        assert!(
+            result.is_err(),
+            "expected error when no auth resolver rule matches"
+        );
 
-        // Reset for other tests
-        if let Ok(mut guard) = HTTP_AUTH_TOKEN.lock() {
-            *guard = None;
-        }
+        // Rule matches and materializes the correct token → download succeeds.
+        let resolver = HttpAuthResolver::new(vec![AuthMatchRule {
+            url_prefix: server.base_url(),
+            name: None,
+            source: TokenSource::Literal(token.to_owned()),
+        }]);
+        let repo = VirtualDirectory::try_new_with_auth(&registry_path, &resolver)
+            .expect("download should succeed with matching auth rule");
+        let repo_path = repo.path().to_path_buf();
+        assert!(repo_path.exists());
+        assert!(count_yaml_files(&repo_path) > 0);
+        let expected_file = repo_path.join("general.yaml");
+        assert!(expected_file.exists());
+        drop(repo);
+        assert!(!repo_path.exists());
     }
 
     #[test]
@@ -1469,7 +1477,9 @@ mod tests {
     #[test]
     fn test_normalize_github_url_passthrough() {
         use super::normalize_github_url;
+        use crate::http_auth::HttpAuthResolver;
 
+        let auth = HttpAuthResolver::empty();
         // Non-matching URLs must not trigger network calls and must come back unchanged.
         for url in [
             "https://example.com/file.yaml",
@@ -1477,13 +1487,17 @@ mod tests {
             "https://api.github.com/repos/owner/repo/releases/assets/12345",
             "http://127.0.0.1:8080/manifest.yaml",
         ] {
-            assert_eq!(normalize_github_url(url).expect("should pass through"), url);
+            assert_eq!(
+                normalize_github_url(url, &auth).expect("should pass through"),
+                url
+            );
         }
     }
 
     #[test]
     fn test_normalize_github_url_resolves_asset() {
         use super::normalize_github_url_with_api_base;
+        use crate::http_auth::HttpAuthResolver;
         use crate::test::{MockGitHubApi, MockRelease};
 
         let api = MockGitHubApi::start(vec![MockRelease {
@@ -1499,7 +1513,8 @@ mod tests {
 
         let browser_url =
             "https://github.com/owner_a/repo_a/releases/download/v1.0.0/manifest.yaml";
-        let resolved = normalize_github_url_with_api_base(browser_url, &api.base_url())
+        let auth = HttpAuthResolver::empty();
+        let resolved = normalize_github_url_with_api_base(browser_url, &api.base_url(), &auth)
             .expect("normalize should succeed");
         assert_eq!(resolved, format!("{}/assets/manifest.yaml", api.base_url()));
     }
@@ -1507,6 +1522,7 @@ mod tests {
     #[test]
     fn test_normalize_github_url_caches_release() {
         use super::normalize_github_url_with_api_base;
+        use crate::http_auth::HttpAuthResolver;
         use crate::test::{MockGitHubApi, MockRelease};
 
         let api = MockGitHubApi::start(vec![MockRelease {
@@ -1520,11 +1536,12 @@ mod tests {
         }])
         .expect("mock API failed to start");
 
+        let auth = HttpAuthResolver::empty();
         // Two different assets from the same release should hit the tags endpoint once.
         for filename in ["manifest.yaml", "resolved.yaml"] {
             let url =
                 format!("https://github.com/owner_b/repo_b/releases/download/v2.0.0/{filename}");
-            _ = normalize_github_url_with_api_base(&url, &api.base_url())
+            _ = normalize_github_url_with_api_base(&url, &api.base_url(), &auth)
                 .expect("normalize should succeed");
         }
         assert_eq!(
@@ -1537,6 +1554,7 @@ mod tests {
     #[test]
     fn test_normalize_github_url_missing_asset() {
         use super::normalize_github_url_with_api_base;
+        use crate::http_auth::HttpAuthResolver;
         use crate::test::{MockGitHubApi, MockRelease};
         use crate::Error::RemoteFileDownloadFailed;
 
@@ -1549,7 +1567,8 @@ mod tests {
         .expect("mock API failed to start");
 
         let browser_url = "https://github.com/owner_c/repo_c/releases/download/v3.0.0/missing.yaml";
-        let err = normalize_github_url_with_api_base(browser_url, &api.base_url())
+        let auth = HttpAuthResolver::empty();
+        let err = normalize_github_url_with_api_base(browser_url, &api.base_url(), &auth)
             .expect_err("missing asset should error");
         assert!(
             matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("missing.yaml")),
@@ -1560,6 +1579,7 @@ mod tests {
     #[test]
     fn test_normalize_github_url_api_404() {
         use super::normalize_github_url_with_api_base;
+        use crate::http_auth::HttpAuthResolver;
         use crate::test::{MockGitHubApi, MockRelease};
         use crate::Error::RemoteFileDownloadFailed;
 
@@ -1574,7 +1594,8 @@ mod tests {
 
         let browser_url =
             "https://github.com/owner_d/repo_d/releases/download/nonexistent/manifest.yaml";
-        let err = normalize_github_url_with_api_base(browser_url, &api.base_url())
+        let auth = HttpAuthResolver::empty();
+        let err = normalize_github_url_with_api_base(browser_url, &api.base_url(), &auth)
             .expect_err("unknown tag should error");
         assert!(
             matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("GitHub API request failed")),

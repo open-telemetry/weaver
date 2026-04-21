@@ -2,7 +2,7 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -36,7 +36,8 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", args.registry.registry);
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let auth = discover_auth_resolver();
+    let weaver = WeaverEngine::new_with_auth(&args.registry, &args.policy, auth.clone());
 
     // Initialize the main registry.
     let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
@@ -45,7 +46,7 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
     let baseline = if let Some(br) = args.baseline_registry.as_ref() {
         // ignore warnings.
         let mut ignored = DiagnosticMessages::empty();
-        let registry_repo = RegistryRepo::try_new(None, br, &mut vec![])?;
+        let registry_repo = RegistryRepo::try_new_with_auth(None, br, &mut vec![], &auth)?;
         let loaded = weaver.load_definitions(registry_repo, &mut ignored)?;
         // TODO - do we need to keep any loading diagnostic messages?
         Some(weaver.resolve(loaded, &mut diag_msgs)?)

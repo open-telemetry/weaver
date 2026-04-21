@@ -137,15 +137,11 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.allow_git_credentials {
         weaver_common::vdir::enable_git_credentials();
     }
-    // Read HTTP auth token from environment for authenticated remote archive downloads.
-    // WEAVER_HTTP_AUTH_TOKEN takes precedence; GITHUB_TOKEN is the fallback.
-    if let Ok(token) =
-        std::env::var("WEAVER_HTTP_AUTH_TOKEN").or_else(|_| std::env::var("GITHUB_TOKEN"))
-    {
-        if !token.is_empty() {
-            weaver_common::vdir::set_http_auth_token(token);
-        }
-    }
+    // HTTP auth for remote registry / manifest / archive downloads is now
+    // configured via `[[auth]]` entries in `.weaver.toml`, which each
+    // subcommand loads through `weaver_config::discover_and_load` and
+    // compiles into an `HttpAuthResolver`. See `src/registry/mod.rs` for
+    // where the resolver is built and threaded.
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),

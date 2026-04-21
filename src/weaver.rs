@@ -8,6 +8,7 @@ use serde::Serialize;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessage;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
@@ -25,13 +26,26 @@ pub struct WeaverEngine<'a> {
     // TODO - divorce config from args
     registry_config: &'a RegistryArgs,
     policy_config: &'a PolicyArgs,
+    /// Per-URL HTTP credential resolver built from `.weaver.toml` (`[[auth]]`).
+    auth: HttpAuthResolver,
 }
 impl<'a> WeaverEngine<'a> {
-    /// Constructs a new engine.
+    /// Constructs a new engine with an empty auth resolver.
     pub fn new(registry: &'a RegistryArgs, policy: &'a PolicyArgs) -> Self {
+        Self::new_with_auth(registry, policy, HttpAuthResolver::empty())
+    }
+
+    /// Constructs a new engine carrying an [`HttpAuthResolver`] for
+    /// authenticated remote registry / dependency / policy fetches.
+    pub fn new_with_auth(
+        registry: &'a RegistryArgs,
+        policy: &'a PolicyArgs,
+        auth: HttpAuthResolver,
+    ) -> Self {
         Self {
             registry_config: registry,
             policy_config: policy,
+            auth,
         }
     }
 
@@ -59,7 +73,8 @@ impl<'a> WeaverEngine<'a> {
     ) -> Result<Loaded, Error> {
         let registry_path = &self.registry_config.registry;
         let mut nfes = vec![];
-        let main_registry_repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+        let main_registry_repo =
+            RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, &self.auth)?;
 
         diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
@@ -73,14 +88,15 @@ impl<'a> WeaverEngine<'a> {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Loaded, Error> {
         // TODO - avoid cloning the repo here.
-        let loaded = SchemaResolver::load_semconv_repository(
+        let loaded = SchemaResolver::load_semconv_repository_with_auth(
             repo.clone(),
             self.registry_config.follow_symlinks,
+            &self.auth,
         )
         .capture_non_fatal_errors(diag_msgs)?;
 
         // Optionally init policy engine
-        let policy_engine = prepare_policy_engine(self.policy_config, &repo)?;
+        let policy_engine = prepare_policy_engine(self.policy_config, &repo, &self.auth)?;
         Ok(Loaded {
             loaded,
             policy_engine,
@@ -530,13 +546,14 @@ impl From<Error> for DiagnosticMessages {
 fn prepare_policy_engine(
     policy_args: &PolicyArgs,
     registry_repo: &RegistryRepo,
+    auth: &HttpAuthResolver,
 ) -> Result<Option<Engine>, Error> {
     if !policy_args.skip_policies {
         // Create and hold all VirtualDirectory instances to keep them from being dropped
         let policy_vdirs: Vec<VirtualDirectory> = policy_args
             .policies
             .iter()
-            .map(VirtualDirectory::try_new)
+            .map(|p| VirtualDirectory::try_new_with_auth(p, auth))
             .collect::<Result<_, _>>()?;
 
         // Extract paths from VirtualDirectory instances

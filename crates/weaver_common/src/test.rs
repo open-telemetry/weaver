@@ -110,6 +110,12 @@ impl ServeStaticFilesWithAuth {
         self.0.port()
     }
 
+    /// Base URL of the server (e.g. `http://127.0.0.1:12345/`).
+    #[must_use]
+    pub fn base_url(&self) -> String {
+        format!("http://127.0.0.1:{}/", self.0.port())
+    }
+
     /// Returns the URL of a file.
     #[must_use]
     pub fn relative_path_to_url(&self, file: &str) -> String {

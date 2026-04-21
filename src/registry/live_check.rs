@@ -340,7 +340,8 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     info!("Resolving registry `{}`", registry_args.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&registry_args, &policy_args);
+    let auth = super::auth_resolver_from_config(weaver_config.as_ref());
+    let weaver = WeaverEngine::new_with_auth(&registry_args, &policy_args, auth);
     let resolved_registry = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let registry = match resolved_registry {
         crate::weaver::Resolved::V2(resolved_v2) => {

@@ -6028,6 +6028,7 @@ dependencies = [
  "thiserror 2.0.18",
  "toml",
  "weaver_checker",
+ "weaver_common",
 ]
 
 [[package]]

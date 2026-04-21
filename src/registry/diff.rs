@@ -2,7 +2,7 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -56,14 +56,17 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config);
+    let auth = discover_auth_resolver();
+    let weaver = WeaverEngine::new_with_auth(&args.registry, &policy_config, auth.clone());
 
     info!("Weaver Registry Diff");
     info!("Checking registry `{}`", args.registry.registry);
 
     let registry_path = args.registry.registry.clone();
-    let main_registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-    let baseline_registry_repo = RegistryRepo::try_new(None, &args.baseline_registry, &mut vec![])?;
+    let main_registry_repo =
+        RegistryRepo::try_new_with_auth(None, &registry_path, &mut vec![], &auth)?;
+    let baseline_registry_repo =
+        RegistryRepo::try_new_with_auth(None, &args.baseline_registry, &mut vec![], &auth)?;
 
     let main = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     let baseline = weaver.load_definitions(baseline_registry_repo, &mut diag_msgs)?;
