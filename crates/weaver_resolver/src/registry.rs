@@ -315,6 +315,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             metric_name: group.spec.metric_name,
             instrument: group.spec.instrument,
             unit: group.spec.unit,
+            metric_requirement_level: group.spec.metric_requirement_level,
             name: group.spec.name,
             lineage: Some(GroupLineage::new(group.provenance.clone())),
             display_name: group.spec.display_name,
@@ -544,6 +545,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         unresolved_group.group.unit = parent_summary.unit.clone();
                         unresolved_group.group.span_kind = parent_summary.span_kind;
                         unresolved_group.group.metric_name = parent_summary.metric_name.clone();
+                        unresolved_group.group.metric_requirement_level = parent_summary.metric_requirement_level.clone();
 
                         // Optionally copy over fields if refinements have not set them.
                         if unresolved_group.group.stability.is_none() {
@@ -1356,6 +1358,7 @@ groups:
                     metric_name: Default::default(),
                     instrument: Default::default(),
                     unit: Default::default(),
+                    metric_requirement_level: Default::default(),
                     name: Default::default(),
                     lineage: Default::default(),
                     display_name: Default::default(),
@@ -1444,6 +1447,7 @@ groups:
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
+                        metric_requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -1478,6 +1482,7 @@ groups:
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
+                        metric_requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -1512,6 +1517,7 @@ groups:
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
+                        metric_requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),

@@ -36,6 +36,7 @@ metrics:
     brief: "Duration of HTTP client requests."
     instrument: histogram
     unit: "s"
+    metric_requirement_level: required
     stability: stable
     attributes:
       - ref_group: http.client.server_and_port

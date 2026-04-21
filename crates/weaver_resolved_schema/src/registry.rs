@@ -16,6 +16,7 @@ use crate::registry::GroupStats::{
     AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
+use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
@@ -112,6 +113,11 @@ pub struct Group {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// The requirement level of the metric. Defaults to `recommended` when omitted.
+    /// Note: This field is only valid if type is metric.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]

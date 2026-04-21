@@ -3,6 +3,7 @@
 This document describes the `http` metrics.
 
 ## `http.client.request.duration`
+This metric is required.
 
 Duration of HTTP client requests.
 

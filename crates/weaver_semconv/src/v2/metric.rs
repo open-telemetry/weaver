@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    attribute::BasicRequirementLevelSpec,
     deprecated::Deprecated,
     group::{GroupSpec, InstrumentSpec},
     stability::Stability,
@@ -43,6 +44,9 @@ pub struct Metric {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+    /// The requirement level of the metric. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -104,6 +108,7 @@ impl Metric {
             metric_name: Some(self.name.into_v1()),
             instrument: Some(self.instrument),
             unit: Some(self.unit),
+            metric_requirement_level: self.metric_requirement_level,
             name: None,
             display_name: None,
             body: None,
@@ -140,6 +145,7 @@ impl MetricRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,

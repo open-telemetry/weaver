@@ -6,12 +6,13 @@ groups:
     instrument: histogram
     unit: "s"
     stability: stable
+    metric_requirement_level: required
   - id: trace.test
     type: span
     span_kind: client
     brief: 'Test span'
   - id: test.common
     type: attribute_group
-    brief: 'This tests attribute gorups.'
+    brief: 'This tests attribute groups.'
     note: >
         These conventions have a note.

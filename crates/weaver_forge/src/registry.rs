@@ -16,6 +16,7 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -100,6 +101,11 @@ pub struct ResolvedGroup {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// The requirement level of the metric. Defaults to `recommended` when omitted.
+    /// Note: This field is only valid if type is metric.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -169,6 +175,7 @@ impl ResolvedGroup {
             metric_name: group.metric_name.clone(),
             instrument: group.instrument.clone(),
             unit: group.unit.clone(),
+            metric_requirement_level: group.metric_requirement_level.clone(),
             name: group.name.clone(),
             lineage,
             display_name: group.display_name.clone(),
@@ -230,6 +237,7 @@ impl ResolvedRegistry {
                     metric_name: group.metric_name.clone(),
                     instrument: group.instrument.clone(),
                     unit: group.unit.clone(),
+                    metric_requirement_level: group.metric_requirement_level.clone(),
                     name: group.name.clone(),
                     lineage,
                     display_name: group.display_name.clone(),
@@ -291,6 +299,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -315,6 +324,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -339,6 +349,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,

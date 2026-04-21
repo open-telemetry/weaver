@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use crate::any_value::AnyValueSpec;
-use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
+use crate::attribute::{AttributeSpec, AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::provenance::Provenance;
@@ -98,6 +98,11 @@ pub struct GroupSpec {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// The requirement level of the metric. Defaults to `recommended` when omitted.
+    /// Note: This field is only valid if type is metric.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
     /// The name of the event (valid only when the group `type` is `event`).
     ///
     /// Note: If not specified, the prefix is used. If the prefix is empty (or unspecified), the name is required.
@@ -719,6 +724,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -887,6 +893,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -1176,6 +1183,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             display_name: None,
             attributes: vec![],
             body: Some(AnyValueSpec::String {
@@ -1394,6 +1402,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             display_name: None,
             attributes: vec![],
             body: Some(AnyValueSpec::String {
@@ -1552,6 +1561,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -1725,6 +1735,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -1880,6 +1891,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -1943,6 +1955,7 @@ mod tests {
             metric_name: Some("metric".to_owned()),
             instrument: Some(Gauge),
             unit: Some("{thing}".to_owned()),
+            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -1984,6 +1997,101 @@ mod tests {
                 error: "Group with entity_associations cannot have type: AttributeGroup".to_owned(),
             }),
             result
+        );
+    }
+
+    #[test]
+    fn test_metric_requirement_level() {
+        let base_metric = GroupSpec {
+            id: "metric.test".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "test metric".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            include_groups: vec![],
+            stability: Some(Stability::Development),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("test.metric".to_owned()),
+            instrument: Some(Counter),
+            unit: Some("{request}".to_owned()),
+            metric_requirement_level: None,
+            name: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+        };
+
+        // metric_requirement_level: None defaults to recommended — valid
+        assert!(base_metric
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // metric_requirement_level: Required — valid
+        let mut group = base_metric.clone();
+        group.metric_requirement_level = Some(BasicRequirementLevelSpec::Required);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // metric_requirement_level: Recommended — valid
+        let mut group = base_metric.clone();
+        group.metric_requirement_level = Some(BasicRequirementLevelSpec::Recommended);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // metric_requirement_level: OptIn — valid
+        let mut group = base_metric.clone();
+        group.metric_requirement_level = Some(BasicRequirementLevelSpec::OptIn);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // YAML round-trip: omitted field deserializes to None (default recommended)
+        let yaml = r#"
+groups:
+  - id: metric.yaml.test
+    type: metric
+    brief: "test"
+    stability: development
+    metric_name: yaml.test
+    instrument: counter
+    unit: "{request}"
+"#;
+        let semconv: crate::semconv::SemConvSpecV1 =
+            serde_yaml::from_str(yaml).expect("Failed to parse YAML");
+        let group = semconv.groups.first().expect("Expected at least one group");
+        assert_eq!(group.metric_requirement_level, None);
+
+        // YAML round-trip: explicit required value
+        let yaml = r#"
+groups:
+  - id: metric.yaml.test2
+    type: metric
+    brief: "test"
+    stability: development
+    metric_name: yaml.test2
+    instrument: counter
+    unit: "{request}"
+    metric_requirement_level: required
+"#;
+        let semconv: crate::semconv::SemConvSpecV1 =
+            serde_yaml::from_str(yaml).expect("Failed to parse YAML");
+        let group = semconv.groups.first().expect("Expected at least one group");
+        assert_eq!(
+            group.metric_requirement_level,
+            Some(BasicRequirementLevelSpec::Required)
         );
     }
 }

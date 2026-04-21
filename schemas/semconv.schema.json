@@ -526,6 +526,16 @@
 					"type": "string",
 					"description": "The unit in which the metric is measured in."
 				},
+				"metric_requirement_level": {
+					"type": "string",
+					"description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
+					"enum": [
+						"required",
+						"recommended",
+						"opt_in"
+					],
+					"default": "recommended"
+				},
 				"entity_associations": {
 					"type": "array",
 					"items": {
