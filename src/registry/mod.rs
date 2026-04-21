@@ -268,13 +268,10 @@ pub fn apply_policy_config(args: &mut PolicyArgs, config: &weaver_config::Policy
     }
 }
 
-/// Discover `.weaver.toml` from the current working directory and build an
-/// [`HttpAuthResolver`] from its `[[auth]]` entries.
-///
-/// Returns an empty resolver (equivalent to no `[[auth]]` rules) if no config
-/// file is found or if it fails to parse. A parse failure is silently ignored
-/// here because the individual subcommands re-discover and re-report config
-/// errors through their own `load_config` paths; we only need credentials.
+/// Discover `.weaver.toml` from the current directory and compile its
+/// `[[auth]]` entries into an [`HttpAuthResolver`]. Returns an empty resolver
+/// if the file is missing or unreadable — parse errors will surface when the
+/// subcommand separately loads its own config section.
 #[must_use]
 pub fn discover_auth_resolver() -> HttpAuthResolver {
     let Ok(cwd) = std::env::current_dir() else {
@@ -286,9 +283,9 @@ pub fn discover_auth_resolver() -> HttpAuthResolver {
     }
 }
 
-/// Build an [`HttpAuthResolver`] from a previously loaded [`weaver_config::WeaverConfig`].
-/// Used by subcommands that already ran `load_config` and want to avoid
-/// re-discovering the config file.
+/// Compile `[[auth]]` entries from an already-loaded [`weaver_config::WeaverConfig`]
+/// into an [`HttpAuthResolver`]. Preferred over [`discover_auth_resolver`] when
+/// the caller has already run `load_config`.
 #[must_use]
 pub fn auth_resolver_from_config(config: Option<&weaver_config::WeaverConfig>) -> HttpAuthResolver {
     match config {

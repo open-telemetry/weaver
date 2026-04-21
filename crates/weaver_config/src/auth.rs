@@ -53,7 +53,7 @@ pub enum TokenSource {
 }
 
 impl AuthEntry {
-    /// Compile this config entry into a runtime match rule.
+    /// Convert to the runtime [`AuthMatchRule`] used by [`HttpAuthResolver`].
     #[must_use]
     pub fn to_match_rule(&self) -> AuthMatchRule {
         AuthMatchRule {
@@ -120,13 +120,11 @@ url_prefix = "https://x/"
 token      = "a"
 token_env  = "B"
 "#;
-        let err = toml::from_str::<WeaverConfig>(toml).expect_err("should fail");
-        assert!(
-            err.to_string().contains("token")
-                || err.to_string().contains("unknown")
-                || err.to_string().contains("duplicate"),
-            "unexpected error: {err}"
-        );
+        let err = toml::from_str::<WeaverConfig>(toml)
+            .expect_err("two mutually-exclusive token fields should be rejected")
+            .to_string();
+        // deny_unknown_fields + flattened enum: the second field appears as unknown.
+        assert!(err.contains("token_env"), "unexpected error: {err}");
     }
 
     #[test]

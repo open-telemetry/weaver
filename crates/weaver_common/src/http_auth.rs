@@ -2,18 +2,9 @@
 
 //! Per-URL HTTP Bearer-token resolution for remote registry downloads.
 //!
-//! An [`HttpAuthResolver`] holds an immutable list of match rules, each binding
-//! a URL prefix to a token source (literal, environment variable, or helper
-//! command). At request time, the target URL is matched against every rule and
-//! the longest matching prefix wins.
-//!
-//! The resolver is cheaply clonable (`Arc` internally) and thread-safe; it
-//! replaces the process-global mutex used in earlier prototypes so concurrent
-//! fetches with different hosts can each resolve their own credential.
-//!
-//! See the `[[auth]]` section of `.weaver.toml` for the user-facing schema.
-//! The serde types live in `weaver_config::auth`; this crate only concerns
-//! itself with the runtime representation.
+//! Longest URL-prefix match across the rules in an [`HttpAuthResolver`] wins.
+//! The serde types for the `[[auth]]` section of `.weaver.toml` live in
+//! `weaver_config::auth`.
 
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
@@ -21,9 +12,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// How a Bearer token is obtained for a match rule.
-///
-/// Mirrors `weaver_config::auth::TokenSource` but lives in `weaver_common` so
-/// the resolver does not depend on the config crate.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenSource {
     /// Literal token string.
@@ -55,11 +43,10 @@ struct CachedToken {
     fetched_at: Instant,
 }
 
-/// Resolves the Bearer token for a given request URL.
-///
-/// Built from a `&[weaver_config::AuthEntry]` via [`HttpAuthResolver::from_config_entries`]
-/// (see `weaver_config`) or constructed directly from [`AuthMatchRule`]s via
-/// [`HttpAuthResolver::new`]. Clone is cheap (shared state is `Arc`-wrapped).
+/// Resolves the Bearer token for a given request URL. Clone is cheap
+/// (shared state is `Arc`-wrapped). Build via `weaver_config::build_auth_resolver`
+/// from `[[auth]]` entries, or directly from [`AuthMatchRule`]s via
+/// [`HttpAuthResolver::new`].
 #[derive(Debug, Clone, Default)]
 pub struct HttpAuthResolver {
     inner: Arc<Inner>,
@@ -94,12 +81,6 @@ impl HttpAuthResolver {
         Self::default()
     }
 
-    /// Returns `true` if this resolver has no rules.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.inner.rules.is_empty()
-    }
-
     /// Resolve a Bearer token for `url`, or `None` if no rule matches (or the
     /// matching rule's token source produces no token).
     #[must_use]
@@ -126,7 +107,6 @@ impl HttpAuthResolver {
         if argv.is_empty() {
             return None;
         }
-        let key = argv.to_vec();
         let now = Instant::now();
         {
             let cache = self
@@ -134,7 +114,7 @@ impl HttpAuthResolver {
                 .command_cache
                 .lock()
                 .expect("HttpAuthResolver command cache poisoned");
-            if let Some(cached) = cache.get(&key) {
+            if let Some(cached) = cache.get(argv) {
                 if now.duration_since(cached.fetched_at) < COMMAND_CACHE_TTL {
                     return Some(cached.token.clone());
                 }
@@ -147,7 +127,7 @@ impl HttpAuthResolver {
             .lock()
             .expect("HttpAuthResolver command cache poisoned");
         _ = cache.insert(
-            key,
+            argv.to_vec(),
             CachedToken {
                 token: token.clone(),
                 fetched_at: now,
@@ -220,8 +200,7 @@ mod tests {
 
     #[test]
     fn env_var_lookup() {
-        // SAFETY: std::env::set_var/remove_var are unsafe from Rust 2024.
-        //         Tests run in-process; best-effort isolation via a unique var name.
+        // Unique name to avoid collisions with other in-process tests.
         let name = "WEAVER_TEST_AUTH_ENV_LOOKUP";
         unsafe {
             std::env::set_var(name, "from-env");

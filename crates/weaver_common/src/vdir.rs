@@ -14,23 +14,16 @@
 //!
 //! # HTTP Authentication
 //!
-//! Remote downloads (archives and individual files) support per-URL Bearer-token
-//! authentication via an [`HttpAuthResolver`]. The resolver is built from the
-//! `[[auth]]` entries in `.weaver.toml` and passed into
-//! [`VirtualDirectory::try_new_with_auth`]. When a rule matches the target URL,
-//! the request carries `Authorization: Bearer <token>` and `User-Agent: weaver`
-//! headers.
+//! Remote downloads support per-URL Bearer-token authentication via an
+//! [`HttpAuthResolver`] built from `[[auth]]` entries in `.weaver.toml` and
+//! passed to [`VirtualDirectory::try_new_with_auth`]. A matching rule adds
+//! `Authorization: Bearer <token>` and `User-Agent: weaver` headers.
 //!
-//! Callers that do not need HTTP auth (e.g. local-only paths, test fixtures)
-//! can use [`VirtualDirectory::try_new`], which is a shim that uses an empty
-//! resolver.
-//!
-//! For GitHub private release assets, browser-style download URLs
-//! (`https://github.com/{owner}/{repo}/releases/download/{tag}/{file}`) are automatically
-//! normalized to GitHub API asset URLs, since the browser URLs do not support token-based
-//! authentication. This applies to both individual files (e.g. `manifest.yaml`) and
-//! archive assets (`.zip`, `.tar.gz`). The API release metadata is cached per release to
-//! avoid redundant calls when downloading multiple assets from the same release.
+//! GitHub browser-style release-asset URLs
+//! (`https://github.com/{owner}/{repo}/releases/download/{tag}/{file}`) are
+//! transparently resolved to their API asset URLs, since the browser URLs do
+//! not accept Bearer auth. Release metadata is cached per release so multiple
+//! assets from one release cost a single API call.
 //!
 //! # String Format
 //!
@@ -131,10 +124,9 @@ static HTTP_AGENT: Lazy<Agent> = Lazy::new(|| {
 });
 
 /// Attach User-Agent and, if the resolver yields a token for `url`, a Bearer
-/// `Authorization` header to `request`. The token lookup is keyed on the
-/// *original* user-supplied URL so that rules configured against
-/// `https://github.com/...` also cover the normalized
-/// `https://api.github.com/...` download that follows.
+/// `Authorization` header. `url` must be the original user-supplied URL, not
+/// the GitHub-API-normalized one, so rules keyed on `https://github.com/...`
+/// still match when the download hits `https://api.github.com/...`.
 fn attach_auth<B>(
     request: ureq::RequestBuilder<B>,
     auth: &HttpAuthResolver,
@@ -147,10 +139,9 @@ fn attach_auth<B>(
     }
 }
 
-/// Download `url` into `save_path`, attaching auth for any `[[auth]]` rule
-/// that matches `url`. GitHub browser-style release URLs (for both individual
-/// files and archive assets) are transparently normalized to API asset URLs
-/// so that token auth works for private repos.
+/// Download `url` into `save_path`. GitHub browser-style release URLs are
+/// transparently normalized to API asset URLs so Bearer auth works for private
+/// repos.
 fn download_to_file(
     url: &str,
     save_path: &Path,
@@ -565,24 +556,14 @@ pub struct VirtualDirectory {
 }
 
 impl VirtualDirectory {
-    /// Attempts to construct a new [`VirtualDirectory`] with no HTTP auth
-    /// configured. Equivalent to [`Self::try_new_with_auth`] with
-    /// [`HttpAuthResolver::empty`]. Suitable for callers that only resolve
-    /// local paths or for tests.
+    /// Resolve a [`VirtualDirectoryPath`] with no HTTP credentials configured.
+    /// For remote paths behind private registries, use [`Self::try_new_with_auth`].
     pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
         Self::try_new_with_auth(vdir_path, &HttpAuthResolver::empty())
     }
 
-    /// Attempts to construct a new [`VirtualDirectory`] from a given
-    /// [`VirtualDirectoryPath`], using `auth` to resolve credentials for any
-    /// remote HTTP fetches.
-    ///
-    /// Depending on the variant, this may involve operations such as:
-    /// - Cloning Git repositories.
-    /// - Downloading and extracting remote archives.
-    /// - Extracting local archives.
-    ///
-    /// Returns an [`Error`] if any operation fails (e.g. network issues, invalid paths, extraction failures).
+    /// Resolve a [`VirtualDirectoryPath`], using `auth` to look up Bearer
+    /// credentials for any remote HTTP fetches.
     pub fn try_new_with_auth(
         vdir_path: &VirtualDirectoryPath,
         auth: &HttpAuthResolver,
@@ -1213,7 +1194,19 @@ mod tests {
     }
 
     fn check_archive(vdir_path: VirtualDirectoryPath, file_to_check: Option<&str>) {
-        let repo = VirtualDirectory::try_new(&vdir_path).unwrap();
+        check_archive_with_auth(
+            vdir_path,
+            file_to_check,
+            &crate::http_auth::HttpAuthResolver::empty(),
+        );
+    }
+
+    fn check_archive_with_auth(
+        vdir_path: VirtualDirectoryPath,
+        file_to_check: Option<&str>,
+        auth: &crate::http_auth::HttpAuthResolver,
+    ) {
+        let repo = VirtualDirectory::try_new_with_auth(&vdir_path, auth).unwrap();
         let repo_path = repo.path().to_path_buf();
         // At this point, the repo should be cloned into a temporary directory.
         assert!(repo_path.exists());
@@ -1318,18 +1311,16 @@ mod tests {
         use crate::test::ServeStaticFilesWithAuth;
 
         let token = "secret-test-token";
-
         let server = ServeStaticFilesWithAuth::from("tests/test_data", token)
             .expect("failed to start auth server");
         let url = server.relative_path_to_url("semconv_registry_v1.26.0.tar.gz");
-
         let registry_path = format!("{url}[model]")
             .parse::<VirtualDirectoryPath>()
             .expect("failed to parse registry path");
 
         // No rule matches → no auth → server rejects.
-        let empty = HttpAuthResolver::empty();
-        let result = VirtualDirectory::try_new_with_auth(&registry_path, &empty);
+        let result =
+            VirtualDirectory::try_new_with_auth(&registry_path, &HttpAuthResolver::empty());
         assert!(
             result.is_err(),
             "expected error when no auth resolver rule matches"
@@ -1341,15 +1332,7 @@ mod tests {
             name: None,
             source: TokenSource::Literal(token.to_owned()),
         }]);
-        let repo = VirtualDirectory::try_new_with_auth(&registry_path, &resolver)
-            .expect("download should succeed with matching auth rule");
-        let repo_path = repo.path().to_path_buf();
-        assert!(repo_path.exists());
-        assert!(count_yaml_files(&repo_path) > 0);
-        let expected_file = repo_path.join("general.yaml");
-        assert!(expected_file.exists());
-        drop(repo);
-        assert!(!repo_path.exists());
+        check_archive_with_auth(registry_path, Some("general.yaml"), &resolver);
     }
 
     #[test]

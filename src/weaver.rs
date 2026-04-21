@@ -30,13 +30,14 @@ pub struct WeaverEngine<'a> {
     auth: HttpAuthResolver,
 }
 impl<'a> WeaverEngine<'a> {
-    /// Constructs a new engine with an empty auth resolver.
+    /// Engine with no HTTP credentials. Prefer [`Self::new_with_auth`] for
+    /// subcommands that may pull private remote registries.
     pub fn new(registry: &'a RegistryArgs, policy: &'a PolicyArgs) -> Self {
         Self::new_with_auth(registry, policy, HttpAuthResolver::empty())
     }
 
-    /// Constructs a new engine carrying an [`HttpAuthResolver`] for
-    /// authenticated remote registry / dependency / policy fetches.
+    /// Engine that resolves credentials for remote registry / dependency /
+    /// policy fetches through `auth`.
     pub fn new_with_auth(
         registry: &'a RegistryArgs,
         policy: &'a PolicyArgs,

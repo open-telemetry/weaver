@@ -137,11 +137,6 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.allow_git_credentials {
         weaver_common::vdir::enable_git_credentials();
     }
-    // HTTP auth for remote registry / manifest / archive downloads is now
-    // configured via `[[auth]]` entries in `.weaver.toml`, which each
-    // subcommand loads through `weaver_config::discover_and_load` and
-    // compiles into an `HttpAuthResolver`. See `src/registry/mod.rs` for
-    // where the resolver is built and threaded.
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),

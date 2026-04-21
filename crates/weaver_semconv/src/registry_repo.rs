@@ -76,9 +76,8 @@ pub struct RegistryRepo {
 }
 
 impl RegistryRepo {
-    /// Creates a new `RegistryRepo` from a `Dependency` object. Uses an empty
-    /// auth resolver; prefer [`Self::try_new_dependency_with_auth`] for code
-    /// paths that may need to pull private remote registries.
+    /// Build a `RegistryRepo` from a `Dependency` with no HTTP credentials.
+    /// For private remote registries, use [`Self::try_new_dependency_with_auth`].
     pub fn try_new_dependency(
         dependency: &Dependency,
         nfes: &mut Vec<Error>,
@@ -86,8 +85,7 @@ impl RegistryRepo {
         Self::try_new_dependency_with_auth(dependency, nfes, &HttpAuthResolver::empty())
     }
 
-    /// Like [`Self::try_new_dependency`] but threads an [`HttpAuthResolver`]
-    /// through for authenticated remote fetches.
+    /// Build a `RegistryRepo` from a `Dependency`, resolving credentials via `auth`.
     pub fn try_new_dependency_with_auth(
         dependency: &Dependency,
         nfes: &mut Vec<Error>,
@@ -103,13 +101,9 @@ impl RegistryRepo {
         Self::try_new_with_auth(Some(dependency.schema_url.clone()), &path, nfes, auth)
     }
 
-    /// Creates a new `RegistryRepo` from a schema URL and `RegistryPath` object that
-    /// specifies the location of the registry. Uses an empty auth resolver;
-    /// prefer [`Self::try_new_with_auth`] for code paths that may need to pull
-    /// private remote registries.
-    ///
-    /// If there is no manifest and schema URL is not provided, registry
-    /// name and version are set to "unknown".
+    /// Build a `RegistryRepo` at `registry_path` with no HTTP credentials.
+    /// If there is no manifest and no schema URL, registry name/version are "unknown".
+    /// For private remote registries, use [`Self::try_new_with_auth`].
     pub fn try_new(
         schema_url: Option<SchemaUrl>,
         registry_path: &VirtualDirectoryPath,
@@ -118,8 +112,7 @@ impl RegistryRepo {
         Self::try_new_with_auth(schema_url, registry_path, nfes, &HttpAuthResolver::empty())
     }
 
-    /// Like [`Self::try_new`] but threads an [`HttpAuthResolver`] through for
-    /// authenticated remote fetches.
+    /// Build a `RegistryRepo` at `registry_path`, resolving credentials via `auth`.
     pub fn try_new_with_auth(
         schema_url: Option<SchemaUrl>,
         registry_path: &VirtualDirectoryPath,
