@@ -831,7 +831,7 @@ mod tests {
         }) = result
         {
             assert_eq!(r#ref, attr_name);
-            let urls = vec![schema_url1.as_str(), schema_url2.as_str()];
+            let urls = [schema_url1.as_str(), schema_url2.as_str()];
             assert!(urls.contains(&"http://test/schema1/1.0.0"));
             assert!(urls.contains(&"http://test/schema2/1.0.0"));
         } else {

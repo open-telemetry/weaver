@@ -667,9 +667,11 @@ mod tests {
         match result {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
+                // TODO: Use typed errors instead of string matching when weaver_semconv exposes them.
                 assert!(
                     error_msg.contains("Failed to resolve definition")
-                        || error_msg.contains("No such file or directory"),
+                        || error_msg.contains("No such file or directory")
+                        || error_msg.contains("The system cannot find the file specified"),
                     "Expected file not found error, got: {error_msg}"
                 );
             }
