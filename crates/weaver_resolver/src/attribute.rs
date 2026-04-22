@@ -424,7 +424,7 @@ impl AttributeLookup for ResolvedDependency {
                             schema_url: SchemaUrl::try_from(schema.schema_url.as_str()).map_err(
                                 |e| Error::InvalidSchemaUrlBadVersion {
                                     url: schema.schema_url.clone(),
-                                    error: format!("{e}"),
+                                    error: e.to_string(),
                                 },
                             )?,
                         };
