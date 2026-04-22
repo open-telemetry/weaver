@@ -1048,6 +1048,17 @@
           "description": "The instrument type that should be used to record the metric. Note that\nthe semantic conventions must be written using the names of the\nsynchronous instrument types (counter, gauge, updowncounter and\nhistogram).\nFor more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).\nNote: This field is required if type is metric.",
           "$ref": "#/$defs/InstrumentSpec"
         },
+        "metric_requirement_level": {
+          "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BasicRequirementLevelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "name": {
           "description": "The name of the metric.",
           "$ref": "#/$defs/SignalId"
@@ -1063,15 +1074,6 @@
         "unit": {
           "description": "The unit in which the metric is measured, which should adhere to the\n[guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).",
           "type": "string"
-        },
-        "metric_requirement_level": {
-          "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
-          "type": "string",
-          "enum": [
-            "required",
-            "recommended",
-            "opt_in"
-          ]
         }
       },
       "additionalProperties": false,
