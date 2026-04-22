@@ -27,21 +27,15 @@ pub struct WeaverEngine<'a> {
     registry_config: &'a RegistryArgs,
     policy_config: &'a PolicyArgs,
     /// Per-URL HTTP credential resolver built from `.weaver.toml` (`[[auth]]`).
-    auth: HttpAuthResolver,
+    auth: &'a HttpAuthResolver,
 }
 impl<'a> WeaverEngine<'a> {
-    /// Engine with no HTTP credentials. Prefer [`Self::new_with_auth`] for
-    /// subcommands that may pull private remote registries.
-    pub fn new(registry: &'a RegistryArgs, policy: &'a PolicyArgs) -> Self {
-        Self::new_with_auth(registry, policy, HttpAuthResolver::empty())
-    }
-
     /// Engine that resolves credentials for remote registry / dependency /
     /// policy fetches through `auth`.
-    pub fn new_with_auth(
+    pub fn new(
         registry: &'a RegistryArgs,
         policy: &'a PolicyArgs,
-        auth: HttpAuthResolver,
+        auth: &'a HttpAuthResolver,
     ) -> Self {
         Self {
             registry_config: registry,
@@ -75,7 +69,7 @@ impl<'a> WeaverEngine<'a> {
         let registry_path = &self.registry_config.registry;
         let mut nfes = vec![];
         let main_registry_repo =
-            RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, &self.auth)?;
+            RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, self.auth)?;
 
         diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
@@ -92,12 +86,12 @@ impl<'a> WeaverEngine<'a> {
         let loaded = SchemaResolver::load_semconv_repository_with_auth(
             repo.clone(),
             self.registry_config.follow_symlinks,
-            &self.auth,
+            self.auth,
         )
         .capture_non_fatal_errors(diag_msgs)?;
 
         // Optionally init policy engine
-        let policy_engine = prepare_policy_engine(self.policy_config, &repo, &self.auth)?;
+        let policy_engine = prepare_policy_engine(self.policy_config, &repo, self.auth)?;
         Ok(Loaded {
             loaded,
             policy_engine,

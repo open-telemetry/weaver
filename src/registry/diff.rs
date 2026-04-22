@@ -2,7 +2,7 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
-use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
+use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -10,7 +10,9 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_config::WeaverConfig;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
@@ -48,7 +50,11 @@ pub struct RegistryDiffArgs {
 }
 
 /// Generate a diff between two versions of a semantic convention registry.
-pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryDiffArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
     // TODO - make sure policy is disabled.
     let policy_config = PolicyArgs {
@@ -56,17 +62,16 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let auth = discover_auth_resolver();
-    let weaver = WeaverEngine::new_with_auth(&args.registry, &policy_config, auth.clone());
+    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
 
     info!("Weaver Registry Diff");
     info!("Checking registry `{}`", args.registry.registry);
 
     let registry_path = args.registry.registry.clone();
     let main_registry_repo =
-        RegistryRepo::try_new_with_auth(None, &registry_path, &mut vec![], &auth)?;
+        RegistryRepo::try_new_with_auth(None, &registry_path, &mut vec![], auth)?;
     let baseline_registry_repo =
-        RegistryRepo::try_new_with_auth(None, &args.baseline_registry, &mut vec![], &auth)?;
+        RegistryRepo::try_new_with_auth(None, &args.baseline_registry, &mut vec![], auth)?;
 
     let main = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
     let baseline = weaver.load_definitions(baseline_registry_repo, &mut diag_msgs)?;
@@ -110,6 +115,7 @@ mod tests {
     };
     use crate::run_command;
     use std::fs::OpenOptions;
+    use weaver_common::http_auth::HttpAuthResolver;
     use weaver_version::schema_changes::SchemaChanges;
 
     #[test]
@@ -119,6 +125,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Diff(RegistryDiffArgs {
                     registry: RegistryArgs {
@@ -172,7 +179,7 @@ mod tests {
             }),
         };
 
-        let cmd_result = semconv_registry(&registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
         assert_eq!(
             cmd_result
                 .command_result

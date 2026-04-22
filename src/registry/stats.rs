@@ -2,9 +2,11 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
+use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 use clap::Args;
 use include_dir::{include_dir, Dir};
 use log::info;
@@ -52,7 +54,11 @@ struct StatsContext<T> {
 }
 
 /// Compute stats on a semantic convention registry.
-pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryStatsArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     info!(
         "Compute statistics on the registry `{}`",
         args.registry.registry
@@ -64,8 +70,7 @@ pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, Diagno
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let weaver =
-        WeaverEngine::new_with_auth(&args.registry, &policy_config, discover_auth_resolver());
+    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     if !diag_msgs.is_empty() {

@@ -10,10 +10,12 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 
 use crate::{
-    registry::{discover_auth_resolver, PolicyArgs, RegistryArgs},
+    registry::{PolicyArgs, RegistryArgs},
     weaver::WeaverEngine,
     DiagnosticArgs, ExitDirectives,
 };
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 use ratatui::{
     crossterm::{
         event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
@@ -373,7 +375,11 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
     println!("{results}");
 }
 
-pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistrySearchArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
@@ -382,8 +388,7 @@ pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, Diagn
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let weaver =
-        WeaverEngine::new_with_auth(&args.registry, &policy_config, discover_auth_resolver());
+    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
     // Load the semantic convention registry into a local cache.
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 

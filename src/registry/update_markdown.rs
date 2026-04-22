@@ -4,7 +4,9 @@
 //! update the specified sections.
 
 use crate::registry::generate::generate_params_shared;
-use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
+use crate::registry::{PolicyArgs, RegistryArgs};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig as ProjectWeaverConfig;
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -80,6 +82,8 @@ pub struct RegistryUpdateMarkdownArgs {
 /// Update markdown files.
 pub(crate) fn command(
     args: &RegistryUpdateMarkdownArgs,
+    _cfg: Option<&ProjectWeaverConfig>,
+    auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
         let path = entry.path();
@@ -89,10 +93,9 @@ pub(crate) fn command(
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params_shared(&args.param, &args.params)?;
-    let auth = discover_auth_resolver();
 
     // Construct a generator if we were given a `--target` argument.
-    let templates_dir = VirtualDirectory::try_new_with_auth(&args.templates, &auth).map_err(
+    let templates_dir = VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(
         |e| Error::InvalidVirtualDirectory {
             path: args.templates.to_string(),
             error: e.to_string(),
@@ -109,7 +112,7 @@ pub(crate) fn command(
         skip_policies: true,
         display_policy_coverage: false,
     };
-    let weaver = WeaverEngine::new_with_auth(&args.registry, &policy_config, auth);
+    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
         crate::weaver::Resolved::V2(resolved_v2) => {
@@ -200,6 +203,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: "data/update_markdown/markdown".to_owned(),
@@ -240,6 +244,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: markdown_dir.to_owned(),
@@ -314,6 +319,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: markdown_dir.to_str().unwrap().to_owned(),
@@ -347,6 +353,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: markdown_dir.to_str().unwrap().to_owned(),

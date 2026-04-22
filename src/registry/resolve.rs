@@ -12,9 +12,11 @@ use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, Diagn
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
-use crate::registry::{discover_auth_resolver, PolicyArgs, RegistryArgs};
+use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::{PolicyError, WeaverEngine};
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum Error {
@@ -57,7 +59,11 @@ pub struct RegistryResolveArgs {
 
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
-pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryResolveArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     // Display deprecation warning
     if is_future_mode_enabled() {
         return Err(DiagnosticMessages::from_error(Error::Deprecated));
@@ -68,13 +74,12 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 
     info!("Resolving registry `{}`", args.registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
-    let auth = discover_auth_resolver();
-    let weaver = WeaverEngine::new_with_auth(&args.registry, &args.policy, auth.clone());
+    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
     let registry_path = &args.registry.registry;
 
     let mut nfes = vec![];
     let main_registry_repo =
-        RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, &auth)?;
+        RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
 
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
@@ -126,6 +131,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -159,6 +165,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {

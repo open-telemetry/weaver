@@ -6,6 +6,7 @@ use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
 use crate::serve::ServeCommand;
 use clap::{Args, Parser, Subcommand};
+use std::path::PathBuf;
 
 /// Command line arguments.
 #[derive(Parser)]
@@ -40,6 +41,11 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub allow_git_credentials: bool,
 
+    /// Path to a `.weaver.toml` project config file. When set, skips the
+    /// upward-walk discovery from the current working directory.
+    #[arg(long, global = true)]
+    pub config: Option<PathBuf>,
+
     /// List of supported commands
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -70,5 +76,5 @@ pub struct CompletionCommand {
 
     /// (Optional) The file to write the completions to. Defaults to STDOUT.
     #[arg(long, hide = true)]
-    pub completion_file: Option<std::path::PathBuf>,
+    pub completion_file: Option<PathBuf>,
 }
