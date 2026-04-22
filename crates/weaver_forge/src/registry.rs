@@ -14,9 +14,9 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
-use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 

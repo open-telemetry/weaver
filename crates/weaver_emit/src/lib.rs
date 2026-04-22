@@ -266,7 +266,10 @@ mod tests {
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
-        attribute::{AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
+        attribute::{
+            AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
+            RequirementLevel,
+        },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
     };

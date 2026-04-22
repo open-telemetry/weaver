@@ -11,7 +11,9 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use crate::any_value::AnyValueSpec;
-use crate::attribute::{AttributeSpec, AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec};
+use crate::attribute::{
+    AttributeSpec, AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec,
+};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::provenance::Provenance;

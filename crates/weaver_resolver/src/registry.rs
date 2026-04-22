@@ -545,7 +545,8 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         unresolved_group.group.unit = parent_summary.unit.clone();
                         unresolved_group.group.span_kind = parent_summary.span_kind;
                         unresolved_group.group.metric_name = parent_summary.metric_name.clone();
-                        unresolved_group.group.metric_requirement_level = parent_summary.metric_requirement_level.clone();
+                        unresolved_group.group.metric_requirement_level =
+                            parent_summary.metric_requirement_level.clone();
 
                         // Optionally copy over fields if refinements have not set them.
                         if unresolved_group.group.stability.is_none() {
