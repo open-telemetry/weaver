@@ -852,7 +852,7 @@ mod tests {
 
     #[test]
     fn metric_requirement_level_stored_on_resolved_group() {
-        use crate::registry::{Group, Registry};
+        use crate::registry::Group;
         use weaver_semconv::group::InstrumentSpec;
 
         let mut schema = ResolvedTelemetrySchema::new("1.0", "", "");
