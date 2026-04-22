@@ -28,7 +28,7 @@ use ratatui::{
     Frame,
 };
 use std::io::{stdout, IsTerminal};
-use tui_textarea::TextArea;
+use ratatui_textarea::TextArea;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
