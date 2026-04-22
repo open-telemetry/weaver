@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+# [0.23.0] - 2026-04-22
+
 - New feature ([#1247](https://github.com/open-telemetry/weaver/issues/1247), [#1248](https://github.com/open-telemetry/weaver/issues/1248)) - `.weaver.toml` project configuration file for `live-check`. Covers all `live-check` CLI flags plus `[[live_check.finding_filters]]` for dropping findings by ID, minimum level, sample name, and signal type. CLI flags take precedence over config values. Use `--config` or auto-discovery from CWD. ([#1256](https://github.com/open-telemetry/weaver/pull/1256) by @jerbly)
 - Fix attribute catalog sorting for attributes with the same key when converting from v1 to v2 catalog. ([#1359](https://github.com/open-telemetry/weaver/pull/1359) by @michaelvanstraten)
 - Fix ([#1323](https://github.com/open-telemetry/weaver/issues/1323)) - Live-check: treat observed `int` as compatible with expected `double` attribute type, avoiding false violations from OTLP serializers (e.g. JS) that emit `int_value` for integral numbers. ([#1331](https://github.com/open-telemetry/weaver/pull/1331) by @jerbly)
@@ -12,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - Publish and document missing JSON schemas. Add `head_schema_url`/`baseline_schema_url` to diff v2. ([#1106](https://github.com/open-telemetry/weaver/pull/1106) by @lmolkova)
 - Add `--allow-git-credentials` global flag to enable system credential helpers (e.g. `osxkeychain`, `git-credential-manager`) when cloning private registries. By default, git operations remain isolated for security. ([#1306](https://github.com/open-telemetry/weaver/pull/1306) by @jerbly)
 - MCP: Add `browse_namespace` tool and `findings_only` output mode for `live_check`. Add configurable namespace separator via `--namespace-separator`. ([#1324](https://github.com/open-telemetry/weaver/pull/1324) by @jerbly)
+- chore(deps): update all patch versions. ([#1379](https://github.com/open-telemetry/weaver/pull/1379) by @renovate[bot])
+- Remove vendored openssl dependency. ([#1380](https://github.com/open-telemetry/weaver/pull/1380) by @sapatrjv)
 
 # [0.22.1] - 2026-03-13
 
