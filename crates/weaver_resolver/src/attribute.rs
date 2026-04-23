@@ -694,7 +694,9 @@ mod tests {
 
         let schema1 = V2Schema {
             file_format: "resolved/2.0".to_owned(),
-            schema_url: "http://test/schema1/1.0.0".try_into().unwrap(),
+            schema_url: "http://test/schema1/1.0.0"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
             attribute_catalog: vec![attr1.clone()],
             registry: weaver_resolved_schema::v2::registry::Registry {
                 attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
@@ -714,7 +716,9 @@ mod tests {
 
         let schema2 = V2Schema {
             file_format: "resolved/2.0".to_owned(),
-            schema_url: "http://test/schema2/1.0.0".try_into().unwrap(),
+            schema_url: "http://test/schema2/1.0.0"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
             attribute_catalog: vec![attr1.clone()],
             registry: weaver_resolved_schema::v2::registry::Registry {
                 attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
@@ -803,7 +807,9 @@ mod tests {
 
         let schema_v2 = V2Schema {
             file_format: "resolved/2.0".to_owned(),
-            schema_url: "http://test/schema2/1.0.0".try_into().unwrap(),
+            schema_url: "http://test/schema2/1.0.0"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
             attribute_catalog: vec![attr_v2],
             registry: weaver_resolved_schema::v2::registry::Registry {
                 attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
@@ -900,9 +906,14 @@ mod tests {
 
         let result = schema.lookup_attribute(attr_name);
         assert!(result.is_ok());
-        let at = result.unwrap();
+        let at = result.expect("Lookup should succeed for fallback attribute");
         assert!(at.is_some());
-        assert_eq!(at.unwrap().attribute.name, attr_name);
+        assert_eq!(
+            at.expect("Fallback attribute should be found")
+                .attribute
+                .name,
+            attr_name
+        );
     }
 
     #[test]
@@ -912,14 +923,18 @@ mod tests {
 
         // Add first attribute with invalid semver URL
         let source1 = AttributeSource::Dependency {
-            schema_url: "http://test/schema/v1".try_into().unwrap(),
+            schema_url: "http://test/schema/v1"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
         };
         let result1 = catalog.attribute_ref_with_provenance(attr.clone(), source1);
         assert!(result1.is_ok());
 
         // Add second attribute with invalid semver URL and same name
         let source2 = AttributeSource::Dependency {
-            schema_url: "http://test/schema/v2".try_into().unwrap(),
+            schema_url: "http://test/schema/v2"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
         };
 
         // This should fail with InvalidSchemaUrlBadVersion

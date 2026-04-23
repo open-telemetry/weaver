@@ -1084,11 +1084,14 @@ mod tests {
                 assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
-                let observed_errors = serde_json::to_string(&schema.err()).unwrap();
+                let observed_errors = serde_json::to_string(&schema.err())
+                    .expect("Failed to serialize schema error to JSON");
                 // Write observed errors.
                 assert_eq!(
-                    canonicalize_json_string(&observed_errors).unwrap(),
-                    canonicalize_json_string(&expected_errors).unwrap(),
+                    canonicalize_json_string(&observed_errors)
+                        .expect("Failed to canonicalize JSON string"),
+                    canonicalize_json_string(&expected_errors)
+                        .expect("Failed to canonicalize JSON string"),
                     "Observed and expected errors don't match for `{}`.\n{}",
                     test_dir,
                     weaver_diff::diff_output(&expected_errors, &observed_errors)
@@ -1336,7 +1339,7 @@ groups:
                             group_id: "test".to_owned(),
                         },
                     )
-                    .unwrap(),
+                    .expect("Failed to create attribute reference with provenance in test"),
             );
         }
 
@@ -1429,7 +1432,7 @@ groups:
                             group_id: "test".to_owned(),
                         },
                     )
-                    .unwrap(),
+                    .expect("Failed to create attribute reference with provenance in test"),
             );
         }
         // 2. Get a thread-local random number generator (RNG)
@@ -1594,6 +1597,7 @@ groups:
     }
 
     fn to_json<T: Serialize + ?Sized>(value: &T) -> String {
-        serde_json::to_string_pretty(value).unwrap()
+        serde_json::to_string_pretty(value)
+            .expect("Failed to serialize value to JSON in test helper")
     }
 }

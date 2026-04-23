@@ -164,6 +164,12 @@ impl ImportableDependency for V1Schema {
                     GroupType::Undefined => false,
                 }
         };
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| {
+            Error::InvalidSchemaUrlBadVersion {
+                url: self.schema_url.to_string(),
+                error: e,
+            }
+        })?;
         self.registry
             .groups
             .iter()
@@ -204,14 +210,12 @@ impl ImportableDependency for V1Schema {
                                 }
                             } else {
                                 AttributeSource::Dependency {
-                                    schema_url: SchemaUrl::try_from(self.schema_url.as_str())
-                                        .expect("valid schema URL"),
+                                    schema_url: my_schema_url.clone(),
                                 }
                             }
                         } else {
                             AttributeSource::Dependency {
-                                schema_url: SchemaUrl::try_from(self.schema_url.as_str())
-                                    .expect("valid schema URL"),
+                                schema_url: my_schema_url.clone(),
                             }
                         }
                     } else {
@@ -234,8 +238,7 @@ impl ImportableDependency for V1Schema {
                             }
                         }
                         found_source.unwrap_or_else(|| AttributeSource::Dependency {
-                            schema_url: SchemaUrl::try_from(self.schema_url.as_str())
-                                .expect("valid schema URL"),
+                            schema_url: my_schema_url.clone(),
                         })
                     };
                     let ar = attribute_catalog.attribute_ref_with_provenance(a.clone(), source)?;
@@ -244,8 +247,7 @@ impl ImportableDependency for V1Schema {
                 g.attributes = attributes;
                 Ok(GroupWithProvenance {
                     group: g,
-                    schema_url: SchemaUrl::try_from(self.schema_url.as_str())
-                        .expect("valid schema URL"),
+                    schema_url: my_schema_url.clone(),
                 })
             })
             .collect::<Result<Vec<_>, Error>>()
@@ -959,7 +961,9 @@ mod tests {
     fn example_v2_schema() -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
         weaver_resolved_schema::v2::ResolvedTelemetrySchema {
             file_format: "resolved/2.0".to_owned(),
-            schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
+            schema_url: "http://test/schemas/2.0.0"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
             registry: weaver_resolved_schema::v2::registry::Registry {
                 attribute_groups: vec![
                     weaver_resolved_schema::v2::attribute_group::AttributeGroup {
@@ -1022,21 +1026,27 @@ mod tests {
         let result_metric = d.lookup_group_summary("metric.a");
         assert!(result_metric.is_some(), "Should find metric.a");
         assert_eq!(
-            result_metric.unwrap().r#type,
+            result_metric
+                .expect("Expected group summary to be found")
+                .r#type,
             weaver_semconv::group::GroupType::Metric
         );
 
         let result_event = d.lookup_group_summary("event.b");
         assert!(result_event.is_some(), "Should find event.b");
         assert_eq!(
-            result_event.unwrap().r#type,
+            result_event
+                .expect("Expected group summary to be found")
+                .r#type,
             weaver_semconv::group::GroupType::Event
         );
 
         let result_entity = d.lookup_group_summary("entity.c");
         assert!(result_entity.is_some(), "Should find entity.c");
         assert_eq!(
-            result_entity.unwrap().r#type,
+            result_entity
+                .expect("Expected group summary to be found")
+                .r#type,
             weaver_semconv::group::GroupType::Entity
         );
 
@@ -1058,10 +1068,10 @@ mod tests {
                 events: None,
                 entities: None,
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.v1").unwrap(),
+                    globset::Glob::new("span.v1").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("a").unwrap(),
+                    globset::Glob::new("a").expect("Valid hardcoded glob pattern in test"),
                 )]),
             },
         }];
@@ -1092,19 +1102,20 @@ mod tests {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a").unwrap(),
+                    globset::Glob::new("metric.a").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b").unwrap(),
+                    globset::Glob::new("event.b").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c").unwrap(),
+                    globset::Glob::new("entity.c").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d").unwrap(),
+                    globset::Glob::new("span.d").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e").unwrap(),
+                    globset::Glob::new("attribute_group.e")
+                        .expect("Valid hardcoded glob pattern in test"),
                 )]),
             },
         }];
@@ -1137,19 +1148,20 @@ mod tests {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a").unwrap(),
+                    globset::Glob::new("metric.a").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b").unwrap(),
+                    globset::Glob::new("event.b").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c").unwrap(),
+                    globset::Glob::new("entity.c").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d").unwrap(),
+                    globset::Glob::new("span.d").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e").unwrap(),
+                    globset::Glob::new("attribute_group.e")
+                        .expect("Valid hardcoded glob pattern in test"),
                 )]),
             },
         }];
