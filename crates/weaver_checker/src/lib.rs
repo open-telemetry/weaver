@@ -479,7 +479,7 @@ mod tests {
     use weaver_common::error::format_errors;
 
     use crate::finding::PolicyFinding;
-    use crate::{Engine, Error, PolicyStage};
+    use crate::{Engine, Error, PolicyStage, SEMCONV_REGO};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -670,6 +670,75 @@ mod tests {
         assert!(!engine.has_stage(PolicyStage::BeforeResolution));
         engine.add_policy_from_file_or_dir("data/multi-policies")?;
         assert!(engine.has_stage(PolicyStage::BeforeResolution));
+        Ok(())
+    }
+
+    /// Regression test: multiple policy files in the same package where one
+    /// defines a function with an `else` clause. This pattern triggered a
+    /// "binding plan not found for parameter" error in regorus 0.9.x when
+    /// expression indices from one module were incorrectly used against
+    /// another module's lookup table.
+    #[test]
+    fn test_multi_module_function_with_else() -> Result<(), Box<dyn std::error::Error>> {
+        let mut engine = Engine::new();
+
+        // Load the built-in semconv helpers (as weaver does in practice)
+        _ = engine.add_policy("defaults/rego/semconv.rego", SEMCONV_REGO)?;
+
+        // Load multiple policy files that share the same package,
+        // where one file defines a function with an `else` clause.
+        _ = engine.add_policies("data/multi-module-policies", "*.rego")?;
+
+        assert!(engine.has_stage(PolicyStage::AfterResolution));
+
+        // Input with duplicate member values (should trigger the deny rule
+        // in module_b.rego that uses is_property_set with else clause)
+        let input: serde_json::Value = serde_json::json!({
+            "groups": [
+                {
+                    "id": "registry.test.enum",
+                    "type": "attribute_group",
+                    "stability": "stable",
+                    "attributes": [
+                        {
+                            "name": "test.attr",
+                            "stability": "stable",
+                            "type": {
+                                "members": [
+                                    {"id": "member1", "value": "val1", "stability": "stable"},
+                                    {"id": "member2", "value": "val1", "stability": "stable"}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+        engine.set_input(&input)?;
+
+        // This call would panic with regorus 0.9.x:
+        // "node_idx N out of bounds for module M"
+        let violations = engine.check(PolicyStage::AfterResolution)?;
+
+        // We should get violations for duplicate member values
+        assert!(
+            !violations.is_empty(),
+            "Expected violations for duplicate member values"
+        );
+
+        // Verify we got the expected member duplicate violation
+        let has_member_violation = violations.iter().any(|v| {
+            v.context
+                .as_ref()
+                .and_then(|ctx| ctx.get("id"))
+                .and_then(|id| id.as_str())
+                .is_some_and(|id| id.contains("Duplicate member value"))
+        });
+        assert!(
+            has_member_violation,
+            "Expected a 'Duplicate member value' violation, got: {violations:?}"
+        );
+
         Ok(())
     }
 }
