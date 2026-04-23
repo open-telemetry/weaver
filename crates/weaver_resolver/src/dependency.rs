@@ -884,6 +884,7 @@ mod tests {
                     unit: "1".to_owned(),
                     attributes: vec![],
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
                 }],

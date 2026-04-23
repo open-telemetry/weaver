@@ -825,6 +825,7 @@ mod tests {
                             name: "system.uptime".to_owned().into(),
                             instrument: InstrumentSpec::Gauge,
                             unit: "s".to_owned(),
+                            requirement_level: Some(BasicRequirementLevelSpec::Required),
                             attributes: vec![],
                             entity_associations: vec![],
                             common: CommonFields {
@@ -840,6 +841,7 @@ mod tests {
                             name: "system.memory.usage".to_owned().into(),
                             instrument: InstrumentSpec::UpDownCounter,
                             unit: "By".to_owned(),
+                            requirement_level: Some(BasicRequirementLevelSpec::Required),
                             attributes: vec![MetricAttribute {
                                 base: memory_state_attr.clone(),
                                 requirement_level: RequirementLevel::Recommended {

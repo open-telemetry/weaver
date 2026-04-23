@@ -46,7 +46,7 @@ pub struct Metric {
     pub entity_associations: Vec<String>,
     /// The requirement level of the metric. Defaults to 'recommended' when omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
+    pub requirement_level: Option<BasicRequirementLevelSpec>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -108,7 +108,7 @@ impl Metric {
             metric_name: Some(self.name.into_v1()),
             instrument: Some(self.instrument),
             unit: Some(self.unit),
-            metric_requirement_level: self.metric_requirement_level,
+            metric_requirement_level: self.requirement_level,
             name: None,
             display_name: None,
             body: None,
@@ -181,6 +181,7 @@ brief: Test metric
 stability: stable
 instrument: histogram
 unit: s
+requirement_level: required
 "#,
             // V1 - Group
             r#"id: metric.my_metric
@@ -191,6 +192,7 @@ stability: stable
 is_v2: true
 instrument: histogram
 unit: s
+metric_requirement_level: required
 "#,
         );
     }

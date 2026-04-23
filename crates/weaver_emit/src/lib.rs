@@ -652,6 +652,7 @@ mod tests {
                         name: SignalId::from("test.updowncounter".to_owned()),
                         instrument: InstrumentSpec::UpDownCounter,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::Required),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -667,6 +668,7 @@ mod tests {
                         name: SignalId::from("test.counter".to_owned()),
                         instrument: InstrumentSpec::Counter,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -682,6 +684,7 @@ mod tests {
                         name: SignalId::from("test.gauge".to_owned()),
                         instrument: InstrumentSpec::Gauge,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::OptIn),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -697,6 +700,7 @@ mod tests {
                         name: SignalId::from("test.histogram".to_owned()),
                         instrument: InstrumentSpec::Histogram,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::Required),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {

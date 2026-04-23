@@ -149,6 +149,7 @@ impl ForgeResolvedRegistry {
                 unit: metric.unit,
                 attributes,
                 entity_associations: metric.entity_associations,
+                requirement_level: metric.requirement_level,
                 common: metric.common,
                 provenance: resolve_provenance(&metric.provenance),
             });
@@ -189,6 +190,7 @@ impl ForgeResolvedRegistry {
                     unit: metric.metric.unit,
                     attributes,
                     entity_associations: metric.metric.entity_associations,
+                    requirement_level: metric.metric.requirement_level,
                     common: metric.metric.common,
                     provenance: resolve_provenance(&metric.metric.provenance),
                 },
@@ -528,6 +530,9 @@ mod tests {
                         ),
                     }],
                     entity_associations: vec![],
+                    requirement_level: Some(
+                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                    ),
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
@@ -591,6 +596,7 @@ mod tests {
                             ),
                         }],
                         entity_associations: vec![],
+                        requirement_level: None,
                         common: CommonFields::default(),
                         provenance: Default::default(),
                     },

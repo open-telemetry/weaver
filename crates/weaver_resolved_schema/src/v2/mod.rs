@@ -449,6 +449,7 @@ pub fn convert_v1_to_v2(
                         .expect("unit must exist on metrics prior to translation to v2"),
                     attributes: metric_attributes,
                     entity_associations: g.entity_associations.clone(),
+                    requirement_level: g.metric_requirement_level.clone(),
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
@@ -1244,6 +1245,7 @@ mod tests {
             unit: "s".to_owned(),
             attributes: vec![],
             entity_associations: vec![],
+            requirement_level: None,
             common: CommonFields::default(),
             provenance: Default::default(),
         });
@@ -1254,6 +1256,7 @@ mod tests {
             unit: "s".to_owned(),
             attributes: vec![],
             entity_associations: vec![],
+            requirement_level: None,
             common: CommonFields::default(),
             provenance: Default::default(),
         });
