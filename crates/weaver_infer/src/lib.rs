@@ -5,7 +5,6 @@
 use std::collections::{BTreeMap, HashMap};
 
 use log::info;
-use serde::Serialize;
 use serde_json::Value;
 use weaver_live_check::sample_attribute::SampleAttribute;
 use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
@@ -19,12 +18,11 @@ use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 use weaver_semconv::v2::{
     attribute::{AttributeDef, AttributeOrGroupRef, AttributeRef},
-    entity::Entity,
     event::Event,
     metric::Metric,
     signal_id::SignalId,
     span::{Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanName},
-    CommonFields,
+    CommonFields, SemConvSpecV2,
 };
 
 const MAX_EXAMPLES: usize = 5;
@@ -216,7 +214,7 @@ impl AccumulatedSamples {
 
     /// Converts accumulated samples to a v2 semconv-compatible registry file.
     #[must_use]
-    pub fn to_semconv_spec(&self) -> InferredRegistryV2 {
+    pub fn to_semconv_spec(&self) -> SemConvSpecV2 {
         let mut attribute_defs = HashMap::new();
         collect_attribute_defs(self.resources.values(), &mut attribute_defs);
 
@@ -322,38 +320,15 @@ impl AccumulatedSamples {
         let mut attributes = attribute_defs.into_values().collect::<Vec<_>>();
         attributes.sort_by(|left, right| left.key.cmp(&right.key));
 
-        InferredRegistryV2 {
-            file_format: "definition/2",
+        SemConvSpecV2::new(
             attributes,
             // TODO: Add entities once entityRefs are included in the OTLP messages.
-            entities: vec![],
+            vec![],
             events,
             metrics,
             spans,
-        }
+        )
     }
-}
-
-/// Wrapper for serializing an inferred v2 semconv registry file.
-#[derive(Serialize)]
-pub struct InferredRegistryV2 {
-    /// The semantic convention definition format.
-    file_format: &'static str,
-    /// Inferred semantic convention attributes.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    attributes: Vec<AttributeDef>,
-    /// Inferred semantic convention entities.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    entities: Vec<Entity>,
-    /// Inferred semantic convention spans.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    spans: Vec<Span>,
-    /// Inferred semantic convention metrics.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    metrics: Vec<Metric>,
-    /// Inferred semantic convention events.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    events: Vec<Event>,
 }
 
 /// Create a new `AttributeSpec` from a `SampleAttribute`.
@@ -613,6 +588,16 @@ mod tests {
     use weaver_live_check::sample_span::SampleSpanEvent;
     use weaver_live_check::sample_span::SampleSpanLink;
     use weaver_semconv::group::SpanKindSpec;
+    use weaver_semconv::semconv::Versioned;
+
+    fn assert_v2_file_format(registry: &SemConvSpecV2) {
+        let value =
+            serde_json::to_value(Versioned::V2(registry.clone())).expect("Failed to serialize");
+        assert_eq!(
+            value.get("file_format").and_then(|v| v.as_str()),
+            Some("definition/2")
+        );
+    }
 
     // ============================================
     // Tests for add_example()
@@ -1302,12 +1287,12 @@ mod tests {
         let acc = AccumulatedSamples::new();
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.file_format, "definition/2");
-        assert!(registry.attributes.is_empty());
-        assert!(registry.entities.is_empty());
-        assert!(registry.spans.is_empty());
-        assert!(registry.metrics.is_empty());
-        assert!(registry.events.is_empty());
+        assert_v2_file_format(&registry);
+        assert!(registry.attributes().is_empty());
+        assert!(registry.entities().is_empty());
+        assert!(registry.spans().is_empty());
+        assert!(registry.metrics().is_empty());
+        assert!(registry.events().is_empty());
     }
 
     #[test]
@@ -1326,9 +1311,9 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.attributes.len(), 1);
-        assert_eq!(registry.attributes[0].key, "service.name");
-        assert!(registry.entities.is_empty());
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "service.name");
+        assert!(registry.entities().is_empty());
     }
 
     #[test]
@@ -1353,14 +1338,14 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.attributes.len(), 1);
-        assert_eq!(registry.attributes[0].key, "http.url");
-        assert_eq!(registry.spans.len(), 1);
-        assert_eq!(registry.spans[0].r#type.to_string(), "HTTP GET");
-        assert_eq!(registry.spans[0].kind, SpanKindSpec::Client);
-        assert_eq!(registry.spans[0].name.note, "HTTP GET");
-        assert_eq!(registry.spans[0].attributes.len(), 1);
-        match &registry.spans[0].attributes[0] {
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "http.url");
+        assert_eq!(registry.spans().len(), 1);
+        assert_eq!(registry.spans()[0].r#type.to_string(), "HTTP GET");
+        assert_eq!(registry.spans()[0].kind, SpanKindSpec::Client);
+        assert_eq!(registry.spans()[0].name.note, "HTTP GET");
+        assert_eq!(registry.spans()[0].attributes.len(), 1);
+        match &registry.spans()[0].attributes[0] {
             SpanAttributeOrGroupRef::Attribute(attribute) => {
                 assert_eq!(attribute.base.r#ref, "http.url");
             }
@@ -1385,9 +1370,9 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert!(registry.attributes.is_empty());
-        assert_eq!(registry.metrics.len(), 1);
-        let metric = &registry.metrics[0];
+        assert!(registry.attributes().is_empty());
+        assert_eq!(registry.metrics().len(), 1);
+        let metric = &registry.metrics()[0];
         assert_eq!(metric.name.to_string(), "http.server.duration");
         assert_eq!(metric.instrument, InstrumentSpec::Histogram);
         assert_eq!(metric.unit, "ms");
@@ -1410,7 +1395,7 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.metrics[0].unit, String::new());
+        assert_eq!(registry.metrics()[0].unit, String::new());
     }
 
     #[test]
@@ -1429,10 +1414,10 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.attributes.len(), 1);
-        assert_eq!(registry.attributes[0].key, "user.email");
-        assert_eq!(registry.events.len(), 1);
-        assert_eq!(registry.events[0].name.to_string(), "user.signup");
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "user.email");
+        assert_eq!(registry.events().len(), 1);
+        assert_eq!(registry.events()[0].name.to_string(), "user.signup");
     }
 
     #[test]
@@ -1469,9 +1454,9 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.spans.len(), 1);
-        assert_eq!(registry.events.len(), 1);
-        let span_event = &registry.events[0];
+        assert_eq!(registry.spans().len(), 1);
+        assert_eq!(registry.events().len(), 1);
+        let span_event = &registry.events()[0];
         assert_eq!(span_event.name.to_string(), "exception");
         let attr_ids: Vec<_> = span_event
             .attributes
@@ -1517,7 +1502,7 @@ mod tests {
         let registry = acc.to_semconv_spec();
 
         let attr_ids: Vec<_> = registry
-            .attributes
+            .attributes()
             .iter()
             .map(|attribute| attribute.key.as_str())
             .collect();
@@ -1549,11 +1534,11 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.attributes.len(), 1);
-        assert_eq!(registry.attributes[0].key, "shared.attr");
-        assert!(registry.entities.is_empty());
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "shared.attr");
+        assert!(registry.entities().is_empty());
         assert_eq!(
-            attribute_or_group_ref_name(&registry.events[0].attributes[0]),
+            attribute_or_group_ref_name(&registry.events()[0].attributes[0]),
             "shared.attr"
         );
     }
@@ -1593,8 +1578,8 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.events.len(), 1);
-        let attr_ids: Vec<_> = registry.events[0]
+        assert_eq!(registry.events().len(), 1);
+        let attr_ids: Vec<_> = registry.events()[0]
             .attributes
             .iter()
             .map(attribute_or_group_ref_name)

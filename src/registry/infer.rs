@@ -12,6 +12,7 @@ use weaver_infer::AccumulatedSamples;
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::{SampleSpan, SampleSpanEvent};
 use weaver_live_check::Sample;
+use weaver_semconv::semconv::Versioned;
 
 use super::otlp::conversion::{
     otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
@@ -201,12 +202,12 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
         })?;
 
         // Generate YAML
-        let registry = accumulator.to_semconv_spec();
-        let yaml = serde_yaml::to_string(&registry).map_err(|e| {
-            DiagnosticMessages::from(super::otlp::Error::OtlpError {
-                error: format!("Failed to serialize YAML: {}", e),
-            })
-        })?;
+        let yaml =
+            serde_yaml::to_string(&Versioned::V2(accumulator.to_semconv_spec())).map_err(|e| {
+                DiagnosticMessages::from(super::otlp::Error::OtlpError {
+                    error: format!("Failed to serialize YAML: {}", e),
+                })
+            })?;
 
         // Write to file
         let output_path = args.output.join("registry.yaml");
