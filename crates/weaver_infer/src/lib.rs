@@ -220,24 +220,6 @@ impl AccumulatedSamples {
         let mut attribute_defs = HashMap::new();
         collect_attribute_defs(self.resources.values(), &mut attribute_defs);
 
-        let entities = if self.resources.is_empty() {
-            vec![]
-        } else {
-            let mut identity = self
-                .resources
-                .keys()
-                .map(|name| attribute_ref(name))
-                .collect::<Vec<_>>();
-            identity.sort_by(|left, right| left.r#ref.cmp(&right.r#ref));
-
-            vec![Entity {
-                r#type: SignalId::from("resource".to_owned()),
-                identity,
-                description: vec![],
-                common: inferred_common_fields(),
-            }]
-        };
-
         let mut spans = self
             .spans
             .values()
@@ -343,7 +325,8 @@ impl AccumulatedSamples {
         InferredRegistryV2 {
             file_format: "definition/2",
             attributes,
-            entities,
+            // TODO: Add entities once entityRefs are included in the OTLP messages.
+            entities: vec![],
             events,
             metrics,
             spans,
@@ -1328,7 +1311,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_semconv_spec_with_resources_creates_entity_identity() {
+    fn test_to_semconv_spec_with_resources_keeps_attributes_without_entities() {
         let mut acc = AccumulatedSamples::new();
 
         accumulate_attribute(
@@ -1345,11 +1328,7 @@ mod tests {
 
         assert_eq!(registry.attributes.len(), 1);
         assert_eq!(registry.attributes[0].key, "service.name");
-        assert_eq!(registry.entities.len(), 1);
-        assert_eq!(registry.entities[0].r#type.to_string(), "resource");
-        assert_eq!(registry.entities[0].identity.len(), 1);
-        assert_eq!(registry.entities[0].identity[0].r#ref, "service.name");
-        assert!(registry.entities[0].description.is_empty());
+        assert!(registry.entities.is_empty());
     }
 
     #[test]
@@ -1572,7 +1551,7 @@ mod tests {
 
         assert_eq!(registry.attributes.len(), 1);
         assert_eq!(registry.attributes[0].key, "shared.attr");
-        assert_eq!(registry.entities[0].identity[0].r#ref, "shared.attr");
+        assert!(registry.entities.is_empty());
         assert_eq!(
             attribute_or_group_ref_name(&registry.events[0].attributes[0]),
             "shared.attr"
