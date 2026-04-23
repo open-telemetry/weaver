@@ -26,7 +26,7 @@ eula = false
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.22.1"
+version = "0.23.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -68,6 +68,8 @@ convert_case = "0.11"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.10.0"
+toml = "0.9.8"
+zip = "5.1.1"
 
 # Features definition =========================================================
 [features]
@@ -90,13 +92,14 @@ weaver_forge = { path = "crates/weaver_forge", features = ["openapi"] }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
+weaver_config = { path = "crates/weaver_config" }
 weaver_infer = { path = "crates/weaver_infer" }
 weaver_search = { path = "crates/weaver_search" }
 weaver_mcp = { path = "crates/weaver_mcp" }
 weaver_version = { path = "crates/weaver_version" }
 
-clap = { version = "4.5.41", features = ["derive"] }
-clap_complete = "4.5.55"
+clap = { version = "4.6.1", features = ["derive"] }
+clap_complete = "4.6.2"
 clap-markdown = "0.1"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
@@ -137,8 +140,9 @@ weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
 tempfile.workspace = true
 ureq.workspace = true
-assert_cmd = "=2.2.0"
+assert_cmd = "=2.2.1"
 portpicker = "=0.1.1"
+zip.workspace = true
 
 [build-dependencies]
 tonic-prost-build = "0.14.1"

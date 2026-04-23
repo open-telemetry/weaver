@@ -13,10 +13,12 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
+use weaver_config::{override_if_set, CliOverrides, FieldMapping, LiveCheckConfig, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
+use weaver_live_check::finding_modifier::FindingModifier;
 use weaver_live_check::json_file_ingester::JsonFileIngester;
 use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
@@ -27,7 +29,7 @@ use weaver_live_check::{
     LiveCheckStatistics, Sample, VersionedRegistry,
 };
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -72,7 +74,10 @@ impl From<String> for InputFormat {
     }
 }
 
-/// Parameters for the `registry live-check` sub-command
+/// Parameters for the `registry live-check` sub-command.
+///
+/// Each setting may also be provided in `.weaver.toml`. CLI flags always take
+/// precedence over config values, which take precedence over hardcoded defaults.
 #[derive(Debug, Args)]
 pub struct RegistryLiveCheckArgs {
     /// Parameters to specify the semantic convention registry
@@ -88,34 +93,38 @@ pub struct RegistryLiveCheckArgs {
     pub diagnostic: DiagnosticArgs,
 
     /// Where to read the input telemetry from. {file path} | stdin | otlp
-    #[arg(long, default_value = "otlp")]
-    input_source: InputSource,
+    /// (default: otlp)
+    #[arg(long)]
+    input_source: Option<String>,
 
     /// The format of the input telemetry. (Not required for OTLP). text | json
-    #[arg(long, default_value = "json")]
-    input_format: InputFormat,
+    /// (default: json)
+    #[arg(long)]
+    input_format: Option<String>,
 
     /// Format used to render the report.
     /// Builtin formats: json, yaml, jsonl (uses serde directly).
     /// Other values are treated as template names (e.g., "ansi" uses ansi templates).
-    #[arg(long, default_value = "ansi")]
-    format: String,
+    /// (default: ansi)
+    #[arg(long)]
+    format: Option<String>,
 
     /// Path to the directory where the templates are located.
-    #[arg(long, default_value = "live_check_templates")]
-    templates: PathBuf,
+    /// (default: live_check_templates)
+    #[arg(long)]
+    templates: Option<PathBuf>,
 
     /// Disable stream mode. Use this flag to disable streaming output.
     ///
     /// When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP),
     /// by default output the live check results for each entity as they are ingested.
-    #[arg(long, default_value = "false")]
-    no_stream: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    no_stream: Option<bool>,
 
     /// Disable statistics accumulation. This is useful for long-running live check
     /// sessions. Typically combined with --emit-otlp-logs and --output=none.
-    #[arg(long, default_value = "false")]
-    no_stats: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    no_stats: Option<bool>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the report is printed to stdout.
@@ -124,33 +133,33 @@ pub struct RegistryLiveCheckArgs {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener.
-    #[clap(long, default_value = "0.0.0.0")]
-    otlp_grpc_address: String,
+    /// Address used by the gRPC OTLP listener. (default: 0.0.0.0)
+    #[clap(long)]
+    otlp_grpc_address: Option<String>,
 
-    /// Port used by the gRPC OTLP listener.
-    #[clap(long, default_value = "4317")]
-    otlp_grpc_port: u16,
+    /// Port used by the gRPC OTLP listener. (default: 4317)
+    #[clap(long)]
+    otlp_grpc_port: Option<u16>,
 
     /// Enable OTLP log emission for live check policy findings
-    #[arg(long, default_value = "false")]
-    emit_otlp_logs: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    emit_otlp_logs: Option<bool>,
 
-    /// OTLP endpoint for log emission
-    #[arg(long, default_value = "http://localhost:4317")]
-    otlp_logs_endpoint: String,
+    /// OTLP endpoint for log emission (default: http://localhost:4317)
+    #[arg(long)]
+    otlp_logs_endpoint: Option<String>,
 
     /// Use stdout for OTLP log emission (debug mode)
-    #[arg(long, default_value = "false")]
-    otlp_logs_stdout: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    otlp_logs_stdout: Option<bool>,
 
-    /// Port used by the HTTP admin port (endpoints: /stop).
-    #[clap(long, default_value = "4320")]
-    admin_port: u16,
+    /// Port used by the HTTP admin port (endpoints: /stop). (default: 4320)
+    #[clap(long)]
+    admin_port: Option<u16>,
 
-    /// Max inactivity time in seconds before stopping the listener.
-    #[clap(long, default_value = "10")]
-    inactivity_timeout: u64,
+    /// Max inactivity time in seconds before stopping the listener. (default: 10)
+    #[clap(long)]
+    inactivity_timeout: Option<u64>,
 
     /// Advice policies directory. Set this to override the default policies.
     #[arg(long)]
@@ -163,6 +172,89 @@ pub struct RegistryLiveCheckArgs {
     /// versus processing the data for every sample.
     #[arg(long)]
     advice_preprocessor: Option<PathBuf>,
+
+    /// Path to a `.weaver.toml` config file. Skips automatic discovery when set.
+    #[arg(long = "config")]
+    config_path: Option<PathBuf>,
+}
+
+impl CliOverrides for RegistryLiveCheckArgs {
+    type Config = LiveCheckConfig;
+    const SUBCOMMAND: &'static str = "live-check";
+
+    fn config_path(&self) -> Option<&PathBuf> {
+        self.config_path.as_ref()
+    }
+
+    fn extract_config(weaver_config: &WeaverConfig) -> LiveCheckConfig {
+        weaver_config.live_check.clone()
+    }
+
+    fn config_only_fields() -> &'static [&'static str] {
+        &[
+            "finding_filters", // array of filter rules, too complex for CLI flags
+        ]
+    }
+
+    fn cli_only_args() -> &'static [&'static str] {
+        &[
+            "config",                  // controls config loading, not a setting
+            "registry",                // RegistryArgs (invocation-specific)
+            "follow_symlinks",         // RegistryArgs
+            "include_unreferenced",    // RegistryArgs
+            "v2",                      // RegistryArgs
+            "policy",                  // PolicyArgs
+            "skip_policies",           // PolicyArgs
+            "display_policy_coverage", // PolicyArgs
+            "diagnostic_format",       // DiagnosticArgs
+            "diagnostic_template",     // DiagnosticArgs
+            "diagnostic_stdout",       // DiagnosticArgs
+        ]
+    }
+
+    fn field_mappings() -> &'static [FieldMapping] {
+        &[
+            FieldMapping {
+                config_name: "otlp_admin_port",
+                cli_name: "admin_port",
+            },
+            FieldMapping {
+                config_name: "otlp_inactivity_timeout",
+                cli_name: "inactivity_timeout",
+            },
+            FieldMapping {
+                config_name: "emit_otlp_logs_endpoint",
+                cli_name: "otlp_logs_endpoint",
+            },
+            FieldMapping {
+                config_name: "emit_otlp_logs_stdout",
+                cli_name: "otlp_logs_stdout",
+            },
+        ]
+    }
+
+    fn apply_overrides(&self, config: &mut LiveCheckConfig) {
+        override_if_set!(config.input_source, self.input_source);
+        override_if_set!(config.input_format, self.input_format);
+        override_if_set!(config.format, self.format);
+        override_if_set!(config.templates, self.templates);
+        override_if_set!(config.no_stream, self.no_stream);
+        override_if_set!(config.no_stats, self.no_stats);
+        override_if_set!(config.output, self.output, optional);
+        override_if_set!(config.advice_policies, self.advice_policies, optional);
+        override_if_set!(
+            config.advice_preprocessor,
+            self.advice_preprocessor,
+            optional
+        );
+        override_if_set!(config.otlp.grpc_address, self.otlp_grpc_address);
+        override_if_set!(config.otlp.grpc_port, self.otlp_grpc_port);
+        override_if_set!(config.otlp.admin_port, self.admin_port);
+        override_if_set!(config.otlp.inactivity_timeout, self.inactivity_timeout);
+        override_if_set!(config.emit.otlp_logs, self.emit_otlp_logs);
+        override_if_set!(config.emit.otlp_logs_endpoint, self.otlp_logs_endpoint);
+        override_if_set!(config.emit.otlp_logs_stdout, self.otlp_logs_stdout);
+    }
 }
 
 fn default_advisors() -> Vec<Box<dyn Advisor>> {
@@ -202,13 +294,27 @@ fn generate_report(
 pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
+    let (config, weaver_config) = load_config(args)?;
+
+    // `args` is borrowed immutably from the dispatch chain, so shared overrides
+    // need owned copies to mutate.
+    let mut registry_args = args.registry.clone();
+    let mut policy_args = args.policy.clone();
+    if let Some(wc) = &weaver_config {
+        super::apply_registry_config(&mut registry_args, &wc.registry);
+        super::apply_policy_config(&mut policy_args, &wc.policy);
+    }
+
+    let input_source = InputSource::from(config.input_source.clone());
+    let input_format = InputFormat::from(config.input_format.clone());
+
     // Detect --output http mode
-    let is_http_output = args
+    let is_http_output = config
         .output
         .as_ref()
         .is_some_and(|p| p.to_str() == Some("http"));
 
-    if is_http_output && !matches!(&args.input_source, InputSource::Otlp) {
+    if is_http_output && !matches!(&input_source, InputSource::Otlp) {
         return Err(DiagnosticMessages::from(Error::OutputError {
             error: "--output http is only valid with --input otlp".to_owned(),
         }));
@@ -218,25 +324,25 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     let target = if is_http_output {
         OutputTarget::Stdout
     } else {
-        OutputTarget::from_optional_dir(args.output.as_ref())
+        OutputTarget::from_optional_dir(config.output.as_ref())
     };
     let mut output = OutputProcessor::new(
-        &args.format,
+        &config.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
-        Some(args.templates.clone()),
+        Some(config.templates.clone()),
         target,
     )?;
 
     info!("Weaver Registry Live Check");
 
     // Prepare the registry
-    info!("Resolving registry `{}`", args.registry.registry);
+    info!("Resolving registry `{}`", registry_args.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
-    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
-    let registry = match resolved {
+    let weaver = WeaverEngine::new(&registry_args, &policy_args);
+    let resolved_registry = weaver.load_and_resolve_main(&mut diag_msgs)?;
+    let registry = match resolved_registry {
         crate::weaver::Resolved::V2(resolved_v2) => {
             resolved_v2.check_after_resolution_policy(&mut diag_msgs)?;
             VersionedRegistry::V2(Box::new(resolved_v2.into_template_schema()))
@@ -249,16 +355,18 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
 
+    live_checker.finding_modifier = FindingModifier::from_filters(&config.finding_filters);
+
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
-        &args.advice_policies,
-        &args.advice_preprocessor,
+        &config.advice_policies,
+        &config.advice_preprocessor,
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
     let mut admin_report_sender: Option<AdminReportSender> = None;
-    let ingester = match (&args.input_source, &args.input_format) {
+    let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
         (InputSource::Stdin, InputFormat::Text) => TextStdinIngester::new().ingest()?,
@@ -269,10 +377,10 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
         (InputSource::Otlp, _) => {
             let otlp = OtlpIngester {
-                otlp_grpc_address: args.otlp_grpc_address.clone(),
-                otlp_grpc_port: args.otlp_grpc_port,
-                admin_port: args.admin_port,
-                inactivity_timeout: args.inactivity_timeout,
+                otlp_grpc_address: config.otlp.grpc_address.clone(),
+                otlp_grpc_port: config.otlp.grpc_port,
+                admin_port: config.otlp.admin_port,
+                inactivity_timeout: config.otlp.inactivity_timeout,
             };
             let (iter, sender) = otlp.ingest_otlp()?;
             if is_http_output {
@@ -287,7 +395,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
     // Create Tokio runtime if OTLP log emission is enabled
     // Use a multi-threaded runtime so we can use spawn_blocking
-    let rt = if args.emit_otlp_logs {
+    let rt = if config.emit.otlp_logs {
         Some(
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -308,11 +416,11 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
     // Initialize OTLP emitter if requested
     // Must be done after entering the runtime
-    if args.emit_otlp_logs {
-        let emitter = if args.otlp_logs_stdout {
+    if config.emit.otlp_logs {
+        let emitter = if config.emit.otlp_logs_stdout {
             weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
         } else {
-            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&args.otlp_logs_endpoint)?
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&config.emit.otlp_logs_endpoint)?
         };
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
@@ -323,10 +431,10 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     } else {
         // This flag is not set by default. The user can set it to disable streaming output
         // and force report mode.
-        args.no_stream
+        config.no_stream
     };
 
-    let mut stats = if args.no_stats {
+    let mut stats = if config.no_stats {
         LiveCheckStatistics::Disabled(DisabledStatistics)
     } else {
         LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
@@ -419,7 +527,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
 
     log_success(format!(
         "Performed live check for registry `{}`",
-        args.registry.registry
+        registry_args.registry
     ));
 
     if diag_msgs.has_error() {
@@ -430,4 +538,15 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
         exit_code,
         warnings: Some(diag_msgs),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RegistryLiveCheckArgs;
+    use crate::registry::tests::assert_config_cli_consistency;
+
+    #[test]
+    fn config_fields_match_cli_args() {
+        assert_config_cli_consistency::<RegistryLiveCheckArgs>();
+    }
 }

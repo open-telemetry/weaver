@@ -17,7 +17,7 @@ fn test_generate_completion() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
     assert!(
-        stdout.contains("weaver__completion"),
+        stdout.contains("_weaver"),
         "Output does not contain expected completion script"
     );
 }

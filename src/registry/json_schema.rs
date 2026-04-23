@@ -53,6 +53,8 @@ pub enum JsonSchemaType {
     DefinitionManifestV2,
     /// The JSON schema of a policy finding returned by Rego policies.
     PolicyFinding,
+    /// The JSON schema of the `.weaver.toml` configuration file.
+    WeaverConfig,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
@@ -77,6 +79,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
             schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
         }
         JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
+        JsonSchemaType::WeaverConfig => schema_for!(weaver_config::WeaverConfig),
     };
 
     if let Some(p) = &args.output {

@@ -30,12 +30,12 @@
     "@vitejs/plugin-react": "5.2.0",
     "daisyui": "5.5.19",
     "eslint": "9.39.4",
-    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "16.5.0",
     "tailwindcss": "4.2.2",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.58.0",
+    "typescript-eslint": "8.58.2",
     "vite": "7.3.2"
   }
 }
