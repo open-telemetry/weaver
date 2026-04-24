@@ -167,14 +167,45 @@ pub(crate) fn load_semconv_repository(
     let mut visited_registries = std::collections::HashSet::new();
     let mut known_dependencies = std::collections::HashMap::new();
     let mut dependency_chain = Vec::new();
-    load_semconv_repository_recursive(
+
+    let mut main_dependencies = std::collections::HashMap::new();
+    if let Some(manifest) = registry_repo.manifest() {
+        for dep in manifest.dependencies().iter() {
+            let _ =
+                main_dependencies.insert(dep.schema_url.name().to_owned(), dep.schema_url.clone());
+        }
+    }
+
+    let mut result = load_semconv_repository_recursive(
         registry_repo,
         follow_symlinks,
         MAX_DEPENDENCY_DEPTH,
         &mut visited_registries,
         &mut known_dependencies,
         &mut dependency_chain,
-    )
+    );
+
+    if let WResult::Ok(_) | WResult::OkWithNFEs(_, _) = result {
+        let mut warnings = vec![];
+        for (name, main_url) in main_dependencies.iter() {
+            if let Some(selected_url) = known_dependencies.get(name) {
+                if selected_url != main_url {
+                    warnings.push(Error::ConversionError {
+                        message: format!(
+                            "Selected version {} for dependency '{}' is different than requested in main ({}). The listed set of dependencies in main should be updated.",
+                            selected_url.version(),
+                            name,
+                            main_url.version()
+                        ),
+                    });
+                }
+            }
+        }
+        if !warnings.is_empty() {
+            result = result.extend_non_fatal_errors(warnings);
+        }
+    }
+    result
 }
 
 /// Recursively iterates over semconv dependencies and loads their definition.
@@ -214,6 +245,29 @@ fn load_semconv_repository_recursive(
             {
                 return WResult::FatalErr(e);
             }
+
+            let prev_v = match prev_schema_url.semver() {
+                Ok(v) => v,
+                Err(e) => {
+                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                        url: prev_schema_url.to_string(),
+                        error: e.to_string(),
+                    })
+                }
+            };
+            let cur_v = match schema_url.semver() {
+                Ok(v) => v,
+                Err(e) => {
+                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                        url: schema_url.to_string(),
+                        error: e.to_string(),
+                    })
+                }
+            };
+
+            if cur_v > prev_v {
+                let _ = known_dependencies.insert(registry_name.clone(), schema_url.clone());
+            }
         }
     } else {
         let _ = known_dependencies.insert(registry_name.clone(), schema_url.clone());
@@ -242,6 +296,29 @@ fn load_semconv_repository_recursive(
                                 check_version_compatibility(&dep_name, prev_schema_url, dep)
                             {
                                 return WResult::FatalErr(e);
+                            }
+
+                            let prev_v = match prev_schema_url.semver() {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                                        url: prev_schema_url.to_string(),
+                                        error: e.to_string(),
+                                    })
+                                }
+                            };
+                            let cur_v = match dep.semver() {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                                        url: dep.to_string(),
+                                        error: e.to_string(),
+                                    })
+                                }
+                            };
+
+                            if cur_v > prev_v {
+                                let _ = known_dependencies.insert(dep_name, dep.clone());
                             }
                         }
                     } else {
@@ -791,6 +868,39 @@ mod tests {
             panic!("Expected DuplicateDependency error, got: {:?}", e);
         } else {
             panic!("Expected FatalErr");
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_diamond_resolved_conflict() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::loader::load_semconv_repository;
+        use weaver_common::result::WResult;
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_semconv::registry_repo::RegistryRepo;
+        use weaver_semconv::schema_url::SchemaUrl;
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/diamond-resolved-test".to_owned(),
+        };
+        let schema_url = SchemaUrl::try_from("https://main.com/schemas/1.0.0")
+            .expect("Valid hardcoded schema URL in test");
+        let registry_repo = RegistryRepo::try_new(Some(schema_url), &registry_path, &mut vec![])?;
+
+        let result = load_semconv_repository(registry_repo, true);
+
+        if let WResult::OkWithNFEs(_, nfes) = result {
+            // Check if any warning contains the expected conflict message
+            let found_conflict_warning = nfes.iter().any(|nfe| {
+                nfe.to_string().contains("Selected version 1.1.0 for dependency 'a/schema' is different than requested in main (1.0.0)")
+            });
+            assert!(
+                found_conflict_warning,
+                "Expected conflict warning not found among warnings!"
+            );
+        } else {
+            panic!("Expected conflict warning, found none");
         }
 
         Ok(())

@@ -1,0 +1,4 @@
+name: A
+description: Registry A version 1.0.0
+semconv_version: 1.0.0
+schema_base_url: http://a/schema/
