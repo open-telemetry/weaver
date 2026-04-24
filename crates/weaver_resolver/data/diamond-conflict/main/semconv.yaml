@@ -1,0 +1,6 @@
+groups:
+  - id: main_group
+    type: attribute_group
+    brief: Main Group
+    attributes:
+      - ref: conflict_attr

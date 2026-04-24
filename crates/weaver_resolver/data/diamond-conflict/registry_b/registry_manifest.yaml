@@ -1,0 +1,7 @@
+name: registry_b
+description: Registry B
+semconv_version: 0.1.0
+schema_base_url: https://example.com/b/
+dependencies:
+  - schema_url: https://example.com/c/1.2.0
+    registry_path: data/diamond-conflict/registry_c_v1_2

@@ -3,7 +3,6 @@
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
@@ -14,6 +13,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
 use crate::Error;
@@ -23,6 +23,7 @@ const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// The result of loading a semantic convention URL prior to resolution.
 #[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
 pub enum LoadedSemconvRegistry {
     /// The semconv repository was unresolved and needs to be run through resolution.
     Unresolved {
@@ -163,15 +164,48 @@ pub(crate) fn load_semconv_repository(
     follow_symlinks: bool,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // This method simply sets up the resolution state and delegates to the actual work.
-    let mut visited_registries = HashSet::new();
+    let mut visited_registries = std::collections::HashSet::new();
+    let mut known_dependencies = std::collections::HashMap::new();
     let mut dependency_chain = Vec::new();
-    load_semconv_repository_recursive(
+
+    let mut main_dependencies = std::collections::HashMap::new();
+    if let Some(manifest) = registry_repo.manifest() {
+        for dep in manifest.dependencies().iter() {
+            let _ =
+                main_dependencies.insert(dep.schema_url.name().to_owned(), dep.schema_url.clone());
+        }
+    }
+
+    let mut result = load_semconv_repository_recursive(
         registry_repo,
         follow_symlinks,
         MAX_DEPENDENCY_DEPTH,
         &mut visited_registries,
+        &mut known_dependencies,
         &mut dependency_chain,
-    )
+    );
+
+    if let WResult::Ok(_) | WResult::OkWithNFEs(_, _) = result {
+        let mut warnings = vec![];
+        for (name, main_url) in main_dependencies.iter() {
+            if let Some(selected_url) = known_dependencies.get(name) {
+                if selected_url != main_url {
+                    warnings.push(Error::ConversionError {
+                        message: format!(
+                            "Selected version {} for dependency '{}' is different than requested in main ({}). The listed set of dependencies in main should be updated.",
+                            selected_url.version(),
+                            name,
+                            main_url.version()
+                        ),
+                    });
+                }
+            }
+        }
+        if !warnings.is_empty() {
+            result = result.extend_non_fatal_errors(warnings);
+        }
+    }
+    result
 }
 
 /// Recursively iterates over semconv dependencies and loads their definition.
@@ -180,7 +214,8 @@ fn load_semconv_repository_recursive(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     max_dependency_depth: u32,
-    visited_registries: &mut HashSet<String>,
+    visited_registries: &mut std::collections::HashSet<String>,
+    known_dependencies: &mut std::collections::HashMap<String, SchemaUrl>,
     dependency_chain: &mut Vec<String>,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // Make sure we don't go past our max dependency depth.
@@ -190,8 +225,10 @@ fn load_semconv_repository_recursive(
         });
     }
     let registry_name = registry_repo.name().to_owned();
-    // Check for circular dependency
-    if visited_registries.contains(&registry_name) {
+    let schema_url = registry_repo.schema_url().clone();
+
+    // Check for circular dependency in the current path
+    if dependency_chain.contains(&registry_name) {
         dependency_chain.push(registry_name.clone());
         let chain_str = dependency_chain.join(" → ");
         return WResult::FatalErr(Error::CircularDependency {
@@ -199,22 +236,122 @@ fn load_semconv_repository_recursive(
             chain: chain_str,
         });
     }
-    // Add current registry to visited set and dependency chain
+
+    // Check for conflict across the graph
+    if let Some(prev_schema_url) = known_dependencies.get(&registry_name) {
+        if prev_schema_url != &schema_url {
+            if let Err(e) =
+                check_version_compatibility(&registry_name, prev_schema_url, &schema_url)
+            {
+                return WResult::FatalErr(e);
+            }
+
+            let prev_v = match prev_schema_url.semver() {
+                Ok(v) => v,
+                Err(e) => {
+                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                        url: prev_schema_url.to_string(),
+                        error: e.to_string(),
+                    })
+                }
+            };
+            let cur_v = match schema_url.semver() {
+                Ok(v) => v,
+                Err(e) => {
+                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                        url: schema_url.to_string(),
+                        error: e.to_string(),
+                    })
+                }
+            };
+
+            if cur_v > prev_v {
+                let _ = known_dependencies.insert(registry_name.clone(), schema_url.clone());
+            }
+        }
+    } else {
+        let _ = known_dependencies.insert(registry_name.clone(), schema_url.clone());
+    }
+
+    // Also mark as visited for loading purposes.
     let _ = visited_registries.insert(registry_name.clone());
+
+    // Add current registry to dependency chain
     dependency_chain.push(registry_name.clone());
 
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
-            load_resolved_repository(&resolved_url)
-        } else {
-            if manifest.dependencies().len() > 1 {
-                todo!("Multiple dependencies is not supported yet.")
+            let res = load_resolved_repository(&resolved_url);
+
+            // Register dependencies of the resolved schema for conflict resolution.
+            if let WResult::Ok(LoadedSemconvRegistry::ResolvedV2(ref schema))
+            | WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2(ref schema), _) = res
+            {
+                for dep in schema.dependencies.iter() {
+                    let dep_name = dep.name().to_owned();
+                    if let Some(prev_schema_url) = known_dependencies.get(&dep_name) {
+                        if prev_schema_url != dep {
+                            if let Err(e) =
+                                check_version_compatibility(&dep_name, prev_schema_url, dep)
+                            {
+                                return WResult::FatalErr(e);
+                            }
+
+                            let prev_v = match prev_schema_url.semver() {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                                        url: prev_schema_url.to_string(),
+                                        error: e.to_string(),
+                                    })
+                                }
+                            };
+                            let cur_v = match dep.semver() {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    return WResult::FatalErr(Error::InvalidSchemaUrlBadVersion {
+                                        url: dep.to_string(),
+                                        error: e.to_string(),
+                                    })
+                                }
+                            };
+
+                            if cur_v > prev_v {
+                                let _ = known_dependencies.insert(dep_name, dep.clone());
+                            }
+                        }
+                    } else {
+                        let _ = known_dependencies.insert(dep_name, dep.clone());
+                    }
+                }
             }
+
+            let _ = dependency_chain.pop();
+            res
+        } else {
             // Load dependencies.
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors: Vec<Error> = vec![];
+            let mut seen_dependencies: std::collections::HashMap<String, SchemaUrl> =
+                std::collections::HashMap::new();
+
             for d in manifest.dependencies().iter() {
+                let dep_name = d.schema_url.name().to_owned();
+
+                if let Some(prev_schema_url) = seen_dependencies.get(&dep_name) {
+                    if prev_schema_url != &d.schema_url {
+                        if let Err(e) =
+                            check_version_compatibility(&dep_name, prev_schema_url, &d.schema_url)
+                        {
+                            // Clean up the state of dependency_chain before erroring.
+                            let _ = dependency_chain.pop();
+                            return WResult::FatalErr(e);
+                        }
+                    }
+                } else {
+                    let _ = seen_dependencies.insert(dep_name, d.schema_url.clone());
+                }
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
                     Ok(d_repo) => {
@@ -226,6 +363,7 @@ fn load_semconv_repository_recursive(
                             follow_symlinks,
                             max_dependency_depth - 1,
                             visited_registries,
+                            known_dependencies,
                             dependency_chain,
                         ) {
                             WResult::Ok(d) => loaded_dependencies.push(d),
@@ -233,22 +371,62 @@ fn load_semconv_repository_recursive(
                                 loaded_dependencies.push(d);
                                 non_fatal_errors.extend(nfes);
                             }
-                            WResult::FatalErr(err) => return WResult::FatalErr(err),
+                            WResult::FatalErr(err) => {
+                                let _ = dependency_chain.pop();
+                                return WResult::FatalErr(err);
+                            }
                         }
                     }
-                    Err(err) => return WResult::FatalErr(err.into()),
+                    Err(err) => {
+                        let _ = dependency_chain.pop();
+                        return WResult::FatalErr(err.into());
+                    }
                 }
             }
             // Now load the raw repository.
             // TODO - Allow ignoring dependency warnings - https://github.com/open-telemetry/weaver/issues/1126.
-            load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
-                .extend_non_fatal_errors(non_fatal_errors)
+            let res =
+                load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
+                    .extend_non_fatal_errors(non_fatal_errors);
+            let _ = dependency_chain.pop();
+            res
         }
     } else {
         // This is a raw repository with *no* manifest.
         // TODO - issue a warning that manifest will be required w/ 2.0 to allow publishing.
-        load_definition_repository(registry_repo, follow_symlinks, vec![])
+        let res = load_definition_repository(registry_repo, follow_symlinks, vec![]);
+        let _ = dependency_chain.pop();
+        res
     }
+}
+
+/// Checks version compatibility between two schema URLs.
+fn check_version_compatibility(
+    registry_name: &str,
+    prev_schema_url: &SchemaUrl,
+    schema_url: &SchemaUrl,
+) -> Result<(), Error> {
+    let prev_v = prev_schema_url
+        .semver()
+        .map_err(|e| Error::InvalidSchemaUrlBadVersion {
+            url: prev_schema_url.to_string(),
+            error: e.to_string(),
+        })?;
+    let cur_v = schema_url
+        .semver()
+        .map_err(|e| Error::InvalidSchemaUrlBadVersion {
+            url: schema_url.to_string(),
+            error: e.to_string(),
+        })?;
+    // TODO - Should we use `VersionReq.parse("^{major}.0.0"))?` instead?
+    if prev_v.major != cur_v.major {
+        return Err(Error::DuplicateDependency {
+            name: registry_name.to_owned(),
+            version1: prev_schema_url.version().to_owned(),
+            version2: schema_url.version().to_owned(),
+        });
+    }
+    Ok(())
 }
 
 /// Loads a resolved repository.
@@ -393,7 +571,7 @@ fn load_definition_repository(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use weaver_semconv::schema_url::SchemaUrl;
 
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,
@@ -455,13 +633,17 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
-        let mut visited_registries = HashSet::new();
+        let mut visited_registries: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let mut known_dependencies: std::collections::HashMap<String, SchemaUrl> =
+            std::collections::HashMap::new();
         let mut dependency_chain = Vec::new();
         let result = load_semconv_repository_recursive(
             registry_repo,
             true,
             1,
             &mut visited_registries,
+            &mut known_dependencies,
             &mut dependency_chain,
         );
 
@@ -503,6 +685,222 @@ mod tests {
             _ => {
                 panic!("Expected fatal error due to circular dependency, but got success");
             }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_incompatible_version_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/incompatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Duplicate dependency") &&
+                    error_msg.contains("example.com/c") &&
+                    error_msg.contains("1.0.0") &&
+                    error_msg.contains("2.0.0"),
+                    "Expected duplicate dependency error mentioning both versions, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to duplicate dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_compatible_version_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                // Success is expected now that compatible versions are allowed.
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Expected success, but got fatal error: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_duplicate_dependency_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/duplicate-dependency/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Duplicate dependency") &&
+                    error_msg.contains("test/dep") &&
+                    error_msg.contains("1.0.0") &&
+                    error_msg.contains("2.0.0"),
+                    "Expected duplicate dependency error mentioning both versions, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to duplicate dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_dependency_not_found() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/dependency-not-found/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                // TODO: Use typed errors instead of string matching when weaver_semconv exposes them.
+                assert!(
+                    error_msg.contains("Failed to resolve definition")
+                        || error_msg.contains("No such file or directory")
+                        || error_msg.contains("The system cannot find the file specified"),
+                    "Expected file not found error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to missing dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_version_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/invalid-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Invalid schema URL")
+                        && error_msg.contains("http://test/dep/v1"),
+                    "Expected invalid schema URL error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to invalid version, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolved_dependency_conflict() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::loader::load_semconv_repository_recursive;
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_semconv::registry_repo::RegistryRepo;
+        use weaver_semconv::schema_url::SchemaUrl;
+
+        let mut visited_registries = std::collections::HashSet::new();
+        let mut known_dependencies = std::collections::HashMap::new();
+
+        // Insert a conflicting dependency version
+        let _ = known_dependencies.insert(
+            "conflicting/schema".to_owned(),
+            SchemaUrl::try_from("http://conflicting/schema/2.0.0")
+                .expect("Valid hardcoded schema URL in test"),
+        );
+
+        let mut dependency_chain = Vec::new();
+
+        // Now load the resolved repository which has dependency http://conflicting/schema/1.0.0
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/resolved-conflict-test".to_owned(),
+        };
+        let schema_url = SchemaUrl::try_from("https://test.com/schemas/0.1.0")
+            .expect("Valid hardcoded schema URL in test");
+        let registry_repo = RegistryRepo::try_new(Some(schema_url), &registry_path, &mut vec![])?;
+
+        let result = load_semconv_repository_recursive(
+            registry_repo,
+            true,
+            1,
+            &mut visited_registries,
+            &mut known_dependencies,
+            &mut dependency_chain,
+        );
+
+        // Assert that result is a conflict error!
+        assert!(matches!(result, WResult::FatalErr(_)));
+        if let WResult::FatalErr(Error::DuplicateDependency {
+            name,
+            version1,
+            version2,
+        }) = result
+        {
+            assert_eq!(name, "conflicting/schema");
+            let versions = [version1.as_str(), version2.as_str()];
+            assert!(versions.contains(&"1.0.0"));
+            assert!(versions.contains(&"2.0.0"));
+        } else if let WResult::FatalErr(e) = result {
+            panic!("Expected DuplicateDependency error, got: {:?}", e);
+        } else {
+            panic!("Expected FatalErr");
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_diamond_resolved_conflict() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::loader::load_semconv_repository;
+        use weaver_common::result::WResult;
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_semconv::registry_repo::RegistryRepo;
+        use weaver_semconv::schema_url::SchemaUrl;
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/diamond-resolved-test".to_owned(),
+        };
+        let schema_url = SchemaUrl::try_from("https://main.com/schemas/1.0.0")
+            .expect("Valid hardcoded schema URL in test");
+        let registry_repo = RegistryRepo::try_new(Some(schema_url), &registry_path, &mut vec![])?;
+
+        let result = load_semconv_repository(registry_repo, true);
+
+        if let WResult::OkWithNFEs(_, nfes) = result {
+            // Check if any warning contains the expected conflict message
+            let found_conflict_warning = nfes.iter().any(|nfe| {
+                nfe.to_string().contains("Selected version 1.1.0 for dependency 'a/schema' is different than requested in main (1.0.0)")
+            });
+            assert!(
+                found_conflict_warning,
+                "Expected conflict warning not found among warnings!"
+            );
+        } else {
+            panic!("Expected conflict warning, found none");
         }
 
         Ok(())

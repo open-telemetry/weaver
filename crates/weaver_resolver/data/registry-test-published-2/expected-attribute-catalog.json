@@ -20,13 +20,5 @@
     "requirement_level": "required",
     "stability": "stable",
     "annotations": {}
-  },
-  {
-    "name": "my.attr.1",
-    "type": "int",
-    "brief": "test attr 1",
-    "requirement_level": "recommended",
-    "stability": "stable",
-    "annotations": {}
   }
 ]

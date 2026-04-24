@@ -1,0 +1,6 @@
+schema_url: "http://test/main/1.0.0"
+dependencies:
+  - schema_url: "http://test/dep/v1"
+    registry_path: "data/invalid-version-conflict/dep-v1"
+  - schema_url: "http://test/dep/v2"
+    registry_path: "data/invalid-version-conflict/dep-v2"

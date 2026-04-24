@@ -527,4 +527,35 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_diamond_dependency_attribute_conflict() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/diamond-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect("Failed to load main registry");
+
+        let resolved = SchemaResolver::resolve(loaded, false);
+        match resolved {
+            WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                // Verify that conflict_attr from registry_c v1.2 was selected
+                // because it has a higher version than v1.1.
+                let (attr, _) = resolved_registry
+                    .catalog
+                    .root_attribute("conflict_attr")
+                    .expect("conflict_attr not found in catalog");
+
+                assert_eq!(attr.brief, "Attribute from C v1.2");
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Failed to resolve main registry: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
 }

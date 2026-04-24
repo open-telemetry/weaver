@@ -49,6 +49,18 @@ pub enum Error {
         error: String,
     },
 
+    /// An invalid schema URL that does not match the specification.
+    #[error("Invalid schema URL `{url}`: {error}")]
+    #[diagnostic(help(
+        "Ensure the schema URL follows the OTel format - the version must match semver."
+    ))]
+    InvalidSchemaUrlBadVersion {
+        /// The invalid URL.
+        url: String,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// Failed to resolve a set of attributes.
     #[error("Failed to resolve a set of attributes {ids:?}: {error}")]
     FailToResolveAttributes {
@@ -194,6 +206,30 @@ pub enum Error {
         registry_name: String,
         /// The attribute index that does not exist in the registry.
         attribute_ref: u32,
+    },
+
+    /// We discovered duplicate dependencies with different versions.
+    #[error(
+        "Duplicate dependency '{name}' found with different versions: {version1} and {version2}"
+    )]
+    DuplicateDependency {
+        /// The name of the dependency.
+        name: String,
+        /// The first version found.
+        version1: String,
+        /// The second version found.
+        version2: String,
+    },
+
+    /// We found multiple matches for a reference in dependencies with different SchemaURLs.
+    #[error("Ambiguous reference '{ref}' found in multiple dependencies with different SchemaURLs: {schema_url1} and {schema_url2}")]
+    AmbiguousReference {
+        /// The reference that is ambiguous.
+        r#ref: String,
+        /// The first SchemaURL found.
+        schema_url1: String,
+        /// The second SchemaURL found.
+        schema_url2: String,
     },
 
     /// A container for multiple errors.

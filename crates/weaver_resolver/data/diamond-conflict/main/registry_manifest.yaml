@@ -1,0 +1,9 @@
+name: main
+description: Main Registry
+semconv_version: 0.1.0
+schema_base_url: https://example.com/main/
+dependencies:
+  - schema_url: https://example.com/a/0.1.0
+    registry_path: data/diamond-conflict/registry_a
+  - schema_url: https://example.com/b/0.1.0
+    registry_path: data/diamond-conflict/registry_b

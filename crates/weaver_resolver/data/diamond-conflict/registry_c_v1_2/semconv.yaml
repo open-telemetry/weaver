@@ -1,0 +1,8 @@
+groups:
+  - id: test.group
+    type: attribute_group
+    brief: Test group in C v1.2
+    attributes:
+      - id: conflict_attr
+        type: string
+        brief: Attribute from C v1.2
