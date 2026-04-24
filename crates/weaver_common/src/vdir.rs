@@ -402,8 +402,12 @@ impl VirtualDirectory {
         let tmp_path = tmp_dir.path().to_path_buf();
 
         // Clones the repo into the temporary directory.
-        // Use shallow clone to save time and space.
-        let mut fetch = PrepareFetch::new(
+        // Use shallow clone to save time and space when no specific refspec is given.
+        // When a refspec is provided, we skip shallow clone because gix's shallow+single-branch
+        // code path assumes the ref is a branch (refs/heads/), which breaks for tags (refs/tags/).
+        // TODO: Check if an upstream gix issue exists for this, or file one at
+        // https://github.com/GitoxideLabs/gitoxide/issues
+        let prepare = PrepareFetch::new(
             url,
             tmp_path.clone(),
             Kind::WithWorktree,
@@ -420,10 +424,15 @@ impl VirtualDirectory {
         .map_err(|e| GitError {
             repo_url: url.to_owned(),
             message: e.to_string(),
-        })?
-        .with_shallow(Shallow::DepthAtRemote(
-            NonZeroU32::new(1).expect("1 is not zero"),
-        ))
+        })?;
+
+        let mut fetch = if refspec.is_none() {
+            prepare.with_shallow(Shallow::DepthAtRemote(
+                NonZeroU32::new(1).expect("1 is not zero"),
+            ))
+        } else {
+            prepare
+        }
         .with_ref_name(refspec.as_ref())
         .map_err(|e| GitError {
             repo_url: url.to_owned(),
