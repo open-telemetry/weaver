@@ -12,6 +12,8 @@ use weaver_emit::{emit, ExporterConfig, RegistryVersion};
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 
 /// Parameters for the `registry emit` sub-command
 #[derive(Debug, Args)]
@@ -38,7 +40,11 @@ pub struct RegistryEmitArgs {
 }
 
 /// Emit all spans in the resolved registry.
-pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryEmitArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Weaver Registry Emit");
     info!("Resolving registry `{}`", args.registry.registry);
 
@@ -51,7 +57,7 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
             endpoint: args.endpoint.clone(),
         }
     };
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     match resolved {
         crate::weaver::Resolved::V2(v) => {
@@ -100,6 +106,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Emit(RegistryEmitArgs {
                     registry: RegistryArgs {

@@ -10,6 +10,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
 
 mod handlers;
 mod server;
@@ -44,11 +45,11 @@ pub struct ServeCommand {
 }
 
 /// Execute the `weaver serve` command.
-pub fn command(args: &ServeCommand) -> CmdResult {
-    CmdResult::new(run_serve(args), Some(args.diagnostic.clone()))
+pub fn command(args: &ServeCommand, auth: &HttpAuthResolver) -> CmdResult {
+    CmdResult::new(run_serve(args, auth), Some(args.diagnostic.clone()))
 }
 
-fn run_serve(args: &ServeCommand) -> Result<ExitDirectives, DiagnosticMessages> {
+fn run_serve(args: &ServeCommand, auth: &HttpAuthResolver) -> Result<ExitDirectives, DiagnosticMessages> {
     // TODO: Currently the serve command takes a registry on the command line. Really we want to be
     // able to hot load a registry from within the server. This would mean calling an API to load
     // a new registry, and then the server would update its internal state to use the new registry.
@@ -59,7 +60,7 @@ fn run_serve(args: &ServeCommand) -> Result<ExitDirectives, DiagnosticMessages> 
     let mut diag_msgs = DiagnosticMessages::empty();
 
     // Create a weaver engine and load/resolve the registry using V2 schema
-    let weaver = crate::weaver::WeaverEngine::new(&args.registry, &args.policy);
+    let weaver = crate::weaver::WeaverEngine::new(&args.registry, &args.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry

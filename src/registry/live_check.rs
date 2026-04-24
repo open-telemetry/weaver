@@ -13,6 +13,7 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{override_if_set, CliOverrides, FieldMapping, LiveCheckConfig, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
@@ -172,19 +173,11 @@ pub struct RegistryLiveCheckArgs {
     /// versus processing the data for every sample.
     #[arg(long)]
     advice_preprocessor: Option<PathBuf>,
-
-    /// Path to a `.weaver.toml` config file. Skips automatic discovery when set.
-    #[arg(long = "config")]
-    config_path: Option<PathBuf>,
 }
 
 impl CliOverrides for RegistryLiveCheckArgs {
     type Config = LiveCheckConfig;
     const SUBCOMMAND: &'static str = "live-check";
-
-    fn config_path(&self) -> Option<&PathBuf> {
-        self.config_path.as_ref()
-    }
 
     fn extract_config(weaver_config: &WeaverConfig) -> LiveCheckConfig {
         weaver_config.live_check.clone()
@@ -198,7 +191,6 @@ impl CliOverrides for RegistryLiveCheckArgs {
 
     fn cli_only_args() -> &'static [&'static str] {
         &[
-            "config",                  // controls config loading, not a setting
             "registry",                // RegistryArgs (invocation-specific)
             "follow_symlinks",         // RegistryArgs
             "include_unreferenced",    // RegistryArgs
@@ -291,16 +283,20 @@ fn generate_report(
 }
 
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
-pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryLiveCheckArgs,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let (config, weaver_config) = load_config(args)?;
+    let config = load_config(args, cfg);
 
     // `args` is borrowed immutably from the dispatch chain, so shared overrides
     // need owned copies to mutate.
     let mut registry_args = args.registry.clone();
     let mut policy_args = args.policy.clone();
-    if let Some(wc) = &weaver_config {
+    if let Some(wc) = cfg {
         super::apply_registry_config(&mut registry_args, &wc.registry);
         super::apply_policy_config(&mut policy_args, &wc.policy);
     }
@@ -340,7 +336,7 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     info!("Resolving registry `{}`", registry_args.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&registry_args, &policy_args);
+    let weaver = WeaverEngine::new(&registry_args, &policy_args, auth);
     let resolved_registry = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let registry = match resolved_registry {
         crate::weaver::Resolved::V2(resolved_v2) => {

@@ -8,7 +8,9 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_config::WeaverConfig;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry check` sub-command
@@ -32,11 +34,15 @@ pub struct RegistryCheckArgs {
 }
 
 /// Check a semantic convention registry.
-pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryCheckArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", args.registry.registry);
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
 
     // Initialize the main registry.
     let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
@@ -45,7 +51,7 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
     let baseline = if let Some(br) = args.baseline_registry.as_ref() {
         // ignore warnings.
         let mut ignored = DiagnosticMessages::empty();
-        let registry_repo = RegistryRepo::try_new(None, br, &mut vec![])?;
+        let registry_repo = RegistryRepo::try_new_with_auth(None, br, &mut vec![], auth)?;
         let loaded = weaver.load_definitions(registry_repo, &mut ignored)?;
         // TODO - do we need to keep any loading diagnostic messages?
         Some(weaver.resolve(loaded, &mut diag_msgs)?)
@@ -77,7 +83,7 @@ mod tests {
         semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand,
     };
     use crate::run_command;
-
+    use weaver_common::http_auth::HttpAuthResolver;
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
@@ -87,6 +93,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
@@ -118,6 +125,7 @@ mod tests {
             quiet: false,
             future: false,
             allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
@@ -166,7 +174,7 @@ mod tests {
             }),
         };
 
-        let cmd_result = semconv_registry(&registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
         // Violations should be observed.
         assert!(cmd_result.command_result.is_err());
         if let Err(diag_msgs) = cmd_result.command_result {
@@ -204,7 +212,7 @@ mod tests {
                 diagnostic: Default::default(),
             }),
         };
-        let cmd_result = semconv_registry(&registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
         // V2 Violations should be observed.
         assert!(cmd_result.command_result.is_err());
         if let Err(diag_msgs) = cmd_result.command_result {
@@ -245,7 +253,7 @@ mod tests {
                 diagnostic: Default::default(),
             }),
         };
-        let cmd_result = semconv_registry(&registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
         // V2 Violations should be observed.
         assert!(cmd_result.command_result.is_err());
         if let Err(diag_msgs) = cmd_result.command_result {
@@ -285,7 +293,7 @@ mod tests {
                 diagnostic: Default::default(),
             }),
         };
-        let cmd_result = semconv_registry(&registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
         // V2 should warn about before_resolution.
         assert!(cmd_result.command_result.is_err());
         if let Err(diag_msgs) = cmd_result.command_result {

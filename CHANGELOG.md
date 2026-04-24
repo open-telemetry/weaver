@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries, including GitHub private release assets. Auth is configured per-URL via `[[auth]]` entries in `.weaver.toml` (longest `url_prefix` wins), with tokens sourced from a literal `token`, a `token_env` variable, or a `token_command` helper (e.g. `["gh", "auth", "token"]`). ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
+
 # [0.23.0] - 2026-04-22
 
 - New feature ([#1247](https://github.com/open-telemetry/weaver/issues/1247), [#1248](https://github.com/open-telemetry/weaver/issues/1248)) - `.weaver.toml` project configuration file for `live-check`. Covers all `live-check` CLI flags plus `[[live_check.finding_filters]]` for dropping findings by ID, minimum level, sample name, and signal type. CLI flags take precedence over config values. Use `--config` or auto-discovery from CWD. ([#1256](https://github.com/open-telemetry/weaver/pull/1256) by @jerbly)

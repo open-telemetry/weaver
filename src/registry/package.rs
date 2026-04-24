@@ -17,6 +17,8 @@ use weaver_semconv::registry_repo::RegistryRepo;
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 
 /// Parameters for the `registry package` sub-command
 #[derive(Debug, Args)]
@@ -56,7 +58,11 @@ fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), Diagnosti
 }
 
 /// Package a semantic convention registry.
-pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryPackageArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Packaging registry `{}`", args.registry.registry);
 
     // we only support packaging v2 registries
@@ -65,11 +71,11 @@ pub(crate) fn command(args: &RegistryPackageArgs) -> Result<ExitDirectives, Diag
     }
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy);
+    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
     let registry_path = &args.registry.registry;
 
     let mut nfes = vec![];
-    let repo = RegistryRepo::try_new(None, registry_path, &mut nfes)?;
+    let repo = RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
     // we require a definition manifest file to be present for packaging
@@ -175,7 +181,7 @@ mod tests {
             "https://test/semconv/1.0.0/resolved.yaml",
         );
 
-        let result = command(&args);
+        let result = command(&args, None, &HttpAuthResolver::empty());
         assert!(result.is_ok(), "Expected success, got: {result:?}");
 
         // resolved.yaml must exist, be valid YAML, and contain the v2 resolved schema format
@@ -225,7 +231,7 @@ mod tests {
             "https://test/semconv/1.0.0/resolved.yaml",
         );
 
-        let result = command(&args);
+        let result = command(&args, None, &HttpAuthResolver::empty());
         assert!(result.is_ok(), "Expected success, got: {result:?}");
         assert!(nested_output.exists(), "output directory was not created");
         assert!(nested_output.join("resolved.yaml").exists());
@@ -243,7 +249,7 @@ mod tests {
             "https://test/semconv/1.0.0/resolved.yaml",
         );
 
-        let result = command(&args);
+        let result = command(&args, None, &HttpAuthResolver::empty());
         assert!(result.is_err());
         let diag_msgs = result.unwrap_err();
         let msg = format!("{diag_msgs:?}");
@@ -264,7 +270,7 @@ mod tests {
             "https://test/semconv/1.0.0/resolved.yaml",
         );
 
-        let result = command(&args);
+        let result = command(&args, None, &HttpAuthResolver::empty());
         assert!(result.is_err());
         let diag_msgs = result.unwrap_err();
         let msg = format!("{diag_msgs:?}");
@@ -285,7 +291,7 @@ mod tests {
             "https://test/semconv/1.0.0/resolved.yaml",
         );
 
-        let result = command(&args);
+        let result = command(&args, None, &HttpAuthResolver::empty());
         assert!(
             result.is_err(),
             "Expected resolution failure for invalid definition"

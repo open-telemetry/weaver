@@ -153,15 +153,28 @@ impl SchemaResolver {
         })
     }
 
-    /// Loads a semantic convention repository.
-    ///
-    /// Note: This may load in a definition (raw) repository *or* an already resolved repository.
-    ///       When loading a raw repository, dependencies will also be loaded.
+    /// Load a semantic convention repository with no HTTP credentials
+    /// configured. May load a raw (definition) repo with its dependencies, or
+    /// a pre-resolved one.
     pub fn load_semconv_repository(
         registry_repo: RegistryRepo,
         follow_symlinks: bool,
     ) -> WResult<LoadedSemconvRegistry, Error> {
-        loader::load_semconv_repository(registry_repo, follow_symlinks)
+        loader::load_semconv_repository(
+            registry_repo,
+            follow_symlinks,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        )
+    }
+
+    /// Load a semantic convention repository, resolving credentials via `auth`
+    /// for dependencies and resolved-schema fetches.
+    pub fn load_semconv_repository_with_auth(
+        registry_repo: RegistryRepo,
+        follow_symlinks: bool,
+        auth: &weaver_common::http_auth::HttpAuthResolver,
+    ) -> WResult<LoadedSemconvRegistry, Error> {
+        loader::load_semconv_repository(registry_repo, follow_symlinks, auth)
     }
 }
 

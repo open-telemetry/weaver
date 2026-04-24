@@ -6,6 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::registry::SemConvRegistry;
 
@@ -161,6 +162,7 @@ impl Display for LoadedSemconvRegistry {
 pub(crate) fn load_semconv_repository(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
+    auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // This method simply sets up the resolution state and delegates to the actual work.
     let mut visited_registries = HashSet::new();
@@ -171,6 +173,7 @@ pub(crate) fn load_semconv_repository(
         MAX_DEPENDENCY_DEPTH,
         &mut visited_registries,
         &mut dependency_chain,
+        auth,
     )
 }
 
@@ -182,6 +185,7 @@ fn load_semconv_repository_recursive(
     max_dependency_depth: u32,
     visited_registries: &mut HashSet<String>,
     dependency_chain: &mut Vec<String>,
+    auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // Make sure we don't go past our max dependency depth.
     if max_dependency_depth == 0 {
@@ -206,7 +210,7 @@ fn load_semconv_repository_recursive(
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
-            load_resolved_repository(&resolved_url)
+            load_resolved_repository(&resolved_url, auth)
         } else {
             if manifest.dependencies().len() > 1 {
                 todo!("Multiple dependencies is not supported yet.")
@@ -216,7 +220,7 @@ fn load_semconv_repository_recursive(
             let mut non_fatal_errors: Vec<Error> = vec![];
             for d in manifest.dependencies().iter() {
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
-                match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
+                match RegistryRepo::try_new_dependency_with_auth(d, &mut semconv_nfes, auth) {
                     Ok(d_repo) => {
                         non_fatal_errors
                             .extend(semconv_nfes.into_iter().map(Error::FailToResolveDefinition));
@@ -227,6 +231,7 @@ fn load_semconv_repository_recursive(
                             max_dependency_depth - 1,
                             visited_registries,
                             dependency_chain,
+                            auth,
                         ) {
                             WResult::Ok(d) => loaded_dependencies.push(d),
                             WResult::OkWithNFEs(d, nfes) => {
@@ -252,17 +257,23 @@ fn load_semconv_repository_recursive(
 }
 
 /// Loads a resolved repository.
-fn load_resolved_repository(path: &VirtualDirectoryPath) -> WResult<LoadedSemconvRegistry, Error> {
+fn load_resolved_repository(
+    path: &VirtualDirectoryPath,
+    auth: &HttpAuthResolver,
+) -> WResult<LoadedSemconvRegistry, Error> {
     // TODO - should we handle V1 and V2?
-    match from_vdir(path) {
+    match from_vdir(path, auth) {
         Ok(resolved) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(resolved)),
         Err(err) => WResult::FatalErr(err),
     }
 }
 
 /// Reads a serialized object with serde from the given virtual directory path.
-fn from_vdir<T: serde::de::DeserializeOwned>(f: &VirtualDirectoryPath) -> Result<T, Error> {
-    let path = VirtualDirectory::try_new(f).map_err(|e| Error::InvalidUrl {
+fn from_vdir<T: serde::de::DeserializeOwned>(
+    f: &VirtualDirectoryPath,
+    auth: &HttpAuthResolver,
+) -> Result<T, Error> {
+    let path = VirtualDirectory::try_new_with_auth(f, auth).map_err(|e| Error::InvalidUrl {
         url: f.to_string(),
         error: format!("Invalid weaver path reference: {e}"),
     })?;
@@ -412,8 +423,12 @@ mod tests {
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut diag_msgs = DiagnosticMessages::empty();
-        let loaded = load_semconv_repository(registry_repo, false)
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+        let loaded = load_semconv_repository(
+            registry_repo,
+            false,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        )
+        .capture_non_fatal_errors(&mut diag_msgs)?;
         // Assert that we've loaded the ACME repository and the dependency of OTEL.
         if let LoadedSemconvRegistry::Unresolved {
             repo,
@@ -463,6 +478,7 @@ mod tests {
             1,
             &mut visited_registries,
             &mut dependency_chain,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
         );
 
         match result {
@@ -488,7 +504,11 @@ mod tests {
             path: "data/circular-registry-test/registry_a".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let result = load_semconv_repository(registry_repo, true);
+        let result = load_semconv_repository(
+            registry_repo,
+            true,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
 
         match result {
             WResult::FatalErr(fatal) => {

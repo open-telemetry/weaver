@@ -9,11 +9,14 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+pub mod auth;
 pub mod live_check;
 mod overrides;
 pub mod registry;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
+pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
+pub use weaver_common::http_auth::TokenSource;
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
 pub use overrides::{CliOverrides, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
@@ -33,6 +36,9 @@ pub struct WeaverConfig {
     pub diagnostics: DiagnosticsConfig,
     /// Live-check specific configuration.
     pub live_check: LiveCheckConfig,
+    /// Per-URL HTTP authentication entries for downloading remote registries.
+    /// See [`auth::AuthEntry`] for the schema.
+    pub auth: Vec<AuthEntry>,
 }
 
 /// Discover a `.weaver.toml` file by walking up from the given directory.

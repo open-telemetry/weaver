@@ -12,6 +12,8 @@ use clap::Args;
 use log::info;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -46,7 +48,11 @@ pub struct RegistryMcpArgs {
 }
 
 /// Run the MCP server for the semantic convention registry.
-pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryMcpArgs,
+    _cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     info!("Loading semantic convention registry for MCP server");
 
     let mut diag_msgs = DiagnosticMessages::empty();
@@ -59,7 +65,7 @@ pub(crate) fn command(args: &RegistryMcpArgs) -> Result<ExitDirectives, Diagnost
     };
 
     // Use WeaverEngine to load and resolve the registry (always use v2)
-    let weaver = WeaverEngine::new(&args.registry, &policy_args);
+    let weaver = WeaverEngine::new(&args.registry, &policy_args, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry

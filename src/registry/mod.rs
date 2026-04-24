@@ -20,9 +20,10 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-use crate::CmdResult;
+use crate::{CmdResult, DiagnosticArgs};
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::CliOverrides;
@@ -267,95 +268,131 @@ pub fn apply_policy_config(args: &mut PolicyArgs, config: &weaver_config::Policy
     }
 }
 
-/// Load configuration for a command that implements `CliOverrides`.
+/// Compile `[[auth]]` entries from an already-loaded [`weaver_config::WeaverConfig`]
+/// into an [`HttpAuthResolver`].
+#[must_use]
+pub fn auth_resolver_from_config(config: Option<&weaver_config::WeaverConfig>) -> HttpAuthResolver {
+    match config {
+        Some(c) => weaver_config::build_auth_resolver(&c.auth),
+        None => HttpAuthResolver::empty(),
+    }
+}
+
+/// Resolve `.weaver.toml` for the invocation: use `--config` if the user set
+/// one, otherwise walk up from the current working directory.
 ///
-/// Applies the standard layering: defaults → `.weaver.toml` → CLI overrides.
-/// Logs the config file path when one is found.
-///
-/// Returns the command-specific config and the loaded `WeaverConfig` (if found).
-/// The caller can use the `WeaverConfig` to apply shared overrides to
-/// `RegistryArgs`, `PolicyArgs`, and `DiagnosticArgs` via the `apply_*_config`
-/// helper functions.
-pub fn load_config<A: CliOverrides>(
-    args: &A,
-) -> Result<(A::Config, Option<weaver_config::WeaverConfig>), DiagnosticMessages> {
-    let found = if let Some(path) = args.config_path() {
-        Some((
-            path.clone(),
-            weaver_config::load(path).map_err(|e| {
-                DiagnosticMessages::from(Error::Config {
-                    error: e.to_string(),
-                })
-            })?,
-        ))
-    } else {
-        let cwd = std::env::current_dir().map_err(|e| {
-            DiagnosticMessages::from(Error::Config {
-                error: format!("Failed to get current directory: {e}"),
-            })
-        })?;
-        weaver_config::discover_and_load(&cwd).map_err(|e| {
+/// Returns `Ok(None)` when no config is found (neither flag nor discovery
+/// produced a path) — missing is not an error. `Err(...)` only on I/O or
+/// parse failure.
+pub fn resolve_weaver_config(
+    explicit_path: Option<&std::path::Path>,
+) -> Result<Option<weaver_config::WeaverConfig>, DiagnosticMessages> {
+    if let Some(path) = explicit_path {
+        let wc = weaver_config::load(path).map_err(|e| {
             DiagnosticMessages::from(Error::Config {
                 error: e.to_string(),
             })
-        })?
-    };
-
-    let (mut config, weaver_config) = match found {
+        })?;
+        log_warn(format!("Experimental! - Found config: {}", path.display()));
+        return Ok(Some(wc));
+    }
+    let cwd = std::env::current_dir().map_err(|e| {
+        DiagnosticMessages::from(Error::Config {
+            error: format!("Failed to get current directory: {e}"),
+        })
+    })?;
+    match weaver_config::discover_and_load(&cwd).map_err(|e| {
+        DiagnosticMessages::from(Error::Config {
+            error: e.to_string(),
+        })
+    })? {
         Some((path, wc)) => {
             log_warn(format!("Experimental! - Found config: {}", path.display()));
-            (A::extract_config(&wc), Some(wc))
+            Ok(Some(wc))
         }
-        None => (A::Config::default(), None),
-    };
+        None => Ok(None),
+    }
+}
 
+/// Layer a subcommand's config section: defaults → `.weaver.toml` → CLI overrides.
+///
+/// The `.weaver.toml` has already been loaded by the dispatcher (via the
+/// global `--config` flag or discovery), so this step is infallible.
+pub fn load_config<A: CliOverrides>(
+    args: &A,
+    weaver_config: Option<&weaver_config::WeaverConfig>,
+) -> A::Config {
+    let mut config = match weaver_config {
+        Some(wc) => A::extract_config(wc),
+        None => A::Config::default(),
+    };
     args.apply_overrides(&mut config);
-    Ok((config, weaver_config))
+    config
 }
 
 /// Manage a semantic convention registry and return the exit code.
-pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
+///
+/// The dispatcher in `main.rs` pre-resolves `.weaver.toml` (via the global
+/// `--config` flag or cwd discovery) and the [`HttpAuthResolver`]; both are
+/// threaded into every subcommand here.
+pub fn semconv_registry(
+    command: &RegistryCommand,
+    cfg: Option<&weaver_config::WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> CmdResult {
     match &command.command {
-        RegistrySubCommand::Check(args) => {
-            CmdResult::new(check::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Generate(args) => {
-            CmdResult::new(generate::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Stats(args) => {
-            CmdResult::new(stats::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Resolve(args) => {
-            CmdResult::new(resolve::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Search(args) => {
-            CmdResult::new(search::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
-            update_markdown::command(args),
+        RegistrySubCommand::Check(args) => CmdResult::new(
+            check::command(args, cfg, auth),
             Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::JsonSchema(args) => {
-            CmdResult::new(json_schema::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Diff(args) => {
-            CmdResult::new(diff::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::LiveCheck(args) => {
-            CmdResult::new(live_check::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Emit(args) => {
-            CmdResult::new(emit::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Mcp(args) => {
-            CmdResult::new(mcp::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Infer(args) => {
-            CmdResult::new(infer::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Package(args) => {
-            CmdResult::new(package::command(args), Some(args.diagnostic.clone()))
-        }
+        RegistrySubCommand::Generate(args) => CmdResult::new(
+            generate::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Stats(args) => CmdResult::new(
+            stats::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Resolve(args) => CmdResult::new(
+            resolve::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Search(args) => CmdResult::new(
+            search::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
+            update_markdown::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::JsonSchema(args) => CmdResult::new(
+            json_schema::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Diff(args) => CmdResult::new(
+            diff::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::LiveCheck(args) => CmdResult::new(
+            live_check::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Emit(args) => CmdResult::new(
+            emit::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Mcp(args) => CmdResult::new(
+            mcp::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Infer(args) => CmdResult::new(
+            infer::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Package(args) => CmdResult::new(
+            package::command(args, cfg, auth),
+            Some(args.diagnostic.clone()),
+        ),
     }
 }
 
