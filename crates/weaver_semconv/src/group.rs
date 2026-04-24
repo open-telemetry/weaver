@@ -306,6 +306,12 @@ impl GroupSpec {
                     error: "This group contains a metric type but the unit is not set.".to_owned(),
                 });
             }
+            if self.metric_requirement_level.is_none() {
+                errors.push(Error::MissingMetricRequirementLevelWarning {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                });
+            }
         }
 
         if matches!(self.deprecated, Some(Deprecated::Unspecified { .. })) {
@@ -686,7 +692,7 @@ mod tests {
         CompoundError, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroup,
         InvalidGroupMissingExtendsOrAttributes, InvalidGroupMissingType, InvalidGroupStability,
         InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
-        UnstructuredDeprecatedProperty,
+        MissingMetricRequirementLevelWarning, UnstructuredDeprecatedProperty,
     };
 
     use super::*;
@@ -810,6 +816,10 @@ mod tests {
                     path_or_url: "<test>".to_owned(),
                     group_id: "test".to_owned(),
                     error: "This group contains a metric type but the unit is not set.".to_owned(),
+                },
+                MissingMetricRequirementLevelWarning {
+                    path_or_url: "<test>".to_owned(),
+                    group_id: "test".to_owned(),
                 },
             ],),),
             result
@@ -1637,6 +1647,7 @@ mod tests {
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
+        group.metric_requirement_level = Some(BasicRequirementLevelSpec::Recommended);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1831,6 +1842,7 @@ mod tests {
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
+        group.metric_requirement_level = Some(BasicRequirementLevelSpec::Recommended);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -1957,7 +1969,7 @@ mod tests {
             metric_name: Some("metric".to_owned()),
             instrument: Some(Gauge),
             unit: Some("{thing}".to_owned()),
-            metric_requirement_level: None,
+            metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
             name: None,
             display_name: None,
             body: None,
@@ -2030,11 +2042,19 @@ mod tests {
             is_v2: false,
         };
 
-        // metric_requirement_level: None defaults to recommended — valid
-        assert!(base_metric
+        // metric_requirement_level: None emits a warning (promoted to error with --future)
+        let (_, nfes) = base_metric
             .validate("<test>")
-            .into_result_failing_non_fatal()
-            .is_ok());
+            .into_result_with_non_fatal()
+            .expect("expected ok with non-fatals");
+        assert_eq!(nfes.len(), 1);
+        assert!(matches!(
+            &nfes[0],
+            MissingMetricRequirementLevelWarning {
+                group_id,
+                ..
+            } if group_id == "metric.test"
+        ));
 
         // metric_requirement_level: Required — valid
         let mut group = base_metric.clone();
@@ -2095,5 +2115,54 @@ groups:
             group.metric_requirement_level,
             Some(BasicRequirementLevelSpec::Required)
         );
+    }
+
+    #[test]
+    fn test_missing_metric_requirement_level_future_mode() {
+        use miette::{Diagnostic, Severity};
+        use weaver_common::diagnostic::{
+            disable_future_mode, enable_future_mode, DiagnosticMessage,
+        };
+
+        let metric = GroupSpec {
+            id: "metric.future.test".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "test".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            include_groups: vec![],
+            stability: Some(Stability::Development),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("future.test".to_owned()),
+            instrument: Some(Counter),
+            unit: Some("{request}".to_owned()),
+            metric_requirement_level: None,
+            name: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+        };
+
+        // Without --future: warning severity
+        let (_, nfes) = metric
+            .validate("<test>")
+            .into_result_with_non_fatal()
+            .expect("expected ok with non-fatals");
+        assert_eq!(nfes.len(), 1);
+        let warn = nfes.into_iter().next().unwrap();
+        assert_eq!(warn.severity(), Some(Severity::Warning));
+
+        // With --future: DiagnosticMessage::new upgrades severity to Error
+        enable_future_mode();
+        let diag = DiagnosticMessage::new(warn);
+        assert!(!diag.is_warning(), "expected error severity under --future");
+        disable_future_mode();
     }
 }
