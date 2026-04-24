@@ -94,6 +94,60 @@ pub struct SemConvSpecV2 {
 }
 
 impl SemConvSpecV2 {
+    /// Creates a v2 semantic convention spec with the main signal sections.
+    #[must_use]
+    pub fn new(
+        attributes: Vec<AttributeDef>,
+        entities: Vec<Entity>,
+        events: Vec<Event>,
+        metrics: Vec<Metric>,
+        spans: Vec<Span>,
+    ) -> Self {
+        Self {
+            attributes,
+            entities,
+            events,
+            metrics,
+            spans,
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        }
+    }
+
+    /// Returns the attribute definitions in this spec.
+    #[must_use]
+    pub fn attributes(&self) -> &[AttributeDef] {
+        &self.attributes
+    }
+
+    /// Returns the entity definitions in this spec.
+    #[must_use]
+    pub fn entities(&self) -> &[Entity] {
+        &self.entities
+    }
+
+    /// Returns the event definitions in this spec.
+    #[must_use]
+    pub fn events(&self) -> &[Event] {
+        &self.events
+    }
+
+    /// Returns the metric definitions in this spec.
+    #[must_use]
+    pub fn metrics(&self) -> &[Metric] {
+        &self.metrics
+    }
+
+    /// Returns the span definitions in this spec.
+    #[must_use]
+    pub fn spans(&self) -> &[Span] {
+        &self.spans
+    }
+
     /// Returns the JSON Schema for this type, with `file_format` injected as a
     /// documented-only property. The field is intentionally absent from the Rust
     /// struct (it is stripped before serde deserialization) but must appear in
@@ -420,5 +474,36 @@ groups:
             file_format.get("const").and_then(|v| v.as_str()),
             Some("definition/2")
         );
+    }
+
+    #[test]
+    fn test_semconv_spec_v2_constructor_and_accessors() {
+        let spec = SemConvSpecV2::new(
+            vec![AttributeDef {
+                key: "test".to_owned(),
+                r#type: crate::attribute::AttributeType::PrimitiveOrArray(
+                    crate::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                examples: None,
+                common: CommonFields {
+                    brief: "test".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        assert_eq!(spec.attributes().len(), 1);
+        assert!(spec.entities().is_empty());
+        assert!(spec.events().is_empty());
+        assert!(spec.metrics().is_empty());
+        assert!(spec.spans().is_empty());
+        assert!(!spec.is_empty());
     }
 }
