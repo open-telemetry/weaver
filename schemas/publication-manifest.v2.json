@@ -19,7 +19,7 @@
       ]
     },
     "file_format": {
-      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0\"`in this version.",
+      "description": "File-format version of the form `prefix/MAJOR.MINOR`. Always `manifest/2.0`\nfor this schema. A different prefix or a different major version (in either\ndirection) is rejected; newer minor versions are tolerated for forward\ncompatibility (unknown fields are ignored, with a warning).",
       "type": "string",
       "const": "manifest/2.0"
     },

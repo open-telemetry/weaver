@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 ///       provide optimised methods for generating telemetry signals.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Refinements {
     /// A  list of span refinements.
     pub spans: Vec<SpanRefinement>,

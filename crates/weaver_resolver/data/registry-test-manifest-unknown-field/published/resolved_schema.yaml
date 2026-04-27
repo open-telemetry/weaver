@@ -1,0 +1,9 @@
+file_format: resolved/2.0
+schema_url: https://opentelemetry.io/schemas/1.0.0
+attribute_catalog:
+- key: server.port
+  type: int
+  brief: Server port number.
+  stability: stable
+registry:
+  attributes: [0]

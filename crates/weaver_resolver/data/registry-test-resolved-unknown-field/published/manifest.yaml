@@ -1,0 +1,18 @@
+# Typo-protection fixture for the resolved schema at a known minor: the
+# manifest itself is clean, but the referenced `resolved_schema.yaml` declares
+# `resolved/2.0` and seeds typos (mostly `not` for `note`) at every level —
+# top-level, attribute catalog, deprecated, attribute group, span name, span,
+# metric, metric attribute-ref, event, entity, span/metric refinements.
+# Loading must fail fatally with `UnexpectedFields` listing every reportable
+# typo. Note: `not: ""` entries are intentionally suppressed by the walker's
+# default-equivalent guard (empty string round-trips like a `skip_serializing_if`
+# field), so only typos with non-default values appear in the reported list.
+#
+# Used by:
+#   weaver_resolver::loader::tests::test_resolved_schema_unknown_field_in_current_version_fails
+#     (crates/weaver_resolver/src/loader.rs)
+file_format: manifest/2.0
+stability: stable
+schema_url: https://opentelemetry.io/schemas/1.0.0
+resolved_schema_uri: resolved_schema.yaml
+description: Test repository with resolved schema containing misspelled fields at every level.

@@ -1,0 +1,18 @@
+file_format: resolved/99.0
+schema_url: https://opentelemetry.io/schemas/1.0.0
+attribute_catalog:
+- key: server.port
+  type: int
+  brief: Server port number.
+  stability: stable
+registry:
+  attributes: [0]
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []

@@ -4,6 +4,7 @@
 
 pub mod diagnostic;
 pub mod error;
+pub mod file_format;
 pub mod ordered_float;
 pub mod result;
 #[cfg(test)]
@@ -12,12 +13,13 @@ pub mod vdir;
 
 use crate::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use crate::error::{format_errors, WeaverError};
+use crate::file_format::FileFormat;
 use crate::Error::CompoundError;
 use miette::Diagnostic;
 use paris::formatter::colorize_string;
 use serde::Serialize;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -86,6 +88,30 @@ pub enum Error {
     UnsupportedRegistryArchive {
         /// The registry archive path
         archive: String,
+    },
+
+    /// The file_format major version is incompatible with this version of weaver.
+    #[error("Incompatible file_format '{found}' in {path:?}: does not match supported file format '{expected}'.")]
+    #[diagnostic(severity(Error))]
+    IncompatibleFileFormatMajorVersion {
+        /// Path to the file containing the incompatible file_format.
+        path: PathBuf,
+        /// The file format found in the file.
+        found: FileFormat,
+        /// The file format this build of weaver supports.
+        expected: FileFormat,
+    },
+
+    /// The `file_format` string could not be parsed or has an unexpected prefix.
+    #[error("Unknown file_format '{found}' in {path:?}. Expected '{expected}'.")]
+    #[diagnostic(severity(Error))]
+    UnrecognizedFileFormat {
+        /// Path to the file containing the unrecognized file_format.
+        path: PathBuf,
+        /// The file_format string found in the file.
+        found: String,
+        /// The file format this build of weaver supports.
+        expected: FileFormat,
     },
 
     /// A container for multiple errors.

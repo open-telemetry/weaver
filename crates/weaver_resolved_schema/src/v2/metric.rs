@@ -12,7 +12,7 @@ use weaver_semconv::{
 /// The definition of a metric signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Metric {
     /// The name of the metric.
     pub name: SignalId,
@@ -51,7 +51,7 @@ pub struct Metric {
 /// A special type of reference to attributes that remembers metric-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct MetricAttributeRef {
     /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,

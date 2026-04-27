@@ -18,6 +18,7 @@ weaver_semconv = { path = "../weaver_semconv" }
 
 thiserror.workspace = true
 serde.workspace = true
+serde_yaml.workspace = true
 schemars.workspace = true
 log.workspace = true
 utoipa = { workspace = true, optional = true }

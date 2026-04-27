@@ -12,6 +12,7 @@ use crate::registry::{Group, Registry};
 use crate::resource::Resource;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
+use weaver_common::file_format::FileFormat;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::manifest::RegistryManifest;
@@ -38,10 +39,10 @@ pub use error::Error;
 /// This ID is reserved and should not be used by any other registry.
 pub const OTEL_REGISTRY_ID: &str = "OTEL";
 
-/// Version string denoting V1 resolved schema.
-pub(crate) const V1_RESOLVED_FILE_FORMAT: &str = "resolved/1.0";
-/// Version string denoting V2 resolved schema.
-pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0";
+/// V1 resolved schema file format.
+pub const V1_RESOLVED_FILE_FORMAT: FileFormat = FileFormat::new("resolved", 1, 0);
+/// V2 resolved schema file format supported by this build.
+pub const V2_RESOLVED_FILE_FORMAT: FileFormat = FileFormat::new("resolved", 2, 0);
 
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
@@ -49,7 +50,7 @@ pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0";
 #[derive(Debug)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
-    pub file_format: String,
+    pub file_format: FileFormat,
     /// Schema URL that this file is published at.
     pub schema_url: String,
     /// The ID of the registry that this schema belongs to.
@@ -91,7 +92,7 @@ impl ResolvedTelemetrySchema {
     /// Create a new resolved telemetry schema.
     pub fn new<S: AsRef<str>>(schema_url: S, registry_id: S, registry_url: S) -> Self {
         Self {
-            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
+            file_format: V1_RESOLVED_FILE_FORMAT.clone(),
             schema_url: schema_url.as_ref().to_owned(),
             registry_id: registry_id.as_ref().to_owned(),
             registry: Registry::new(registry_url),

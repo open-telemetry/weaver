@@ -198,8 +198,8 @@ impl SpanRefinement {
 /// Specification of the span name.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct SpanName {
     /// Required description of how a span name should be created.
     pub note: String,

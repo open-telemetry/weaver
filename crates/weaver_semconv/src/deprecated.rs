@@ -101,11 +101,13 @@ where
                     "reason" => action = Some(map.next_value::<String>()?),
                     "renamed_to" => new_name = Some(map.next_value()?),
                     "note" => note = Some(map.next_value()?),
+                    // Silently drop unknowns so newer-minor schemas stay
+                    // forward-compatible. The outer-document parsers
+                    // (resolved schema, publication manifest) re-check raw
+                    // vs. round-tripped YAML via `unexpected_fields::check`
+                    // for known minors and surface these as typos there.
                     _ => {
-                        return Err(de::Error::unknown_field(
-                            &key,
-                            &["reason", "note", "renamed_to"],
-                        ))
+                        let _ = map.next_value::<de::IgnoredAny>()?;
                     }
                 }
             }

@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn test_try_from_resolved_schema() {
         let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
+            file_format: "resolved/2.0".parse().unwrap(),
             schema_url: "https://example.com/schema".try_into().unwrap(),
             attribute_catalog: vec![attribute::Attribute {
                 key: "test.attr".to_owned(),
@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn test_try_from_resolved_schema_with_missing_attribute() {
         let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
+            file_format: "resolved/2.0".parse().unwrap(),
             schema_url: "https://example.com/schema".try_into().unwrap(),
             attribute_catalog: vec![],
             dependencies: std::collections::BTreeSet::new(),
