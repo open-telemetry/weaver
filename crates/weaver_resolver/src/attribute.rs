@@ -804,7 +804,7 @@ mod tests {
         };
 
         let schema1 = V2Schema {
-            file_format: "resolved/2.0".to_owned(),
+            file_format: "resolved/2.0".parse().unwrap(),
             schema_url: "http://test/schema/1.0.0".try_into().unwrap(),
             attribute_catalog: vec![attr1.clone()],
             registry: weaver_resolved_schema::v2::registry::Registry {
@@ -824,7 +824,7 @@ mod tests {
         };
 
         let schema2 = V2Schema {
-            file_format: "resolved/2.0".to_owned(),
+            file_format: "resolved/2.0".parse().unwrap(),
             schema_url: "http://test/schema/2.0.0".try_into().unwrap(),
             attribute_catalog: vec![attr1.clone()],
             registry: weaver_resolved_schema::v2::registry::Registry {
@@ -888,7 +888,7 @@ mod tests {
         _ = root_attributes.insert(attr_name.to_owned(), (attr_v1.clone(), "group1".to_owned()));
 
         let schema_v1 = V1Schema {
-            file_format: "resolved/1.0".to_owned(),
+            file_format: "resolved/1.0".parse().unwrap(),
             schema_url: "http://test/schema/1.0.0".to_owned(),
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
@@ -913,7 +913,7 @@ mod tests {
         };
 
         let schema_v2 = V2Schema {
-            file_format: "resolved/2.0".to_owned(),
+            file_format: "resolved/2.0".parse().unwrap(),
             schema_url: "http://test/schema/2.0.0".try_into().unwrap(),
             attribute_catalog: vec![attr_v2],
             registry: weaver_resolved_schema::v2::registry::Registry {
@@ -979,7 +979,7 @@ mod tests {
             provenance: Default::default(),
         };
         V2Schema {
-            file_format: "resolved/2.0".to_owned(),
+            file_format: "resolved/2.0".parse().unwrap(),
             schema_url: url.try_into().expect("valid url"),
             attribute_catalog: vec![attr],
             registry: weaver_resolved_schema::v2::registry::Registry {
