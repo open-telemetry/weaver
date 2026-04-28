@@ -27,8 +27,8 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListState, Paragraph},
     Frame,
 };
+use ratatui_textarea::TextArea;
 use std::io::{stdout, IsTerminal};
-use tui_textarea::TextArea;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
