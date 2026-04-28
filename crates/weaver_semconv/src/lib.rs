@@ -11,6 +11,7 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::file_format::FileFormat;
 
 pub mod any_value;
 pub mod attribute;
@@ -25,6 +26,7 @@ pub mod schema_url;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod unexpected_fields;
 pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
@@ -374,6 +376,20 @@ pub enum Error {
     UnexpectedPublicationManifest {
         /// The schema URL of the publication manifest.
         schema_url: String,
+    },
+
+    /// Unknown fields were encountered when parsing a file whose minor version
+    /// is known/past. Used for typo protection — newer minor versions tolerate
+    /// unknowns for forward compatibility.
+    #[error("Unexpected fields for {file_format} at {path_or_url:?}: {}", fields.join(", "))]
+    #[diagnostic(severity(Error))]
+    UnexpectedFields {
+        /// The path or URL of the file being parsed.
+        path_or_url: String,
+        /// The file format declaration (e.g. `resolved/2.0`) the unknowns were checked against.
+        file_format: FileFormat,
+        /// The dotted paths of fields not recognized by the typed schema.
+        fields: Vec<String>,
     },
 
     /// A container for multiple errors.

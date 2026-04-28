@@ -388,7 +388,7 @@ impl Display for TemplateTypeSpec {
     Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
 )]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
     pub id: String,

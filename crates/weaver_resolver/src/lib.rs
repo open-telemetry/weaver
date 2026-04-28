@@ -9,7 +9,7 @@ use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
 use crate::registry::resolve_registry_with_dependencies;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_resolved_schema::{ResolvedTelemetrySchema, V1_RESOLVED_FILE_FORMAT};
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
@@ -139,7 +139,7 @@ impl SchemaResolver {
         )
         .map(move |resolved_registry| {
             ResolvedTelemetrySchema {
-                file_format: "1.0.0".to_owned(),
+                file_format: V1_RESOLVED_FILE_FORMAT.clone(),
                 schema_url: schema_url.as_str().to_owned(),
                 registry_id: schema_url.name().to_owned(),
                 registry: resolved_registry,

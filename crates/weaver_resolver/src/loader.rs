@@ -254,9 +254,14 @@ fn load_semconv_repository_recursive(
 /// Loads a resolved repository.
 fn load_resolved_repository(path: &VirtualDirectoryPath) -> WResult<LoadedSemconvRegistry, Error> {
     // TODO - should we handle V1 and V2?
-    match from_vdir(path) {
-        Ok(resolved) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(resolved)),
-        Err(err) => WResult::FatalErr(err),
+    let raw: serde_yaml::Value = match from_vdir(path) {
+        Ok(v) => v,
+        Err(err) => return WResult::FatalErr(err),
+    };
+    let path_buf = std::path::PathBuf::from(path.to_string());
+    match V2Schema::from_yaml_value(raw, &path_buf) {
+        Ok(schema) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(schema)),
+        Err(err) => WResult::FatalErr(err.into()),
     }
 }
 
@@ -479,6 +484,133 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_resolved_schema_minor_version_ahead_succeeds() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-resolved-minor-ahead/published".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, false);
+        match result {
+            WResult::Ok(LoadedSemconvRegistry::ResolvedV2(_)) => {}
+            WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2(_), _) => {}
+            _ => panic!("Expected ResolvedV2 success"),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolved_schema_major_version_mismatch_fails() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-resolved-major-mismatch/published".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, false);
+        match result {
+            WResult::FatalErr(err) => {
+                let msg = err.to_string();
+                assert!(
+                    msg.contains("Incompatible file_format"),
+                    "Expected major version error, got: {msg}"
+                );
+            }
+            _ => panic!("Expected fatal error for major version mismatch"),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolved_schema_unknown_field_in_current_version_fails() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-resolved-unknown-field/published".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, false);
+        // The fixture seeds typos at every recursable level. Only entries with
+        // non-default-equivalent values are reported — the walker suppresses
+        // null/""/[]/{} as a false-positive guard for `skip_serializing_if`
+        // fields, so the many `not: ""` entries in the fixture are intentionally
+        // *not* in this list.
+        let expected = [
+            "not",
+            "attribute_catalog[0].not",
+            "attribute_catalog[1].deprecated.not",
+            // Typo on an enum-typed attribute member entry.
+            "attribute_catalog[2].type.members[0].not",
+            // Typos on `Renamed` and `Uncategorized` deprecation variants.
+            "attribute_catalog[3].deprecated.not",
+            "attribute_catalog[4].deprecated.does_not_exist",
+            "registry.spans[0].name.does_not_exist",
+            "registry.spans[0].not",
+            // Typos on attribute-ref entries inside each signal kind.
+            "registry.spans[0].attributes[0].not",
+            "registry.metrics[0].attributes[0].not",
+            "registry.events[0].attributes[0].not",
+            // Typo on the complex single-key-map variant of RequirementLevel.
+            "registry.events[0].attributes[0].requirement_level.not",
+            "registry.entities[0].identity[0].not",
+            // Typo on an event refinement entry.
+            "refinements.events[0].not",
+        ];
+        match result {
+            WResult::FatalErr(Error::FailToResolveDefinition(
+                weaver_semconv::Error::UnexpectedFields {
+                    fields,
+                    file_format,
+                    ..
+                },
+            )) => {
+                assert_eq!(file_format.to_string(), "resolved/2.0");
+                let actual: HashSet<&str> = fields.iter().map(String::as_str).collect();
+                let expected_set: HashSet<&str> = expected.iter().copied().collect();
+                let missing: Vec<&&str> = expected_set.difference(&actual).collect();
+                let extra: Vec<&&str> = actual.difference(&expected_set).collect();
+                assert!(
+                    missing.is_empty() && extra.is_empty(),
+                    "Unexpected-field set mismatch.\n  missing: {missing:?}\n  extra:   {extra:?}\n  actual:  {fields:?}"
+                );
+            }
+            WResult::FatalErr(other) => {
+                panic!("Expected FailToResolveDefinition(UnexpectedFields), got fatal: {other}")
+            }
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected fatal error for unknown fields in current minor, got Ok")
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_manifest_unknown_field_in_current_version_fails() {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-manifest-unknown-field/published".to_owned(),
+        };
+        let err = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect_err("expected manifest unknown-field rejection");
+        // The fixture seeds an unknown both at the top of the manifest and inside
+        // a dependency entry, so the walker must recurse into `dependencies[i]`
+        // and surface the nested typo too — not just the top-level one.
+        let expected = ["not", "dependencies[0].not"];
+        match err {
+            weaver_semconv::Error::UnexpectedFields {
+                fields,
+                file_format,
+                ..
+            } => {
+                assert_eq!(file_format.to_string(), "manifest/2.0");
+                let actual: HashSet<&str> = fields.iter().map(String::as_str).collect();
+                let expected_set: HashSet<&str> = expected.iter().copied().collect();
+                let missing: Vec<&&str> = expected_set.difference(&actual).collect();
+                let extra: Vec<&&str> = actual.difference(&expected_set).collect();
+                assert!(
+                    missing.is_empty() && extra.is_empty(),
+                    "Unexpected-field set mismatch.\n  missing: {missing:?}\n  extra:   {extra:?}\n  actual:  {fields:?}"
+                );
+            }
+            other => panic!("expected UnexpectedFields, got: {other:?}"),
+        }
     }
 
     #[test]

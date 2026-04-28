@@ -20,7 +20,7 @@
       "uniqueItems": true
     },
     "file_format": {
-      "description": "Version of the file structure.\nAlways `\"resolved/2.0\"` in this version.",
+      "description": "File-format version of the form `prefix/MAJOR.MINOR`. Always `resolved/2.0`\nfor this schema. A different prefix or a different major version (in either\ndirection) is rejected; newer minor versions are tolerated for forward\ncompatibility (unknown fields are ignored, with a warning).",
       "type": "string",
       "const": "resolved/2.0"
     },

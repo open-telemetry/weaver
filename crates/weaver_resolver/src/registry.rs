@@ -992,6 +992,11 @@ mod tests {
             // "registry-test-8-http",
             // "registry-test-v2-2-multifile",
             "registry-test-v2-dep", // tested separately in lib.rs
+            // These tests use published resolved schemas and are tested in loader.rs
+            "registry-test-resolved-minor-ahead",
+            "registry-test-resolved-major-mismatch",
+            "registry-test-resolved-unknown-field",
+            "registry-test-manifest-unknown-field",
         ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
@@ -1116,11 +1121,16 @@ mod tests {
                     .expect("Failed to write observed output.");
 
                 // Check that the resolved registry matches the expected registry.
-                let expected_schema: ResolvedTelemetrySchema = serde_yaml::from_reader(
-                    std::fs::File::open(format!("{test_dir}/{EXPECTED_V2_SCHEMA_FILE}"))
-                        .expect("Failed to open expected schema"),
+                let expected_path = format!("{test_dir}/{EXPECTED_V2_SCHEMA_FILE}");
+                let expected_raw: serde_yaml::Value = serde_yaml::from_reader(
+                    std::fs::File::open(&expected_path).expect("Failed to open expected schema"),
                 )
-                .expect("Failed to deserialize expected schema");
+                .expect("Failed to parse expected schema as YAML");
+                let expected_schema = ResolvedTelemetrySchema::from_yaml_value(
+                    expected_raw,
+                    std::path::Path::new(&expected_path),
+                )
+                .expect("Failed to load expected schema");
 
                 assert_eq!(
                     to_json(&observed_schema),

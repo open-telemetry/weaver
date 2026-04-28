@@ -16,8 +16,8 @@ use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 /// the bundle as a group to different signals.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct AttributeGroup {
     /// The name of the attribute group, must be unique.
     pub id: SignalId,

@@ -4,6 +4,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_common::file_format::FileFormat;
 use weaver_semconv::{
     deprecated::Deprecated,
     group::GroupType,
@@ -45,14 +46,16 @@ pub mod stats;
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Serialize, Clone, Debug, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
-    /// Version of the file structure.
-    /// Always `"resolved/2.0"` in this version.
-    #[schemars(extend("const" = "resolved/2.0"))]
-    pub file_format: String,
+    /// File-format version of the form `prefix/MAJOR.MINOR`. Always `resolved/2.0`
+    /// for this schema. A different prefix or a different major version (in either
+    /// direction) is rejected; newer minor versions are tolerated for forward
+    /// compatibility (unknown fields are ignored, with a warning).
+    #[schemars(with = "String", extend("const" = "resolved/2.0"))]
+    pub file_format: FileFormat,
     /// Schema URL that this file is published at.
     pub schema_url: SchemaUrl,
     /// Catalog of attributes. Note: this will include duplicates for the same key.
@@ -66,7 +69,65 @@ pub struct ResolvedTelemetrySchema {
     pub dependencies: BTreeSet<SchemaUrl>,
 }
 
+/// Private deserialization mirror for [`ResolvedTelemetrySchema`]. Mirrors all fields
+/// so [`ResolvedTelemetrySchema::from_yaml_value`] can route serde through this struct,
+/// keeping the public type non-`Deserialize`. Also `Serialize` so
+/// [`weaver_semconv::unexpected_fields::check`] can round-trip it for the unknown-field diff.
+#[derive(Deserialize, Serialize)]
+struct ResolvedTelemetrySchemaRaw {
+    file_format: FileFormat,
+    schema_url: SchemaUrl,
+    attribute_catalog: Vec<Attribute>,
+    registry: Registry,
+    refinements: Refinements,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    dependencies: BTreeSet<SchemaUrl>,
+}
+
+impl From<ResolvedTelemetrySchemaRaw> for ResolvedTelemetrySchema {
+    fn from(raw: ResolvedTelemetrySchemaRaw) -> Self {
+        Self {
+            file_format: raw.file_format,
+            schema_url: raw.schema_url,
+            attribute_catalog: raw.attribute_catalog,
+            registry: raw.registry,
+            refinements: raw.refinements,
+            dependencies: raw.dependencies,
+        }
+    }
+}
+
 impl ResolvedTelemetrySchema {
+    /// Parse a [`ResolvedTelemetrySchema`] from a raw YAML value, validating its
+    /// `file_format` against [`V2_RESOLVED_FILE_FORMAT`].
+    ///
+    /// Mirrors `RawManifestFields::into_manifest` in `weaver_semconv`: deserializes via
+    /// the private `ResolvedTelemetrySchemaRaw` mirror, then [`weaver_semconv::unexpected_fields::check`]
+    /// validates the declared file format and rejects unknown fields when the minor
+    /// version is known/past (typo protection). Newer-minor versions tolerate unknowns
+    /// for forward compatibility (a warning is logged).
+    pub fn from_yaml_value(
+        raw: serde_yaml::Value,
+        path: &std::path::Path,
+    ) -> Result<Self, weaver_semconv::Error> {
+        let raw_schema: ResolvedTelemetrySchemaRaw =
+            serde_yaml::from_value(raw.clone()).map_err(|e| {
+                weaver_semconv::Error::DeserializationError {
+                    path_or_url: path.display().to_string(),
+                    error: format!("Unable to read resolved schema: {e}"),
+                }
+            })?;
+
+        weaver_semconv::unexpected_fields::check(
+            &raw,
+            &raw_schema,
+            &V2_RESOLVED_FILE_FORMAT,
+            &raw_schema.file_format,
+            path,
+        )?;
+        Ok(raw_schema.into())
+    }
+
     /// Statistics about this schema.
     pub fn stats(&self) -> Stats {
         Stats {
@@ -143,7 +204,7 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
                 })?;
 
         Ok(ResolvedTelemetrySchema {
-            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
+            file_format: V2_RESOLVED_FILE_FORMAT.clone(),
             schema_url,
             attribute_catalog,
             registry,
@@ -674,9 +735,12 @@ fn diff_signals_by_hash<T: Signal>(
 mod tests {
 
     use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
-    use crate::v2::event::Event;
+    use crate::v2::entity::EntityAttributeRef;
+    use crate::v2::event::{Event, EventAttributeRef};
+    use crate::v2::span::SpanAttributeRef;
     use crate::V1_RESOLVED_FILE_FORMAT;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
+    use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
     use crate::lineage::AttributeLineage;
@@ -1103,7 +1167,7 @@ mod tests {
         let _ = dependencies.insert("http://dependency/url/1.0.0".try_into().unwrap());
 
         let v1_schema = crate::ResolvedTelemetrySchema {
-            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
+            file_format: V1_RESOLVED_FILE_FORMAT.clone(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
             registry_id: "my-registry".to_owned(),
             catalog: crate::catalog::Catalog::default(),
@@ -1343,7 +1407,7 @@ mod tests {
     // create an empty schema for testing.
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
-            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
+            file_format: V2_RESOLVED_FILE_FORMAT.clone(),
             schema_url: "http://test/schemas/1.0"
                 .try_into()
                 .expect("Should be valid schema url"),
@@ -1363,5 +1427,450 @@ mod tests {
             },
             dependencies: BTreeSet::new(),
         }
+    }
+
+    fn yaml(s: &str) -> serde_yaml::Value {
+        serde_yaml::from_str(s).expect("valid yaml")
+    }
+
+    #[test]
+    fn from_yaml_value_reports_deserialization_error_with_path() {
+        // `attribute_catalog` is typed as Vec<Attribute>, so a string here should
+        // fail at serde stage and surface as DeserializationError carrying the path.
+        let raw = yaml(
+            r#"
+file_format: resolved/2.0
+schema_url: http://test/schemas/1.0
+attribute_catalog: "not a list"
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+"#,
+        );
+        let err =
+            ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("schema.yaml"))
+                .expect_err("should fail to deserialize");
+        match err {
+            weaver_semconv::Error::DeserializationError { path_or_url, error } => {
+                assert_eq!(path_or_url, "schema.yaml");
+                assert!(
+                    error.contains("Unable to read resolved schema"),
+                    "error message missing context: {error}"
+                );
+            }
+            _ => panic!("expected DeserializationError, got: {err:?}"),
+        }
+    }
+
+    #[test]
+    fn from_yaml_value_rejects_unknown_top_level_field() {
+        let raw = yaml(
+            r#"
+file_format: resolved/2.0
+schema_url: http://test/schemas/1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+unexpected_top: true
+"#,
+        );
+        let err = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect_err("should reject unknown field");
+        match err {
+            weaver_semconv::Error::UnexpectedFields {
+                fields,
+                file_format,
+                ..
+            } => {
+                assert_eq!(file_format.to_string(), "resolved/2.0");
+                assert_eq!(fields, vec!["unexpected_top".to_owned()]);
+            }
+            _ => panic!("expected UnexpectedFields, got: {err:?}"),
+        }
+    }
+
+    #[test]
+    fn from_yaml_value_rejects_unknown_nested_field() {
+        let raw = yaml(
+            r#"
+file_format: resolved/2.0
+schema_url: http://test/schemas/1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+  bogus_registry_field: 42
+refinements:
+  spans: []
+  metrics: []
+  events: []
+"#,
+        );
+        let err = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect_err("should reject unknown nested field");
+        match err {
+            weaver_semconv::Error::UnexpectedFields {
+                fields,
+                file_format,
+                ..
+            } => {
+                assert_eq!(file_format.to_string(), "resolved/2.0");
+                assert_eq!(fields, vec!["registry.bogus_registry_field".to_owned()]);
+            }
+            _ => panic!("expected UnexpectedFields, got: {err:?}"),
+        }
+    }
+
+    #[test]
+    fn from_yaml_value_tolerates_unknown_on_newer_minor() {
+        let raw = yaml(
+            r#"
+file_format: resolved/2.99
+schema_url: http://test/schemas/1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+unexpected_top: true
+"#,
+        );
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("newer minor should tolerate unknowns");
+    }
+
+    #[test]
+    fn from_yaml_value_tolerates_explicit_default_values_on_skip_serializing_if_fields() {
+        // Fields like `Span.attributes` use `#[serde(skip_serializing_if = "Vec::is_empty")]`,
+        // so an empty Vec is dropped on re-serialize. A user that writes the default value
+        // explicitly (e.g. `attributes: []`, `entity_associations: []`, `sampling_relevant: null`)
+        // should NOT trigger a false-positive unknown-field error.
+        let raw = yaml(
+            r#"
+file_format: resolved/2.0
+schema_url: http://test/schemas/1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans:
+    - type: test.span
+      kind: client
+      name: { note: x }
+      brief: A test span.
+      stability: stable
+      attributes: []
+      entity_associations: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+"#,
+        );
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("explicit default values should not be flagged as unknown");
+    }
+
+    #[test]
+    fn from_yaml_value_rejects_incompatible_major() {
+        let raw = yaml(
+            r#"
+file_format: resolved/3.0
+schema_url: http://test/schemas/1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+"#,
+        );
+        let err = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect_err("should reject incompatible major");
+        assert!(matches!(
+            err,
+            weaver_semconv::Error::VirtualDirectoryError(
+                weaver_common::Error::IncompatibleFileFormatMajorVersion { .. }
+            )
+        ));
+    }
+
+    /// Builds a minimal resolved schema with one signal of each kind, where the
+    /// requested per-signal `attribute_ref_extra` YAML snippet is injected into
+    /// the named ref site. `file_format` controls whether unknowns should be
+    /// tolerated (e.g. `resolved/2.99`) or rejected (e.g. `resolved/2.0`).
+    ///
+    /// `ref_site` selects which ref site is exercised; the others are left empty.
+    fn yaml_with_attr_ref_unknown(file_format: &str, ref_site: &str) -> serde_yaml::Value {
+        let unknown = "future_attr_ref_field: some_value";
+        let mut span_attrs = String::from("attributes: []");
+        let mut metric_attrs = String::from("attributes: []");
+        let mut event_attrs = String::from("attributes: []");
+        let mut entity_identity = String::from("identity: []");
+        let mut entity_description = String::from("description: []");
+        let attr_ref_with_unknown = format!(
+            "attributes:\n      - base: 0\n        requirement_level: required\n        {unknown}"
+        );
+        let identity_ref_with_unknown = format!(
+            "identity:\n      - base: 0\n        requirement_level: required\n        {unknown}"
+        );
+        let description_ref_with_unknown = format!(
+            "description:\n      - base: 0\n        requirement_level: required\n        {unknown}"
+        );
+        match ref_site {
+            "span" => span_attrs = attr_ref_with_unknown,
+            "metric" => metric_attrs = attr_ref_with_unknown,
+            "event" => event_attrs = attr_ref_with_unknown,
+            "entity_identity" => entity_identity = identity_ref_with_unknown,
+            "entity_description" => {
+                // identity must be non-empty per schema, so seed it with a clean ref
+                entity_identity =
+                    String::from("identity:\n      - base: 0\n        requirement_level: required");
+                entity_description = description_ref_with_unknown;
+            }
+            other => panic!("unknown ref_site: {other}"),
+        }
+        let s = format!(
+            r#"
+file_format: {file_format}
+schema_url: http://test/schemas/1.0
+attribute_catalog:
+- key: test.attr
+  type: string
+  brief: ""
+  stability: stable
+registry:
+  attributes: [0]
+  attribute_groups: []
+  spans:
+  - type: test.span
+    kind: client
+    name:
+      note: a name
+    brief: ""
+    stability: stable
+    note: ""
+    {span_attrs}
+  metrics:
+  - name: test.metric
+    instrument: counter
+    unit: "1"
+    brief: ""
+    stability: stable
+    note: ""
+    {metric_attrs}
+  events:
+  - name: test.event
+    brief: ""
+    stability: stable
+    note: ""
+    {event_attrs}
+  entities:
+  - type: test.entity
+    brief: ""
+    stability: stable
+    note: ""
+    {entity_identity}
+    {entity_description}
+refinements:
+  spans: []
+  metrics: []
+  events: []
+"#
+        );
+        yaml(&s)
+    }
+
+    // ---- Tolerance on a future minor: deserialize must succeed for every ----
+    // ---- attribute-ref site across all signal kinds. ----
+
+    #[test]
+    fn future_minor_tolerates_unknown_on_span_attribute_ref() {
+        let raw = yaml_with_attr_ref_unknown("resolved/2.99", "span");
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("future minor should tolerate unknown on span attribute ref");
+    }
+
+    #[test]
+    fn future_minor_tolerates_unknown_on_metric_attribute_ref() {
+        let raw = yaml_with_attr_ref_unknown("resolved/2.99", "metric");
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("future minor should tolerate unknown on metric attribute ref");
+    }
+
+    #[test]
+    fn future_minor_tolerates_unknown_on_event_attribute_ref() {
+        let raw = yaml_with_attr_ref_unknown("resolved/2.99", "event");
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("future minor should tolerate unknown on event attribute ref");
+    }
+
+    #[test]
+    fn future_minor_tolerates_unknown_on_entity_identity_attribute_ref() {
+        let raw = yaml_with_attr_ref_unknown("resolved/2.99", "entity_identity");
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("future minor should tolerate unknown on entity identity ref");
+    }
+
+    #[test]
+    fn future_minor_tolerates_unknown_on_entity_description_attribute_ref() {
+        let raw = yaml_with_attr_ref_unknown("resolved/2.99", "entity_description");
+        let _ = ResolvedTelemetrySchema::from_yaml_value(raw, std::path::Path::new("test.yaml"))
+            .expect("future minor should tolerate unknown on entity description ref");
+    }
+
+    // ---- Rejection on a current minor: an unknown field in any attribute-ref ----
+    // ---- site must be reported by `from_yaml_value`. ----
+
+    fn assert_rejects_unknown_with_path(ref_site: &str, expected_path_fragment: &str) {
+        let raw = yaml_with_attr_ref_unknown("resolved/2.0", ref_site);
+        let expected = format!("{expected_path_fragment}.future_attr_ref_field");
+        match ResolvedTelemetrySchema::from_yaml_value(
+            raw.clone(),
+            std::path::Path::new("test.yaml"),
+        ) {
+            Ok(_) => {
+                panic!(
+                    "current minor should reject unknown field on {ref_site}; \
+                     parsed successfully. Expected an error mentioning '{expected}'."
+                );
+            }
+            Err(weaver_semconv::Error::UnexpectedFields {
+                fields,
+                file_format,
+                ..
+            }) => {
+                assert_eq!(
+                    file_format.to_string(),
+                    "resolved/2.0",
+                    "ref_site={ref_site}"
+                );
+                assert_eq!(
+                    fields,
+                    vec![expected.clone()],
+                    "ref_site={ref_site}: expected exactly one unknown field"
+                );
+            }
+            Err(err) => {
+                panic!("expected UnexpectedFields for {ref_site}, got: {err:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn current_minor_rejects_unknown_on_span_attribute_ref() {
+        assert_rejects_unknown_with_path("span", "registry.spans[0].attributes[0]");
+    }
+
+    #[test]
+    fn current_minor_rejects_unknown_on_metric_attribute_ref() {
+        assert_rejects_unknown_with_path("metric", "registry.metrics[0].attributes[0]");
+    }
+
+    #[test]
+    fn current_minor_rejects_unknown_on_event_attribute_ref() {
+        assert_rejects_unknown_with_path("event", "registry.events[0].attributes[0]");
+    }
+
+    #[test]
+    fn current_minor_rejects_unknown_on_entity_identity_attribute_ref() {
+        assert_rejects_unknown_with_path("entity_identity", "registry.entities[0].identity[0]");
+    }
+
+    #[test]
+    fn current_minor_rejects_unknown_on_entity_description_attribute_ref() {
+        assert_rejects_unknown_with_path(
+            "entity_description",
+            "registry.entities[0].description[0]",
+        );
+    }
+
+    // ---- Struct-level unknown-field tolerance: raw serde checks that each ----
+    // ---- signal type accepts unknown keys at deserialize time, independent ----
+    // ---- of the version-aware loader. These guard against accidentally adding ----
+    // ---- `#[serde(deny_unknown_fields)]` to a type, which would break forward ----
+    // ---- compatibility with newer-minor schemas. ----
+
+    #[test]
+    fn attribute_tolerates_unknown_fields() {
+        let yaml =
+            "key: test.attr\ntype: string\nbrief: A test.\nstability: stable\nfuture_field: value";
+        let result: Result<AttributeV2, _> = serde_yaml::from_str(yaml);
+        assert!(
+            result.is_ok(),
+            "Attribute should tolerate unknown fields for vNext compat, got: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn span_name_tolerates_unknown_fields() {
+        // SpanName is a weaver_semconv type reused in resolved schema.
+        // A vNext resolved schema may add fields to the name object.
+        let yaml = "note: 'test span'\nfuture_name_field: value";
+        let result: Result<SpanName, _> = serde_yaml::from_str(yaml);
+        assert!(
+            result.is_ok(),
+            "SpanName should tolerate unknown fields for vNext compat, got: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn span_attribute_ref_tolerates_unknown_fields() {
+        let yaml = "base: 0\nrequirement_level: required\nfuture_field: value";
+        let _ =
+            serde_yaml::from_str::<SpanAttributeRef>(yaml).expect("should tolerate unknown fields");
+    }
+
+    #[test]
+    fn event_attribute_ref_tolerates_unknown_fields() {
+        let yaml = "base: 0\nrequirement_level: required\nfuture_field: value";
+        let _ = serde_yaml::from_str::<EventAttributeRef>(yaml)
+            .expect("should tolerate unknown fields");
+    }
+
+    #[test]
+    fn entity_attribute_ref_tolerates_unknown_fields() {
+        let yaml = "base: 0\nrequirement_level: required\nfuture_field: value";
+        let _ = serde_yaml::from_str::<EntityAttributeRef>(yaml)
+            .expect("should tolerate unknown fields");
     }
 }
