@@ -404,41 +404,30 @@ fn resolve_attribute_references(
 
             // Remove attributes that are resolved and keep unresolved attributes
             // in the group for the next iteration.
-            unresolved_group.attributes = unresolved_group
-                .attributes
-                .clone()
-                .into_iter()
-                .filter_map(|attr| {
-                    let attr_ref = attr_catalog.resolve(
-                        &unresolved_group.group.id,
-                        &unresolved_group.group.prefix,
-                        &attr.spec,
-                        unresolved_group.group.lineage.as_mut(),
-                        &ureg.dependencies,
-                    );
-                    if let Some(attr_ref) = attr_ref {
-                        // Attribute reference resolved successfully.
-                        resolved_attr.push(attr_ref);
-                        resolved_attr_count += 1;
-
-                        // Return None to remove this attribute from the
-                        // unresolved group.
-                        None
-                    } else {
-                        // Attribute reference could not be resolved.
-                        if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
-                            // Keep track of unresolved attribute references in
-                            // the errors.
-                            errors.push(Error::UnresolvedAttributeRef {
-                                group_id: unresolved_group.group.id.clone(),
-                                attribute_ref: r#ref.clone(),
-                                provenance: unresolved_group.provenance.clone().map(Box::new),
-                            });
-                        }
-                        Some(attr)
+            let mut still_unresolved = vec![];
+            for attr in unresolved_group.attributes.clone() {
+                let attr_ref = attr_catalog.resolve(
+                    &unresolved_group.group.id,
+                    &unresolved_group.group.prefix,
+                    &attr.spec,
+                    unresolved_group.group.lineage.as_mut(),
+                    &ureg.dependencies,
+                )?;
+                if let Some(attr_ref) = attr_ref {
+                    resolved_attr.push(attr_ref);
+                    resolved_attr_count += 1;
+                } else {
+                    if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
+                        errors.push(Error::UnresolvedAttributeRef {
+                            group_id: unresolved_group.group.id.clone(),
+                            attribute_ref: r#ref.clone(),
+                            provenance: unresolved_group.provenance.clone().map(Box::new),
+                        });
                     }
-                })
-                .collect();
+                    still_unresolved.push(attr);
+                }
+            }
+            unresolved_group.attributes = still_unresolved;
 
             unresolved_group.group.attributes.extend(resolved_attr);
         }

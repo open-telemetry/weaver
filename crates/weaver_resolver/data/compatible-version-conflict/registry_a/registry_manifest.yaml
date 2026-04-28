@@ -1,0 +1,7 @@
+name: registry_a
+description: Registry A
+semconv_version: 0.1.0
+schema_base_url: https://example.com/a/
+dependencies:
+  - schema_url: https://example.com/c/1.1.0
+    registry_path: data/compatible-version-conflict/registry_c_v1_1
