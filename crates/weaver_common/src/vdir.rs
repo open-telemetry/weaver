@@ -405,8 +405,7 @@ impl VirtualDirectory {
         // Use shallow clone to save time and space when no specific refspec is given.
         // When a refspec is provided, we skip shallow clone because gix's shallow+single-branch
         // code path assumes the ref is a branch (refs/heads/), which breaks for tags (refs/tags/).
-        // TODO: Check if an upstream gix issue exists for this, or file one at
-        // https://github.com/GitoxideLabs/gitoxide/issues
+        // See upstream issue: https://github.com/GitoxideLabs/gitoxide/issues/2554
         let prepare = PrepareFetch::new(
             url,
             tmp_path.clone(),
