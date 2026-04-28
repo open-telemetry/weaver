@@ -227,6 +227,18 @@ pub enum Error {
         group_id: String,
     },
 
+    /// This warning indicates that a metric group does not set a requirement level.
+    /// It is treated as a non-critical warning unless the `--future` flag is enabled.
+    /// With the `--future` flag, this warning is elevated to an error.
+    #[error("The metric group `{group_id}` does not set `requirement_level`. This will be required in the future.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    MissingMetricRequirementLevelWarning {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the metric.
+        group_id: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {

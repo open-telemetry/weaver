@@ -9,7 +9,7 @@ use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
-use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
+use weaver_semconv::attribute::{AttributeRole, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
@@ -39,6 +39,8 @@ pub(crate) struct GroupSummary {
     pub instrument: Option<InstrumentSpec>,
     /// The unit.
     pub unit: Option<String>,
+    /// The requirement level of the metric.
+    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
     /// Specifies the kind of the span.
     pub span_kind: Option<SpanKindSpec>,
     /// The attributes from this group before being completely resolved to a catalog.
@@ -61,6 +63,7 @@ impl GroupSummary {
             metric_name: group.metric_name.clone(),
             instrument: group.instrument.clone(),
             unit: group.unit.clone(),
+            metric_requirement_level: group.metric_requirement_level.clone(),
             span_kind: group.span_kind.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
@@ -262,6 +265,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: Some(m.name.to_string()),
                 instrument: Some(m.instrument.clone()),
                 unit: Some(m.unit.clone()),
+                metric_requirement_level: None,
                 name: None,
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&m.provenance),
@@ -312,6 +316,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
+                metric_requirement_level: None,
                 name: Some(e.name.to_string()),
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&e.provenance),
@@ -386,6 +391,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
+                metric_requirement_level: None,
                 name: Some(e.r#type.to_string()),
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&e.provenance),
@@ -436,6 +442,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
+                metric_requirement_level: None,
                 name: Some(s.r#type.to_string()),
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&s.provenance),
@@ -489,6 +496,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
+                metric_requirement_level: None,
                 name: None,
                 lineage: None,
                 display_name: None,
@@ -599,6 +607,7 @@ impl GroupRefinementLookup for V2Schema {
                 metric_name: Some(m.name.to_string()),
                 instrument: Some(m.instrument.clone()),
                 unit: Some(m.unit.clone()),
+                metric_requirement_level: None,
                 name: None,
                 lineage: None,
                 display_name: None,
@@ -628,6 +637,7 @@ impl GroupRefinementLookup for V2Schema {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        metric_requirement_level: None,
                         name: Some(e.name.to_string()),
                         lineage: None,
                         display_name: None,
@@ -658,6 +668,7 @@ impl GroupRefinementLookup for V2Schema {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        metric_requirement_level: None,
                         name: Some(e.r#type.to_string()),
                         lineage: None,
                         display_name: None,
@@ -684,7 +695,7 @@ impl GroupRefinementLookup for V2Schema {
                         examples: a.examples.clone(),
                         tag: None,
                         requirement_level: RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                         sampling_relevant: None,
                         note: a.common.note.clone(),
@@ -787,6 +798,7 @@ mod tests {
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
+                        metric_requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -811,6 +823,7 @@ mod tests {
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
+                        metric_requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -871,6 +884,7 @@ mod tests {
                     unit: "1".to_owned(),
                     attributes: vec![],
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
                 }],

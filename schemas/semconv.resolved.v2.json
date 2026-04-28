@@ -800,6 +800,17 @@
           "description": "The provenance of this metric.",
           "$ref": "#/$defs/Provenance"
         },
+        "requirement_level": {
+          "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BasicRequirementLevelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -896,6 +907,17 @@
         "provenance": {
           "description": "The provenance of this metric.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BasicRequirementLevelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",

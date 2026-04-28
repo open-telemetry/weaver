@@ -660,6 +660,9 @@ mod tests {
                     name: "http.server.request.duration".to_owned().into(),
                     instrument: InstrumentSpec::Histogram,
                     unit: "s".to_owned(),
+                    requirement_level: Some(
+                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                    ),
                     attributes: vec![],
                     entity_associations: vec![],
                     common: CommonFields {

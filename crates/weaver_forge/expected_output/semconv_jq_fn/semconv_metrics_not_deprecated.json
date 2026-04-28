@@ -202,6 +202,7 @@
           }
         },
         "metric_name": "http.client.request.duration",
+        "metric_requirement_level": "required",
         "root_namespace": "http",
         "stability": "stable",
         "type": "metric",
@@ -224,6 +225,7 @@
           }
         },
         "metric_name": "jvm.class.count",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -241,6 +243,7 @@
           }
         },
         "metric_name": "jvm.class.loaded",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -258,6 +261,7 @@
           }
         },
         "metric_name": "jvm.class.unloaded",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -275,6 +279,7 @@
           }
         },
         "metric_name": "jvm.cpu.count",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -292,6 +297,7 @@
           }
         },
         "metric_name": "jvm.cpu.recent_utilization",
+        "metric_requirement_level": "recommended",
         "note": "The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).\n",
         "root_namespace": "jvm",
         "stability": "stable",
@@ -310,6 +316,7 @@
           }
         },
         "metric_name": "jvm.cpu.time",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -352,6 +359,7 @@
           }
         },
         "metric_name": "jvm.gc.duration",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -438,6 +446,7 @@
           }
         },
         "metric_name": "jvm.memory.committed",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -524,6 +533,7 @@
           }
         },
         "metric_name": "jvm.memory.limit",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -627,6 +637,7 @@
           }
         },
         "metric_name": "jvm.memory.used",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -713,6 +724,7 @@
           }
         },
         "metric_name": "jvm.memory.used_after_last_gc",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",
@@ -788,6 +800,7 @@
           }
         },
         "metric_name": "jvm.thread.count",
+        "metric_requirement_level": "recommended",
         "root_namespace": "jvm",
         "stability": "stable",
         "type": "metric",

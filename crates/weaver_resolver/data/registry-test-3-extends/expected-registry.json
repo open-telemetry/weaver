@@ -563,6 +563,7 @@
       "metric_name": "messaging.deliver.duration",
       "instrument": "histogram",
       "unit": "s",
+      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -686,6 +687,7 @@
       "metric_name": "messaging.deliver.messages",
       "instrument": "counter",
       "unit": "{message}",
+      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -809,6 +811,7 @@
       "metric_name": "messaging.publish.duration",
       "instrument": "histogram",
       "unit": "s",
+      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -932,6 +935,7 @@
       "metric_name": "messaging.publish.messages",
       "instrument": "counter",
       "unit": "{message}",
+      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -1055,6 +1059,7 @@
       "metric_name": "messaging.receive.duration",
       "instrument": "histogram",
       "unit": "s",
+      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -1178,6 +1183,7 @@
       "metric_name": "messaging.receive.messages",
       "instrument": "counter",
       "unit": "{message}",
+      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",

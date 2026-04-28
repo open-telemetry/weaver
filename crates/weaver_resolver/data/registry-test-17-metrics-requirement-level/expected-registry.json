@@ -1,0 +1,21 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "metric.some_metric",
+      "type": "metric",
+      "brief": "Measures something",
+      "stability": "development",
+      "metric_name": "some_metric",
+      "instrument": "histogram",
+      "unit": "s",
+      "metric_requirement_level": "required",
+      "lineage": {
+        "provenance": {
+          "schema_url": "https://default/0.1.0",
+          "path": "data/registry-test-17-metrics-requirement-level/registry/metrics.yaml"
+        }
+      }
+    }
+  ]
+}
