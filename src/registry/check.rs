@@ -179,6 +179,7 @@ mod tests {
                 + 3 /* metric after resolution */
                 + 9 /* http after resolution */
                 + 1 /* deprecated string note */
+                + 6 /* missing metric_requirement_level (3 http + 3 system) */
             );
         }
     }
