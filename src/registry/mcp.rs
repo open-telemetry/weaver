@@ -12,11 +12,11 @@ use clap::Args;
 use log::info;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 
 /// Parameters for the `registry mcp` subcommand.
 #[derive(Debug, Args)]

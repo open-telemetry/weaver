@@ -78,8 +78,7 @@ pub(crate) fn command(
     let registry_path = &args.registry.registry;
 
     let mut nfes = vec![];
-    let main_registry_repo =
-        RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
+    let main_registry_repo = RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
 
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 

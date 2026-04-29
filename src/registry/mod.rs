@@ -381,10 +381,9 @@ pub fn semconv_registry(
             emit::command(args, cfg, auth),
             Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::Mcp(args) => CmdResult::new(
-            mcp::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
-        ),
+        RegistrySubCommand::Mcp(args) => {
+            CmdResult::new(mcp::command(args, cfg, auth), Some(args.diagnostic.clone()))
+        }
         RegistrySubCommand::Infer(args) => CmdResult::new(
             infer::command(args, cfg, auth),
             Some(args.diagnostic.clone()),

@@ -14,8 +14,6 @@ use crate::{
     weaver::WeaverEngine,
     DiagnosticArgs, ExitDirectives,
 };
-use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
 use ratatui::{
     crossterm::{
         event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
@@ -31,6 +29,8 @@ use ratatui::{
 };
 use std::io::{stdout, IsTerminal};
 use tui_textarea::TextArea;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]

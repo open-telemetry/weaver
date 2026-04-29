@@ -5,14 +5,14 @@
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
-use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
 use clap::Args;
 use include_dir::{include_dir, Dir};
 use log::info;
 use serde::Serialize;
 use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 use weaver_forge::{OutputProcessor, OutputTarget};
 
 /// Embedded default stats templates

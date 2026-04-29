@@ -127,7 +127,7 @@ mod tests {
                 quiet: false,
                 future: false,
                 allow_git_credentials: false,
-            config: None,
+                config: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
                         json_schema: json_schema_type.clone(),

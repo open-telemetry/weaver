@@ -229,13 +229,13 @@ mod tests {
         // Use a shell command that writes its own PID so we can detect whether
         // it ran once or twice within the TTL window.
         #[cfg(unix)]
-        let argv = vec![
-            "sh".to_owned(),
-            "-c".to_owned(),
-            "echo tok-$$".to_owned(),
-        ];
+        let argv = vec!["sh".to_owned(), "-c".to_owned(), "echo tok-$$".to_owned()];
         #[cfg(not(unix))]
-        let argv = vec!["cmd".to_owned(), "/C".to_owned(), "echo tok-%RANDOM%".to_owned()];
+        let argv = vec![
+            "cmd".to_owned(),
+            "/C".to_owned(),
+            "echo tok-%RANDOM%".to_owned(),
+        ];
 
         let r = HttpAuthResolver::new(vec![AuthMatchRule {
             url_prefix: "https://x/".to_owned(),

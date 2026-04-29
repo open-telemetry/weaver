@@ -5,8 +5,6 @@
 
 use crate::registry::generate::generate_params_shared;
 use crate::registry::{PolicyArgs, RegistryArgs};
-use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig as ProjectWeaverConfig;
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -14,9 +12,11 @@ use miette::Diagnostic;
 use serde_yaml::Value;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
+use weaver_config::WeaverConfig as ProjectWeaverConfig;
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::{OutputProcessor, OutputTarget};
@@ -95,12 +95,13 @@ pub(crate) fn command(
     let params = generate_params_shared(&args.param, &args.params)?;
 
     // Construct a generator if we were given a `--target` argument.
-    let templates_dir = VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(
-        |e| Error::InvalidVirtualDirectory {
-            path: args.templates.to_string(),
-            error: e.to_string(),
-        },
-    )?;
+    let templates_dir =
+        VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(|e| {
+            Error::InvalidVirtualDirectory {
+                path: args.templates.to_string(),
+                error: e.to_string(),
+            }
+        })?;
     let output = {
         let loader =
             FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;

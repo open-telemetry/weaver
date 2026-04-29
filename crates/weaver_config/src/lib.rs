@@ -16,10 +16,10 @@ pub mod registry;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
-pub use weaver_common::http_auth::TokenSource;
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
 pub use overrides::{CliOverrides, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+pub use weaver_common::http_auth::TokenSource;
 
 /// The filename to search for during discovery.
 const CONFIG_FILENAME: &str = ".weaver.toml";

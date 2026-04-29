@@ -18,9 +18,9 @@ use crate::registry::{Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig as ProjectWeaverConfig;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_config::WeaverConfig as ProjectWeaverConfig;
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -99,12 +99,13 @@ pub(crate) fn command(
     let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
-    let templates_dir = VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(
-        |e| Error::InvalidParams {
-            params_file: PathBuf::from(args.templates.to_string()),
-            error: e.to_string(),
-        },
-    )?;
+    let templates_dir =
+        VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(|e| {
+            Error::InvalidParams {
+                params_file: PathBuf::from(args.templates.to_string()),
+                error: e.to_string(),
+            }
+        })?;
     let loader =
         FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &args.target)?;
     let config = if let Some(paths) = &args.config {
@@ -456,7 +457,7 @@ mod tests {
                 quiet: false,
                 future: false,
                 allow_git_credentials: false,
-            config: None,
+                config: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                         target: "rust".to_owned(),

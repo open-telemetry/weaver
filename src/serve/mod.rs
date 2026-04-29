@@ -49,7 +49,10 @@ pub fn command(args: &ServeCommand, auth: &HttpAuthResolver) -> CmdResult {
     CmdResult::new(run_serve(args, auth), Some(args.diagnostic.clone()))
 }
 
-fn run_serve(args: &ServeCommand, auth: &HttpAuthResolver) -> Result<ExitDirectives, DiagnosticMessages> {
+fn run_serve(
+    args: &ServeCommand,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     // TODO: Currently the serve command takes a registry on the command line. Really we want to be
     // able to hot load a registry from within the server. This would mean calling an API to load
     // a new registry, and then the server would update its internal state to use the new registry.
