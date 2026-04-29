@@ -46,7 +46,7 @@ pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0";
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
     pub file_format: String,
