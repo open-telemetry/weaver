@@ -20,7 +20,7 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-use crate::{CmdResult, DiagnosticArgs};
+use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
