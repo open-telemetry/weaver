@@ -582,7 +582,11 @@ mod tests {
             path: "data/incompatible-version-conflict/main".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let result = load_semconv_repository(registry_repo, true);
+        let result = load_semconv_repository(
+            registry_repo,
+            true,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
 
         match result {
             WResult::FatalErr(fatal) => {
@@ -609,7 +613,11 @@ mod tests {
             path: "data/compatible-version-conflict/main".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let result = load_semconv_repository(registry_repo, true);
+        let result = load_semconv_repository(
+            registry_repo,
+            true,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
 
         match result {
             WResult::FatalErr(fatal) => {
