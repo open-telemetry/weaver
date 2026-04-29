@@ -6,6 +6,7 @@ groups:
     brief: "Measures the duration of the function's logic execution"
     instrument: histogram
     unit: "s"
+    metric_requirement_level: recommended
     attributes:
       - ref: faas.trigger
 
@@ -16,6 +17,7 @@ groups:
     brief: "Measures the duration of the function's initialization, such as a cold start"
     instrument: histogram
     unit: "s"
+    metric_requirement_level: recommended
     attributes:
       - ref: faas.trigger
 
@@ -26,5 +28,6 @@ groups:
     brief: "Number of invocation cold starts"
     instrument: counter
     unit: "{coldstart}"
+    metric_requirement_level: recommended
     attributes:
       - ref: faas.trigger

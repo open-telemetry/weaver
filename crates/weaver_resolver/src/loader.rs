@@ -3,7 +3,6 @@
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
@@ -14,6 +13,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
 use crate::Error;
@@ -23,6 +23,7 @@ const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// The result of loading a semantic convention URL prior to resolution.
 #[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
 pub enum LoadedSemconvRegistry {
     /// The semconv repository was unresolved and needs to be run through resolution.
     Unresolved {
@@ -163,7 +164,7 @@ pub(crate) fn load_semconv_repository(
     follow_symlinks: bool,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // This method simply sets up the resolution state and delegates to the actual work.
-    let mut visited_registries = HashSet::new();
+    let mut visited_registries = std::collections::HashMap::new();
     let mut dependency_chain = Vec::new();
     load_semconv_repository_recursive(
         registry_repo,
@@ -180,7 +181,7 @@ fn load_semconv_repository_recursive(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     max_dependency_depth: u32,
-    visited_registries: &mut HashSet<String>,
+    visited_registries: &mut std::collections::HashMap<String, SchemaUrl>,
     dependency_chain: &mut Vec<String>,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // Make sure we don't go past our max dependency depth.
@@ -190,8 +191,10 @@ fn load_semconv_repository_recursive(
         });
     }
     let registry_name = registry_repo.name().to_owned();
-    // Check for circular dependency
-    if visited_registries.contains(&registry_name) {
+    let schema_url = registry_repo.schema_url().clone();
+
+    // Check for circular dependency in the current path
+    if dependency_chain.contains(&registry_name) {
         dependency_chain.push(registry_name.clone());
         let chain_str = dependency_chain.join(" → ");
         return WResult::FatalErr(Error::CircularDependency {
@@ -199,22 +202,55 @@ fn load_semconv_repository_recursive(
             chain: chain_str,
         });
     }
-    // Add current registry to visited set and dependency chain
-    let _ = visited_registries.insert(registry_name.clone());
+
+    // Check for conflict across the graph
+    if let Some(prev_schema_url) = visited_registries.get(&registry_name) {
+        if prev_schema_url != &schema_url {
+            // TODO: Address version conflicts.
+            // For now, fail fast on any duplicate name with different version.
+            return WResult::FatalErr(Error::DuplicateDependency {
+                name: registry_name,
+                version1: prev_schema_url.version().to_owned(),
+                version2: schema_url.version().to_owned(),
+            });
+        }
+    } else {
+        let _ = visited_registries.insert(registry_name.clone(), schema_url.clone());
+    }
+
+    // Add current registry to dependency chain
     dependency_chain.push(registry_name.clone());
 
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
-            load_resolved_repository(&resolved_url)
+            let res = load_resolved_repository(&resolved_url);
+            let _ = dependency_chain.pop();
+            res
         } else {
-            if manifest.dependencies().len() > 1 {
-                todo!("Multiple dependencies is not supported yet.")
-            }
             // Load dependencies.
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors: Vec<Error> = vec![];
+            let mut seen_dependencies: std::collections::HashMap<String, SchemaUrl> =
+                std::collections::HashMap::new();
+
             for d in manifest.dependencies().iter() {
+                let dep_name = d.schema_url.name().to_owned();
+
+                if let Some(prev_schema_url) = seen_dependencies.get(&dep_name) {
+                    if prev_schema_url != &d.schema_url {
+                        // TODO: Address version conflicts.
+                        // For now, fail fast on any duplicate name with different version.
+                        let _ = dependency_chain.pop();
+                        return WResult::FatalErr(Error::DuplicateDependency {
+                            name: dep_name,
+                            version1: prev_schema_url.version().to_owned(),
+                            version2: d.schema_url.version().to_owned(),
+                        });
+                    }
+                } else {
+                    let _ = seen_dependencies.insert(dep_name, d.schema_url.clone());
+                }
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 match RegistryRepo::try_new_dependency(d, &mut semconv_nfes) {
                     Ok(d_repo) => {
@@ -233,21 +269,32 @@ fn load_semconv_repository_recursive(
                                 loaded_dependencies.push(d);
                                 non_fatal_errors.extend(nfes);
                             }
-                            WResult::FatalErr(err) => return WResult::FatalErr(err),
+                            WResult::FatalErr(err) => {
+                                let _ = dependency_chain.pop();
+                                return WResult::FatalErr(err);
+                            }
                         }
                     }
-                    Err(err) => return WResult::FatalErr(err.into()),
+                    Err(err) => {
+                        let _ = dependency_chain.pop();
+                        return WResult::FatalErr(err.into());
+                    }
                 }
             }
             // Now load the raw repository.
             // TODO - Allow ignoring dependency warnings - https://github.com/open-telemetry/weaver/issues/1126.
-            load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
-                .extend_non_fatal_errors(non_fatal_errors)
+            let res =
+                load_definition_repository(registry_repo, follow_symlinks, loaded_dependencies)
+                    .extend_non_fatal_errors(non_fatal_errors);
+            let _ = dependency_chain.pop();
+            res
         }
     } else {
         // This is a raw repository with *no* manifest.
         // TODO - issue a warning that manifest will be required w/ 2.0 to allow publishing.
-        load_definition_repository(registry_repo, follow_symlinks, vec![])
+        let res = load_definition_repository(registry_repo, follow_symlinks, vec![]);
+        let _ = dependency_chain.pop();
+        res
     }
 }
 
@@ -393,7 +440,7 @@ fn load_definition_repository(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use weaver_semconv::schema_url::SchemaUrl;
 
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,
@@ -455,7 +502,8 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
-        let mut visited_registries = HashSet::new();
+        let mut visited_registries: std::collections::HashMap<String, SchemaUrl> =
+            std::collections::HashMap::new();
         let mut dependency_chain = Vec::new();
         let result = load_semconv_repository_recursive(
             registry_repo,
@@ -502,6 +550,60 @@ mod tests {
             }
             _ => {
                 panic!("Expected fatal error due to circular dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_incompatible_version_conflict() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/incompatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Duplicate dependency") &&
+                    error_msg.contains("example.com/c") &&
+                    error_msg.contains("1.0.0") &&
+                    error_msg.contains("2.0.0"),
+                    "Expected duplicate dependency error mentioning both versions, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to duplicate dependency, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_compatible_version_conflict_todo() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(registry_repo, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Duplicate dependency")
+                        && error_msg.contains("example.com/c"),
+                    "Expected duplicate dependency error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!(
+                    "Expected fatal error due to duplicate dependency (for now), but got success"
+                );
             }
         }
 
