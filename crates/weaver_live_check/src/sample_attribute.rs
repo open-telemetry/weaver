@@ -187,6 +187,7 @@ impl LiveCheckRunner for SampleAttribute {
             }
         };
         if semconv_attribute.is_none() {
+            let sample_ref = SampleRef::Attribute(self);
             let finding = FindingBuilder::new(MISSING_ATTRIBUTE_ADVICE_TYPE)
                 .context(json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone() }))
                 .message(format!(
@@ -196,42 +197,48 @@ impl LiveCheckRunner for SampleAttribute {
                 .level(FindingLevel::Violation)
                 .signal(parent_signal)
                 .build_and_emit(
-                    &SampleRef::Attribute(self),
+                    &sample_ref,
                     live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
                     parent_signal,
                 );
 
-            result.add_advice(finding);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type() {
+                    let sample_ref = SampleRef::Attribute(self);
                     let finding = FindingBuilder::new(TEMPLATE_ATTRIBUTE_ADVICE_TYPE)
                         .context(json!({ ATTRIBUTE_NAME_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))
                         .message(format!("Attribute '{}' is a template", self.name))
                         .level(FindingLevel::Information)
                         .signal(parent_signal)
                         .build_and_emit(
-                            &SampleRef::Attribute(self),
+                            &sample_ref,
                             live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
                             parent_signal,
                         );
 
-                    result.add_advice(finding);
+                    result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
                 }
             }
         }
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
+            let sample_ref = SampleRef::Attribute(self);
             let advice_list = advisor.advise(
-                SampleRef::Attribute(self),
+                sample_ref.clone(),
                 parent_signal,
                 semconv_attribute.clone(),
                 parent_group.clone(),
                 live_checker.otlp_emitter.clone(),
             )?;
-            result.add_advice_list(advice_list);
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
         }
         self.live_check_result = Some(result);
         self.update_stats(stats);

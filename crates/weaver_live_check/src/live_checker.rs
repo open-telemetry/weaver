@@ -9,8 +9,8 @@ use std::sync::Arc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
-    advice::Advisor, otlp_logger::OtlpEmitter, VersionedAttribute, VersionedRegistry,
-    VersionedSignal,
+    advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
+    VersionedAttribute, VersionedRegistry, VersionedSignal,
 };
 
 #[cfg(test)]
@@ -33,6 +33,9 @@ pub struct LiveChecker {
     /// Optional OTLP emitter for emitting findings as log records
     #[serde(skip)]
     pub otlp_emitter: Option<Rc<OtlpEmitter>>,
+    /// Optional finding modifier for overriding/filtering findings
+    #[serde(skip)]
+    pub finding_modifier: Option<FindingModifier>,
 }
 
 impl LiveChecker {
@@ -118,6 +121,7 @@ impl LiveChecker {
             advisors,
             templates_by_length,
             otlp_emitter: None,
+            finding_modifier: None,
         }
     }
 
@@ -758,6 +762,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -820,6 +825,7 @@ mod tests {
                             name: "system.uptime".to_owned().into(),
                             instrument: InstrumentSpec::Gauge,
                             unit: "s".to_owned(),
+                            requirement_level: Some(BasicRequirementLevelSpec::Required),
                             attributes: vec![],
                             entity_associations: vec![],
                             common: CommonFields {
@@ -835,6 +841,7 @@ mod tests {
                             name: "system.memory.usage".to_owned().into(),
                             instrument: InstrumentSpec::UpDownCounter,
                             unit: "By".to_owned(),
+                            requirement_level: Some(BasicRequirementLevelSpec::Required),
                             attributes: vec![MetricAttribute {
                                 base: memory_state_attr.clone(),
                                 requirement_level: RequirementLevel::Recommended {
@@ -925,6 +932,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        metric_requirement_level: None,
                         name: None,
                         lineage: None,
                         display_name: Some("System Memory Attributes".to_owned()),
@@ -948,6 +956,7 @@ mod tests {
                         metric_name: Some("system.uptime".to_owned()),
                         instrument: Some(InstrumentSpec::Gauge),
                         unit: Some("s".to_owned()),
+                        metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -991,6 +1000,7 @@ mod tests {
                         metric_name: Some("system.memory.usage".to_owned()),
                         instrument: Some(InstrumentSpec::UpDownCounter),
                         unit: Some("By".to_owned()),
+                        metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1101,6 +1111,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -1689,6 +1700,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        metric_requirement_level: None,
                         name: Some("session.start".to_owned()),
                         lineage: None,
                         display_name: Some("Session Start Event".to_owned()),
@@ -1718,6 +1730,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        metric_requirement_level: None,
                         name: Some("example.event".to_owned()),
                         lineage: None,
                         display_name: Some("Example Event".to_owned()),

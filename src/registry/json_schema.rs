@@ -9,6 +9,8 @@ use log::info;
 use schemars::schema_for;
 use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::WeaverConfig;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpecV1;
@@ -53,11 +55,17 @@ pub enum JsonSchemaType {
     DefinitionManifestV2,
     /// The JSON schema of a policy finding returned by Rego policies.
     PolicyFinding,
+    /// The JSON schema of the `.weaver.toml` configuration file.
+    WeaverConfig,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
 /// file or print it to stdout.
-pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryJsonSchemaArgs,
+    _cfg: Option<&WeaverConfig>,
+    _auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
         JsonSchemaType::SemconvGroup => schema_for!(SemConvSpecV1),
@@ -77,6 +85,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
             schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
         }
         JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
+        JsonSchemaType::WeaverConfig => schema_for!(WeaverConfig),
     };
 
     if let Some(p) = &args.output {
@@ -118,6 +127,7 @@ mod tests {
                 quiet: false,
                 future: false,
                 allow_git_credentials: false,
+                config: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
                         json_schema: json_schema_type.clone(),

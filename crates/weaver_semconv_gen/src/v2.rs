@@ -123,6 +123,7 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
             name: m.name.clone(),
             instrument: m.instrument.clone(),
             unit: m.unit.clone(),
+            requirement_level: m.requirement_level.clone(),
             attributes,
             entity_associations: m.entity_associations.clone(),
             common: m.common.clone(),
@@ -500,6 +501,9 @@ mod tests {
                     name: "test.metric".to_owned().into(),
                     instrument: InstrumentSpec::Counter,
                     unit: "{1}".to_owned(),
+                    requirement_level: Some(
+                        weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                    ),
                     attributes: vec![MetricAttributeRef {
                         base: AttributeRef(0),
                         requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
@@ -562,6 +566,9 @@ mod tests {
                         name: "test.metric".to_owned().into(),
                         instrument: InstrumentSpec::Counter,
                         unit: "{1}".to_owned(),
+                        requirement_level: Some(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
                         attributes: vec![MetricAttributeRef {
                             base: AttributeRef(0),
                             requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(

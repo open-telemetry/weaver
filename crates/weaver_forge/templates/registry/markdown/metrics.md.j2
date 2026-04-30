@@ -5,6 +5,7 @@ This document describes the `{{ ctx.root_namespace }}` metrics.
 
 > for metric in ctx.metrics | sort(attribute="metric_name") <
 ## `{{ metric.metric_name }}`
+This metric is {{ metric.metric_requirement_level }}.
 
 {{ metric.brief | default("") | trim }}
 

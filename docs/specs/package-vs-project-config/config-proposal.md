@@ -55,7 +55,7 @@ Settings fall into two categories: **persistent** settings that define how the p
 
 **What it configures:**
 
-- Live-check finding overrides and filters
+- Live-check finding filters
 - Live-check OTLP and emit settings
 - Template defaults — shared settings like `acronyms`, `template_syntax`, `whitespace_control`, and `params` that apply across all template packages used by the project, overriding the package's own `weaver_template.yaml` defaults
 - Default registry path, template path, policies path
@@ -64,12 +64,7 @@ Settings fall into two categories: **persistent** settings that define how the p
 **Example** (illustrative — specific settings and naming may change as they are implemented):
 
 ```toml
-# === Phase 1: Live-check finding modification ===
-
-[[live_check.finding_overrides]]
-id = ["not_stable"]
-level = "information"
-signal_type = "span"
+# === Phase 1: Live-check finding filters ===
 
 [[live_check.finding_filters]]
 exclude = ["deprecated"]
@@ -153,9 +148,9 @@ exclude_samples = ["trace.parent_id", "trace.span_id"]
 
 ## Implementation Phases
 
-**Phase 1:** Introduce `.weaver.toml` with `[live_check]` finding overrides and filters.
+**Phase 1:** Introduce `.weaver.toml` covering all `live-check` CLI flags plus `[[live_check.finding_filters]]`.
 
-**Phase 2:** Add other CLI-equivalent settings to `.weaver.toml`.
+**Phase 2:** Add the remaining CLI-equivalent settings (`[registry]`, `[policy]`, `[diagnostics]`, `[generate]`, `[emit]`, `[template_defaults]`) to `.weaver.toml`.
 
 **Phase 3:** Rename `weaver.yaml` to `weaver_template.yaml`. Load from the package directory only — remove directory-walking and `$HOME` fallback. Accept `weaver.yaml` as a deprecated fallback with a warning.
 

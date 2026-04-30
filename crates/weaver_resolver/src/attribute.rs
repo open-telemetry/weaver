@@ -406,7 +406,6 @@ impl AttributeLookup for Vec<ResolvedDependency> {
                 matches.push(at);
             }
         }
-
         matches.into_iter().try_fold(None, |acc, m| match acc {
             None => Ok(Some(m)),
             Some(best) => Ok(Some(resolve_conflict(key, best, m)?)),
@@ -848,7 +847,6 @@ mod tests {
             panic!("Expected AmbiguousReference error, got {:?}", result);
         }
     }
-
     #[test]
     fn test_lookup_attribute_fallback() {
         use std::collections::HashMap;
@@ -878,6 +876,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: None,
             lineage: None,
             display_name: None,

@@ -163,7 +163,7 @@ events ::= id {id} # MUST point to an existing event group
 
 name ::= string
 
-metricfields ::= metric_name instrument unit stability
+metricfields ::= metric_name instrument unit stability [metric_requirement_level]
 
 metric_name ::= string
 instrument ::=  "counter"
@@ -171,6 +171,7 @@ instrument ::=  "counter"
             | "gauge"
             | "updowncounter"
 unit ::= string
+metric_requirement_level ::= "required" | "recommended" | "opt_in"
 ```
 
 ## Semantics
@@ -292,6 +293,8 @@ The following is only valid if `type` is `metric`:
   For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
 - `unit`, required, the unit in which the metric is measured, which should adhere to
   [the guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+- `metric_requirement_level`, optional, the requirement level of the metric. Can be `required`, `recommended`, or `opt_in`.
+  Defaults to `recommended` when omitted.
 
 #### Attribute group semantic convention
 

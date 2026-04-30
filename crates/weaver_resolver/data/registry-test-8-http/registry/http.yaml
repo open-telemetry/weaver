@@ -18,5 +18,6 @@ groups:
     brief: "Duration of HTTP server requests."
     instrument: histogram
     unit: "s"
+    metric_requirement_level: recommended
     stability: stable
     extends: metric_attributes.http.server

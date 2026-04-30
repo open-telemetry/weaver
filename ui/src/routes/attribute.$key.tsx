@@ -9,7 +9,7 @@ import { useResourceFetch } from '../hooks/useResourceFetch'
 
 export const Route = createRoute({
   getParentRoute: () => RootRoute,
-  path: 'attribute/$key',
+  path: 'attribute/$',
   component: AttributeDetail,
 })
 
@@ -22,7 +22,7 @@ function formatType(type: AttributeResponse['type']): string {
 }
 
 function AttributeDetail() {
-  const { key } = Route.useParams()
+  const { _splat: key } = Route.useParams()
   const { data, error } = useResourceFetch<AttributeResponse>(key, getAttribute)
   const { copied, copyToClipboard } = useCopyToClipboard()
 
@@ -74,7 +74,7 @@ function AttributeDetail() {
                 <div className="text-sm">{data.deprecated.note || 'This attribute is deprecated.'}</div>
                 {data.deprecated.renamed_to && (
                   <div className="text-sm mt-1">
-                    Use <Link to="/attribute/$key" params={{ key: data.deprecated.renamed_to }} className="link">{data.deprecated.renamed_to}</Link> instead.
+                    Use <Link to="/attribute/$" params={{ _splat: data.deprecated.renamed_to }} className="link">{data.deprecated.renamed_to}</Link> instead.
                   </div>
                 )}
               </div>

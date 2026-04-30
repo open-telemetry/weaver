@@ -488,10 +488,7 @@ mod tests {
         assert_eq!(advice.len(), 6);
 
         // Verify each advice type and level
-        let advice_map: HashMap<_, _> = advice
-            .iter()
-            .map(|a| (a.id.clone(), a.level.clone()))
-            .collect();
+        let advice_map: HashMap<_, _> = advice.iter().map(|a| (a.id.clone(), a.level)).collect();
 
         assert_eq!(
             advice_map.get("recommended_attribute_not_present"),
