@@ -113,10 +113,21 @@ resolved via the GitHub API.
 It is also possible to use specific Git references, such as a tag, a branch or
 even a specific commit with the `<path-to-your-registry>@<refspec>` syntax.
 
-To download from private repositories, set the `WEAVER_HTTP_AUTH_TOKEN` or
-`GITHUB_TOKEN` environment variable:
+To download from private sources, configure HTTP authentication per-URL in
+`.weaver.toml` with one or more `[[auth]]` entries. Each entry pairs a
+`url_prefix` (longest match wins) with a token source — a literal `token`,
+a `token_env` variable name, or a `token_command` helper whose first stdout
+line is the token:
+
+```toml
+[[auth]]
+url_prefix    = "https://github.com/"
+token_command = ["gh", "auth", "token"]
+```
+
+Matching requests are sent with `Authorization: Bearer <token>`. Then:
 
 ```bash
-GITHUB_TOKEN=$(gh auth token) weaver registry check \
+weaver registry check \
   -r "https://github.com/org/repo/releases/download/v1.0.0/manifest.yaml"
 ```

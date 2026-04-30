@@ -59,8 +59,8 @@ Properties:
     - A Git repository URL
     - A GitHub release asset URL (automatically resolved via the GitHub API)
 
-    For private repositories, set the `WEAVER_HTTP_AUTH_TOKEN` or `GITHUB_TOKEN`
-    environment variable to authenticate HTTP downloads.
+    For private sources, configure HTTP authentication per-URL via `[[auth]]`
+    entries in `.weaver.toml` (see the schema's `auth` section).
 
 For example, a definition manifest for a registry that extends OTel semantic conventions:
 

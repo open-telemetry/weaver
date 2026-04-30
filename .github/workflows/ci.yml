@@ -305,6 +305,7 @@ jobs:
           cargo run -- --quiet registry json-schema -j policy-finding -o /tmp/policy.finding.json
           cargo run -- --quiet registry json-schema -j publication-manifest-v2 -o /tmp/publication-manifest.v2.json
           cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o /tmp/definition-manifest.v2.json
+          cargo run -- --quiet registry json-schema -j weaver-config -o /tmp/weaver-config.json
       - name: Check generated files are up-to-date
         run: |
           failed=0
@@ -336,6 +337,8 @@ jobs:
             "cargo run -- --quiet registry json-schema -j publication-manifest-v2 -o ./schemas/publication-manifest.v2.json"
           check_file schemas/definition-manifest.v2.json /tmp/definition-manifest.v2.json \
             "cargo run -- --quiet registry json-schema -j definition-manifest-v2 -o ./schemas/definition-manifest.v2.json"
+          check_file schemas/weaver-config.json /tmp/weaver-config.json \
+            "cargo run -- --quiet registry json-schema -j weaver-config -o ./schemas/weaver-config.json"
 
           exit $failed
   coverage:
