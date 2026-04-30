@@ -11,7 +11,7 @@ use log::info;
 use std::io;
 use std::io::Write;
 
-use registry::semconv_registry;
+use registry::{resolve_weaver_config, semconv_registry};
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
 use weaver_common::log_error;
 use weaver_forge::{OutputProcessor, OutputTarget};
@@ -137,10 +137,20 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.allow_git_credentials {
         weaver_common::vdir::enable_git_credentials();
     }
+    // Resolve `.weaver.toml` (global `--config` overrides cwd discovery) and
+    // build the HTTP auth resolver once for the whole invocation.
+    let weaver_config = match resolve_weaver_config(cli.config.as_deref()) {
+        Ok(wc) => wc,
+        Err(diag) => {
+            return process_diagnostics(CmdResult::new(Err(diag), Some(DiagnosticArgs::default())));
+        }
+    };
+    let cfg = weaver_config.as_ref();
+    let auth = registry::auth_resolver_from_config(cfg);
     let cmd_result = match &cli.command {
-        Some(Commands::Registry(params)) => semconv_registry(params),
+        Some(Commands::Registry(params)) => semconv_registry(params, cfg, &auth),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),
-        Some(Commands::Serve(params)) => serve::command(params),
+        Some(Commands::Serve(params)) => serve::command(params, &auth),
         Some(Commands::Completion(completions)) => {
             if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
                 log_error(&e);

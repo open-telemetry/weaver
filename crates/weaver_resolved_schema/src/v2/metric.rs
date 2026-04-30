@@ -4,7 +4,7 @@ use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
+    attribute::{BasicRequirementLevelSpec, RequirementLevel},
     group::InstrumentSpec,
     v2::{signal_id::SignalId, CommonFields},
 };
@@ -37,6 +37,10 @@ pub struct Metric {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+
+    /// The requirement level of the metric. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<BasicRequirementLevelSpec>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]

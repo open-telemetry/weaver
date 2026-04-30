@@ -287,6 +287,7 @@ mod test {
                 unit: "{tests}".to_owned(),
                 attributes: vec![],
                 entity_associations: vec![],
+                requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
                     note: "".to_owned(),

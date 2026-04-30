@@ -10,6 +10,7 @@ rust-version.workspace = true
 
 [dependencies]
 weaver_checker = { path = "../weaver_checker" }
+weaver_common = { path = "../weaver_common" }
 
 serde.workspace = true
 schemars.workspace = true

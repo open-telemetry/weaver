@@ -35,4 +35,5 @@ groups:
     brief: "Measure of memory used."
     instrument: updowncounter
     unit: "By"
+    metric_requirement_level: recommended
     stability: stable

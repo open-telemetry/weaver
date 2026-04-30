@@ -21,7 +21,9 @@ use super::otlp::grpc_stubs::proto::resource::v1::Resource;
 use super::otlp::{listen_otlp_requests, OtlpRequest};
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
+use weaver_config::WeaverConfig;
 
 /// Parameters for the `registry infer` sub-command
 #[derive(Debug, Args)]
@@ -148,7 +150,11 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
 }
 
 /// Infer a semantic convention registry from OTLP telemetry.
-pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryInferArgs,
+    _cfg: Option<&WeaverConfig>,
+    _auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     log::warn!(
         "The `registry infer` command is experimental and not yet stable. \
         The generated schema format, command options, and output may change in future versions."

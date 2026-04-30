@@ -55,6 +55,7 @@ cargo run -- --quiet markdown-help > docs/usage.md
 ```bash
 cargo run -- --quiet registry json-schema -j semconv-definition-v2 -o ./schemas/semconv.schema.v2.json
 cargo run -- --quiet registry json-schema -j resolved-registry-v2 -o ./schemas/semconv.resolved.v2.json
+cargo run -- --quiet registry json-schema -j materialized-registry-v2 -o ./schemas/semconv.materialized.v2.json
 cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json
 ```
 
