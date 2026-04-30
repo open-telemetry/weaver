@@ -116,7 +116,7 @@ function EntityDetail() {
                       {data.identity.map((attr, index) => (
                         <tr key={index}>
                           <td>
-                            <Link to="/attribute/$key" params={{ key: attr.key }} className="link link-primary font-mono text-sm">
+                            <Link to="/attribute/$" params={{ _splat: attr.key }} className="link link-primary font-mono text-sm">
                               {attr.key}
                             </Link>
                           </td>
@@ -149,7 +149,7 @@ function EntityDetail() {
                       {data.description.map((attr, index) => (
                         <tr key={index}>
                           <td>
-                            <Link to="/attribute/$key" params={{ key: attr.key }} className="link link-primary font-mono text-sm">
+                            <Link to="/attribute/$" params={{ _splat: attr.key }} className="link link-primary font-mono text-sm">
                               {attr.key}
                             </Link>
                           </td>
