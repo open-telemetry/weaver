@@ -43,6 +43,7 @@ Manage semantic convention registry and telemetry schema workflows (OpenTelemetr
 * `--quiet` — Turn the quiet mode on (i.e., minimal output)
 * `--future` — Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
 * `--allow-git-credentials` — Allow git credential helpers when cloning registries from private repositories. By default, git operations are isolated and cannot access global git config or credential helpers. Enable this flag to authenticate with private registries using your system's configured git credential helpers (e.g., osxkeychain, git-credential-manager)
+* `--config <CONFIG>` — Path to a `.weaver.toml` project config file. When set, skips the upward-walk discovery from the current working directory
 
 
 
@@ -510,7 +511,6 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
 
    Rego policies are run for each sample as it arrives in a stream. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
-* `--config <CONFIG_PATH>` — Path to a `.weaver.toml` config file. Skips automatic discovery when set
 
 
 
