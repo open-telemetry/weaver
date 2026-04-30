@@ -597,7 +597,10 @@ impl ImportableDependency for V2Schema {
         }
         Ok(result
             .into_iter()
-            .map(|group| GroupWithProvenance { group, schema_url: self.schema_url.clone() })
+            .map(|group| GroupWithProvenance {
+                group,
+                schema_url: self.schema_url.clone(),
+            })
             .collect())
     }
 }
