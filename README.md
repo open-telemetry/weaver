@@ -114,6 +114,18 @@ Further reading:
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+### Emeritus
+
+- [Alexander Wert](https://github.com/AlexanderWert), Maintainer
+- [Alexandra Konrad](https://github.com/trisch-me), Approver
+- [Armin Ruech](https://github.com/arminru), Maintainer
+- [Daniel Dyla](https://github.com/dyladan), Approver
+- [Ted Young](https://github.com/tedsuo), Approver
+- [Trask Stalnaker](https://github.com/trask), Maintainer
+
+For more information about the emeritus role, see the
+[community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
+
 ## License
 
 Apache License 2.0 - see [LICENSE](LICENSE) for details.
