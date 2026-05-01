@@ -751,14 +751,36 @@ mod tests {
             &weaver_common::http_auth::HttpAuthResolver::empty(),
         );
 
-        match result {
-            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
-                // Success is expected now that compatible versions are allowed.
-            }
+        let loaded = match result {
+            WResult::Ok(l) | WResult::OkWithNFEs(l, _) => l,
             WResult::FatalErr(fatal) => {
                 panic!("Expected success, but got fatal error: {fatal}");
             }
-        }
+        };
+
+        // Resolve the registry
+        let resolved_result = crate::SchemaResolver::resolve(loaded, false);
+        let resolved_schema = match resolved_result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+            WResult::FatalErr(fatal) => {
+                panic!("Failed to resolve registry: {fatal}");
+            }
+        };
+
+        // Verify that attributes in the catalog use the V1.2 definitions.
+        // c.attr1 should be from V1.2 (updated)
+        let (attr1, _) = resolved_schema
+            .catalog
+            .root_attribute("c.attr1")
+            .expect("c.attr1 not found in catalog");
+        assert_eq!(attr1.brief, "Attribute 1 from C v1.2 (updated)");
+
+        // c.attr2 should be from V1.2 (new)
+        let (attr2, _) = resolved_schema
+            .catalog
+            .root_attribute("c.attr2")
+            .expect("c.attr2 not found in catalog");
+        assert_eq!(attr2.brief, "Attribute 2 from C v1.2 (new)");
 
         Ok(())
     }
