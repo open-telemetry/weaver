@@ -1,7 +1,6 @@
 name: test-diamond-resolved
 description: Main registry for diamond test.
-semconv_version: 0.1.0
-schema_base_url: https://main.com/schemas/
+schema_url: https://main.com/schemas/0.1.0
 dependencies:
   - schema_url: http://a/schema/1.0.0
     registry_path: data/diamond-resolved-test/registry-a-v1-0

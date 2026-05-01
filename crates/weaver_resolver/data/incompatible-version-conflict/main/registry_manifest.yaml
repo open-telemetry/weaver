@@ -1,7 +1,6 @@
 name: main
 description: Main Registry
-semconv_version: 0.1.0
-schema_base_url: https://example.com/main/
+schema_url: https://example.com/main/0.1.0
 dependencies:
   - schema_url: https://example.com/a/0.1.0
     registry_path: data/incompatible-version-conflict/registry_a
