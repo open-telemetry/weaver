@@ -187,63 +187,7 @@ impl ImportableDependency for V1Schema {
                     .iter()
                     .filter_map(|ar| self.catalog().attribute(ar))
                 {
-                    let source = if let Some((_, source_group_id)) =
-                        self.catalog().root_attribute(&a.name)
-                    {
-                        let group = if let Some(schema_name) =
-                            source_group_id.strip_prefix("v2_dependency.")
-                        {
-                            self.registry.groups.iter().find(|g| {
-                                if let Some(prov) = g.provenance() {
-                                    prov.schema_url.name() == schema_name
-                                } else {
-                                    false
-                                }
-                            })
-                        } else {
-                            self.registry
-                                .groups
-                                .iter()
-                                .find(|g| g.id == *source_group_id)
-                        };
-                        if let Some(group) = group {
-                            if let Some(prov) = group.provenance() {
-                                AttributeSource::Dependency {
-                                    schema_url: prov.schema_url.clone(),
-                                }
-                            } else {
-                                AttributeSource::Dependency {
-                                    schema_url: my_schema_url.clone(),
-                                }
-                            }
-                        } else {
-                            AttributeSource::Dependency {
-                                schema_url: my_schema_url.clone(),
-                            }
-                        }
-                    } else {
-                        // Fallback: search in all groups to find where this attribute came from
-                        let mut found_source = None;
-                        for group in self.registry.groups.iter() {
-                            if group.attributes.iter().any(|ar| {
-                                if let Some(attr) = self.catalog().attribute(ar) {
-                                    attr.name == a.name
-                                } else {
-                                    false
-                                }
-                            }) {
-                                if let Some(prov) = group.provenance() {
-                                    found_source = Some(AttributeSource::Dependency {
-                                        schema_url: prov.schema_url.clone(),
-                                    });
-                                    break;
-                                }
-                            }
-                        }
-                        found_source.unwrap_or_else(|| AttributeSource::Dependency {
-                            schema_url: my_schema_url.clone(),
-                        })
-                    };
+                    let source = find_attribute_source(self, &a.name, &my_schema_url);
                     let ar = attribute_catalog.attribute_ref_with_provenance(a.clone(), source)?;
                     attributes.push(ar);
                 }
@@ -254,6 +198,68 @@ impl ImportableDependency for V1Schema {
                 })
             })
             .collect::<Result<Vec<_>, Error>>()
+    }
+}
+
+/// Finds the attribute source for a V1 attribute.
+fn find_attribute_source(
+    schema: &V1Schema,
+    attr_name: &str,
+    my_schema_url: &SchemaUrl,
+) -> AttributeSource {
+    if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
+        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            schema.registry.groups.iter().find(|g| {
+                if let Some(prov) = g.provenance() {
+                    prov.schema_url.name() == schema_name
+                } else {
+                    false
+                }
+            })
+        } else {
+            schema
+                .registry
+                .groups
+                .iter()
+                .find(|g| g.id == *source_group_id)
+        };
+        if let Some(group) = group {
+            if let Some(prov) = group.provenance() {
+                AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                }
+            } else {
+                AttributeSource::Dependency {
+                    schema_url: my_schema_url.clone(),
+                }
+            }
+        } else {
+            AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            }
+        }
+    } else {
+        // Fallback: search in all groups to find where this attribute came from
+        schema
+            .registry
+            .groups
+            .iter()
+            .find(|group| {
+                group.attributes.iter().any(|ar| {
+                    schema
+                        .catalog()
+                        .attribute(ar)
+                        .map_or(false, |attr| attr.name == attr_name)
+                })
+            })
+            .and_then(|group| {
+                group.provenance().map(|prov| AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                })
+            })
+            .unwrap_or_else(|| AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            })
     }
 }
 

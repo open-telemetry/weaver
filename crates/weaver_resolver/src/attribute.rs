@@ -441,6 +441,7 @@ impl AttributeLookup for ResolvedDependency {
 impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
         if let Some((attr, group_id)) = self.catalog.root_attribute(key) {
+            // We encode pure schema_url dependencies with magic strings in V1.
             let group = if let Some(schema_name) = group_id.strip_prefix("v2_dependency.") {
                 self.registry.groups.iter().find(|g| {
                     if let Some(prov) = g.provenance() {
