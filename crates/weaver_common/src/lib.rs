@@ -4,6 +4,7 @@
 
 pub mod diagnostic;
 pub mod error;
+pub mod http_auth;
 pub mod ordered_float;
 pub mod result;
 #[cfg(test)]
@@ -77,6 +78,15 @@ pub enum Error {
     InvalidRegistryArchive {
         /// The registry archive path
         archive: String,
+        /// The error message
+        error: String,
+    },
+
+    /// A remote file download failed.
+    #[error("Failed to download remote file `{url}`: {error}")]
+    RemoteFileDownloadFailed {
+        /// The URL that was being downloaded
+        url: String,
         /// The error message
         error: String,
     },
