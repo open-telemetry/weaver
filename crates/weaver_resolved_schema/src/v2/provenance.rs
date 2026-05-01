@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// The provenance of a semantic convention attribute or signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, Default)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Provenance {
     /// The dependency that defined this attribute or signal.
     ///
@@ -39,6 +40,7 @@ impl Provenance {
 #[derive(
     Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema, Hash,
 )]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct DependencyRef(pub u32);
 
 impl Display for DependencyRef {
