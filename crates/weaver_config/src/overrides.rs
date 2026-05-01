@@ -7,7 +7,6 @@
 //! reduces the per-field override to a single line.
 
 use schemars::JsonSchema;
-use std::path::PathBuf;
 
 use crate::WeaverConfig;
 
@@ -37,9 +36,6 @@ pub trait CliOverrides {
 
     /// The clap subcommand name (e.g. `"live-check"`), used for test introspection.
     const SUBCOMMAND: &'static str;
-
-    /// Path to a `--config` flag, if the command supports one.
-    fn config_path(&self) -> Option<&PathBuf>;
 
     /// Extract the relevant section from a loaded `WeaverConfig`.
     fn extract_config(weaver_config: &WeaverConfig) -> Self::Config;

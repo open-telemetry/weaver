@@ -55,7 +55,12 @@ Properties:
     the dependency is resolved by its `schema_url` alone. Can be:
     - A local directory or archive (`.zip`, `.tar.gz`)
     - A remote archive URL
+    - A remote file URL (e.g. a published registry manifest)
     - A Git repository URL
+    - A GitHub release asset URL (automatically resolved via the GitHub API)
+
+    For private sources, configure HTTP authentication per-URL via `[[auth]]`
+    entries in `.weaver.toml` (see the schema's `auth` section).
 
 For example, a definition manifest for a registry that extends OTel semantic conventions:
 
