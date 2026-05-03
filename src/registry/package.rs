@@ -20,7 +20,7 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
 
-/// Parameters for the `registry package` sub-command
+/// Package a resolved registry for publication (produces `resolved.yaml` and `manifest.yaml`).
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "package")]
 pub struct RegistryPackageArgs {

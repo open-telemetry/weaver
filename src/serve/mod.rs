@@ -20,7 +20,7 @@ mod ui;
 
 pub use server::run_server;
 
-/// Parameters for the `weaver serve` command.
+/// Serve a resolved registry over a local HTTP API for browsing and search.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "serve")]
 pub struct ServeCommand {

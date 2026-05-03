@@ -8,11 +8,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use weaver_checker::FindingLevel;
 
-/// Configuration for the live-check subcommand.
-///
-/// All fields carry their defaults via the `Default` impl. TOML deserialization
-/// with `#[serde(default)]` populates only the fields present in the file;
-/// the rest keep their defaults. CLI args are applied on top.
+/// Validate live telemetry against a semantic convention registry.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 #[serde(default)]
 #[schemars(inline)]

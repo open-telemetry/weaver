@@ -33,7 +33,7 @@ enum UpdateMarkdownError {
     MarkdownUpdateFailed,
 }
 
-/// Parameters for the `registry update-markdown` sub-command
+/// Update Jinja-marker sections inside Markdown files from a resolved registry.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "update-markdown", no_policy)]
 pub struct RegistryUpdateMarkdownArgs {

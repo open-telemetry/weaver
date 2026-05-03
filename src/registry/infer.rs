@@ -26,7 +26,7 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
 use weaver_config::{WeaverCommand, WeaverConfig};
 
-/// Parameters for the `registry infer` sub-command
+/// Infer a semantic convention registry by observing live OTLP telemetry.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "infer", no_policy)]
 pub struct RegistryInferArgs {

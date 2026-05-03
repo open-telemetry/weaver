@@ -71,6 +71,7 @@
       }
     },
     "check": {
+      "description": "Validate a semantic convention registry against policies and schema rules.",
       "type": "object"
     },
     "diagnostics": {
@@ -104,6 +105,7 @@
       }
     },
     "diff": {
+      "description": "Compare two versions of a semantic convention registry and report the differences.",
       "type": "object",
       "properties": {
         "format": {
@@ -127,6 +129,7 @@
       }
     },
     "emit": {
+      "description": "Emit a resolved registry as OTLP or to stdout.",
       "type": "object",
       "properties": {
         "endpoint": {
@@ -142,6 +145,7 @@
       }
     },
     "generate": {
+      "description": "Generate artifacts from a semantic convention registry using Jinja templates.",
       "type": "object",
       "properties": {
         "output": {
@@ -162,6 +166,7 @@
       }
     },
     "infer": {
+      "description": "Infer a semantic convention registry by observing live OTLP telemetry.",
       "type": "object",
       "properties": {
         "admin_port": {
@@ -200,7 +205,7 @@
       }
     },
     "live_check": {
-      "description": "Configuration for the live-check subcommand.\n\nAll fields carry their defaults via the `Default` impl. TOML deserialization\nwith `#[serde(default)]` populates only the fields present in the file;\nthe rest keep their defaults. CLI args are applied on top.",
+      "description": "Validate live telemetry against a semantic convention registry.",
       "type": "object",
       "properties": {
         "advice_policies": {
@@ -275,6 +280,7 @@
       }
     },
     "mcp": {
+      "description": "Expose a semantic convention registry over the Model Context Protocol (MCP).",
       "type": "object",
       "properties": {
         "advice_policies": {
@@ -301,6 +307,7 @@
       }
     },
     "package": {
+      "description": "Package a resolved registry for publication (produces `resolved.yaml` and `manifest.yaml`).",
       "type": "object",
       "properties": {
         "output": {
@@ -390,6 +397,7 @@
       }
     },
     "serve": {
+      "description": "Serve a resolved registry over a local HTTP API for browsing and search.",
       "type": "object",
       "properties": {
         "bind": {
@@ -408,6 +416,7 @@
       }
     },
     "stats": {
+      "description": "Compute and display statistics about a semantic convention registry.",
       "type": "object",
       "properties": {
         "format": {
@@ -431,6 +440,7 @@
       }
     },
     "update-markdown": {
+      "description": "Update Jinja-marker sections inside Markdown files from a resolved registry.",
       "type": "object",
       "properties": {
         "attribute_registry_base_url": {

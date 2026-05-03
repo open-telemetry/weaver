@@ -22,7 +22,7 @@ use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
 
-/// Parameters for the `registry generate` sub-command
+/// Generate artifacts from a semantic convention registry using Jinja templates.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "generate")]
 pub struct RegistryGenerateArgs {

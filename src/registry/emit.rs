@@ -15,7 +15,7 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
 
-/// Parameters for the `registry emit` sub-command
+/// Emit a resolved registry as OTLP or to stdout.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "emit")]
 pub struct RegistryEmitArgs {

@@ -19,7 +19,7 @@ use weaver_semconv::registry_repo::RegistryRepo;
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
 
-/// Parameters for the `registry diff` sub-command
+/// Compare two versions of a semantic convention registry and report the differences.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "diff", no_policy)]
 pub struct RegistryDiffArgs {

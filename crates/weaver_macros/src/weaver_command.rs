@@ -55,8 +55,13 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     let config_name = section_to_config_ident(&struct_attr.section);
     let args_ident = &input.ident;
+    let struct_doc_attrs: Vec<&syn::Attribute> = input
+        .attrs
+        .iter()
+        .filter(|a| a.path().is_ident("doc"))
+        .collect();
 
-    let config_struct = gen_config_struct(&config_name, &fields);
+    let config_struct = gen_config_struct(&config_name, &struct_doc_attrs, &fields);
     let default_impl = gen_default_impl(&config_name, &fields);
     let cli_overrides_impl =
         gen_cli_overrides_impl(args_ident, &config_name, &struct_attr, &fields);
@@ -199,7 +204,11 @@ fn parse_config_annotation(
 
 // ── Config struct generation ──────────────────────────────────────────────────
 
-fn gen_config_struct(config_name: &Ident, fields: &[ClassifiedField<'_>]) -> TokenStream2 {
+fn gen_config_struct(
+    config_name: &Ident,
+    struct_docs: &[&syn::Attribute],
+    fields: &[ClassifiedField<'_>],
+) -> TokenStream2 {
     let config_fields: Vec<TokenStream2> = fields
         .iter()
         .filter_map(|f| {
@@ -215,6 +224,7 @@ fn gen_config_struct(config_name: &Ident, fields: &[ClassifiedField<'_>]) -> Tok
 
     // If no config fields exist the struct is empty (like CheckConfig).
     quote! {
+        #(#struct_docs)*
         #[derive(Debug, Clone, ::serde::Deserialize, ::schemars::JsonSchema, PartialEq)]
         #[serde(default)]
         #[schemars(inline)]

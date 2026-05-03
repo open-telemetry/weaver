@@ -18,7 +18,7 @@ use weaver_forge::{OutputProcessor, OutputTarget};
 /// Embedded default stats templates
 pub(crate) static DEFAULT_STATS_TEMPLATES: Dir<'_> = include_dir!("defaults/stats_templates");
 
-/// Parameters for the `registry stats` sub-command
+/// Compute and display statistics about a semantic convention registry.
 #[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "stats", no_policy)]
 pub struct RegistryStatsArgs {
