@@ -357,6 +357,7 @@ A span refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the span refinement.
 - `ref` - Required. The type of the span being refined.
+- `name` - Optional. Overrides the [span name](#span-name) specification from the referenced base span. If set, the refinement's `name.note` is used; otherwise, the base span's `name.note` is inherited.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
 - `entity_associations` - Optional. Which resources this span should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
