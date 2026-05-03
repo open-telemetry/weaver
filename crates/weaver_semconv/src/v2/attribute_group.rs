@@ -89,7 +89,7 @@ impl AttributeGroup {
                     entity_associations: vec![],
                     visibility: Some(AttributeGroupVisibilitySpec::Internal),
                     is_v2: true,
-            span_name_note: None,
+                    span_name_note: None,
                 }
             }
             AttributeGroup::Public(public) => {
@@ -123,7 +123,7 @@ impl AttributeGroup {
                     entity_associations: vec![],
                     visibility: Some(AttributeGroupVisibilitySpec::Public),
                     is_v2: true,
-            span_name_note: None,
+                    span_name_note: None,
                 }
             }
         }

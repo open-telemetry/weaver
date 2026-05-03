@@ -296,7 +296,10 @@ pub fn convert_v1_to_v2(
                             .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
                         // Use span_name_note (carried from v2) if available, fall back to g.name.
                         name: SpanName {
-                            note: g.span_name_note.clone().unwrap_or_else(|| g.name.clone().unwrap_or_default()),
+                            note: g
+                                .span_name_note
+                                .clone()
+                                .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
                         },
                         entity_associations: g.entity_associations.clone(),
                         common: CommonFields {
@@ -335,7 +338,10 @@ pub fn convert_v1_to_v2(
                                 .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
                             // Use span_name_note (carried from v2) if available, fall back to g.name.
                             name: SpanName {
-                                note: g.span_name_note.clone().unwrap_or_else(|| g.name.clone().unwrap_or_default()),
+                                note: g
+                                    .span_name_note
+                                    .clone()
+                                    .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
                             },
                             entity_associations: g.entity_associations.clone(),
                             common: CommonFields {

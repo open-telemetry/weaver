@@ -133,7 +133,7 @@ impl SemConvSpecV2 {
                     .collect(),
                 brief: "<synthetic v2>".to_owned(),
                 is_v2: true,
-            span_name_note: None,
+                span_name_note: None,
                 ..Default::default()
             });
         }
