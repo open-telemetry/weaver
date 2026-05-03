@@ -360,9 +360,6 @@ brief: With name override
         )
         .expect("Failed to parse refinement with name");
         assert!(with_name.name.is_some());
-        assert_eq!(
-            with_name.name.unwrap().note,
-            "{custom} {name_format}"
-        );
+        assert_eq!(with_name.name.unwrap().note, "{custom} {name_format}");
     }
 }

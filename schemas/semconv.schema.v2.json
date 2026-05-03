@@ -1537,6 +1537,17 @@
           "description": "The ID of the refinement.",
           "$ref": "#/$defs/SignalId"
         },
+        "name": {
+          "description": "Overrides the span name specification from the referenced base span.\nIf set, the refinement's `name.note` is used; otherwise, the base span's\n`name.note` is inherited.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpanName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "note": {
           "description": "Refines the more elaborate description of the signal.\nNote: This field is currently not propagated during resolution.",
           "type": [
