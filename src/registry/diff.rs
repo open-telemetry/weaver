@@ -2,7 +2,7 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -12,7 +12,10 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::WeaverConfig;
+use weaver_config::{
+    excluded_args, override_if_set, CliOverrides, DiffConfig, EffectiveDiagnosticConfig,
+    EffectiveRegistryConfig, WeaverConfig,
+};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
@@ -32,12 +35,12 @@ pub struct RegistryDiffArgs {
 
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
     /// and markdown.
-    #[arg(long, alias = "diff-format", default_value = "ansi")]
-    format: String,
+    #[arg(long, alias = "diff-format")]
+    format: Option<String>,
 
     /// Path to the directory where the schema changes templates are located.
-    #[arg(long, alias = "diff-template", default_value = "diff_templates")]
-    templates: PathBuf,
+    #[arg(long, alias = "diff-template")]
+    templates: Option<PathBuf>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the diff report is printed to stdout
@@ -49,25 +52,55 @@ pub struct RegistryDiffArgs {
     pub(crate) diagnostic: DiagnosticArgs,
 }
 
+impl CliOverrides for RegistryDiffArgs {
+    type Config = DiffConfig;
+    const SUBCOMMAND: &'static str = "diff";
+
+    fn extract_config(weaver_config: &WeaverConfig) -> DiffConfig {
+        weaver_config.diff.clone()
+    }
+
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(
+            RegistryArgs::EXCLUDED_ARGS,
+            DiagnosticArgs::EXCLUDED_ARGS,
+            ["baseline_registry"],
+        )
+    }
+
+    fn apply_overrides(&self, config: &mut DiffConfig) {
+        override_if_set!(config.format, self.format);
+        override_if_set!(config.templates, self.templates);
+        override_if_set!(config.output, self.output, optional);
+    }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
+
+    fn uses_policy() -> bool {
+        false
+    }
+}
+
 /// Generate a diff between two versions of a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryDiffArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     let mut diag_msgs = DiagnosticMessages::empty();
-    // TODO - make sure policy is disabled.
-    let policy_config = PolicyArgs {
-        policies: vec![],
-        skip_policies: true,
-        display_policy_coverage: false,
-    };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
 
     info!("Weaver Registry Diff");
-    info!("Checking registry `{}`", args.registry.registry);
+    info!("Checking registry `{}`", cmd_config.registry.registry);
 
-    let registry_path = args.registry.registry.clone();
+    let registry_path = cmd_config.registry.registry.clone();
     let main_registry_repo =
         RegistryRepo::try_new_with_auth(None, &registry_path, &mut vec![], auth)?;
     let baseline_registry_repo =
@@ -85,12 +118,14 @@ pub(crate) fn command(
         return Err(diag_msgs);
     }
 
-    let target = OutputTarget::from_optional_dir(args.output.as_ref());
+    let format = &cmd_config.config.format;
+    let templates = cmd_config.config.templates;
+    let target = OutputTarget::from_optional_dir(cmd_config.config.output.as_ref());
     let mut output = OutputProcessor::new(
-        &args.format,
+        format,
         "diff",
         Some(&DEFAULT_DIFF_TEMPLATES),
-        Some(args.templates.clone()),
+        Some(templates),
         target,
     )?;
 
@@ -119,6 +154,12 @@ mod tests {
     use weaver_version::schema_changes::SchemaChanges;
 
     #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryDiffArgs>();
+    }
+
+    #[test]
     fn test_registry_diff_exit_code() {
         let cli = Cli {
             debug: 0,
@@ -129,18 +170,16 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Diff(RegistryDiffArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "tests/diff/registry_head/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
                     },
-                    format: "json".to_owned(),
-                    templates: Default::default(),
+                    format: Some("json".to_owned()),
+                    templates: None,
                     output: None,
                     diagnostic: Default::default(),
                 }),
@@ -162,18 +201,16 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Diff(RegistryDiffArgs {
                 registry: RegistryArgs {
-                    registry: VirtualDirectoryPath::LocalFolder {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_head/".to_owned(),
-                    },
-                    follow_symlinks: false,
-                    include_unreferenced: false,
-                    v2: false,
+                    }),
+                    ..Default::default()
                 },
                 baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),
                 },
-                format: "json".to_owned(),
-                templates: Default::default(),
+                format: Some("json".to_owned()),
+                templates: None,
                 output: Some(temp_dir.path().to_path_buf()),
                 diagnostic: Default::default(),
             }),

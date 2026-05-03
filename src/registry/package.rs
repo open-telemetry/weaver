@@ -14,11 +14,14 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
 
-use crate::registry::{Error, PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{
+    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
+    EffectiveRegistryConfig, PackageConfig, WeaverConfig,
+};
 
 /// Parameters for the `registry package` sub-command
 #[derive(Debug, Args)]
@@ -28,13 +31,13 @@ pub struct RegistryPackageArgs {
     registry: RegistryArgs,
 
     /// Path to the directory where the package will be written.
-    #[arg(short, long, default_value = "output")]
-    output: PathBuf,
+    #[arg(short, long)]
+    output: Option<PathBuf>,
 
     /// URI where the resolved schema will eventually be published.
     /// This value is embedded in the publication manifest as `resolved_schema_uri`.
     #[arg(long)]
-    resolved_schema_uri: String,
+    resolved_schema_uri: Option<String>,
 
     /// Policy parameters
     #[command(flatten)]
@@ -43,6 +46,44 @@ pub struct RegistryPackageArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+}
+
+impl CliOverrides for RegistryPackageArgs {
+    type Config = PackageConfig;
+    const SUBCOMMAND: &'static str = "package";
+
+    fn extract_config(weaver_config: &WeaverConfig) -> PackageConfig {
+        weaver_config.package.clone()
+    }
+
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(
+            RegistryArgs::EXCLUDED_ARGS,
+            PolicyArgs::EXCLUDED_ARGS,
+            DiagnosticArgs::EXCLUDED_ARGS,
+        )
+    }
+
+    fn apply_overrides(&self, config: &mut PackageConfig) {
+        override_if_set!(config.output, self.output);
+        override_if_set!(
+            config.resolved_schema_uri,
+            self.resolved_schema_uri,
+            optional
+        );
+    }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
+        self.policy.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
 }
 
 fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), DiagnosticMessages> {
@@ -60,19 +101,26 @@ fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), Diagnosti
 /// Package a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryPackageArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    info!("Packaging registry `{}`", args.registry.registry);
+    let cmd_config = load_config(args, cfg);
+    let output = cmd_config.config.output;
+    let resolved_schema_uri = cmd_config.config.resolved_schema_uri.ok_or_else(|| {
+        DiagnosticMessages::from(Error::Config {
+            error: "resolved_schema_uri is required (set via --resolved-schema-uri or [package] config)".to_owned(),
+        })
+    })?;
+    info!("Packaging registry `{}`", cmd_config.registry.registry);
 
     // we only support packaging v2 registries
-    if !args.registry.v2 {
+    if !cmd_config.registry.v2 {
         return Err(Error::PackagingRequiresV2.into());
     }
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
-    let registry_path = &args.registry.registry;
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let registry_path = &cmd_config.registry.registry;
 
     let mut nfes = vec![];
     let repo = RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
@@ -109,24 +157,21 @@ pub(crate) fn command(
         return Err(diag_msgs);
     }
 
-    fs::create_dir_all(&args.output).map_err(|e| Error::OutputWrite {
-        path: args.output.clone(),
+    fs::create_dir_all(&output).map_err(|e| Error::OutputWrite {
+        path: output.clone(),
         error: e.to_string(),
     })?;
     let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
         &definition_manifest,
-        args.resolved_schema_uri.clone(),
+        resolved_schema_uri,
     );
 
-    write_yaml(
-        &args.output.join("resolved.yaml"),
-        resolved_v2.resolved_schema(),
-    )?;
-    write_yaml(&args.output.join("manifest.yaml"), &publication_manifest)?;
+    write_yaml(&output.join("resolved.yaml"), resolved_v2.resolved_schema())?;
+    write_yaml(&output.join("manifest.yaml"), &publication_manifest)?;
 
     log_success(format!(
         "Registry packaged successfully to `{}`",
-        args.output.display()
+        output.display()
     ));
 
     Ok(ExitDirectives {
@@ -143,6 +188,12 @@ mod tests {
 
     use crate::registry::{PolicyArgs, RegistryArgs};
 
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryPackageArgs>();
+    }
+
     fn make_args(
         registry_path: &str,
         output: PathBuf,
@@ -151,19 +202,17 @@ mod tests {
     ) -> RegistryPackageArgs {
         RegistryPackageArgs {
             registry: RegistryArgs {
-                registry: VirtualDirectoryPath::LocalFolder {
+                registry: Some(VirtualDirectoryPath::LocalFolder {
                     path: registry_path.to_owned(),
-                },
-                follow_symlinks: false,
-                include_unreferenced: false,
-                v2,
+                }),
+                v2: if v2 { Some(true) } else { None },
+                ..Default::default()
             },
-            output,
-            resolved_schema_uri: resolved_schema_uri.to_owned(),
+            output: Some(output),
+            resolved_schema_uri: Some(resolved_schema_uri.to_owned()),
             policy: PolicyArgs {
-                policies: vec![],
-                skip_policies: true,
-                display_policy_coverage: false,
+                skip_policies: Some(true),
+                ..Default::default()
             },
             diagnostic: Default::default(),
         }

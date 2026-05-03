@@ -25,35 +25,59 @@ mod registry;
 mod serve;
 mod weaver;
 
-/// Default value for `--diagnostic-format`.
-pub(crate) const DEFAULT_DIAGNOSTIC_FORMAT: &str = "ansi";
-/// Default value for `--diagnostic-template`.
-pub(crate) const DEFAULT_DIAGNOSTIC_TEMPLATE: &str = "diagnostic_templates";
-
 /// Set of parameters used to specify the diagnostic format.
-#[derive(Args, Debug, Clone)]
+///
+/// All fields are `Option` so we can distinguish "user set this on the CLI"
+/// from "use the default". Resolution happens via [`DiagnosticArgs::to_effective`].
+#[derive(Args, Debug, Clone, Default)]
 pub(crate) struct DiagnosticArgs {
     /// Format used to render the diagnostic messages. Predefined formats are: ansi, json,
     /// gh_workflow_command.
-    #[arg(long, default_value = DEFAULT_DIAGNOSTIC_FORMAT)]
-    pub(crate) diagnostic_format: String,
+    #[arg(long)]
+    pub(crate) diagnostic_format: Option<String>,
 
     /// Path to the directory where the diagnostic templates are located.
-    #[arg(long, default_value = DEFAULT_DIAGNOSTIC_TEMPLATE)]
-    pub(crate) diagnostic_template: PathBuf,
+    #[arg(long)]
+    pub(crate) diagnostic_template: Option<PathBuf>,
 
     /// Send the output to stdout instead of stderr.
-    #[arg(long)]
-    pub(crate) diagnostic_stdout: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub(crate) diagnostic_stdout: Option<bool>,
 }
 
-impl Default for DiagnosticArgs {
-    fn default() -> Self {
-        Self {
-            diagnostic_format: DEFAULT_DIAGNOSTIC_FORMAT.to_owned(),
-            diagnostic_template: PathBuf::from(DEFAULT_DIAGNOSTIC_TEMPLATE),
-            diagnostic_stdout: false,
+impl DiagnosticArgs {
+    /// Field names to list in `excluded_args()` for any command that
+    /// flattens `DiagnosticArgs`.
+    pub(crate) const EXCLUDED_ARGS: &[&str] = &[
+        "diagnostic_format",
+        "diagnostic_template",
+        "diagnostic_stdout",
+    ];
+
+    /// Apply CLI overrides (layer 3) onto an effective diagnostic config.
+    pub(crate) fn apply_to(&self, effective: &mut weaver_config::EffectiveDiagnosticConfig) {
+        if let Some(format) = &self.diagnostic_format {
+            effective.diagnostic_format.clone_from(format);
         }
+        if let Some(template) = &self.diagnostic_template {
+            effective.diagnostic_template.clone_from(template);
+        }
+        if let Some(v) = self.diagnostic_stdout {
+            effective.diagnostic_stdout = v;
+        }
+    }
+
+    /// Build an effective diagnostic config: defaults → config → CLI.
+    pub(crate) fn to_effective(
+        &self,
+        cfg: Option<&weaver_config::WeaverConfig>,
+    ) -> weaver_config::EffectiveDiagnosticConfig {
+        let mut effective = weaver_config::EffectiveDiagnosticConfig::default();
+        if let Some(wc) = cfg {
+            effective.layer_config(&wc.diagnostics);
+        }
+        self.apply_to(&mut effective);
+        effective
     }
 }
 
@@ -61,7 +85,7 @@ impl Default for DiagnosticArgs {
 #[derive(Debug)]
 pub(crate) struct CmdResult {
     pub(crate) command_result: Result<ExitDirectives, DiagnosticMessages>,
-    pub(crate) diagnostic_args: Option<DiagnosticArgs>,
+    pub(crate) diagnostics: weaver_config::EffectiveDiagnosticConfig,
 }
 
 /// Exit directives.
@@ -77,11 +101,11 @@ impl CmdResult {
     /// Create a new command result.
     pub(crate) fn new(
         command_result: Result<ExitDirectives, DiagnosticMessages>,
-        diagnostic_args: Option<DiagnosticArgs>,
+        diagnostics: weaver_config::EffectiveDiagnosticConfig,
     ) -> Self {
         Self {
             command_result,
-            diagnostic_args,
+            diagnostics,
         }
     }
 }
@@ -137,12 +161,15 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.allow_git_credentials {
         weaver_common::vdir::enable_git_credentials();
     }
-    // Resolve `.weaver.toml` (global `--config` overrides cwd discovery) and
+    // Load `.weaver.toml` (global `--config` overrides cwd discovery) and
     // build the HTTP auth resolver once for the whole invocation.
     let weaver_config = match resolve_weaver_config(cli.config.as_deref()) {
         Ok(wc) => wc,
         Err(diag) => {
-            return process_diagnostics(CmdResult::new(Err(diag), Some(DiagnosticArgs::default())));
+            return process_diagnostics(CmdResult::new(
+                Err(diag),
+                DiagnosticArgs::default().to_effective(None),
+            ));
         }
     };
     let cfg = weaver_config.as_ref();
@@ -150,7 +177,7 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params, cfg, &auth),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),
-        Some(Commands::Serve(params)) => serve::command(params, &auth),
+        Some(Commands::Serve(params)) => serve::command(params, cfg, &auth),
         Some(Commands::Completion(completions)) => {
             if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
                 log_error(&e);
@@ -184,19 +211,19 @@ fn run_command(cli: &Cli) -> ExitDirectives {
 }
 
 fn print_diagnostics(
-    diagnostic_args: &DiagnosticArgs,
+    diagnostics: &weaver_config::EffectiveDiagnosticConfig,
     diagnostic_messages: &DiagnosticMessages,
 ) -> Result<(), weaver_forge::error::Error> {
-    let target = if diagnostic_args.diagnostic_stdout {
+    let target = if diagnostics.diagnostic_stdout {
         OutputTarget::Stdout
     } else {
         OutputTarget::Stderr
     };
     let mut output = OutputProcessor::new(
-        &diagnostic_args.diagnostic_format,
+        &diagnostics.diagnostic_format,
         "errors",
         Some(&DEFAULT_DIAGNOSTIC_TEMPLATES),
-        Some(diagnostic_args.diagnostic_template.clone()),
+        Some(diagnostics.diagnostic_template.clone()),
         target,
     )?;
     output.generate(diagnostic_messages)
@@ -205,7 +232,7 @@ fn print_diagnostics(
 /// Render the diagnostic messages based on the diagnostic configuration and return the exit
 /// directives based on the diagnostic messages and the CmdResult quiet mode.
 fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
-    let diagnostic_args = cmd_result.diagnostic_args.unwrap_or_default();
+    let diagnostics = &cmd_result.diagnostics;
     let mut exit_directives = if let Ok(exit_directives) = &cmd_result.command_result {
         exit_directives.clone()
     } else {
@@ -216,7 +243,7 @@ fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
     };
 
     if let Err(diagnostic_messages) = cmd_result.command_result {
-        match print_diagnostics(&diagnostic_args, &diagnostic_messages) {
+        match print_diagnostics(diagnostics, &diagnostic_messages) {
             Ok(_) => {}
             Err(e) => {
                 log_error(format!(
@@ -231,7 +258,7 @@ fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
         }
     } else if let Some(ref warnings) = exit_directives.warnings {
         if !warnings.is_empty() {
-            match print_diagnostics(&diagnostic_args, warnings) {
+            match print_diagnostics(diagnostics, warnings) {
                 Ok(_) => {}
                 Err(e) => {
                     log_error(format!(

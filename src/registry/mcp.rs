@@ -11,12 +11,15 @@ use std::path::PathBuf;
 use clap::Args;
 use log::info;
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{
+    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig,
+    EffectiveRegistryConfig, McpConfig, WeaverConfig,
+};
 
 /// Parameters for the `registry mcp` subcommand.
 #[derive(Debug, Args)]
@@ -43,29 +46,58 @@ pub struct RegistryMcpArgs {
 
     /// Namespace separator used in attribute keys. Defaults to ".".
     /// Used by namespace browsing and search token splitting.
-    #[arg(long, default_value = ".")]
-    pub namespace_separator: String,
+    #[arg(long)]
+    pub namespace_separator: Option<String>,
+}
+
+impl CliOverrides for RegistryMcpArgs {
+    type Config = McpConfig;
+    const SUBCOMMAND: &'static str = "mcp";
+
+    fn extract_config(weaver_config: &WeaverConfig) -> McpConfig {
+        weaver_config.mcp.clone()
+    }
+
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(RegistryArgs::EXCLUDED_ARGS, DiagnosticArgs::EXCLUDED_ARGS,)
+    }
+
+    fn apply_overrides(&self, config: &mut McpConfig) {
+        override_if_set!(config.advice_policies, self.advice_policies, optional);
+        override_if_set!(
+            config.advice_preprocessor,
+            self.advice_preprocessor,
+            optional
+        );
+        override_if_set!(config.namespace_separator, self.namespace_separator);
+    }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
+
+    fn uses_policy() -> bool {
+        false
+    }
 }
 
 /// Run the MCP server for the semantic convention registry.
 pub(crate) fn command(
     args: &RegistryMcpArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     info!("Loading semantic convention registry for MCP server");
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    // Create empty policy args (MCP server doesn't need policy checks)
-    let policy_args = PolicyArgs {
-        policies: Vec::new(),
-        skip_policies: true,
-        display_policy_coverage: false,
-    };
-
     // Use WeaverEngine to load and resolve the registry (always use v2)
-    let weaver = WeaverEngine::new(&args.registry, &policy_args, auth);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry
@@ -78,15 +110,15 @@ pub(crate) fn command(
     info!("Starting MCP server (communicating over stdio)");
     info!("The server will run until stdin is closed.");
 
-    // Build MCP config from command line args
-    let config = weaver_mcp::McpConfig {
-        advice_policies: args.advice_policies.clone(),
-        advice_preprocessor: args.advice_preprocessor.clone(),
-        namespace_separator: args.namespace_separator.clone(),
+    // Build MCP config from effective config
+    let mcp_config = weaver_mcp::McpConfig {
+        advice_policies: cmd_config.config.advice_policies,
+        advice_preprocessor: cmd_config.config.advice_preprocessor,
+        namespace_separator: cmd_config.config.namespace_separator,
     };
 
     // Run the MCP server
-    if let Err(e) = weaver_mcp::run_with_config(forge_registry, config) {
+    if let Err(e) = weaver_mcp::run_with_config(forge_registry, mcp_config) {
         return Err(DiagnosticMessages::from_error(e));
     }
 
@@ -94,4 +126,15 @@ pub(crate) fn command(
         exit_code: 0,
         warnings: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::registry::mcp::RegistryMcpArgs;
+
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryMcpArgs>();
+    }
 }

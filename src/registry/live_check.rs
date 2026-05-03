@@ -14,7 +14,10 @@ use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
-use weaver_config::{override_if_set, CliOverrides, FieldMapping, LiveCheckConfig, WeaverConfig};
+use weaver_config::{
+    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
+    EffectiveRegistryConfig, FieldMapping, LiveCheckConfig, WeaverConfig,
+};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
@@ -189,19 +192,12 @@ impl CliOverrides for RegistryLiveCheckArgs {
         ]
     }
 
-    fn cli_only_args() -> &'static [&'static str] {
-        &[
-            "registry",                // RegistryArgs (invocation-specific)
-            "follow_symlinks",         // RegistryArgs
-            "include_unreferenced",    // RegistryArgs
-            "v2",                      // RegistryArgs
-            "policy",                  // PolicyArgs
-            "skip_policies",           // PolicyArgs
-            "display_policy_coverage", // PolicyArgs
-            "diagnostic_format",       // DiagnosticArgs
-            "diagnostic_template",     // DiagnosticArgs
-            "diagnostic_stdout",       // DiagnosticArgs
-        ]
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(
+            RegistryArgs::EXCLUDED_ARGS,
+            PolicyArgs::EXCLUDED_ARGS,
+            DiagnosticArgs::EXCLUDED_ARGS,
+        )
     }
 
     fn field_mappings() -> &'static [FieldMapping] {
@@ -247,6 +243,18 @@ impl CliOverrides for RegistryLiveCheckArgs {
         override_if_set!(config.emit.otlp_logs_endpoint, self.otlp_logs_endpoint);
         override_if_set!(config.emit.otlp_logs_stdout, self.otlp_logs_stdout);
     }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
+        self.policy.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
 }
 
 fn default_advisors() -> Vec<Box<dyn Advisor>> {
@@ -290,16 +298,10 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let config = load_config(args, cfg);
-
-    // `args` is borrowed immutably from the dispatch chain, so shared overrides
-    // need owned copies to mutate.
-    let mut registry_args = args.registry.clone();
-    let mut policy_args = args.policy.clone();
-    if let Some(wc) = cfg {
-        super::apply_registry_config(&mut registry_args, &wc.registry);
-        super::apply_policy_config(&mut policy_args, &wc.policy);
-    }
+    let cmd_config = load_config(args, cfg);
+    let config = cmd_config.config;
+    let registry_args = cmd_config.registry;
+    let policy_args = cmd_config.policy;
 
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());

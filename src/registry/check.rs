@@ -2,7 +2,7 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -10,7 +10,10 @@ use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::WeaverConfig;
+use weaver_config::{
+    excluded_args, CheckConfig, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
+    EffectiveRegistryConfig, WeaverConfig,
+};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry check` sub-command
@@ -33,16 +36,51 @@ pub struct RegistryCheckArgs {
     pub diagnostic: DiagnosticArgs,
 }
 
+impl CliOverrides for RegistryCheckArgs {
+    type Config = CheckConfig;
+    const SUBCOMMAND: &'static str = "check";
+
+    fn extract_config(weaver_config: &WeaverConfig) -> CheckConfig {
+        weaver_config.check.clone()
+    }
+
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(
+            RegistryArgs::EXCLUDED_ARGS,
+            PolicyArgs::EXCLUDED_ARGS,
+            DiagnosticArgs::EXCLUDED_ARGS,
+            ["baseline_registry"],
+        )
+    }
+
+    fn apply_overrides(&self, _config: &mut CheckConfig) {
+        // No command-specific config fields to override.
+    }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
+        self.policy.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
+}
+
 /// Check a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryCheckArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
-    info!("Checking registry `{}`", args.registry.registry);
-    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
+    info!("Checking registry `{}`", cmd_config.registry.registry);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
 
     // Initialize the main registry.
     let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
@@ -87,6 +125,12 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryCheckArgs>();
+    }
+
+    #[test]
     fn test_registry_check_exit_code() {
         let cli = Cli {
             debug: 0,
@@ -97,18 +141,15 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     baseline_registry: None,
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
                 }),
@@ -129,18 +170,14 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     baseline_registry: None,
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: false,
-                        display_policy_coverage: false,
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
                 }),
@@ -157,18 +194,14 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Check(RegistryCheckArgs {
                 registry: RegistryArgs {
-                    registry: VirtualDirectoryPath::LocalFolder {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                    },
-                    follow_symlinks: false,
-                    include_unreferenced: false,
-                    v2: false,
+                    }),
+                    ..Default::default()
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {
-                    policies: vec![],
-                    skip_policies: false,
-                    display_policy_coverage: false,
+                    ..Default::default()
                 },
                 diagnostic: Default::default(),
             }),
@@ -197,18 +230,16 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Check(RegistryCheckArgs {
                 registry: RegistryArgs {
-                    registry: VirtualDirectoryPath::LocalFolder {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
                         path: "tests/v2_check/".to_owned(),
-                    },
-                    follow_symlinks: false,
-                    include_unreferenced: false,
-                    v2: true,
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {
-                    policies: vec![],
-                    skip_policies: false,
-                    display_policy_coverage: true,
+                    display_policy_coverage: Some(true),
+                    ..Default::default()
                 },
                 diagnostic: Default::default(),
             }),
@@ -236,20 +267,17 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Check(RegistryCheckArgs {
                 registry: RegistryArgs {
-                    registry: VirtualDirectoryPath::LocalFolder {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
                         path: "tests/v2_check_baseline/next/".to_owned(),
-                    },
-                    follow_symlinks: false,
-                    include_unreferenced: false,
-                    v2: true,
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
                 },
                 baseline_registry: Some(VirtualDirectoryPath::LocalFolder {
                     path: "tests/v2_check_baseline/base".to_owned(),
                 }),
                 policy: PolicyArgs {
-                    policies: vec![],
-                    skip_policies: false,
-                    display_policy_coverage: false,
+                    ..Default::default()
                 },
                 diagnostic: Default::default(),
             }),
@@ -278,18 +306,15 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Check(RegistryCheckArgs {
                 registry: RegistryArgs {
-                    registry: VirtualDirectoryPath::LocalFolder {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
                         path: "tests/v2_check_before_resolution/".to_owned(),
-                    },
-                    follow_symlinks: false,
-                    include_unreferenced: false,
-                    v2: true,
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {
-                    policies: vec![],
-                    skip_policies: false,
-                    display_policy_coverage: false,
+                    ..Default::default()
                 },
                 diagnostic: Default::default(),
             }),

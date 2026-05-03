@@ -71,6 +71,10 @@
         "unevaluatedProperties": false
       }
     },
+    "check": {
+      "description": "Check-specific configuration.",
+      "type": "object"
+    },
     "diagnostics": {
       "description": "Shared diagnostic output settings (apply to all subcommands that accept them).",
       "type": "object",
@@ -93,6 +97,142 @@
         },
         "template": {
           "description": "Path to the directory where the diagnostic templates are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "diff": {
+      "description": "Diff-specific configuration.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Format used to render the schema changes (e.g. ansi, json, markdown).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the schema changes templates are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "emit": {
+      "description": "Emit-specific configuration.",
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "description": "Endpoint for the OTLP receiver.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "stdout": {
+          "description": "Write to stdout instead of sending via OTLP.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "generate": {
+      "description": "Generate-specific configuration.",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Path to the output directory.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "target": {
+          "description": "Target to generate artifacts for.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "infer": {
+      "description": "Infer-specific configuration.",
+      "type": "object",
+      "properties": {
+        "admin_port": {
+          "description": "Port used by the HTTP admin server.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "default": null,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "grpc_address": {
+          "description": "Address used by the gRPC OTLP listener.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "grpc_port": {
+          "description": "Port used by the gRPC OTLP listener.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "default": null,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "inactivity_timeout": {
+          "description": "Seconds of inactivity before auto-stop (0 = never).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "output": {
+          "description": "Output folder for generated YAML files.",
           "type": [
             "string",
             "null"
@@ -176,10 +316,70 @@
         }
       }
     },
+    "mcp": {
+      "description": "MCP-specific configuration.",
+      "type": "object",
+      "properties": {
+        "advice_policies": {
+          "description": "Advice policies directory.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_preprocessor": {
+          "description": "Advice preprocessor jq script.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "namespace_separator": {
+          "description": "Namespace separator used in attribute keys (defaults to \".\").",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "package": {
+      "description": "Package-specific configuration.",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Path to the directory where the package will be written.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "resolved_schema_uri": {
+          "description": "URI where the resolved schema will eventually be published.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
     "policy": {
       "description": "Shared policy settings (apply to all subcommands that accept them).",
       "type": "object",
       "properties": {
+        "display_policy_coverage": {
+          "description": "Display the policy coverage report.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
         "paths": {
           "description": "Policy file or directory paths. Directories load all `.rego` files.",
           "type": [
@@ -233,6 +433,104 @@
           "description": "Use version 2 of the schema.",
           "type": [
             "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "serve": {
+      "description": "Serve-specific configuration.",
+      "type": "object",
+      "properties": {
+        "bind": {
+          "description": "Address to bind the server to (e.g. `127.0.0.1:8080`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "cors_origins": {
+          "description": "Allowed CORS origins (comma-separated). Use `*` for any origin.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "stats": {
+      "description": "Stats-specific configuration.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Output format for the stats (e.g. text, json, yaml, jsonl, mute).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the stats templates are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "update_markdown": {
+      "description": "Update-markdown-specific configuration.",
+      "type": "object",
+      "properties": {
+        "attribute_registry_base_url": {
+          "description": "Optional path to the attribute registry base URL.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "dry_run": {
+          "description": "Whether to run updates in dry-run mode.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "markdown_dir": {
+          "description": "Path to the directory where the markdown files are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "target": {
+          "description": "Target to generate snippets with.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.",
+          "type": [
+            "string",
             "null"
           ],
           "default": null

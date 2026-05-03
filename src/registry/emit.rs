@@ -9,11 +9,14 @@ use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::log_success;
 use weaver_emit::{emit, ExporterConfig, RegistryVersion};
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{
+    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
+    EffectiveRegistryConfig, EmitConfig, WeaverConfig,
+};
 
 /// Parameters for the `registry emit` sub-command
 #[derive(Debug, Args)]
@@ -31,55 +34,93 @@ pub struct RegistryEmitArgs {
     pub diagnostic: DiagnosticArgs,
 
     /// Write the telemetry to standard output
-    #[arg(long)]
-    stdout: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    stdout: Option<bool>,
 
     /// Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.
-    #[arg(long, default_value = weaver_emit::DEFAULT_OTLP_ENDPOINT)]
-    endpoint: String,
+    #[arg(long)]
+    endpoint: Option<String>,
+}
+
+impl CliOverrides for RegistryEmitArgs {
+    type Config = EmitConfig;
+    const SUBCOMMAND: &'static str = "emit";
+
+    fn extract_config(weaver_config: &WeaverConfig) -> EmitConfig {
+        weaver_config.emit.clone()
+    }
+
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(
+            RegistryArgs::EXCLUDED_ARGS,
+            PolicyArgs::EXCLUDED_ARGS,
+            DiagnosticArgs::EXCLUDED_ARGS,
+        )
+    }
+
+    fn apply_overrides(&self, config: &mut EmitConfig) {
+        override_if_set!(config.stdout, self.stdout);
+        override_if_set!(config.endpoint, self.endpoint);
+    }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
+        self.policy.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
 }
 
 /// Emit all spans in the resolved registry.
 pub(crate) fn command(
     args: &RegistryEmitArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     info!("Weaver Registry Emit");
-    info!("Resolving registry `{}`", args.registry.registry);
+    info!("Resolving registry `{}`", cmd_config.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    let exporter_config = if args.stdout {
+    let stdout = cmd_config.config.stdout;
+    let endpoint = cmd_config.config.endpoint;
+    let exporter_config = if stdout {
         ExporterConfig::Stdout
     } else {
-        ExporterConfig::Otlp {
-            endpoint: args.endpoint.clone(),
-        }
+        ExporterConfig::Otlp { endpoint }
     };
-    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     match resolved {
         crate::weaver::Resolved::V2(v) => {
-            info!("Emitting v2 registry `{}`", args.registry.registry);
+            info!("Emitting v2 registry `{}`", cmd_config.registry.registry);
             emit(
                 RegistryVersion::V2(v.template_schema()),
-                &args.registry.registry.to_string(),
+                &cmd_config.registry.registry.to_string(),
                 &exporter_config,
             )
             .combine_diag_msgs_with(&diag_msgs)?;
         }
         crate::weaver::Resolved::V1(v) => {
-            info!("Emitting v1 registry `{}`", args.registry.registry);
+            info!("Emitting v1 registry `{}`", cmd_config.registry.registry);
             emit(
                 RegistryVersion::V1(v.template_schema()),
-                &args.registry.registry.to_string(),
+                &cmd_config.registry.registry.to_string(),
                 &exporter_config,
             )
             .combine_diag_msgs_with(&diag_msgs)?;
         }
     }
-    log_success(format!("Emitted registry `{}`", args.registry.registry));
+    log_success(format!(
+        "Emitted registry `{}`",
+        cmd_config.registry.registry
+    ));
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
@@ -100,6 +141,12 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryEmitArgs>();
+    }
+
+    #[test]
     fn test_registry_emit() {
         let cli = Cli {
             debug: 1,
@@ -110,21 +157,18 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Emit(RegistryEmitArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_emit/data/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
-                    stdout: true,
-                    endpoint: "".to_owned(),
+                    stdout: Some(true),
+                    endpoint: Some("".to_owned()),
                 }),
             })),
         };

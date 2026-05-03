@@ -8,9 +8,13 @@ use clap::Args;
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::{
+    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
+    EffectiveRegistryConfig, ServeConfig, WeaverConfig,
+};
 
 mod handlers;
 mod server;
@@ -31,8 +35,8 @@ pub struct ServeCommand {
     pub policy: PolicyArgs,
 
     /// Address to bind the server to.
-    #[arg(long, default_value = "127.0.0.1:8080")]
-    pub bind: SocketAddr,
+    #[arg(long)]
+    pub bind: Option<SocketAddr>,
 
     /// Allowed CORS origins (comma-separated). Use '*' for any origin.
     /// If not specified, CORS is disabled (same-origin only).
@@ -44,13 +48,55 @@ pub struct ServeCommand {
     pub diagnostic: DiagnosticArgs,
 }
 
+impl CliOverrides for ServeCommand {
+    type Config = ServeConfig;
+    const SUBCOMMAND: &'static str = "serve";
+
+    fn extract_config(weaver_config: &WeaverConfig) -> ServeConfig {
+        weaver_config.serve.clone()
+    }
+
+    fn excluded_args() -> &'static [&'static str] {
+        excluded_args!(
+            RegistryArgs::EXCLUDED_ARGS,
+            PolicyArgs::EXCLUDED_ARGS,
+            DiagnosticArgs::EXCLUDED_ARGS,
+        )
+    }
+
+    fn apply_overrides(&self, config: &mut ServeConfig) {
+        override_if_set!(config.bind, self.bind);
+        override_if_set!(config.cors_origins, self.cors_origins, optional);
+    }
+
+    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
+        self.registry.apply_to(config);
+    }
+
+    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
+        self.policy.apply_to(config);
+    }
+
+    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
+        self.diagnostic.apply_to(config);
+    }
+}
+
 /// Execute the `weaver serve` command.
-pub fn command(args: &ServeCommand, auth: &HttpAuthResolver) -> CmdResult {
-    CmdResult::new(run_serve(args, auth), Some(args.diagnostic.clone()))
+pub fn command(
+    args: &ServeCommand,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> CmdResult {
+    CmdResult::new(
+        run_serve(args, cfg, auth),
+        args.diagnostic.to_effective(cfg),
+    )
 }
 
 fn run_serve(
     args: &ServeCommand,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     // TODO: Currently the serve command takes a registry on the command line. Really we want to be
@@ -58,12 +104,13 @@ fn run_serve(
     // a new registry, and then the server would update its internal state to use the new registry.
     // A UI could be built to allow selecting a registry file, or specifying a git repo/branch.
 
-    info!("Loading registry from `{}`", args.registry.registry);
+    let cmd_config = load_config(args, cfg);
+    info!("Loading registry from `{}`", cmd_config.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
     // Create a weaver engine and load/resolve the registry using V2 schema
-    let weaver = crate::weaver::WeaverEngine::new(&args.registry, &args.policy, auth);
+    let weaver = crate::weaver::WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry
@@ -87,18 +134,27 @@ fn run_serve(
         forge_registry.registry.events.len(),
         forge_registry.registry.entities.len(),
     );
-    info!("Starting server on {}", args.bind);
+    let bind = cmd_config.config.bind;
+    let cors_origins = cmd_config.config.cors_origins.as_deref();
+
+    info!("Starting server on {bind}");
 
     // Run the async server using tokio runtime
     tokio::runtime::Runtime::new()
         .expect("Failed to create tokio runtime")
-        .block_on(async {
-            run_server(args.bind, forge_registry, args.cors_origins.as_deref()).await
-        })
+        .block_on(async { run_server(bind, forge_registry, cors_origins).await })
         .map_err(DiagnosticMessages::from_error)?;
 
     Ok(ExitDirectives {
         exit_code: 0,
         warnings: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    // Note: serve is a top-level command, not a registry subcommand, so
+    // assert_config_cli_consistency cannot be used directly — it looks up
+    // subcommands under `registry`.
+    // TODO: Extend the consistency helper to support top-level commands.
 }

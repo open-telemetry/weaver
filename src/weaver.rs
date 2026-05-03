@@ -19,13 +19,12 @@ use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig};
 
-/// Defines an engine that can
+/// Engine that loads, resolves, and policy-checks a semantic convention registry.
 pub struct WeaverEngine<'a> {
-    // TODO - divorce config from args
-    registry_config: &'a RegistryArgs,
-    policy_config: &'a PolicyArgs,
+    registry_config: &'a EffectiveRegistryConfig,
+    policy_config: &'a EffectivePolicyConfig,
     /// Per-URL HTTP credential resolver built from `.weaver.toml` (`[[auth]]`).
     auth: &'a HttpAuthResolver,
 }
@@ -33,8 +32,8 @@ impl<'a> WeaverEngine<'a> {
     /// Engine that resolves credentials for remote registry / dependency /
     /// policy fetches through `auth`.
     pub fn new(
-        registry: &'a RegistryArgs,
-        policy: &'a PolicyArgs,
+        registry: &'a EffectiveRegistryConfig,
+        policy: &'a EffectivePolicyConfig,
         auth: &'a HttpAuthResolver,
     ) -> Self {
         Self {
@@ -537,9 +536,9 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// Prepares the Rego policy engine given the command line argument input.
+/// Prepares the Rego policy engine given effective policy settings.
 fn prepare_policy_engine(
-    policy_args: &PolicyArgs,
+    policy_args: &EffectivePolicyConfig,
     registry_repo: &RegistryRepo,
     auth: &HttpAuthResolver,
 ) -> Result<Option<Engine>, Error> {

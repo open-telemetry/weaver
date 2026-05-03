@@ -10,15 +10,40 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 pub mod auth;
+pub mod check;
+pub mod diff;
+pub mod effective;
+pub mod emit;
+pub mod generate;
+pub mod infer;
 pub mod live_check;
+pub mod mcp;
 mod overrides;
+pub mod package;
 pub mod registry;
+pub mod serve;
+pub mod stats;
+pub mod update_markdown;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
+pub use check::CheckConfig;
+pub use diff::DiffConfig;
+pub use effective::{
+    EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
+    DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE, DEFAULT_REGISTRY,
+};
+pub use emit::EmitConfig;
+pub use generate::GenerateConfig;
+pub use infer::InferConfig;
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
-pub use overrides::{CliOverrides, FieldMapping};
+pub use mcp::McpConfig;
+pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
+pub use package::PackageConfig;
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+pub use serve::ServeConfig;
+pub use stats::StatsConfig;
+pub use update_markdown::UpdateMarkdownConfig;
 pub use weaver_common::http_auth::TokenSource;
 
 /// The filename to search for during discovery.
@@ -34,8 +59,28 @@ pub struct WeaverConfig {
     pub policy: PolicyConfig,
     /// Shared diagnostic output settings (apply to all subcommands that accept them).
     pub diagnostics: DiagnosticsConfig,
+    /// Check-specific configuration.
+    pub check: CheckConfig,
+    /// Diff-specific configuration.
+    pub diff: DiffConfig,
+    /// Emit-specific configuration.
+    pub emit: EmitConfig,
+    /// Generate-specific configuration.
+    pub generate: GenerateConfig,
+    /// Infer-specific configuration.
+    pub infer: InferConfig,
     /// Live-check specific configuration.
     pub live_check: LiveCheckConfig,
+    /// MCP-specific configuration.
+    pub mcp: McpConfig,
+    /// Package-specific configuration.
+    pub package: PackageConfig,
+    /// Serve-specific configuration.
+    pub serve: ServeConfig,
+    /// Stats-specific configuration.
+    pub stats: StatsConfig,
+    /// Update-markdown-specific configuration.
+    pub update_markdown: UpdateMarkdownConfig,
     /// Per-URL HTTP authentication entries for downloading remote registries.
     /// See [`auth::AuthEntry`] for the schema.
     pub auth: Vec<AuthEntry>,
