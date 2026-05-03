@@ -765,7 +765,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
+    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, Error as SemConvError, YamlValue};
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
@@ -817,5 +817,95 @@ mod tests {
         values.sort();
         assert_eq!(values, vec![boolean, number, string, sequence, mapping]);
         Ok(())
+    }
+
+    #[test]
+    fn test_consolidate_merges_same_format() {
+        let errors = vec![
+            SemConvError::UnstableFileFormat {
+                file_format: "definition/2".to_owned(),
+                provenance: "file_a.yaml".to_owned(),
+            },
+            SemConvError::UnstableFileFormat {
+                file_format: "definition/2".to_owned(),
+                provenance: "file_b.yaml".to_owned(),
+            },
+        ];
+        let result = SemConvError::consolidate(errors);
+        assert_eq!(result.len(), 1);
+        assert!(
+            matches!(&result[0], SemConvError::UnstableFileFormat { file_format, provenance }
+                if file_format == "definition/2" && provenance == "file_a.yaml, file_b.yaml")
+        );
+    }
+
+    #[test]
+    fn test_consolidate_groups_by_format() {
+        let errors = vec![
+            SemConvError::UnstableFileFormat {
+                file_format: "definition/2".to_owned(),
+                provenance: "v2_a.yaml".to_owned(),
+            },
+            SemConvError::UnstableFileFormat {
+                file_format: "definition/3".to_owned(),
+                provenance: "v3_a.yaml".to_owned(),
+            },
+            SemConvError::UnstableFileFormat {
+                file_format: "definition/2".to_owned(),
+                provenance: "v2_b.yaml".to_owned(),
+            },
+        ];
+        let result = SemConvError::consolidate(errors);
+        // BTreeMap ordering: "definition/2" before "definition/3", but they
+        // appear after any non-UnstableFileFormat errors that were preserved.
+        assert_eq!(result.len(), 2);
+        assert!(
+            matches!(&result[0], SemConvError::UnstableFileFormat { file_format, provenance }
+                if file_format == "definition/2" && provenance == "v2_a.yaml, v2_b.yaml")
+        );
+        assert!(
+            matches!(&result[1], SemConvError::UnstableFileFormat { file_format, provenance }
+                if file_format == "definition/3" && provenance == "v3_a.yaml")
+        );
+    }
+
+    #[test]
+    fn test_consolidate_preserves_other_errors() {
+        let errors = vec![
+            SemConvError::InvalidRegistryPathPattern {
+                path_pattern: "bad".to_owned(),
+                error: "oops".to_owned(),
+            },
+            SemConvError::UnstableFileFormat {
+                file_format: "definition/2".to_owned(),
+                provenance: "file.yaml".to_owned(),
+            },
+            SemConvError::DeprecatedVersionField {
+                provenance: "old.yaml".to_owned(),
+            },
+        ];
+        let result = SemConvError::consolidate(errors);
+        assert_eq!(result.len(), 3);
+        // Non-UnstableFileFormat errors keep their original order
+        assert!(matches!(&result[0], SemConvError::InvalidRegistryPathPattern { .. }));
+        assert!(matches!(&result[1], SemConvError::DeprecatedVersionField { .. }));
+        // UnstableFileFormat appears at the end
+        assert!(matches!(&result[2], SemConvError::UnstableFileFormat { .. }));
+    }
+
+    #[test]
+    fn test_consolidate_empty() {
+        let result = SemConvError::consolidate(vec![]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_consolidate_no_unstable_format() {
+        let errors = vec![SemConvError::DeprecatedVersionField {
+            provenance: "old.yaml".to_owned(),
+        }];
+        let result = SemConvError::consolidate(errors);
+        assert_eq!(result.len(), 1);
+        assert!(matches!(&result[0], SemConvError::DeprecatedVersionField { .. }));
     }
 }
