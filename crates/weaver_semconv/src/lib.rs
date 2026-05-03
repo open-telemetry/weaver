@@ -436,6 +436,43 @@ impl WeaverError<Error> for Error {
     }
 }
 
+impl Error {
+    /// Consolidates a list of errors by merging duplicates where appropriate.
+    ///
+    /// For example, multiple `UnstableFileFormat` warnings with the same
+    /// `file_format` are merged into a single warning listing all affected files.
+    #[must_use]
+    pub fn consolidate(errors: Vec<Error>) -> Vec<Error> {
+        let mut consolidated = Vec::new();
+        let mut unstable_provenances: Vec<String> = Vec::new();
+        let mut unstable_file_format: Option<String> = None;
+
+        for e in errors {
+            match e {
+                Error::UnstableFileFormat {
+                    file_format,
+                    provenance,
+                } => {
+                    unstable_provenances.push(provenance);
+                    if unstable_file_format.is_none() {
+                        unstable_file_format = Some(file_format);
+                    }
+                }
+                other => consolidated.push(other),
+            }
+        }
+
+        if let Some(file_format) = unstable_file_format {
+            consolidated.push(Error::UnstableFileFormat {
+                file_format,
+                provenance: unstable_provenances.join(", "),
+            });
+        }
+
+        consolidated
+    }
+}
+
 impl From<Error> for DiagnosticMessages {
     fn from(error: Error) -> Self {
         DiagnosticMessages::new(match error {
