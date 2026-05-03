@@ -35,6 +35,7 @@ struct ClassifiedField<'a> {
     ident: &'a Ident,
     ty: &'a Type,
     kind: FieldKind,
+    doc_attrs: Vec<&'a syn::Attribute>,
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -121,7 +122,17 @@ fn parse_fields<'a>(input: &'a DeriveInput) -> syn::Result<Vec<ClassifiedField<'
         let ident = field.ident.as_ref().expect("named field");
         let ty = &field.ty;
         let kind = classify_field(field)?;
-        result.push(ClassifiedField { ident, ty, kind });
+        let doc_attrs = field
+            .attrs
+            .iter()
+            .filter(|a| a.path().is_ident("doc"))
+            .collect();
+        result.push(ClassifiedField {
+            ident,
+            ty,
+            kind,
+            doc_attrs,
+        });
     }
     Ok(result)
 }
@@ -197,7 +208,8 @@ fn gen_config_struct(config_name: &Ident, fields: &[ClassifiedField<'_>]) -> Tok
             };
             let ident = f.ident;
             let config_ty = config_field_type(f.ty, ann);
-            Some(quote! { pub #ident: #config_ty, })
+            let docs = &f.doc_attrs;
+            Some(quote! { #(#docs)* pub #ident: #config_ty, })
         })
         .collect();
 

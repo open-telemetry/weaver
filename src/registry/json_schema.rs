@@ -18,8 +18,7 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpecV1;
 
-/// Schema-only aggregate — not used at runtime. Mirrors WeaverConfig's TOML shape
-/// but with typed per-command sections so the JSON schema has full coverage of all fields.
+/// Top-level Weaver configuration.
 #[derive(JsonSchema, Deserialize, Default)]
 #[serde(default)]
 #[allow(dead_code)]
