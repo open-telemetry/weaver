@@ -10,41 +10,24 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 pub mod auth;
-pub mod check;
-pub mod diff;
 pub mod effective;
-pub mod emit;
-pub mod generate;
-pub mod infer;
 pub mod live_check;
-pub mod mcp;
 mod overrides;
-pub mod package;
 pub mod registry;
-pub mod serve;
-pub mod stats;
-pub mod update_markdown;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
-pub use check::CheckConfig;
-pub use diff::DiffConfig;
 pub use effective::{
     EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
     DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE, DEFAULT_REGISTRY,
 };
-pub use emit::EmitConfig;
-pub use generate::GenerateConfig;
-pub use infer::InferConfig;
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
-pub use mcp::McpConfig;
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
-pub use package::PackageConfig;
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
-pub use serve::ServeConfig;
-pub use stats::StatsConfig;
-pub use update_markdown::UpdateMarkdownConfig;
 pub use weaver_common::http_auth::TokenSource;
+// Re-export the WeaverCommand derive macro so command files only need
+// `use weaver_config::WeaverCommand`.
+pub use weaver_macros::WeaverCommand;
 
 /// The filename to search for during discovery.
 const CONFIG_FILENAME: &str = ".weaver.toml";
@@ -59,31 +42,31 @@ pub struct WeaverConfig {
     pub policy: PolicyConfig,
     /// Shared diagnostic output settings (apply to all subcommands that accept them).
     pub diagnostics: DiagnosticsConfig,
-    /// Check-specific configuration.
-    pub check: CheckConfig,
-    /// Diff-specific configuration.
-    pub diff: DiffConfig,
-    /// Emit-specific configuration.
-    pub emit: EmitConfig,
-    /// Generate-specific configuration.
-    pub generate: GenerateConfig,
-    /// Infer-specific configuration.
-    pub infer: InferConfig,
-    /// Live-check specific configuration.
+    /// Live-check specific configuration (complex nested config, kept typed).
     pub live_check: LiveCheckConfig,
-    /// MCP-specific configuration.
-    pub mcp: McpConfig,
-    /// Package-specific configuration.
-    pub package: PackageConfig,
-    /// Serve-specific configuration.
-    pub serve: ServeConfig,
-    /// Stats-specific configuration.
-    pub stats: StatsConfig,
-    /// Update-markdown-specific configuration.
-    pub update_markdown: UpdateMarkdownConfig,
     /// Per-URL HTTP authentication entries for downloading remote registries.
-    /// See [`auth::AuthEntry`] for the schema.
     pub auth: Vec<AuthEntry>,
+    /// Per-command configuration sections, stored as raw TOML values.
+    /// Each key matches the command section name (e.g. "emit", "generate").
+    #[serde(flatten)]
+    #[schemars(skip)]
+    pub(crate) commands: toml::Table,
+}
+
+impl WeaverConfig {
+    /// Deserialize a per-command config section from the raw TOML table.
+    ///
+    /// Returns `C::default()` when the section is absent or fails to deserialize.
+    #[must_use]
+    pub fn command_config<C: serde::de::DeserializeOwned + Default>(&self, section: &str) -> C {
+        let Some(value) = self.commands.get(section) else {
+            return C::default();
+        };
+        toml::to_string(value)
+            .ok()
+            .and_then(|s| toml::from_str(&s).ok())
+            .unwrap_or_default()
+    }
 }
 
 /// Discover a `.weaver.toml` file by walking up from the given directory.
@@ -198,5 +181,24 @@ level = "information"
             .expect("Failed to load config")
             .expect("Config should be found");
         assert_eq!(path, dir.path().join(CONFIG_FILENAME));
+    }
+
+    #[test]
+    fn test_command_config_roundtrip() {
+        let dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_content = r#"
+[emit]
+stdout = true
+endpoint = "http://example.com:4317"
+"#;
+        fs::write(dir.path().join(CONFIG_FILENAME), config_content)
+            .expect("Failed to write config");
+
+        let (_, config) = discover_and_load(dir.path())
+            .expect("Failed to load config")
+            .expect("Config should be found");
+
+        // Verify the raw table has the emit section
+        assert!(config.commands.contains_key("emit"));
     }
 }

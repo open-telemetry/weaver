@@ -16,10 +16,7 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig,
-    EffectiveRegistryConfig, UpdateMarkdownConfig, WeaverConfig as ProjectWeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::{OutputProcessor, OutputTarget};
@@ -37,22 +34,27 @@ enum UpdateMarkdownError {
 }
 
 /// Parameters for the `registry update-markdown` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "update-markdown", no_policy)]
 pub struct RegistryUpdateMarkdownArgs {
     /// Path to the directory where the markdown files are located.
+    #[config_only]
     pub markdown_dir: Option<String>,
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
     pub dry_run: Option<bool>,
 
     /// Optional path to the attribute registry.
     /// If provided, all attributes will be linked here.
     #[arg(long)]
+    #[config]
     pub attribute_registry_base_url: Option<String>,
 
     /// Parameters key=value, defined in the command line, to pass to the templates.
@@ -68,65 +70,20 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(short = 't', long)]
-    pub templates: Option<VirtualDirectoryPath>,
+    #[config(default = "templates")]
+    pub templates: Option<String>,
 
     /// The target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(long)]
+    #[config]
     pub target: Option<String>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
-}
-
-impl CliOverrides for RegistryUpdateMarkdownArgs {
-    type Config = UpdateMarkdownConfig;
-    const SUBCOMMAND: &'static str = "update-markdown";
-
-    fn extract_config(weaver_config: &ProjectWeaverConfig) -> UpdateMarkdownConfig {
-        weaver_config.update_markdown.clone()
-    }
-
-    fn config_only_fields() -> &'static [&'static str] {
-        // `markdown_dir` is a positional CLI arg (no `--long` flag).
-        &["markdown_dir"]
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-            ["param", "params"],
-        )
-    }
-
-    fn apply_overrides(&self, config: &mut UpdateMarkdownConfig) {
-        override_if_set!(config.markdown_dir, self.markdown_dir, optional);
-        override_if_set!(config.dry_run, self.dry_run);
-        override_if_set!(
-            config.attribute_registry_base_url,
-            self.attribute_registry_base_url,
-            optional
-        );
-        if let Some(t) = &self.templates {
-            config.templates = t.to_string();
-        }
-        override_if_set!(config.target, self.target, optional);
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
-
-    fn uses_policy() -> bool {
-        false
-    }
 }
 
 /// Update markdown files.
@@ -287,9 +244,7 @@ mod tests {
                     },
                     dry_run: Some(true),
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: Some(VirtualDirectoryPath::LocalFolder {
-                        path: "data/update_markdown/templates".to_owned(),
-                    }),
+                    templates: Some("data/update_markdown/templates".to_owned()),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,
@@ -326,9 +281,7 @@ mod tests {
                     },
                     dry_run: Some(true),
                     attribute_registry_base_url: None,
-                    templates: Some(VirtualDirectoryPath::LocalFolder {
-                        path: template_dir.to_owned(),
-                    }),
+                    templates: Some(template_dir.to_owned()),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,
@@ -399,10 +352,7 @@ mod tests {
                     },
                     dry_run: Some(false), // Generate files first
                     attribute_registry_base_url: None,
-                    templates: Some(VirtualDirectoryPath::LocalArchive {
-                        path: zip_path.to_str().unwrap().to_owned(),
-                        sub_folder: None,
-                    }),
+                    templates: Some(zip_path.to_str().unwrap().to_owned()),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,
@@ -431,10 +381,7 @@ mod tests {
                     },
                     dry_run: Some(true), // Verify
                     attribute_registry_base_url: None,
-                    templates: Some(VirtualDirectoryPath::LocalArchive {
-                        path: zip_path.to_str().unwrap().to_owned(),
-                        sub_folder: None,
-                    }),
+                    templates: Some(zip_path.to_str().unwrap().to_owned()),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,

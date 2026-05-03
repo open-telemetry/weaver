@@ -18,72 +18,37 @@ use crate::registry::{load_config, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
-    EffectiveRegistryConfig, PackageConfig, WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 
 /// Parameters for the `registry package` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "package")]
 pub struct RegistryPackageArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Path to the directory where the package will be written.
     #[arg(short, long)]
+    #[config(default = "output")]
     output: Option<PathBuf>,
 
     /// URI where the resolved schema will eventually be published.
     /// This value is embedded in the publication manifest as `resolved_schema_uri`.
     #[arg(long)]
+    #[config]
     resolved_schema_uri: Option<String>,
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
-}
-
-impl CliOverrides for RegistryPackageArgs {
-    type Config = PackageConfig;
-    const SUBCOMMAND: &'static str = "package";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> PackageConfig {
-        weaver_config.package.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            PolicyArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-        )
-    }
-
-    fn apply_overrides(&self, config: &mut PackageConfig) {
-        override_if_set!(config.output, self.output);
-        override_if_set!(
-            config.resolved_schema_uri,
-            self.resolved_schema_uri,
-            optional
-        );
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
-        self.policy.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
 }
 
 fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), DiagnosticMessages> {

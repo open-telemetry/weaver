@@ -6,14 +6,42 @@
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::{Args, ValueEnum};
 use log::info;
-use schemars::schema_for;
+use schemars::{schema_for, JsonSchema};
+use serde::Deserialize;
 use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{
+    AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, WeaverConfig,
+};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpecV1;
+
+/// Schema-only aggregate — not used at runtime. Mirrors WeaverConfig's TOML shape
+/// but with typed per-command sections so the JSON schema has full coverage of all fields.
+#[derive(JsonSchema, Deserialize, Default)]
+#[serde(default)]
+#[allow(dead_code)]
+struct WeaverConfigSchema {
+    pub registry: RegistryConfig,
+    pub policy: PolicyConfig,
+    pub diagnostics: DiagnosticsConfig,
+    pub live_check: LiveCheckConfig,
+    pub auth: Vec<AuthEntry>,
+    pub check: super::check::CheckConfig,
+    pub diff: super::diff::DiffConfig,
+    pub emit: super::emit::EmitConfig,
+    pub generate: super::generate::GenerateConfig,
+    pub infer: super::infer::InferConfig,
+    pub mcp: super::mcp::McpConfig,
+    pub package: super::package::PackageConfig,
+    pub serve: crate::serve::ServeConfig,
+    pub stats: super::stats::StatsConfig,
+    #[serde(rename = "update-markdown")]
+    pub update_markdown: super::update_markdown::UpdateMarkdownConfig,
+}
+
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
@@ -85,7 +113,7 @@ pub(crate) fn command(
             schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
         }
         JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
-        JsonSchemaType::WeaverConfig => schema_for!(WeaverConfig),
+        JsonSchemaType::WeaverConfig => schema_for!(WeaverConfigSchema),
     };
 
     if let Some(p) = &args.output {
@@ -107,13 +135,30 @@ pub(crate) fn command(
 #[cfg(test)]
 mod tests {
 
+    use super::WeaverConfigSchema;
     use crate::cli::{Cli, Commands};
     use crate::registry::json_schema::{JsonSchemaType, RegistryJsonSchemaArgs};
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use clap::ValueEnum;
+    use schemars::schema_for;
     use std::fs;
     use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_weaver_config_schema_up_to_date() {
+        let schema = schema_for!(WeaverConfigSchema);
+        let generated = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
+        let committed = fs::read_to_string("schemas/weaver-config.json")
+            .expect("Failed to read schemas/weaver-config.json");
+        assert_eq!(
+            generated.trim(),
+            committed.trim(),
+            "schemas/weaver-config.json is out of date; run:\n  \
+             cargo run -- registry json-schema --json-schema weaver-config \
+             -o schemas/weaver-config.json"
+        );
+    }
 
     #[test]
     fn test_registry_json_schema() {

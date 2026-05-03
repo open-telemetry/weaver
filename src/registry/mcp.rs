@@ -16,73 +16,37 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig,
-    EffectiveRegistryConfig, McpConfig, WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 
 /// Parameters for the `registry mcp` subcommand.
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "mcp", no_policy)]
 pub struct RegistryMcpArgs {
     /// Registry arguments.
     #[command(flatten)]
+    #[shared(registry)]
     pub registry: RegistryArgs,
 
     /// Diagnostic arguments.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
     /// Advice policies directory. Set this to override the default policies.
     #[arg(long)]
+    #[config]
     pub advice_policies: Option<PathBuf>,
 
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
-    ///
-    /// Rego policies are run for each sample as it arrives. The preprocessor
-    /// can be used to create a new data structure that is more efficient for the rego policies
-    /// versus processing the data for every sample.
     #[arg(long)]
+    #[config]
     pub advice_preprocessor: Option<PathBuf>,
 
     /// Namespace separator used in attribute keys. Defaults to ".".
     /// Used by namespace browsing and search token splitting.
     #[arg(long)]
+    #[config(default = ".")]
     pub namespace_separator: Option<String>,
-}
-
-impl CliOverrides for RegistryMcpArgs {
-    type Config = McpConfig;
-    const SUBCOMMAND: &'static str = "mcp";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> McpConfig {
-        weaver_config.mcp.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(RegistryArgs::EXCLUDED_ARGS, DiagnosticArgs::EXCLUDED_ARGS,)
-    }
-
-    fn apply_overrides(&self, config: &mut McpConfig) {
-        override_if_set!(config.advice_policies, self.advice_policies, optional);
-        override_if_set!(
-            config.advice_preprocessor,
-            self.advice_preprocessor,
-            optional
-        );
-        override_if_set!(config.namespace_separator, self.namespace_separator);
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
-
-    fn uses_policy() -> bool {
-        false
-    }
 }
 
 /// Run the MCP server for the semantic convention registry.

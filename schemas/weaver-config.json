@@ -1,11 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "WeaverConfig",
-  "description": "Top-level Weaver configuration.",
+  "title": "WeaverConfigSchema",
+  "description": "Schema-only aggregate — not used at runtime. Mirrors WeaverConfig's TOML shape\nbut with typed per-command sections so the JSON schema has full coverage of all fields.",
   "type": "object",
   "properties": {
     "auth": {
-      "description": "Per-URL HTTP authentication entries for downloading remote registries.\nSee [`auth::AuthEntry`] for the schema.",
       "type": "array",
       "items": {
         "description": "A single entry in the `[[auth]]` array of `.weaver.toml`.\n\n```toml\n[[auth]]\nurl_prefix = \"https://github.com/acme/\"\ntoken_env  = \"ACME_GITHUB_TOKEN\"\n\n[[auth]]\nurl_prefix    = \"https://github.com/\"\ntoken_command = [\"gh\", \"auth\", \"token\"]\n```\n\nExactly one of `token`, `token_env`, or `token_command` must be specified.",
@@ -72,11 +71,10 @@
       }
     },
     "check": {
-      "description": "Check-specific configuration.",
       "type": "object"
     },
     "diagnostics": {
-      "description": "Shared diagnostic output settings (apply to all subcommands that accept them).",
+      "description": "Diagnostic output configuration.",
       "type": "object",
       "properties": {
         "format": {
@@ -106,19 +104,13 @@
       }
     },
     "diff": {
-      "description": "Diff-specific configuration.",
       "type": "object",
       "properties": {
         "format": {
-          "description": "Format used to render the schema changes (e.g. ansi, json, markdown).",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "ansi"
         },
         "output": {
-          "description": "Path to the directory where the generated artifacts will be saved.",
           "type": [
             "string",
             "null"
@@ -126,123 +118,76 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the schema changes templates are located.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "diff_templates"
         }
       }
     },
     "emit": {
-      "description": "Emit-specific configuration.",
       "type": "object",
       "properties": {
         "endpoint": {
-          "description": "Endpoint for the OTLP receiver.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "http://localhost:4317"
         },
         "stdout": {
-          "description": "Write to stdout instead of sending via OTLP.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
+          "type": "boolean",
+          "default": false
         }
       }
     },
     "generate": {
-      "description": "Generate-specific configuration.",
       "type": "object",
       "properties": {
         "output": {
-          "description": "Path to the output directory.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "output"
         },
         "target": {
-          "description": "Target to generate artifacts for.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": ""
         },
         "templates": {
-          "description": "Path to the directory where the templates are located.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "templates"
         }
       }
     },
     "infer": {
-      "description": "Infer-specific configuration.",
       "type": "object",
       "properties": {
         "admin_port": {
-          "description": "Port used by the HTTP admin server.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": "integer",
           "format": "uint16",
-          "default": null,
+          "default": 8080,
           "maximum": 65535,
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "0.0.0.0"
         },
         "grpc_port": {
-          "description": "Port used by the gRPC OTLP listener.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": "integer",
           "format": "uint16",
-          "default": null,
+          "default": 4317,
           "maximum": 65535,
           "minimum": 0
         },
         "inactivity_timeout": {
-          "description": "Seconds of inactivity before auto-stop (0 = never).",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": "integer",
           "format": "uint64",
-          "default": null,
+          "default": 60,
           "minimum": 0
         },
         "output": {
-          "description": "Output folder for generated YAML files.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "./inferred-registry/"
         }
       }
     },
     "live_check": {
-      "description": "Live-check specific configuration.",
+      "description": "Configuration for the live-check subcommand.\n\nAll fields carry their defaults via the `Default` impl. TOML deserialization\nwith `#[serde(default)]` populates only the fields present in the file;\nthe rest keep their defaults. CLI args are applied on top.",
       "type": "object",
       "properties": {
         "advice_policies": {
@@ -317,11 +262,9 @@
       }
     },
     "mcp": {
-      "description": "MCP-specific configuration.",
       "type": "object",
       "properties": {
         "advice_policies": {
-          "description": "Advice policies directory.",
           "type": [
             "string",
             "null"
@@ -329,7 +272,6 @@
           "default": null
         },
         "advice_preprocessor": {
-          "description": "Advice preprocessor jq script.",
           "type": [
             "string",
             "null"
@@ -337,29 +279,19 @@
           "default": null
         },
         "namespace_separator": {
-          "description": "Namespace separator used in attribute keys (defaults to \".\").",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "."
         }
       }
     },
     "package": {
-      "description": "Package-specific configuration.",
       "type": "object",
       "properties": {
         "output": {
-          "description": "Path to the directory where the package will be written.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "output"
         },
         "resolved_schema_uri": {
-          "description": "URI where the resolved schema will eventually be published.",
           "type": [
             "string",
             "null"
@@ -369,7 +301,7 @@
       }
     },
     "policy": {
-      "description": "Shared policy settings (apply to all subcommands that accept them).",
+      "description": "Policy configuration — which policy files to check against.",
       "type": "object",
       "properties": {
         "display_policy_coverage": {
@@ -402,7 +334,7 @@
       }
     },
     "registry": {
-      "description": "Shared registry settings (apply to all subcommands that accept them).",
+      "description": "Registry configuration — where to load the semantic convention registry from.",
       "type": "object",
       "properties": {
         "follow_symlinks": {
@@ -440,19 +372,13 @@
       }
     },
     "serve": {
-      "description": "Serve-specific configuration.",
       "type": "object",
       "properties": {
         "bind": {
-          "description": "Address to bind the server to (e.g. `127.0.0.1:8080`).",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "127.0.0.1:8080"
         },
         "cors_origins": {
-          "description": "Allowed CORS origins (comma-separated). Use `*` for any origin.",
           "type": [
             "string",
             "null"
@@ -462,19 +388,13 @@
       }
     },
     "stats": {
-      "description": "Stats-specific configuration.",
       "type": "object",
       "properties": {
         "format": {
-          "description": "Output format for the stats (e.g. text, json, yaml, jsonl, mute).",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "text"
         },
         "output": {
-          "description": "Path to the directory where the generated artifacts will be saved.",
           "type": [
             "string",
             "null"
@@ -482,21 +402,15 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the stats templates are located.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "stats_templates"
         }
       }
     },
-    "update_markdown": {
-      "description": "Update-markdown-specific configuration.",
+    "update-markdown": {
       "type": "object",
       "properties": {
         "attribute_registry_base_url": {
-          "description": "Optional path to the attribute registry base URL.",
           "type": [
             "string",
             "null"
@@ -504,15 +418,10 @@
           "default": null
         },
         "dry_run": {
-          "description": "Whether to run updates in dry-run mode.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
+          "type": "boolean",
+          "default": false
         },
         "markdown_dir": {
-          "description": "Path to the directory where the markdown files are located.",
           "type": [
             "string",
             "null"
@@ -520,7 +429,6 @@
           "default": null
         },
         "target": {
-          "description": "Target to generate snippets with.",
           "type": [
             "string",
             "null"
@@ -528,12 +436,8 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the templates are located.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+          "type": "string",
+          "default": "templates"
         }
       }
     }

@@ -24,36 +24,40 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, InferConfig,
-    WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 
 /// Parameters for the `registry infer` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "infer", no_policy)]
 pub struct RegistryInferArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
     /// Output folder for generated YAML files.
     #[arg(short, long)]
+    #[config(default = "./inferred-registry/")]
     output: Option<PathBuf>,
 
     /// Address used by the gRPC OTLP listener.
     #[arg(long)]
+    #[config(default = "0.0.0.0")]
     grpc_address: Option<String>,
 
     /// Port used by the gRPC OTLP listener.
     #[arg(long)]
+    #[config(default = "4317")]
     grpc_port: Option<u16>,
 
     /// Port used by the HTTP admin server (endpoints: /stop).
     #[arg(long)]
+    #[config(default = "8080")]
     admin_port: Option<u16>,
 
     /// Seconds of inactivity before auto-stop (0 = never).
     #[arg(long)]
+    #[config(default = "60")]
     inactivity_timeout: Option<u64>,
 }
 
@@ -150,35 +154,6 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
             info!("Received error: {:?}", e);
             true // Continue processing
         }
-    }
-}
-
-impl CliOverrides for RegistryInferArgs {
-    type Config = InferConfig;
-    const SUBCOMMAND: &'static str = "infer";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> InferConfig {
-        weaver_config.infer.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(DiagnosticArgs::EXCLUDED_ARGS)
-    }
-
-    fn apply_overrides(&self, config: &mut InferConfig) {
-        override_if_set!(config.output, self.output);
-        override_if_set!(config.grpc_address, self.grpc_address);
-        override_if_set!(config.grpc_port, self.grpc_port);
-        override_if_set!(config.admin_port, self.admin_port);
-        override_if_set!(config.inactivity_timeout, self.inactivity_timeout);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
-
-    fn uses_policy() -> bool {
-        false
     }
 }
 

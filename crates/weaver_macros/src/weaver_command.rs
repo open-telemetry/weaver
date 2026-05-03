@@ -1,0 +1,560 @@
+// SPDX-License-Identifier: Apache-2.0
+
+use proc_macro::TokenStream;
+use proc_macro2::{Literal, Span, TokenStream as TokenStream2};
+use quote::{format_ident, quote};
+use syn::{
+    parse_macro_input, Data, DeriveInput, Fields, GenericArgument, Ident, PathArguments, Type,
+};
+
+// ── Top-level parse result ────────────────────────────────────────────────────
+
+struct WeaverCommandAttr {
+    section: String,
+    no_policy: bool,
+}
+
+enum SharedKind {
+    Registry,
+    Policy,
+    Diagnostic,
+}
+
+struct ConfigAnnotation {
+    default: Option<String>,
+    config_only: bool,
+}
+
+enum FieldKind {
+    Shared(SharedKind, Type),
+    Config(ConfigAnnotation),
+    CliOnly,
+}
+
+struct ClassifiedField<'a> {
+    ident: &'a Ident,
+    ty: &'a Type,
+    kind: FieldKind,
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────────
+
+pub fn derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let struct_attr = match parse_struct_attr(&input) {
+        Ok(a) => a,
+        Err(e) => return e.into_compile_error().into(),
+    };
+
+    let fields = match parse_fields(&input) {
+        Ok(f) => f,
+        Err(e) => return e.into_compile_error().into(),
+    };
+
+    let config_name = section_to_config_ident(&struct_attr.section);
+    let args_ident = &input.ident;
+
+    let config_struct = gen_config_struct(&config_name, &fields);
+    let default_impl = gen_default_impl(&config_name, &fields);
+    let cli_overrides_impl =
+        gen_cli_overrides_impl(args_ident, &config_name, &struct_attr, &fields);
+
+    let expanded = quote! {
+        #config_struct
+        #default_impl
+        #cli_overrides_impl
+    };
+
+    expanded.into()
+}
+
+// ── Parse #[weaver_command(...)] ──────────────────────────────────────────────
+
+fn parse_struct_attr(input: &DeriveInput) -> syn::Result<WeaverCommandAttr> {
+    let mut section = None;
+    let mut no_policy = false;
+
+    for attr in &input.attrs {
+        if !attr.path().is_ident("weaver_command") {
+            continue;
+        }
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("section") {
+                let value: syn::LitStr = meta.value()?.parse()?;
+                section = Some(value.value());
+            } else if meta.path.is_ident("no_policy") {
+                no_policy = true;
+            }
+            Ok(())
+        })?;
+    }
+
+    let section = section.ok_or_else(|| {
+        syn::Error::new(
+            Span::call_site(),
+            "#[derive(WeaverCommand)] requires #[weaver_command(section = \"name\")]",
+        )
+    })?;
+
+    Ok(WeaverCommandAttr { section, no_policy })
+}
+
+// ── Parse and classify fields ─────────────────────────────────────────────────
+
+fn parse_fields<'a>(input: &'a DeriveInput) -> syn::Result<Vec<ClassifiedField<'a>>> {
+    let Data::Struct(data_struct) = &input.data else {
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "#[derive(WeaverCommand)] only works on structs",
+        ));
+    };
+    let Fields::Named(named) = &data_struct.fields else {
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "#[derive(WeaverCommand)] requires named fields",
+        ));
+    };
+
+    let mut result = Vec::new();
+    for field in &named.named {
+        let ident = field.ident.as_ref().expect("named field");
+        let ty = &field.ty;
+        let kind = classify_field(field)?;
+        result.push(ClassifiedField { ident, ty, kind });
+    }
+    Ok(result)
+}
+
+fn classify_field(field: &syn::Field) -> syn::Result<FieldKind> {
+    for attr in &field.attrs {
+        let path = attr.path();
+
+        if path.is_ident("shared") {
+            let mut shared_kind = None;
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("registry") {
+                    shared_kind = Some(SharedKind::Registry);
+                } else if meta.path.is_ident("policy") {
+                    shared_kind = Some(SharedKind::Policy);
+                } else if meta.path.is_ident("diagnostic") {
+                    shared_kind = Some(SharedKind::Diagnostic);
+                }
+                Ok(())
+            })?;
+            if let Some(k) = shared_kind {
+                return Ok(FieldKind::Shared(k, field.ty.clone()));
+            }
+        }
+
+        if path.is_ident("config") {
+            let annotation = parse_config_annotation(attr, false)?;
+            return Ok(FieldKind::Config(annotation));
+        }
+
+        if path.is_ident("config_only") {
+            let annotation = parse_config_annotation(attr, true)?;
+            return Ok(FieldKind::Config(annotation));
+        }
+    }
+    Ok(FieldKind::CliOnly)
+}
+
+fn parse_config_annotation(
+    attr: &syn::Attribute,
+    config_only: bool,
+) -> syn::Result<ConfigAnnotation> {
+    // #[config] or #[config_only] with no arguments
+    if matches!(attr.meta, syn::Meta::Path(_)) {
+        return Ok(ConfigAnnotation {
+            default: None,
+            config_only,
+        });
+    }
+    // #[config(...)] or #[config_only(...)]
+    let mut default = None;
+    attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("default") {
+            let value: syn::LitStr = meta.value()?.parse()?;
+            default = Some(value.value());
+        }
+        Ok(())
+    })?;
+    Ok(ConfigAnnotation {
+        default,
+        config_only,
+    })
+}
+
+// ── Config struct generation ──────────────────────────────────────────────────
+
+fn gen_config_struct(config_name: &Ident, fields: &[ClassifiedField<'_>]) -> TokenStream2 {
+    let config_fields: Vec<TokenStream2> = fields
+        .iter()
+        .filter_map(|f| {
+            let FieldKind::Config(ann) = &f.kind else {
+                return None;
+            };
+            let ident = f.ident;
+            let config_ty = config_field_type(f.ty, ann);
+            Some(quote! { pub #ident: #config_ty, })
+        })
+        .collect();
+
+    // If no config fields exist the struct is empty (like CheckConfig).
+    quote! {
+        #[derive(Debug, Clone, ::serde::Deserialize, ::schemars::JsonSchema, PartialEq)]
+        #[serde(default)]
+        #[schemars(inline)]
+        pub struct #config_name {
+            #(#config_fields)*
+        }
+    }
+}
+
+/// Returns the type that goes in the Config struct for a given Args field type
+/// and annotation.
+fn config_field_type(args_ty: &Type, ann: &ConfigAnnotation) -> TokenStream2 {
+    if ann.default.is_some() {
+        // #[config(default = ...)] or #[config_only(default = ...)] → unwrap Option<T> → T
+        let inner = extract_option_inner(args_ty).unwrap_or(args_ty);
+        quote! { #inner }
+    } else {
+        // #[config] or #[config_only] (no default) → keep as Option<T>
+        quote! { #args_ty }
+    }
+}
+
+// ── Default impl generation ───────────────────────────────────────────────────
+
+fn gen_default_impl(config_name: &Ident, fields: &[ClassifiedField<'_>]) -> TokenStream2 {
+    let default_fields: Vec<TokenStream2> = fields
+        .iter()
+        .filter_map(|f| {
+            let FieldKind::Config(ann) = &f.kind else {
+                return None;
+            };
+            let ident = f.ident;
+            let inner = extract_option_inner(f.ty).unwrap_or(f.ty);
+            let default_expr = gen_default_expr(inner, ann.default.as_deref());
+            Some(quote! { #ident: #default_expr, })
+        })
+        .collect();
+
+    quote! {
+        impl Default for #config_name {
+            fn default() -> Self {
+                Self {
+                    #(#default_fields)*
+                }
+            }
+        }
+    }
+}
+
+/// Generate a Rust expression for a default value given the inner type and an
+/// optional string from the annotation.
+fn gen_default_expr(inner_ty: &Type, default_str: Option<&str>) -> TokenStream2 {
+    let Some(s) = default_str else {
+        return quote! { None };
+    };
+    let type_name = last_type_segment(inner_ty).unwrap_or_default();
+    match type_name.as_str() {
+        "String" => quote! { #s.to_owned() },
+        "PathBuf" => quote! { ::std::path::PathBuf::from(#s) },
+        "SocketAddr" => {
+            quote! { #s.parse::<::std::net::SocketAddr>().expect("valid default bind address") }
+        }
+        "bool" => {
+            let b: bool = s.parse().unwrap_or(false);
+            quote! { #b }
+        }
+        "u8" => {
+            let n: u8 = s.parse().unwrap_or(0);
+            let lit = Literal::u8_suffixed(n);
+            quote! { #lit }
+        }
+        "u16" => {
+            let n: u16 = s.parse().unwrap_or(0);
+            let lit = Literal::u16_suffixed(n);
+            quote! { #lit }
+        }
+        "u32" => {
+            let n: u32 = s.parse().unwrap_or(0);
+            let lit = Literal::u32_suffixed(n);
+            quote! { #lit }
+        }
+        "u64" => {
+            let n: u64 = s.parse().unwrap_or(0);
+            let lit = Literal::u64_suffixed(n);
+            quote! { #lit }
+        }
+        "usize" => {
+            let n: usize = s.parse().unwrap_or(0);
+            let lit = Literal::usize_suffixed(n);
+            quote! { #lit }
+        }
+        "i8" => {
+            let n: i8 = s.parse().unwrap_or(0);
+            let lit = Literal::i8_suffixed(n);
+            quote! { #lit }
+        }
+        "i16" => {
+            let n: i16 = s.parse().unwrap_or(0);
+            let lit = Literal::i16_suffixed(n);
+            quote! { #lit }
+        }
+        "i32" => {
+            let n: i32 = s.parse().unwrap_or(0);
+            let lit = Literal::i32_suffixed(n);
+            quote! { #lit }
+        }
+        "i64" => {
+            let n: i64 = s.parse().unwrap_or(0);
+            let lit = Literal::i64_suffixed(n);
+            quote! { #lit }
+        }
+        "f32" => {
+            let n: f32 = s.parse().unwrap_or(0.0);
+            let lit = Literal::f32_suffixed(n);
+            quote! { #lit }
+        }
+        "f64" => {
+            let n: f64 = s.parse().unwrap_or(0.0);
+            let lit = Literal::f64_suffixed(n);
+            quote! { #lit }
+        }
+        _ => {
+            // Unknown type: emit `.to_owned()` and let the compiler validate.
+            quote! { #s.to_owned() }
+        }
+    }
+}
+
+// ── CliOverrides impl generation ──────────────────────────────────────────────
+
+fn gen_cli_overrides_impl(
+    args_ident: &Ident,
+    config_name: &Ident,
+    struct_attr: &WeaverCommandAttr,
+    fields: &[ClassifiedField<'_>],
+) -> TokenStream2 {
+    let section = &struct_attr.section;
+    let section_lit = syn::LitStr::new(section, Span::call_site());
+
+    // excluded_args slices
+    let excluded = gen_excluded_args(fields);
+
+    // config_only_fields
+    let config_only_names: Vec<TokenStream2> = fields
+        .iter()
+        .filter_map(|f| {
+            if let FieldKind::Config(ann) = &f.kind {
+                if ann.config_only {
+                    let name = f.ident.to_string();
+                    return Some(quote! { #name });
+                }
+            }
+            None
+        })
+        .collect();
+
+    let config_only_impl = if config_only_names.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            fn config_only_fields() -> &'static [&'static str] {
+                &[#(#config_only_names),*]
+            }
+        }
+    };
+
+    // apply_overrides
+    let override_stmts: Vec<TokenStream2> = fields
+        .iter()
+        .filter_map(|f| {
+            let FieldKind::Config(ann) = &f.kind else {
+                return None;
+            };
+            let ident = f.ident;
+            if ann.default.is_some() {
+                Some(quote! {
+                    ::weaver_config::override_if_set!(config.#ident, self.#ident);
+                })
+            } else {
+                Some(quote! {
+                    ::weaver_config::override_if_set!(config.#ident, self.#ident, optional);
+                })
+            }
+        })
+        .collect();
+
+    // shared override methods
+    let mut registry_method = quote! {};
+    let mut policy_method = quote! {};
+    let mut diagnostic_method = quote! {};
+    for f in fields {
+        let FieldKind::Shared(kind, _) = &f.kind else {
+            continue;
+        };
+        let field_ident = f.ident;
+        match kind {
+            SharedKind::Registry => {
+                registry_method = quote! {
+                    fn apply_registry_overrides(
+                        &self,
+                        config: &mut ::weaver_config::EffectiveRegistryConfig,
+                    ) {
+                        self.#field_ident.apply_to(config);
+                    }
+                };
+            }
+            SharedKind::Policy => {
+                policy_method = quote! {
+                    fn apply_policy_overrides(
+                        &self,
+                        config: &mut ::weaver_config::EffectivePolicyConfig,
+                    ) {
+                        self.#field_ident.apply_to(config);
+                    }
+                };
+            }
+            SharedKind::Diagnostic => {
+                diagnostic_method = quote! {
+                    fn apply_diagnostic_overrides(
+                        &self,
+                        config: &mut ::weaver_config::EffectiveDiagnosticConfig,
+                    ) {
+                        self.#field_ident.apply_to(config);
+                    }
+                };
+            }
+        }
+    }
+
+    // uses_policy override
+    let uses_policy_method = if struct_attr.no_policy {
+        quote! {
+            fn uses_policy() -> bool { false }
+        }
+    } else {
+        quote! {}
+    };
+
+    quote! {
+        impl ::weaver_config::CliOverrides for #args_ident {
+            type Config = #config_name;
+            const SUBCOMMAND: &'static str = #section_lit;
+
+            fn extract_config(wc: &::weaver_config::WeaverConfig) -> #config_name {
+                wc.command_config(#section_lit)
+            }
+
+            #excluded
+
+            #config_only_impl
+
+            fn apply_overrides(&self, config: &mut #config_name) {
+                #(#override_stmts)*
+            }
+
+            #registry_method
+            #policy_method
+            #diagnostic_method
+            #uses_policy_method
+        }
+    }
+}
+
+/// Generate the `excluded_args()` method from `#[shared(...)]` fields and
+/// CLI-only fields.
+fn gen_excluded_args(fields: &[ClassifiedField<'_>]) -> TokenStream2 {
+    let mut shared_slices: Vec<TokenStream2> = Vec::new();
+    let mut cli_only_names: Vec<String> = Vec::new();
+
+    for f in fields {
+        match &f.kind {
+            FieldKind::Shared(_, ty) => {
+                shared_slices.push(quote! { <#ty>::EXCLUDED_ARGS });
+            }
+            FieldKind::CliOnly => {
+                cli_only_names.push(f.ident.to_string());
+            }
+            FieldKind::Config(_) => {}
+        }
+    }
+
+    if shared_slices.is_empty() && cli_only_names.is_empty() {
+        return quote! {};
+    }
+
+    let all_slices: Vec<TokenStream2> = shared_slices
+        .into_iter()
+        .chain(if cli_only_names.is_empty() {
+            vec![]
+        } else {
+            vec![quote! { &[#(#cli_only_names),*] }]
+        })
+        .collect();
+
+    if all_slices.len() == 1 {
+        let single = &all_slices[0];
+        quote! {
+            fn excluded_args() -> &'static [&'static str] {
+                ::weaver_config::excluded_args!(#single,)
+            }
+        }
+    } else {
+        quote! {
+            fn excluded_args() -> &'static [&'static str] {
+                ::weaver_config::excluded_args!(#(#all_slices),*)
+            }
+        }
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Extract `T` from `Option<T>`, or return the type unchanged.
+fn extract_option_inner(ty: &Type) -> Option<&Type> {
+    if let Type::Path(type_path) = ty {
+        let last = type_path.path.segments.last()?;
+        if last.ident == "Option" {
+            if let PathArguments::AngleBracketed(args) = &last.arguments {
+                if let Some(GenericArgument::Type(inner)) = args.args.first() {
+                    return Some(inner);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Return the last path segment name of a type (e.g. `String`, `PathBuf`).
+fn last_type_segment(ty: &Type) -> Option<String> {
+    if let Type::Path(type_path) = ty {
+        Some(type_path.path.segments.last()?.ident.to_string())
+    } else {
+        None
+    }
+}
+
+/// Convert a kebab-case or snake_case section name to a PascalCase Config ident.
+/// `"emit"` → `EmitConfig`, `"update-markdown"` → `UpdateMarkdownConfig`.
+fn section_to_config_ident(section: &str) -> Ident {
+    let pascal: String = section
+        .split(['-', '_'])
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(c) => {
+                    let mut s: String = c.to_uppercase().collect();
+                    s.push_str(chars.as_str());
+                    s
+                }
+            }
+        })
+        .collect();
+    format_ident!("{}Config", pascal)
+}

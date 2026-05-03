@@ -10,17 +10,16 @@ use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::{
-    excluded_args, CheckConfig, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
-    EffectiveRegistryConfig, WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry check` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "check")]
 pub struct RegistryCheckArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Parameters to specify the baseline semantic convention registry
@@ -29,45 +28,13 @@ pub struct RegistryCheckArgs {
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
-}
-
-impl CliOverrides for RegistryCheckArgs {
-    type Config = CheckConfig;
-    const SUBCOMMAND: &'static str = "check";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> CheckConfig {
-        weaver_config.check.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            PolicyArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-            ["baseline_registry"],
-        )
-    }
-
-    fn apply_overrides(&self, _config: &mut CheckConfig) {
-        // No command-specific config fields to override.
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
-        self.policy.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
 }
 
 /// Check a semantic convention registry.

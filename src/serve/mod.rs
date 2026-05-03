@@ -11,10 +11,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
-    EffectiveRegistryConfig, ServeConfig, WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 
 mod handlers;
 mod server;
@@ -24,62 +21,34 @@ mod ui;
 pub use server::run_server;
 
 /// Parameters for the `weaver serve` command.
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "serve")]
 pub struct ServeCommand {
     /// Parameters to specify the semantic convention registry.
     #[command(flatten)]
+    #[shared(registry)]
     pub registry: RegistryArgs,
 
     /// Parameters to specify the policy engine.
     #[command(flatten)]
+    #[shared(policy)]
     pub policy: PolicyArgs,
 
     /// Address to bind the server to.
     #[arg(long)]
+    #[config(default = "127.0.0.1:8080")]
     pub bind: Option<SocketAddr>,
 
     /// Allowed CORS origins (comma-separated). Use '*' for any origin.
     /// If not specified, CORS is disabled (same-origin only).
     #[arg(long)]
+    #[config]
     pub cors_origins: Option<String>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
-}
-
-impl CliOverrides for ServeCommand {
-    type Config = ServeConfig;
-    const SUBCOMMAND: &'static str = "serve";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> ServeConfig {
-        weaver_config.serve.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            PolicyArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-        )
-    }
-
-    fn apply_overrides(&self, config: &mut ServeConfig) {
-        override_if_set!(config.bind, self.bind);
-        override_if_set!(config.cors_origins, self.cors_origins, optional);
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
-        self.policy.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
 }
 
 /// Execute the `weaver serve` command.

@@ -241,7 +241,7 @@ pub struct ResolvedV1 {
     policy_engine: Option<Engine>,
 }
 impl ResolvedV1 {
-    /// Returns the resolved schema.
+    /// Returns a reference to the resolved schema.
     pub fn resolved_schema(&self) -> &ResolvedTelemetrySchema {
         &self.resolved_schema
     }

@@ -20,25 +20,26 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
-    EffectiveRegistryConfig, GenerateConfig, WeaverConfig as ProjectWeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
 
 /// Parameters for the `registry generate` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "generate")]
 pub struct RegistryGenerateArgs {
     /// Target to generate the artifacts for.
+    #[config_only(default = "")]
     pub target: Option<String>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// Default is the `output` directory.
+    #[config_only(default = "output")]
     pub output: Option<PathBuf>,
 
     /// Path to the directory where the templates are located.
     /// Default is the `templates` directory.
     #[arg(short = 't', long)]
-    pub templates: Option<VirtualDirectoryPath>,
+    #[config(default = "templates")]
+    pub templates: Option<String>,
 
     /// List of `weaver.yaml` configuration files to use. When there is a conflict, the last one
     /// will override the previous ones for the keys that are defined in both.
@@ -56,10 +57,12 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Enable the most recent validation rules for the semconv registry. It is recommended
@@ -69,51 +72,8 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
-}
-
-impl CliOverrides for RegistryGenerateArgs {
-    type Config = GenerateConfig;
-    const SUBCOMMAND: &'static str = "generate";
-
-    fn extract_config(weaver_config: &ProjectWeaverConfig) -> GenerateConfig {
-        weaver_config.generate.clone()
-    }
-
-    fn config_only_fields() -> &'static [&'static str] {
-        // `target` and `output` are positional CLI args (no `--long` flag),
-        // so the consistency check cannot discover them via `get_long()`.
-        &["target", "output"]
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            PolicyArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-            ["config", "param", "params", "future"],
-        )
-    }
-
-    fn apply_overrides(&self, config: &mut GenerateConfig) {
-        if let Some(t) = &self.templates {
-            config.templates = t.to_string();
-        }
-        override_if_set!(config.target, self.target);
-        override_if_set!(config.output, self.output);
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
-        self.policy.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
 }
 
 /// Utility function to parse key-value pairs from the command line.
@@ -278,9 +238,7 @@ mod tests {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("rust".to_owned()),
                     output: Some(temp_output.clone()),
-                    templates: Some(VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    }),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
@@ -356,9 +314,7 @@ mod tests {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("rust".to_owned()),
                     output: Some(temp_output.clone()),
-                    templates: Some(VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    }),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
@@ -397,9 +353,7 @@ mod tests {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("rust".to_owned()),
                     output: Some(temp_output.clone()),
-                    templates: Some(VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    }),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: Some(vec![
                         PathBuf::from(
                             "crates/weaver_codegen_test/templates/registry/alt_weaver.yaml",
@@ -512,9 +466,7 @@ mod tests {
                     command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                         target: Some("rust".to_owned()),
                         output: Some(temp_output.clone()),
-                        templates: Some(VirtualDirectoryPath::LocalFolder {
-                            path: "crates/weaver_codegen_test/templates/".to_owned(),
-                        }),
+                        templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                         config: None,
                         param: None,
                         params: None,
@@ -589,9 +541,7 @@ mod tests {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("markdown".to_owned()),
                     output: Some(temp_output.to_path_buf()),
-                    templates: Some(VirtualDirectoryPath::LocalFolder {
-                        path: "tests/v2_forge/templates/".to_owned(),
-                    }),
+                    templates: Some("tests/v2_forge/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,

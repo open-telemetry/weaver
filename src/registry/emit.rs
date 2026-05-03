@@ -13,67 +13,36 @@ use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, EffectiveDiagnosticConfig, EffectivePolicyConfig,
-    EffectiveRegistryConfig, EmitConfig, WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 
 /// Parameters for the `registry emit` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "emit")]
 pub struct RegistryEmitArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
     /// Write the telemetry to standard output
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
     stdout: Option<bool>,
 
     /// Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.
     #[arg(long)]
+    #[config(default = "http://localhost:4317")]
     endpoint: Option<String>,
-}
-
-impl CliOverrides for RegistryEmitArgs {
-    type Config = EmitConfig;
-    const SUBCOMMAND: &'static str = "emit";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> EmitConfig {
-        weaver_config.emit.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            PolicyArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-        )
-    }
-
-    fn apply_overrides(&self, config: &mut EmitConfig) {
-        override_if_set!(config.stdout, self.stdout);
-        override_if_set!(config.endpoint, self.endpoint);
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_policy_overrides(&self, config: &mut EffectivePolicyConfig) {
-        self.policy.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
 }
 
 /// Emit all spans in the resolved registry.

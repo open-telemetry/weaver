@@ -12,10 +12,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::{
-    excluded_args, override_if_set, CliOverrides, DiffConfig, EffectiveDiagnosticConfig,
-    EffectiveRegistryConfig, WeaverConfig,
-};
+use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::registry_repo::RegistryRepo;
 
@@ -23,10 +20,12 @@ use weaver_semconv::registry_repo::RegistryRepo;
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
 
 /// Parameters for the `registry diff` sub-command
-#[derive(Debug, Args)]
+#[derive(Debug, Args, WeaverCommand)]
+#[weaver_command(section = "diff", no_policy)]
 pub struct RegistryDiffArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Parameters to specify the baseline semantic convention registry
@@ -36,55 +35,24 @@ pub struct RegistryDiffArgs {
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
     /// and markdown.
     #[arg(long, alias = "diff-format")]
+    #[config(default = "ansi")]
     format: Option<String>,
 
     /// Path to the directory where the schema changes templates are located.
     #[arg(long, alias = "diff-template")]
+    #[config(default = "diff_templates")]
     templates: Option<PathBuf>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the diff report is printed to stdout
     #[arg(short, long)]
+    #[config]
     output: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub(crate) diagnostic: DiagnosticArgs,
-}
-
-impl CliOverrides for RegistryDiffArgs {
-    type Config = DiffConfig;
-    const SUBCOMMAND: &'static str = "diff";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> DiffConfig {
-        weaver_config.diff.clone()
-    }
-
-    fn excluded_args() -> &'static [&'static str] {
-        excluded_args!(
-            RegistryArgs::EXCLUDED_ARGS,
-            DiagnosticArgs::EXCLUDED_ARGS,
-            ["baseline_registry"],
-        )
-    }
-
-    fn apply_overrides(&self, config: &mut DiffConfig) {
-        override_if_set!(config.format, self.format);
-        override_if_set!(config.templates, self.templates);
-        override_if_set!(config.output, self.output, optional);
-    }
-
-    fn apply_registry_overrides(&self, config: &mut EffectiveRegistryConfig) {
-        self.registry.apply_to(config);
-    }
-
-    fn apply_diagnostic_overrides(&self, config: &mut EffectiveDiagnosticConfig) {
-        self.diagnostic.apply_to(config);
-    }
-
-    fn uses_policy() -> bool {
-        false
-    }
 }
 
 /// Generate a diff between two versions of a semantic convention registry.
