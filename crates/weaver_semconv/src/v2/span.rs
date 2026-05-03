@@ -91,8 +91,8 @@ pub struct SpanRefinement {
     /// The name of the span being refined.
     pub r#ref: SignalId,
     /// Overrides the span name specification from the referenced base span.
-    /// If set, the refinement's `name.note` is used; otherwise, the base span's
-    /// `name.note` is inherited.
+    /// If set, the entire `name` structure from the refinement replaces the
+    /// base span's `name`; otherwise, the base span's `name` is inherited.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<SpanName>,
     /// List of attributes that belong to the semantic convention.
