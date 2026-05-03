@@ -434,18 +434,30 @@ fn load_definition_repository(
         });
     }
 
-    // Deduplicate UnstableFileFormat warnings so that only one is emitted
-    // regardless of how many v2 files are loaded.
-    let mut seen_unstable_file_format = false;
+    // Consolidate UnstableFileFormat warnings into a single warning that
+    // lists all the files using the unstable format.
+    let mut unstable_provenances: Vec<String> = Vec::new();
+    let mut unstable_file_format: Option<String> = None;
     non_fatal_errors.retain(|e| {
-        if matches!(e, weaver_semconv::Error::UnstableFileFormat { .. }) {
-            if seen_unstable_file_format {
-                return false;
+        if let weaver_semconv::Error::UnstableFileFormat {
+            file_format,
+            provenance,
+        } = e
+        {
+            unstable_provenances.push(provenance.clone());
+            if unstable_file_format.is_none() {
+                unstable_file_format = Some(file_format.clone());
             }
-            seen_unstable_file_format = true;
+            return false;
         }
         true
     });
+    if let Some(file_format) = unstable_file_format {
+        non_fatal_errors.push(weaver_semconv::Error::UnstableFileFormat {
+            file_format,
+            provenance: unstable_provenances.join(", "),
+        });
+    }
 
     // Create loaded repository, pulling imports, specs, etc.
     WResult::OkWithNFEs(
