@@ -1,5 +1,15 @@
 
+{%- set ns = namespace(warnings_only=true) -%}
+{%- for item in ctx -%}
+  {%- if item.diagnostic.severity != "Warning" and item.diagnostic.severity != "Advice" -%}
+    {%- set ns.warnings_only = false -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- if ns.warnings_only %}
+{{ "Diagnostic report" | ansi_bold | ansi_yellow }}:
+{%- else %}
 {{ "Diagnostic report" | ansi_bold | ansi_red }}:
+{%- endif %}
 {% for item in ctx %}
 {%- if item.error.type == "policy_violation" %}{# TODO - support levels. #}
 Violation: {{ item.error.violation.id | ansi_bold | ansi_green }}

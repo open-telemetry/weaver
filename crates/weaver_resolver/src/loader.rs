@@ -434,6 +434,19 @@ fn load_definition_repository(
         });
     }
 
+    // Deduplicate UnstableFileFormat warnings so that only one is emitted
+    // regardless of how many v2 files are loaded.
+    let mut seen_unstable_file_format = false;
+    non_fatal_errors.retain(|e| {
+        if matches!(e, weaver_semconv::Error::UnstableFileFormat { .. }) {
+            if seen_unstable_file_format {
+                return false;
+            }
+            seen_unstable_file_format = true;
+        }
+        true
+    });
+
     // Create loaded repository, pulling imports, specs, etc.
     WResult::OkWithNFEs(
         LoadedSemconvRegistry::Unresolved {
