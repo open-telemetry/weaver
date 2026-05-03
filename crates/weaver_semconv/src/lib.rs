@@ -444,8 +444,8 @@ impl Error {
     #[must_use]
     pub fn consolidate(errors: Vec<Error>) -> Vec<Error> {
         let mut consolidated = Vec::new();
-        let mut unstable_provenances: Vec<String> = Vec::new();
-        let mut unstable_file_format: Option<String> = None;
+        let mut unstable_by_format: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
 
         for e in errors {
             match e {
@@ -453,19 +453,19 @@ impl Error {
                     file_format,
                     provenance,
                 } => {
-                    unstable_provenances.push(provenance);
-                    if unstable_file_format.is_none() {
-                        unstable_file_format = Some(file_format);
-                    }
+                    unstable_by_format
+                        .entry(file_format)
+                        .or_default()
+                        .push(provenance);
                 }
                 other => consolidated.push(other),
             }
         }
 
-        if let Some(file_format) = unstable_file_format {
+        for (file_format, provenances) in unstable_by_format {
             consolidated.push(Error::UnstableFileFormat {
                 file_format,
-                provenance: unstable_provenances.join(", "),
+                provenance: provenances.join(", "),
             });
         }
 
