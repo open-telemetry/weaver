@@ -765,7 +765,9 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, Error as SemConvError, YamlValue};
+    use crate::{
+        registry::SemConvRegistry, schema_url::SchemaUrl, Error as SemConvError, YamlValue,
+    };
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
@@ -887,10 +889,19 @@ mod tests {
         let result = SemConvError::consolidate(errors);
         assert_eq!(result.len(), 3);
         // Non-UnstableFileFormat errors keep their original order
-        assert!(matches!(&result[0], SemConvError::InvalidRegistryPathPattern { .. }));
-        assert!(matches!(&result[1], SemConvError::DeprecatedVersionField { .. }));
+        assert!(matches!(
+            &result[0],
+            SemConvError::InvalidRegistryPathPattern { .. }
+        ));
+        assert!(matches!(
+            &result[1],
+            SemConvError::DeprecatedVersionField { .. }
+        ));
         // UnstableFileFormat appears at the end
-        assert!(matches!(&result[2], SemConvError::UnstableFileFormat { .. }));
+        assert!(matches!(
+            &result[2],
+            SemConvError::UnstableFileFormat { .. }
+        ));
     }
 
     #[test]
@@ -906,6 +917,9 @@ mod tests {
         }];
         let result = SemConvError::consolidate(errors);
         assert_eq!(result.len(), 1);
-        assert!(matches!(&result[0], SemConvError::DeprecatedVersionField { .. }));
+        assert!(matches!(
+            &result[0],
+            SemConvError::DeprecatedVersionField { .. }
+        ));
     }
 }
