@@ -170,7 +170,7 @@ mod tests {
                 registry: Some(VirtualDirectoryPath::LocalFolder {
                     path: registry_path.to_owned(),
                 }),
-                v2: if v2 { Some(true) } else { None },
+                v2: v2.then_some(true),
                 ..Default::default()
             },
             output: Some(output),

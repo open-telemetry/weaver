@@ -420,7 +420,10 @@ fn gen_cli_overrides_impl(
 
     // Resolve the config type: either the external type or the generated name.
     let config_ty: TokenStream2 = if let Some(ct) = &struct_attr.config_type {
-        let parsed: Type = syn::parse_str(ct).expect("valid config type path");
+        let parsed: Type = match syn::parse_str(ct) {
+            Ok(t) => t,
+            Err(e) => return e.into_compile_error(),
+        };
         quote! { #parsed }
     } else {
         quote! { #config_name }
@@ -495,9 +498,6 @@ fn gen_cli_overrides_impl(
             let FieldKind::Config(ann) = &f.kind else {
                 return None;
             };
-            if ann.config_only {
-                return None;
-            }
             let ident = f.ident;
 
             if let Some(path) = &ann.path {

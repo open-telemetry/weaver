@@ -21,8 +21,6 @@ pub struct CommandConfig<C> {
     pub registry: EffectiveRegistryConfig,
     /// Effective policy settings (defaults → config → CLI).
     pub policy: EffectivePolicyConfig,
-    /// Effective diagnostic settings (defaults → config → CLI).
-    pub diagnostics: EffectiveDiagnosticConfig,
 }
 
 /// A name mapping between a config field and its CLI arg counterpart.

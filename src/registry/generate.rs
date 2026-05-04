@@ -106,13 +106,15 @@ pub(crate) fn command(
     let config = cmd_config.config;
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
-    let templates: VirtualDirectoryPath =
-        config
-            .templates
-            .parse()
-            .unwrap_or_else(|_| VirtualDirectoryPath::LocalFolder {
-                path: config.templates.clone(),
-            });
+    let templates: VirtualDirectoryPath = config
+        .templates
+        .parse::<VirtualDirectoryPath>()
+        .map_err(|e| {
+            DiagnosticMessages::from(Error::InvalidParams {
+                params_file: PathBuf::from(&config.templates),
+                error: e.to_string(),
+            })
+        })?;
     let target = config.target;
     let output_path = config.output;
     let templates_dir = VirtualDirectory::try_new_with_auth(&templates, auth).map_err(|e| {

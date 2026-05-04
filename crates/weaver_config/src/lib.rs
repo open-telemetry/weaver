@@ -60,10 +60,7 @@ impl WeaverConfig {
         let Some(value) = self.commands.get(section) else {
             return C::default();
         };
-        toml::to_string(value)
-            .ok()
-            .and_then(|s| toml::from_str(&s).ok())
-            .unwrap_or_default()
+        value.clone().try_into::<C>().unwrap_or_default()
     }
 }
 

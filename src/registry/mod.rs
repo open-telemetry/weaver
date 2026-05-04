@@ -26,10 +26,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::{
-    CliOverrides, CommandConfig, EffectiveDiagnosticConfig, EffectivePolicyConfig,
-    EffectiveRegistryConfig,
-};
+use weaver_config::{CliOverrides, CommandConfig, EffectivePolicyConfig, EffectiveRegistryConfig};
 
 mod check;
 mod diff;
@@ -346,18 +343,10 @@ pub fn load_config<A: CliOverrides>(
         EffectivePolicyConfig::skip_all()
     };
 
-    // Diagnostics: default → config → CLI
-    let mut diagnostics = EffectiveDiagnosticConfig::default();
-    if let Some(wc) = weaver_config {
-        diagnostics.layer_config(&wc.diagnostics);
-    }
-    args.apply_diagnostic_overrides(&mut diagnostics);
-
     CommandConfig {
         config,
         registry,
         policy,
-        diagnostics,
     }
 }
 
