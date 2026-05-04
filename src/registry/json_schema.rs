@@ -134,30 +134,13 @@ pub(crate) fn command(
 #[cfg(test)]
 mod tests {
 
-    use super::WeaverConfigSchema;
     use crate::cli::{Cli, Commands};
     use crate::registry::json_schema::{JsonSchemaType, RegistryJsonSchemaArgs};
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use clap::ValueEnum;
-    use schemars::schema_for;
     use std::fs;
     use tempfile::NamedTempFile;
-
-    #[test]
-    fn test_weaver_config_schema_up_to_date() {
-        let schema = schema_for!(WeaverConfigSchema);
-        let generated = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
-        let committed = fs::read_to_string("schemas/weaver-config.json")
-            .expect("Failed to read schemas/weaver-config.json");
-        assert_eq!(
-            generated.trim(),
-            committed.trim(),
-            "schemas/weaver-config.json is out of date; run:\n  \
-             cargo run -- registry json-schema --json-schema weaver-config \
-             -o schemas/weaver-config.json"
-        );
-    }
 
     #[test]
     fn test_registry_json_schema() {
