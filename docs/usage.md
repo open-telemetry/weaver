@@ -91,28 +91,34 @@ The process exits with a code of 0 if the registry validation is successful.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `--baseline-registry <BASELINE_REGISTRY>` — Parameters to specify the baseline semantic convention registry
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -131,45 +137,45 @@ The process exits with a code of 0 if the generation is successful.
 ###### **Arguments:**
 
 * `<TARGET>` — Target to generate the artifacts for
-
-  Default value: ``
 * `<OUTPUT>` — Path to the directory where the generated artifacts will be saved. Default is the `output` directory
-
-  Default value: `output`
 
 ###### **Options:**
 
 * `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Default is the `templates` directory
-
-  Default value: `templates`
 * `-c`, `--config <CONFIG>` — List of `weaver.yaml` configuration files to use. When there is a conflict, the last one will override the previous ones for the keys that are defined in both
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--future` — Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry
 
   Default value: `false`
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -183,13 +189,18 @@ Please use 'weaver registry generate' or 'weaver registry package' instead.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `--lineage` — Flag to indicate if lineage information should be included in the resolved schema (not yet implemented)
 
   Default value: `false`
@@ -198,19 +209,20 @@ Please use 'weaver registry generate' or 'weaver registry package' instead.
 
   Default value: `yaml`
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -227,23 +239,27 @@ DEPRECATED - Searches a registry. This command is deprecated and will be removed
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `--lineage` — Flag to indicate if lineage information should be included in the resolved schema (not yet implemented)
 
   Default value: `false`
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -256,27 +272,27 @@ Calculate a set of general statistics on a semantic convention registry
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `--format <FORMAT>` — Output format for the stats. Predefined formats are: text, json, yaml, jsonl, mute
-
-  Default value: `text`
 * `--templates <TEMPLATES>` — Path to the directory where the stats templates are located
-
-  Default value: `stats_templates`
 * `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the stats are printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -284,7 +300,7 @@ Calculate a set of general statistics on a semantic convention registry
 
 Update markdown files that contain markers indicating the templates used to update the specified sections
 
-**Usage:** `weaver registry update-markdown [OPTIONS] --target <TARGET> <MARKDOWN_DIR>`
+**Usage:** `weaver registry update-markdown [OPTIONS] [MARKDOWN_DIR]`
 
 ###### **Arguments:**
 
@@ -293,30 +309,33 @@ Update markdown files that contain markers indicating the templates used to upda
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
-* `--dry-run` — Whether or not to run updates in dry-run mode
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
 
-  Default value: `false`
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
+* `--dry-run <DRY_RUN>` — Whether or not to run updates in dry-run mode
+
+  Possible values: `true`, `false`
+
 * `--attribute-registry-base-url <ATTRIBUTE_REGISTRY_BASE_URL>` — Optional path to the attribute registry. If provided, all attributes will be linked here
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
-* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Default is the `templates` directory. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
-
-  Default value: `templates`
-* `--target <TARGET>` — If provided, the target to generate snippets with. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
+* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
+* `--target <TARGET>` — The target to generate snippets with. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -360,12 +379,11 @@ The produced JSON Schema can be used to generate documentation of the resolved r
 
 * `-o`, `--output <OUTPUT>` — Output file to write the JSON schema to If not specified, the JSON schema is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -383,28 +401,28 @@ This diff can then be rendered in multiple formats:
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `--baseline-registry <BASELINE_REGISTRY>` — Parameters to specify the baseline semantic convention registry
 * `--format <FORMAT>` — Format used to render the schema changes. Predefined formats are: ansi, json, and markdown
-
-  Default value: `ansi`
 * `--templates <TEMPLATES>` — Path to the directory where the schema changes templates are located
-
-  Default value: `diff_templates`
 * `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the diff report is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -419,31 +437,38 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
-* `--stdout` — Write the telemetry to standard output
+  Possible values: `true`, `false`
+
+* `--stdout <STDOUT>` — Write the telemetry to standard output
+
+  Possible values: `true`, `false`
+
 * `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this
-
-  Default value: `http://localhost:4317`
 
 
 
@@ -458,59 +483,61 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
-
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
-* `--input-source <INPUT_SOURCE>` — Where to read the input telemetry from. {file path} | stdin | otlp (default: otlp)
-* `--input-format <INPUT_FORMAT>` — The format of the input telemetry. (Not required for OTLP). text | json (default: json)
-* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl (uses serde directly). Other values are treated as template names (e.g., "ansi" uses ansi templates). (default: ansi)
-* `--templates <TEMPLATES>` — Path to the directory where the templates are located. (default: live_check_templates)
-* `--no-stream <NO_STREAM>` — Disable stream mode. Use this flag to disable streaming output.
-
-   When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP), by default output the live check results for each entity as they are ingested.
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
   Possible values: `true`, `false`
 
-* `--no-stats <NO_STATS>` — Disable statistics accumulation. This is useful for long-running live check sessions. Typically combined with --emit-otlp-logs and --output=none
+* `--input-source <INPUT_SOURCE>` — Where to read the input telemetry from. {file path} | stdin | otlp
+* `--input-format <INPUT_FORMAT>` — The format of the input telemetry. text | json (not required for OTLP)
+* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl. Other values are template names (e.g. "ansi")
+* `--templates <TEMPLATES>` — Path to the directory where the templates are located
+* `--no-stream <NO_STREAM>` — Disable stream mode (build report before rendering)
 
   Possible values: `true`, `false`
 
-* `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the report is printed to stdout. Use "none" to disable all template output rendering (useful when emitting OTLP logs). Use "http" to send the report as the response to the /stop request on the admin port
-* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. (default: 0.0.0.0)
-* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. (default: 4317)
+* `--no-stats <NO_STATS>` — Disable statistics accumulation. Useful for long-running sessions
+
+  Possible values: `true`, `false`
+
+* `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to send as the /stop response
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
+* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener
 * `--emit-otlp-logs <EMIT_OTLP_LOGS>` — Enable OTLP log emission for live check policy findings
 
   Possible values: `true`, `false`
 
-* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission (default: http://localhost:4317)
+* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission
 * `--otlp-logs-stdout <OTLP_LOGS_STDOUT>` — Use stdout for OTLP log emission (debug mode)
 
   Possible values: `true`, `false`
 
-* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop). (default: 4320)
-* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener. (default: 10)
+* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop)
+* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
-* `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
-
-   Rego policies are run for each sample as it arrives in a stream. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 
 
 
@@ -529,27 +556,27 @@ The server communicates over stdio using JSON-RPC.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
-* `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
-
-   Rego policies are run for each sample as it arrives. The preprocessor can be used to create a new data structure that is more efficient for the rego policies versus processing the data for every sample.
+* `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 * `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting
-
-  Default value: `.`
 
 
 
@@ -562,27 +589,16 @@ Generates a schema file by inferring the schema from a OTLP message.
 ###### **Options:**
 
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 * `-o`, `--output <OUTPUT>` — Output folder for generated YAML files
-
-  Default value: `./inferred-registry/`
 * `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
-
-  Default value: `0.0.0.0`
 * `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener
-
-  Default value: `4317`
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop)
-
-  Default value: `8080`
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never)
-
-  Default value: `60`
 
 
 
@@ -590,36 +606,40 @@ Generates a schema file by inferring the schema from a OTLP message.
 
 Packages a semantic convention registry into a self-contained artifact.
 
-**Usage:** `weaver registry package [OPTIONS] --resolved-schema-uri <RESOLVED_SCHEMA_URI>`
+**Usage:** `weaver registry package [OPTIONS]`
 
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written
-
-  Default value: `output`
 * `--resolved-schema-uri <RESOLVED_SCHEMA_URI>` — URI where the resolved schema will eventually be published. This value is embedded in the publication manifest as `resolved_schema_uri`
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -653,12 +673,11 @@ Initializes a `diagnostic_templates` directory to define or override diagnostic 
 
   Default value: `diagnostic_templates`
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
@@ -686,31 +705,35 @@ Start the API server (Experimental)
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
 
-  Default value: `https://github.com/open-telemetry/semantic-conventions.git[model]`
-* `-s`, `--follow-symlinks` — Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
-* `--include-unreferenced` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
-* `--v2` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry
+
+  Possible values: `true`, `false`
+
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies
+
+  Possible values: `true`, `false`
+
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies` — Skip the policy checks
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
 
-  Default value: `false`
-* `--display-policy-coverage` — Display the policy coverage report (useful for debugging)
+  Possible values: `true`, `false`
 
-  Default value: `false`
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging)
+
+  Possible values: `true`, `false`
+
 * `--bind <BIND>` — Address to bind the server to
-
-  Default value: `127.0.0.1:8080`
 * `--cors-origins <CORS_ORIGINS>` — Allowed CORS origins (comma-separated). Use '*' for any origin. If not specified, CORS is disabled (same-origin only)
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
-
-  Default value: `ansi`
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
+* `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr
 
-  Default value: `diagnostic_templates`
-* `--diagnostic-stdout` — Send the output to stdout instead of stderr
+  Possible values: `true`, `false`
+
 
 
 
