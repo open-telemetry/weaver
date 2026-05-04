@@ -502,17 +502,46 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 _ = group_index.insert(group.group.id.clone(), summary);
             }
         }
-        // Iterate over all groups and resolve the `extends` clauses.
+        // Iterate over all groups and resolve the `extends` and `include_groups` clauses.
         for unresolved_group in ureg.groups.iter_mut() {
             // TODO - also look in dependencies.
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
                 if let Some(parent_summary) =
                     lookup_group_with_dependencies(dependencies, &group_index, extends)
                 {
+                    // Build the list of parent groups to inherit attributes from.
+                    // Start with the extends parent.
+                    let mut parent_groups: Vec<(&str, &[UnresolvedAttribute])> =
+                        vec![(extends, &parent_summary.attributes)];
+
+                    // Also collect any include_groups (e.g. from ref_group in
+                    // refinements) so their attribute overrides are preserved.
+                    let mut include_resolved = true;
+                    for include_group in unresolved_group.include_groups.iter() {
+                        if let Some(summary) = group_index.get(include_group) {
+                            parent_groups
+                                .push((include_group.as_str(), summary.attributes.as_slice()));
+                            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                                lineage.includes_group(include_group);
+                            }
+                        } else {
+                            errors.push(Error::UnresolvedExtendsRef {
+                                group_id: unresolved_group.group.id.clone(),
+                                extends_ref: include_group.clone(),
+                                provenance: unresolved_group.provenance.clone().map(Box::new),
+                            });
+                            include_resolved = false;
+                        }
+                    }
+
+                    if !include_resolved {
+                        continue;
+                    }
+
                     unresolved_group.attributes = resolve_inheritance_attrs_unified(
                         &unresolved_group.group.id,
                         &unresolved_group.attributes,
-                        vec![(extends, &parent_summary.attributes)],
+                        parent_groups,
                         unresolved_group.group.lineage.as_mut(),
                     );
                     if let Some(lineage) = unresolved_group.group.lineage.as_mut() {

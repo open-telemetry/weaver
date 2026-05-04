@@ -38,7 +38,7 @@
       "stability": "stable",
       "attributes": [
         1,
-        3
+        4
       ],
       "name": "entity.refined.entity",
       "lineage": {
@@ -192,7 +192,7 @@
       "brief": "<synthetic v2>",
       "attributes": [
         0,
-        2
+        3
       ],
       "lineage": {
         "provenance": {
@@ -206,12 +206,26 @@
       "type": "span",
       "brief": "Base span",
       "stability": "stable",
+      "attributes": [
+        0
+      ],
       "span_kind": "client",
       "name": "base.span",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
         }
       }
     },
@@ -220,6 +234,9 @@
       "type": "span",
       "brief": "Refined span",
       "stability": "stable",
+      "attributes": [
+        2
+      ],
       "span_kind": "client",
       "name": "span.refined.span",
       "lineage": {
@@ -227,7 +244,56 @@
           "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         },
-        "extends_group": "span.base.span"
+        "extends_group": "span.base.span",
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note"
+            ]
+          }
+        },
+        "includes_group": [
+          "test.override.group"
+        ]
+      }
+    },
+    {
+      "id": "span.regular.span",
+      "type": "span",
+      "brief": "Regular span pulling override group via ref_group",
+      "stability": "stable",
+      "attributes": [
+        2
+      ],
+      "span_kind": "client",
+      "name": "regular.span",
+      "lineage": {
+        "provenance": {
+          "schema_url": "https://default/0.1.0",
+          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
+        },
+        "attributes": {
+          "test.attr": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note"
+            ]
+          }
+        },
+        "includes_group": [
+          "test.override.group"
+        ]
       }
     },
     {

@@ -17,6 +17,12 @@ attribute_groups:
     attributes:
       - ref: test.attr
 
+  - id: test.override.group
+    visibility: internal
+    attributes:
+      - ref: test.attr
+        note: OVERRIDE_NOTE
+
 metrics:
   - name: base.metric
     instrument: histogram
@@ -51,11 +57,25 @@ spans:
       note: "base span"
     brief: Base span
     stability: stable
+    attributes:
+      - ref: test.attr
+
+  - type: regular.span
+    kind: client
+    name:
+      note: "regular span"
+    brief: Regular span pulling override group via ref_group
+    stability: stable
+    attributes:
+      - ref_group: test.override.group
 
 span_refinements:
   - id: span.refined.span
     ref: base.span
     brief: Refined span
+    stability: stable
+    attributes:
+      - ref_group: test.override.group
 
 events:
   - name: base.event
