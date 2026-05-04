@@ -13,8 +13,7 @@ Use [`cargo-expand`](https://github.com/dtolnay/cargo-expand) to see the code th
 ```bash
 cargo install cargo-expand  # one-time setup; also requires `rustup toolchain install nightly`
 
-cargo expand registry::emit                    # expand a whole module
-cargo expand registry::emit::RegistryEmitArgs  # expand a specific item
+cargo expand registry::emit  # expand a module; search the output for the struct/impl you want
 ```
 
 The output is formatted Rust showing the exact `impl CliOverrides`, generated config struct, and `apply_overrides` fn.
