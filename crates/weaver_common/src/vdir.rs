@@ -276,6 +276,16 @@ const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
 const ZIP_EXT: &str = ".zip";
 
+/// Returns `true` if `s` looks like a full-length hex commit SHA.
+///
+/// Git uses SHA-1 (40 hex chars) or SHA-256 (64 hex chars). This helper is
+/// intentionally strict: it only matches full-length hashes so that short
+/// branch/tag names that happen to be hex (e.g. `deadbeef`) are not
+/// misidentified.
+fn is_commit_sha(s: &str) -> bool {
+    (s.len() == 40 || s.len() == 64) && s.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
 /// Regex to parse a virtual directory path string.
 ///
 /// Supports the following general format: `source[@refspec][\[sub_folder]]`
@@ -650,6 +660,10 @@ impl VirtualDirectory {
             message: e.to_string(),
         })?;
 
+        // Determine whether the refspec is a commit SHA. `with_ref_name` only
+        // accepts symbolic refs (branches/tags) and panics on raw object IDs.
+        let is_sha = refspec.as_ref().is_some_and(|r| is_commit_sha(r));
+
         let mut fetch = if refspec.is_none() {
             prepare.with_shallow(Shallow::DepthAtRemote(
                 NonZeroU32::new(1).expect("1 is not zero"),
@@ -657,7 +671,9 @@ impl VirtualDirectory {
         } else {
             prepare
         }
-        .with_ref_name(refspec.as_ref())
+        // Only pass the refspec to `with_ref_name` when it is a symbolic ref.
+        // Commit SHAs are handled after checkout via `git checkout`.
+        .with_ref_name(if is_sha { None } else { refspec.as_ref() })
         .map_err(|e| GitError {
             repo_url: url.to_owned(),
             message: e.to_string(),
@@ -676,6 +692,27 @@ impl VirtualDirectory {
                 repo_url: url.to_owned(),
                 message: e.to_string(),
             })?;
+
+        // When the refspec is a commit SHA, the clone fetched all refs and
+        // checked out the default branch. Now switch to the requested commit.
+        if is_sha {
+            let sha = refspec.as_ref().expect("is_sha implies Some");
+            let output = std::process::Command::new("git")
+                .args(["checkout", sha])
+                .current_dir(&tmp_path)
+                .output()
+                .map_err(|e| GitError {
+                    repo_url: url.to_owned(),
+                    message: format!("failed to run `git checkout {sha}`: {e}"),
+                })?;
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(GitError {
+                    repo_url: url.to_owned(),
+                    message: format!("git checkout {sha} failed: {stderr}"),
+                });
+            }
+        }
 
         // Determines the final path to the repo taking into account the sub_folder.
         let path = if let Some(sub_folder) = sub_folder {
@@ -1629,5 +1666,42 @@ mod tests {
         let no_url = serde_json::json!({ "assets": [{ "name": "manifest.yaml" }] });
         let err = find_asset_url(&no_url, "manifest.yaml", "v1", "orig").expect_err("missing url");
         assert!(matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("'url'")));
+    }
+
+    #[test]
+    fn test_is_commit_sha() {
+        use super::is_commit_sha;
+
+        // Valid SHA-1 (40 hex chars)
+        assert!(is_commit_sha(
+            "d84341cf20a1fef1a833ef44d318c41a770e6e64"
+        ));
+        assert!(is_commit_sha(
+            "0000000000000000000000000000000000000000"
+        ));
+        assert!(is_commit_sha(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ));
+        // Valid SHA-256 (64 hex chars)
+        assert!(is_commit_sha(
+            "d84341cf20a1fef1a833ef44d318c41a770e6e64d84341cf20a1fef1a833ef44"
+        ));
+
+        // Too short / too long
+        assert!(!is_commit_sha("d84341cf"));
+        assert!(!is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e6")); // 39 chars
+        assert!(!is_commit_sha(
+            "d84341cf20a1fef1a833ef44d318c41a770e6e640"
+        )); // 41 chars
+
+        // Non-hex characters
+        assert!(!is_commit_sha(
+            "g84341cf20a1fef1a833ef44d318c41a770e6e64"
+        ));
+
+        // Symbolic refs
+        assert!(!is_commit_sha("main"));
+        assert!(!is_commit_sha("v1.0.0"));
+        assert!(!is_commit_sha("refs/heads/main"));
     }
 }
