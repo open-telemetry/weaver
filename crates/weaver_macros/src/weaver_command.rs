@@ -702,3 +702,194 @@ fn section_to_config_ident(section: &str) -> Ident {
         .collect();
     format_ident!("{}Config", pascal)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── section_to_config_ident ───────────────────────────────────────────────
+
+    #[test]
+    fn test_section_to_config_ident_single_word() {
+        assert_eq!(section_to_config_ident("emit").to_string(), "EmitConfig");
+        assert_eq!(section_to_config_ident("check").to_string(), "CheckConfig");
+    }
+
+    #[test]
+    fn test_section_to_config_ident_kebab_case() {
+        assert_eq!(
+            section_to_config_ident("update-markdown").to_string(),
+            "UpdateMarkdownConfig"
+        );
+        assert_eq!(
+            section_to_config_ident("live-check").to_string(),
+            "LiveCheckConfig"
+        );
+    }
+
+    #[test]
+    fn test_section_to_config_ident_snake_case() {
+        assert_eq!(
+            section_to_config_ident("update_markdown").to_string(),
+            "UpdateMarkdownConfig"
+        );
+    }
+
+    #[test]
+    fn test_section_to_config_ident_single_letter() {
+        assert_eq!(section_to_config_ident("a").to_string(), "AConfig");
+    }
+
+    // ── extract_option_inner ──────────────────────────────────────────────────
+
+    fn parse_type(s: &str) -> Type {
+        syn::parse_str(s).unwrap()
+    }
+
+    #[test]
+    fn test_extract_option_inner_some() {
+        let ty = parse_type("Option<String>");
+        let inner = extract_option_inner(&ty);
+        assert!(inner.is_some());
+        assert_eq!(quote::quote!(#inner).to_string(), "String");
+    }
+
+    #[test]
+    fn test_extract_option_inner_nested() {
+        let ty = parse_type("Option<Vec<PathBuf>>");
+        let inner = extract_option_inner(&ty);
+        assert!(inner.is_some());
+        assert_eq!(quote::quote!(#inner).to_string(), "Vec < PathBuf >");
+    }
+
+    #[test]
+    fn test_extract_option_inner_non_option() {
+        let ty = parse_type("String");
+        assert!(extract_option_inner(&ty).is_none());
+    }
+
+    #[test]
+    fn test_extract_option_inner_bool() {
+        let ty = parse_type("Option<bool>");
+        let inner = extract_option_inner(&ty);
+        assert!(inner.is_some());
+        assert_eq!(quote::quote!(#inner).to_string(), "bool");
+    }
+
+    // ── last_type_segment ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_last_type_segment_simple() {
+        assert_eq!(
+            last_type_segment(&parse_type("String")),
+            Some("String".to_owned())
+        );
+        assert_eq!(
+            last_type_segment(&parse_type("PathBuf")),
+            Some("PathBuf".to_owned())
+        );
+        assert_eq!(
+            last_type_segment(&parse_type("bool")),
+            Some("bool".to_owned())
+        );
+    }
+
+    #[test]
+    fn test_last_type_segment_qualified() {
+        assert_eq!(
+            last_type_segment(&parse_type("std::path::PathBuf")),
+            Some("PathBuf".to_owned())
+        );
+    }
+
+    #[test]
+    fn test_last_type_segment_generic() {
+        assert_eq!(
+            last_type_segment(&parse_type("Option<String>")),
+            Some("Option".to_owned())
+        );
+    }
+
+    // ── gen_default_expr ──────────────────────────────────────────────────────
+
+    fn expr_str(ty_str: &str, default: Option<&str>) -> String {
+        let ty = parse_type(ty_str);
+        gen_default_expr(&ty, default).to_string()
+    }
+
+    #[test]
+    fn test_gen_default_expr_none() {
+        assert_eq!(expr_str("String", None), "None");
+        assert_eq!(expr_str("bool", None), "None");
+    }
+
+    #[test]
+    fn test_gen_default_expr_string() {
+        let out = expr_str("String", Some("hello"));
+        assert!(out.contains("to_owned"), "expected .to_owned() in: {out}");
+    }
+
+    #[test]
+    fn test_gen_default_expr_bool_true() {
+        assert_eq!(expr_str("bool", Some("true")), "true");
+    }
+
+    #[test]
+    fn test_gen_default_expr_bool_false() {
+        assert_eq!(expr_str("bool", Some("false")), "false");
+    }
+
+    #[test]
+    fn test_gen_default_expr_u32() {
+        assert_eq!(expr_str("u32", Some("42")), "42u32");
+    }
+
+    #[test]
+    fn test_gen_default_expr_u64() {
+        assert_eq!(expr_str("u64", Some("100")), "100u64");
+    }
+
+    #[test]
+    fn test_gen_default_expr_pathbuf() {
+        let out = expr_str("PathBuf", Some("./templates"));
+        assert!(
+            out.contains("PathBuf") && out.contains("from"),
+            "expected PathBuf::from in: {out}"
+        );
+    }
+
+    #[test]
+    fn test_gen_default_expr_socket_addr() {
+        let out = expr_str("SocketAddr", Some("127.0.0.1:8080"));
+        assert!(
+            out.contains("parse") && out.contains("SocketAddr"),
+            "expected parse::<SocketAddr>() in: {out}"
+        );
+    }
+
+    #[test]
+    fn test_gen_default_expr_unknown_type() {
+        // Unknown types fall through to `.to_owned()`.
+        let out = expr_str("MyCustomType", Some("value"));
+        assert!(out.contains("to_owned"), "expected .to_owned() in: {out}");
+    }
+
+    #[test]
+    fn test_gen_default_expr_integer_types() {
+        assert_eq!(expr_str("u8", Some("1")), "1u8");
+        assert_eq!(expr_str("u16", Some("2")), "2u16");
+        assert_eq!(expr_str("usize", Some("3")), "3usize");
+        assert_eq!(expr_str("i8", Some("4")), "4i8");
+        assert_eq!(expr_str("i16", Some("5")), "5i16");
+        assert_eq!(expr_str("i32", Some("6")), "6i32");
+        assert_eq!(expr_str("i64", Some("7")), "7i64");
+    }
+
+    #[test]
+    fn test_gen_default_expr_float_types() {
+        let f32_out = expr_str("f32", Some("1.5"));
+        assert!(f32_out.contains("f32"), "expected f32 suffix in: {f32_out}");
+        let f64_out = expr_str("f64", Some("2.5"));
+        assert!(f64_out.contains("f64"), "expected f64 suffix in: {f64_out}");
+    }
+}

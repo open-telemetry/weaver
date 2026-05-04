@@ -142,3 +142,162 @@ impl EffectiveDiagnosticConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+
+    // ── EffectiveRegistryConfig ───────────────────────────────────────────────
+
+    #[test]
+    fn test_registry_default_values() {
+        let cfg = EffectiveRegistryConfig::default();
+        assert!(!cfg.follow_symlinks);
+        assert!(!cfg.include_unreferenced);
+        assert!(!cfg.v2);
+        // Verify the default registry URL parses correctly (smoke-check).
+        assert!(
+            format!("{cfg:?}").contains("GitRepo"),
+            "default registry should be a GitRepo"
+        );
+    }
+
+    #[test]
+    fn test_registry_layer_config_applies_all_fields() {
+        let mut cfg = EffectiveRegistryConfig::default();
+        cfg.layer_config(&RegistryConfig {
+            path: Some("./local".to_owned()),
+            follow_symlinks: Some(true),
+            include_unreferenced: Some(true),
+            v2: Some(true),
+        });
+        assert!(cfg.follow_symlinks);
+        assert!(cfg.include_unreferenced);
+        assert!(cfg.v2);
+    }
+
+    #[test]
+    fn test_registry_layer_config_skips_invalid_path() {
+        let mut cfg = EffectiveRegistryConfig::default();
+        let original_registry = cfg.registry.clone();
+        // An empty string is not a valid VirtualDirectoryPath — should be ignored.
+        cfg.layer_config(&RegistryConfig {
+            path: Some(String::new()),
+            ..Default::default()
+        });
+        assert_eq!(
+            format!("{:?}", cfg.registry),
+            format!("{:?}", original_registry),
+            "invalid path should leave registry unchanged"
+        );
+    }
+
+    #[test]
+    fn test_registry_layer_config_partial() {
+        let mut cfg = EffectiveRegistryConfig::default();
+        cfg.layer_config(&RegistryConfig {
+            follow_symlinks: Some(true),
+            ..Default::default()
+        });
+        assert!(cfg.follow_symlinks);
+        assert!(!cfg.include_unreferenced);
+        assert!(!cfg.v2);
+    }
+
+    // ── EffectivePolicyConfig ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_policy_default_values() {
+        let cfg = EffectivePolicyConfig::default();
+        assert!(!cfg.skip_policies);
+        assert!(!cfg.display_policy_coverage);
+        assert!(cfg.policies.is_empty());
+    }
+
+    #[test]
+    fn test_policy_skip_all() {
+        let cfg = EffectivePolicyConfig::skip_all();
+        assert!(cfg.skip_policies);
+        assert!(!cfg.display_policy_coverage);
+        assert!(cfg.policies.is_empty());
+    }
+
+    #[test]
+    fn test_policy_layer_config_applies_all_fields() {
+        let mut cfg = EffectivePolicyConfig::default();
+        cfg.layer_config(&PolicyConfig {
+            paths: Some(vec!["./policies".to_owned()]),
+            skip: Some(true),
+            display_policy_coverage: Some(true),
+        });
+        assert!(cfg.skip_policies);
+        assert!(cfg.display_policy_coverage);
+        assert_eq!(cfg.policies.len(), 1);
+    }
+
+    #[test]
+    fn test_policy_layer_config_ignores_invalid_paths() {
+        let mut cfg = EffectivePolicyConfig::default();
+        // Empty strings are not valid VirtualDirectoryPath — filtered out.
+        cfg.layer_config(&PolicyConfig {
+            paths: Some(vec![String::new()]),
+            ..Default::default()
+        });
+        assert!(cfg.policies.is_empty());
+    }
+
+    #[test]
+    fn test_policy_layer_config_partial() {
+        let mut cfg = EffectivePolicyConfig::default();
+        cfg.layer_config(&PolicyConfig {
+            skip: Some(true),
+            ..Default::default()
+        });
+        assert!(cfg.skip_policies);
+        assert!(!cfg.display_policy_coverage);
+    }
+
+    // ── EffectiveDiagnosticConfig ─────────────────────────────────────────────
+
+    #[test]
+    fn test_diagnostic_default_values() {
+        let cfg = EffectiveDiagnosticConfig::default();
+        assert_eq!(cfg.diagnostic_format, DEFAULT_DIAGNOSTIC_FORMAT);
+        assert_eq!(
+            cfg.diagnostic_template,
+            PathBuf::from(DEFAULT_DIAGNOSTIC_TEMPLATE)
+        );
+        assert!(!cfg.diagnostic_stdout);
+    }
+
+    #[test]
+    fn test_diagnostic_layer_config_applies_all_fields() {
+        let mut cfg = EffectiveDiagnosticConfig::default();
+        cfg.layer_config(&DiagnosticsConfig {
+            format: Some("json".to_owned()),
+            template: Some(PathBuf::from("my_templates")),
+            stdout: Some(true),
+        });
+        assert_eq!(cfg.diagnostic_format, "json");
+        assert_eq!(cfg.diagnostic_template, PathBuf::from("my_templates"));
+        assert!(cfg.diagnostic_stdout);
+    }
+
+    #[test]
+    fn test_diagnostic_layer_config_partial() {
+        let mut cfg = EffectiveDiagnosticConfig::default();
+        cfg.layer_config(&DiagnosticsConfig {
+            format: Some("gh_workflow_command".to_owned()),
+            ..Default::default()
+        });
+        assert_eq!(cfg.diagnostic_format, "gh_workflow_command");
+        assert_eq!(
+            cfg.diagnostic_template,
+            PathBuf::from(DEFAULT_DIAGNOSTIC_TEMPLATE)
+        );
+        assert!(!cfg.diagnostic_stdout);
+    }
+}
