@@ -13,7 +13,7 @@ use crate::WeaverConfig;
 
 /// The unified result of loading all configuration for a command.
 ///
-/// Returned by [`load_config`][crate::load_config] — commands destructure what they need.
+/// Returned by load_config() — commands destructure what they need.
 pub struct CommandConfig<C> {
     /// Command-specific configuration.
     pub config: C,
