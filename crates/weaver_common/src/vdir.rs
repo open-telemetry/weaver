@@ -671,46 +671,34 @@ impl VirtualDirectory {
             prepare
         }
         // Only pass the refspec to `with_ref_name` when it is a symbolic ref.
-        // Commit SHAs are handled after checkout via `git checkout`.
+        // Commit SHAs are handled via `checkout_sha` after fetching.
         .with_ref_name(if is_sha { None } else { refspec.as_ref() })
         .map_err(|e| GitError {
             repo_url: url.to_owned(),
             message: e.to_string(),
         })?;
 
-        let (mut prepare, _outcome) = fetch
+        let (mut checkout, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
             .map_err(|e| GitError {
                 repo_url: url.to_owned(),
                 message: e.to_string(),
             })?;
 
-        let (_repo, _outcome) = prepare
-            .main_worktree(progress::Discard, &AtomicBool::new(false))
-            .map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: e.to_string(),
-            })?;
-
-        // When the refspec is a commit SHA, the clone fetched all refs and
-        // checked out the default branch. Now switch to the requested commit.
         if is_sha {
+            // For commit SHAs we skip `main_worktree()` (which would checkout
+            // the default branch) and instead checkout the requested commit
+            // directly using gix APIs.
             let sha = refspec.as_ref().expect("is_sha implies Some");
-            let output = std::process::Command::new("git")
-                .args(["checkout", sha])
-                .current_dir(&tmp_path)
-                .output()
+            let repo = checkout.persist();
+            Self::checkout_sha(&repo, sha, url)?;
+        } else {
+            let _repo = checkout
+                .main_worktree(progress::Discard, &AtomicBool::new(false))
                 .map_err(|e| GitError {
                     repo_url: url.to_owned(),
-                    message: format!("failed to run `git checkout {sha}`: {e}"),
+                    message: e.to_string(),
                 })?;
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(GitError {
-                    repo_url: url.to_owned(),
-                    message: format!("git checkout {sha} failed: {stderr}"),
-                });
-            }
         }
 
         // Determines the final path to the repo taking into account the sub_folder.
@@ -736,6 +724,73 @@ impl VirtualDirectory {
             path,
             tmp_dir: Arc::new(Some(tmp_dir)),
         })
+    }
+
+    /// Checkout a specific commit SHA in a cloned repository using gix APIs.
+    ///
+    /// Resolves `sha` to a tree, builds an index, and writes the worktree.
+    /// This avoids the `main_worktree()` path which can only checkout HEAD or
+    /// a symbolic ref.
+    fn checkout_sha(repo: &gix::Repository, sha: &str, url: &str) -> Result<(), Error> {
+        let workdir = repo.workdir().ok_or_else(|| GitError {
+            repo_url: url.to_owned(),
+            message: "repository has no worktree".to_owned(),
+        })?;
+
+        let id = gix::ObjectId::from_hex(sha.as_bytes()).map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: format!("invalid commit SHA {sha}: {e}"),
+        })?;
+
+        let tree_id = repo
+            .find_object(id)
+            .map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: format!("commit {sha} not found: {e}"),
+            })?
+            .peel_to_tree()
+            .map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: format!("failed to peel {sha} to tree: {e}"),
+            })?
+            .id;
+
+        let mut index = repo.index_from_tree(&tree_id).map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: format!("failed to build index from tree: {e}"),
+        })?;
+
+        let mut opts = repo
+            .checkout_options(gix::worktree::stack::state::attributes::Source::IdMapping)
+            .map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: format!("failed to get checkout options: {e}"),
+            })?;
+        opts.destination_is_initially_empty = true;
+
+        let _outcome = gix::worktree::state::checkout(
+            &mut index,
+            workdir,
+            repo.objects.clone().into_arc().map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: format!("failed to create object store handle: {e}"),
+            })?,
+            &progress::Discard,
+            &progress::Discard,
+            &AtomicBool::new(false),
+            opts,
+        )
+        .map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: format!("checkout failed: {e}"),
+        })?;
+
+        index.write(Default::default()).map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: format!("failed to write index: {e}"),
+        })?;
+
+        Ok(())
     }
 
     /// Create a new `VirtualDirectory` from a local archive.
