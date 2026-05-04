@@ -26,13 +26,14 @@ struct WeaverConfigSchema {
     pub registry: RegistryConfig,
     pub policy: PolicyConfig,
     pub diagnostics: DiagnosticsConfig,
-    pub live_check: LiveCheckConfig,
     pub auth: Vec<AuthEntry>,
     pub check: super::check::CheckConfig,
     pub diff: super::diff::DiffConfig,
     pub emit: super::emit::EmitConfig,
     pub generate: super::generate::GenerateConfig,
     pub infer: super::infer::InferConfig,
+    #[serde(rename = "live-check")]
+    pub live_check: LiveCheckConfig,
     pub mcp: super::mcp::McpConfig,
     pub package: super::package::PackageConfig,
     pub serve: crate::serve::ServeConfig,
@@ -40,7 +41,6 @@ struct WeaverConfigSchema {
     #[serde(rename = "update-markdown")]
     pub update_markdown: super::update_markdown::UpdateMarkdownConfig,
 }
-
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]

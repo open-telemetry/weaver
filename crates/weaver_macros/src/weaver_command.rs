@@ -12,6 +12,10 @@ use syn::{
 struct WeaverCommandAttr {
     section: String,
     no_policy: bool,
+    /// Use an existing config type instead of generating one.
+    config_type: Option<String>,
+    /// Additional config-only field names (from the external config struct, no CLI counterpart).
+    extra_config_only: Vec<String>,
 }
 
 enum SharedKind {
@@ -23,6 +27,10 @@ enum SharedKind {
 struct ConfigAnnotation {
     default: Option<String>,
     config_only: bool,
+    /// Nested config path e.g. `"otlp.grpc_address"` — maps this CLI arg to a nested field.
+    path: Option<String>,
+    /// When true, the config destination is `Option<T>` (use optional form of override_if_set!).
+    is_optional: bool,
 }
 
 enum FieldKind {
@@ -61,8 +69,17 @@ pub fn derive(input: TokenStream) -> TokenStream {
         .filter(|a| a.path().is_ident("doc"))
         .collect();
 
-    let config_struct = gen_config_struct(&config_name, &struct_doc_attrs, &fields);
-    let default_impl = gen_default_impl(&config_name, &fields);
+    // When config_type is set, the Config struct already exists — don't generate it.
+    let config_struct = if struct_attr.config_type.is_none() {
+        gen_config_struct(&config_name, &struct_doc_attrs, &fields)
+    } else {
+        quote! {}
+    };
+    let default_impl = if struct_attr.config_type.is_none() {
+        gen_default_impl(&config_name, &fields)
+    } else {
+        quote! {}
+    };
     let cli_overrides_impl =
         gen_cli_overrides_impl(args_ident, &config_name, &struct_attr, &fields);
 
@@ -80,6 +97,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
 fn parse_struct_attr(input: &DeriveInput) -> syn::Result<WeaverCommandAttr> {
     let mut section = None;
     let mut no_policy = false;
+    let mut config_type = None;
+    let mut extra_config_only = Vec::new();
 
     for attr in &input.attrs {
         if !attr.path().is_ident("weaver_command") {
@@ -91,6 +110,17 @@ fn parse_struct_attr(input: &DeriveInput) -> syn::Result<WeaverCommandAttr> {
                 section = Some(value.value());
             } else if meta.path.is_ident("no_policy") {
                 no_policy = true;
+            } else if meta.path.is_ident("config_type") {
+                let value: syn::LitStr = meta.value()?.parse()?;
+                config_type = Some(value.value());
+            } else if meta.path.is_ident("extra_config_only") {
+                let value: syn::LitStr = meta.value()?.parse()?;
+                extra_config_only = value
+                    .value()
+                    .split(',')
+                    .map(|s| s.trim().to_owned())
+                    .filter(|s| !s.is_empty())
+                    .collect();
             }
             Ok(())
         })?;
@@ -103,7 +133,12 @@ fn parse_struct_attr(input: &DeriveInput) -> syn::Result<WeaverCommandAttr> {
         )
     })?;
 
-    Ok(WeaverCommandAttr { section, no_policy })
+    Ok(WeaverCommandAttr {
+        section,
+        no_policy,
+        config_type,
+        extra_config_only,
+    })
 }
 
 // ── Parse and classify fields ─────────────────────────────────────────────────
@@ -185,20 +220,31 @@ fn parse_config_annotation(
         return Ok(ConfigAnnotation {
             default: None,
             config_only,
+            path: None,
+            is_optional: false,
         });
     }
     // #[config(...)] or #[config_only(...)]
     let mut default = None;
+    let mut path = None;
+    let mut is_optional = false;
     attr.parse_nested_meta(|meta| {
         if meta.path.is_ident("default") {
             let value: syn::LitStr = meta.value()?.parse()?;
             default = Some(value.value());
+        } else if meta.path.is_ident("path") {
+            let value: syn::LitStr = meta.value()?.parse()?;
+            path = Some(value.value());
+        } else if meta.path.is_ident("optional") {
+            is_optional = true;
         }
         Ok(())
     })?;
     Ok(ConfigAnnotation {
         default,
         config_only,
+        path,
+        is_optional,
     })
 }
 
@@ -215,6 +261,10 @@ fn gen_config_struct(
             let FieldKind::Config(ann) = &f.kind else {
                 return None;
             };
+            // Skip path fields — they belong to an external config struct
+            if ann.path.is_some() {
+                return None;
+            }
             let ident = f.ident;
             let config_ty = config_field_type(f.ty, ann);
             let docs = &f.doc_attrs;
@@ -256,6 +306,10 @@ fn gen_default_impl(config_name: &Ident, fields: &[ClassifiedField<'_>]) -> Toke
             let FieldKind::Config(ann) = &f.kind else {
                 return None;
             };
+            // Skip path fields — defaults come from the external config struct
+            if ann.path.is_some() {
+                return None;
+            }
             let ident = f.ident;
             let inner = extract_option_inner(f.ty).unwrap_or(f.ty);
             let default_expr = gen_default_expr(inner, ann.default.as_deref());
@@ -364,10 +418,18 @@ fn gen_cli_overrides_impl(
     let section = &struct_attr.section;
     let section_lit = syn::LitStr::new(section, Span::call_site());
 
+    // Resolve the config type: either the external type or the generated name.
+    let config_ty: TokenStream2 = if let Some(ct) = &struct_attr.config_type {
+        let parsed: Type = syn::parse_str(ct).expect("valid config type path");
+        quote! { #parsed }
+    } else {
+        quote! { #config_name }
+    };
+
     // excluded_args slices
     let excluded = gen_excluded_args(fields);
 
-    // config_only_fields
+    // config_only_fields: from #[config_only] fields + extra_config_only
     let config_only_names: Vec<TokenStream2> = fields
         .iter()
         .filter_map(|f| {
@@ -379,6 +441,9 @@ fn gen_cli_overrides_impl(
             }
             None
         })
+        .chain(struct_attr.extra_config_only.iter().map(|name| {
+            quote! { #name }
+        }))
         .collect();
 
     let config_only_impl = if config_only_names.is_empty() {
@@ -391,15 +456,70 @@ fn gen_cli_overrides_impl(
         }
     };
 
-    // apply_overrides
+    // field_mappings: generated from #[config(path = "...")] where flattened ≠ CLI name
+    let mapping_entries: Vec<TokenStream2> = fields
+        .iter()
+        .filter_map(|f| {
+            let FieldKind::Config(ann) = &f.kind else {
+                return None;
+            };
+            let path = ann.path.as_deref()?;
+            let flattened: String = path.split('.').collect::<Vec<_>>().join("_");
+            let cli_name = f.ident.to_string();
+            if flattened == cli_name {
+                return None;
+            }
+            Some(quote! {
+                ::weaver_config::FieldMapping {
+                    config_name: #flattened,
+                    cli_name: #cli_name,
+                }
+            })
+        })
+        .collect();
+
+    let field_mappings_method = if mapping_entries.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            fn field_mappings() -> &'static [::weaver_config::FieldMapping] {
+                &[#(#mapping_entries),*]
+            }
+        }
+    };
+
+    // apply_overrides: handle both regular and path-based config fields
     let override_stmts: Vec<TokenStream2> = fields
         .iter()
         .filter_map(|f| {
             let FieldKind::Config(ann) = &f.kind else {
                 return None;
             };
+            if ann.config_only {
+                return None;
+            }
             let ident = f.ident;
-            if ann.default.is_some() {
+
+            if let Some(path) = &ann.path {
+                // Nested path: build `config.a.b.c` token stream
+                let path_expr = {
+                    let mut tokens = quote! { config };
+                    for segment in path.split('.') {
+                        let seg_ident = format_ident!("{}", segment);
+                        tokens = quote! { #tokens.#seg_ident };
+                    }
+                    tokens
+                };
+                if ann.is_optional {
+                    Some(quote! {
+                        ::weaver_config::override_if_set!(#path_expr, self.#ident, optional);
+                    })
+                } else {
+                    Some(quote! {
+                        ::weaver_config::override_if_set!(#path_expr, self.#ident);
+                    })
+                }
+            } else if ann.default.is_some() {
                 Some(quote! {
                     ::weaver_config::override_if_set!(config.#ident, self.#ident);
                 })
@@ -465,10 +585,10 @@ fn gen_cli_overrides_impl(
 
     quote! {
         impl ::weaver_config::CliOverrides for #args_ident {
-            type Config = #config_name;
+            type Config = #config_ty;
             const SUBCOMMAND: &'static str = #section_lit;
 
-            fn extract_config(wc: &::weaver_config::WeaverConfig) -> #config_name {
+            fn extract_config(wc: &::weaver_config::WeaverConfig) -> #config_ty {
                 wc.command_config(#section_lit)
             }
 
@@ -476,7 +596,9 @@ fn gen_cli_overrides_impl(
 
             #config_only_impl
 
-            fn apply_overrides(&self, config: &mut #config_name) {
+            #field_mappings_method
+
+            fn apply_overrides(&self, config: &mut #config_ty) {
                 #(#override_stmts)*
             }
 

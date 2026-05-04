@@ -204,7 +204,7 @@
         }
       }
     },
-    "live_check": {
+    "live-check": {
       "description": "Validate live telemetry against a semantic convention registry.",
       "type": "object",
       "properties": {

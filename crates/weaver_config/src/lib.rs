@@ -42,12 +42,10 @@ pub struct WeaverConfig {
     pub policy: PolicyConfig,
     /// Shared diagnostic output settings (apply to all subcommands that accept them).
     pub diagnostics: DiagnosticsConfig,
-    /// Live-check specific configuration (complex nested config, kept typed).
-    pub live_check: LiveCheckConfig,
     /// Per-URL HTTP authentication entries for downloading remote registries.
     pub auth: Vec<AuthEntry>,
     /// Per-command configuration sections, stored as raw TOML values.
-    /// Each key matches the command section name (e.g. "emit", "generate").
+    /// Each key matches the command section name (e.g. "emit", "generate", "live-check").
     #[serde(flatten)]
     #[schemars(skip)]
     pub(crate) commands: toml::Table,
@@ -152,7 +150,7 @@ mod tests {
         let nested = dir.path().join("a").join("b").join("c");
         fs::create_dir_all(&nested).expect("Failed to create dirs");
 
-        fs::write(dir.path().join(CONFIG_FILENAME), "[live_check]")
+        fs::write(dir.path().join(CONFIG_FILENAME), r#"["live-check"]"#)
             .expect("Failed to write config");
 
         let found = discover(&nested);
