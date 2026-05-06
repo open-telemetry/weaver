@@ -17,10 +17,11 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 
 /// Expose a semantic convention registry over the Model Context Protocol (MCP).
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "mcp", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryMcpArgs {
     /// Registry arguments.
     #[command(flatten)]

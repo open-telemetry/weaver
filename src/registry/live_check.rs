@@ -29,6 +29,7 @@ use weaver_live_check::{
     CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
     LiveCheckStatistics, Sample, VersionedRegistry,
 };
+use weaver_macros::weaver_command;
 
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
@@ -77,12 +78,12 @@ impl From<String> for InputFormat {
 }
 
 /// Validate live telemetry against a semantic convention registry.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
     extra_config_only = "finding_filters"
 )]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]

@@ -19,10 +19,11 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 
 /// Package a resolved registry for publication (produces `resolved.yaml` and `manifest.yaml`).
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "package")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryPackageArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]

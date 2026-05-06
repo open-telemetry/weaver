@@ -25,8 +25,9 @@ pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCh
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
 pub use weaver_common::http_auth::TokenSource;
-// Re-export the WeaverCommand derive macro so command files only need
-// `use weaver_config::WeaverCommand`.
+// Re-export the WeaverCommand derive macro and the weaver_command attribute
+// macro so command files only need `use weaver_config::{WeaverCommand, weaver_command}`.
+pub use weaver_macros::weaver_command;
 pub use weaver_macros::WeaverCommand;
 
 /// The filename to search for during discovery.

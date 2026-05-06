@@ -14,13 +14,14 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 
 /// Embedded default stats templates
 pub(crate) static DEFAULT_STATS_TEMPLATES: Dir<'_> = include_dir!("defaults/stats_templates");
 
 /// Compute and display statistics about a semantic convention registry.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "stats", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryStatsArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]

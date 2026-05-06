@@ -14,10 +14,11 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 
 /// Emit a resolved registry as OTLP or to stdout.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "emit")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryEmitArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]

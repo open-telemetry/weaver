@@ -109,9 +109,14 @@ Annotate the Args struct with `#[derive(WeaverCommand)]`:
 
 ```rust
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;  // proc_macro_attribute — must import directly, cannot re-export
 
-#[derive(Debug, Args, WeaverCommand)]
+// IMPORTANT: #[weaver_command] must appear BEFORE #[derive(...)].
+// It is a proc-macro attribute that injects `[default: val]` doc comments so
+// clap shows them in --help. Because attributes run in source order, placing
+// #[derive] first means Args sees the original struct before injection happens.
 #[weaver_command(section = "my-command")]  // must match the CLI subcommand name (kebab-case)
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryMyCommandArgs {
     /// Parameters to specify the semantic convention registry.
     #[command(flatten)]
@@ -175,6 +180,26 @@ impl CliOverrides for RegistryMyCommandArgs { ... }
 | `#[shared(registry)]` | Generates `apply_registry_overrides` | Used on flattened `RegistryArgs` |
 | `#[shared(policy)]` | Generates `apply_policy_overrides` | Used on flattened `PolicyArgs` |
 | `#[shared(diagnostic)]` | Generates `apply_diagnostic_overrides` | Used on flattened `DiagnosticArgs` |
+
+### Defining defaults: `#[config(default = ...)]` not `#[arg(default_value = ...)]`
+
+**Never use clap's `#[arg(default_value = "...")]` on a field that is also annotated with `#[config(...)]`.**
+
+The three-layer merge works because `apply_overrides` uses `override_if_set!`, which only overwrites the config value when the CLI field is `Some`. If you attach a clap default, clap populates the field unconditionally, making it always `Some` — so the CLI layer wins over `.weaver.toml` every time, silently ignoring the config file.
+
+```rust
+// CORRECT: default lives in the config layer
+#[arg(long)]
+#[config(default = "text")]
+pub format: Option<String>,
+
+// WRONG: clap default means CLI always wins, .weaver.toml is ignored
+#[arg(long, default_value = "text")]   // ← do not do this
+#[config(default = "text")]
+pub format: Option<String>,
+```
+
+The `#[config(default = "value")]` annotation generates the `Default` impl for `XxxConfig`, placing the default in layer 1 (hardcoded defaults) where it belongs. The CLI arg stays `Option<T>` with no clap default so it only overrides when the user explicitly passes the flag.
 
 Add `no_policy` to `#[weaver_command(...)]` for commands that don't use the policy engine (e.g. `#[weaver_command(section = "stats", no_policy)]`).
 

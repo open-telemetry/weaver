@@ -7,6 +7,69 @@ use syn::{
     parse_macro_input, Data, DeriveInput, Fields, GenericArgument, Ident, PathArguments, Type,
 };
 
+// ── inject_default_docs (proc_macro_attribute entry point) ───────────────────
+
+/// Attribute macro implementation for `#[weaver_command(section = "...")]`.
+///
+/// Runs before `#[derive(Args, WeaverCommand)]` and:
+/// 1. Appends `[default: val]` to the doc comment of any field annotated with
+///    `#[config(default = "val")]`, so clap shows it in `--help`.
+/// 2. Renames `#[weaver_command(...)]` to `#[weaver_command_inner(...)]` in the
+///    output to avoid infinite recursion (the original attribute is consumed by
+///    the proc-macro infrastructure; we re-add it under the inner name so the
+///    `WeaverCommand` derive can still find the section).
+pub fn inject_default_docs(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let attr2: TokenStream2 = attr.into();
+    let mut input = parse_macro_input!(item as DeriveInput);
+
+    if let Data::Struct(ref mut data_struct) = input.data {
+        if let Fields::Named(ref mut named_fields) = data_struct.fields {
+            for field in named_fields.named.iter_mut() {
+                if let Some(default_val) = field_config_default(field) {
+                    let doc_text = format!("[default: {default_val}]");
+                    let field_span = field
+                        .ident
+                        .as_ref()
+                        .map(|i| i.span())
+                        .unwrap_or_else(Span::call_site);
+                    let doc_lit = syn::LitStr::new(&doc_text, field_span);
+                    let doc_attr: syn::Attribute = syn::parse_quote!(#[doc = #doc_lit]);
+                    // Insert after the last existing doc comment so clap includes
+                    // it in --help. Appending after #[arg] would be ignored.
+                    let insert_pos = field
+                        .attrs
+                        .iter()
+                        .rposition(|a| a.path().is_ident("doc"))
+                        .map(|i| i + 1)
+                        .unwrap_or(0);
+                    field.attrs.insert(insert_pos, doc_attr);
+                }
+            }
+        }
+    }
+
+    // Re-add the struct-level args under the inner name so WeaverCommand derive
+    // can still find the section without triggering this attribute macro again.
+    let inner_attr: syn::Attribute = syn::parse_quote!(#[weaver_command_inner(#attr2)]);
+    input.attrs.push(inner_attr);
+
+    quote! { #input }.into()
+}
+
+/// Returns the `default = "..."` value from a field's `#[config(default = "...")]`
+/// annotation, or `None` if the field has no such annotation.
+/// Skips `#[config_only]` fields — they have no CLI flag and no `--help` entry.
+fn field_config_default(field: &syn::Field) -> Option<String> {
+    for attr in &field.attrs {
+        if attr.path().is_ident("config") {
+            if let Ok(ann) = parse_config_annotation(attr, false) {
+                return ann.default;
+            }
+        }
+    }
+    None
+}
+
 // ── Top-level parse result ────────────────────────────────────────────────────
 
 struct WeaverCommandAttr {
@@ -101,7 +164,10 @@ fn parse_struct_attr(input: &DeriveInput) -> syn::Result<WeaverCommandAttr> {
     let mut extra_config_only = Vec::new();
 
     for attr in &input.attrs {
-        if !attr.path().is_ident("weaver_command") {
+        // Accept both the original name (direct derive use) and the renamed version
+        // produced by the inject_default_docs attribute macro.
+        if !attr.path().is_ident("weaver_command") && !attr.path().is_ident("weaver_command_inner")
+        {
             continue;
         }
         attr.parse_nested_meta(|meta| {

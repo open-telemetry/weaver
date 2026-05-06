@@ -12,6 +12,7 @@ use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 
 mod handlers;
 mod server;
@@ -21,8 +22,8 @@ mod ui;
 pub use server::run_server;
 
 /// Serve a resolved registry over a local HTTP API for browsing and search.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "serve")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct ServeCommand {
     /// Parameters to specify the semantic convention registry.
     #[command(flatten)]

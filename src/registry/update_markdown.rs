@@ -20,6 +20,7 @@ use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 use weaver_semconv_gen::{MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -34,8 +35,8 @@ enum UpdateMarkdownError {
 }
 
 /// Update Jinja-marker sections inside Markdown files from a resolved registry.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "update-markdown", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryUpdateMarkdownArgs {
     /// Path to the directory where the markdown files are located.
     #[config_only]

@@ -14,14 +14,15 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
 
 /// Compare two versions of a semantic convention registry and report the differences.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "diff", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryDiffArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]

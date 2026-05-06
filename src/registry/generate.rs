@@ -21,10 +21,11 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
+use weaver_macros::weaver_command;
 
 /// Generate artifacts from a semantic convention registry using Jinja templates.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "generate")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryGenerateArgs {
     /// Target to generate the artifacts for.
     #[config_only(default = "")]

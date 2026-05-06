@@ -25,10 +25,11 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 
 /// Infer a semantic convention registry by observing live OTLP telemetry.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "infer", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryInferArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]

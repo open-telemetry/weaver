@@ -11,11 +11,12 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Validate a semantic convention registry against policies and schema rules.
-#[derive(Debug, Args, WeaverCommand)]
 #[weaver_command(section = "check")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryCheckArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
