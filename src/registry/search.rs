@@ -23,8 +23,8 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListState, Paragraph},
     Frame,
 };
+use ratatui_textarea::TextArea;
 use std::io::{stdout, IsTerminal};
-use tui_textarea::TextArea;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
 

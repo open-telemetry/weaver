@@ -150,7 +150,8 @@
       "brief": "Refined metric",
       "stability": "stable",
       "attributes": [
-        0
+        0,
+        4
       ],
       "metric_name": "base.metric",
       "instrument": "histogram",
@@ -170,8 +171,22 @@
               "requirement_level",
               "stability"
             ]
+          },
+          "test.attr3": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           }
-        }
+        },
+        "includes_group": [
+          "test.refine.extras"
+        ]
       },
       "annotations": {
         "config": {
@@ -192,7 +207,8 @@
       "brief": "<synthetic v2>",
       "attributes": [
         0,
-        2
+        2,
+        4
       ],
       "lineage": {
         "provenance": {
@@ -213,7 +229,8 @@
           "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
         }
-      }
+      },
+      "span_name_note": "base span"
     },
     {
       "id": "span.refined.span",
