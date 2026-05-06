@@ -1,3 +1,61 @@
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+   --> crates/weaver_semconv/src/group.rs:179:46
+    |
+179 |         if self.stability == Some(Stability::Deprecated) {
+    |                                              ^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+   --> crates/weaver_semconv/src/group.rs:351:68
+    |
+351 |                     } else if stability.clone() == Some(Stability::Deprecated) {
+    |                                                                    ^^^^^^^^^^
+
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+   --> crates/weaver_semconv/src/group.rs:372:75
+    |
+372 | ...                   } else if member.stability == Some(Stability::Deprecated) {
+    |                                                                     ^^^^^^^^^^
+
+warning: use of deprecated constant `registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+  --> crates/weaver_semconv/src/manifest.rs:13:27
+   |
+13 | use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated constant `registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+   --> crates/weaver_semconv/src/manifest.rs:278:26
+    |
+278 |             file_name == LEGACY_REGISTRY_MANIFEST
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated constant `registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+  --> crates/weaver_semconv/src/registry_repo.rs:33:42
+   |
+33 |     let legacy_path = registry_path.join(LEGACY_REGISTRY_MANIFEST);
+   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+  --> crates/weaver_semconv/src/stability.rs:48:24
+   |
+48 |             Stability::Deprecated => write!(f, "deprecated"),
+   |                        ^^^^^^^^^^
+
+warning: use of deprecated constant `weaver_semconv::registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+  --> crates/weaver_resolver/src/loader.rs:16:51
+   |
+16 | use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated constant `weaver_semconv::registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+   --> crates/weaver_resolver/src/loader.rs:358:29
+    |
+358 |             && file_name != LEGACY_REGISTRY_MANIFEST
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^
+
 # Command-Line Help for `weaver`
 
 This document contains the help content for the `weaver` command-line program.
@@ -141,7 +199,7 @@ The process exits with a code of 0 if the generation is successful.
 
 ###### **Options:**
 
-* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Default is the `templates` directory
+* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Default is the `templates` directory. [default: templates]
 * `-c`, `--config <CONFIG>` — List of `weaver.yaml` configuration files to use. When there is a conflict, the last one will override the previous ones for the keys that are defined in both
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
@@ -284,8 +342,8 @@ Calculate a set of general statistics on a semantic convention registry
 
   Possible values: `true`, `false`
 
-* `--format <FORMAT>` — Output format for the stats. Predefined formats are: text, json, yaml, jsonl, mute
-* `--templates <TEMPLATES>` — Path to the directory where the stats templates are located
+* `--format <FORMAT>` — Output format for the stats. Predefined formats are: text, json, yaml, jsonl, mute. [default: text]
+* `--templates <TEMPLATES>` — Path to the directory where the stats templates are located. [default: stats_templates]
 * `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the stats are printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
@@ -321,14 +379,14 @@ Update markdown files that contain markers indicating the templates used to upda
 
   Possible values: `true`, `false`
 
-* `--dry-run <DRY_RUN>` — Whether or not to run updates in dry-run mode
+* `--dry-run <DRY_RUN>` — Whether or not to run updates in dry-run mode. [default: false]
 
   Possible values: `true`, `false`
 
 * `--attribute-registry-base-url <ATTRIBUTE_REGISTRY_BASE_URL>` — Optional path to the attribute registry. If provided, all attributes will be linked here
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
-* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
+* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2. [default: templates]
 * `--target <TARGET>` — The target to generate snippets with. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
@@ -414,8 +472,8 @@ This diff can then be rendered in multiple formats:
   Possible values: `true`, `false`
 
 * `--baseline-registry <BASELINE_REGISTRY>` — Parameters to specify the baseline semantic convention registry
-* `--format <FORMAT>` — Format used to render the schema changes. Predefined formats are: ansi, json, and markdown
-* `--templates <TEMPLATES>` — Path to the directory where the schema changes templates are located
+* `--format <FORMAT>` — Format used to render the schema changes. Predefined formats are: ansi, json, and markdown. [default: ansi]
+* `--templates <TEMPLATES>` — Path to the directory where the schema changes templates are located. [default: diff_templates]
 * `-o`, `--output <OUTPUT>` — Path to the directory where the generated artifacts will be saved. If not specified, the diff report is printed to stdout
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
@@ -464,11 +522,11 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 
   Possible values: `true`, `false`
 
-* `--stdout <STDOUT>` — Write the telemetry to standard output
+* `--stdout <STDOUT>` — Write the telemetry to standard output [default: false]
 
   Possible values: `true`, `false`
 
-* `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this
+* `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this. [default: http://localhost:4317]
 
 
 
@@ -510,15 +568,15 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
-* `--input-source <INPUT_SOURCE>` — Where to read the input telemetry from. {file path} | stdin | otlp
-* `--input-format <INPUT_FORMAT>` — The format of the input telemetry. text | json (not required for OTLP)
-* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl. Other values are template names (e.g. "ansi")
-* `--templates <TEMPLATES>` — Path to the directory where the templates are located
-* `--no-stream <NO_STREAM>` — Disable stream mode (build report before rendering)
+* `--input-source <INPUT_SOURCE>` — Where to read the input telemetry from. {file path} | stdin | otlp [default: otlp]
+* `--input-format <INPUT_FORMAT>` — The format of the input telemetry. text | json (not required for OTLP) [default: json]
+* `--format <FORMAT>` — Format used to render the report. Builtin formats: json, yaml, jsonl. Other values are template names (e.g. "ansi"). [default: ansi]
+* `--templates <TEMPLATES>` — Path to the directory where the templates are located. [default: live_check_templates]
+* `--no-stream <NO_STREAM>` — Disable stream mode (build report before rendering). [default: false]
 
   Possible values: `true`, `false`
 
-* `--no-stats <NO_STATS>` — Disable statistics accumulation. Useful for long-running sessions
+* `--no-stats <NO_STATS>` — Disable statistics accumulation. Useful for long-running sessions. [default: false]
 
   Possible values: `true`, `false`
 
@@ -576,7 +634,7 @@ The server communicates over stdio using JSON-RPC.
 
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
-* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting
+* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting. [default: .]
 
 
 
@@ -594,11 +652,11 @@ Generates a schema file by inferring the schema from a OTLP message.
 
   Possible values: `true`, `false`
 
-* `-o`, `--output <OUTPUT>` — Output folder for generated YAML files
-* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
-* `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener
-* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop)
-* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never)
+* `-o`, `--output <OUTPUT>` — Output folder for generated YAML files. [default: ./inferred-registry/]
+* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 0.0.0.0]
+* `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
+* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
+* `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never). [default: 60]
 
 
 
@@ -623,7 +681,7 @@ Packages a semantic convention registry into a self-contained artifact.
 
   Possible values: `true`, `false`
 
-* `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written
+* `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written. [default: output]
 * `--resolved-schema-uri <RESOLVED_SCHEMA_URI>` — URI where the resolved schema will eventually be published. This value is embedded in the publication manifest as `resolved_schema_uri`
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
 * `--skip-policies <SKIP_POLICIES>` — Skip the policy checks
@@ -726,7 +784,7 @@ Start the API server (Experimental)
 
   Possible values: `true`, `false`
 
-* `--bind <BIND>` — Address to bind the server to
+* `--bind <BIND>` — Address to bind the server to. [default: 127.0.0.1:8080]
 * `--cors-origins <CORS_ORIGINS>` — Allowed CORS origins (comma-separated). Use '*' for any origin. If not specified, CORS is disabled (same-origin only)
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located
