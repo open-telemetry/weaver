@@ -180,21 +180,24 @@ pub struct RegistryArgs {
     /// convention registry. For Git URLs, a reference can be specified
     /// using the `@refspec` syntax and a sub-folder can be specified
     /// using the `[sub-folder]` syntax after the URL.
+    /// [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
     #[arg(short = 'r', long)]
     pub registry: Option<VirtualDirectoryPath>,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
-    /// Default is false.
+    /// [default: false]
     #[arg(short = 's', long, num_args = 0..=1, default_missing_value = "true")]
     pub(crate) follow_symlinks: Option<bool>,
 
     /// Boolean flag to include signals and attributes defined in dependency registries,
     /// even if they are not explicitly referenced in the current (custom) registry.
+    /// [default: false]
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     pub(crate) include_unreferenced: Option<bool>,
 
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
+    /// [default: false]
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     pub v2: Option<bool>,
 }
@@ -234,11 +237,11 @@ pub struct PolicyArgs {
     #[arg(short = 'p', long = "policy")]
     pub policies: Option<Vec<VirtualDirectoryPath>>,
 
-    /// Skip the policy checks.
+    /// Skip the policy checks. [default: false]
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     pub skip_policies: Option<bool>,
 
-    /// Display the policy coverage report (useful for debugging).
+    /// Display the policy coverage report (useful for debugging). [default: false]
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     pub display_policy_coverage: Option<bool>,
 }

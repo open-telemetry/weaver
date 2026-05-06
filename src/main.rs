@@ -32,15 +32,16 @@ mod weaver;
 #[derive(Args, Debug, Clone, Default)]
 pub(crate) struct DiagnosticArgs {
     /// Format used to render the diagnostic messages. Predefined formats are: ansi, json,
-    /// gh_workflow_command.
+    /// gh_workflow_command. [default: ansi]
     #[arg(long)]
     pub(crate) diagnostic_format: Option<String>,
 
     /// Path to the directory where the diagnostic templates are located.
+    /// [default: diagnostic_templates]
     #[arg(long)]
     pub(crate) diagnostic_template: Option<PathBuf>,
 
-    /// Send the output to stdout instead of stderr.
+    /// Send the output to stdout instead of stderr. [default: false]
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     pub(crate) diagnostic_stdout: Option<bool>,
 }
