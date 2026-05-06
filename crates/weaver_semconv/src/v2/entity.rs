@@ -103,6 +103,7 @@ impl Entity {
             entity_associations: Default::default(),
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }
@@ -145,6 +146,7 @@ impl EntityRefinement {
             entity_associations: Default::default(),
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }

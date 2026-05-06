@@ -99,7 +99,8 @@
             ]
           }
         }
-      }
+      },
+      "span_name_note": "span"
     }
   ]
 }
