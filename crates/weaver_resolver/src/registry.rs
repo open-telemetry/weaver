@@ -570,11 +570,18 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         };
                     }
 
-                    add_resolved_group_to_index(
-                        &mut group_index,
-                        unresolved_group,
-                        &mut resolved_group_count,
-                    );
+                    if unresolved_group.include_groups.is_empty() {
+                        add_resolved_group_to_index(
+                            &mut group_index,
+                            unresolved_group,
+                            &mut resolved_group_count,
+                        );
+                    } else {
+                        // The group has both `extends` and `include_groups`.
+                        // We already resolved extends above; now clear it and
+                        // fall through to resolve `include_groups` below.
+                        _ = unresolved_group.group.extends.take();
+                    }
                 // TODO - first check imports.
                 } else {
                     errors.push(Error::UnresolvedExtendsRef {
@@ -583,8 +590,10 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         provenance: unresolved_group.provenance.clone().map(Box::new),
                     });
                 }
-            } else if !unresolved_group.include_groups.is_empty() {
-                // Iterate over all groups and resolve the `include_groups` clauses.
+            }
+            if unresolved_group.group.extends.is_none()
+                && !unresolved_group.include_groups.is_empty()
+            {
                 let mut attr_ids = HashMap::new();
                 let mut attrs_by_group = HashMap::new();
                 let mut all_resolved = true;
