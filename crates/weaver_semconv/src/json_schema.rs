@@ -242,6 +242,8 @@ impl JsonSchemaValidator {
 
             ValidationErrorKind::Referencing(e) =>
                 format!("Error resolving $ref: {e}"),
+
+            _ => format!("Validation error: {error}"),
         }
     }
 
