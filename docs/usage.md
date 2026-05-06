@@ -1,3 +1,61 @@
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+   --> crates/weaver_semconv/src/group.rs:188:46
+    |
+188 |         if self.stability == Some(Stability::Deprecated) {
+    |                                              ^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+   --> crates/weaver_semconv/src/group.rs:360:68
+    |
+360 |                     } else if stability.clone() == Some(Stability::Deprecated) {
+    |                                                                    ^^^^^^^^^^
+
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+   --> crates/weaver_semconv/src/group.rs:381:75
+    |
+381 | ...                   } else if member.stability == Some(Stability::Deprecated) {
+    |                                                                     ^^^^^^^^^^
+
+warning: use of deprecated constant `registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+  --> crates/weaver_semconv/src/manifest.rs:13:27
+   |
+13 | use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated constant `registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+   --> crates/weaver_semconv/src/manifest.rs:278:26
+    |
+278 |             file_name == LEGACY_REGISTRY_MANIFEST
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated constant `registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+  --> crates/weaver_semconv/src/registry_repo.rs:33:42
+   |
+33 |     let legacy_path = registry_path.join(LEGACY_REGISTRY_MANIFEST);
+   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `stability::Stability::Deprecated`: This stability level is deprecated.
+  --> crates/weaver_semconv/src/stability.rs:48:24
+   |
+48 |             Stability::Deprecated => write!(f, "deprecated"),
+   |                        ^^^^^^^^^^
+
+warning: use of deprecated constant `weaver_semconv::registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+  --> crates/weaver_resolver/src/loader.rs:16:51
+   |
+16 | use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated constant `weaver_semconv::registry_repo::LEGACY_REGISTRY_MANIFEST`: The registry manifest file is renamed to `manifest.yaml`.
+   --> crates/weaver_resolver/src/loader.rs:358:29
+    |
+358 |             && file_name != LEGACY_REGISTRY_MANIFEST
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^
+
 # Command-Line Help for `weaver`
 
 This document contains the help content for the `weaver` command-line program.
@@ -90,7 +148,7 @@ The process exits with a code of 0 if the registry validation is successful.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -145,7 +203,7 @@ The process exits with a code of 0 if the generation is successful.
 * `-c`, `--config <CONFIG>` — List of `weaver.yaml` configuration files to use. When there is a conflict, the last one will override the previous ones for the keys that are defined in both
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -188,7 +246,7 @@ Please use 'weaver registry generate' or 'weaver registry package' instead.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -238,7 +296,7 @@ DEPRECATED - Searches a registry. This command is deprecated and will be removed
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -271,7 +329,7 @@ Calculate a set of general statistics on a semantic convention registry
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -308,7 +366,7 @@ Update markdown files that contain markers indicating the templates used to upda
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -400,7 +458,7 @@ This diff can then be rendered in multiple formats:
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -436,7 +494,7 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -482,7 +540,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -555,7 +613,7 @@ The server communicates over stdio using JSON-RPC.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -610,7 +668,7 @@ Packages a semantic convention registry into a self-contained artifact.
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`
@@ -704,7 +762,7 @@ Start the API server (Experimental)
 
 ###### **Options:**
 
-* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+* `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
 * `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
 
   Possible values: `true`, `false`

@@ -180,7 +180,7 @@ pub struct RegistryArgs {
     /// convention registry. For Git URLs, a reference can be specified
     /// using the `@refspec` syntax and a sub-folder can be specified
     /// using the `[sub-folder]` syntax after the URL.
-    /// [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+    /// [default: "https://github.com/open-telemetry/semantic-conventions.git[model]"]
     #[arg(short = 'r', long)]
     pub registry: Option<VirtualDirectoryPath>,
 
