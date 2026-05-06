@@ -243,7 +243,8 @@ impl JsonSchemaValidator {
             ValidationErrorKind::Referencing(e) =>
                 format!("Error resolving $ref: {e}"),
 
-            _ => format!("Validation error: {error}"),
+            ValidationErrorKind::RegexEngineFailure { message } =>
+                format!("Regex engine failure: {message}")
         }
     }
 
