@@ -36,5 +36,12 @@
     "requirement_level": "recommended",
     "stability": "stable",
     "role": "descriptive"
+  },
+  {
+    "name": "test.attr3",
+    "type": "string",
+    "brief": "Test attribute 3",
+    "requirement_level": "recommended",
+    "stability": "stable"
   }
 ]

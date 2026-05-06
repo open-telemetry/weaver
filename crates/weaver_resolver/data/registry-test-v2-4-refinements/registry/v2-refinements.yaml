@@ -8,6 +8,10 @@ attributes:
     type: string
     brief: Test attribute 2
     stability: stable
+  - key: test.attr3
+    type: string
+    brief: Test attribute 3
+    stability: stable
 
 attribute_groups:
   - id: test.group
@@ -16,6 +20,11 @@ attribute_groups:
     stability: stable
     attributes:
       - ref: test.attr
+  - id: test.refine.extras
+    visibility: internal
+    attributes:
+      - ref: test.attr3
+        requirement_level: recommended
 
   - id: test.override.group
     visibility: internal
@@ -50,6 +59,8 @@ metric_refinements:
         nested:
           b: 99
           c: 3
+    attributes:
+      - ref_group: test.refine.extras
 spans:
   - type: base.span
     kind: client

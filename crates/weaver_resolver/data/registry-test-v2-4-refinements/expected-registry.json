@@ -150,7 +150,8 @@
       "brief": "Refined metric",
       "stability": "stable",
       "attributes": [
-        0
+        0,
+        5
       ],
       "metric_name": "base.metric",
       "instrument": "histogram",
@@ -170,8 +171,23 @@
               "requirement_level",
               "stability"
             ]
+          },
+          "test.attr3": {
+            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           }
-        }
+        },
+        "includes_group": [
+          "test.refine.extras",
+          "test.refine.extras"
+        ]
       },
       "annotations": {
         "config": {
@@ -192,7 +208,8 @@
       "brief": "<synthetic v2>",
       "attributes": [
         0,
-        3
+        3,
+        5
       ],
       "lineage": {
         "provenance": {
@@ -259,6 +276,7 @@
           }
         },
         "includes_group": [
+          "test.override.group",
           "test.override.group"
         ]
       }
