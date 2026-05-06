@@ -434,6 +434,10 @@ fn load_definition_repository(
         });
     }
 
+    // Consolidate duplicate warnings (e.g., multiple UnstableFileFormat
+    // warnings are merged into a single warning listing all affected files).
+    let non_fatal_errors = weaver_semconv::Error::consolidate(non_fatal_errors);
+
     // Create loaded repository, pulling imports, specs, etc.
     WResult::OkWithNFEs(
         LoadedSemconvRegistry::Unresolved {
