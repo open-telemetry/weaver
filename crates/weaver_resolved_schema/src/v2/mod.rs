@@ -294,9 +294,12 @@ pub fn convert_v1_to_v2(
                             .span_kind
                             .clone()
                             .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                        // TODO - Pass advanced name controls through V1 groups.
+                        // Use span_name_note (carried from v2) if available, fall back to g.name.
                         name: SpanName {
-                            note: g.name.clone().unwrap_or_default(),
+                            note: g
+                                .span_name_note
+                                .clone()
+                                .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
                         },
                         entity_associations: g.entity_associations.clone(),
                         common: CommonFields {
@@ -333,9 +336,12 @@ pub fn convert_v1_to_v2(
                                 .span_kind
                                 .clone()
                                 .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                            // TODO - Pass advanced name controls through V1 groups.
+                            // Use span_name_note (carried from v2) if available, fall back to g.name.
                             name: SpanName {
-                                note: g.name.clone().unwrap_or_default(),
+                                note: g
+                                    .span_name_note
+                                    .clone()
+                                    .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
                             },
                             entity_associations: g.entity_associations.clone(),
                             common: CommonFields {
@@ -769,6 +775,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -794,6 +801,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
             ],
         };
@@ -909,6 +917,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -934,6 +943,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
             ],
         };
@@ -1017,6 +1027,7 @@ mod tests {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: false,
+                span_name_note: None,
             }],
         };
         let dependencies = BTreeSet::new();
@@ -1087,6 +1098,7 @@ mod tests {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: false,
+                span_name_note: None,
             }],
         };
         let mut dependencies = BTreeSet::new();
