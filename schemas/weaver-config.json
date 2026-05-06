@@ -109,7 +109,7 @@
       "type": "object",
       "properties": {
         "format": {
-          "description": "Format used to render the schema changes. Predefined formats are: ansi, json,\nand markdown.",
+          "description": "Format used to render the schema changes. Predefined formats are: ansi, json,\nand markdown.\n[default: ansi]",
           "type": "string",
           "default": "ansi"
         },
@@ -122,7 +122,7 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the schema changes templates are located.",
+          "description": "Path to the directory where the schema changes templates are located.\n[default: diff_templates]",
           "type": "string",
           "default": "diff_templates"
         }
@@ -133,12 +133,12 @@
       "type": "object",
       "properties": {
         "endpoint": {
-          "description": "Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.",
+          "description": "Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.\n[default: http://localhost:4317]",
           "type": "string",
           "default": "http://localhost:4317"
         },
         "stdout": {
-          "description": "Write the telemetry to standard output",
+          "description": "Write the telemetry to standard output\n[default: false]",
           "type": "boolean",
           "default": false
         }
@@ -159,7 +159,7 @@
           "default": ""
         },
         "templates": {
-          "description": "Path to the directory where the templates are located.\nDefault is the `templates` directory.",
+          "description": "Path to the directory where the templates are located.\nDefault is the `templates` directory.\n[default: templates]",
           "type": "string",
           "default": "templates"
         }
@@ -170,7 +170,7 @@
       "type": "object",
       "properties": {
         "admin_port": {
-          "description": "Port used by the HTTP admin server (endpoints: /stop).",
+          "description": "Port used by the HTTP admin server (endpoints: /stop).\n[default: 8080]",
           "type": "integer",
           "format": "uint16",
           "default": 8080,
@@ -178,12 +178,12 @@
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.",
+          "description": "Address used by the gRPC OTLP listener.\n[default: 0.0.0.0]",
           "type": "string",
           "default": "0.0.0.0"
         },
         "grpc_port": {
-          "description": "Port used by the gRPC OTLP listener.",
+          "description": "Port used by the gRPC OTLP listener.\n[default: 4317]",
           "type": "integer",
           "format": "uint16",
           "default": 4317,
@@ -191,14 +191,14 @@
           "minimum": 0
         },
         "inactivity_timeout": {
-          "description": "Seconds of inactivity before auto-stop (0 = never).",
+          "description": "Seconds of inactivity before auto-stop (0 = never).\n[default: 60]",
           "type": "integer",
           "format": "uint64",
           "default": 60,
           "minimum": 0
         },
         "output": {
-          "description": "Output folder for generated YAML files.",
+          "description": "Output folder for generated YAML files.\n[default: ./inferred-registry/]",
           "type": "string",
           "default": "./inferred-registry/"
         }
@@ -300,7 +300,7 @@
           "default": null
         },
         "namespace_separator": {
-          "description": "Namespace separator used in attribute keys. Defaults to \".\".\nUsed by namespace browsing and search token splitting.",
+          "description": "Namespace separator used in attribute keys. Defaults to \".\".\nUsed by namespace browsing and search token splitting.\n[default: .]",
           "type": "string",
           "default": "."
         }
@@ -311,7 +311,7 @@
       "type": "object",
       "properties": {
         "output": {
-          "description": "Path to the directory where the package will be written.",
+          "description": "Path to the directory where the package will be written.\n[default: output]",
           "type": "string",
           "default": "output"
         },
@@ -401,7 +401,7 @@
       "type": "object",
       "properties": {
         "bind": {
-          "description": "Address to bind the server to.",
+          "description": "Address to bind the server to.\n[default: 127.0.0.1:8080]",
           "type": "string",
           "default": "127.0.0.1:8080"
         },
@@ -420,7 +420,7 @@
       "type": "object",
       "properties": {
         "format": {
-          "description": "Output format for the stats.\nPredefined formats are: text, json, yaml, jsonl, mute.",
+          "description": "Output format for the stats.\nPredefined formats are: text, json, yaml, jsonl, mute.\n[default: text]",
           "type": "string",
           "default": "text"
         },
@@ -433,7 +433,7 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the stats templates are located.",
+          "description": "Path to the directory where the stats templates are located.\n[default: stats_templates]",
           "type": "string",
           "default": "stats_templates"
         }
@@ -452,7 +452,7 @@
           "default": null
         },
         "dry_run": {
-          "description": "Whether or not to run updates in dry-run mode.",
+          "description": "Whether or not to run updates in dry-run mode.\n[default: false]",
           "type": "boolean",
           "default": false
         },
@@ -473,7 +473,7 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.",
+          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.\n[default: templates]",
           "type": "string",
           "default": "templates"
         }
