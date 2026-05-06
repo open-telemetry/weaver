@@ -90,6 +90,11 @@ pub struct SpanRefinement {
     pub id: SignalId,
     /// The name of the span being refined.
     pub r#ref: SignalId,
+    /// Overrides the span name specification from the referenced base span.
+    /// If set, the entire `name` structure from the refinement replaces the
+    /// base span's `name`; otherwise, the base span's `name` is inherited.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<SpanName>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -307,5 +312,54 @@ stability: stable
 is_v2: true
 "#,
         );
+    }
+
+    #[test]
+    fn test_span_refinement_with_name_override() {
+        parse_and_translate_refinement(
+            // V2 - SpanRefinement with name override
+            r#"id: span.refinement.my_span
+ref: my_span
+name:
+  note: "{gen_ai.operation.name} {gen_ai.request.model}"
+brief: Test span refinement with custom name
+stability: stable
+"#,
+            // V1 - Group (name is still the refinement id)
+            r#"id: span.refinement.my_span
+type: span
+brief: Test span refinement with custom name
+name: span.refinement.my_span
+extends: span.my_span
+stability: stable
+is_v2: true
+"#,
+        );
+    }
+
+    #[test]
+    fn test_span_refinement_name_deserialization() {
+        // Verify that a SpanRefinement without name parses correctly
+        let without_name: SpanRefinement = serde_yaml::from_str(
+            r#"id: my.refinement
+ref: base.span
+brief: No name override
+"#,
+        )
+        .expect("Failed to parse refinement without name");
+        assert!(without_name.name.is_none());
+
+        // Verify that a SpanRefinement with name parses correctly
+        let with_name: SpanRefinement = serde_yaml::from_str(
+            r#"id: my.refinement
+ref: base.span
+name:
+  note: "{custom} {name_format}"
+brief: With name override
+"#,
+        )
+        .expect("Failed to parse refinement with name");
+        assert!(with_name.name.is_some());
+        assert_eq!(with_name.name.unwrap().note, "{custom} {name_format}");
     }
 }
