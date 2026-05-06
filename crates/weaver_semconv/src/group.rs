@@ -147,6 +147,15 @@ pub struct GroupSpec {
     #[serde(skip_serializing)]
     #[schemars(skip)]
     pub is_v2: bool,
+
+    /// The span name note from v2 SpanName.note, carried through the v1
+    /// intermediate representation so it survives resolution.
+    /// This parameter must not be provided in yaml, it's only used to
+    /// convert v2 schema into v1 and back.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_name_note: Option<String>,
 }
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
@@ -740,6 +749,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
         assert!(group
             .validate("<test>")
@@ -913,6 +923,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
         assert!(group
             .validate("<test>")
@@ -1214,6 +1225,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
         assert!(group
             .validate("<test>")
@@ -1433,6 +1445,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
         assert!(group
             .validate("<test>")
@@ -1581,6 +1594,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
         assert!(group
             .validate("<test>")
@@ -1756,6 +1770,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1913,6 +1928,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
 
         // Check group with duplicate attributes.
@@ -1977,6 +1993,7 @@ mod tests {
             entity_associations: vec!["test".to_owned()],
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
         assert!(group
             .validate("<test>")
@@ -2040,6 +2057,7 @@ mod tests {
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
 
         // metric_requirement_level: None emits a warning (promoted to error with --future)
@@ -2148,6 +2166,7 @@ groups:
             entity_associations: Vec::new(),
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         };
 
         // Without --future: warning severity

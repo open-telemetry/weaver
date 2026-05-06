@@ -276,6 +276,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: m.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
+                span_name_note: None,
             });
         }
 
@@ -327,6 +328,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: e.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
+                span_name_note: None,
             });
         }
 
@@ -402,6 +404,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: true,
+                span_name_note: None,
             });
         }
 
@@ -453,6 +456,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: s.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
+                span_name_note: None,
             });
         }
 
@@ -505,6 +509,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: true,
+                span_name_note: None,
             });
         }
         Ok(result)
@@ -616,6 +621,7 @@ impl GroupRefinementLookup for V2Schema {
                 entity_associations: m.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
+                span_name_note: None,
             })
             .or_else(|| {
                 self.registry
@@ -646,6 +652,7 @@ impl GroupRefinementLookup for V2Schema {
                         entity_associations: e.entity_associations.clone(),
                         visibility: None,
                         is_v2: true,
+                        span_name_note: None,
                     })
             })
             .or_else(|| {
@@ -677,6 +684,7 @@ impl GroupRefinementLookup for V2Schema {
                         entity_associations: vec![],
                         visibility: None,
                         is_v2: true,
+                        span_name_note: None,
                     })
             });
 
@@ -807,6 +815,7 @@ mod tests {
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: Default::default(),
+                        span_name_note: None,
                     },
                     weaver_resolved_schema::registry::Group {
                         id: "span.v1".to_owned(),
@@ -832,6 +841,7 @@ mod tests {
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: Default::default(),
+                        span_name_note: None,
                     },
                 ],
             },
