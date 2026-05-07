@@ -10,8 +10,8 @@ use weaver_checker::FindingLevel;
 
 use crate::{
     advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_resource::SampleResource, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    Sample, SampleRef, VersionedSignal, MISSING_EVENT_ADVICE_TYPE,
+    sample_resource::SampleResource, Error, FindingId, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -55,7 +55,7 @@ impl LiveCheckRunner for SampleLog {
             // find the event in the registry
             let semconv_event = live_checker.find_event(&self.event_name);
             if semconv_event.is_none() {
-                let finding = FindingBuilder::new(MISSING_EVENT_ADVICE_TYPE)
+                let finding = FindingBuilder::new(FindingId::MissingEvent)
                     .message(format!(
                         "Event '{}' does not exist in the registry.",
                         self.event_name

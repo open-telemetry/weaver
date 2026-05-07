@@ -8,11 +8,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use weaver_checker::FindingLevel;
 
-/// Configuration for the live-check subcommand.
-///
-/// All fields carry their defaults via the `Default` impl. TOML deserialization
-/// with `#[serde(default)]` populates only the fields present in the file;
-/// the rest keep their defaults. CLI args are applied on top.
+/// Validate live telemetry against a semantic convention registry.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 #[serde(default)]
 #[schemars(inline)]
@@ -152,21 +148,25 @@ mod tests {
     use crate::WeaverConfig;
     use std::path::Path;
 
+    fn live_check(config: &WeaverConfig) -> LiveCheckConfig {
+        config.command_config("live-check")
+    }
+
     #[test]
     fn test_parse_full_config() {
         let toml = r#"
 # Global filter (no signal_type)
-[[live_check.finding_filters]]
+[["live-check".finding_filters]]
 exclude = ["deprecated", "missing_namespace"]
 min_level = "improvement"
 
 # Scoped filter (with signal_type)
-[[live_check.finding_filters]]
+[["live-check".finding_filters]]
 signal_type = "span"
 exclude = ["not_stable"]
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let lc = &config.live_check;
+        let lc = live_check(&config);
 
         assert_eq!(lc.finding_filters.len(), 2);
 
@@ -192,19 +192,20 @@ exclude = ["not_stable"]
     #[test]
     fn test_parse_empty_config() {
         let config: WeaverConfig = toml::from_str("").expect("Failed to parse empty TOML");
-        assert_eq!(config.live_check.input_source, "otlp");
-        assert_eq!(config.live_check.format, "ansi");
-        assert!(config.live_check.finding_filters.is_empty());
+        let lc = live_check(&config);
+        assert_eq!(lc.input_source, "otlp");
+        assert_eq!(lc.format, "ansi");
+        assert!(lc.finding_filters.is_empty());
     }
 
     #[test]
     fn test_parse_partial_config() {
         let toml = r#"
-[[live_check.finding_filters]]
+[["live-check".finding_filters]]
 min_level = "violation"
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let lc = &config.live_check;
+        let lc = live_check(&config);
         assert_eq!(lc.finding_filters.len(), 1);
         assert_eq!(
             lc.finding_filters[0].min_level,
@@ -217,7 +218,7 @@ min_level = "violation"
     #[test]
     fn test_parse_live_check_cli_settings() {
         let toml = r#"
-[live_check]
+["live-check"]
 input_source = "otlp"
 input_format = "json"
 format = "ansi"
@@ -228,19 +229,19 @@ output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "pre.jq"
 
-[live_check.otlp]
+["live-check".otlp]
 grpc_address = "127.0.0.1"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 30
 
-[live_check.emit]
+["live-check".emit]
 otlp_logs = true
 otlp_logs_endpoint = "http://localhost:4317"
 otlp_logs_stdout = false
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let lc = &config.live_check;
+        let lc = live_check(&config);
         assert_eq!(lc.input_source, "otlp");
         assert_eq!(lc.input_format, "json");
         assert_eq!(lc.format, "ansi");
@@ -264,11 +265,11 @@ otlp_logs_stdout = false
     #[test]
     fn test_defaults_applied_for_missing_sections() {
         let toml = r#"
-[live_check.otlp]
+["live-check".otlp]
 grpc_port = 9999
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let lc = &config.live_check;
+        let lc = live_check(&config);
         assert_eq!(lc.otlp.grpc_port, 9999);
         assert_eq!(lc.otlp.grpc_address, "0.0.0.0");
         assert_eq!(lc.otlp.admin_port, 4320);
@@ -279,16 +280,16 @@ grpc_port = 9999
     #[test]
     fn test_parse_exclude_samples() {
         let toml = r#"
-[[live_check.finding_filters]]
+[["live-check".finding_filters]]
 exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
 
-[[live_check.finding_filters]]
+[["live-check".finding_filters]]
 signal_type = "span"
 exclude_samples = ["custom.internal_id"]
 exclude = ["not_stable"]
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let lc = &config.live_check;
+        let lc = live_check(&config);
         assert_eq!(lc.finding_filters.len(), 2);
 
         let f0 = &lc.finding_filters[0];
@@ -309,12 +310,11 @@ exclude = ["not_stable"]
     #[test]
     fn test_parse_exclude_samples_defaults_to_empty() {
         let toml = r#"
-[[live_check.finding_filters]]
+[["live-check".finding_filters]]
 min_level = "violation"
 "#;
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        assert!(config.live_check.finding_filters[0]
-            .exclude_samples
-            .is_empty());
+        let lc = live_check(&config);
+        assert!(lc.finding_filters[0].exclude_samples.is_empty());
     }
 }

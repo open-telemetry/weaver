@@ -12,8 +12,8 @@ use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
     advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_resource::SampleResource, Advisable, Error, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, Sample, SampleRef, VersionedSignal, MISSING_METRIC_ADVICE_TYPE,
+    sample_resource::SampleResource, Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -303,7 +303,7 @@ impl LiveCheckRunner for SampleMetric {
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            let finding = FindingBuilder::new(MISSING_METRIC_ADVICE_TYPE)
+            let finding = FindingBuilder::new(FindingId::MissingMetric)
                 .message("Metric does not exist in the registry.")
                 .level(FindingLevel::Violation)
                 .signal(parent_signal)

@@ -2,7 +2,7 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -12,35 +12,42 @@ use serde::Serialize;
 use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 
 /// Embedded default stats templates
 pub(crate) static DEFAULT_STATS_TEMPLATES: Dir<'_> = include_dir!("defaults/stats_templates");
 
-/// Parameters for the `registry stats` sub-command
-#[derive(Debug, Args)]
+/// Compute and display statistics about a semantic convention registry.
+#[weaver_command(section = "stats", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryStatsArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Output format for the stats.
     /// Predefined formats are: text, json, yaml, jsonl, mute.
-    #[arg(long, default_value = "text")]
-    format: String,
+    #[arg(long)]
+    #[config(default = "text")]
+    format: Option<String>,
 
     /// Path to the directory where the stats templates are located.
-    #[arg(long, default_value = "stats_templates")]
-    templates: PathBuf,
+    #[arg(long)]
+    #[config(default = "stats_templates")]
+    templates: Option<PathBuf>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the stats are printed to stdout.
     #[arg(short, long)]
+    #[config]
     output: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 }
 
@@ -56,36 +63,34 @@ struct StatsContext<T> {
 /// Compute stats on a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryStatsArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
+    info!("Weaver Registry Stats");
     info!(
-        "Compute statistics on the registry `{}`",
-        args.registry.registry
+        "Computing stats for registry `{}`",
+        cmd_config.registry.registry
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let policy_config = PolicyArgs {
-        policies: vec![],
-        skip_policies: true,
-        display_policy_coverage: false,
-    };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
-    if !diag_msgs.is_empty() {
+    if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
-    let target = OutputTarget::from_optional_dir(args.output.as_ref());
+    let format = &cmd_config.config.format;
+    let templates = cmd_config.config.templates;
+    let target = OutputTarget::from_optional_dir(cmd_config.config.output.as_ref());
     let mut output = OutputProcessor::new(
-        &args.format,
+        format,
         "stats",
         Some(&DEFAULT_STATS_TEMPLATES),
-        Some(args.templates.clone()),
+        Some(templates),
         target,
-    )
-    .map_err(DiagnosticMessages::from)?;
+    )?;
 
     match resolved {
         crate::weaver::Resolved::V1(v) => {
@@ -112,4 +117,15 @@ pub(crate) fn command(
         exit_code: 0,
         warnings: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::registry::stats::RegistryStatsArgs;
+
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryStatsArgs>();
+    }
 }

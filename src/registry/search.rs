@@ -9,11 +9,7 @@ use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 
-use crate::{
-    registry::{PolicyArgs, RegistryArgs},
-    weaver::WeaverEngine,
-    DiagnosticArgs, ExitDirectives,
-};
+use crate::{registry::RegistryArgs, weaver::WeaverEngine, DiagnosticArgs, ExitDirectives};
 use ratatui::{
     crossterm::{
         event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
@@ -27,10 +23,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListState, Paragraph},
     Frame,
 };
+use ratatui_textarea::TextArea;
 use std::io::{stdout, IsTerminal};
-use tui_textarea::TextArea;
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
@@ -377,18 +373,20 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
 
 pub(crate) fn command(
     args: &RegistrySearchArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    info!("Resolving registry `{}`", args.registry.registry);
+    let mut registry = EffectiveRegistryConfig::default();
+    if let Some(wc) = cfg {
+        registry.layer_config(&wc.registry);
+    }
+    args.registry.apply_to(&mut registry);
+
+    info!("Resolving registry `{}`", registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let policy_config = PolicyArgs {
-        policies: vec![],
-        skip_policies: true,
-        display_policy_coverage: false,
-    };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
+    let policy_config = EffectivePolicyConfig::skip_all();
+    let weaver = WeaverEngine::new(&registry, &policy_config, auth);
     // Load the semantic convention registry into a local cache.
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 

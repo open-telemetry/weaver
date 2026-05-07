@@ -14,30 +14,33 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputProcessor, OutputTarget};
 
-use crate::registry::{Error, PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::WeaverConfig as ProjectWeaverConfig;
+use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
+use weaver_macros::weaver_command;
 
-/// Parameters for the `registry generate` sub-command
-#[derive(Debug, Args)]
+/// Generate artifacts from a semantic convention registry using Jinja templates.
+#[weaver_command(section = "generate")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryGenerateArgs {
     /// Target to generate the artifacts for.
-    #[arg(default_value = "")]
-    pub target: String,
+    #[config_only(default = "")]
+    pub target: Option<String>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// Default is the `output` directory.
-    #[arg(default_value = "output")]
-    pub output: PathBuf,
+    #[config_only(default = "output")]
+    pub output: Option<PathBuf>,
 
     /// Path to the directory where the templates are located.
     /// Default is the `templates` directory.
-    #[arg(short = 't', long, default_value = "templates")]
-    pub templates: VirtualDirectoryPath,
+    #[arg(short = 't', long)]
+    #[config(default = "templates")]
+    pub templates: Option<String>,
 
     /// List of `weaver.yaml` configuration files to use. When there is a conflict, the last one
     /// will override the previous ones for the keys that are defined in both.
@@ -55,10 +58,12 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Enable the most recent validation rules for the semconv registry. It is recommended
@@ -68,6 +73,7 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 }
 
@@ -87,27 +93,38 @@ pub(crate) fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
 /// Generate artifacts from a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryGenerateArgs,
-    _cfg: Option<&ProjectWeaverConfig>,
+    cfg: Option<&ProjectWeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     info!(
         "Generating artifacts for the registry `{}`",
-        args.registry.registry
+        cmd_config.registry.registry
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let config = cmd_config.config;
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
-    let templates_dir =
-        VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(|e| {
-            Error::InvalidParams {
-                params_file: PathBuf::from(args.templates.to_string()),
+    let templates: VirtualDirectoryPath = config
+        .templates
+        .parse::<VirtualDirectoryPath>()
+        .map_err(|e| {
+            DiagnosticMessages::from(Error::InvalidParams {
+                params_file: PathBuf::from(&config.templates),
                 error: e.to_string(),
-            }
+            })
         })?;
-    let loader =
-        FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &args.target)?;
+    let target = config.target;
+    let output_path = config.output;
+    let templates_dir = VirtualDirectory::try_new_with_auth(&templates, auth).map_err(|e| {
+        Error::InvalidParams {
+            params_file: PathBuf::from(templates.to_string()),
+            error: e.to_string(),
+        }
+    })?;
+    let loader = FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &target)?;
     let config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)
     } else {
@@ -117,7 +134,7 @@ pub(crate) fn command(
         config,
         loader,
         params,
-        OutputTarget::Directory(args.output.clone()),
+        OutputTarget::Directory(output_path),
     )?;
     resolved.check_after_resolution_policy(&mut diag_msgs)?;
     match &resolved {
@@ -140,7 +157,7 @@ pub(crate) fn command(
     })
 }
 
-/// Resolve the effective templates root.
+/// Compute the effective templates root.
 /// If a `registry` subdirectory exists under the provided templates directory,
 /// that subdirectory is returned, otherwise the original directory path is returned.
 fn resolve_templates_root(templates_dir: &VirtualDirectory) -> PathBuf {
@@ -202,6 +219,12 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryGenerateArgs>();
+    }
+
+    #[test]
     fn test_registry_generate() {
         let temp_output = tempfile::Builder::new()
             .prefix("output")
@@ -216,26 +239,21 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "rust".to_owned(),
-                    output: temp_output.clone(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    },
+                    target: Some("rust".to_owned()),
+                    output: Some(temp_output.clone()),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),
@@ -297,26 +315,20 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "rust".to_owned(),
-                    output: temp_output.clone(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    },
+                    target: Some("rust".to_owned()),
+                    output: Some(temp_output.clone()),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: false,
-                        display_policy_coverage: false,
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),
@@ -342,11 +354,9 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "rust".to_owned(),
-                    output: temp_output.clone(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    },
+                    target: Some("rust".to_owned()),
+                    output: Some(temp_output.clone()),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: Some(vec![
                         PathBuf::from(
                             "crates/weaver_codegen_test/templates/registry/alt_weaver.yaml",
@@ -358,17 +368,14 @@ mod tests {
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),
@@ -460,26 +467,22 @@ mod tests {
                 config: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                        target: "rust".to_owned(),
-                        output: temp_output.clone(),
-                        templates: VirtualDirectoryPath::LocalFolder {
-                            path: "crates/weaver_codegen_test/templates/".to_owned(),
-                        },
+                        target: Some("rust".to_owned()),
+                        output: Some(temp_output.clone()),
+                        templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                         config: None,
                         param: None,
                         params: None,
                         registry: RegistryArgs {
-                            registry: VirtualDirectoryPath::LocalFolder {
+                            registry: Some(VirtualDirectoryPath::LocalFolder {
                                 path: "data/symbolic_test/".to_owned(),
-                            },
-                            follow_symlinks,
-                            include_unreferenced: false,
-                            v2: false,
+                            }),
+                            follow_symlinks: Some(follow_symlinks),
+                            ..Default::default()
                         },
                         policy: PolicyArgs {
-                            policies: vec![],
-                            skip_policies: true,
-                            display_policy_coverage: false,
+                            skip_policies: Some(true),
+                            ..Default::default()
                         },
                         future: false,
                         diagnostic: Default::default(),
@@ -539,26 +542,22 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "markdown".to_owned(),
-                    output: temp_output.to_path_buf(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "tests/v2_forge/templates/".to_owned(),
-                    },
+                    target: Some("markdown".to_owned()),
+                    output: Some(temp_output.to_path_buf()),
+                    templates: Some("tests/v2_forge/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "tests/v2_forge/model/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: true,
+                        }),
+                        v2: Some(true),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),

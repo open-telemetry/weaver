@@ -26,7 +26,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::CliOverrides;
+use weaver_config::{CliOverrides, CommandConfig, EffectivePolicyConfig, EffectiveRegistryConfig};
 
 mod check;
 mod diff;
@@ -170,100 +170,97 @@ pub enum RegistrySubCommand {
     Package(RegistryPackageArgs),
 }
 
-/// Default value for `--registry`.
-pub const DEFAULT_REGISTRY: &str =
-    "https://github.com/open-telemetry/semantic-conventions.git[model]";
-
 /// Set of parameters used to specify a semantic convention registry.
-#[derive(Args, Debug, Clone)]
+///
+/// All fields are `Option` so we can distinguish "user set this on the CLI"
+/// from "use the default".
+#[derive(Args, Debug, Clone, Default)]
 pub struct RegistryArgs {
     /// Local folder, Git repo URL, or Git archive URL of the semantic
     /// convention registry. For Git URLs, a reference can be specified
     /// using the `@refspec` syntax and a sub-folder can be specified
     /// using the `[sub-folder]` syntax after the URL.
-    #[arg(short = 'r', long, default_value = DEFAULT_REGISTRY)]
-    pub registry: VirtualDirectoryPath,
+    /// [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
+    #[arg(short = 'r', long)]
+    pub registry: Option<VirtualDirectoryPath>,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
-    /// Default is false.
-    #[arg(short = 's', long)]
-    pub(crate) follow_symlinks: bool,
+    /// [default: false]
+    #[arg(short = 's', long, num_args = 0..=1, default_missing_value = "true")]
+    pub(crate) follow_symlinks: Option<bool>,
 
     /// Boolean flag to include signals and attributes defined in dependency registries,
     /// even if they are not explicitly referenced in the current (custom) registry.
-    #[arg(long)]
-    pub(crate) include_unreferenced: bool,
+    /// [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub(crate) include_unreferenced: Option<bool>,
 
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
-    #[arg(long, default_value = "false")]
-    pub v2: bool,
+    /// [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub v2: Option<bool>,
+}
+
+impl RegistryArgs {
+    /// Field names to list in `excluded_args()` for any command that
+    /// flattens `RegistryArgs`.
+    pub const EXCLUDED_ARGS: &[&str] =
+        &["registry", "follow_symlinks", "include_unreferenced", "v2"];
+
+    /// Apply CLI overrides (layer 3) onto an effective registry config.
+    pub fn apply_to(&self, effective: &mut EffectiveRegistryConfig) {
+        if let Some(r) = &self.registry {
+            effective.registry = r.clone();
+        }
+        if let Some(v) = self.follow_symlinks {
+            effective.follow_symlinks = v;
+        }
+        if let Some(v) = self.include_unreferenced {
+            effective.include_unreferenced = v;
+        }
+        if let Some(v) = self.v2 {
+            effective.v2 = v;
+        }
+    }
 }
 
 /// Set of common parameters used for policy checks.
-#[derive(Args, Debug, Clone)]
+///
+/// All fields are `Option` so we can distinguish "user set this on the CLI"
+/// from "use the default".
+#[derive(Args, Debug, Clone, Default)]
 pub struct PolicyArgs {
     /// Optional list of policy files or directories to check against the files of the semantic
     /// convention registry.  If a directory is provided all `.rego` files in the directory will be
     /// loaded.
     #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<VirtualDirectoryPath>,
+    pub policies: Option<Vec<VirtualDirectoryPath>>,
 
-    /// Skip the policy checks.
-    #[arg(long, default_value = "false")]
-    pub skip_policies: bool,
+    /// Skip the policy checks. [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub skip_policies: Option<bool>,
 
-    /// Display the policy coverage report (useful for debugging).
-    #[arg(long, default_value = "false")]
-    pub display_policy_coverage: bool,
+    /// Display the policy coverage report (useful for debugging). [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub display_policy_coverage: Option<bool>,
 }
 
-/// Apply shared registry config onto a `RegistryArgs`, using config values
-/// as defaults that CLI flags can override.
-///
-/// Config values only apply when the CLI arg has its default value — explicit
-/// CLI flags always win.
-///
-/// TODO(phase 2): rework this to use the standard `CliOverrides` pattern once
-/// `RegistryArgs`/`PolicyArgs`/`DiagnosticArgs` are converted to `Option<T>`
-/// fields and downstream callers take resolved `Config` structs. The current
-/// "compare against clap default" heuristic is fragile and breaks if defaults
-/// change.
-pub fn apply_registry_config(args: &mut RegistryArgs, config: &weaver_config::RegistryConfig) {
-    if let Some(path) = &config.path {
-        if args.registry.to_string() == DEFAULT_REGISTRY {
-            if let Ok(parsed) = path.parse() {
-                args.registry = parsed;
-            }
-        }
-    }
-    if let Some(v) = config.follow_symlinks {
-        if !args.follow_symlinks {
-            args.follow_symlinks = v;
-        }
-    }
-    if let Some(v) = config.include_unreferenced {
-        if !args.include_unreferenced {
-            args.include_unreferenced = v;
-        }
-    }
-    if let Some(v) = config.v2 {
-        if !args.v2 {
-            args.v2 = v;
-        }
-    }
-}
+impl PolicyArgs {
+    /// Field names to list in `excluded_args()` for any command that
+    /// flattens `PolicyArgs`.
+    pub const EXCLUDED_ARGS: &[&str] = &["policy", "skip_policies", "display_policy_coverage"];
 
-/// Apply shared policy config onto a `PolicyArgs`.
-pub fn apply_policy_config(args: &mut PolicyArgs, config: &weaver_config::PolicyConfig) {
-    if let Some(paths) = &config.paths {
-        if args.policies.is_empty() {
-            args.policies = paths.iter().filter_map(|p| p.parse().ok()).collect();
+    /// Apply CLI overrides (layer 3) onto an effective policy config.
+    pub fn apply_to(&self, effective: &mut EffectivePolicyConfig) {
+        if let Some(policies) = &self.policies {
+            effective.policies = policies.clone();
         }
-    }
-    if let Some(v) = config.skip {
-        if !args.skip_policies {
-            args.skip_policies = v;
+        if let Some(v) = self.skip_policies {
+            effective.skip_policies = v;
+        }
+        if let Some(v) = self.display_policy_coverage {
+            effective.display_policy_coverage = v;
         }
     }
 }
@@ -314,25 +311,51 @@ pub fn resolve_weaver_config(
     }
 }
 
-/// Layer a subcommand's config section: defaults → `.weaver.toml` → CLI overrides.
+/// Layer all configuration for a command: defaults → `.weaver.toml` → CLI overrides.
 ///
-/// The `.weaver.toml` has already been loaded by the dispatcher (via the
-/// global `--config` flag or discovery), so this step is infallible.
+/// Returns a [`CommandConfig`] with command-specific config plus effective registry,
+/// policy, and diagnostic settings. The `.weaver.toml` has already been loaded by
+/// the dispatcher (via the global `--config` flag or discovery), so this is infallible.
 pub fn load_config<A: CliOverrides>(
     args: &A,
     weaver_config: Option<&weaver_config::WeaverConfig>,
-) -> A::Config {
+) -> CommandConfig<A::Config> {
+    // Command-specific config section
     let mut config = match weaver_config {
         Some(wc) => A::extract_config(wc),
         None => A::Config::default(),
     };
     args.apply_overrides(&mut config);
-    config
+
+    // Registry: default → config → CLI
+    let mut registry = EffectiveRegistryConfig::default();
+    if let Some(wc) = weaver_config {
+        registry.layer_config(&wc.registry);
+    }
+    args.apply_registry_overrides(&mut registry);
+
+    // Policy: default → config → CLI (skip if command doesn't use policy)
+    let policy = if A::uses_policy() {
+        let mut p = EffectivePolicyConfig::default();
+        if let Some(wc) = weaver_config {
+            p.layer_config(&wc.policy);
+        }
+        args.apply_policy_overrides(&mut p);
+        p
+    } else {
+        EffectivePolicyConfig::skip_all()
+    };
+
+    CommandConfig {
+        config,
+        registry,
+        policy,
+    }
 }
 
 /// Manage a semantic convention registry and return the exit code.
 ///
-/// The dispatcher in `main.rs` pre-resolves `.weaver.toml` (via the global
+/// The dispatcher in `main.rs` loads `.weaver.toml` (via the global
 /// `--config` flag or cwd discovery) and the [`HttpAuthResolver`]; both are
 /// threaded into every subcommand here.
 pub fn semconv_registry(
@@ -343,54 +366,55 @@ pub fn semconv_registry(
     match &command.command {
         RegistrySubCommand::Check(args) => CmdResult::new(
             check::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Generate(args) => CmdResult::new(
             generate::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Stats(args) => CmdResult::new(
             stats::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Resolve(args) => CmdResult::new(
             resolve::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Search(args) => CmdResult::new(
             search::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
             update_markdown::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
             json_schema::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Diff(args) => CmdResult::new(
             diff::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::LiveCheck(args) => CmdResult::new(
             live_check::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Emit(args) => CmdResult::new(
             emit::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
-        RegistrySubCommand::Mcp(args) => {
-            CmdResult::new(mcp::command(args, cfg, auth), Some(args.diagnostic.clone()))
-        }
+        RegistrySubCommand::Mcp(args) => CmdResult::new(
+            mcp::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
         RegistrySubCommand::Infer(args) => CmdResult::new(
             infer::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
         RegistrySubCommand::Package(args) => CmdResult::new(
             package::command(args, cfg, auth),
-            Some(args.diagnostic.clone()),
+            args.diagnostic.to_effective(cfg),
         ),
     }
 }
@@ -456,13 +480,13 @@ pub(crate) mod tests {
     ///
     /// Uses schemars `JsonSchema` to discover config fields and clap `CommandFactory`
     /// to discover CLI args. The mapping metadata comes from the `CliOverrides` trait
-    /// methods: `config_only_fields()`, `cli_only_args()`, and `field_mappings()`.
+    /// methods: `config_only_fields()`, `excluded_args()`, and `field_mappings()`.
     ///
     /// This is fully automatic — adding a config field or CLI arg without the
     /// corresponding counterpart causes a test failure with no manual test upkeep.
     pub(crate) fn assert_config_cli_consistency<A: CliOverrides>() {
         let config_only: BTreeSet<&str> = A::config_only_fields().iter().copied().collect();
-        let cli_only: BTreeSet<&str> = A::cli_only_args().iter().copied().collect();
+        let excluded: BTreeSet<&str> = A::excluded_args().iter().copied().collect();
         let name_mappings = A::field_mappings();
 
         // Extract config field names from the JSON schema
@@ -501,7 +525,7 @@ pub(crate) mod tests {
 
         let cli_comparable: BTreeSet<String> = cli_args
             .iter()
-            .filter(|a| !cli_only.contains(a.as_str()))
+            .filter(|a| !excluded.contains(a.as_str()))
             .cloned()
             .collect();
 
@@ -517,7 +541,7 @@ pub(crate) mod tests {
         assert!(
             missing_config.is_empty(),
             "[{cmd}] CLI args without config fields: {missing_config:?}\n\
-             Add a config field, or list in `cli_only_args()`.",
+             Add a config field, or list in `excluded_args()`.",
             cmd = A::SUBCOMMAND,
         );
     }

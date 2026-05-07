@@ -156,6 +156,7 @@ impl Span {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: Some(self.name.note),
         }
     }
 }
@@ -193,6 +194,7 @@ impl SpanRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }
@@ -277,6 +279,7 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
+span_name_note: "{some} {name}"
 "#,
         );
     }

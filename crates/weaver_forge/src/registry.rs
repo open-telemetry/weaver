@@ -308,6 +308,7 @@ mod tests {
                     annotations: None,
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
                 Group {
                     id: "apple.group".to_owned(),
@@ -333,6 +334,7 @@ mod tests {
                     annotations: None,
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
                 Group {
                     id: "middle.group".to_owned(),
@@ -358,6 +360,7 @@ mod tests {
                     annotations: None,
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
             ],
         };

@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Tolerate unknown fields in resolved schema and publication manifest on newer-minor `file_format` with a warning; same/older minor and any major mismatch remain fatal. ([#1365](https://github.com/open-telemetry/weaver/pull/1365) by @lmolkova)
+- Fix V2 resolver overwriting `SpanName.note` with the span type id during resolution. ([#1401](https://github.com/open-telemetry/weaver/pull/1401))
 - New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries, including GitHub private release assets. Auth is configured per-URL via `[[auth]]` entries in `.weaver.toml` (longest `url_prefix` wins), with tokens sourced from a literal `token`, a `token_env` variable, or a `token_command` helper (e.g. `["gh", "auth", "token"]`). ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
+- New feature - `.weaver.toml` project configuration now covers all subcommands allowing for simplified configuration management. See the [README.md](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_config/README.md) ([#1410](https://github.com/open-telemetry/weaver/pull/1410) by @jerbly)
+- Live-check OTLP log findings are now dog-fooded: the event schema, attributes, and enumerations are defined in a semconv model and code-generated using Weaver's own templates. See [`finding.md`](crates/weaver_live_check/docs/finding.md) for the generated reference documentation and [`dog-fooding.md`](crates/weaver_live_check/docs/dog-fooding.md) for the full dog-fooding guide.
+
+  💥 BREAKING CHANGES 💥 to the log schema:
+  - `attribute_name` → `attribute_key` (in `weaver.finding.context`)
+  - `weaver.finding.sample_type` → `weaver.finding.sample.type`
+  - `weaver.finding.signal_type` → `weaver.finding.signal.type`
+  - `weaver.finding.signal_name` → `weaver.finding.signal.name`
+  - `weaver.finding.resource_attribute.<key>` → `weaver.finding.resource.attribute.<key>`
+
+  ([#1232](https://github.com/open-telemetry/weaver/pull/1232) by @jerbly)
 
 # [0.23.0] - 2026-04-22
 

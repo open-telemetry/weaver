@@ -156,6 +156,10 @@ pub struct Group {
     #[serde(skip_serializing)]
     #[schemars(skip)]
     pub is_v2: bool,
+
+    /// An optional note for the span name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span_name_note: Option<String>,
 }
 
 impl Group {

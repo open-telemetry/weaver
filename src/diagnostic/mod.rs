@@ -52,7 +52,7 @@ pub enum DiagnosticSubCommand {
 pub fn diagnostic(command: &DiagnosticCommand) -> CmdResult {
     match &command.command {
         DiagnosticSubCommand::Init(args) => {
-            CmdResult::new(init::command(args), Some(args.diagnostic.clone()))
+            CmdResult::new(init::command(args), args.diagnostic.to_effective(None))
         }
     }
 }
