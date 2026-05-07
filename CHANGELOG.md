@@ -7,6 +7,16 @@ All notable changes to this project will be documented in this file.
 - Fix V2 resolver overwriting `SpanName.note` with the span type id during resolution. ([#1401](https://github.com/open-telemetry/weaver/pull/1401))
 - New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries, including GitHub private release assets. Auth is configured per-URL via `[[auth]]` entries in `.weaver.toml` (longest `url_prefix` wins), with tokens sourced from a literal `token`, a `token_env` variable, or a `token_command` helper (e.g. `["gh", "auth", "token"]`). ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
 - New feature - `.weaver.toml` project configuration now covers all subcommands allowing for simplified configuration management. See the [README.md](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_config/README.md) ([#1410](https://github.com/open-telemetry/weaver/pull/1410) by @jerbly)
+- Live-check OTLP log findings are now dog-fooded: the event schema, attributes, and enumerations are defined in a semconv model and code-generated using Weaver's own templates. See [`finding.md`](crates/weaver_live_check/docs/finding.md) for the generated reference documentation and [`dog-fooding.md`](crates/weaver_live_check/docs/dog-fooding.md) for the full dog-fooding guide.
+
+  💥 BREAKING CHANGES 💥 to the log schema:
+  - `attribute_name` → `attribute_key` (in `weaver.finding.context`)
+  - `weaver.finding.sample_type` → `weaver.finding.sample.type`
+  - `weaver.finding.signal_type` → `weaver.finding.signal.type`
+  - `weaver.finding.signal_name` → `weaver.finding.signal.name`
+  - `weaver.finding.resource_attribute.<key>` → `weaver.finding.resource.attribute.<key>`
+
+  ([#1232](https://github.com/open-telemetry/weaver/pull/1232) by @jerbly)
 
 # [0.23.0] - 2026-04-22
 
@@ -32,7 +42,6 @@ All notable changes to this project will be documented in this file.
 - New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
 - Unified output handling across all registry subcommands. Builtin output formats (json, yaml, jsonl) are now available in `registry stats`, `registry diff`, and `registry resolve`. `registry stats` also supports `--templates` for custom text output templates. ([#1200](https://github.com/open-telemetry/weaver/pull/1200) by @jerbly)
 - New feature ([#1152](https://github.com/open-telemetry/weaver/issues/1152)) - Live-check with `--emit-otlp-logs` will now include the attributes from the resource in the emitted log record, this helps to identify the source of the finding in a multi-source environment. ([#1206](https://github.com/open-telemetry/weaver/pull/1206) by @jerbly)
-- Live-check OTLP log findings are now dog-fooded: the event schema, attributes, and enumerations are defined in a semconv model and code-generated using Weaver's own templates. See [`finding.md`](crates/weaver_live_check/docs/finding.md) for the generated reference documentation and [`dog-fooding.md`](crates/weaver_live_check/docs/dog-fooding.md) for the full dog-fooding guide. ([#1232](https://github.com/open-telemetry/weaver/pull/1232) by @jerbly)
 - New Experimental feature: `weaver registry infer` command that listens for OTLP telemetry and infers a semantic convention registry file from the received data. Supports spans, metrics, events, and resource attributes. Includes configurable gRPC address/port, admin server for graceful shutdown, and inactivity timeout. ([#1138](https://github.com/open-telemetry/weaver/pull/1138) by @ArthurSens)
 - Fix: Include unit in inferred schema even if empty to prevent live-check failures. ([#1284](https://github.com/open-telemetry/weaver/pull/1284) by @ArthurSens)
 - Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
