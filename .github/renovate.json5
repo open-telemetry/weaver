@@ -157,7 +157,7 @@
       customType: "regex",
       description: "Update Rust toolchain version",
       managerFilePatterns: [
-        "rust-toolchain.toml", 
+        "rust-toolchain.toml",
         "justfile",
       ],
       matchStrings: [
@@ -172,6 +172,20 @@
       currentValueTemplate: "{{depVersion}}",
       packageNameTemplate: "rust-lang/rust",
       depTypeTemplate: "SDK",
+    },
+    {
+      customType: "regex",
+      description: "Update otel/weaver Docker image references (justfile, CI, docs)",
+      managerFilePatterns: [
+        "justfile",
+        ".github/workflows/ci.yml",
+        "crates/weaver_live_check/docs/dog-fooding.md",
+      ],
+      matchStrings: [
+        "otel\\/weaver:(?<currentValue>v[\\d.]+)",
+      ],
+      depNameTemplate: "otel/weaver",
+      datasourceTemplate: "docker",
     },
   ],
   labels: [
