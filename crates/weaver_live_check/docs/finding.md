@@ -155,7 +155,7 @@ which service or application produced the telemetry that triggered the finding,
 which is essential in CI environments with multiple instrumented applications.
 
 For example, if the original telemetry had resource attribute `service.name: "my-app"`,
-the finding log record would include `weaver.finding.resource_attribute.service.name: "my-app"`.
+the finding log record would include `weaver.finding.resource.attribute.service.name: "my-app"`.
 
 
 **Examples:** `my-app`, `1.2.3`
