@@ -8,7 +8,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{ServerCapabilities, ServerInfo};
 use rmcp::{tool, tool_handler, tool_router, ServerHandler};
@@ -49,8 +48,6 @@ pub struct WeaverMcpService {
     advice_policies: Option<PathBuf>,
     /// Path to jq preprocessor script for Rego policies.
     advice_preprocessor: Option<PathBuf>,
-    /// Tool router for handling tool calls.
-    tool_router: ToolRouter<Self>,
 }
 
 impl WeaverMcpService {
@@ -70,7 +67,6 @@ impl WeaverMcpService {
             versioned_registry,
             advice_policies: config.advice_policies,
             advice_preprocessor: config.advice_preprocessor,
-            tool_router: Self::tool_router(),
         }
     }
 
