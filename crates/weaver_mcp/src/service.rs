@@ -205,15 +205,14 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
 #[tool_handler]
 impl ServerHandler for WeaverMcpService {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            instructions: Some(
-                "MCP server for OpenTelemetry semantic conventions. Use 'search' to find \
-                 conventions, 'get_*' tools to get details, and 'live_check' to validate samples."
-                    .into(),
-            ),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
-        }
+        let mut server_info = ServerInfo::default();
+        server_info.instructions = Some(
+            "MCP server for OpenTelemetry semantic conventions. Use 'search' to find \
+             conventions, 'get_*' tools to get details, and 'live_check' to validate samples."
+                .into(),
+        );
+        server_info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        server_info
     }
 }
 
