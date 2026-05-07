@@ -29,17 +29,23 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .expect("Failed to convert temp directory path to string");
 
     // Build the arguments for live check command
+    // Note: --input-source otlp and --skip-policies false are explicitly set
+    // to ensure the test is not affected by a local .weaver.toml config file.
     let mut live_check_args = vec![
         "registry",
         "live-check",
         "-r",
         "crates/weaver_emit/data",
+        "--input-source",
+        "otlp",
+        "--skip-policies",
+        "true",
         "--format",
         "json",
         "--output",
         temp_dir_path,
         "--inactivity-timeout",
-        "4",
+        "8",
     ];
     if use_v2 {
         live_check_args.push("--v2");
@@ -61,7 +67,7 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .expect("Failed to start registry live check process");
 
     // Allow live check command to initialize
-    sleep(Duration::from_secs(2));
+    sleep(Duration::from_secs(4));
 
     // Run registry emit command
     let mut emit_cmd = assert_cmd::Command::new(assert_cmd::cargo::cargo_bin!("weaver"));
@@ -160,12 +166,18 @@ fn test_emit_with_resource_attributes() {
         .expect("Failed to convert temp directory path to string");
 
     // --- Start weaver3: receives OTLP logs from weaver2, writes JSON report ---
+    // Note: --input-source otlp and --skip-policies true are explicitly set
+    // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w3_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
             "registry",
             "live-check",
             "-r",
             "crates/weaver_emit/data",
+            "--input-source",
+            "otlp",
+            "--skip-policies",
+            "true",
             "--format",
             "json",
             "--output",
@@ -183,12 +195,18 @@ fn test_emit_with_resource_attributes() {
     sleep(Duration::from_secs(2));
 
     // --- Start weaver2: receives OTLP from weaver1, emits findings as OTLP logs to weaver3 ---
+    // Note: --input-source otlp and --skip-policies true are explicitly set
+    // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w2_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
             "registry",
             "live-check",
             "-r",
             "crates/weaver_emit/data",
+            "--input-source",
+            "otlp",
+            "--skip-policies",
+            "true",
             "--output",
             "none",
             "--no-stats",

@@ -266,7 +266,10 @@ mod tests {
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
-        attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
+        attribute::{
+            AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
+            RequirementLevel,
+        },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
     };
@@ -313,6 +316,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -336,6 +340,7 @@ mod tests {
                     metric_name: Some("test.updowncounter".to_owned()),
                     instrument: Some(InstrumentSpec::UpDownCounter),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -358,6 +363,7 @@ mod tests {
                     metric_name: Some("test.counter".to_owned()),
                     instrument: Some(InstrumentSpec::Counter),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -380,6 +386,7 @@ mod tests {
                     metric_name: Some("test.gauge".to_owned()),
                     instrument: Some(InstrumentSpec::Gauge),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -402,6 +409,7 @@ mod tests {
                     metric_name: Some("test.histogram".to_owned()),
                     instrument: Some(InstrumentSpec::Histogram),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -425,6 +433,7 @@ mod tests {
                     instrument: Some(InstrumentSpec::UpDownCounter),
                     unit: Some("1".to_owned()),
                     name: None,
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     lineage: None,
                     display_name: None,
                     body: None,
@@ -446,6 +455,7 @@ mod tests {
                     metric_name: Some("test.counter.double".to_owned()),
                     instrument: Some(InstrumentSpec::Counter),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -468,6 +478,7 @@ mod tests {
                     metric_name: Some("test.gauge.double".to_owned()),
                     instrument: Some(InstrumentSpec::Gauge),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -490,6 +501,7 @@ mod tests {
                     metric_name: Some("test.histogram.double".to_owned()),
                     instrument: Some(InstrumentSpec::Histogram),
                     unit: Some("1".to_owned()),
+                    metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -532,6 +544,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    metric_requirement_level: None,
                     name: Some("session.start".to_owned()),
                     lineage: None,
                     display_name: Some("Session Start Event".to_owned()),
@@ -617,6 +630,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
@@ -631,12 +645,14 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 metrics: vec![
                     Metric {
                         name: SignalId::from("test.updowncounter".to_owned()),
                         instrument: InstrumentSpec::UpDownCounter,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::Required),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -646,11 +662,13 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                     Metric {
                         name: SignalId::from("test.counter".to_owned()),
                         instrument: InstrumentSpec::Counter,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::Recommended),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -660,11 +678,13 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                     Metric {
                         name: SignalId::from("test.gauge".to_owned()),
                         instrument: InstrumentSpec::Gauge,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::OptIn),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -674,11 +694,13 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                     Metric {
                         name: SignalId::from("test.histogram".to_owned()),
                         instrument: InstrumentSpec::Histogram,
                         unit: "1".to_owned(),
+                        requirement_level: Some(BasicRequirementLevelSpec::Required),
                         attributes: vec![],
                         entity_associations: vec![],
                         common: CommonFields {
@@ -688,6 +710,7 @@ mod tests {
                             deprecated: None,
                             annotations: BTreeMap::new(),
                         },
+                        provenance: Default::default(),
                     },
                 ],
                 events: vec![Event {
@@ -708,6 +731,7 @@ mod tests {
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
                             },
+                            provenance: Default::default(),
                         },
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
@@ -721,6 +745,7 @@ mod tests {
                         deprecated: None,
                         annotations: BTreeMap::new(),
                     },
+                    provenance: Default::default(),
                 }],
                 entities: vec![],
             },

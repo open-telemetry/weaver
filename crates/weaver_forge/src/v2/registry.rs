@@ -1,5 +1,6 @@
 //! Version two of registry specification.
 
+use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
@@ -84,6 +85,21 @@ impl ForgeResolvedRegistry {
     ) -> Result<Self, Error> {
         let mut errors = Vec::new();
 
+        let deps_list: Vec<_> = schema.dependencies.iter().cloned().collect();
+        let resolve_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| {
+            let source = prov
+                .source
+                .and_then(|r| deps_list.get(r.0 as usize).cloned());
+            Provenance {
+                source,
+                path: if prov.path.is_empty() {
+                    None
+                } else {
+                    Some(prov.path.clone())
+                },
+            }
+        };
+
         let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
             schema.attribute_catalog.attribute(r)
         };
@@ -98,6 +114,7 @@ impl ForgeResolvedRegistry {
                 r#type: a.r#type.clone(),
                 examples: a.examples.clone(),
                 common: a.common.clone(),
+                provenance: resolve_provenance(&a.provenance),
             })
             .collect();
 
@@ -113,6 +130,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -131,7 +149,9 @@ impl ForgeResolvedRegistry {
                 unit: metric.unit,
                 attributes,
                 entity_associations: metric.entity_associations,
+                requirement_level: metric.requirement_level,
                 common: metric.common,
+                provenance: resolve_provenance(&metric.provenance),
             });
         }
         metrics.sort_by(|l, r| l.name.cmp(&r.name));
@@ -149,6 +169,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -169,7 +190,9 @@ impl ForgeResolvedRegistry {
                     unit: metric.metric.unit,
                     attributes,
                     entity_associations: metric.metric.entity_associations,
+                    requirement_level: metric.metric.requirement_level,
                     common: metric.metric.common,
+                    provenance: resolve_provenance(&metric.metric.provenance),
                 },
             });
         }
@@ -187,6 +210,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                         sampling_relevant: ar.sampling_relevant,
@@ -207,6 +231,7 @@ impl ForgeResolvedRegistry {
                 attributes,
                 entity_associations: span.entity_associations,
                 common: span.common,
+                provenance: resolve_provenance(&span.provenance),
             });
         }
         spans.sort_by(|l, r| l.r#type.cmp(&r.r#type));
@@ -223,6 +248,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                         sampling_relevant: ar.sampling_relevant,
@@ -245,6 +271,7 @@ impl ForgeResolvedRegistry {
                     attributes,
                     entity_associations: span.span.entity_associations,
                     common: span.span.common,
+                    provenance: resolve_provenance(&span.span.provenance),
                 },
             });
         }
@@ -262,6 +289,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -279,6 +307,7 @@ impl ForgeResolvedRegistry {
                 attributes,
                 entity_associations: event.entity_associations,
                 common: event.common,
+                provenance: resolve_provenance(&event.provenance),
             });
         }
         events.sort_by(|l, r| l.name.cmp(&r.name));
@@ -297,6 +326,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -316,6 +346,7 @@ impl ForgeResolvedRegistry {
                     attributes,
                     entity_associations: event.event.entity_associations,
                     common: event.event.common,
+                    provenance: resolve_provenance(&event.event.provenance),
                 },
             });
         }
@@ -333,6 +364,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -356,6 +388,7 @@ impl ForgeResolvedRegistry {
                             r#type: a.r#type.clone(),
                             examples: a.examples.clone(),
                             common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
                         },
                         requirement_level: ar.requirement_level.clone(),
                     });
@@ -373,6 +406,7 @@ impl ForgeResolvedRegistry {
                 identity,
                 description,
                 common: e.common,
+                provenance: resolve_provenance(&e.provenance),
             });
         }
         entities.sort_by(|l, r| l.r#type.cmp(&r.r#type));
@@ -388,6 +422,7 @@ impl ForgeResolvedRegistry {
                         r#type: a.r#type.clone(),
                         examples: a.examples.clone(),
                         common: a.common.clone(),
+                        provenance: resolve_provenance(&a.provenance),
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
@@ -402,6 +437,7 @@ impl ForgeResolvedRegistry {
                 id: ag.id,
                 attributes,
                 common: ag.common.clone(),
+                provenance: resolve_provenance(&ag.provenance),
             });
         }
 
@@ -454,9 +490,16 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields::default(),
-                provenance: Default::default(),
+                provenance: v2::provenance::Provenance {
+                    source: Some(v2::provenance::DependencyRef(0)),
+                    path: "some/path".to_owned(),
+                },
             }],
-            dependencies: std::collections::BTreeSet::new(),
+            dependencies: {
+                let mut deps = std::collections::BTreeSet::new();
+                let _ = deps.insert("https://example.com/dependency".try_into().unwrap());
+                deps
+            },
             registry: v2::registry::Registry {
                 attributes: vec![attribute::AttributeRef(0)],
                 spans: vec![span::Span {
@@ -487,6 +530,9 @@ mod tests {
                         ),
                     }],
                     entity_associations: vec![],
+                    requirement_level: Some(
+                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                    ),
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
@@ -550,6 +596,7 @@ mod tests {
                             ),
                         }],
                         entity_associations: vec![],
+                        requirement_level: None,
                         common: CommonFields::default(),
                         provenance: Default::default(),
                     },
@@ -583,6 +630,13 @@ mod tests {
         assert_eq!(forge_registry.refinements.spans.len(), 1);
         assert_eq!(forge_registry.refinements.metrics.len(), 1);
         assert_eq!(forge_registry.refinements.events.len(), 1);
+
+        let attr = &forge_registry.registry.attributes[0];
+        assert_eq!(
+            attr.provenance.source,
+            Some("https://example.com/dependency".try_into().unwrap())
+        );
+        assert_eq!(attr.provenance.path, Some("some/path".to_owned()));
 
         let span = &forge_registry.registry.spans[0];
         assert_eq!(span.r#type, "my-span".to_owned().into());

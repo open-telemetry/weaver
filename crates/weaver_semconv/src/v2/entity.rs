@@ -91,6 +91,7 @@ impl Entity {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: Some(self.r#type.into_v1()),
             display_name: None,
             body: None,
@@ -102,6 +103,7 @@ impl Entity {
             entity_associations: Default::default(),
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }
@@ -132,6 +134,7 @@ impl EntityRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: Some(self.id.into_v1()),
             display_name: None,
             body: None,
@@ -143,6 +146,7 @@ impl EntityRefinement {
             entity_associations: Default::default(),
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }

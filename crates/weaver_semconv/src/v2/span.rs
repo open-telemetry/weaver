@@ -144,6 +144,7 @@ impl Span {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: Some(format!("{}", &self.r#type)),
             display_name: None,
             body: None,
@@ -155,6 +156,7 @@ impl Span {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: Some(self.name.note),
         }
     }
 }
@@ -180,6 +182,7 @@ impl SpanRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: Some(format!("{}", &self.id)),
             display_name: None,
             body: None,
@@ -191,6 +194,7 @@ impl SpanRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }
@@ -275,6 +279,7 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
+span_name_note: "{some} {name}"
 "#,
         );
     }

@@ -46,7 +46,7 @@ pub(crate) const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0";
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
     pub file_format: String,
@@ -136,11 +136,15 @@ impl ResolvedTelemetrySchema {
             metric_name: Some(metric_name.to_owned()),
             instrument: Some(weaver_semconv::group::InstrumentSpec::Gauge),
             unit: Some("{things}".to_owned()),
+            metric_requirement_level: Some(
+                weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+            ),
             body: None,
             annotations: None,
             entity_associations: vec![],
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         });
     }
 
@@ -185,11 +189,13 @@ impl ResolvedTelemetrySchema {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             body: None,
             annotations: None,
             entity_associations: vec![],
             visibility: None,
             is_v2: false,
+            span_name_note: None,
         });
     }
 
@@ -530,7 +536,9 @@ impl ResolvedTelemetrySchema {
 mod tests {
     use crate::attribute::Attribute;
     use crate::ResolvedTelemetrySchema;
+    use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::group::GroupType;
     use weaver_version::schema_changes::{SchemaItemChange, SchemaItemType};
 
     #[test]
@@ -842,5 +850,47 @@ mod tests {
             panic!("No added change found in: {mcs:?}");
         };
         assert_eq!(name, "system.cpu.time");
+    }
+
+    #[test]
+    fn metric_requirement_level_stored_on_resolved_group() {
+        use crate::registry::Group;
+        use weaver_semconv::group::InstrumentSpec;
+
+        let mut schema = ResolvedTelemetrySchema::new("1.0", "", "");
+        schema.registry.groups.push(Group {
+            id: "metrics.test".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            name: Some("metrics.test".to_owned()),
+            lineage: None,
+            display_name: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("test.metric".to_owned()),
+            instrument: Some(InstrumentSpec::Counter),
+            unit: Some("{request}".to_owned()),
+            metric_requirement_level: Some(BasicRequirementLevelSpec::Required),
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name_note: None,
+        });
+
+        let groups = schema.groups(GroupType::Metric);
+        assert_eq!(groups.len(), 1);
+        let group = groups.get("metrics.test").unwrap();
+        assert_eq!(
+            group.metric_requirement_level,
+            Some(BasicRequirementLevelSpec::Required)
+        );
     }
 }

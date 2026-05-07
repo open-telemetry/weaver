@@ -94,7 +94,8 @@
       },
       "entity_associations": [
         "imported.entity.a"
-      ]
+      ],
+      "span_name_note": "how to make the name"
     }
   ]
 }

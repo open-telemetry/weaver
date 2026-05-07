@@ -960,6 +960,7 @@ mod tests {
                     attributes: vec![],
                     entity_associations: vec![],
                     common: CommonFields::default(),
+                    provenance: Default::default(),
                 }],
                 events: vec![],
                 entities: vec![],

@@ -140,7 +140,7 @@ function SpanDetail() {
                         return (
                           <tr key={index}>
                             <td>
-                              <Link to="/attribute/$key" params={{ key: attr.key }} className="link link-primary font-mono text-sm">
+                              <Link to="/attribute/$" params={{ _splat: attr.key }} className="link link-primary font-mono text-sm">
                                 {attr.key}
                               </Link>
                             </td>

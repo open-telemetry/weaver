@@ -1,5 +1,6 @@
 //! Version two of attribute groups.
 
+use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::v2::{signal_id::SignalId, CommonFields};
@@ -17,4 +18,8 @@ pub struct AttributeGroup {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+    /// The provenance of the attribute group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }

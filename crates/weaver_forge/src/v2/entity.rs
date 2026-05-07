@@ -1,5 +1,6 @@
 //! Event related definitions structs.
 
+use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
@@ -30,6 +31,10 @@ pub struct Entity {
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+    /// The provenance of the entity.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers entity-specific information.

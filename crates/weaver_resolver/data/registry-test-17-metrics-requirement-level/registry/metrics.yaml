@@ -1,0 +1,10 @@
+groups:
+  - id: metric.some_metric
+    stability: development
+    type: metric
+    metric_name: some_metric
+    brief: "Measures something"
+    instrument: histogram
+    unit: "s"
+    metric_requirement_level: required
+    attributes:

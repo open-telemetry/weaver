@@ -94,6 +94,7 @@ impl Event {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: Some(self.name.into_v1()),
             display_name: None,
             body: None,
@@ -105,6 +106,7 @@ impl Event {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }
@@ -130,6 +132,7 @@ impl EventRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
+            metric_requirement_level: None,
             name: Some(self.id.into_v1()),
             display_name: None,
             body: None,
@@ -141,6 +144,7 @@ impl EventRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: None,
         }
     }
 }

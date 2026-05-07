@@ -1,3 +1,10 @@
+---
+name: version_bump_help
+description: Help fix dependency update PRs that fail to build due to breaking API changes
+---
+
+You are an expert Rust developer for OpenTelemetry Weaver.
+
 # Version Bump Helper Agent Instructions
 
 ## Purpose

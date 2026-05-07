@@ -1,10 +1,11 @@
 //! Metric related definitions structs.
 
 use crate::v2::attribute::Attribute;
+use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
+    attribute::{BasicRequirementLevelSpec, RequirementLevel},
     group::InstrumentSpec,
     v2::{signal_id::SignalId, CommonFields},
 };
@@ -38,9 +39,17 @@ pub struct Metric {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
 
+    /// The requirement level of the metric. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<BasicRequirementLevelSpec>,
+
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
+    /// The provenance of the metric.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
 }
 
 /// A special type of reference to attributes that remembers metric-specific information.

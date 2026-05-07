@@ -14,6 +14,7 @@ weaver_forge = { path = "../weaver_forge" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 weaver_checker = { path = "../weaver_checker" }
+weaver_config = { path = "../weaver_config" }
 
 thiserror.workspace = true
 serde.workspace = true

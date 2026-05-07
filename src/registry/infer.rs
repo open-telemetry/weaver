@@ -19,36 +19,47 @@ use super::otlp::conversion::{
 };
 use super::otlp::grpc_stubs::proto::resource::v1::Resource;
 use super::otlp::{listen_otlp_requests, OtlpRequest};
+use crate::registry::load_config;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
+use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
 
-/// Parameters for the `registry infer` sub-command
-#[derive(Debug, Args)]
+/// Infer a semantic convention registry by observing live OTLP telemetry.
+#[weaver_command(section = "infer", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryInferArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
     /// Output folder for generated YAML files.
-    #[arg(short, long, default_value = "./inferred-registry/")]
-    output: PathBuf,
+    #[arg(short, long)]
+    #[config(default = "./inferred-registry/")]
+    output: Option<PathBuf>,
 
     /// Address used by the gRPC OTLP listener.
-    #[arg(long, default_value = "0.0.0.0")]
-    grpc_address: String,
+    #[arg(long)]
+    #[config(default = "0.0.0.0")]
+    grpc_address: Option<String>,
 
     /// Port used by the gRPC OTLP listener.
-    #[arg(long, default_value = "4317")]
-    grpc_port: u16,
+    #[arg(long)]
+    #[config(default = "4317")]
+    grpc_port: Option<u16>,
 
     /// Port used by the HTTP admin server (endpoints: /stop).
-    #[arg(long, default_value = "8080")]
-    admin_port: u16,
+    #[arg(long)]
+    #[config(default = "8080")]
+    admin_port: Option<u16>,
 
     /// Seconds of inactivity before auto-stop (0 = never).
-    #[arg(long, default_value = "60")]
-    inactivity_timeout: u64,
+    #[arg(long)]
+    #[config(default = "60")]
+    inactivity_timeout: Option<u64>,
 }
 
 /// Accumulates resource attributes from an OTLP Resource into the accumulator.
@@ -148,32 +159,38 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
 }
 
 /// Infer a semantic convention registry from OTLP telemetry.
-pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryInferArgs,
+    cfg: Option<&WeaverConfig>,
+    _auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
+    let config = cmd_config.config;
     log::warn!(
         "The `registry infer` command is experimental and not yet stable. \
         The generated schema format, command options, and output may change in future versions."
     );
 
+    let output = config.output;
+    let grpc_address = config.grpc_address;
+    let grpc_port = config.grpc_port;
+    let admin_port = config.admin_port;
+    let inactivity_timeout = config.inactivity_timeout;
+
     info!("Weaver Registry Infer");
-    info!(
-        "Starting OTLP gRPC server on {}:{}",
-        args.grpc_address, args.grpc_port
-    );
+    info!("Starting OTLP gRPC server on {grpc_address}:{grpc_port}");
 
     // Start the OTLP gRPC server and get an iterator of requests
     let (requests, _report_sender) = listen_otlp_requests(
-        &args.grpc_address,
-        args.grpc_port,
-        args.admin_port,
-        Duration::from_secs(args.inactivity_timeout),
+        &grpc_address,
+        grpc_port,
+        admin_port,
+        Duration::from_secs(inactivity_timeout),
     )
     .map_err(DiagnosticMessages::from)?;
 
     info!("OTLP gRPC server started. Waiting for telemetry...");
-    info!(
-        "To stop: press CTRL+C, send SIGHUP, or POST to http://localhost:{}/stop",
-        args.admin_port
-    );
+    info!("To stop: press CTRL+C, send SIGHUP, or POST to http://localhost:{admin_port}/stop");
 
     // Accumulate samples
     let mut accumulator = AccumulatedSamples::new();
@@ -194,7 +211,7 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
         info!("No telemetry data received. No YAML file generated.");
     } else {
         // Create output directory
-        fs::create_dir_all(&args.output).map_err(|e| {
+        fs::create_dir_all(&output).map_err(|e| {
             DiagnosticMessages::from(super::otlp::Error::OtlpError {
                 error: format!("Failed to create output directory: {}", e),
             })
@@ -209,7 +226,7 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
         })?;
 
         // Write to file
-        let output_path = args.output.join("registry.yaml");
+        let output_path = output.join("registry.yaml");
         fs::write(&output_path, yaml).map_err(|e| {
             DiagnosticMessages::from(super::otlp::Error::OtlpError {
                 error: format!("Failed to write file: {}", e),
@@ -225,4 +242,15 @@ pub(crate) fn command(args: &RegistryInferArgs) -> Result<ExitDirectives, Diagno
         exit_code: 0,
         warnings: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RegistryInferArgs;
+
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryInferArgs>();
+    }
 }

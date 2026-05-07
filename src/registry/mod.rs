@@ -23,7 +23,10 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_config::{CliOverrides, CommandConfig, EffectivePolicyConfig, EffectiveRegistryConfig};
 
 mod check;
 mod diff;
@@ -66,6 +69,10 @@ pub enum Error {
     /// Failed to write an output file during packaging
     #[error("Failed to write output file `{path}`: {error}")]
     OutputWrite { path: PathBuf, error: String },
+
+    /// Configuration error (loading or parsing `.weaver.toml`)
+    #[error("{error}")]
+    Config { error: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -164,95 +171,378 @@ pub enum RegistrySubCommand {
 }
 
 /// Set of parameters used to specify a semantic convention registry.
-#[derive(Args, Debug)]
+///
+/// All fields are `Option` so we can distinguish "user set this on the CLI"
+/// from "use the default".
+#[derive(Args, Debug, Clone, Default)]
 pub struct RegistryArgs {
     /// Local folder, Git repo URL, or Git archive URL of the semantic
     /// convention registry. For Git URLs, a reference can be specified
     /// using the `@refspec` syntax and a sub-folder can be specified
     /// using the `[sub-folder]` syntax after the URL.
-    #[arg(
-        short = 'r',
-        long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
-    )]
-    pub registry: VirtualDirectoryPath,
+    /// [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
+    #[arg(short = 'r', long)]
+    pub registry: Option<VirtualDirectoryPath>,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
-    /// Default is false.
-    #[arg(short = 's', long)]
-    pub(crate) follow_symlinks: bool,
+    /// [default: false]
+    #[arg(short = 's', long, num_args = 0..=1, default_missing_value = "true")]
+    pub(crate) follow_symlinks: Option<bool>,
 
     /// Boolean flag to include signals and attributes defined in dependency registries,
     /// even if they are not explicitly referenced in the current (custom) registry.
-    #[arg(long)]
-    pub(crate) include_unreferenced: bool,
+    /// [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub(crate) include_unreferenced: Option<bool>,
 
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
-    #[arg(long, default_value = "false")]
-    pub v2: bool,
+    /// [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub v2: Option<bool>,
+}
+
+impl RegistryArgs {
+    /// Field names to list in `excluded_args()` for any command that
+    /// flattens `RegistryArgs`.
+    pub const EXCLUDED_ARGS: &[&str] =
+        &["registry", "follow_symlinks", "include_unreferenced", "v2"];
+
+    /// Apply CLI overrides (layer 3) onto an effective registry config.
+    pub fn apply_to(&self, effective: &mut EffectiveRegistryConfig) {
+        if let Some(r) = &self.registry {
+            effective.registry = r.clone();
+        }
+        if let Some(v) = self.follow_symlinks {
+            effective.follow_symlinks = v;
+        }
+        if let Some(v) = self.include_unreferenced {
+            effective.include_unreferenced = v;
+        }
+        if let Some(v) = self.v2 {
+            effective.v2 = v;
+        }
+    }
 }
 
 /// Set of common parameters used for policy checks.
-#[derive(Args, Debug)]
+///
+/// All fields are `Option` so we can distinguish "user set this on the CLI"
+/// from "use the default".
+#[derive(Args, Debug, Clone, Default)]
 pub struct PolicyArgs {
     /// Optional list of policy files or directories to check against the files of the semantic
     /// convention registry.  If a directory is provided all `.rego` files in the directory will be
     /// loaded.
     #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<VirtualDirectoryPath>,
+    pub policies: Option<Vec<VirtualDirectoryPath>>,
 
-    /// Skip the policy checks.
-    #[arg(long, default_value = "false")]
-    pub skip_policies: bool,
+    /// Skip the policy checks. [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub skip_policies: Option<bool>,
 
-    /// Display the policy coverage report (useful for debugging).
-    #[arg(long, default_value = "false")]
-    pub display_policy_coverage: bool,
+    /// Display the policy coverage report (useful for debugging). [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub display_policy_coverage: Option<bool>,
+}
+
+impl PolicyArgs {
+    /// Field names to list in `excluded_args()` for any command that
+    /// flattens `PolicyArgs`.
+    pub const EXCLUDED_ARGS: &[&str] = &["policy", "skip_policies", "display_policy_coverage"];
+
+    /// Apply CLI overrides (layer 3) onto an effective policy config.
+    pub fn apply_to(&self, effective: &mut EffectivePolicyConfig) {
+        if let Some(policies) = &self.policies {
+            effective.policies = policies.clone();
+        }
+        if let Some(v) = self.skip_policies {
+            effective.skip_policies = v;
+        }
+        if let Some(v) = self.display_policy_coverage {
+            effective.display_policy_coverage = v;
+        }
+    }
+}
+
+/// Compile `[[auth]]` entries from an already-loaded [`weaver_config::WeaverConfig`]
+/// into an [`HttpAuthResolver`].
+#[must_use]
+pub fn auth_resolver_from_config(config: Option<&weaver_config::WeaverConfig>) -> HttpAuthResolver {
+    match config {
+        Some(c) => weaver_config::build_auth_resolver(&c.auth),
+        None => HttpAuthResolver::empty(),
+    }
+}
+
+/// Resolve `.weaver.toml` for the invocation: use `--config` if the user set
+/// one, otherwise walk up from the current working directory.
+///
+/// Returns `Ok(None)` when no config is found (neither flag nor discovery
+/// produced a path) — missing is not an error. `Err(...)` only on I/O or
+/// parse failure.
+pub fn resolve_weaver_config(
+    explicit_path: Option<&std::path::Path>,
+) -> Result<Option<weaver_config::WeaverConfig>, DiagnosticMessages> {
+    if let Some(path) = explicit_path {
+        let wc = weaver_config::load(path).map_err(|e| {
+            DiagnosticMessages::from(Error::Config {
+                error: e.to_string(),
+            })
+        })?;
+        log_warn(format!("Experimental! - Found config: {}", path.display()));
+        return Ok(Some(wc));
+    }
+    let cwd = std::env::current_dir().map_err(|e| {
+        DiagnosticMessages::from(Error::Config {
+            error: format!("Failed to get current directory: {e}"),
+        })
+    })?;
+    match weaver_config::discover_and_load(&cwd).map_err(|e| {
+        DiagnosticMessages::from(Error::Config {
+            error: e.to_string(),
+        })
+    })? {
+        Some((path, wc)) => {
+            log_warn(format!("Experimental! - Found config: {}", path.display()));
+            Ok(Some(wc))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Layer all configuration for a command: defaults → `.weaver.toml` → CLI overrides.
+///
+/// Returns a [`CommandConfig`] with command-specific config plus effective registry,
+/// policy, and diagnostic settings. The `.weaver.toml` has already been loaded by
+/// the dispatcher (via the global `--config` flag or discovery), so this is infallible.
+pub fn load_config<A: CliOverrides>(
+    args: &A,
+    weaver_config: Option<&weaver_config::WeaverConfig>,
+) -> CommandConfig<A::Config> {
+    // Command-specific config section
+    let mut config = match weaver_config {
+        Some(wc) => A::extract_config(wc),
+        None => A::Config::default(),
+    };
+    args.apply_overrides(&mut config);
+
+    // Registry: default → config → CLI
+    let mut registry = EffectiveRegistryConfig::default();
+    if let Some(wc) = weaver_config {
+        registry.layer_config(&wc.registry);
+    }
+    args.apply_registry_overrides(&mut registry);
+
+    // Policy: default → config → CLI (skip if command doesn't use policy)
+    let policy = if A::uses_policy() {
+        let mut p = EffectivePolicyConfig::default();
+        if let Some(wc) = weaver_config {
+            p.layer_config(&wc.policy);
+        }
+        args.apply_policy_overrides(&mut p);
+        p
+    } else {
+        EffectivePolicyConfig::skip_all()
+    };
+
+    CommandConfig {
+        config,
+        registry,
+        policy,
+    }
 }
 
 /// Manage a semantic convention registry and return the exit code.
-pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
+///
+/// The dispatcher in `main.rs` loads `.weaver.toml` (via the global
+/// `--config` flag or cwd discovery) and the [`HttpAuthResolver`]; both are
+/// threaded into every subcommand here.
+pub fn semconv_registry(
+    command: &RegistryCommand,
+    cfg: Option<&weaver_config::WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> CmdResult {
     match &command.command {
-        RegistrySubCommand::Check(args) => {
-            CmdResult::new(check::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Generate(args) => {
-            CmdResult::new(generate::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Stats(args) => {
-            CmdResult::new(stats::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Resolve(args) => {
-            CmdResult::new(resolve::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Search(args) => {
-            CmdResult::new(search::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
-            update_markdown::command(args),
-            Some(args.diagnostic.clone()),
+        RegistrySubCommand::Check(args) => CmdResult::new(
+            check::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
         ),
-        RegistrySubCommand::JsonSchema(args) => {
-            CmdResult::new(json_schema::command(args), Some(args.diagnostic.clone()))
+        RegistrySubCommand::Generate(args) => CmdResult::new(
+            generate::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Stats(args) => CmdResult::new(
+            stats::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Resolve(args) => CmdResult::new(
+            resolve::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Search(args) => CmdResult::new(
+            search::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
+            update_markdown::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::JsonSchema(args) => CmdResult::new(
+            json_schema::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Diff(args) => CmdResult::new(
+            diff::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::LiveCheck(args) => CmdResult::new(
+            live_check::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Emit(args) => CmdResult::new(
+            emit::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Mcp(args) => CmdResult::new(
+            mcp::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Infer(args) => CmdResult::new(
+            infer::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+        RegistrySubCommand::Package(args) => CmdResult::new(
+            package::command(args, cfg, auth),
+            args.diagnostic.to_effective(cfg),
+        ),
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use crate::cli::Cli;
+    use clap::CommandFactory;
+    use schemars::schema_for;
+    use std::collections::BTreeSet;
+    use weaver_config::CliOverrides;
+
+    /// Collect all leaf property names from a JSON schema value, flattening
+    /// nested objects. For nested objects like `otlp.grpc_port`, produces
+    /// `otlp_grpc_port`. Resolves `$ref` pointers against the root schema.
+    fn schema_field_names(
+        value: &serde_json::Value,
+        root: &serde_json::Value,
+        prefix: &str,
+        out: &mut BTreeSet<String>,
+    ) {
+        let Some(obj) = value.as_object() else {
+            return;
+        };
+        let Some(properties) = obj.get("properties").and_then(|v| v.as_object()) else {
+            return;
+        };
+        for (name, sub_schema) in properties {
+            let full_name = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}_{name}")
+            };
+            // Resolve $ref if present (e.g. "#/$defs/LiveCheckOtlpConfig")
+            let resolved = sub_schema
+                .as_object()
+                .and_then(|o| o.get("$ref"))
+                .and_then(|r| r.as_str())
+                .and_then(|ref_path| {
+                    let path = ref_path.strip_prefix("#/")?;
+                    let mut current = root;
+                    for segment in path.split('/') {
+                        current = current.get(segment)?;
+                    }
+                    Some(current)
+                })
+                .unwrap_or(sub_schema);
+
+            let is_nested = resolved
+                .as_object()
+                .and_then(|o| o.get("properties"))
+                .is_some();
+            if is_nested {
+                schema_field_names(resolved, root, &full_name, out);
+            } else {
+                let _ = out.insert(full_name);
+            }
         }
-        RegistrySubCommand::Diff(args) => {
-            CmdResult::new(diff::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::LiveCheck(args) => {
-            CmdResult::new(live_check::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Emit(args) => {
-            CmdResult::new(emit::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Mcp(args) => {
-            CmdResult::new(mcp::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Infer(args) => {
-            CmdResult::new(infer::command(args), Some(args.diagnostic.clone()))
-        }
-        RegistrySubCommand::Package(args) => {
-            CmdResult::new(package::command(args), Some(args.diagnostic.clone()))
-        }
+    }
+
+    /// Assert that every config field has a corresponding CLI arg and vice versa
+    /// for a given `CliOverrides` implementor.
+    ///
+    /// Uses schemars `JsonSchema` to discover config fields and clap `CommandFactory`
+    /// to discover CLI args. The mapping metadata comes from the `CliOverrides` trait
+    /// methods: `config_only_fields()`, `excluded_args()`, and `field_mappings()`.
+    ///
+    /// This is fully automatic — adding a config field or CLI arg without the
+    /// corresponding counterpart causes a test failure with no manual test upkeep.
+    pub(crate) fn assert_config_cli_consistency<A: CliOverrides>() {
+        let config_only: BTreeSet<&str> = A::config_only_fields().iter().copied().collect();
+        let excluded: BTreeSet<&str> = A::excluded_args().iter().copied().collect();
+        let name_mappings = A::field_mappings();
+
+        // Extract config field names from the JSON schema
+        let schema = schema_for!(A::Config);
+        let root = schema.as_value();
+        let mut config_fields = BTreeSet::new();
+        schema_field_names(root, root, "", &mut config_fields);
+
+        // Extract CLI arg names from clap introspection
+        let cmd = Cli::command();
+        let registry_cmd = cmd
+            .get_subcommands()
+            .find(|c| c.get_name() == "registry")
+            .expect("registry subcommand");
+        let sub_cmd = registry_cmd
+            .get_subcommands()
+            .find(|c| c.get_name() == A::SUBCOMMAND)
+            .unwrap_or_else(|| panic!("subcommand '{}' not found", A::SUBCOMMAND));
+        let cli_args: BTreeSet<String> = sub_cmd
+            .get_arguments()
+            .filter_map(|arg| arg.get_long())
+            .map(|name| name.replace('-', "_"))
+            .collect();
+
+        // Map config field names to their CLI equivalents
+        let mapped_config: BTreeSet<String> = config_fields
+            .iter()
+            .filter(|f| !config_only.contains(f.as_str()))
+            .map(|f| {
+                name_mappings
+                    .iter()
+                    .find(|m| m.config_name == f.as_str())
+                    .map_or_else(|| f.clone(), |m| m.cli_name.to_owned())
+            })
+            .collect();
+
+        let cli_comparable: BTreeSet<String> = cli_args
+            .iter()
+            .filter(|a| !excluded.contains(a.as_str()))
+            .cloned()
+            .collect();
+
+        let missing_cli: Vec<_> = mapped_config.difference(&cli_comparable).collect();
+        let missing_config: Vec<_> = cli_comparable.difference(&mapped_config).collect();
+
+        assert!(
+            missing_cli.is_empty(),
+            "[{cmd}] Config fields without CLI args: {missing_cli:?}\n\
+             Add a CLI arg, or list in `config_only_fields()`/`field_mappings()`.",
+            cmd = A::SUBCOMMAND,
+        );
+        assert!(
+            missing_config.is_empty(),
+            "[{cmd}] CLI args without config fields: {missing_config:?}\n\
+             Add a config field, or list in `excluded_args()`.",
+            cmd = A::SUBCOMMAND,
+        );
     }
 }
