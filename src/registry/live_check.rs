@@ -14,7 +14,7 @@ use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
-use weaver_config::{override_if_set, CliOverrides, FieldMapping, LiveCheckConfig, WeaverConfig};
+use weaver_config::WeaverConfig;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
@@ -29,10 +29,12 @@ use weaver_live_check::{
     CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
     LiveCheckStatistics, Sample, VersionedRegistry,
 };
+use weaver_macros::weaver_command;
 
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_config::WeaverCommand;
 
 use super::otlp::otlp_ingester::OtlpIngester;
 use super::otlp::AdminReportSender;
@@ -75,178 +77,110 @@ impl From<String> for InputFormat {
     }
 }
 
-/// Parameters for the `registry live-check` sub-command.
-///
-/// Each setting may also be provided in `.weaver.toml`. CLI flags always take
-/// precedence over config values, which take precedence over hardcoded defaults.
-#[derive(Debug, Args)]
+/// Validate live telemetry against a semantic convention registry.
+#[weaver_command(
+    section = "live-check",
+    config_type = "::weaver_config::LiveCheckConfig",
+    extra_config_only = "finding_filters"
+)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
     /// Where to read the input telemetry from. {file path} | stdin | otlp
-    /// (default: otlp)
     #[arg(long)]
+    #[config(default = "otlp")]
     input_source: Option<String>,
 
-    /// The format of the input telemetry. (Not required for OTLP). text | json
-    /// (default: json)
+    /// The format of the input telemetry. text | json (not required for OTLP)
     #[arg(long)]
+    #[config(default = "json")]
     input_format: Option<String>,
 
     /// Format used to render the report.
-    /// Builtin formats: json, yaml, jsonl (uses serde directly).
-    /// Other values are treated as template names (e.g., "ansi" uses ansi templates).
-    /// (default: ansi)
+    /// Builtin formats: json, yaml, jsonl. Other values are template names (e.g. "ansi").
     #[arg(long)]
+    #[config(default = "ansi")]
     format: Option<String>,
 
     /// Path to the directory where the templates are located.
-    /// (default: live_check_templates)
     #[arg(long)]
+    #[config(default = "live_check_templates")]
     templates: Option<PathBuf>,
 
-    /// Disable stream mode. Use this flag to disable streaming output.
-    ///
-    /// When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP),
-    /// by default output the live check results for each entity as they are ingested.
+    /// Disable stream mode (build report before rendering).
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
     no_stream: Option<bool>,
 
-    /// Disable statistics accumulation. This is useful for long-running live check
-    /// sessions. Typically combined with --emit-otlp-logs and --output=none.
+    /// Disable statistics accumulation. Useful for long-running sessions.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
     no_stats: Option<bool>,
 
-    /// Path to the directory where the generated artifacts will be saved.
-    /// If not specified, the report is printed to stdout.
-    /// Use "none" to disable all template output rendering (useful when emitting OTLP logs).
-    /// Use "http" to send the report as the response to the /stop request on the admin port.
+    /// Path to save generated artifacts. Use "none" to suppress output,
+    /// "http" to send as the /stop response.
     #[arg(short, long)]
+    #[config]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener. (default: 0.0.0.0)
+    /// Address used by the gRPC OTLP listener.
     #[clap(long)]
+    #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
 
-    /// Port used by the gRPC OTLP listener. (default: 4317)
+    /// Port used by the gRPC OTLP listener.
     #[clap(long)]
+    #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
 
-    /// Enable OTLP log emission for live check policy findings
+    /// Enable OTLP log emission for live check policy findings.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(path = "emit.otlp_logs")]
     emit_otlp_logs: Option<bool>,
 
-    /// OTLP endpoint for log emission (default: http://localhost:4317)
+    /// OTLP endpoint for log emission.
     #[arg(long)]
+    #[config(path = "emit.otlp_logs_endpoint")]
     otlp_logs_endpoint: Option<String>,
 
-    /// Use stdout for OTLP log emission (debug mode)
+    /// Use stdout for OTLP log emission (debug mode).
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(path = "emit.otlp_logs_stdout")]
     otlp_logs_stdout: Option<bool>,
 
-    /// Port used by the HTTP admin port (endpoints: /stop). (default: 4320)
+    /// Port used by the HTTP admin port (endpoints: /stop).
     #[clap(long)]
+    #[config(path = "otlp.admin_port")]
     admin_port: Option<u16>,
 
-    /// Max inactivity time in seconds before stopping the listener. (default: 10)
+    /// Max inactivity time in seconds before stopping the listener.
     #[clap(long)]
+    #[config(path = "otlp.inactivity_timeout")]
     inactivity_timeout: Option<u64>,
 
     /// Advice policies directory. Set this to override the default policies.
     #[arg(long)]
+    #[config]
     advice_policies: Option<PathBuf>,
 
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
-    ///
-    /// Rego policies are run for each sample as it arrives in a stream. The preprocessor
-    /// can be used to create a new data structure that is more efficient for the rego policies
-    /// versus processing the data for every sample.
     #[arg(long)]
+    #[config]
     advice_preprocessor: Option<PathBuf>,
-}
-
-impl CliOverrides for RegistryLiveCheckArgs {
-    type Config = LiveCheckConfig;
-    const SUBCOMMAND: &'static str = "live-check";
-
-    fn extract_config(weaver_config: &WeaverConfig) -> LiveCheckConfig {
-        weaver_config.live_check.clone()
-    }
-
-    fn config_only_fields() -> &'static [&'static str] {
-        &[
-            "finding_filters", // array of filter rules, too complex for CLI flags
-        ]
-    }
-
-    fn cli_only_args() -> &'static [&'static str] {
-        &[
-            "registry",                // RegistryArgs (invocation-specific)
-            "follow_symlinks",         // RegistryArgs
-            "include_unreferenced",    // RegistryArgs
-            "v2",                      // RegistryArgs
-            "policy",                  // PolicyArgs
-            "skip_policies",           // PolicyArgs
-            "display_policy_coverage", // PolicyArgs
-            "diagnostic_format",       // DiagnosticArgs
-            "diagnostic_template",     // DiagnosticArgs
-            "diagnostic_stdout",       // DiagnosticArgs
-        ]
-    }
-
-    fn field_mappings() -> &'static [FieldMapping] {
-        &[
-            FieldMapping {
-                config_name: "otlp_admin_port",
-                cli_name: "admin_port",
-            },
-            FieldMapping {
-                config_name: "otlp_inactivity_timeout",
-                cli_name: "inactivity_timeout",
-            },
-            FieldMapping {
-                config_name: "emit_otlp_logs_endpoint",
-                cli_name: "otlp_logs_endpoint",
-            },
-            FieldMapping {
-                config_name: "emit_otlp_logs_stdout",
-                cli_name: "otlp_logs_stdout",
-            },
-        ]
-    }
-
-    fn apply_overrides(&self, config: &mut LiveCheckConfig) {
-        override_if_set!(config.input_source, self.input_source);
-        override_if_set!(config.input_format, self.input_format);
-        override_if_set!(config.format, self.format);
-        override_if_set!(config.templates, self.templates);
-        override_if_set!(config.no_stream, self.no_stream);
-        override_if_set!(config.no_stats, self.no_stats);
-        override_if_set!(config.output, self.output, optional);
-        override_if_set!(config.advice_policies, self.advice_policies, optional);
-        override_if_set!(
-            config.advice_preprocessor,
-            self.advice_preprocessor,
-            optional
-        );
-        override_if_set!(config.otlp.grpc_address, self.otlp_grpc_address);
-        override_if_set!(config.otlp.grpc_port, self.otlp_grpc_port);
-        override_if_set!(config.otlp.admin_port, self.admin_port);
-        override_if_set!(config.otlp.inactivity_timeout, self.inactivity_timeout);
-        override_if_set!(config.emit.otlp_logs, self.emit_otlp_logs);
-        override_if_set!(config.emit.otlp_logs_endpoint, self.otlp_logs_endpoint);
-        override_if_set!(config.emit.otlp_logs_stdout, self.otlp_logs_stdout);
-    }
 }
 
 fn default_advisors() -> Vec<Box<dyn Advisor>> {
@@ -290,16 +224,10 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let config = load_config(args, cfg);
-
-    // `args` is borrowed immutably from the dispatch chain, so shared overrides
-    // need owned copies to mutate.
-    let mut registry_args = args.registry.clone();
-    let mut policy_args = args.policy.clone();
-    if let Some(wc) = cfg {
-        super::apply_registry_config(&mut registry_args, &wc.registry);
-        super::apply_policy_config(&mut policy_args, &wc.policy);
-    }
+    let cmd_config = load_config(args, cfg);
+    let config = cmd_config.config;
+    let registry_args = cmd_config.registry;
+    let policy_args = cmd_config.policy;
 
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());

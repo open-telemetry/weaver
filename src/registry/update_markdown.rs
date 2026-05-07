@@ -4,7 +4,7 @@
 //! update the specified sections.
 
 use crate::registry::generate::generate_params_shared;
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -16,10 +16,11 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
-use weaver_config::WeaverConfig as ProjectWeaverConfig;
+use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 use weaver_semconv_gen::{MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -33,23 +34,28 @@ enum UpdateMarkdownError {
     MarkdownUpdateFailed,
 }
 
-/// Parameters for the `registry update-markdown` sub-command
-#[derive(Debug, Args)]
+/// Update Jinja-marker sections inside Markdown files from a resolved registry.
+#[weaver_command(section = "update-markdown", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryUpdateMarkdownArgs {
     /// Path to the directory where the markdown files are located.
-    pub markdown_dir: String,
+    #[config_only]
+    pub markdown_dir: Option<String>,
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
-    #[arg(long, default_value = "false")]
-    pub dry_run: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
+    pub dry_run: Option<bool>,
 
     /// Optional path to the attribute registry.
     /// If provided, all attributes will be linked here.
     #[arg(long)]
+    #[config]
     pub attribute_registry_base_url: Option<String>,
 
     /// Parameters key=value, defined in the command line, to pass to the templates.
@@ -62,27 +68,29 @@ pub struct RegistryUpdateMarkdownArgs {
     pub params: Option<PathBuf>,
 
     /// Path to the directory where the templates are located.
-    /// Default is the `templates` directory.
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
-    #[arg(short = 't', long, default_value = "templates")]
-    pub templates: VirtualDirectoryPath,
+    #[arg(short = 't', long)]
+    #[config(default = "templates")]
+    pub templates: Option<String>,
 
-    /// If provided, the target to generate snippets with.
+    /// The target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(long)]
-    pub target: String,
+    #[config]
+    pub target: Option<String>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 }
 
 /// Update markdown files.
 pub(crate) fn command(
     args: &RegistryUpdateMarkdownArgs,
-    _cfg: Option<&ProjectWeaverConfig>,
+    cfg: Option<&ProjectWeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
@@ -91,29 +99,48 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
 
+    let cmd_config = load_config(args, cfg);
+    let config = cmd_config.config;
+
+    let markdown_dir = config.markdown_dir.ok_or_else(|| {
+        DiagnosticMessages::from(super::Error::Config {
+            error: "markdown_dir is required (set via CLI argument or [update_markdown] config)"
+                .to_owned(),
+        })
+    })?;
+    let dry_run = config.dry_run;
+    let attribute_registry_base_url = config.attribute_registry_base_url;
+    let templates_path = config
+        .templates
+        .parse::<VirtualDirectoryPath>()
+        .map_err(|e| {
+            DiagnosticMessages::from(super::Error::Config {
+                error: format!("invalid templates path: {e}"),
+            })
+        })?;
+    let target = config.target.ok_or_else(|| {
+        DiagnosticMessages::from(super::Error::Config {
+            error: "target is required (set via --target or [update_markdown] config)".to_owned(),
+        })
+    })?;
+
     let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params_shared(&args.param, &args.params)?;
 
-    // Construct a generator if we were given a `--target` argument.
+    // Construct a generator with the resolved target and templates.
     let templates_dir =
-        VirtualDirectory::try_new_with_auth(&args.templates, auth).map_err(|e| {
+        VirtualDirectory::try_new_with_auth(&templates_path, auth).map_err(|e| {
             Error::InvalidVirtualDirectory {
-                path: args.templates.to_string(),
+                path: templates_path.to_string(),
                 error: e.to_string(),
             }
         })?;
     let output = {
-        let loader =
-            FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
+        let loader = FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
-    let policy_config = PolicyArgs {
-        policies: vec![],
-        skip_policies: true,
-        display_policy_coverage: false,
-    };
-    let weaver = WeaverEngine::new(&args.registry, &policy_config, auth);
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
         crate::weaver::Resolved::V2(resolved_v2) => {
@@ -138,13 +165,9 @@ pub(crate) fn command(
     }
 
     log_success("Registry resolved successfully");
-    let operation = if args.dry_run {
-        "Validating"
-    } else {
-        "Updating"
-    };
+    let operation = if dry_run { "Validating" } else { "Updating" };
     let mut has_error = false;
-    for entry in walkdir::WalkDir::new(args.markdown_dir.clone())
+    for entry in walkdir::WalkDir::new(&markdown_dir)
         .into_iter()
         .filter_map(|e| match e {
             Ok(v) if is_markdown(&v) => Some(v),
@@ -154,15 +177,15 @@ pub(crate) fn command(
         log_info(format!("{}: ${}", operation, entry.path().display()));
         if let Err(error) = generator.update_markdown(
             &entry.path().display().to_string(),
-            args.dry_run,
-            args.attribute_registry_base_url.as_deref(),
+            dry_run,
+            attribute_registry_base_url.as_deref(),
         ) {
             has_error = true;
             log_error(error);
         }
     }
     if has_error {
-        let error = if args.dry_run {
+        let error = if dry_run {
             UpdateMarkdownError::MarkdownNotUpToDate
         } else {
             UpdateMarkdownError::MarkdownUpdateFailed
@@ -198,6 +221,12 @@ mod tests {
     use zip::write::FileOptions;
 
     #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryUpdateMarkdownArgs>();
+    }
+
+    #[test]
     fn test_registry_update_markdown() {
         let cli = Cli {
             debug: 0,
@@ -207,22 +236,18 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
-                    markdown_dir: "data/update_markdown/markdown".to_owned(),
+                    markdown_dir: Some("data/update_markdown/markdown".to_owned()),
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "data/update_markdown/registry".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
-                    dry_run: true,
+                    dry_run: Some(true),
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "data/update_markdown/templates".to_owned(),
-                    },
+                    templates: Some("data/update_markdown/templates".to_owned()),
                     diagnostic: Default::default(),
-                    target: "markdown".to_owned(),
+                    target: Some("markdown".to_owned()),
                     param: None,
                     params: None,
                 }),
@@ -248,22 +273,18 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
-                    markdown_dir: markdown_dir.to_owned(),
+                    markdown_dir: Some(markdown_dir.to_owned()),
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: schema_dir.to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
-                    dry_run: true,
+                    dry_run: Some(true),
                     attribute_registry_base_url: None,
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: template_dir.to_owned(),
-                    },
+                    templates: Some(template_dir.to_owned()),
                     diagnostic: Default::default(),
-                    target: "markdown".to_owned(),
+                    target: Some("markdown".to_owned()),
                     param: None,
                     params: None,
                 }),
@@ -323,23 +344,18 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
-                    markdown_dir: markdown_dir.to_str().unwrap().to_owned(),
+                    markdown_dir: Some(markdown_dir.to_str().unwrap().to_owned()),
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: schema_dir.to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
-                    dry_run: false, // Generate files first
+                    dry_run: Some(false), // Generate files first
                     attribute_registry_base_url: None,
-                    templates: VirtualDirectoryPath::LocalArchive {
-                        path: zip_path.to_str().unwrap().to_owned(),
-                        sub_folder: None,
-                    },
+                    templates: Some(zip_path.to_str().unwrap().to_owned()),
                     diagnostic: Default::default(),
-                    target: "markdown".to_owned(),
+                    target: Some("markdown".to_owned()),
                     param: None,
                     params: None,
                 }),
@@ -357,23 +373,18 @@ mod tests {
             config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
-                    markdown_dir: markdown_dir.to_str().unwrap().to_owned(),
+                    markdown_dir: Some(markdown_dir.to_str().unwrap().to_owned()),
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: schema_dir.to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
-                    dry_run: true, // Verify
+                    dry_run: Some(true), // Verify
                     attribute_registry_base_url: None,
-                    templates: VirtualDirectoryPath::LocalArchive {
-                        path: zip_path.to_str().unwrap().to_owned(),
-                        sub_folder: None,
-                    },
+                    templates: Some(zip_path.to_str().unwrap().to_owned()),
                     diagnostic: Default::default(),
-                    target: "markdown".to_owned(),
+                    target: Some("markdown".to_owned()),
                     param: None,
                     params: None,
                 }),

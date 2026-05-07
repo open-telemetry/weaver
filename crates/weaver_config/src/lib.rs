@@ -10,16 +10,25 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 pub mod auth;
+pub mod effective;
 pub mod live_check;
 mod overrides;
 pub mod registry;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
+pub use effective::{
+    EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
+    DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE, DEFAULT_REGISTRY,
+};
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
-pub use overrides::{CliOverrides, FieldMapping};
+pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
 pub use weaver_common::http_auth::TokenSource;
+// Re-export the WeaverCommand derive macro and the weaver_command attribute
+// macro so command files only need `use weaver_config::{WeaverCommand, weaver_command}`.
+pub use weaver_macros::weaver_command;
+pub use weaver_macros::WeaverCommand;
 
 /// The filename to search for during discovery.
 const CONFIG_FILENAME: &str = ".weaver.toml";
@@ -34,11 +43,26 @@ pub struct WeaverConfig {
     pub policy: PolicyConfig,
     /// Shared diagnostic output settings (apply to all subcommands that accept them).
     pub diagnostics: DiagnosticsConfig,
-    /// Live-check specific configuration.
-    pub live_check: LiveCheckConfig,
     /// Per-URL HTTP authentication entries for downloading remote registries.
-    /// See [`auth::AuthEntry`] for the schema.
     pub auth: Vec<AuthEntry>,
+    /// Per-command configuration sections, stored as raw TOML values.
+    /// Each key matches the command section name (e.g. "emit", "generate", "live-check").
+    #[serde(flatten)]
+    #[schemars(skip)]
+    pub(crate) commands: toml::Table,
+}
+
+impl WeaverConfig {
+    /// Deserialize a per-command config section from the raw TOML table.
+    ///
+    /// Returns `C::default()` when the section is absent or fails to deserialize.
+    #[must_use]
+    pub fn command_config<C: serde::de::DeserializeOwned + Default>(&self, section: &str) -> C {
+        let Some(value) = self.commands.get(section) else {
+            return C::default();
+        };
+        value.clone().try_into::<C>().unwrap_or_default()
+    }
 }
 
 /// Discover a `.weaver.toml` file by walking up from the given directory.
@@ -124,7 +148,7 @@ mod tests {
         let nested = dir.path().join("a").join("b").join("c");
         fs::create_dir_all(&nested).expect("Failed to create dirs");
 
-        fs::write(dir.path().join(CONFIG_FILENAME), "[live_check]")
+        fs::write(dir.path().join(CONFIG_FILENAME), r#"["live-check"]"#)
             .expect("Failed to write config");
 
         let found = discover(&nested);
@@ -153,5 +177,24 @@ level = "information"
             .expect("Failed to load config")
             .expect("Config should be found");
         assert_eq!(path, dir.path().join(CONFIG_FILENAME));
+    }
+
+    #[test]
+    fn test_command_config_roundtrip() {
+        let dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_content = r#"
+[emit]
+stdout = true
+endpoint = "http://example.com:4317"
+"#;
+        fs::write(dir.path().join(CONFIG_FILENAME), config_content)
+            .expect("Failed to write config");
+
+        let (_, config) = discover_and_load(dir.path())
+            .expect("Failed to load config")
+            .expect("Config should be found");
+
+        // Verify the raw table has the emit section
+        assert!(config.commands.contains_key("emit"));
     }
 }

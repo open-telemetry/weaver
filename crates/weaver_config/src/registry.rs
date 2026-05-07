@@ -35,6 +35,8 @@ pub struct PolicyConfig {
     pub paths: Option<Vec<String>>,
     /// Skip policy checks entirely.
     pub skip: Option<bool>,
+    /// Display the policy coverage report.
+    pub display_policy_coverage: Option<bool>,
 }
 
 /// Diagnostic output configuration.

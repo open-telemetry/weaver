@@ -6374,6 +6374,7 @@ dependencies = [
  "weaver_forge",
  "weaver_infer",
  "weaver_live_check",
+ "weaver_macros",
  "weaver_mcp",
  "weaver_resolved_schema",
  "weaver_resolver",
@@ -6453,6 +6454,7 @@ dependencies = [
  "toml",
  "weaver_checker",
  "weaver_common",
+ "weaver_macros",
 ]
 
 [[package]]
@@ -6558,6 +6560,15 @@ dependencies = [
  "weaver_forge",
  "weaver_resolved_schema",
  "weaver_semconv",
+]
+
+[[package]]
+name = "weaver_macros"
+version = "0.23.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
