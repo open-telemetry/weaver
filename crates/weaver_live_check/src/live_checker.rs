@@ -272,16 +272,16 @@ mod tests {
         assert_eq!(all_advice[0].id, "invalid_format");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "testString2" }))
+            Some(json!({"attribute_key": "testString2" }))
         );
         assert_eq!(
             all_advice[0].message,
-            "Attribute 'testString2' does not match name formatting rules."
+            "Attribute key 'testString2' does not match name formatting rules."
         );
         assert_eq!(all_advice[1].id, "missing_attribute");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "testString2"}))
+            Some(json!({"attribute_key": "testString2"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -290,9 +290,9 @@ mod tests {
         assert_eq!(all_advice[2].id, "missing_namespace");
         assert_eq!(
             all_advice[2].context,
-            Some(json!({"attribute_name": "testString2"}))
+            Some(json!({"attribute_key": "testString2"}))
         );
-        assert_eq!(all_advice[2].message, "Attribute name 'testString2' must include a namespace (e.g. '{namespace}.{attribute_key}')");
+        assert_eq!(all_advice[2].message, "Attribute key 'testString2' must include a namespace (e.g. '{namespace}.{attribute_key}')");
 
         let all_advice = get_all_advice(&mut samples[2]);
         assert_eq!(all_advice.len(), 3);
@@ -300,7 +300,7 @@ mod tests {
         assert_eq!(
             all_advice[0].context,
             Some(
-                json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
+                json!({"attribute_key": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
             )
         );
         assert_eq!(
@@ -311,7 +311,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "not_stable");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.deprecated", "stability": "development"}))
+            Some(json!({"attribute_key": "test.deprecated", "stability": "development"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -322,7 +322,7 @@ mod tests {
         assert_eq!(
             all_advice[2].context,
             Some(
-                json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"})
+                json!({"attribute_key": "test.deprecated", "attribute_type": "int", "expected": "string"})
             )
         );
         assert_eq!(
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "aws.s3.bucket.name"}))
+            Some(json!({"attribute_key": "aws.s3.bucket.name"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -347,7 +347,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "undefined_enum_variant");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.enum", "attribute_value": "foo"}))
+            Some(json!({"attribute_key": "test.enum", "attribute_value": "foo"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -359,7 +359,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "type_mismatch");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.enum", "attribute_type": "double"}))
+            Some(json!({"attribute_key": "test.enum", "attribute_type": "double"}))
         );
         assert_eq!(all_advice[0].message, "Enum attribute 'test.enum' has type 'double'. Enum value type should be 'string' or 'int'.");
 
@@ -372,16 +372,16 @@ mod tests {
         assert_eq!(all_advice[0].id, "extends_namespace");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.string.not.allowed", "namespace": "test"}))
+            Some(json!({"attribute_key": "test.string.not.allowed", "namespace": "test"}))
         );
         assert_eq!(
             all_advice[0].message,
-            "Attribute name 'test.string.not.allowed' collides with existing namespace 'test'"
+            "Attribute key 'test.string.not.allowed' collides with existing namespace 'test'"
         );
         assert_eq!(all_advice[1].id, "illegal_namespace");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.string.not.allowed", "namespace": "test.string"}))
+            Some(json!({"attribute_key": "test.string.not.allowed", "namespace": "test.string"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -391,7 +391,7 @@ mod tests {
         assert_eq!(
             all_advice[2].context,
             Some(json!({
-                "attribute_name": "test.string.not.allowed"
+                "attribute_key": "test.string.not.allowed"
             }))
         );
         assert_eq!(
@@ -404,7 +404,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.extends"}))
+            Some(json!({"attribute_key": "test.extends"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -413,11 +413,11 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.extends", "namespace": "test"}))
+            Some(json!({"attribute_key": "test.extends", "namespace": "test"}))
         );
         assert_eq!(
             all_advice[1].message,
-            "Attribute name 'test.extends' collides with existing namespace 'test'"
+            "Attribute key 'test.extends' collides with existing namespace 'test'"
         );
 
         // test.template
@@ -427,7 +427,7 @@ mod tests {
         assert_eq!(
             all_advice[0].context,
             Some(
-                json!({"attribute_name": "test.template.my.key", "template_name": "test.template"})
+                json!({"attribute_key": "test.template.my.key", "template_name": "test.template"})
             )
         );
         assert_eq!(
@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(
             all_advice[1].context,
             Some(
-                json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"})
+                json!({"attribute_key": "test.template.my.key", "attribute_type": "int", "expected": "string"})
             )
         );
         assert_eq!(
@@ -453,7 +453,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.deprecated.allowed"}))
+            Some(json!({"attribute_key": "test.deprecated.allowed"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -462,11 +462,11 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.deprecated.allowed", "namespace": "test"}))
+            Some(json!({"attribute_key": "test.deprecated.allowed", "namespace": "test"}))
         );
         assert_eq!(
             all_advice[1].message,
-            "Attribute name 'test.deprecated.allowed' collides with existing namespace 'test'"
+            "Attribute key 'test.deprecated.allowed' collides with existing namespace 'test'"
         );
 
         let all_advice = get_all_advice(&mut samples[11]);
@@ -474,7 +474,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "undefined_enum_variant");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.enum", "attribute_value": 17}))
+            Some(json!({"attribute_key": "test.enum", "attribute_value": 17}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -1169,7 +1169,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.string"}))
+            Some(json!({"attribute_key": "test.string"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -1178,7 +1178,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "contains_test");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.string"}))
+            Some(json!({"attribute_key": "test.string"}))
         );
         assert_eq!(
             all_advice[1].message,
