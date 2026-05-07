@@ -19,7 +19,7 @@ pub struct FileFormat {
     /// The major version.
     pub major: u32,
     /// The minor version.
-    pub minor: u32,
+    pub minor: Option<u32>,
 }
 
 impl FileFormat {
@@ -29,7 +29,17 @@ impl FileFormat {
         Self {
             prefix: Cow::Borrowed(prefix),
             major,
-            minor,
+            minor: Some(minor),
+        }
+    }
+
+    /// Construct a [`FileFormat`] declared without a minor (e.g. `"definition/2"`).
+    #[must_use]
+    pub const fn without_minor(prefix: &'static str, major: u32) -> Self {
+        Self {
+            prefix: Cow::Borrowed(prefix),
+            major,
+            minor: None,
         }
     }
 
@@ -53,7 +63,12 @@ impl FileFormat {
                 expected: self.clone(),
             });
         }
-        if found.minor > self.minor {
+        let is_newer_minor = match (self.minor, found.minor) {
+            (Some(s), Some(f)) => f > s,
+            (Some(_), None) => true,
+            (None, _) => false,
+        };
+        if is_newer_minor {
             log::warn!(
                 "File format '{found}' in {path:?} is newer than the supported format '{}'. \
                  Some fields may be ignored — update weaver to a newer version to consume them.",
@@ -70,13 +85,23 @@ impl FileFormat {
     /// unknown fields (known minor: yes; newer minor: tolerate).
     #[must_use]
     pub fn is_known_minor(&self, other: &FileFormat) -> bool {
-        self.prefix == other.prefix && self.major == other.major && other.minor <= self.minor
+        if self.prefix != other.prefix || self.major != other.major {
+            return false;
+        }
+        match (self.minor, other.minor) {
+            (Some(s), Some(o)) => o <= s,
+            (None, None) => true,
+            _ => false,
+        }
     }
 }
 
 impl std::fmt::Display for FileFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}.{}", self.prefix, self.major, self.minor)
+        match self.minor {
+            Some(minor) => write!(f, "{}/{}.{}", self.prefix, self.major, minor),
+            None => write!(f, "{}/{}", self.prefix, self.major),
+        }
     }
 }
 
@@ -90,8 +115,9 @@ impl FromStr for FileFormat {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (prefix, major, minor) = parse_file_format_version(s)
-            .ok_or_else(|| format!("invalid file_format '{s}': expected 'prefix/MAJOR.MINOR'"))?;
+        let (prefix, major, minor) = parse_file_format_version(s).ok_or_else(|| {
+            format!("invalid file_format '{s}': expected 'prefix/MAJOR' or 'prefix/MAJOR.MINOR'")
+        })?;
         Ok(Self {
             prefix: Cow::Owned(prefix.to_owned()),
             major,
@@ -125,20 +151,28 @@ impl JsonSchema for FileFormat {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         json_schema!({
             "type": "string",
-            "pattern": r"^[A-Za-z][A-Za-z0-9_-]*/\d+\.\d+$",
-            "description": "A file-format identifier of the form 'prefix/MAJOR.MINOR'.",
+            "pattern": r"^[A-Za-z][A-Za-z0-9_-]*/\d+(\.\d+)?$",
+            "description": "A file-format identifier of the form 'prefix/MAJOR' or 'prefix/MAJOR.MINOR'.",
         })
     }
 }
 
-/// Parses a `"type/MAJOR.MINOR"` file-format string.
-///
-/// Returns `Some((prefix, major, minor))` or `None` if the string doesn't match the pattern.
+/// Prefixes that may be written without a `.MINOR`. Every other prefix must include a minor,
+/// otherwise serde would silently accept malformed input like `manifest/2`.
+const NO_MINOR_PREFIXES: &[&str] = &["definition"];
+
+/// Parses `"prefix/MAJOR"` or `"prefix/MAJOR.MINOR"`. The minor-less form is only accepted
+/// for 'definition'.
 #[must_use]
-pub fn parse_file_format_version(s: &str) -> Option<(&str, u32, u32)> {
+pub fn parse_file_format_version(s: &str) -> Option<(&str, u32, Option<u32>)> {
     let (prefix, ver) = s.split_once('/')?;
-    let (major_s, minor_s) = ver.split_once('.')?;
-    Some((prefix, major_s.parse().ok()?, minor_s.parse().ok()?))
+    if let Some((major_s, minor_s)) = ver.split_once('.') {
+        Some((prefix, major_s.parse().ok()?, Some(minor_s.parse().ok()?)))
+    } else if NO_MINOR_PREFIXES.contains(&prefix) {
+        Some((prefix, ver.parse().ok()?, None))
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -150,7 +184,7 @@ mod tests {
         let v: FileFormat = "resolved/2.5".parse().expect("parse");
         assert_eq!(v.prefix, "resolved");
         assert_eq!(v.major, 2);
-        assert_eq!(v.minor, 5);
+        assert_eq!(v.minor, Some(5));
         assert_eq!(v.to_string(), "resolved/2.5");
     }
 
@@ -159,6 +193,23 @@ mod tests {
         assert!("garbage".parse::<FileFormat>().is_err());
         assert!("resolved/2".parse::<FileFormat>().is_err());
         assert!("resolved/x.y".parse::<FileFormat>().is_err());
+        assert!("resolved/x".parse::<FileFormat>().is_err());
+    }
+
+    #[test]
+    fn parse_no_minor_uses_none() {
+        let v: FileFormat = "definition/2".parse().expect("parse");
+        assert_eq!(v.prefix, "definition");
+        assert_eq!(v.major, 2);
+        assert_eq!(v.minor, None);
+        assert_eq!(v.to_string(), "definition/2");
+    }
+
+    #[test]
+    fn no_minor_is_never_known_against_a_real_minor() {
+        let expected = FileFormat::new("definition", 2, 5);
+        let found_no_minor = FileFormat::without_minor("definition", 2);
+        assert!(!expected.is_known_minor(&found_no_minor));
     }
 
     #[test]
@@ -193,19 +244,166 @@ mod tests {
         assert!(FileFormat::schema_id().ends_with("::FileFormat"));
     }
 
+    // ---- validate ----
+
+    fn p() -> &'static std::path::Path {
+        std::path::Path::new("/tmp/t.yaml")
+    }
+
+    #[test]
+    fn validate_ok_when_equal() {
+        let expected = FileFormat::new("resolved", 2, 3);
+        let found = FileFormat::new("resolved", 2, 3);
+        expected.validate(&found, p()).expect("equal versions");
+    }
+
+    #[test]
+    fn validate_ok_on_older_minor() {
+        let expected = FileFormat::new("resolved", 2, 5);
+        let found = FileFormat::new("resolved", 2, 1);
+        expected.validate(&found, p()).expect("older minor OK");
+    }
+
+    #[test]
+    fn validate_ok_on_newer_minor() {
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::new("resolved", 2, 99);
+        expected
+            .validate(&found, p())
+            .expect("newer minor returns Ok");
+    }
+
+    #[test]
+    fn validate_rejects_prefix_mismatch() {
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::new("manifest", 2, 0);
+        let err = expected
+            .validate(&found, p())
+            .expect_err("prefix mismatch should be rejected");
+        match err {
+            Error::UnrecognizedFileFormat {
+                found,
+                expected: exp,
+                ..
+            } => {
+                assert_eq!(found, "manifest/2.0");
+                assert_eq!(exp.to_string(), "resolved/2.0");
+            }
+            other => panic!("expected UnrecognizedFileFormat, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_rejects_smaller_major() {
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::new("resolved", 1, 0);
+        let err = expected
+            .validate(&found, p())
+            .expect_err("smaller major should be rejected");
+        assert!(matches!(
+            err,
+            Error::IncompatibleFileFormatMajorVersion { .. }
+        ));
+    }
+
+    #[test]
+    fn validate_rejects_larger_major() {
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::new("resolved", 3, 0);
+        let err = expected
+            .validate(&found, p())
+            .expect_err("larger major should be rejected");
+        assert!(matches!(
+            err,
+            Error::IncompatibleFileFormatMajorVersion { .. }
+        ));
+    }
+
+    #[test]
+    fn validate_treats_found_no_minor_as_newer_when_expected_has_minor() {
+        // Unreachable via the parser; pins behavior when `without_minor` is used directly.
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::without_minor("resolved", 2);
+        expected
+            .validate(&found, p())
+            .expect("found-no-minor passes (treated as newer)");
+    }
+
+    #[test]
+    fn validate_ok_when_expected_has_no_minor() {
+        let expected = FileFormat::without_minor("definition", 2);
+        let with_minor = FileFormat::new("definition", 2, 5);
+        let no_minor = FileFormat::without_minor("definition", 2);
+        expected
+            .validate(&with_minor, p())
+            .expect("expected-no-minor + found-with-minor OK");
+        expected.validate(&no_minor, p()).expect("both no-minor OK");
+    }
+
+    // ---- is_known_minor ----
+
+    #[test]
+    fn is_known_minor_true_on_equal() {
+        let expected = FileFormat::new("resolved", 2, 3);
+        let found = FileFormat::new("resolved", 2, 3);
+        assert!(expected.is_known_minor(&found));
+    }
+
+    #[test]
+    fn is_known_minor_true_on_older() {
+        let expected = FileFormat::new("resolved", 2, 3);
+        let found = FileFormat::new("resolved", 2, 0);
+        assert!(expected.is_known_minor(&found));
+    }
+
+    #[test]
+    fn is_known_minor_false_on_newer() {
+        let expected = FileFormat::new("resolved", 2, 3);
+        let found = FileFormat::new("resolved", 2, 99);
+        assert!(!expected.is_known_minor(&found));
+    }
+
+    #[test]
+    fn is_known_minor_false_on_different_prefix() {
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::new("manifest", 2, 0);
+        assert!(!expected.is_known_minor(&found));
+    }
+
+    #[test]
+    fn is_known_minor_false_on_different_major() {
+        let expected = FileFormat::new("resolved", 2, 0);
+        let found = FileFormat::new("resolved", 3, 0);
+        assert!(!expected.is_known_minor(&found));
+    }
+
+    #[test]
+    fn is_known_minor_true_when_both_no_minor() {
+        let expected = FileFormat::without_minor("definition", 2);
+        let found = FileFormat::without_minor("definition", 2);
+        assert!(expected.is_known_minor(&found));
+    }
+
+    #[test]
+    fn is_known_minor_false_when_expected_no_minor_but_found_has_minor() {
+        let expected = FileFormat::without_minor("definition", 2);
+        let found = FileFormat::new("definition", 2, 5);
+        assert!(!expected.is_known_minor(&found));
+    }
+
     #[test]
     fn json_schema_shape() {
         let schema = FileFormat::json_schema(&mut SchemaGenerator::default());
         let json = serde_json::to_value(&schema).expect("schema to json");
         assert_eq!(json["type"], "string");
-        assert_eq!(json["pattern"], r"^[A-Za-z][A-Za-z0-9_-]*/\d+\.\d+$");
+        assert_eq!(json["pattern"], r"^[A-Za-z][A-Za-z0-9_-]*/\d+(\.\d+)?$");
         assert!(json["description"].is_string());
 
         let pattern = json["pattern"].as_str().expect("pattern is string");
         let re = regex::Regex::new(pattern).expect("pattern compiles");
         assert!(re.is_match("manifest/2.0"));
         assert!(re.is_match("resolved/10.123"));
-        assert!(!re.is_match("manifest/2"));
+        assert!(re.is_match("definition/2"));
         assert!(!re.is_match("manifest/x.y"));
         assert!(!re.is_match("1bad/2.0"));
     }

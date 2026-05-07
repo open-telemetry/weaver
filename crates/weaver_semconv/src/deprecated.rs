@@ -254,4 +254,40 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn deserialize_silently_drops_unknown_keys() {
+        // Forward-compat: unknowns are dropped here; the outer walker re-detects them.
+        let yaml_data = r#"
+- deprecated:
+    reason: renamed
+    renamed_to: foo.bar
+    future_field: x
+    another_unknown: 42
+- deprecated:
+    reason: obsoleted
+    bogus: nope
+- deprecated:
+    reason: uncategorized
+    note: complex
+    new_v3_field: maybe
+"#;
+        let items: Vec<Item> = serde_yaml::from_str(yaml_data).expect("unknowns tolerated");
+        assert_eq!(items.len(), 3);
+        assert_eq!(
+            items[0].deprecated,
+            Some(Deprecated::Renamed {
+                renamed_to: "foo.bar".to_owned(),
+                note: "Replaced by `foo.bar`.".to_owned()
+            })
+        );
+        assert!(matches!(
+            items[1].deprecated,
+            Some(Deprecated::Obsoleted { .. })
+        ));
+        assert!(matches!(
+            items[2].deprecated,
+            Some(Deprecated::Uncategorized { .. })
+        ));
+    }
 }

@@ -692,6 +692,45 @@ mod tests {
     }
 
     #[test]
+    fn test_definition_manifest_unknown_fields_warn() {
+        // Definition manifests have no `file_format`, so unknowns are warned (not fatal).
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-definition-manifest-typos".to_owned(),
+        };
+
+        let _repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("definition manifest should load with warnings, not fail");
+
+        // Re-derive the warning set by running the same diff the loader would.
+        // `try_from_file` strips `file_format` before diffing; mirror that here.
+        let manifest_path =
+            std::path::PathBuf::from("data/registry-test-definition-manifest-typos/manifest.yaml");
+        let raw_yaml = std::fs::read_to_string(&manifest_path).expect("read fixture");
+        let raw: serde_yaml::Value = serde_yaml::from_str(&raw_yaml).expect("yaml should parse");
+        let cleaned = match raw {
+            serde_yaml::Value::Mapping(mut m) => {
+                let _ = m.remove(serde_yaml::Value::String("file_format".to_owned()));
+                serde_yaml::Value::Mapping(m)
+            }
+            other => other,
+        };
+        let def: weaver_semconv::manifest::DefinitionRegistryManifest =
+            serde_yaml::from_value(cleaned.clone())
+                .expect("fixture should deserialize as DefinitionRegistryManifest");
+        let unknowns = weaver_semconv::unexpected_fields::collect_paths(&cleaned, &def);
+
+        let expected = ["typo_top_level", "dependencies[0].typo_in_dependency"];
+        let actual: HashSet<&str> = unknowns.iter().map(String::as_str).collect();
+        let expected_set: HashSet<&str> = expected.iter().copied().collect();
+        let missing: Vec<&&str> = expected_set.difference(&actual).collect();
+        let extra: Vec<&&str> = actual.difference(&expected_set).collect();
+        assert!(
+            missing.is_empty() && extra.is_empty(),
+            "Unexpected-field set mismatch.\n  missing: {missing:?}\n  extra:   {extra:?}\n  actual:  {unknowns:?}"
+        );
+    }
+
+    #[test]
     fn test_circular_dependency_detection() -> Result<(), weaver_semconv::Error> {
         // Test circular dependency: registry_a -> registry_b -> registry_a
         let registry_path = VirtualDirectoryPath::LocalFolder {

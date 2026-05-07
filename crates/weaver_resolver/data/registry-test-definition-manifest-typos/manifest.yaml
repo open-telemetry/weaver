@@ -1,0 +1,21 @@
+# Definition manifest (no `file_format`) with planted typos at the top level
+# and inside a dependency entry. Loaded e2e via `RegistryRepo::try_new`.
+# Loader contract: returns Ok (manifest loads) and `log::warn!`s the unknown
+# paths — definition manifests can't distinguish typos from forward-compat
+# additions, so unknowns are log-only and don't surface in NFEs.
+#
+# Used by:
+#   weaver_resolver::loader::tests::test_definition_manifest_unknown_fields_warn
+#     (crates/weaver_resolver/src/loader.rs)
+schema_url: https://example.com/schemas/1.0.0
+description: Definition manifest used to exercise unknown-field warnings end-to-end.
+stability: stable
+
+# Top-level typo — unknown to DefinitionRegistryManifest.
+typo_top_level: bad
+
+dependencies:
+  - schema_url: https://example.com/dep/1.0.0
+    registry_path: ./dep
+    # Nested typo inside a dependency entry.
+    typo_in_dependency: bad

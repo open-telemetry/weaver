@@ -149,7 +149,7 @@ impl<'de> Deserialize<'de> for Dependency {
 /// All fields are optional so we can decide on the variant first, then validate.
 #[derive(Deserialize)]
 struct RawManifestFields {
-    file_format: Option<FileFormat>,
+    file_format: Option<String>,
     schema_url: Option<SchemaUrl>,
     description: Option<String>,
     #[allow(deprecated)]
@@ -165,13 +165,33 @@ struct RawManifestFields {
 
 impl RawManifestFields {
     /// Convert to [`RegistryManifest`], reporting errors relative to `path`.
-    /// `raw` is the original YAML tree, used for typo-protection on known minor versions.
+    /// `raw` is used for typo-protection on known minor versions.
     fn into_manifest(
         self,
         path: &std::path::Path,
         raw: &serde_yaml::Value,
     ) -> Result<RegistryManifest, Error> {
-        if let Some(file_format) = self.file_format {
+        // Discriminator rules:
+        //   - file_format absent          → Definition
+        //   - file_format = "manifest/*"  → Publication (existing version-compat checks)
+        //   - file_format anything else   → fatal (typo or wrong-format file)
+        if let Some(raw_ff) = self.file_format.as_deref() {
+            let parsed = raw_ff
+                .parse::<FileFormat>()
+                .map_err(|e| InvalidRegistryManifest {
+                    path: path.to_path_buf(),
+                    error: format!("Invalid 'file_format' value {raw_ff:?}: {e}"),
+                })?;
+            if parsed.prefix != PUBLICATION_MANIFEST_FILE_FORMAT.prefix {
+                return Err(InvalidRegistryManifest {
+                    path: path.to_path_buf(),
+                    error: format!(
+                        "Unknown 'file_format' {raw_ff:?}: expected '{}/...' or omit the field for a definition manifest",
+                        PUBLICATION_MANIFEST_FILE_FORMAT.prefix
+                    ),
+                });
+            }
+            let file_format = parsed;
             let schema_url = self
                 .schema_url
                 .ok_or_else(|| Error::InvalidPublicationManifest {
@@ -242,8 +262,9 @@ impl RawManifestFields {
 /// A registry manifest that can be either a definition or a publication manifest.
 ///
 /// The `file_format` field is the discriminator:
-/// - `"manifest/2.0"` → [`PublicationRegistryManifest`]
+/// - `"manifest/<MAJOR>.<MINOR>"` → [`PublicationRegistryManifest`]
 /// - absent → [`DefinitionRegistryManifest`]
+/// - any other value (typo, foreign prefix, malformed) → fatal `InvalidRegistryManifest`
 #[derive(Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum RegistryManifest {
@@ -309,6 +330,10 @@ impl RegistryManifest {
                     error: w.clone(),
                 }
             }));
+            // Definition manifests have no `file_format` (the routing in
+            // `into_manifest` rejects anything else). Unknowns are ambiguous —
+            // warn instead of fail.
+            let _ = crate::unexpected_fields::warn(&raw_value, def, None, &manifest_path_buf);
         }
 
         Ok(manifest)
@@ -634,23 +659,35 @@ schema_url: "https://example.com/schemas/1.0.0"
 resolved_schema_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
 "#,
         );
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Unknown file_format"));
+        let err = result.expect_err("expected fatal error for non-manifest file_format");
+        assert!(
+            matches!(err, InvalidRegistryManifest { .. }),
+            "expected InvalidRegistryManifest, got {err:?}"
+        );
+        assert!(
+            err.to_string().contains("Unknown 'file_format'"),
+            "expected 'Unknown file_format' error, got: {err}"
+        );
     }
 
     #[test]
     fn test_malformed_file_format_is_rejected() {
-        // Syntactically broken `prefix/MAJOR.MINOR`: rejected at deserialize by `FromStr`.
+        // Syntactically broken `prefix/MAJOR.MINOR` — fail at FromStr.
         let result = manifest_from_yaml(
             r#"
 file_format: "garbage/1.0.0"
 schema_url: "https://example.com/schemas/1.0.0"
 "#,
         );
-        assert!(matches!(result, Err(InvalidRegistryManifest { .. })));
+        let err = result.expect_err("expected fatal error for malformed file_format");
+        assert!(
+            matches!(err, InvalidRegistryManifest { .. }),
+            "expected InvalidRegistryManifest, got {err:?}"
+        );
+        assert!(
+            err.to_string().contains("Invalid 'file_format'"),
+            "expected 'Invalid file_format' error, got: {err}"
+        );
     }
 
     #[test]
@@ -876,5 +913,76 @@ dependencies:
             }
             _ => panic!("expected UnexpectedFields, got: {err:?}"),
         }
+    }
+}
+
+/// Forward-compat tests for `DefinitionRegistryManifest`. With no `file_format`,
+/// unknowns are warned via `log::warn!`; tests rerun `collect_paths` to check what
+/// would be reported.
+#[cfg(test)]
+mod definition_manifest_warning_tests {
+    use super::*;
+
+    fn load(yaml: &str) -> Result<RegistryManifest, Error> {
+        use std::io::Write;
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(yaml.as_bytes()).unwrap();
+        RegistryManifest::try_from_file(tmp.path(), &mut vec![])
+    }
+
+    fn collect_unknowns(yaml: &str) -> Vec<String> {
+        let raw: serde_yaml::Value = serde_yaml::from_str(yaml).expect("yaml should parse");
+        let def: DefinitionRegistryManifest = serde_yaml::from_value(raw.clone())
+            .expect("yaml should deserialize as DefinitionRegistryManifest");
+        crate::unexpected_fields::collect_paths(&raw, &def)
+    }
+
+    fn assert_warns_about(yaml: &str, marker: &str) {
+        let manifest = load(yaml).expect("expected definition manifest to load");
+        assert!(
+            matches!(manifest, RegistryManifest::Definition(_)),
+            "expected Definition variant, got {manifest:?}"
+        );
+        let unknowns = collect_unknowns(yaml);
+        assert!(
+            unknowns.iter().any(|p| p.contains(marker)),
+            "expected an unknown-field path containing {marker:?}, got: {unknowns:?}"
+        );
+    }
+
+    #[test]
+    fn definition_manifest_warns_unknown_at_top_level() {
+        let yaml = r#"
+schema_url: "https://example.com/schemas/1.0.0"
+typo_top_level: bad
+"#;
+        assert_warns_about(yaml, "typo_top_level");
+    }
+
+    #[test]
+    fn definition_manifest_warns_unknown_inside_dependency() {
+        let yaml = r#"
+schema_url: "https://example.com/schemas/1.0.0"
+dependencies:
+  - schema_url: "https://example.com/dep/1.0.0"
+    typo_in_dependency: bad
+"#;
+        assert_warns_about(yaml, "typo_in_dependency");
+    }
+
+    #[test]
+    fn definition_manifest_with_any_file_format_is_rejected() {
+        // Even a parseable, definition-shaped manifest is rejected when it
+        // declares a non-`manifest/*` file_format — preserve loud-fail on typos.
+        let yaml = r#"
+file_format: "garbage/1.0"
+schema_url: "https://example.com/schemas/1.0.0"
+typo_top_level: bad
+"#;
+        let err = load(yaml).expect_err("expected fatal error for non-manifest file_format");
+        assert!(
+            matches!(err, InvalidRegistryManifest { .. }),
+            "expected InvalidRegistryManifest, got {err:?}"
+        );
     }
 }

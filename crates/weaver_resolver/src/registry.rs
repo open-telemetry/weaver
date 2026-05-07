@@ -999,6 +999,7 @@ mod tests {
             "registry-test-resolved-major-mismatch",
             "registry-test-resolved-unknown-field",
             "registry-test-manifest-unknown-field",
+            "registry-test-definition-manifest-typos",
         ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*

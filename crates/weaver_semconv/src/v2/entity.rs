@@ -17,7 +17,7 @@ use crate::{
 
 /// Defines a new entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Entity {
     /// The type of the Entity.
     pub r#type: SignalId,
@@ -34,7 +34,7 @@ pub struct Entity {
 
 /// A refinement of an existing entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct EntityRefinement {
     /// The ID of the refinement.
     pub id: SignalId,

@@ -28,10 +28,13 @@ pub mod metric;
 pub mod signal_id;
 pub mod span;
 
+#[cfg(test)]
+mod unknown_fields_tests;
+
 /// Common fields we want on all major components of semantic conventions.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct CommonFields {
     /// A brief description of the attribute or signal.
     pub brief: String,
@@ -58,7 +61,7 @@ pub struct CommonFields {
 /// A semconv file is a collection of attributes, signals, groups,
 /// and imports.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct SemConvSpecV2 {
     /// A collection of semantic conventions for attributes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -412,6 +415,62 @@ groups:
             ..empty_spec.clone()
         };
         assert!(!non_empty_spec.is_empty());
+    }
+
+    #[test]
+    fn common_fields_deprecated_accepts_old_string_form() {
+        // `deserialize_option_deprecated` accepts the legacy `deprecated: "msg"` string form.
+        let yaml = r#"
+attributes:
+  - key: my.attr
+    type: string
+    brief: t
+    stability: stable
+    deprecated: "Replaced by something."
+"#;
+        let spec = serde_yaml::from_str::<SemConvSpecV2>(yaml).expect("old string form parses");
+        assert_eq!(spec.attributes.len(), 1);
+        assert_eq!(
+            spec.attributes[0].common.deprecated,
+            Some(Deprecated::Unspecified {
+                note: "Replaced by something.".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn common_fields_deprecated_accepts_structured_map_form() {
+        let yaml = r#"
+attributes:
+  - key: my.attr
+    type: string
+    brief: t
+    stability: stable
+    deprecated:
+      reason: renamed
+      renamed_to: my.attr.new
+"#;
+        let spec = serde_yaml::from_str::<SemConvSpecV2>(yaml).expect("structured form parses");
+        assert_eq!(
+            spec.attributes[0].common.deprecated,
+            Some(Deprecated::Renamed {
+                renamed_to: "my.attr.new".to_owned(),
+                note: "Replaced by `my.attr.new`.".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn common_fields_deprecated_absent_yields_none() {
+        let yaml = r#"
+attributes:
+  - key: my.attr
+    type: string
+    brief: t
+    stability: stable
+"#;
+        let spec = serde_yaml::from_str::<SemConvSpecV2>(yaml).expect("absent deprecated parses");
+        assert!(spec.attributes[0].common.deprecated.is_none());
     }
 
     #[test]

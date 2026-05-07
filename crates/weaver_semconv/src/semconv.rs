@@ -12,10 +12,22 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
 use std::sync::OnceLock;
+use weaver_common::file_format::FileFormat;
 use weaver_common::result::WResult;
 
 static VALIDATOR_V1: OnceLock<JsonSchemaValidator> = OnceLock::new();
 static VALIDATOR_V2: OnceLock<JsonSchemaValidator> = OnceLock::new();
+
+/// Prefix shared by every semconv definition `file_format` declaration.
+const DEFINITION_PREFIX: &str = "definition";
+
+/// V1 semconv definition file format. Always written as `definition/1` (no minor).
+pub const DEFINITION_V1_FILE_FORMAT: FileFormat = FileFormat::without_minor(DEFINITION_PREFIX, 1);
+
+/// Highest `definition/2.<minor>` this build understands. Older/equal minors reject
+/// unknowns; newer minors tolerate them; the bare `definition/2` form always warns.
+pub const DEFINITION_V2_KNOWN_MINOR_FILE_FORMAT: FileFormat =
+    FileFormat::new(DEFINITION_PREFIX, 2, 0);
 
 /// A versioned semantic convention file.
 #[derive(Serialize, Debug, Clone, JsonSchema)]
@@ -49,7 +61,7 @@ pub struct SemConvSpecV1 {
 
 /// Imports are used to reference groups defined in a dependent registry.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Imports {
     /// A list of metric group metric_name wildcards.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -167,86 +179,78 @@ fn provenance_path_to_name(path: &str) -> String {
     result
 }
 
-/// The detected file format of a semantic convention spec.
-#[derive(Debug)]
-enum FileFormat {
-    /// Explicit `file_format: definition/1` (or legacy `version: 1`).
-    V1,
-    /// Explicit `file_format: definition/2` (or legacy `version: 2`).
-    V2,
-    /// No `file_format` or `version` field — treated as V1.
-    Unversioned,
-}
+/// Detects the file format of a semantic convention spec from its YAML representation
+/// and produces warnings for deprecated or unstable formats.
+/// Returns an error if the file format is invalid.
+fn detect_file_format(
+    yaml_value: &serde_yaml::Value,
+    provenance: &str,
+    warnings: &mut Vec<Error>,
+) -> Result<Option<FileFormat>, Error> {
+    use serde_yaml::Value;
 
-impl FileFormat {
-    /// Detects the file format of a semantic convention spec from its YAML representation
-    /// and produces warnings for deprecated or unstable formats.
-    /// Returns an error if the file format is invalid.
-    fn detect(
-        yaml_value: &serde_yaml::Value,
-        provenance: &str,
-        warnings: &mut Vec<Error>,
-    ) -> Result<Self, Error> {
-        use serde_yaml::Value;
+    let version = yaml_value
+        .get(Value::String("version".to_owned()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned());
 
-        // Check for deprecated version field
-        let version = yaml_value
-            .get(Value::String("version".to_owned()))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_owned());
-
-        if version.is_some() {
-            warnings.push(Error::DeprecatedVersionField {
-                provenance: provenance.to_owned(),
-            });
-        }
-
-        let file_format = yaml_value
-            .get(Value::String("file_format".to_owned()))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_owned());
-
-        let is_v2 =
-            file_format == Some("definition/2".to_owned()) || version == Some("2".to_owned());
-        let is_v1 =
-            file_format == Some("definition/1".to_owned()) || version == Some("1".to_owned());
-
-        if is_v2 {
-            warnings.push(Error::UnstableFileFormat {
-                file_format: "definition/2".to_owned(),
-                provenance: provenance.to_owned(),
-            });
-            Ok(FileFormat::V2)
-        } else if is_v1 {
-            Ok(FileFormat::V1)
-        } else if file_format.is_none() && version.is_none() {
-            Ok(FileFormat::Unversioned)
-        } else {
-            Err(Error::InvalidFileFormat {
-                field_key: if version.is_some() {
-                    "version".to_owned()
-                } else {
-                    "file_format".to_owned()
-                },
-                field_value: version
-                    .as_deref()
-                    .or(file_format.as_deref())
-                    .unwrap_or("unknown")
-                    .to_owned(),
-            })
-        }
+    if version.is_some() {
+        warnings.push(Error::DeprecatedVersionField {
+            provenance: provenance.to_owned(),
+        });
     }
 
-    /// Returns the JSON schema validator for this file format, initializing it if necessary.
-    fn validator(&self) -> &'static JsonSchemaValidator {
-        match self {
-            FileFormat::V1 | FileFormat::Unversioned => {
-                VALIDATOR_V1.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV1>)
-            }
-            FileFormat::V2 => {
-                VALIDATOR_V2.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV2>)
-            }
+    let file_format = yaml_value
+        .get(Value::String("file_format".to_owned()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned());
+
+    if file_format.is_none() && version.is_none() {
+        return Ok(None);
+    }
+
+    // `file_format` is authoritative if it parses; otherwise fall back to legacy `version: N`.
+    let parsed = file_format
+        .as_deref()
+        .and_then(|s| s.parse::<FileFormat>().ok())
+        .or_else(|| {
+            version
+                .as_deref()
+                .and_then(|s| s.parse::<u32>().ok())
+                .map(|n| FileFormat::without_minor(DEFINITION_PREFIX, n))
+        });
+
+    let invalid = || Error::InvalidFileFormat {
+        field_key: if version.is_some() {
+            "version".to_owned()
+        } else {
+            "file_format".to_owned()
+        },
+        field_value: version
+            .as_deref()
+            .or(file_format.as_deref())
+            .unwrap_or("unknown")
+            .to_owned(),
+    };
+
+    match parsed {
+        Some(ff)
+            if ff.prefix == DEFINITION_V2_KNOWN_MINOR_FILE_FORMAT.prefix
+                && ff.major == DEFINITION_V2_KNOWN_MINOR_FILE_FORMAT.major =>
+        {
+            warnings.push(Error::UnstableFileFormat {
+                file_format: ff.to_string(),
+                provenance: provenance.to_owned(),
+            });
+            Ok(Some(ff))
         }
+        Some(ff)
+            if ff.prefix == DEFINITION_V1_FILE_FORMAT.prefix
+                && ff.major == DEFINITION_V1_FILE_FORMAT.major =>
+        {
+            Ok(Some(ff))
+        }
+        _ => Err(invalid()),
     }
 }
 
@@ -299,19 +303,43 @@ fn from_yaml_value(
     provenance: &str,
     warnings: &mut Vec<Error>,
 ) -> Result<Versioned, Error> {
-    let format = FileFormat::detect(&yaml_value, provenance, warnings)?;
+    let detected = detect_file_format(&yaml_value, provenance, warnings)?;
     let cleaned = clean_yaml_mapping(yaml_value, provenance)?;
-    let validator = format.validator();
+    let is_v2 = matches!(detected.as_ref(), Some(ff) if ff.major == 2);
 
-    match format {
-        FileFormat::V2 => serde_yaml::from_value::<SemConvSpecV2>(cleaned.clone())
-            .map(Versioned::V2)
-            .map_err(|e| better_error(cleaned, provenance, validator, e)),
-        FileFormat::V1 | FileFormat::Unversioned => {
-            serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone())
-                .map(Versioned::V1)
-                .map_err(|e| better_error(cleaned, provenance, validator, e))
+    if is_v2 {
+        let validator = VALIDATOR_V2.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV2>);
+        let typed = serde_yaml::from_value::<SemConvSpecV2>(cleaned.clone())
+            .map_err(|e| better_error(cleaned.clone(), provenance, validator, e))?;
+        let found = detected.expect("is_v2 implies detected is Some");
+        // Three modes:
+        // No minor: warn (ambiguous). Known minor: reject. Newer minor: silently tolerate.
+        if found.minor.is_some() {
+            crate::unexpected_fields::check(
+                &cleaned,
+                &typed,
+                &DEFINITION_V2_KNOWN_MINOR_FILE_FORMAT,
+                &found,
+                Path::new(provenance),
+            )?;
+        } else {
+            let _ = crate::unexpected_fields::warn(
+                &cleaned,
+                &typed,
+                Some(&found),
+                Path::new(provenance),
+            );
         }
+        Ok(Versioned::V2(typed))
+    } else {
+        let validator = VALIDATOR_V1.get_or_init(JsonSchemaValidator::new_for::<SemConvSpecV1>);
+        let typed = serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone())
+            .map_err(|e| better_error(cleaned.clone(), provenance, validator, e))?;
+        // V1 is strict at every depth; the round-trip diff catches unknowns inside shared
+        // types (`Imports`, `Deprecated`, `EnumEntriesSpec`) where serde's `deny_unknown_fields` doesn't reach.
+        let v1_format = detected.unwrap_or_else(|| DEFINITION_V1_FILE_FORMAT.clone());
+        crate::unexpected_fields::reject(&cleaned, &typed, &v1_format, Path::new(provenance))?;
+        Ok(Versioned::V1(typed))
     }
 }
 
@@ -919,18 +947,289 @@ attributes:
           - id: group
         "#;
 
+        match semconv_from_file(spec) {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {}
+            WResult::FatalErr(e) => panic!(
+                "definition/2 with v1-style `groups` key should load (log-only warn), got fatal: {e:?}"
+            ),
+        }
+    }
+
+    // ---- v1 hard-rejects unknown fields (regression fence). ----
+
+    #[test]
+    fn v1_hard_rejects_unknown_top_level_field() {
+        let spec = r#"
+groups:
+  - id: g1
+    type: span
+    span_kind: client
+    brief: t
+    stability: stable
+typo_top_level: bad
+"#;
+        let result = semconv_from_file(spec);
+        assert!(
+            result.is_fatal(),
+            "v1 must hard-reject unknown top-level fields, got non-fatal result"
+        );
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let err = result
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect_err("expected fatal error from v1 unknown-field");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("typo_top_level"),
+            "expected error to mention typo_top_level, got: {msg}"
+        );
+    }
+
+    // ---- detect_file_format edge cases ----
+
+    #[test]
+    fn legacy_version_field_translates_to_definition_n() {
+        // Legacy `version: '1'` translates to `definition/1` and emits a deprecation warning.
+        let spec = r#"
+version: '1'
+groups:
+  - id: g1
+    type: span
+    span_kind: client
+    brief: t
+    stability: stable
+"#;
+        let warnings = match semconv_from_file(spec) {
+            WResult::OkWithNFEs(_, ws) => ws,
+            WResult::Ok(_) => panic!("expected OkWithNFEs, got Ok with no warnings"),
+            WResult::FatalErr(e) => panic!("expected OkWithNFEs, got FatalErr: {e:?}"),
+        };
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(w, Error::DeprecatedVersionField { .. })),
+            "expected DeprecatedVersionField warning, got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn both_version_and_file_format_lets_file_format_win() {
+        // `file_format` wins when both are declared; deprecation still fires for `version`.
+        let spec = r#"
+version: '1'
+file_format: definition/1
+groups:
+  - id: g1
+    type: span
+    span_kind: client
+    brief: t
+    stability: stable
+"#;
+        let warnings = match semconv_from_file(spec) {
+            WResult::OkWithNFEs(_, ws) => ws,
+            WResult::Ok(_) => panic!("expected OkWithNFEs, got Ok with no warnings"),
+            WResult::FatalErr(e) => panic!("expected OkWithNFEs, got FatalErr: {e:?}"),
+        };
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(w, Error::DeprecatedVersionField { .. })),
+            "expected DeprecatedVersionField warning even when file_format wins, got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn legacy_version_with_invalid_major_reports_version_as_field_key() {
+        // The error must blame `version` (what the user wrote), not `file_format`.
+        let spec = r#"
+version: '99'
+"#;
         let result = semconv_from_file(spec);
         assert!(result.is_fatal());
         let mut diag_msgs = DiagnosticMessages::empty();
-        let error_message = result
+        let err = result
             .capture_non_fatal_errors(&mut diag_msgs)
             .err()
-            .unwrap()
-            .to_string();
+            .unwrap();
+        match err {
+            CompoundError(errs) => {
+                assert!(
+                    errs.iter().any(|e| matches!(
+                        e,
+                        Error::InvalidFileFormat { field_key, field_value }
+                            if field_key == "version" && field_value == "99"
+                    )),
+                    "expected InvalidFileFormat{{field_key=version, field_value=99}}, got: {errs:?}"
+                );
+            }
+            other => {
+                let s = other.to_string();
+                assert!(
+                    s.contains("version") && s.contains("99"),
+                    "expected error to mention version=99, got: {s}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn scalar_root_yields_deserialization_error() {
+        let spec = "just-a-scalar-root\n";
+        let result = semconv_from_file(spec);
+        assert!(result.is_fatal(), "expected fatal error for scalar root");
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let err = result
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .err()
+            .unwrap();
+        let s = err.to_string();
         assert!(
-            error_message.contains("Object contains unexpected properties: groups. These properties are not defined in the schema."),
-            "Actual error message: {}",
-            error_message
+            s.contains("YAML mapping") || s.contains("mapping"),
+            "expected error to mention YAML mapping, got: {s}"
         );
+    }
+
+    // ---- provenance_path_to_name ----
+
+    #[test]
+    fn provenance_path_to_name_strips_extension() {
+        assert_eq!(provenance_path_to_name("foo.yaml"), "foo");
+    }
+
+    #[test]
+    fn provenance_path_to_name_joins_components_with_dot() {
+        assert_eq!(provenance_path_to_name("a/b/c.yaml"), "a.b.c");
+    }
+
+    #[test]
+    fn provenance_path_to_name_handles_no_extension() {
+        assert_eq!(provenance_path_to_name("plain"), "plain");
+    }
+
+    #[test]
+    fn provenance_path_to_name_skips_root_and_relative_parts() {
+        assert_eq!(provenance_path_to_name("./foo/bar.yaml"), "foo.bar");
+        assert_eq!(provenance_path_to_name("../foo/bar.yaml"), "foo.bar");
+    }
+
+    #[test]
+    fn provenance_path_to_name_empty_input_returns_empty() {
+        assert_eq!(provenance_path_to_name(""), "");
+    }
+
+    #[test]
+    fn v1_hard_rejects_unknown_field_inside_group() {
+        let spec = r#"
+groups:
+  - id: g1
+    type: span
+    span_kind: client
+    brief: t
+    stability: stable
+    typo_in_group: bad
+"#;
+        let result = semconv_from_file(spec);
+        assert!(
+            result.is_fatal(),
+            "v1 must hard-reject unknown fields inside a group, got non-fatal result"
+        );
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let err = result
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect_err("expected fatal error from v1 unknown-field");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("typo_in_group"),
+            "expected error to mention typo_in_group, got: {msg}"
+        );
+    }
+
+    /// Asserts that `result` is fatal and the error message contains `marker`.
+    fn assert_v1_rejects(result: WResult<SemConvSpecWithProvenance, Error>, marker: &str) {
+        assert!(
+            result.is_fatal(),
+            "expected v1 to hard-reject unknown {marker:?}, got non-fatal result"
+        );
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let err = result
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect_err("expected fatal error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains(marker),
+            "expected error to mention {marker:?}, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn v1_hard_rejects_unknown_field_inside_imports() {
+        // `Imports` only has `schemars(deny_unknown_fields)`; the round-trip diff catches it.
+        let spec = r#"
+groups: []
+imports:
+  metrics:
+    - foo.*
+  typo_in_imports: bad
+"#;
+        assert_v1_rejects(semconv_from_file(spec), "typo_in_imports");
+    }
+
+    #[test]
+    fn v1_hard_rejects_unknown_field_inside_deprecated() {
+        // `Deprecated`'s custom deserializer drops unknowns; the diff still catches them.
+        let spec = r#"
+groups:
+  - id: g1
+    type: span
+    span_kind: client
+    brief: t
+    stability: stable
+    deprecated:
+      reason: renamed
+      renamed_to: g2
+      note: gone
+      typo_in_deprecated: bad
+"#;
+        assert_v1_rejects(semconv_from_file(spec), "typo_in_deprecated");
+    }
+
+    #[test]
+    fn v1_hard_rejects_unknown_field_inside_enum_member() {
+        // `EnumEntriesSpec` only has `schemars(deny_unknown_fields)`; the diff catches it.
+        let spec = r#"
+groups:
+  - id: g1
+    type: attribute_group
+    brief: t
+    stability: stable
+    attributes:
+      - id: my.enum
+        type:
+          members:
+            - id: ok
+              value: ok
+              typo_in_enum_member: bad
+        brief: t
+        stability: stable
+"#;
+        assert_v1_rejects(semconv_from_file(spec), "typo_in_enum_member");
+    }
+
+    #[test]
+    fn v1_hard_rejects_unknown_field_inside_attribute() {
+        let spec = r#"
+groups:
+  - id: g1
+    type: attribute_group
+    brief: t
+    stability: stable
+    attributes:
+      - id: my.attr
+        type: string
+        brief: t
+        stability: stable
+        examples: ["x"]
+        typo_in_attribute: bad
+"#;
+        assert_v1_rejects(semconv_from_file(spec), "typo_in_attribute");
     }
 }

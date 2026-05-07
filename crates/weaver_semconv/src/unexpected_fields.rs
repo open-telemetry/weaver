@@ -54,17 +54,45 @@ pub fn check<T: Serialize>(
     if !file_format.is_known_minor(found) {
         return Ok(());
     }
-    let normalized = serde_yaml::to_value(typed)
-        .expect("re-serializing a deserialized typed struct to serde_yaml::Value cannot fail");
-    let unexpected = collect_paths(raw, &normalized);
-    if unexpected.is_empty() {
-        return Ok(());
+    reject(raw, typed, file_format, path)
+}
+
+/// Emits a `log::warn!` listing unknown keys and returns them. Use for formats without
+/// a minor version (e.g. `definition/2`).
+pub fn warn<T: Serialize>(
+    raw: &serde_yaml::Value,
+    typed: &T,
+    found: Option<&FileFormat>,
+    path: &std::path::Path,
+) -> Vec<String> {
+    let fields = collect_paths(raw, typed);
+    if !fields.is_empty() {
+        let format_label = found.map(|f| format!(" for {f}")).unwrap_or_default();
+        log::warn!(
+            "Unknown fields{format_label} at {} — these may be typos or fields from a newer schema version this build doesn't recognize: {}",
+            path.display(),
+            fields.join(", "),
+        );
     }
-    Err(Error::UnexpectedFields {
-        path_or_url: path.display().to_string(),
-        file_format: file_format.clone(),
-        fields: unexpected,
-    })
+    fields
+}
+
+/// Always rejects unknowns (unlike [`check`], which gates on minor). Use for formats
+/// that don't tolerate forward-compat additions (e.g. `definition/1.x`).
+pub fn reject<T: Serialize>(
+    raw: &serde_yaml::Value,
+    typed: &T,
+    file_format: &FileFormat,
+    path: &std::path::Path,
+) -> Result<(), Error> {
+    match collect_paths(raw, typed) {
+        fields if fields.is_empty() => Ok(()),
+        fields => Err(Error::UnexpectedFields {
+            path_or_url: path.display().to_string(),
+            file_format: file_format.clone(),
+            fields,
+        }),
+    }
 }
 
 /// Returns dotted paths (e.g. `groups[2].attributes[0].typo`) of every key
@@ -72,9 +100,11 @@ pub fn check<T: Serialize>(
 /// docs for the algorithm. Most callers should use [`check`]; this lower-level
 /// entry point is exposed for diagnostic use.
 #[must_use]
-pub fn collect_paths(raw: &serde_yaml::Value, normalized: &serde_yaml::Value) -> Vec<String> {
+pub fn collect_paths<T: Serialize>(raw: &serde_yaml::Value, typed: &T) -> Vec<String> {
+    let normalized = serde_yaml::to_value(typed)
+        .expect("re-serializing a deserialized typed struct to serde_yaml::Value cannot fail");
     let mut out = Vec::new();
-    diff("", raw, normalized, &mut out);
+    diff("", raw, &normalized, &mut out);
     out
 }
 
@@ -319,5 +349,33 @@ mod tests {
             }
             other => panic!("expected UnexpectedFields, got: {other:?}"),
         }
+    }
+
+    // ---- warn ----
+
+    #[test]
+    fn warn_returns_empty_when_trees_match() {
+        let raw = yaml("a: 1");
+        let normalized = yaml("a: 1");
+        assert!(warn(&raw, &normalized, None, &path()).is_empty());
+    }
+
+    #[test]
+    fn warn_returns_field_list() {
+        let raw = yaml("a: 1\ntyp0: bad");
+        let normalized = yaml("a: 1");
+        let unknowns = warn(&raw, &normalized, Some(&parsed("definition/2")), &path());
+        assert_eq!(unknowns, vec!["typ0".to_owned()]);
+    }
+
+    #[test]
+    fn warn_returns_nested_and_sequence_paths() {
+        let raw = yaml("outer:\n  oops: bad\nitems:\n  - id: a\n    extra: x");
+        let normalized = yaml("outer: {}\nitems:\n  - id: a");
+        let unknowns = warn(&raw, &normalized, None, &path());
+        assert_eq!(
+            unknowns,
+            vec!["outer.oops".to_owned(), "items[0].extra".to_owned()]
+        );
     }
 }
