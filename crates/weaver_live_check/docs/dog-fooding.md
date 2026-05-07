@@ -75,7 +75,7 @@ docker run --rm \
   -u "$(id -u):$(id -g)" \
   -e HOME=/tmp \
   -v "$(pwd)":/home/weaver/source \
-  otel/weaver:latest \
+  otel/weaver:v0.23.0 \
   registry generate \
   --registry /home/weaver/source/crates/weaver_live_check/model/ \
   --templates /home/weaver/source/crates/weaver_live_check/templates/ \
@@ -93,7 +93,7 @@ docker run --rm \
   -u "$(id -u):$(id -g)" \
   -e HOME=/tmp \
   -v "$(pwd)":/home/weaver/source \
-  otel/weaver:latest \
+  otel/weaver:v0.23.0 \
   registry generate \
   --registry /home/weaver/source/crates/weaver_live_check/model/ \
   --templates /home/weaver/source/crates/weaver_live_check/templates/ \
