@@ -1,0 +1,68 @@
+{#- Stability badge macro -#}
+{%- macro stability_badge(stability) -%}
+{%- if stability == "stable" -%}
+![Stable](https://img.shields.io/badge/-stable-lightgreen)
+{%- elif stability == "deprecated" -%}
+![Deprecated](https://img.shields.io/badge/-deprecated-red)
+{%- else -%}
+![Development](https://img.shields.io/badge/-development-blue)
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Attribute type display -#}
+{%- macro attr_type(attribute) -%}
+{%- if attribute.type is mapping -%}
+enum
+{%- else -%}
+{{ attribute.type }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Attribute name, with .<key> suffix for template types -#}
+{%- macro attr_key(attribute) -%}
+{%- if attribute.type is not mapping and attribute.type is defined and attribute.type.startswith("template[") -%}
+`{{ attribute.key }}.<key>`
+{%- else -%}
+`{{ attribute.key }}`
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Format examples as backtick-wrapped, comma-separated -#}
+{%- macro format_examples(attribute) -%}
+{%- if attribute.examples is defined -%}
+{%- for ex in attribute.examples -%}
+`{{ ex }}`{%- if not loop.last %}, {% endif -%}
+{%- endfor -%}
+{%- elif attribute.type is mapping -%}
+{%- for member in attribute.type.members -%}
+{%- if loop.index <= 2 -%}
+`{{ member.value }}`{%- if loop.index < 2 and attribute.type.members | length > 1 %}, {% endif -%}
+{%- endif -%}
+{%- endfor -%}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Attribute summary table -#}
+{%- macro attribute_table(attributes) -%}
+| Attribute | Type | Stability | Description | Examples |
+|-----------|------|-----------|-------------|----------|
+{% for attr in attributes %}
+| {{ attr_key(attr) }} | {{ attr_type(attr) }} | {{ stability_badge(attr.stability) }} | {{ attr.brief }} | {{ format_examples(attr) }} |
+{% endfor %}
+{%- endmacro -%}
+
+{#- Enum member table -#}
+{%- macro enum_table(attribute) -%}
+| Value | Stability | Description |
+|-------|-----------|-------------|
+{% for member in attribute.type.members %}
+| `{{ member.value }}` | {{ stability_badge(member.stability) }} | {{ member.brief }} |
+{% endfor %}
+{%- endmacro -%}
+
+{#- Check if attribute is a template type (returns "true" string or empty) -#}
+{%- macro is_template(attribute) -%}
+{%- if attribute.type is not mapping and attribute.type is defined and attribute.type.startswith("template[") -%}
+true
+{%- endif -%}
+{%- endmacro -%}
