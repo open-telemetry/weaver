@@ -38,7 +38,7 @@
       "stability": "stable",
       "attributes": [
         1,
-        4
+        3
       ],
       "name": "entity.refined.entity",
       "lineage": {
@@ -151,7 +151,7 @@
       "stability": "stable",
       "attributes": [
         0,
-        5
+        4
       ],
       "metric_name": "base.metric",
       "instrument": "histogram",
@@ -185,7 +185,6 @@
           }
         },
         "includes_group": [
-          "test.refine.extras",
           "test.refine.extras"
         ]
       },
@@ -208,8 +207,8 @@
       "brief": "<synthetic v2>",
       "attributes": [
         0,
-        3,
-        5
+        2,
+        4
       ],
       "lineage": {
         "provenance": {
@@ -252,7 +251,7 @@
       "brief": "Refined span",
       "stability": "stable",
       "attributes": [
-        2
+        0
       ],
       "span_kind": "client",
       "name": "span.refined.span",
@@ -267,51 +266,12 @@
             "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
             "inherited_fields": [
               "brief",
+              "note",
               "requirement_level",
               "stability"
-            ],
-            "locally_overridden_fields": [
-              "note"
             ]
           }
-        },
-        "includes_group": [
-          "test.override.group",
-          "test.override.group"
-        ]
-      }
-    },
-    {
-      "id": "span.regular.span",
-      "type": "span",
-      "brief": "Regular span pulling override group via ref_group",
-      "stability": "stable",
-      "attributes": [
-        2
-      ],
-      "span_kind": "client",
-      "name": "regular.span",
-      "lineage": {
-        "provenance": {
-          "schema_url": "https://default/0.1.0",
-          "path": "data/registry-test-v2-4-refinements/registry/v2-refinements.yaml"
-        },
-        "attributes": {
-          "test.attr": {
-            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
-            "inherited_fields": [
-              "brief",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note"
-            ]
-          }
-        },
-        "includes_group": [
-          "test.override.group"
-        ]
+        }
       }
     },
     {

@@ -15,14 +15,6 @@
     "role": "identifying"
   },
   {
-    "name": "test.attr",
-    "type": "int",
-    "brief": "Test attribute",
-    "requirement_level": "recommended",
-    "note": "OVERRIDE_NOTE",
-    "stability": "stable"
-  },
-  {
     "name": "test.attr2",
     "type": "string",
     "brief": "Test attribute 2",
