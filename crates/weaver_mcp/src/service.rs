@@ -8,7 +8,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{ServerCapabilities, ServerInfo};
 use rmcp::{tool, tool_handler, tool_router, ServerHandler};
@@ -49,8 +48,6 @@ pub struct WeaverMcpService {
     advice_policies: Option<PathBuf>,
     /// Path to jq preprocessor script for Rego policies.
     advice_preprocessor: Option<PathBuf>,
-    /// Tool router for handling tool calls.
-    tool_router: ToolRouter<Self>,
 }
 
 impl WeaverMcpService {
@@ -70,7 +67,6 @@ impl WeaverMcpService {
             versioned_registry,
             advice_policies: config.advice_policies,
             advice_preprocessor: config.advice_preprocessor,
-            tool_router: Self::tool_router(),
         }
     }
 
@@ -205,15 +201,14 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
 #[tool_handler]
 impl ServerHandler for WeaverMcpService {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            instructions: Some(
-                "MCP server for OpenTelemetry semantic conventions. Use 'search' to find \
-                 conventions, 'get_*' tools to get details, and 'live_check' to validate samples."
-                    .into(),
-            ),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
-        }
+        let mut server_info = ServerInfo::default();
+        server_info.instructions = Some(
+            "MCP server for OpenTelemetry semantic conventions. Use 'search' to find \
+             conventions, 'get_*' tools to get details, and 'live_check' to validate samples."
+                .into(),
+        );
+        server_info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        server_info
     }
 }
 
