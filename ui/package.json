@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -35,7 +35,7 @@
     "globals": "16.5.0",
     "tailwindcss": "4.2.4",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.59.1",
+    "typescript-eslint": "8.59.2",
     "vite": "7.3.2"
   }
 }
