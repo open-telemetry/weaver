@@ -30,5 +30,5 @@ log.workspace = true
 rand.workspace = true
 
 [dev-dependencies]
-glob = "=0.3.3"
+glob.workspace = true
 tempfile.workspace = true
