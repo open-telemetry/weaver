@@ -624,7 +624,7 @@ Packages a semantic convention registry into a self-contained artifact.
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written. [default: output]
-* `--resolved-schema-uri <RESOLVED_SCHEMA_URI>` — URI where the resolved schema will eventually be published. This value is embedded in the publication manifest as `resolved_schema_uri`
+* `--resolved-registry-uri <RESOLVED_REGISTRY_URI>` — URI where the resolved registry artifact will eventually be published. This value is embedded in the publication manifest as `resolved_registry_uri`
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
 * `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
 

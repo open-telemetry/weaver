@@ -3,4 +3,4 @@ description: Test repository that has been resolved.
 schema_url: http://resolved/1.0.0
 repository_url: https://github.com/open-telemetry/weaver.git
 stability: stable
-resolved_schema_uri: resolved_1.0.0.yaml
+resolved_registry_uri: resolved_1.0.0.yaml

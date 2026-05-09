@@ -174,12 +174,12 @@ impl RegistryRepo {
         self.manifest.as_ref()
     }
 
-    /// Returns the resolved schema URI, if available in the manifest.
+    /// Returns the resolved registry URI, if available in the manifest.
     #[must_use]
-    pub fn resolved_schema_uri(&self) -> Option<VirtualDirectoryPath> {
+    pub fn resolved_registry_uri(&self) -> Option<VirtualDirectoryPath> {
         let manifest = self.manifest.as_ref()?;
         let resolved_uri: &str = match manifest {
-            RegistryManifest::Publication(m) => &m.resolved_schema_uri,
+            RegistryManifest::Publication(m) => &m.resolved_registry_uri,
             RegistryManifest::Definition(_) => return None,
         };
         match get_path_type(resolved_uri) {
@@ -270,7 +270,7 @@ mod tests {
         };
         assert_eq!(manifest.name(), "resolved");
 
-        let Some(resolved_path) = repo.resolved_schema_uri() else {
+        let Some(resolved_path) = repo.resolved_registry_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
@@ -287,7 +287,7 @@ mod tests {
         };
         let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("Failed to load test repository.");
-        let Some(resolved_path) = repo.resolved_schema_uri() else {
+        let Some(resolved_path) = repo.resolved_registry_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
@@ -301,7 +301,7 @@ mod tests {
         };
         let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("Failed to load test repository.");
-        let Some(resolved_path) = repo.resolved_schema_uri() else {
+        let Some(resolved_path) = repo.resolved_registry_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
