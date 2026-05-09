@@ -161,7 +161,6 @@ struct RawManifestFields {
     stability: Stability,
     resolved_registry_uri: Option<String>,
     /// Deprecated alias for `resolved_registry_uri`.
-    #[allow(deprecated)]
     resolved_schema_uri: Option<String>,
 }
 
