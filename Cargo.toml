@@ -72,6 +72,8 @@ toml = "0.9.8"
 zip = "5.1.1"
 assert_cmd = "2.2.1"
 semver = { version = "1.0.27", features = ["serde"] }
+portpicker = "0.1.1"
+glob = "0.3.3"
 
 # Features definition =========================================================
 [features]
@@ -144,7 +146,7 @@ weaver_version = { path = "crates/weaver_version" }
 tempfile.workspace = true
 ureq.workspace = true
 assert_cmd.workspace = true
-portpicker = "=0.1.1"
+portpicker.workspace = true
 zip.workspace = true
 
 [build-dependencies]
@@ -164,7 +166,10 @@ lto = "thin"
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unused_lifetimes = "warn"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)', 'cfg(tarpaulin_include)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(tarpaulin)',
+    'cfg(tarpaulin_include)',
+] }
 # unreachable_pub = "warn"
 semicolon_in_expressions_from_macros = "warn"
 missing_docs = "deny"
