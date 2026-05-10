@@ -11,7 +11,7 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    advice::{type_advisor::check_entity_resource_attributes, FindingBuilder},
+    advice::{emit_findings, type_advisor::check_entity_resource_attributes, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
     sample_resource::SampleResource,
@@ -352,6 +352,12 @@ impl LiveCheckRunner for SampleMetric {
                     parent_signal,
                 );
                 let sample_ref = SampleRef::Metric(self);
+                emit_findings(
+                    &findings,
+                    &sample_ref,
+                    live_checker.otlp_emitter.as_deref(),
+                    parent_signal,
+                );
                 result.add_advice_list(
                     findings,
                     live_checker.finding_modifier.as_ref(),
