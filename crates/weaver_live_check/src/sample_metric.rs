@@ -11,9 +11,12 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_resource::SampleResource, Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::{type_advisor::check_entity_resource_attributes, FindingBuilder},
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
+    Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    SampleRef, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -331,6 +334,32 @@ impl LiveCheckRunner for SampleMetric {
                 &sample_ref,
             );
         }
+        // Check entity attribute requirements against the resource (empty slice if no resource)
+        let resource_attributes: &[SampleAttribute] = parent_signal
+            .resource()
+            .map(|r| r.attributes.as_slice())
+            .unwrap_or(&[]);
+        let entity_associations: &[String] = match semconv_metric.as_deref() {
+            Some(VersionedSignal::Group(g)) => &g.entity_associations,
+            Some(VersionedSignal::Metric(m)) => &m.entity_associations,
+            _ => &[],
+        };
+        for entity_type in entity_associations {
+            if let Some(entity) = live_checker.find_entity(entity_type) {
+                let findings = check_entity_resource_attributes(
+                    &entity,
+                    resource_attributes,
+                    parent_signal,
+                );
+                let sample_ref = SampleRef::Metric(self);
+                result.add_advice_list(
+                    findings,
+                    live_checker.finding_modifier.as_ref(),
+                    &sample_ref,
+                );
+            }
+        }
+
         // Get advice for the data points
         match &mut self.data_points {
             Some(DataPoints::Number(points)) => {

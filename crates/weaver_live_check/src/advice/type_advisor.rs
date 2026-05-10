@@ -5,7 +5,7 @@
 use serde_json::json;
 use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_forge::v2::{event::EventAttribute, metric::MetricAttribute};
+use weaver_forge::v2::{entity::EntityAttribute, event::EventAttribute, metric::MetricAttribute};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -15,9 +15,10 @@ use weaver_semconv::attribute::{
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, FindingId, Sample, SampleRef, VersionedAttribute, VersionedSignal,
+    Error, FindingId, Sample, SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
     ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
+    ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
+    INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
@@ -70,6 +71,107 @@ impl CheckableAttribute for EventAttribute {
     fn attribute_type(&self) -> &AttributeType {
         &self.base.r#type
     }
+}
+
+impl CheckableAttribute for EntityAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.base.r#type
+    }
+}
+
+/// Checks resource attributes against an entity definition's requirements.
+///
+/// Findings use entity-specific `FindingId` variants and include `entity_type` in context.
+pub(crate) fn check_entity_resource_attributes(
+    entity: &VersionedEntity,
+    resource_attributes: &[SampleAttribute],
+    parent_signal: &Sample,
+) -> Vec<PolicyFinding> {
+    let attribute_set: HashSet<_> = resource_attributes
+        .iter()
+        .map(|a| a.name.as_str())
+        .collect();
+
+    let mut advice_list = Vec::new();
+
+    let check_attr = |key: &str,
+                      requirement_level: &RequirementLevel,
+                      entity_type: &str,
+                      advice_list: &mut Vec<PolicyFinding>| {
+        if attribute_set.contains(key) {
+            return;
+        }
+        let (finding_id, advice_level, message) = match requirement_level {
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
+                FindingId::EntityRequiredAttributeNotPresent,
+                FindingLevel::Violation,
+                format!("Required attribute '{key}' for entity '{entity_type}' is not present in resource."),
+            ),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
+            | RequirementLevel::Recommended { .. } => (
+                FindingId::EntityRecommendedAttributeNotPresent,
+                FindingLevel::Improvement,
+                format!("Recommended attribute '{key}' for entity '{entity_type}' is not present in resource."),
+            ),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
+            | RequirementLevel::OptIn { .. } => (
+                FindingId::EntityOptInAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Opt-in attribute '{key}' for entity '{entity_type}' is not present in resource."),
+            ),
+            RequirementLevel::ConditionallyRequired { .. } => (
+                FindingId::EntityConditionallyRequiredAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Conditionally required attribute '{key}' for entity '{entity_type}' is not present in resource."),
+            ),
+        };
+        advice_list.push(PolicyFinding {
+            id: finding_id.into(),
+            context: Some(json!({
+                ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: key,
+                ENTITY_TYPE_ADVICE_CONTEXT_KEY: entity_type,
+            })),
+            message,
+            level: advice_level,
+            signal_type: parent_signal.signal_type(),
+            signal_name: parent_signal.signal_name(),
+        });
+    };
+
+    match entity {
+        VersionedEntity::V1(group) => {
+            let entity_type = group.name.as_deref().unwrap_or("");
+            for attr in &group.attributes {
+                check_attr(
+                    &attr.name,
+                    &attr.requirement_level,
+                    entity_type,
+                    &mut advice_list,
+                );
+            }
+        }
+        VersionedEntity::V2(entity) => {
+            let entity_type = entity.r#type.to_string();
+            for attr in entity.identity.iter().chain(entity.description.iter()) {
+                check_attr(
+                    &attr.base.key,
+                    &attr.requirement_level,
+                    &entity_type,
+                    &mut advice_list,
+                );
+            }
+        }
+    }
+
+    advice_list
 }
 
 /// Checks if attributes from a resolved group are present in a list of sample attributes

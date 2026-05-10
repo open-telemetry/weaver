@@ -15,7 +15,7 @@ mod deprecated_advisor;
 mod enum_advisor;
 mod rego_advisor;
 mod stability_advisor;
-mod type_advisor;
+pub(crate) mod type_advisor;
 
 // Public re-exports
 pub use deprecated_advisor::DeprecatedAdvisor;

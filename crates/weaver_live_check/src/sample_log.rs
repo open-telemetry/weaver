@@ -9,9 +9,12 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_resource::SampleResource, Error, FindingId, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::{type_advisor::check_entity_resource_attributes, FindingBuilder},
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
+    Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -87,6 +90,32 @@ impl LiveCheckRunner for SampleLog {
                 &sample_ref,
             );
         }
+        // Check entity attribute requirements against the resource (empty slice if no resource)
+        let resource_attributes: &[SampleAttribute] = parent_signal
+            .resource()
+            .map(|r| r.attributes.as_slice())
+            .unwrap_or(&[]);
+        let entity_associations: &[String] = match semconv_event.as_deref() {
+            Some(VersionedSignal::Group(g)) => &g.entity_associations,
+            Some(VersionedSignal::Event(e)) => &e.entity_associations,
+            _ => &[],
+        };
+        for entity_type in entity_associations {
+            if let Some(entity) = live_checker.find_entity(entity_type) {
+                let findings = check_entity_resource_attributes(
+                    &entity,
+                    resource_attributes,
+                    parent_signal,
+                );
+                let sample_ref = SampleRef::Log(self);
+                result.add_advice_list(
+                    findings,
+                    live_checker.finding_modifier.as_ref(),
+                    &sample_ref,
+                );
+            }
+        }
+
         // Check attributes
         self.attributes.run_live_check(
             live_checker,
