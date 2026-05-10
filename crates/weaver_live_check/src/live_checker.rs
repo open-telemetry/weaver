@@ -2784,12 +2784,7 @@ mod tests {
         // Resource missing host.name — expect entity_required_attribute_not_present on the metric
         let mut sample_missing = make_metric(vec![]);
         sample_missing
-            .run_live_check(
-                &mut live_checker,
-                &mut stats,
-                None,
-                &sample_missing.clone(),
-            )
+            .run_live_check(&mut live_checker, &mut stats, None, &sample_missing.clone())
             .expect("live check should not error");
 
         let advice = match &sample_missing {
@@ -2811,12 +2806,7 @@ mod tests {
             live_check_result: None,
         }]);
         sample_present
-            .run_live_check(
-                &mut live_checker,
-                &mut stats,
-                None,
-                &sample_present.clone(),
-            )
+            .run_live_check(&mut live_checker, &mut stats, None, &sample_present.clone())
             .expect("live check should not error");
 
         let advice = match &sample_present {
