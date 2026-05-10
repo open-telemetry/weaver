@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
 
 use crate::{
-    advice::{emit_findings, type_advisor::check_entity_resource_attributes, FindingBuilder},
+    advice::{check_entity_resource_attributes, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
     sample_resource::SampleResource,

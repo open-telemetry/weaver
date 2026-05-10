@@ -198,6 +198,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::sample_log::SampleLog;
     use serde_json::json;
     use serde_yaml;
     use std::collections::BTreeMap;
@@ -221,7 +222,6 @@ mod tests {
         stability::Stability,
         YamlValue,
     };
-
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
         match sample {
             Sample::Attribute(sample_attribute) => sample_attribute
@@ -2435,7 +2435,6 @@ mod tests {
         );
 
         // Case 4: no resource — entity findings still emitted (treated as empty resource)
-        use crate::sample_log::SampleLog;
         let mut sample_no_resource = Sample::Log(SampleLog {
             event_name: "deployment.started".to_owned(),
             severity_number: None,
