@@ -50,7 +50,7 @@ itertools = "0.14.0"
 globset = { version = "0.4.16", features = ["serde1"] }
 miette = { version = "7.6.0", features = ["fancy", "serde"] }
 include_dir = "0.7.4"
-tempfile = "3.23.0"
+tempfile = "3.27.0"
 schemars = { version = "1", features = ["semver1"] }
 dirs = "6.0.0"
 once_cell = "1.21.3"
@@ -70,6 +70,10 @@ utoipa = "5.3"
 rand = "0.10.0"
 toml = "0.9.8"
 zip = "5.1.1"
+assert_cmd = "2.2.1"
+semver = { version = "1.0.27", features = ["serde"] }
+portpicker = "0.1.1"
+glob = "0.3.3"
 
 # Features definition =========================================================
 [features]
@@ -102,7 +106,7 @@ weaver_version = { path = "crates/weaver_version" }
 clap = { version = "4.6.1", features = ["derive"] }
 clap_complete = "4.6.2"
 clap-markdown = "0.1"
-rayon = "1.10.0"
+rayon.workspace = true
 ratatui = { version = "0.30.0", features = ["serde"] }
 ratatui-textarea = "0.9.1"
 prost = "0.14.1"
@@ -141,8 +145,8 @@ weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
 tempfile.workspace = true
 ureq.workspace = true
-assert_cmd = "=2.2.1"
-portpicker = "=0.1.1"
+assert_cmd.workspace = true
+portpicker.workspace = true
 zip.workspace = true
 
 [build-dependencies]
@@ -162,7 +166,10 @@ lto = "thin"
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unused_lifetimes = "warn"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)', 'cfg(tarpaulin_include)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(tarpaulin)',
+    'cfg(tarpaulin_include)',
+] }
 # unreachable_pub = "warn"
 semicolon_in_expressions_from_macros = "warn"
 missing_docs = "deny"
