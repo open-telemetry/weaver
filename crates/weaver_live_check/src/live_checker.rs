@@ -2594,4 +2594,240 @@ mod tests {
             "conditionally required entity attribute finding expected even without resource"
         );
     }
+
+    #[test]
+    fn test_metric_entity_validation() {
+        run_metric_entity_validation_test(false);
+    }
+
+    #[test]
+    fn test_metric_entity_validation_v2() {
+        run_metric_entity_validation_test(true);
+    }
+
+    fn make_metric_entity_registry(use_v2: bool) -> VersionedRegistry {
+        // A "host" entity with host.name (Required) associated with metric system.uptime
+        if use_v2 {
+            use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
+            use weaver_semconv::v2::signal_id::SignalId;
+
+            let host_name_attr = V2Attribute {
+                key: "host.name".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The host name".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.0.0"
+                    .try_into()
+                    .expect("valid schema url"),
+                registry: Registry {
+                    attributes: vec![host_name_attr.clone()],
+                    attribute_groups: vec![],
+                    metrics: vec![V2Metric {
+                        name: "system.uptime".to_owned().into(),
+                        instrument: InstrumentSpec::Gauge,
+                        unit: "s".to_owned(),
+                        requirement_level: None,
+                        attributes: vec![],
+                        entity_associations: vec!["host".to_owned()],
+                        common: CommonFields {
+                            brief: "System uptime".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    }],
+                    spans: vec![],
+                    events: vec![],
+                    entities: vec![V2Entity {
+                        r#type: SignalId::from("host".to_owned()),
+                        identity: vec![EntityAttribute {
+                            base: host_name_attr,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
+                        description: vec![],
+                        common: CommonFields {
+                            brief: "A host entity".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    }],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            }))
+        } else {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
+                registry_url: "TEST_METRIC_ENTITY".to_owned(),
+                groups: vec![
+                    ResolvedGroup {
+                        id: "entity.host".to_owned(),
+                        r#type: GroupType::Entity,
+                        brief: "A host entity".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![Attribute {
+                            name: "host.name".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: None,
+                            brief: "The host name".to_owned(),
+                            tag: None,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                            sampling_relevant: None,
+                            note: "".to_owned(),
+                            stability: Some(Stability::Stable),
+                            deprecated: None,
+                            prefix: false,
+                            tags: None,
+                            value: None,
+                            annotations: None,
+                            role: Default::default(),
+                        }],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        metric_requirement_level: None,
+                        name: Some("host".to_owned()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: None,
+                    },
+                    ResolvedGroup {
+                        id: "metric.system.uptime".to_owned(),
+                        r#type: GroupType::Metric,
+                        brief: "System uptime".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec!["host".to_owned()],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: Some("system.uptime".to_owned()),
+                        instrument: Some(InstrumentSpec::Gauge),
+                        unit: Some("s".to_owned()),
+                        metric_requirement_level: None,
+                        name: None,
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: None,
+                    },
+                ],
+            }))
+        }
+    }
+
+    fn run_metric_entity_validation_test(use_v2: bool) {
+        use crate::sample_metric::{DataPoints, SampleMetric, SampleNumberDataPoint};
+        use crate::sample_resource::SampleResource;
+
+        let registry = make_metric_entity_registry(use_v2);
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        let make_metric = |resource_attributes: Vec<SampleAttribute>| {
+            let resource = Rc::new(SampleResource {
+                attributes: resource_attributes,
+                live_check_result: None,
+            });
+            Sample::Metric(SampleMetric {
+                name: "system.uptime".to_owned(),
+                unit: "s".to_owned(),
+                instrument: SampleInstrument::Supported(InstrumentSpec::Gauge),
+                data_points: Some(DataPoints::Number(vec![SampleNumberDataPoint {
+                    attributes: vec![],
+                    value: serde_json::json!(42.0),
+                    flags: 0,
+                    exemplars: vec![],
+                    live_check_result: None,
+                }])),
+                live_check_result: None,
+                resource: Some(resource),
+            })
+        };
+
+        // Resource missing host.name — expect entity_required_attribute_not_present on the metric
+        let mut sample_missing = make_metric(vec![]);
+        sample_missing
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &sample_missing.clone(),
+            )
+            .expect("live check should not error");
+
+        let advice = match &sample_missing {
+            Sample::Metric(m) => m.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected metric sample"),
+        };
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_required_attribute_not_present"),
+            "expected entity_required_attribute_not_present when host.name absent from resource"
+        );
+
+        // Resource with host.name — no entity findings
+        let mut sample_present = make_metric(vec![SampleAttribute {
+            name: "host.name".to_owned(),
+            value: Some(serde_json::json!("my-host")),
+            r#type: None,
+            live_check_result: None,
+        }]);
+        sample_present
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &sample_present.clone(),
+            )
+            .expect("live check should not error");
+
+        let advice = match &sample_present {
+            Sample::Metric(m) => m.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected metric sample"),
+        };
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "no entity findings expected when host.name present in resource"
+        );
+    }
 }
