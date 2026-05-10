@@ -2112,6 +2112,8 @@ mod tests {
         // A "deployment" entity with:
         //   identity:    deployment.name  (Required)
         //   description: deployment.environment (Recommended)
+        //                deployment.tier         (OptIn)
+        //                deployment.region       (ConditionallyRequired)
         if use_v2 {
             use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
             use weaver_semconv::v2::signal_id::SignalId;
@@ -2142,13 +2144,44 @@ mod tests {
                 },
                 provenance: Default::default(),
             };
+            let deployment_tier_attr = V2Attribute {
+                key: "deployment.tier".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The deployment tier".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+            let deployment_region_attr = V2Attribute {
+                key: "deployment.region".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The deployment region".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
 
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
                 schema_url: "https://example.com/schemas/1.0.0"
                     .try_into()
                     .expect("valid schema url"),
                 registry: Registry {
-                    attributes: vec![deployment_name_attr.clone(), deployment_env_attr.clone()],
+                    attributes: vec![
+                        deployment_name_attr.clone(),
+                        deployment_env_attr.clone(),
+                        deployment_tier_attr.clone(),
+                        deployment_region_attr.clone(),
+                    ],
                     attribute_groups: vec![],
                     metrics: vec![],
                     spans: vec![],
@@ -2173,12 +2206,26 @@ mod tests {
                                 BasicRequirementLevelSpec::Required,
                             ),
                         }],
-                        description: vec![EntityAttribute {
-                            base: deployment_env_attr,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
+                        description: vec![
+                            EntityAttribute {
+                                base: deployment_env_attr,
+                                requirement_level: RequirementLevel::Recommended {
+                                    text: "".to_owned(),
+                                },
                             },
-                        }],
+                            EntityAttribute {
+                                base: deployment_tier_attr,
+                                requirement_level: RequirementLevel::OptIn {
+                                    text: "".to_owned(),
+                                },
+                            },
+                            EntityAttribute {
+                                base: deployment_region_attr,
+                                requirement_level: RequirementLevel::ConditionallyRequired {
+                                    text: "When multi-region".to_owned(),
+                                },
+                            },
+                        ],
                         common: CommonFields {
                             brief: "A deployment entity".to_owned(),
                             note: "".to_owned(),
@@ -2242,6 +2289,48 @@ mod tests {
                                 tag: None,
                                 requirement_level: RequirementLevel::Recommended {
                                     text: "".to_owned(),
+                                },
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Stable),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                            Attribute {
+                                name: "deployment.tier".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: None,
+                                brief: "The deployment tier".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::OptIn,
+                                ),
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Stable),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                            Attribute {
+                                name: "deployment.region".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: None,
+                                brief: "The deployment region".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::ConditionallyRequired {
+                                    text: "When multi-region".to_owned(),
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
@@ -2340,8 +2429,8 @@ mod tests {
         };
         assert_eq!(
             advice.len(),
-            2,
-            "both entity attributes should produce findings"
+            4,
+            "all four entity attributes should produce findings"
         );
         let required_finding = advice
             .iter()
@@ -2361,6 +2450,16 @@ mod tests {
             recommended_finding.context,
             Some(json!({"attribute_key": "deployment.environment", "entity_type": "deployment"}))
         );
+        let opt_in_finding = advice
+            .iter()
+            .find(|a| a.id == "entity_opt_in_attribute_not_present")
+            .expect("should have entity_opt_in_attribute_not_present finding");
+        assert_eq!(opt_in_finding.level, FindingLevel::Information);
+        let conditional_finding = advice
+            .iter()
+            .find(|a| a.id == "entity_conditionally_required_attribute_not_present")
+            .expect("should have entity_conditionally_required_attribute_not_present finding");
+        assert_eq!(conditional_finding.level, FindingLevel::Information);
 
         // Case 2: required present, recommended missing
         let mut sample_required_only = make_log_sample(
@@ -2414,6 +2513,18 @@ mod tests {
                     r#type: None,
                     live_check_result: None,
                 },
+                SampleAttribute {
+                    name: "deployment.tier".to_owned(),
+                    value: Some(serde_json::json!("frontend")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "deployment.region".to_owned(),
+                    value: Some(serde_json::json!("us-east-1")),
+                    r#type: None,
+                    live_check_result: None,
+                },
             ],
         );
         sample_all_present
@@ -2461,7 +2572,7 @@ mod tests {
         };
         assert_eq!(
             advice.len(),
-            2,
+            4,
             "entity findings should still be emitted when no resource is present"
         );
         assert!(
@@ -2469,6 +2580,18 @@ mod tests {
                 .iter()
                 .any(|a| a.id == "entity_required_attribute_not_present"),
             "required entity attribute finding expected even without resource"
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_opt_in_attribute_not_present"),
+            "opt-in entity attribute finding expected even without resource"
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_conditionally_required_attribute_not_present"),
+            "conditionally required entity attribute finding expected even without resource"
         );
     }
 }

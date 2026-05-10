@@ -5,7 +5,7 @@
 use serde_json::json;
 use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_forge::v2::{entity::EntityAttribute, event::EventAttribute, metric::MetricAttribute};
+use weaver_forge::v2::{event::EventAttribute, metric::MetricAttribute};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -60,20 +60,6 @@ impl CheckableAttribute for MetricAttribute {
 }
 
 impl CheckableAttribute for EventAttribute {
-    fn key(&self) -> &str {
-        &self.base.key
-    }
-
-    fn requirement_level(&self) -> &RequirementLevel {
-        &self.requirement_level
-    }
-
-    fn attribute_type(&self) -> &AttributeType {
-        &self.base.r#type
-    }
-}
-
-impl CheckableAttribute for EntityAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
