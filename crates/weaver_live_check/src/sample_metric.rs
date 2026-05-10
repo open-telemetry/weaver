@@ -346,11 +346,8 @@ impl LiveCheckRunner for SampleMetric {
         };
         for entity_type in entity_associations {
             if let Some(entity) = live_checker.find_entity(entity_type) {
-                let findings = check_entity_resource_attributes(
-                    &entity,
-                    resource_attributes,
-                    parent_signal,
-                );
+                let findings =
+                    check_entity_resource_attributes(&entity, resource_attributes, parent_signal);
                 let sample_ref = SampleRef::Metric(self);
                 emit_findings(
                     &findings,
