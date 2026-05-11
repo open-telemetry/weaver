@@ -5,15 +5,16 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  monaco-editor>dompurify: '>=3.4.2'
   axios: '>=1.15.2'
   follow-redirects: '>=1.16.0'
-  postcss: '>=8.5.10'
   lodash: '>=4.18.0'
-  flatted: '>=3.4.2'
-  picomatch: '>=4.0.4'
-  rollup: '>=4.59.0'
-  brace-expansion: '>=5.0.5'
   '@swagger-api/apidom-reference>minimatch': '>=7.4.8'
+  postcss: '>=8.5.10'
+  rollup: '>=4.59.0'
+  picomatch: '>=4.0.4'
+  flatted: '>=3.4.2'
+  brace-expansion: '>=5.0.5'
 
 importers:
 
@@ -1055,9 +1056,6 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
-
-  dompurify@3.2.7:
-    resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
 
   dompurify@3.4.2:
     resolution: {integrity: sha512-lHeS9SA/IKeIFFyYciHBr2n0v1VMPlSj843HdLOwjb2OxNwdq9Xykxqhk+FE42MzAdHvInbAolSE4mhahPpjXA==}
@@ -2988,10 +2986,6 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  dompurify@3.2.7:
-    optionalDependencies:
-      '@types/trusted-types': 2.0.7
-
   dompurify@3.4.2:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
@@ -3400,7 +3394,7 @@ snapshots:
 
   monaco-editor@0.55.1:
     dependencies:
-      dompurify: 3.2.7
+      dompurify: 3.4.2
       marked: 14.0.0
 
   ms@2.1.3: {}

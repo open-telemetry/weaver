@@ -40,10 +40,12 @@
   },
   "overrides-notes": {
     "rapidoc-group": "axios, follow-redirects, lodash, minimatch — rapidoc pins old swagger-client; remove when rapidoc ships an updated swagger-client",
-    "devtools-group": "postcss, rollup, picomatch, flatted, brace-expansion — vite/eslint/typescript-eslint transitive security pins; remove when those tools update their own deps"
+    "devtools-group": "postcss, rollup, picomatch, flatted, brace-expansion — vite/eslint/typescript-eslint transitive security pins; remove when those tools update their own deps",
+    "monaco-group": "dompurify — monaco-editor pins an old dompurify; remove when monaco-editor updates its own dep"
   },
   "pnpm": {
     "overrides": {
+      "monaco-editor>dompurify": ">=3.4.2",
       "axios": ">=1.15.2",
       "follow-redirects": ">=1.16.0",
       "lodash": ">=4.18.0",
