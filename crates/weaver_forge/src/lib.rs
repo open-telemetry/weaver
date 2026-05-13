@@ -868,6 +868,7 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
+    use crate::v2::event::Event;
     use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
@@ -962,7 +963,13 @@ mod tests {
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
-                events: vec![],
+                events: vec![Event {
+                    name: SignalId::from("db.query".to_owned()),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
                 entities: vec![],
             },
             refinements: Refinements {
