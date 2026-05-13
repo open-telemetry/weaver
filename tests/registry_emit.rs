@@ -8,6 +8,8 @@ use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
 
+use portpicker::pick_unused_port;
+
 /// This test verifies the roundtrip functionality of registry live check and emit commands.
 /// This test doesn't count for the coverage report as it runs separate processes.
 #[test]
@@ -28,36 +30,34 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .to_str()
         .expect("Failed to convert temp directory path to string");
 
+    let otlp_grpc_port = pick_unused_port().expect("no free OTLP gRPC port");
+    let admin_port = pick_unused_port().expect("no free admin port");
+
     // Build the arguments for live check command
     // Note: --input-source otlp and --skip-policies false are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut live_check_args = vec![
-        "registry",
-        "live-check",
-        "-r",
-        "crates/weaver_emit/data",
-        "--input-source",
-        "otlp",
-        "--skip-policies",
-        "true",
-        "--format",
-        "json",
-        "--output",
-        temp_dir_path,
-        "--inactivity-timeout",
-        "8",
+        "registry".to_owned(),
+        "live-check".to_owned(),
+        "-r".to_owned(),
+        "crates/weaver_emit/data".to_owned(),
+        "--input-source".to_owned(),
+        "otlp".to_owned(),
+        "--skip-policies".to_owned(),
+        "true".to_owned(),
+        "--format".to_owned(),
+        "json".to_owned(),
+        "--output".to_owned(),
+        temp_dir_path.to_owned(),
+        "--inactivity-timeout".to_owned(),
+        "8".to_owned(),
+        "--otlp-grpc-port".to_owned(),
+        otlp_grpc_port.to_string(),
+        "--admin-port".to_owned(),
+        admin_port.to_string(),
     ];
     if use_v2 {
-        live_check_args.push("--v2");
-        live_check_args.push("--otlp-grpc-port");
-        live_check_args.push("5300");
-        live_check_args.push("--admin-port");
-        live_check_args.push("5301");
-    } else {
-        live_check_args.push("--otlp-grpc-port");
-        live_check_args.push("5200");
-        live_check_args.push("--admin-port");
-        live_check_args.push("5201");
+        live_check_args.push("--v2".to_owned());
     }
 
     // Start registry live check command as a background process
@@ -81,12 +81,10 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 
     if use_v2 {
         emit_args = emit_args.arg("--v2");
-        emit_args = emit_args.arg("--endpoint");
-        emit_args = emit_args.arg("http://localhost:5300");
-    } else {
-        emit_args = emit_args.arg("--endpoint");
-        emit_args = emit_args.arg("http://localhost:5200");
     }
+    emit_args = emit_args
+        .arg("--endpoint")
+        .arg(format!("http://localhost:{otlp_grpc_port}"));
 
     let emit_output = emit_args
         .timeout(Duration::from_secs(60))
@@ -152,11 +150,11 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 #[test]
 fn test_emit_with_resource_attributes() {
     // Ports for weaver3 (final collector)
-    let w3_grpc_port = "5400";
-    let w3_admin_port = "5401";
+    let w3_grpc_port = pick_unused_port().expect("no free weaver3 OTLP gRPC port");
+    let w3_admin_port = pick_unused_port().expect("no free weaver3 admin port");
     // Ports for weaver2 (middle live-check with emit)
-    let w2_grpc_port = "5402";
-    let w2_admin_port = "5403";
+    let w2_grpc_port = pick_unused_port().expect("no free weaver2 OTLP gRPC port");
+    let w2_admin_port = pick_unused_port().expect("no free weaver2 admin port");
 
     // Temp dir for weaver3's JSON output
     let temp_dir = tempdir().expect("Failed to create temporary directory");
@@ -185,9 +183,9 @@ fn test_emit_with_resource_attributes() {
             "--inactivity-timeout",
             "8",
             "--otlp-grpc-port",
-            w3_grpc_port,
+            &w3_grpc_port.to_string(),
             "--admin-port",
-            w3_admin_port,
+            &w3_admin_port.to_string(),
         ])
         .spawn()
         .expect("Failed to start weaver3 (collector)");
@@ -213,9 +211,9 @@ fn test_emit_with_resource_attributes() {
             "--inactivity-timeout",
             "4",
             "--otlp-grpc-port",
-            w2_grpc_port,
+            &w2_grpc_port.to_string(),
             "--admin-port",
-            w2_admin_port,
+            &w2_admin_port.to_string(),
             "--emit-otlp-logs",
             "--otlp-logs-endpoint",
             &format!("http://localhost:{w3_grpc_port}"),
