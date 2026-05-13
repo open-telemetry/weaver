@@ -22,7 +22,7 @@ use crate::{
 
 /// Defines a new metric.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Metric {
     /// The name of the metric.
     pub name: SignalId,
@@ -54,7 +54,7 @@ pub struct Metric {
 
 /// A refinement of an existing metric.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct MetricRefinement {
     /// The ID of the refinement.
     pub id: SignalId,

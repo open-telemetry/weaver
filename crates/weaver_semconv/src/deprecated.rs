@@ -101,11 +101,13 @@ where
                     "reason" => action = Some(map.next_value::<String>()?),
                     "renamed_to" => new_name = Some(map.next_value()?),
                     "note" => note = Some(map.next_value()?),
+                    // Silently drop unknowns so newer-minor schemas stay
+                    // forward-compatible. The outer-document parsers
+                    // (resolved schema, publication manifest) re-check raw
+                    // vs. round-tripped YAML via `unexpected_fields::check`
+                    // for known minors and surface these as typos there.
                     _ => {
-                        return Err(de::Error::unknown_field(
-                            &key,
-                            &["reason", "note", "renamed_to"],
-                        ))
+                        let _ = map.next_value::<de::IgnoredAny>()?;
                     }
                 }
             }
@@ -251,5 +253,41 @@ mod tests {
                 note: "Replaced by a new attribute `foo.unique_id`.".to_owned()
             })
         );
+    }
+
+    #[test]
+    fn deserialize_silently_drops_unknown_keys() {
+        // Forward-compat: unknowns are dropped here; the outer walker re-detects them.
+        let yaml_data = r#"
+- deprecated:
+    reason: renamed
+    renamed_to: foo.bar
+    future_field: x
+    another_unknown: 42
+- deprecated:
+    reason: obsoleted
+    bogus: nope
+- deprecated:
+    reason: uncategorized
+    note: complex
+    new_v3_field: maybe
+"#;
+        let items: Vec<Item> = serde_yaml::from_str(yaml_data).expect("unknowns tolerated");
+        assert_eq!(items.len(), 3);
+        assert_eq!(
+            items[0].deprecated,
+            Some(Deprecated::Renamed {
+                renamed_to: "foo.bar".to_owned(),
+                note: "Replaced by `foo.bar`.".to_owned()
+            })
+        );
+        assert!(matches!(
+            items[1].deprecated,
+            Some(Deprecated::Obsoleted { .. })
+        ));
+        assert!(matches!(
+            items[2].deprecated,
+            Some(Deprecated::Uncategorized { .. })
+        ));
     }
 }

@@ -18,7 +18,7 @@ use crate::{
 
 /// A reference to an attribute group for spans.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct SpanGroupRef {
     /// Reference an existing attribute group by id.
     pub ref_group: String,
@@ -59,7 +59,7 @@ pub fn split_span_attributes_and_groups(
 
 /// Defines a new Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Span {
     /// The type of the Span. This denotes the identity
     /// of the "shape" of this span, and must be unique.
@@ -84,7 +84,7 @@ pub struct Span {
 
 /// A refinement of an existing span.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct SpanRefinement {
     /// The ID of the refinement.
     pub id: SignalId,
@@ -202,8 +202,8 @@ impl SpanRefinement {
 /// Specification of the span name.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct SpanName {
     /// Required description of how a span name should be created.
     pub note: String,
@@ -211,8 +211,8 @@ pub struct SpanName {
 
 /// A refinement of an Attribute for a span.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct SpanAttributeRef {
     /// Baseline attribute reference.
     #[serde(flatten)]

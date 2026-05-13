@@ -1,0 +1,77 @@
+file_format: definition/2
+
+# Top-level typo — unknown to SemConvSpecV2.
+typo_top_level: bad
+
+attributes:
+  - key: my.attr
+    type: string
+    brief: A test attribute
+    stability: stable
+    examples: ["x"]
+    typo_in_attribute: bad
+    deprecated:
+      reason: renamed
+      renamed_to: my.new.attr
+      note: replaced
+      typo_in_deprecated: bad
+
+  - key: my.enum.attr
+    type:
+      members:
+        - id: ok
+          value: ok
+          typo_in_enum_member: bad
+      typo_in_attribute_type_enum: bad
+    brief: An enum attribute
+    stability: stable
+
+attribute_groups:
+  - id: my.group
+    visibility: public
+    brief: A test attribute group
+    stability: stable
+    typo_in_public_attr_group: bad
+
+metrics:
+  - name: my.metric
+    instrument: counter
+    unit: s
+    brief: A test metric
+    stability: stable
+    typo_in_metric: bad
+
+spans:
+  - type: my.span
+    kind: client
+    name:
+      note: how to name
+      typo_in_span_name: bad
+    brief: A test span
+    stability: stable
+    attributes:
+      - ref: my.attr
+        typo_in_span_attribute_ref: bad
+        requirement_level:
+          conditionally_required: when foo
+          typo_in_req_level: bad
+    typo_in_span: bad
+
+events:
+  - name: my.event
+    brief: A test event
+    stability: stable
+    typo_in_event: bad
+
+entities:
+  - type: my.entity
+    identity:
+      - ref: my.attr
+    brief: A test entity
+    stability: stable
+    typo_in_entity: bad
+
+imports:
+  metrics:
+    - foo.*
+  typo_in_imports: bad

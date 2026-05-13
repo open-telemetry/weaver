@@ -21,7 +21,7 @@ use crate::{
 
 /// Defines a new event.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
     pub name: SignalId,
@@ -40,7 +40,7 @@ pub struct Event {
 
 /// A refinement of an existing event.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct EventRefinement {
     /// The ID of the refinement.
     pub id: SignalId,

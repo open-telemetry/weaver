@@ -1,0 +1,165 @@
+# Mirrors `registry-test-resolved-minor-ahead/.../resolved_schema.yaml` in
+# structure but declares `resolved/2.0` (the current/known minor), so every
+# unknown field below must be flagged by the unknown-field walker. The
+# companion test asserts the EXACT set of dotted paths reported, so any
+# structural change here must be reflected in the test's expected list.
+#
+# Note: a value that round-trips as a "default" (null, empty string, empty
+# seq, empty map) is intentionally suppressed by the walker as a false-positive
+# guard for `skip_serializing_if` fields. So every unknown below uses a
+# non-default value.
+#
+# Used by:
+#   weaver_resolver::loader::tests::test_resolved_schema_unknown_field_in_current_version_fails
+#     (crates/weaver_resolver/src/loader.rs)
+file_format: resolved/2.0
+schema_url: https://opentelemetry.io/schemas/1.0.0
+# misspelled 'note' at the top level, but also it's not defined at this level
+not: "some new top-level string"
+attribute_catalog:
+- key: server.port
+  type: int
+  brief: Server port number.
+  stability: stable
+  # misspelled 'note'
+  not: "new per-attribute string"
+- key: http.request.method
+  type: string
+  brief: HTTP request method.
+  stability: stable
+  deprecated:
+    reason: obsoleted
+    note: a note
+    # misspelled 'note' alongside the legit field — `Deprecated::Obsoleted.note`
+    # is required, so removing the real one breaks deserialize before the
+    # unknown-field walker runs.
+    not: a note
+# Enum-typed attribute with a typo on a member entry.
+- key: db.system.name
+  type:
+    members:
+    - id: postgres
+      value: postgres
+      brief: PostgreSQL
+      stability: stable
+      # misspelled 'note'
+      not: "non-default member typo"
+    - id: mysql
+      value: mysql
+      brief: MySQL
+      stability: stable
+  brief: Database system.
+  stability: stable
+# Renamed deprecation variant
+- key: legacy.attr.renamed
+  type: string
+  brief: A legacy attribute that has been renamed.
+  stability: stable
+  deprecated:
+    reason: renamed
+    renamed_to: new.attr.name
+    # misspelled 'note' alongside the legit fields
+    not: "non-default renamed typo"
+# Uncategorized deprecation variant — same shape as Renamed.
+- key: legacy.attr.uncategorized
+  type: string
+  brief: A legacy attribute deprecated for uncategorized reasons.
+  stability: stable
+  deprecated:
+    reason: uncategorized
+    note: deprecated for complex reasons
+    # some non-existing field
+    does_not_exist: "a value"
+registry:
+  attributes: [0, 1]
+  attribute_groups:
+  - id: server.attrs
+    brief: Server attribute group.
+    stability: stable
+    # misspelled 'note'
+    not: ""
+    attributes: [0, 1]
+  spans:
+  - type: server.request
+    kind: server
+    name:
+      note: The name of the server request.
+      # some random error
+      does_not_exist: "a value"
+    brief: Incoming server request.
+    stability: stable
+    # `not` is a typo of `note` — typical real-world misspelling.
+    not: "this is a note"
+    attributes:
+    # Typo on a span attribute-ref entry.
+    - base: 0
+      requirement_level: required
+      not: "non-default span attribute ref typo"
+  metrics:
+  - name: server.request.duration
+    instrument: histogram
+    unit: s
+    brief: Server request duration.
+    stability: stable
+    # misspelled 'note'
+    not: ""
+    attributes:
+    - base: 0
+      requirement_level: required
+      # misspelled 'note', also isn't supported here
+      not: some_value
+  events:
+  - name: server.error
+    brief: A server error event.
+    stability: development
+    # misspelled 'note'
+    not: ""
+    attributes:
+    - base: 0
+      requirement_level:
+        conditionally_required: "when error.recoverable is false"
+        # misspelled 'not', also isn't supported here
+        not: "non-default complex requirement_level typo"
+      not: "non-default event attribute ref typo"
+  entities:
+  - type: server.entity
+    brief: A server entity.
+    stability: stable
+    # misspelled 'note'
+    not: ""
+    identity:
+    # EntityAttributeRef typo on identity[].
+    - base: 0
+      requirement_level: required
+      not: "non-default entity identity ref typo"
+refinements:
+  spans:
+  - id: server.request
+    type: server.request
+    kind: server
+    name:
+      note: The name of the server request.
+    brief: Incoming server request.
+    stability: stable
+    # misspelled 'note'
+    not: ""
+    attributes: []
+  metrics:
+  - id: server.request.duration
+    name: server.request.duration
+    instrument: histogram
+    unit: s
+    brief: Server request duration.
+    stability: stable
+    # misspelled 'note'
+    not: ""
+    attributes: []
+  # Events refinement with a typo (existing fixture had `events: []`).
+  events:
+  - id: server.error
+    name: server.error
+    brief: Refinement of the server error event.
+    stability: development
+    # misspelled 'note'
+    not: "non-default event refinement typo"
+    attributes: []

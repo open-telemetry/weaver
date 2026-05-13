@@ -17,8 +17,8 @@ use crate::{
 
 /// A refinement of an Attribute for a signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct AttributeRef {
     /// Reference an existing attribute by key.
     pub r#ref: String,
@@ -107,8 +107,8 @@ impl AttributeRef {
 
 /// The definition of an Attribute.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct AttributeDef {
     /// String that uniquely identifies the attribute.
     pub key: String,
@@ -155,7 +155,7 @@ impl AttributeDef {
 
 /// A reference to an attribute group.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct GroupRef {
     /// Reference an existing attribute group by id.
     pub ref_group: SignalId,

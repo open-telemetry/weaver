@@ -16,7 +16,7 @@ use crate::{
 
 /// Internal attribute group implementation
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct InternalAttributeGroup {
     /// The name of the attribute group, must be unique.
     pub id: SignalId,
@@ -29,7 +29,7 @@ pub struct InternalAttributeGroup {
 
 /// Public attribute group implementation
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct PublicAttributeGroup {
     /// The name of the attribute group, must be unique.
     pub id: SignalId,
@@ -48,7 +48,7 @@ pub struct PublicAttributeGroup {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "visibility")]
 #[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub enum AttributeGroup {
     /// An internal attribute group
     Internal(InternalAttributeGroup),

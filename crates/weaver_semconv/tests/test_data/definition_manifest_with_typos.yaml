@@ -1,0 +1,17 @@
+# Definition manifest (no `file_format` declared) with planted typos at the
+# top level and inside a dependency entry. Loader contract:
+# `RegistryManifest::try_from_file` returns Ok with an
+# `Error::UnexpectedFieldsWarning` pushed onto `nfes` whose `fields` contain
+# every planted typo by dotted path.
+schema_url: https://example.com/schemas/1.0.0
+description: A definition manifest used to exercise unknown-field warnings.
+stability: stable
+
+# Top-level typo — unknown to DefinitionRegistryManifest.
+typo_top_level: bad
+
+dependencies:
+  - schema_url: https://example.com/dep/1.0.0
+    registry_path: ./dep
+    # Nested typo inside a dependency entry.
+    typo_in_dependency: bad

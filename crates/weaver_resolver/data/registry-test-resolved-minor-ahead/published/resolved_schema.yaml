@@ -1,0 +1,141 @@
+file_format: resolved/2.9999
+schema_url: https://opentelemetry.io/schemas/1.0.0
+future_top_level_field: "some new top-level string"
+attribute_catalog:
+- key: server.port
+  type: int
+  brief: Server port number.
+  stability: stable
+  future_attribute_field: "new per-attribute string"
+- key: http.request.method
+  type: string
+  brief: HTTP request method.
+  stability: stable
+  deprecated:
+    reason: obsoleted
+    note: a note
+    future_deprecated_field: "new per-attribute deprecated string"
+# Enum-typed attribute with a future field on a member entry.
+- key: db.system.name
+  type:
+    members:
+    - id: postgres
+      value: postgres
+      brief: PostgreSQL
+      stability: stable
+      future_member_field: 123
+    - id: mysql
+      value: mysql
+      brief: MySQL
+      stability: stable
+  brief: Database system.
+  stability: stable
+# Renamed deprecation variant with a future sibling.
+- key: legacy.attr.renamed
+  type: string
+  brief: A legacy attribute that has been renamed.
+  stability: stable
+  deprecated:
+    reason: renamed
+    renamed_to: new.attr.name
+    future_renamed_field: "some value"
+# Uncategorized deprecation variant with a future sibling.
+- key: legacy.attr.uncategorized
+  type: string
+  brief: A legacy attribute deprecated for uncategorized reasons.
+  stability: stable
+  deprecated:
+    reason: uncategorized
+    note: deprecated for complex reasons
+    future_uncategorized_field: "new per-attribute uncategorized string"
+registry:
+  attributes: [0, 1]
+  attribute_groups:
+  - id: server.attrs
+    brief: Server attribute group.
+    stability: stable
+    note: ""
+    attributes: [0, 1]
+    future_group_map:
+      flag: true
+      extra_data: [1, 2, 3]
+  spans:
+  - type: server.request
+    kind: server
+    name:
+      note: The name of the server request.
+      future_name_field: "future name field value"
+    brief: Incoming server request.
+    stability: stable
+    attributes:
+    - base: 0
+      requirement_level: required
+      future_ref_in_span: "future span attribute ref string"
+    future_span_array: [a, b, c]
+  metrics:
+  - name: server.request.duration
+    instrument: histogram
+    unit: s
+    brief: Server request duration.
+    stability: stable
+    note: ""
+    attributes:
+    - base: 0
+      requirement_level: required
+      future_attr_ref_field: some_value
+    future_metric_field:
+      config:
+        buckets: [0.1, 0.5, 1.0]
+  events:
+  - name: server.error
+    brief: A server error event.
+    stability: development
+    note: ""
+    attributes:
+    # Exercises the complex (single-key map) variant of RequirementLevel with
+    # an extra future field — must be tolerated as forward-compat.
+    - base: 0
+      requirement_level:
+        conditionally_required: "some condition"
+        future_req_level_field: "future requirement level string"
+    future_event_field: 99
+  entities:
+  - type: server.entity
+    brief: A server entity.
+    stability: stable
+    note: ""
+    identity:
+    - base: 0
+      requirement_level: required
+      future_ref_in_entity_identity: "future entity identity ref string"
+    future_entity_field: {k: v}
+refinements:
+  spans:
+  - id: server.request
+    type: server.request
+    kind: server
+    name:
+      note: The name of the server request.
+    brief: Incoming server request.
+    stability: stable
+    note: ""
+    attributes: []
+    future_span_ref_field: true
+  metrics:
+  - id: server.request.duration
+    name: server.request.duration
+    instrument: histogram
+    unit: s
+    brief: Server request duration.
+    stability: stable
+    note: ""
+    attributes: []
+    future_metric_ref_list: [x, y]
+  # Events refinements with a future field (existing fixture had `events: []`).
+  events:
+  - id: server.error
+    name: server.error
+    brief: Refinement of the server error event.
+    stability: development
+    attributes: []
+    future_event_refinement_field: "future event refinement string"
