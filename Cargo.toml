@@ -63,7 +63,7 @@ opentelemetry-stdout = { version = "0.32.0", features = [
     "logs",
 ] }
 tokio = { version = "1.47.1", features = ["full"] }
-rouille = "3.6.2"
+axum = "0.8"
 convert_case = "0.11"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
@@ -120,7 +120,7 @@ tonic = { version = "0.14.1", default-features = false, features = [
 tonic-prost = "0.14.1"
 env_logger = "0.11.8"
 chrono = "0.4.41"
-axum = "0.8"
+axum.workspace = true
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 mime_guess = "2.0"
 utoipa = { workspace = true, features = ["axum_extras"] }
