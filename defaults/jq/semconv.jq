@@ -261,3 +261,35 @@ def semconv_grouped_spans($options): semconv_spans($options) | semconv_group_spa
 
 # Convenience function to group all spans by their root namespace without any filtering options.
 def semconv_grouped_spans: semconv_grouped_spans({});
+
+# Event Functions
+# Groups the events by their root namespace and sorts events by name.
+def semconv_group_events_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) });
+
+# Extracts and processes semantic convention events based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable events and non-stable attributes on stable events.
+# - exclude_deprecated: a boolean to exclude deprecated events and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level event and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable events instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_events($options): semconv_signal("event"; $options) | sort_by(.name);
+
+# Convenience function to extract all events without any filtering options.
+def semconv_events: semconv_events({});
+
+# Groups the processed events by their root namespace based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable events and non-stable attributes on stable events.
+# - exclude_deprecated: a boolean to exclude deprecated events and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level event and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable events instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_grouped_events($options): semconv_events($options) | semconv_group_events_by_root_namespace;
+
+# Convenience function to group all events by their root namespace without any filtering options.
+def semconv_grouped_events: semconv_grouped_events({});

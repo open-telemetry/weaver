@@ -1353,6 +1353,56 @@ mod tests {
     }
 
     #[test]
+    fn test_run_filter_raw_semconv_grouped_events_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "events": [
+                    {
+                        "name": "http.request",
+                        "brief": "stable event",
+                        "stability": "stable"
+                    },
+                    {
+                        "name": "db.query",
+                        "brief": "deprecated event",
+                        "stability": "stable",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "name": "other.event",
+                        "brief": "excluded namespace",
+                        "stability": "stable"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_events({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_events for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "http",
+                "events": [
+                    {
+                        "name": "http.request",
+                        "brief": "stable event",
+                        "stability": "stable",
+                        "root_namespace": "http",
+                        "attributes": null,
+                        "type": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_auto_escape_modes() {
         use minijinja::{AutoEscape, Environment};
 
