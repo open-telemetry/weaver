@@ -29,13 +29,25 @@ def stability_filter($options):
         map(
           select(.stability == "stable")
         )
-        | map(.type.members? |= map(select(.stability == "stable")))
+        | map(
+            if .type? == null then
+                .
+            else
+                .type.members? |= map(select(.stability == "stable"))
+            end
+          )
     else
         .
     end
     | if $options | has("exclude_stability") then
         map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
-        | map(.type.members? |= map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not)))
+        | map(
+            if .type? == null then
+                .
+            else
+                .type.members? |= map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
+            end
+          )
     else
         .
     end;
@@ -90,10 +102,16 @@ def code_generation_exclude_filter($options):
             or .annotations.code_generation.exclude == null
             or .annotations.code_generation.exclude == false
         ))
-        | map(.type.members? |= map(select(.annotations == null
-            or .annotations.code_generation == null
-            or .annotations.code_generation.exclude == null
-            or .annotations.code_generation.exclude == false)))
+        | map(
+            if .type? == null then
+                .
+            else
+                .type.members? |= map(select(.annotations == null
+                    or .annotations.code_generation == null
+                    or .annotations.code_generation.exclude == null
+                    or .annotations.code_generation.exclude == false))
+            end
+          )
     end;
 
 # Filters the input list of attributes and enum members based on deprecation status.
@@ -102,7 +120,13 @@ def code_generation_exclude_filter($options):
 def deprecated_filter($options):
   if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
     map(select(has("deprecated") | not))
-    | map(.type.members? |= map(select(has("deprecated") | not)))
+    | map(
+        if .type? == null then
+            .
+        else
+            .type.members? |= map(select(has("deprecated") | not))
+        end
+      )
   else
     .
   end;

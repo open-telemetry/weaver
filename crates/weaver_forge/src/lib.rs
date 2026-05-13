@@ -1399,8 +1399,7 @@ mod tests {
                         "brief": "stable event",
                         "stability": "stable",
                         "root_namespace": "http",
-                        "attributes": null,
-                        "type": null
+                        "attributes": null
                     }
                 ]
             }
