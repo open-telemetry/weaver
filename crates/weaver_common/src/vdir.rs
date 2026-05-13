@@ -73,7 +73,6 @@ use gix::remote::fetch::Shallow;
 use gix::{create, open, progress};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use rouille::url::Url;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -88,6 +87,7 @@ use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 use ureq::config::{Config, RedirectAuthHeaders};
 use ureq::Agent;
+use url::Url;
 
 /// When true, git clone operations use `open::Options::default()` which reads
 /// global/system git config and enables credential helpers for private repos.
