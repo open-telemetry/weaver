@@ -12,7 +12,7 @@ use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 /// The definition of an Event signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
     pub name: SignalId,
@@ -44,7 +44,7 @@ pub struct Event {
 /// A special type of reference to attributes that remembers event-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct EventAttributeRef {
     /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,

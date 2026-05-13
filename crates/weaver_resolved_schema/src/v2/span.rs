@@ -13,7 +13,7 @@ use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct Span {
     /// The type of the Span. This denotes the identity
     /// of the "shape" of this span, and must be unique.
@@ -50,7 +50,7 @@ pub struct Span {
 /// A special type of reference to attributes that remembers span-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct SpanAttributeRef {
     /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,

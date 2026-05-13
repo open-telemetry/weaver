@@ -14,8 +14,8 @@ use crate::v2::{provenance::Provenance, Signal};
 /// The definition of an Attribute.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub struct Attribute {
     /// String that uniquely identifies the attribute.
     pub key: String,

@@ -1,0 +1,17 @@
+# Forward-compatibility fixture: future minor (`manifest/2.9999`, `resolved/2.9999`)
+# with unknown fields sprinkled across every level of both files. Loading must
+# succeed and silently tolerate the unknowns.
+#
+# Used by:
+#   weaver_resolver::loader::tests::test_resolved_schema_minor_version_ahead_succeeds
+#     (crates/weaver_resolver/src/loader.rs)
+file_format: manifest/2.9999
+stability: stable
+schema_url: https://opentelemetry.io/schemas/1.0.0
+resolved_schema_uri: resolved_schema.yaml
+description: Test repository with resolved schema using a future minor version.
+future_top_level_field: "some new top-level string"
+dependencies:
+  - schema_url: https://example.com/registry/schemas/1.0.0
+    registry_path: data/registry-test-v2-dep/published
+    future_dependency_field: "some new dependency field"
