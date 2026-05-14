@@ -39,6 +39,10 @@ generate:
     docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd)":/home/weaver/source otel/weaver:v0.23.0 registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 markdown /home/weaver/source/crates/weaver_live_check/docs/
     cargo fmt -p weaver_live_check
 
+# Run after `dist generate` to restore scoped GitHub workflow permissions
+fix-release-permissions:
+    python3 scripts/fix_release_permissions.py
+
 validate-workspace:
     cargo xtask validate
 

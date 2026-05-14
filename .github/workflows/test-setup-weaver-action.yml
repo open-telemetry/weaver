@@ -7,6 +7,9 @@ on:
       - '.github/workflows/test-setup-weaver-action.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:

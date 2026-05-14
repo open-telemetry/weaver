@@ -33,9 +33,6 @@ jobs:
     #       token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo_deny:
-    permissions:
-      issues: write # to create issues (actions-rs/audit-check)
-      checks: write # to create check (actions-rs/audit-check)
     runs-on: ubuntu-latest
     strategy:
       matrix:
