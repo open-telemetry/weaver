@@ -96,7 +96,6 @@ pub(crate) trait ImportableDependency {
     fn import_groups(
         &self,
         imports: &[ImportsWithProvenance],
-        include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error>;
 }
@@ -105,58 +104,52 @@ impl ImportableDependency for V1Schema {
     fn import_groups(
         &self,
         imports: &[ImportsWithProvenance],
-        include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
-        // Filter imports to only include those from the current registry
-        let current_registry_imports: Vec<_> = imports.iter().collect();
-
         let metrics_imports_matcher = build_globset(
-            current_registry_imports
+            imports
                 .iter()
-                .find_map(|i| i.imports.metrics.as_ref()),
+                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
         )?;
         let events_imports_matcher = build_globset(
-            current_registry_imports
+            imports
                 .iter()
-                .find_map(|i| i.imports.events.as_ref()),
+                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
         )?;
         let entities_imports_matcher = build_globset(
-            current_registry_imports
+            imports
                 .iter()
-                .find_map(|i| i.imports.entities.as_ref()),
+                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
         )?;
         let spans_imports_matcher = build_globset(
-            current_registry_imports
+            imports
                 .iter()
-                .find_map(|i| i.imports.spans.as_ref()),
+                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
         )?;
         let attribute_groups_imports_matcher = build_globset(
-            current_registry_imports
+            imports
                 .iter()
-                .find_map(|i| i.imports.attribute_groups.as_ref()),
+                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
         )?;
 
-        let filter = move |g: &Group| {
-            include_all
-                || match g.r#type {
-                    GroupType::AttributeGroup => attribute_groups_imports_matcher.is_match(&g.id),
-                    GroupType::Span => spans_imports_matcher.is_match(&g.id),
-                    GroupType::Event => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
-                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
-                        metrics_imports_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::MetricGroup => false,
-                    GroupType::Entity => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
+        let filter = move |g: &Group| match g.r#type {
+            GroupType::AttributeGroup => attribute_groups_imports_matcher.is_match(&g.id),
+            GroupType::Span => spans_imports_matcher.is_match(&g.id),
+            GroupType::Event => g
+                .name
+                .as_ref()
+                .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
+            GroupType::Metric => g
+                .metric_name
+                .as_ref()
+                .is_some_and(|metric_name| metrics_imports_matcher.is_match(metric_name.as_str())),
+            GroupType::MetricGroup => false,
+            GroupType::Entity => g
+                .name
+                .as_ref()
+                .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
+            GroupType::Scope => false,
+            GroupType::Undefined => false,
         };
         Ok(self
             .registry
@@ -212,7 +205,6 @@ impl ImportableDependency for V2Schema {
     fn import_groups(
         &self,
         imports: &[ImportsWithProvenance],
-        include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         let mut result = vec![];
@@ -229,12 +221,17 @@ impl ImportableDependency for V2Schema {
 
         // First import metrics.  These are *by name* and come from the registry.
         // This is the closest to V1 ref syntax we have.
-        let metrics_imports_matcher =
-            build_globset(imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
-        for m in self.registry.metrics.iter().filter(|m| {
-            let metric_name: &str = &m.name;
-            include_all || metrics_imports_matcher.is_match(metric_name)
-        }) {
+        let metrics_imports_matcher = build_globset(
+            imports
+                .iter()
+                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
+        )?;
+        for m in self
+            .registry
+            .metrics
+            .iter()
+            .filter(|m| metrics_imports_matcher.is_match(&*m.name))
+        {
             let mut attributes = vec![];
             for ar in m.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
@@ -281,12 +278,17 @@ impl ImportableDependency for V2Schema {
         }
 
         // Now event imports.
-        let events_imports_matcher =
-            build_globset(imports.iter().find_map(|i| i.imports.events.as_ref()))?;
-        for e in self.registry.events.iter().filter(|e| {
-            let event_name: &str = &e.name;
-            include_all || events_imports_matcher.is_match(event_name)
-        }) {
+        let events_imports_matcher = build_globset(
+            imports
+                .iter()
+                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
+        )?;
+        for e in self
+            .registry
+            .events
+            .iter()
+            .filter(|e| events_imports_matcher.is_match(&*e.name))
+        {
             let mut attributes = vec![];
             for ar in e.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
@@ -333,12 +335,17 @@ impl ImportableDependency for V2Schema {
         }
 
         // Now Entity imports.
-        let entities_imports_matcher =
-            build_globset(imports.iter().find_map(|i| i.imports.entities.as_ref()))?;
-        for e in self.registry.entities.iter().filter(|e| {
-            let entity_type: &str = &e.r#type;
-            include_all || entities_imports_matcher.is_match(entity_type)
-        }) {
+        let entities_imports_matcher = build_globset(
+            imports
+                .iter()
+                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
+        )?;
+        for e in self
+            .registry
+            .entities
+            .iter()
+            .filter(|e| entities_imports_matcher.is_match(&*e.r#type))
+        {
             let mut attributes = vec![];
             for ar in e.identity.iter() {
                 // TODO - this should be non-panic errors.
@@ -409,12 +416,17 @@ impl ImportableDependency for V2Schema {
         }
 
         // Now Span imports.
-        let spans_imports_matcher =
-            build_globset(imports.iter().find_map(|i| i.imports.spans.as_ref()))?;
-        for s in self.registry.spans.iter().filter(|s| {
-            let span_name: &str = &s.r#type;
-            include_all || spans_imports_matcher.is_match(span_name)
-        }) {
+        let spans_imports_matcher = build_globset(
+            imports
+                .iter()
+                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
+        )?;
+        for s in self
+            .registry
+            .spans
+            .iter()
+            .filter(|s| spans_imports_matcher.is_match(&*s.r#type))
+        {
             let mut attributes = vec![];
             for ar in s.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
@@ -464,12 +476,14 @@ impl ImportableDependency for V2Schema {
         let attribute_groups_imports_matcher = build_globset(
             imports
                 .iter()
-                .find_map(|i| i.imports.attribute_groups.as_ref()),
+                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
         )?;
-        for ag in self.registry.attribute_groups.iter().filter(|ag| {
-            let ag_id: &str = &ag.id;
-            include_all || attribute_groups_imports_matcher.is_match(ag_id)
-        }) {
+        for ag in self
+            .registry
+            .attribute_groups
+            .iter()
+            .filter(|ag| attribute_groups_imports_matcher.is_match(&*ag.id))
+        {
             let mut attributes = vec![];
             for ar in ag.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(ar).ok_or(
@@ -520,16 +534,11 @@ impl ImportableDependency for ResolvedDependency {
     fn import_groups(
         &self,
         imports: &[ImportsWithProvenance],
-        include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         match self {
-            ResolvedDependency::V1(schema) => {
-                schema.import_groups(imports, include_all, attribute_catalog)
-            }
-            ResolvedDependency::V2(schema) => {
-                schema.import_groups(imports, include_all, attribute_catalog)
-            }
+            ResolvedDependency::V1(schema) => schema.import_groups(imports, attribute_catalog),
+            ResolvedDependency::V2(schema) => schema.import_groups(imports, attribute_catalog),
         }
     }
 }
@@ -539,11 +548,10 @@ impl ImportableDependency for Vec<ResolvedDependency> {
     fn import_groups(
         &self,
         imports: &[ImportsWithProvenance],
-        include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         self.iter()
-            .map(|d| d.import_groups(imports, include_all, attribute_catalog))
+            .map(|d| d.import_groups(imports, attribute_catalog))
             .try_fold(vec![], |mut result, next| {
                 result.extend(next?);
                 Ok(result)
@@ -738,12 +746,10 @@ impl From<V2Schema> for ResolvedDependency {
 }
 
 // Constructs a globset from a set of wildcards.
-fn build_globset(wildcards: Option<&Vec<GroupWildcard>>) -> Result<GlobSet, Error> {
+fn build_globset<'a>(wildcards: impl Iterator<Item = &'a GroupWildcard>) -> Result<GlobSet, Error> {
     let mut builder = GlobSet::builder();
-    if let Some(wildcards_vec) = wildcards {
-        for wildcard in wildcards_vec.iter() {
-            _ = builder.add(wildcard.0.clone());
-        }
+    for wildcard in wildcards {
+        _ = builder.add(wildcard.0.clone());
     }
     builder.build().map_err(|e| Error::InvalidWildcard {
         error: e.to_string(),
@@ -987,15 +993,12 @@ mod tests {
         }];
 
         // By default V1 example schema has an AttributeGroup and a Span.
-        let result = d.import_groups(&imports, false, &mut catalog)?;
+        let result = d.import_groups(&imports, &mut catalog)?;
         assert_eq!(
             result.len(),
             2,
             "Attribute group and span should be imported"
         );
-
-        let result_all = d.import_groups(&imports, true, &mut catalog)?;
-        assert_eq!(result_all.len(), 2, "Include all should also import both");
 
         Ok(())
     }
@@ -1029,15 +1032,12 @@ mod tests {
             },
         }];
 
-        let result = d.import_groups(&imports, false, &mut catalog)?;
+        let result = d.import_groups(&imports, &mut catalog)?;
         assert_eq!(
             result.len(),
             5,
             "Should import metric, event, entity, span and attribute_group"
         );
-
-        let result_all = d.import_groups(&imports, true, &mut catalog)?;
-        assert_eq!(result_all.len(), 5, "Include all should also import all 5");
 
         Ok(())
     }
@@ -1074,14 +1074,61 @@ mod tests {
             },
         }];
 
-        let result = deps.import_groups(&imports, false, &mut catalog)?;
+        let result = deps.import_groups(&imports, &mut catalog)?;
         // V1 schema has AttributeGroup, which returns false unless include_all.
         // V2 schema has metric, event, entity, span, and attribute_group that match.
         assert_eq!(result.len(), 5);
 
-        let result_all = deps.import_groups(&imports, true, &mut catalog)?;
-        // V1 (2 groups) + V2 (5 groups) = 7 groups.
-        assert_eq!(result_all.len(), 7);
+        Ok(())
+    }
+
+    #[test]
+    fn test_import_groups_combine_blocks() -> Result<(), Box<dyn Error>> {
+        use crate::dependency::ImportableDependency;
+        let d = example_v2_schema();
+        let mut catalog = crate::attribute::AttributeCatalog::default();
+        let schema_url =
+            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
+                .expect("Failed to create schema_url");
+
+        let imports = vec![
+            weaver_semconv::group::ImportsWithProvenance {
+                provenance: weaver_semconv::provenance::Provenance::new(
+                    schema_url.clone(),
+                    "file1",
+                ),
+                imports: weaver_semconv::semconv::Imports {
+                    metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+                        globset::Glob::new("metric.a").unwrap(),
+                    )]),
+                    events: None,
+                    entities: None,
+                    spans: None,
+                    attribute_groups: None,
+                },
+            },
+            weaver_semconv::group::ImportsWithProvenance {
+                provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file2"),
+                imports: weaver_semconv::semconv::Imports {
+                    metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+                        globset::Glob::new("metric.b").unwrap(),
+                    )]),
+                    events: Some(vec![weaver_semconv::group::GroupWildcard(
+                        globset::Glob::new("event.b").unwrap(),
+                    )]),
+                    entities: None,
+                    spans: None,
+                    attribute_groups: None,
+                },
+            },
+        ];
+
+        let result = d.import_groups(&imports, &mut catalog)?;
+        assert_eq!(
+            result.len(),
+            2,
+            "Should successfully combine import blocks and import both metric.a and event.b"
+        );
 
         Ok(())
     }
