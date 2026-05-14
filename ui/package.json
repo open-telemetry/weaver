@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "packageManager": "pnpm@10.33.3",
+  "packageManager": "pnpm@10.33.4",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -14,28 +14,36 @@
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-router": "^1.146.0",
     "@tanstack/react-router-devtools": "^1.146.0",
-    "dompurify": "^3.3.1",
-    "marked": "^17.0.1",
+    "dompurify": "^3.4.2",
+    "marked": "^18.0.3",
     "rapidoc": "^9.3.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.4",
-    "@tailwindcss/vite": "4.2.4",
-    "@types/node": "24.12.2",
+    "@eslint/js": "10.0.1",
+    "@tailwindcss/vite": "4.3.0",
+    "@types/node": "25.6.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.2.0",
+    "@vitejs/plugin-react": "6.0.1",
     "daisyui": "5.5.19",
-    "eslint": "9.39.4",
+    "eslint": "10.3.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.2",
-    "globals": "16.5.0",
-    "tailwindcss": "4.2.4",
-    "typescript": "5.9.3",
+    "globals": "17.6.0",
+    "tailwindcss": "4.3.0",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.59.2",
-    "vite": "7.3.2"
+    "vite": "8.0.12"
+  },
+  "overrides-notes": {
+    "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "monaco-editor>dompurify": ">=3.4.2"
+    }
   }
 }
