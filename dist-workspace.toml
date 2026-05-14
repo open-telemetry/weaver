@@ -21,6 +21,8 @@ install-path = "CARGO_HOME"
 github-attestations = true
 github-custom-runners = { global = "ubuntu-latest", x86_64-unknown-linux-gnu = "ubuntu-24.04", x86_64-unknown-linux-musl = "ubuntu-24.04", aarch64-unknown-linux-musl = "ubuntu-24.04-arm", x86_64-pc-windows-msvc = "windows-2025", aarch64-unknown-linux-gnu = "ubuntu-24.04-arm" }
 github-build-setup = "../build-setup.yml"
+# Bypass dist's generate --check so we can keep the hand-patched permissions in release.yml
+allow-dirty = ["ci"]
 
 [dist.dependencies.apt]
 musl-tools = { targets = ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl"] }
