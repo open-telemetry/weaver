@@ -227,7 +227,7 @@ fn load_semconv_repository_recursive(
 
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
-        if let Some(resolved_url) = registry_repo.resolved_schema_uri() {
+        if let Some(resolved_url) = registry_repo.resolved_registry_uri() {
             let res = load_resolved_repository(&resolved_url, auth);
             let _ = dependency_chain.pop();
             res
