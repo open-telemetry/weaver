@@ -121,7 +121,15 @@ pub(crate) fn resolve_registry_with_dependencies(
 
     if include_unreferenced {
         errors.push(Error::DeprecatedIncludeUnreferencedWarning {});
-        let wildcard = GroupWildcard(globset::Glob::new("*").unwrap());
+        let glob = match globset::Glob::new("*") {
+            Ok(g) => g,
+            Err(e) => {
+                return WResult::FatalErr(Error::InvalidWildcard {
+                    error: e.to_string(),
+                });
+            }
+        };
+        let wildcard = GroupWildcard(glob);
         let glob_imports = weaver_semconv::semconv::Imports {
             metrics: Some(vec![wildcard.clone()]),
             events: Some(vec![wildcard.clone()]),

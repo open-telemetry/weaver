@@ -984,10 +984,10 @@ mod tests {
                 events: None,
                 entities: None,
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.v1").unwrap(),
+                    globset::Glob::new("span.v1")?,
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("a").unwrap(),
+                    globset::Glob::new("a")?,
                 )]),
             },
         }];
@@ -1015,19 +1015,19 @@ mod tests {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a").unwrap(),
+                    globset::Glob::new("metric.a")?,
                 )]),
                 events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b").unwrap(),
+                    globset::Glob::new("event.b")?,
                 )]),
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c").unwrap(),
+                    globset::Glob::new("entity.c")?,
                 )]),
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d").unwrap(),
+                    globset::Glob::new("span.d")?,
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e").unwrap(),
+                    globset::Glob::new("attribute_group.e")?,
                 )]),
             },
         }];
@@ -1057,19 +1057,19 @@ mod tests {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a").unwrap(),
+                    globset::Glob::new("metric.a")?,
                 )]),
                 events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b").unwrap(),
+                    globset::Glob::new("event.b")?,
                 )]),
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c").unwrap(),
+                    globset::Glob::new("entity.c")?,
                 )]),
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d").unwrap(),
+                    globset::Glob::new("span.d")?,
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e").unwrap(),
+                    globset::Glob::new("attribute_group.e")?,
                 )]),
             },
         }];
@@ -1099,7 +1099,7 @@ mod tests {
                 ),
                 imports: weaver_semconv::semconv::Imports {
                     metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                        globset::Glob::new("metric.a").unwrap(),
+                        globset::Glob::new("metric.a")?,
                     )]),
                     events: None,
                     entities: None,
@@ -1111,10 +1111,10 @@ mod tests {
                 provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file2"),
                 imports: weaver_semconv::semconv::Imports {
                     metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                        globset::Glob::new("metric.b").unwrap(),
+                        globset::Glob::new("metric.b")?,
                     )]),
                     events: Some(vec![weaver_semconv::group::GroupWildcard(
-                        globset::Glob::new("event.b").unwrap(),
+                        globset::Glob::new("event.b")?,
                     )]),
                     entities: None,
                     spans: None,
