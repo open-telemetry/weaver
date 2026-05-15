@@ -23,11 +23,11 @@ const TEMP_REPO_DIR: &str = "schema-compat-temp-repo";
 // Temporarily disabled compat testing for V2 schemas.
 // TODO: Enable testing when V2 schemas are marked stable.
 const CHECKS: &[(&str, &str, &str)] = &[
-    (
-        "publication-manifest-v2",
-        "schemas/publication-manifest.v2.json",
-        "PublicationManifestV2",
-    ),
+    //     (
+    //         "publication-manifest-v2",
+    //         "schemas/publication-manifest.v2.json",
+    //         "PublicationManifestV2",
+    //     ),
     //     (
     //         "resolved-registry-v2",
     //         "schemas/semconv.resolved.v2.json",

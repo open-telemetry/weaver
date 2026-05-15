@@ -5,4 +5,4 @@ dependencies:
 - schema_url: https://server.example.com/schemas/1.0.0
   registry_path: data/registry-test-v2-dep/published
 stability: development
-resolved_schema_uri: resolved.yaml
+resolved_registry_uri: resolved.yaml
