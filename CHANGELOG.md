@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Rename `resolved_schema_uri` to `resolved_registry_uri` in publication manifest and in `package` command. ([#1425](https://github.com/open-telemetry/weaver/pull/1425))
 - Fix V2 resolver overwriting `SpanName.note` with the span type id during resolution. ([#1401](https://github.com/open-telemetry/weaver/pull/1401))
 - New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries, including GitHub private release assets. Auth is configured per-URL via `[[auth]]` entries in `.weaver.toml` (longest `url_prefix` wins), with tokens sourced from a literal `token`, a `token_env` variable, or a `token_command` helper (e.g. `["gh", "auth", "token"]`). ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
 - New feature - `.weaver.toml` project configuration now covers all subcommands allowing for simplified configuration management. See the [README.md](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_config/README.md) ([#1410](https://github.com/open-telemetry/weaver/pull/1410) by @jerbly)

@@ -174,15 +174,15 @@ impl RegistryRepo {
         self.manifest.as_ref()
     }
 
-    /// Returns the resolved schema URI, if available in the manifest.
+    /// Returns the resolved registry URI, if available in the manifest.
     #[must_use]
-    pub fn resolved_schema_uri(&self) -> Option<VirtualDirectoryPath> {
+    pub fn resolved_registry_uri(&self) -> Option<VirtualDirectoryPath> {
         let manifest = self.manifest.as_ref()?;
-        let resolved_uri: &str = match manifest {
-            RegistryManifest::Publication(m) => &m.resolved_schema_uri,
+        let registry_uri: &str = match manifest {
+            RegistryManifest::Publication(m) => &m.resolved_registry_uri,
             RegistryManifest::Definition(_) => return None,
         };
-        match get_path_type(resolved_uri) {
+        match get_path_type(registry_uri) {
             weaver_common::PathType::RelativePath => {
                 // We need to understand if the manifest URI is the same as the registry URI.
                 let vdir_was_manifest_file = self
@@ -192,15 +192,15 @@ impl RegistryRepo {
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
-                            Some(parent) => format!("{}/{resolved_uri}", parent.display()),
+                            Some(parent) => format!("{}/{registry_uri}", parent.display()),
                             None => "".to_owned(),
                         }
                     } else {
-                        format!("{path}/{resolved_uri}")
+                        format!("{path}/{registry_uri}")
                     }
                 }))
             }
-            _ => resolved_uri.try_into().ok(),
+            _ => registry_uri.try_into().ok(),
         }
     }
 
@@ -270,7 +270,7 @@ mod tests {
         };
         assert_eq!(manifest.name(), "resolved");
 
-        let Some(resolved_path) = repo.resolved_schema_uri() else {
+        let Some(resolved_path) = repo.resolved_registry_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
@@ -287,7 +287,7 @@ mod tests {
         };
         let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("Failed to load test repository.");
-        let Some(resolved_path) = repo.resolved_schema_uri() else {
+        let Some(resolved_path) = repo.resolved_registry_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
@@ -301,7 +301,7 @@ mod tests {
         };
         let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("Failed to load test repository.");
-        let Some(resolved_path) = repo.resolved_schema_uri() else {
+        let Some(resolved_path) = repo.resolved_registry_uri() else {
             panic!(
                 "Should find a resolved schema path from manifest in {}",
                 repo.registry_path_repr()
