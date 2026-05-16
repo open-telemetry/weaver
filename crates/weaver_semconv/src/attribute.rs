@@ -389,6 +389,7 @@ impl Display for TemplateTypeSpec {
 )]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
+#[serde(from = "EnumEntriesSpecDeserialize")]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
     pub id: String,
@@ -415,6 +416,38 @@ pub struct EnumEntriesSpec {
     /// Annotations for the member.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct EnumEntriesSpecDeserialize {
+    id: String,
+    value: Option<ValueSpec>,
+    brief: Option<String>,
+    note: Option<String>,
+    stability: Option<Stability>,
+    #[serde(
+        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+        default
+    )]
+    deprecated: Option<Deprecated>,
+    annotations: Option<BTreeMap<String, YamlValue>>,
+}
+
+impl From<EnumEntriesSpecDeserialize> for EnumEntriesSpec {
+    fn from(entry: EnumEntriesSpecDeserialize) -> Self {
+        Self {
+            value: entry
+                .value
+                .unwrap_or_else(|| ValueSpec::String(entry.id.clone())),
+            id: entry.id,
+            brief: entry.brief,
+            note: entry.note,
+            stability: entry.stability,
+            deprecated: entry.deprecated,
+            annotations: entry.annotations,
+        }
+    }
 }
 
 /// Implements a human readable display for EnumEntries.
