@@ -1,0 +1,190 @@
+name: 'Weaver Live Check (finalize)'
+description: >-
+  Stop a previously-started `weaver registry live-check` listener, fetch its
+  JSON report, render a step summary, and (optionally) fail the job on
+  semantic-convention findings. Pair with `weaver-live-check-start`.
+author: 'OpenTelemetry'
+
+branding:
+  icon: 'check-square'
+  color: 'blue'
+
+inputs:
+  fail-on:
+    description: >-
+      Lowest finding level that should fail the job: `violation` (default,
+      strict CI gate), `improvement` (also fail on improvement-level
+      advisories), `information` (also fail on info-level), or `none`
+      (never fail; report-only).
+    required: false
+    default: 'violation'
+  state-dir:
+    description: >-
+      State directory produced by `weaver-live-check-start`. Defaults to
+      the value exported via `$WEAVER_LIVE_CHECK_STATE_DIR`.
+    required: false
+    default: ''
+  stop-timeout:
+    description: 'Seconds to wait for weaver to flush and exit cleanly after `/stop`.'
+    required: false
+    default: '30'
+
+outputs:
+  report-path:
+    description: 'Path to the captured live-check JSON report.'
+    value: ${{ steps.finalize.outputs.report-path }}
+  violations:
+    description: 'Number of violation-level findings.'
+    value: ${{ steps.finalize.outputs.violations }}
+  improvements:
+    description: 'Number of improvement-level findings.'
+    value: ${{ steps.finalize.outputs.improvements }}
+  informations:
+    description: 'Number of information-level findings.'
+    value: ${{ steps.finalize.outputs.informations }}
+  samples:
+    description: 'Number of telemetry samples weaver received.'
+    value: ${{ steps.finalize.outputs.samples }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Finalize weaver live-check
+      id: finalize
+      shell: bash
+      env:
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_STATE_DIR: ${{ inputs.state-dir }}
+        INPUT_STOP_TIMEOUT: ${{ inputs.stop-timeout }}
+      run: |
+        set -euo pipefail
+
+        STATE_DIR="${INPUT_STATE_DIR:-${WEAVER_LIVE_CHECK_STATE_DIR:-}}"
+        if [ -z "$STATE_DIR" ] || [ ! -f "$STATE_DIR/state.env" ]; then
+          echo "::error::Could not locate live-check state. Did you run weaver-live-check-start first?"
+          exit 1
+        fi
+
+        # shellcheck disable=SC1091
+        . "$STATE_DIR/state.env"
+
+        REPORT="$STATE_DIR/live_check.json"
+
+        # Tell weaver to stop accepting and return the in-memory report.
+        # `--output=http` (set by the start action) makes the body of the
+        # admin /stop response the JSON report itself.
+        echo "Stopping weaver listener (admin :${ADMIN_PORT})..."
+        if ! curl -fsS -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" -o "$REPORT"; then
+          echo "::warning::admin POST /stop failed; falling back to graceful kill"
+          kill "$WEAVER_PID" 2>/dev/null || true
+        fi
+
+        # Wait for weaver to exit and capture its exit code (so that
+        # weaver-side errors still surface).
+        WEAVER_EXIT=0
+        deadline=$(( $(date +%s) + INPUT_STOP_TIMEOUT ))
+        while kill -0 "$WEAVER_PID" 2>/dev/null; do
+          if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "::warning::weaver did not exit within ${INPUT_STOP_TIMEOUT}s; killing"
+            kill -9 "$WEAVER_PID" 2>/dev/null || true
+            break
+          fi
+          sleep 1
+        done
+        # Reap to capture status (best effort; only works if it's a child
+        # of this shell, which it isn't — we ran it from the start step.
+        # Treat absence of report as failure instead).
+
+        echo "::group::weaver log (tail)"
+        tail -n 200 "$STATE_DIR/weaver.log" 2>/dev/null || true
+        echo "::endgroup::"
+
+        if [ ! -s "$REPORT" ]; then
+          echo "::error::No live-check report captured at $REPORT"
+          exit 1
+        fi
+
+        # Parse report and write GitHub step summary + outputs.
+        python3 - "$REPORT" "$INPUT_FAIL_ON" <<'PY'
+        import json, os, sys
+
+        report_path = sys.argv[1]
+        fail_on = sys.argv[2].strip().lower()
+        valid_levels = ("violation", "improvement", "information", "none")
+        if fail_on not in valid_levels:
+            print(f"::error::invalid fail-on '{fail_on}' (expected one of {valid_levels})")
+            sys.exit(1)
+
+        with open(report_path) as fh:
+            d = json.load(fh)
+
+        stats = d.get("statistics", {}) or {}
+        levels = stats.get("advice_level_counts", {}) or {}
+        violations    = int(levels.get("violation", 0))
+        improvements  = int(levels.get("improvement", 0))
+        informations  = int(levels.get("information", 0))
+        samples       = len(d.get("samples", []) or [])
+        total         = stats.get("total_entities", 0) or 0
+        by_type       = stats.get("total_entities_by_type", {}) or {}
+
+        # Step summary
+        summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+        lines = []
+        emoji = "❌" if violations else ("⚠️" if improvements else "✅")
+        lines.append(f"## {emoji} Weaver live-check")
+        lines.append("")
+        lines.append(f"- Samples received: **{samples}**")
+        if by_type:
+            parts = ", ".join(f"{v} {k}" for k, v in sorted(by_type.items()))
+            lines.append(f"- Entities checked: **{total}** ({parts})")
+        lines.append("")
+        lines.append("| Level | Count |")
+        lines.append("| --- | ---: |")
+        lines.append(f"| violation | {violations} |")
+        lines.append(f"| improvement | {improvements} |")
+        lines.append(f"| information | {informations} |")
+        lines.append("")
+
+        msgs = stats.get("advice_message_counts", {}) or {}
+        if msgs:
+            lines.append("### Top findings")
+            lines.append("")
+            lines.append("| Count | Message |")
+            lines.append("| ---: | --- |")
+            for m, c in sorted(msgs.items(), key=lambda x: -x[1])[:15]:
+                m_clean = (m or "").replace("|", "\\|")
+                lines.append(f"| {c} | {m_clean} |")
+            lines.append("")
+
+        if summary_path:
+            with open(summary_path, "a") as fh:
+                fh.write("\n".join(lines) + "\n")
+
+        # Action outputs
+        out = os.environ.get("GITHUB_OUTPUT")
+        if out:
+            with open(out, "a") as fh:
+                fh.write(f"report-path={report_path}\n")
+                fh.write(f"violations={violations}\n")
+                fh.write(f"improvements={improvements}\n")
+                fh.write(f"informations={informations}\n")
+                fh.write(f"samples={samples}\n")
+
+        # Decide pass/fail
+        order = {"violation": 3, "improvement": 2, "information": 1, "none": 0}
+        threshold = order[fail_on]
+        worst = 0
+        if violations:
+            worst = max(worst, 3)
+        if improvements:
+            worst = max(worst, 2)
+        if informations:
+            worst = max(worst, 1)
+
+        if threshold == 0 or worst < threshold:
+            print(f"OK: highest finding level={worst}, fail-on={fail_on}")
+            sys.exit(0)
+        else:
+            print(f"::error::live-check produced findings at level {worst} (fail-on={fail_on})")
+            sys.exit(1)
+        PY
