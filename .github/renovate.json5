@@ -141,6 +141,19 @@
     },
     {
       customType: "regex",
+      description: "Update pnpm version in Dockerfile",
+      managerFilePatterns: [
+        "Dockerfile",
+      ],
+      matchStrings: [
+        "npm install -g pnpm@(?<currentValue>[0-9.]+)",
+      ],
+      depNameTemplate: "pnpm",
+      datasourceTemplate: "npm",
+      versioningTemplate: "semver",
+    },
+    {
+      customType: "regex",
       description: "Update Just file",
       managerFilePatterns: [
         "justfile",
