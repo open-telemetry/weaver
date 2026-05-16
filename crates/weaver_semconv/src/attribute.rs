@@ -418,19 +418,34 @@ pub struct EnumEntriesSpec {
     pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
+/// Deserialization helper for [`EnumEntriesSpec`] that allows `value` to be
+/// omitted and defaulted from `id`. The fields mirror [`EnumEntriesSpec`]
+/// (including doc comments) so the generated JSON schema retains field
+/// descriptions when `#[serde(from = "...")]` redirects schema derivation here.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct EnumEntriesSpecDeserialize {
+    /// String that uniquely identifies the enum entry.
     id: String,
+    /// String, int, or boolean; value of the enum entry.
+    /// If omitted, defaults to the value of `id`.
     value: Option<ValueSpec>,
+    /// Brief description of the enum entry value.
+    /// It defaults to the value of id.
     brief: Option<String>,
+    /// Longer description.
+    /// It defaults to an empty string.
     note: Option<String>,
+    /// Stability of this enum value.
     stability: Option<Stability>,
+    /// Deprecation note.
     #[serde(
         deserialize_with = "crate::deprecated::deserialize_option_deprecated",
         default
     )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     deprecated: Option<Deprecated>,
+    /// Annotations for the member.
     annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
