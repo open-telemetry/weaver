@@ -41,7 +41,7 @@ generate:
 
 # Run after `dist generate` to restore scoped GitHub workflow permissions
 fix-release-permissions:
-    python3 scripts/fix_release_permissions.py
+    cargo xtask fix-release-permissions
 
 validate-workspace:
     cargo xtask validate
