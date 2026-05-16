@@ -52,7 +52,7 @@ fuzz target="live_check_json" seconds="30":
 
 # Run all fuzz targets locally for the given number of seconds each.
 fuzz-all seconds="30":
-    cd fuzz && failed=0; for target in live_check_json live_check_text semconv_yaml semconv_manifest_yaml forge_config_yaml weaver_config_toml policy_rego; do \
+    cd fuzz && failed=0; for target in live_check_json live_check_text semconv_yaml semconv_manifest_yaml forge_config_yaml weaver_config_toml policy_rego forge_jq forge_jinja; do \
         cargo +nightly fuzz run $target -- -max_total_time={{seconds}} || { echo "CRASH in $target — check fuzz/artifacts/$target/"; failed=1; }; \
     done; exit $failed
 

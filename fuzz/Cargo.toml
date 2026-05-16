@@ -49,9 +49,24 @@ path = "fuzz_targets/policy_rego.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "forge_jq"
+path = "fuzz_targets/forge_jq.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "forge_jinja"
+path = "fuzz_targets/forge_jinja.rs"
+test = false
+doc = false
+
 [dependencies]
 libfuzzer-sys = "0.4"
 tempfile = "3.27.0"
+serde_json = "1"
+minijinja = { version = "2.12.0", features = ["loader", "custom_syntax", "debug", "json", "urlencode", "macros", "loop_controls"] }
+minijinja-contrib = { version = "2.12.0", features = ["pycompat"] }
 weaver_live_check = { path = "../crates/weaver_live_check" }
 weaver_semconv = { path = "../crates/weaver_semconv" }
 weaver_forge = { path = "../crates/weaver_forge" }
