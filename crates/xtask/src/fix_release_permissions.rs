@@ -8,13 +8,12 @@ const PATH: &str = ".github/workflows/release.yml";
 /// This patches it to `contents: read` and grants `contents: write` only to the two jobs
 /// that actually create GitHub Releases (plan and host).
 pub fn run() -> anyhow::Result<()> {
-    let content = std::fs::read_to_string(PATH)
-        .with_context(|| format!("failed to read {PATH}"))?;
+    let content =
+        std::fs::read_to_string(PATH).with_context(|| format!("failed to read {PATH}"))?;
 
     let patched = apply_patches(&content)?;
 
-    std::fs::write(PATH, patched)
-        .with_context(|| format!("failed to write {PATH}"))?;
+    std::fs::write(PATH, patched).with_context(|| format!("failed to write {PATH}"))?;
 
     println!("Patched {PATH}: scoped contents:write to plan and host jobs only");
     Ok(())
