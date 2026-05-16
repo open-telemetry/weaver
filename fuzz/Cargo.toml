@@ -1,0 +1,65 @@
+[package]
+name = "weaver-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[[bin]]
+name = "live_check_json"
+path = "fuzz_targets/live_check_json.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "live_check_text"
+path = "fuzz_targets/live_check_text.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "semconv_yaml"
+path = "fuzz_targets/semconv_yaml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "semconv_manifest_yaml"
+path = "fuzz_targets/semconv_manifest_yaml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "forge_config_yaml"
+path = "fuzz_targets/forge_config_yaml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "weaver_config_toml"
+path = "fuzz_targets/weaver_config_toml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "policy_rego"
+path = "fuzz_targets/policy_rego.rs"
+test = false
+doc = false
+
+[dependencies]
+libfuzzer-sys = "0.4"
+tempfile = "3.27.0"
+weaver_live_check = { path = "../crates/weaver_live_check" }
+weaver_semconv = { path = "../crates/weaver_semconv" }
+weaver_forge = { path = "../crates/weaver_forge" }
+weaver_config = { path = "../crates/weaver_config" }
+weaver_checker = { path = "../crates/weaver_checker" }
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

@@ -64,3 +64,7 @@ ui/package-lock.json
 
 # weaver config files
 .weaver.toml
+
+# Fuzz build artifacts and generated corpus
+fuzz/target/
+fuzz/corpus/
