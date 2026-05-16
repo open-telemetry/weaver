@@ -1,0 +1,87 @@
+name: Test weaver-live-check Actions
+
+# Smoke-test the weaver-live-check-{start,finalize} composite actions:
+# - install weaver
+# - start the listener
+# - send a tiny OTLP/gRPC payload using the official `python-opentelemetry`
+#   metrics SDK so weaver has something to validate
+# - finalize and assert the gate works in both `none` (always pass) and
+#   `violation` (pass when no violations) modes.
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/weaver-live-check-start/**'
+      - '.github/actions/weaver-live-check-finalize/**'
+      - '.github/workflows/test-weaver-live-check-actions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install OpenTelemetry Python (for synthetic traffic)
+        run: |
+          pip install --quiet \
+            opentelemetry-api \
+            opentelemetry-sdk \
+            opentelemetry-exporter-otlp-proto-grpc
+
+      - name: Setup weaver
+        uses: ./.github/actions/setup-weaver
+
+      - name: Start weaver live-check
+        id: live-check
+        uses: ./.github/actions/weaver-live-check-start
+        with:
+          registry: 'https://github.com/open-telemetry/semantic-conventions.git[model]'
+
+      - name: Emit a small batch of OTLP metrics
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ steps.live-check.outputs.otlp-grpc-endpoint }}
+          OTEL_METRIC_EXPORT_INTERVAL: '1000'
+        run: |
+          python3 - <<'PY'
+          import time
+          from opentelemetry import metrics
+          from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+          from opentelemetry.sdk.metrics import MeterProvider
+          from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+          from opentelemetry.sdk.resources import Resource
+
+          reader = PeriodicExportingMetricReader(OTLPMetricExporter(insecure=True), export_interval_millis=1000)
+          provider = MeterProvider(resource=Resource.create({"service.name": "weaver-live-check-action-test"}), metric_readers=[reader])
+          metrics.set_meter_provider(provider)
+
+          counter = metrics.get_meter("test").create_counter("test.requests", unit="1")
+          for _ in range(10):
+              counter.add(1, {"http.request.method": "GET"})
+              time.sleep(0.1)
+          provider.shutdown()
+          PY
+
+      - name: Finalize (fail-on=none, must succeed regardless)
+        id: finalize-none
+        uses: ./.github/actions/weaver-live-check-finalize
+        with:
+          fail-on: none
+
+      - name: Assert finalize outputs are present
+        run: |
+          test -n "${{ steps.finalize-none.outputs.report-path }}"
+          test "${{ steps.finalize-none.outputs.samples }}" -gt 0
+          echo "samples=${{ steps.finalize-none.outputs.samples }} violations=${{ steps.finalize-none.outputs.violations }} improvements=${{ steps.finalize-none.outputs.improvements }}"
