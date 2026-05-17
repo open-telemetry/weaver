@@ -315,8 +315,8 @@
           "type": "string",
           "default": "output"
         },
-        "resolved_schema_uri": {
-          "description": "URI where the resolved schema will eventually be published.\nThis value is embedded in the publication manifest as `resolved_schema_uri`.",
+        "resolved_registry_uri": {
+          "description": "URI where the resolved registry artifact will eventually be published.\nThis value is embedded in the publication manifest as `resolved_registry_uri`.",
           "type": [
             "string",
             "null"

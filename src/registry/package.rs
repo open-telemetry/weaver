@@ -35,11 +35,11 @@ pub struct RegistryPackageArgs {
     #[config(default = "output")]
     output: Option<PathBuf>,
 
-    /// URI where the resolved schema will eventually be published.
-    /// This value is embedded in the publication manifest as `resolved_schema_uri`.
-    #[arg(long)]
+    /// URI where the resolved registry artifact will eventually be published.
+    /// This value is embedded in the publication manifest as `resolved_registry_uri`.
+    #[arg(long, alias = "resolved-schema-uri")]
     #[config]
-    resolved_schema_uri: Option<String>,
+    resolved_registry_uri: Option<String>,
 
     /// Policy parameters
     #[command(flatten)]
@@ -72,9 +72,16 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let cmd_config = load_config(args, cfg);
     let output = cmd_config.config.output;
-    let resolved_schema_uri = cmd_config.config.resolved_schema_uri.ok_or_else(|| {
+    if std::env::args()
+        .any(|a| a == "--resolved-schema-uri" || a.starts_with("--resolved-schema-uri="))
+    {
+        log::warn!(
+            "The `--resolved-schema-uri` flag is deprecated; use `--resolved-registry-uri` instead."
+        );
+    }
+    let resolved_registry_uri = cmd_config.config.resolved_registry_uri.ok_or_else(|| {
         DiagnosticMessages::from(Error::Config {
-            error: "resolved_schema_uri is required (set via --resolved-schema-uri or [package] config)".to_owned(),
+            error: "resolved_registry_uri is required (set via --resolved-registry-uri or [package] config)".to_owned(),
         })
     })?;
     info!("Packaging registry `{}`", cmd_config.registry.registry);
@@ -129,7 +136,7 @@ pub(crate) fn command(
     })?;
     let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
         &definition_manifest,
-        resolved_schema_uri,
+        resolved_registry_uri,
     );
 
     write_yaml(&output.join("resolved.yaml"), resolved_v2.resolved_schema())?;
@@ -164,7 +171,7 @@ mod tests {
         registry_path: &str,
         output: PathBuf,
         v2: bool,
-        resolved_schema_uri: &str,
+        resolved_registry_uri: &str,
     ) -> RegistryPackageArgs {
         RegistryPackageArgs {
             registry: RegistryArgs {
@@ -175,7 +182,7 @@ mod tests {
                 ..Default::default()
             },
             output: Some(output),
-            resolved_schema_uri: Some(resolved_schema_uri.to_owned()),
+            resolved_registry_uri: Some(resolved_registry_uri.to_owned()),
             policy: PolicyArgs {
                 skip_policies: Some(true),
                 ..Default::default()
@@ -223,7 +230,7 @@ mod tests {
         assert_eq!(manifest.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
         assert_eq!(manifest.schema_url.as_str(), "https://test/schemas/1.0.0");
         assert_eq!(
-            manifest.resolved_schema_uri,
+            manifest.resolved_registry_uri,
             "https://test/semconv/1.0.0/resolved.yaml"
         );
         assert_eq!(

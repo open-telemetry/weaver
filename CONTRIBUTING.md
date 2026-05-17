@@ -159,6 +159,18 @@ After merging the PR, create a signed tag for the new release.
     git push upstream vX.Y.Z
     ```
 
+#### Upgrading cargo-dist
+
+When upgrading `cargo-dist`, update `cargo-dist-version` in `dist-workspace.toml` and regenerate
+`.github/workflows/release.yml`. Because `allow-dirty = ["ci"]` is set (to preserve hand-patched
+job permissions), `dist generate` will refuse to overwrite the file by default. To force
+regeneration:
+
+1. Temporarily remove `allow-dirty = ["ci"]` from `dist-workspace.toml`.
+2. Run `dist generate --mode ci`.
+3. Run `just fix-release-permissions` to re-apply the required permission patches.
+4. Restore `allow-dirty = ["ci"]` in `dist-workspace.toml`.
+
 #### 4. Monitor the CI/CD Process
 
 After pushing the tag, the GitHub Actions workflow configured in

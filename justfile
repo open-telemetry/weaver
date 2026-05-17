@@ -8,7 +8,7 @@ install:
     cargo install cargo-check-external-types@0.4.0 --locked
     cargo install git-cliff@2.13.1 --locked
     cargo install cargo-tarpaulin@0.35.4 --locked
-    cargo install cargo-nextest@0.9.133 --locked
+    cargo install cargo-nextest@0.9.135 --locked
 
 pre-push-check:
     cargo clean
@@ -38,6 +38,10 @@ generate:
     docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd)":/home/weaver/source otel/weaver:v0.23.0 registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 rust /home/weaver/source/crates/weaver_live_check/src/
     docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd)":/home/weaver/source otel/weaver:v0.23.0 registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 markdown /home/weaver/source/crates/weaver_live_check/docs/
     cargo fmt -p weaver_live_check
+
+# Run after `dist generate` to restore scoped GitHub workflow permissions
+fix-release-permissions:
+    cargo xtask fix-release-permissions
 
 validate-workspace:
     cargo xtask validate
