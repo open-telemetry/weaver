@@ -35,6 +35,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 # checks attribute name format
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
+	not is_template_type(input.sample.attribute.name)
 	not regex.match(name_regex, input.sample.attribute.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
