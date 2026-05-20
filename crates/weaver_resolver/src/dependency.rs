@@ -148,37 +148,44 @@ impl ImportableDependency for V1Schema {
                 .find_map(|i| i.imports.attribute_groups.as_ref()),
         )?;
 
-        let filter = move |g: &Group| {
-            include_all
-                || match g.r#type {
-                    GroupType::AttributeGroup => attribute_groups_imports_matcher.is_match(&g.id),
-                    GroupType::Span => spans_imports_matcher.is_match(&g.id),
-                    GroupType::Event => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
-                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
-                        metrics_imports_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::MetricGroup => false,
-                    GroupType::Entity => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
+        let matches_explicitly = move |g: &Group| match g.r#type {
+            GroupType::AttributeGroup => attribute_groups_imports_matcher.is_match(&g.id),
+            GroupType::Span => spans_imports_matcher.is_match(&g.id),
+            GroupType::Event => g
+                .name
+                .as_ref()
+                .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
+            GroupType::Metric => g
+                .metric_name
+                .as_ref()
+                .is_some_and(|metric_name| metrics_imports_matcher.is_match(metric_name.as_str())),
+            GroupType::MetricGroup => false,
+            GroupType::Entity => g
+                .name
+                .as_ref()
+                .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
+            GroupType::Scope => false,
+            GroupType::Undefined => false,
         };
         let mut exclusion_errors: Vec<Error> = vec![];
         let mut result: Vec<Group> = vec![];
-        for g in self.registry.groups.iter().filter(|g| filter(g)) {
-            if let Some(err) = g
+        for g in self.registry.groups.iter() {
+            let matched_explicitly = matches_explicitly(g);
+            if !include_all && !matched_explicitly {
+                continue;
+            }
+            let decision = g
                 .annotations
                 .as_ref()
-                .and_then(|a| excluded_import_error(a, &g.id, g.r#type.clone()))
-            {
-                exclusion_errors.push(err);
-                continue;
+                .map(|a| import_decision(a, matched_explicitly, &g.id, g.r#type.clone()))
+                .unwrap_or(ImportDecision::Include);
+            match decision {
+                ImportDecision::Include => {}
+                ImportDecision::Skip => continue,
+                ImportDecision::Error(e) => {
+                    exclusion_errors.push(e);
+                    continue;
+                }
             }
             let mut g = g.clone();
             let mut attributes = vec![];
@@ -199,16 +206,37 @@ impl ImportableDependency for V1Schema {
     }
 }
 
-fn excluded_import_error(
+/// Outcome of an import decision for a candidate dep item.
+enum ImportDecision {
+    /// Item is visible — proceed with the normal import path.
+    Include,
+    /// Item is excluded and only matched via `include_all`. Silently dropped:
+    /// excluded items are invisible to dependents and shouldn't surface as
+    /// errors when the consumer never explicitly asked for them.
+    Skip,
+    /// Item is excluded and was matched by an explicit `imports:` pattern.
+    /// Surfaces as a hard error because the consumer asked for it by name.
+    Error(Error),
+}
+
+fn import_decision(
     annotations: &std::collections::BTreeMap<String, weaver_semconv::YamlValue>,
+    matched_explicitly: bool,
     id: &str,
     r#type: GroupType,
-) -> Option<Error> {
-    is_excluded(annotations).then(|| Error::ExcludedFromDependencyResolution {
-        id: id.to_owned(),
-        r#type: r#type.to_string(),
-        used_in: "imports".to_owned(),
-    })
+) -> ImportDecision {
+    if !is_excluded(annotations) {
+        return ImportDecision::Include;
+    }
+    if matched_explicitly {
+        ImportDecision::Error(Error::ExcludedFromDependencyResolution {
+            id: id.to_owned(),
+            r#type: r#type.to_string(),
+            used_in: "imports".to_owned(),
+        })
+    } else {
+        ImportDecision::Skip
+    }
 }
 
 /// Converts a V2 attribute (with no requirement level) to a v1 attribute.
@@ -260,15 +288,24 @@ impl ImportableDependency for V2Schema {
         // This is the closest to V1 ref syntax we have.
         let metrics_imports_matcher =
             build_globset(imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
-        for m in self.registry.metrics.iter().filter(|m| {
+        for m in self.registry.metrics.iter() {
             let metric_name: &str = &m.name;
-            include_all || metrics_imports_matcher.is_match(metric_name)
-        }) {
-            if let Some(err) =
-                excluded_import_error(&m.common.annotations, m.id(), GroupType::Metric)
-            {
-                exclusion_errors.push(err);
+            let matched_explicitly = metrics_imports_matcher.is_match(metric_name);
+            if !include_all && !matched_explicitly {
                 continue;
+            }
+            match import_decision(
+                &m.common.annotations,
+                matched_explicitly,
+                m.id(),
+                GroupType::Metric,
+            ) {
+                ImportDecision::Include => {}
+                ImportDecision::Skip => continue,
+                ImportDecision::Error(e) => {
+                    exclusion_errors.push(e);
+                    continue;
+                }
             }
             let mut attributes = vec![];
             for ar in m.attributes.iter() {
@@ -318,15 +355,24 @@ impl ImportableDependency for V2Schema {
         // Now event imports.
         let events_imports_matcher =
             build_globset(imports.iter().find_map(|i| i.imports.events.as_ref()))?;
-        for e in self.registry.events.iter().filter(|e| {
+        for e in self.registry.events.iter() {
             let event_name: &str = &e.name;
-            include_all || events_imports_matcher.is_match(event_name)
-        }) {
-            if let Some(err) =
-                excluded_import_error(&e.common.annotations, e.id(), GroupType::Event)
-            {
-                exclusion_errors.push(err);
+            let matched_explicitly = events_imports_matcher.is_match(event_name);
+            if !include_all && !matched_explicitly {
                 continue;
+            }
+            match import_decision(
+                &e.common.annotations,
+                matched_explicitly,
+                e.id(),
+                GroupType::Event,
+            ) {
+                ImportDecision::Include => {}
+                ImportDecision::Skip => continue,
+                ImportDecision::Error(err) => {
+                    exclusion_errors.push(err);
+                    continue;
+                }
             }
             let mut attributes = vec![];
             for ar in e.attributes.iter() {
@@ -376,15 +422,24 @@ impl ImportableDependency for V2Schema {
         // Now Entity imports.
         let entities_imports_matcher =
             build_globset(imports.iter().find_map(|i| i.imports.entities.as_ref()))?;
-        for e in self.registry.entities.iter().filter(|e| {
+        for e in self.registry.entities.iter() {
             let entity_type: &str = &e.r#type;
-            include_all || entities_imports_matcher.is_match(entity_type)
-        }) {
-            if let Some(err) =
-                excluded_import_error(&e.common.annotations, e.id(), GroupType::Entity)
-            {
-                exclusion_errors.push(err);
+            let matched_explicitly = entities_imports_matcher.is_match(entity_type);
+            if !include_all && !matched_explicitly {
                 continue;
+            }
+            match import_decision(
+                &e.common.annotations,
+                matched_explicitly,
+                e.id(),
+                GroupType::Entity,
+            ) {
+                ImportDecision::Include => {}
+                ImportDecision::Skip => continue,
+                ImportDecision::Error(err) => {
+                    exclusion_errors.push(err);
+                    continue;
+                }
             }
             let mut attributes = vec![];
             for ar in e.identity.iter() {
@@ -458,14 +513,24 @@ impl ImportableDependency for V2Schema {
         // Now Span imports.
         let spans_imports_matcher =
             build_globset(imports.iter().find_map(|i| i.imports.spans.as_ref()))?;
-        for s in self.registry.spans.iter().filter(|s| {
+        for s in self.registry.spans.iter() {
             let span_name: &str = &s.r#type;
-            include_all || spans_imports_matcher.is_match(span_name)
-        }) {
-            if let Some(err) = excluded_import_error(&s.common.annotations, s.id(), GroupType::Span)
-            {
-                exclusion_errors.push(err);
+            let matched_explicitly = spans_imports_matcher.is_match(span_name);
+            if !include_all && !matched_explicitly {
                 continue;
+            }
+            match import_decision(
+                &s.common.annotations,
+                matched_explicitly,
+                s.id(),
+                GroupType::Span,
+            ) {
+                ImportDecision::Include => {}
+                ImportDecision::Skip => continue,
+                ImportDecision::Error(err) => {
+                    exclusion_errors.push(err);
+                    continue;
+                }
             }
             let mut attributes = vec![];
             for ar in s.attributes.iter() {
@@ -518,15 +583,24 @@ impl ImportableDependency for V2Schema {
                 .iter()
                 .find_map(|i| i.imports.attribute_groups.as_ref()),
         )?;
-        for ag in self.registry.attribute_groups.iter().filter(|ag| {
+        for ag in self.registry.attribute_groups.iter() {
             let ag_id: &str = &ag.id;
-            include_all || attribute_groups_imports_matcher.is_match(ag_id)
-        }) {
-            if let Some(err) =
-                excluded_import_error(&ag.common.annotations, ag.id(), GroupType::AttributeGroup)
-            {
-                exclusion_errors.push(err);
+            let matched_explicitly = attribute_groups_imports_matcher.is_match(ag_id);
+            if !include_all && !matched_explicitly {
                 continue;
+            }
+            match import_decision(
+                &ag.common.annotations,
+                matched_explicitly,
+                ag.id(),
+                GroupType::AttributeGroup,
+            ) {
+                ImportDecision::Include => {}
+                ImportDecision::Skip => continue,
+                ImportDecision::Error(err) => {
+                    exclusion_errors.push(err);
+                    continue;
+                }
             }
             let mut attributes = vec![];
             for ar in ag.attributes.iter() {

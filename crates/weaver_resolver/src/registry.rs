@@ -408,12 +408,12 @@ fn resolve_attribute_references(
             // Remove attributes that are resolved and keep unresolved attributes
             // in the group for the next iteration.
             let mut still_unresolved = vec![];
+            let group_excluded = is_group_excluded(
+                &unresolved_group.group.annotations,
+                unresolved_group.visibility.as_ref(),
+                &unresolved_group.group.r#type,
+            );
             for attr in unresolved_group.attributes.clone() {
-                let group_excluded = is_group_excluded(
-                    &unresolved_group.group.annotations,
-                    unresolved_group.visibility.as_ref(),
-                    &unresolved_group.group.r#type,
-                );
                 match attr_catalog.resolve(
                     &unresolved_group.group.id,
                     &unresolved_group.group.prefix,
