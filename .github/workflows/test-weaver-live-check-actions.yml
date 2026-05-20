@@ -1,18 +1,18 @@
 name: Test weaver-live-check Actions
 
-# Smoke-test the weaver-live-check-{start,finalize} composite actions:
+# Smoke-test the weaver-live-check-{start,stop} composite actions:
 # - install weaver
 # - start the listener
 # - send a tiny OTLP/gRPC payload using the official `python-opentelemetry`
 #   metrics SDK so weaver has something to validate
-# - finalize and assert the gate works in both `none` (always pass) and
+# - stop and assert the gate works in both `none` (always pass) and
 #   `violation` (pass when no violations) modes.
 
 on:
   pull_request:
     paths:
       - '.github/actions/weaver-live-check-start/**'
-      - '.github/actions/weaver-live-check-finalize/**'
+      - '.github/actions/weaver-live-check-stop/**'
       - '.github/workflows/test-weaver-live-check-actions.yml'
   workflow_dispatch:
 
@@ -74,14 +74,14 @@ jobs:
           provider.shutdown()
           PY
 
-      - name: Finalize (fail-on=none, must succeed regardless)
-        id: finalize-none
-        uses: ./.github/actions/weaver-live-check-finalize
+      - name: Stop weaver live-check (fail-on=none, must succeed regardless)
+        id: stop-none
+        uses: ./.github/actions/weaver-live-check-stop
         with:
           fail-on: none
 
-      - name: Assert finalize outputs are present
+      - name: Assert stop outputs are present
         run: |
-          test -n "${{ steps.finalize-none.outputs.report-path }}"
-          test "${{ steps.finalize-none.outputs.samples }}" -gt 0
-          echo "samples=${{ steps.finalize-none.outputs.samples }} violations=${{ steps.finalize-none.outputs.violations }} improvements=${{ steps.finalize-none.outputs.improvements }}"
+          test -n "${{ steps.stop-none.outputs.report-path }}"
+          test "${{ steps.stop-none.outputs.samples }}" -gt 0
+          echo "samples=${{ steps.stop-none.outputs.samples }} violations=${{ steps.stop-none.outputs.violations }} improvements=${{ steps.stop-none.outputs.improvements }}"

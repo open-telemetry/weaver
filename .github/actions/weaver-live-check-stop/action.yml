@@ -1,9 +1,10 @@
-name: 'Weaver Live Check (finalize)'
+name: 'Weaver Live Check (stop)'
 description: >-
   Stop a previously-started `weaver registry live-check` listener, fetch
-  its JSON report, render a step summary, and (optionally) fail the job
-  on semantic-convention findings. Pair with `weaver-live-check-start`.
-  Linux runners only (v1).
+  its JSON report, render a step summary, and (by default) fail the job
+  on semantic-convention findings. Does more than just stop — also
+  collects, summarizes, and grades the report. Pair with
+  `weaver-live-check-start`. Linux runners only (v1).
 author: 'OpenTelemetry'
 
 branding:
@@ -36,19 +37,19 @@ inputs:
 outputs:
   report-path:
     description: 'Path to the captured live-check JSON report on the runner.'
-    value: ${{ steps.finalize.outputs.report-path }}
+    value: ${{ steps.stop.outputs.report-path }}
   violations:
     description: 'Number of violation-level findings.'
-    value: ${{ steps.finalize.outputs.violations }}
+    value: ${{ steps.stop.outputs.violations }}
   improvements:
     description: 'Number of improvement-level findings.'
-    value: ${{ steps.finalize.outputs.improvements }}
+    value: ${{ steps.stop.outputs.improvements }}
   informations:
     description: 'Number of information-level findings.'
-    value: ${{ steps.finalize.outputs.informations }}
+    value: ${{ steps.stop.outputs.informations }}
   samples:
     description: 'Number of telemetry samples weaver received.'
-    value: ${{ steps.finalize.outputs.samples }}
+    value: ${{ steps.stop.outputs.samples }}
 
 runs:
   using: 'composite'
@@ -72,8 +73,8 @@ runs:
           exit 1
         fi
 
-    - name: Finalize weaver live-check
-      id: finalize
+    - name: Stop weaver live-check and collect report
+      id: stop
       shell: bash
       env:
         INPUT_FAIL_ON: ${{ inputs.fail-on }}

@@ -1,8 +1,11 @@
-# `weaver-live-check-finalize`
+# `weaver-live-check-stop`
 
-Stops a previously-started `weaver registry live-check` listener,
-retrieves the JSON report, writes a step summary to the GitHub Actions
-job page, and (optionally) fails the job on findings.
+> **Note:** Despite the name, this action does **more than just stop**
+> the listener. It also fetches the live-check report, renders a job
+> step summary, exposes counts as outputs, and (by default) **fails the
+> job** when findings reach the configured severity. Named `stop` for
+> symmetry with `weaver-live-check-start` and because it calls weaver's
+> admin `/stop` endpoint.
 
 Pair with [`weaver-live-check-start`](../weaver-live-check-start/). See
 that action's README for an end-to-end example.
