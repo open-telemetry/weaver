@@ -49,10 +49,15 @@ def main(argv: list[str]) -> int:
     by_type = stats.get("total_entities_by_type") or {}
     msg_counts = stats.get("advice_message_counts") or {}
 
-    emoji = "❌" if violations else ("⚠️" if improvements else "✅")
+    if violations:
+        status = "FAIL"
+    elif improvements:
+        status = "WARN"
+    else:
+        status = "PASS"
 
     summary_lines: list[str] = [
-        f"## {emoji} Weaver live-check",
+        f"## Weaver live-check: {status}",
         "",
         f"- Samples received: **{samples}**",
     ]
