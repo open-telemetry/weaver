@@ -87,6 +87,13 @@ impl SchemaUrl {
         &self.url[self.version_range.clone()]
     }
 
+    /// Returns the parsed semantic version, or an error if not valid.
+    pub fn semver(&self) -> Result<semver::Version, semver::Error> {
+        let v = self.version();
+        let v = v.strip_prefix('v').unwrap_or(v);
+        semver::Version::parse(v)
+    }
+
     /// Create a SchemaUrl from name and version.
     pub fn try_from_name_version(name: &str, version: &str) -> Result<Self, String> {
         if name.trim().is_empty() || version.trim().is_empty() {

@@ -13,6 +13,7 @@ use weaver_semconv::attribute::{AttributeRole, BasicRequirementLevelSpec, Requir
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::stability::Stability;
 
 use crate::{
@@ -90,6 +91,14 @@ impl ResolvedDependency {
     }
 }
 
+/// A group with its source provenance.
+pub struct GroupWithProvenance {
+    /// The group definition.
+    pub group: Group,
+    /// The schema URL of the registry it came from.
+    pub schema_url: SchemaUrl,
+}
+
 /// Allows importing dependencies
 pub(crate) trait ImportableDependency {
     /// Imports groups from the given dependency using the flags provided.
@@ -98,7 +107,7 @@ pub(crate) trait ImportableDependency {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error>;
+    ) -> Result<Vec<GroupWithProvenance>, Error>;
 }
 
 impl ImportableDependency for V1Schema {
@@ -107,7 +116,7 @@ impl ImportableDependency for V1Schema {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         // Filter imports to only include those from the current registry
         let current_registry_imports: Vec<_> = imports.iter().collect();
 
@@ -158,13 +167,18 @@ impl ImportableDependency for V1Schema {
                     GroupType::Undefined => false,
                 }
         };
-        Ok(self
-            .registry
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| {
+            Error::InvalidSchemaUrlBadVersion {
+                url: self.schema_url.to_string(),
+                error: e,
+            }
+        })?;
+        self.registry
             .groups
             .iter()
             .filter(|g| filter(g))
             .cloned()
-            .map(|mut g| {
+            .map(|mut g| -> Result<GroupWithProvenance, Error> {
                 // We need to fix all the attribute references in this group to be
                 // against the passed in attribute catalog.
                 let mut attributes = vec![];
@@ -173,13 +187,79 @@ impl ImportableDependency for V1Schema {
                     .iter()
                     .filter_map(|ar| self.catalog().attribute(ar))
                 {
-                    let ar = attribute_catalog.attribute_ref(a.clone());
+                    let source = find_attribute_source(self, &a.name, &my_schema_url);
+                    let ar = attribute_catalog.attribute_ref_with_provenance(a.clone(), source)?;
                     attributes.push(ar);
                 }
                 g.attributes = attributes;
-                g
+                Ok(GroupWithProvenance {
+                    group: g,
+                    schema_url: my_schema_url.clone(),
+                })
             })
-            .collect())
+            .collect::<Result<Vec<_>, Error>>()
+    }
+}
+
+/// Finds the attribute source for a V1 attribute.
+fn find_attribute_source(
+    schema: &V1Schema,
+    attr_name: &str,
+    my_schema_url: &SchemaUrl,
+) -> AttributeSource {
+    if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
+        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            schema.registry.groups.iter().find(|g| {
+                if let Some(prov) = g.provenance() {
+                    prov.schema_url.name() == schema_name
+                } else {
+                    false
+                }
+            })
+        } else {
+            schema
+                .registry
+                .groups
+                .iter()
+                .find(|g| g.id == *source_group_id)
+        };
+        if let Some(group) = group {
+            if let Some(prov) = group.provenance() {
+                AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                }
+            } else {
+                AttributeSource::Dependency {
+                    schema_url: my_schema_url.clone(),
+                }
+            }
+        } else {
+            AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            }
+        }
+    } else {
+        // Fallback: search in all groups to find where this attribute came from
+        schema
+            .registry
+            .groups
+            .iter()
+            .find(|group| {
+                group.attributes.iter().any(|ar| {
+                    schema
+                        .catalog()
+                        .attribute(ar)
+                        .map_or(false, |attr| attr.name == attr_name)
+                })
+            })
+            .and_then(|group| {
+                group.provenance().map(|prov| AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                })
+            })
+            .unwrap_or_else(|| AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            })
     }
 }
 
@@ -214,12 +294,14 @@ impl ImportableDependency for V2Schema {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
 
         // Helper to map V2 provenance to V1 provenance.
         let get_source_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| -> weaver_semconv::provenance::Provenance {
             let url = if let Some(dep_ref) = &prov.source {
+                // TODO - Should we issue some kind of malformed schema error instead of falling back to
+                // taking ownership of the group as our own schema?
                 self.dependencies.iter().nth(dep_ref.0 as usize).cloned().unwrap_or_else(|| self.schema_url.clone())
             } else {
                 self.schema_url.clone()
@@ -243,12 +325,24 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                let source = if let Some(dep_ref) = &attr.provenance.source {
+                    AttributeSource::Dependency {
+                        schema_url: self
+                            .dependencies
+                            .iter()
+                            .nth(dep_ref.0 as usize)
+                            .cloned()
+                            .unwrap_or_else(|| self.schema_url.clone()),
+                    }
+                } else {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    }
+                };
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
+                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
+                    source,
+                )?);
             }
             result.push(Group {
                 id: m.id().to_owned(),
@@ -300,7 +394,7 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -357,7 +451,7 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
             for ar in e.description.iter() {
                 // TODO - this should be non-panic errors.
@@ -376,7 +470,7 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -428,7 +522,7 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
             result.push(Group {
                 id: s.id().to_owned(),
@@ -483,7 +577,7 @@ impl ImportableDependency for V2Schema {
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
-                ));
+                )?);
             }
             result.push(Group {
                 id: ag.id().to_owned(),
@@ -512,7 +606,13 @@ impl ImportableDependency for V2Schema {
                 span_name_note: None,
             });
         }
-        Ok(result)
+        Ok(result
+            .into_iter()
+            .map(|group| GroupWithProvenance {
+                group,
+                schema_url: self.schema_url.clone(),
+            })
+            .collect())
     }
 }
 
@@ -522,7 +622,7 @@ impl ImportableDependency for ResolvedDependency {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         match self {
             ResolvedDependency::V1(schema) => {
                 schema.import_groups(imports, include_all, attribute_catalog)
@@ -541,7 +641,7 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         imports: &[ImportsWithProvenance],
         include_all: bool,
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         self.iter()
             .map(|d| d.import_groups(imports, include_all, attribute_catalog))
             .try_fold(vec![], |mut result, next| {
@@ -878,7 +978,9 @@ mod tests {
     fn example_v2_schema() -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
         weaver_resolved_schema::v2::ResolvedTelemetrySchema {
             file_format: "resolved/2.0".to_owned(),
-            schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
+            schema_url: "http://test/schemas/2.0.0"
+                .try_into()
+                .expect("Valid hardcoded schema URL in test"),
             registry: weaver_resolved_schema::v2::registry::Registry {
                 attribute_groups: vec![
                     weaver_resolved_schema::v2::attribute_group::AttributeGroup {
@@ -942,21 +1044,27 @@ mod tests {
         let result_metric = d.lookup_group_summary("metric.a");
         assert!(result_metric.is_some(), "Should find metric.a");
         assert_eq!(
-            result_metric.unwrap().r#type,
+            result_metric
+                .expect("Expected group summary to be found")
+                .r#type,
             weaver_semconv::group::GroupType::Metric
         );
 
         let result_event = d.lookup_group_summary("event.b");
         assert!(result_event.is_some(), "Should find event.b");
         assert_eq!(
-            result_event.unwrap().r#type,
+            result_event
+                .expect("Expected group summary to be found")
+                .r#type,
             weaver_semconv::group::GroupType::Event
         );
 
         let result_entity = d.lookup_group_summary("entity.c");
         assert!(result_entity.is_some(), "Should find entity.c");
         assert_eq!(
-            result_entity.unwrap().r#type,
+            result_entity
+                .expect("Expected group summary to be found")
+                .r#type,
             weaver_semconv::group::GroupType::Entity
         );
 
@@ -978,10 +1086,10 @@ mod tests {
                 events: None,
                 entities: None,
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.v1").unwrap(),
+                    globset::Glob::new("span.v1").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("a").unwrap(),
+                    globset::Glob::new("a").expect("Valid hardcoded glob pattern in test"),
                 )]),
             },
         }];
@@ -1012,19 +1120,20 @@ mod tests {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a").unwrap(),
+                    globset::Glob::new("metric.a").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b").unwrap(),
+                    globset::Glob::new("event.b").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c").unwrap(),
+                    globset::Glob::new("entity.c").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d").unwrap(),
+                    globset::Glob::new("span.d").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e").unwrap(),
+                    globset::Glob::new("attribute_group.e")
+                        .expect("Valid hardcoded glob pattern in test"),
                 )]),
             },
         }];
@@ -1057,19 +1166,20 @@ mod tests {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
             imports: weaver_semconv::semconv::Imports {
                 metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a").unwrap(),
+                    globset::Glob::new("metric.a").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b").unwrap(),
+                    globset::Glob::new("event.b").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c").unwrap(),
+                    globset::Glob::new("entity.c").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d").unwrap(),
+                    globset::Glob::new("span.d").expect("Valid hardcoded glob pattern in test"),
                 )]),
                 attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e").unwrap(),
+                    globset::Glob::new("attribute_group.e")
+                        .expect("Valid hardcoded glob pattern in test"),
                 )]),
             },
         }];

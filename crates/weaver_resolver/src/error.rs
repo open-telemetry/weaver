@@ -49,6 +49,18 @@ pub enum Error {
         error: String,
     },
 
+    /// An invalid schema URL that does not match the specification.
+    #[error("Invalid schema URL `{url}`: {error}")]
+    #[diagnostic(help(
+        "Ensure the schema URL follows the OTel format - the version must match semver."
+    ))]
+    InvalidSchemaUrlBadVersion {
+        /// The invalid URL.
+        url: String,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// Failed to resolve a set of attributes.
     #[error("Failed to resolve a set of attributes {ids:?}: {error}")]
     FailToResolveAttributes {
