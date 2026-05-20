@@ -5,11 +5,13 @@ WORKDIR /build
 # Install Node.js and musl build dependencies
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=24
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x -o /tmp/nodesource-setup.sh && \
+  echo "6e3d580f5bd7ccf2aa1e8df8d35c60d78e873c3ff8beb282c9bebd914904ad72  /tmp/nodesource-setup.sh" | sha256sum -c && \
+  bash /tmp/nodesource-setup.sh && \
   apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.33.4
 COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
 RUN cd /build/ui && pnpm install --frozen-lockfile
 
