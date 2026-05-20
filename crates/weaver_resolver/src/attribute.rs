@@ -382,8 +382,7 @@ impl AttributeLookup for Vec<ResolvedDependency> {
                         // definitions are invisible to dependents and shouldn't
                         // contribute to ambiguity. If both are excluded, pick one
                         // so the caller raises ExcludedFromDependencyResolution.
-                        let m_excluded =
-                            m.attribute.annotations.as_ref().is_some_and(is_excluded);
+                        let m_excluded = m.attribute.annotations.as_ref().is_some_and(is_excluded);
                         let existing_excluded = existing
                             .attribute
                             .annotations

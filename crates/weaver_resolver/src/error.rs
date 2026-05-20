@@ -127,6 +127,7 @@ pub enum Error {
         r#type: String,
         /// Id of the group or signal using the excluded item, or `imports` for manifest imports.
         used_in: String,
+        // TODO: plumb provenance?
     },
 
     /// An invalid Schema path.

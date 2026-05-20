@@ -22,9 +22,6 @@ use crate::{
 };
 
 /// Where a group lookup landed: in the local registry or in a dependency.
-/// Exclusion semantics differ between the two — local matches use the
-/// within-registry rule (both items must agree); dep matches use the boundary
-/// rule (any reference to an excluded item fails).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GroupSource {
     Local,

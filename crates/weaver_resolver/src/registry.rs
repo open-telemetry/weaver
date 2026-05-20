@@ -933,7 +933,6 @@ fn lookup_group_with_dependencies(
     Ok(None)
 }
 
-/// Within-registry leak: non-excluded local group references a local excluded target.
 fn excluded_parent_error(
     used_in: &UnresolvedGroup,
     target_id: &str,
