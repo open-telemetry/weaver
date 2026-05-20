@@ -27,7 +27,7 @@
     "@types/node": "25.8.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.1",
+    "@vitejs/plugin-react": "6.0.2",
     "daisyui": "5.5.19",
     "eslint": "10.3.0",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -36,7 +36,7 @@
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.3",
-    "vite": "8.0.12"
+    "vite": "8.0.13"
   },
   "overrides-notes": {
     "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0"
