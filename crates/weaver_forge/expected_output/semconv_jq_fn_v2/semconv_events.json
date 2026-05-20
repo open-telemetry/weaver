@@ -1,0 +1,14 @@
+[
+  {
+    "events": [
+      {
+        "attributes": null,
+        "brief": "",
+        "name": "db.query",
+        "root_namespace": "db",
+        "stability": "alpha"
+      }
+    ],
+    "root_namespace": "db"
+  }
+]
