@@ -4,7 +4,7 @@ Starts an OpenTelemetry Weaver `registry live-check` listener (OTLP/gRPC)
 in the background so that an instrumented application can export
 telemetry to it for semantic-convention validation.
 
-Pair with [`weaver-live-check-finalize`](../weaver-live-check-finalize/) to
+Pair with [`weaver-live-check-stop`](../weaver-live-check-stop/) to
 stop the listener, render a step summary, and gate the CI job on
 findings.
 
@@ -35,7 +35,7 @@ jobs:
           sleep 6  # let exporters flush
           kill %1
 
-      - uses: open-telemetry/weaver/.github/actions/weaver-live-check-finalize@<ref>
+      - uses: open-telemetry/weaver/.github/actions/weaver-live-check-stop@<ref>
         if: always()
         with:
           fail-on: violation
@@ -59,10 +59,10 @@ jobs:
 |---|---|
 | `otlp-grpc-endpoint` | `http://127.0.0.1:<otlp-grpc-port>` |
 | `admin-endpoint` | `http://127.0.0.1:<admin-port>` |
-| `state-dir` | Directory holding run state for the finalize action. |
+| `state-dir` | Directory holding run state for the stop action. |
 
 The start action also exports `$WEAVER_LIVE_CHECK_STATE_DIR` to subsequent
-steps in the job, so the finalize action finds it without the caller
+steps in the job, so the stop action finds it without the caller
 needing to re-pass it.
 
 ## Behavior

@@ -2,7 +2,7 @@ name: 'Weaver Live Check (start)'
 description: >-
   Start an OpenTelemetry Weaver `registry live-check` listener (OTLP/gRPC)
   in the background and expose its endpoints as outputs. Pair with the
-  `weaver-live-check-finalize` action after driving telemetry through it.
+  `weaver-live-check-stop` action after driving telemetry through it.
   Linux runners only (v1).
 author: 'OpenTelemetry'
 
@@ -33,7 +33,7 @@ inputs:
   inactivity-timeout:
     description: >-
       Seconds the listener will stay idle (no telemetry) before exiting on
-      its own. A safety net; the finalize action normally stops it sooner.
+      its own. A safety net; the stop action normally stops it sooner.
     required: false
     default: '120'
   diagnostic-format:
@@ -53,7 +53,7 @@ inputs:
   state-dir:
     description: >-
       Directory to persist run state (PID, ports, log) between this action
-      and `weaver-live-check-finalize`. Defaults to a path under
+      and `weaver-live-check-stop`. Defaults to a path under
       `$RUNNER_TEMP`. Set this explicitly if you need to run multiple
       live-check instances in the same job (and also override the ports).
     required: false
@@ -67,7 +67,7 @@ outputs:
     description: 'Weaver admin base URL (for `/health`, `/stop`).'
     value: ${{ steps.start.outputs.admin-endpoint }}
   state-dir:
-    description: 'Directory holding run state for the finalize action.'
+    description: 'Directory holding run state for the stop action.'
     value: ${{ steps.start.outputs.state-dir }}
 
 runs:
@@ -132,7 +132,7 @@ runs:
 
         # `--output=http` keeps the report in-memory and returns it as the
         # body of the admin `POST /stop` response. No on-disk JSON file to
-        # locate; the finalize action reads the body directly.
+        # locate; the stop action reads the body directly.
         weaver registry live-check \
           --registry "$INPUT_REGISTRY" \
           --input-source otlp \
@@ -146,7 +146,7 @@ runs:
         WEAVER_PID=$!
         echo "weaver PID: $WEAVER_PID"
 
-        # Persist state for the finalize action (subsequent steps run in
+        # Persist state for the stop action (subsequent steps run in
         # fresh shells, so the PID variable doesn't survive across steps).
         {
           echo "WEAVER_PID=$WEAVER_PID"
@@ -185,6 +185,6 @@ runs:
           echo "state-dir=$STATE_DIR"
         } >> "$GITHUB_OUTPUT"
 
-        # Also export the state dir as an env var so the finalize action
+        # Also export the state dir as an env var so the stop action
         # finds it without the caller re-passing it.
         echo "WEAVER_LIVE_CHECK_STATE_DIR=$STATE_DIR" >> "$GITHUB_ENV"
