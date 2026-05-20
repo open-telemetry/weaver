@@ -1,0 +1,33 @@
+name: ClusterFuzzLite batch fuzzing
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # nightly at 02:00 UTC
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  BatchFuzzing:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Run ClusterFuzzLite batch fuzzing
+        uses: google/clusterfuzzlite/actions/run_fuzzers@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 600
+          mode: batch
+          sanitizer: ${{ matrix.sanitizer }}
+          output-sarif: true
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: cifuzz-sarif/results.sarif
+          category: clusterfuzzlite-${{ matrix.sanitizer }}
