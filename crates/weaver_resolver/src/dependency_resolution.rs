@@ -32,7 +32,7 @@ pub(crate) fn is_excluded(annotations: &BTreeMap<String, YamlValue>) -> bool {
         .unwrap_or(false)
 }
 
-/// Returns true if the group is effectively can't be used by dependents.
+/// Returns true if the group effectively can't be used by dependents.
 /// It happens in two cases:
 ///
 /// - the group carries `dependency_resolution.exclude: true`;

@@ -172,12 +172,12 @@ impl ImportableDependency for V1Schema {
         let mut exclusion_errors: Vec<Error> = vec![];
         let mut result: Vec<Group> = vec![];
         for g in self.registry.groups.iter().filter(|g| filter(g)) {
-            if g.annotations.as_ref().is_some_and(is_excluded) {
-                exclusion_errors.push(Error::ExcludedFromDependencyResolution {
-                    id: g.id.clone(),
-                    r#type: g.r#type.to_string(),
-                    used_in: "imports".to_owned(),
-                });
+            if let Some(err) = g
+                .annotations
+                .as_ref()
+                .and_then(|a| excluded_import_error(a, &g.id, g.r#type.clone()))
+            {
+                exclusion_errors.push(err);
                 continue;
             }
             let mut g = g.clone();

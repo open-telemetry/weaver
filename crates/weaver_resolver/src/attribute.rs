@@ -842,7 +842,7 @@ mod tests {
             AttributeSource::Dependency { schema_url } => {
                 assert_eq!(schema_url.to_string(), "http://test/schema/visible");
             }
-            other => panic!("unexpected source {other:?}"),
+            other @ AttributeSource::Local { .. } => panic!("unexpected source {other:?}"),
         }
     }
 }
