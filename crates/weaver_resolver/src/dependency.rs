@@ -17,8 +17,19 @@ use weaver_semconv::stability::Stability;
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
+    dependency_resolution::is_excluded,
     Error,
 };
+
+/// Where a group lookup landed: in the local registry or in a dependency.
+/// Exclusion semantics differ between the two — local matches use the
+/// within-registry rule (both items must agree); dep matches use the boundary
+/// rule (any reference to an excluded item fails).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GroupSource {
+    Local,
+    Dependency,
+}
 
 /// A summary of a group, used during refinement and extends resolution, along with its unresolved attributes.
 #[derive(Debug, Clone)]
@@ -47,13 +58,15 @@ pub(crate) struct GroupSummary {
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
     pub annotations: Option<std::collections::BTreeMap<String, weaver_semconv::YamlValue>>,
+    /// Where this summary was looked up from.
+    pub source: GroupSource,
 }
 
 impl GroupSummary {
     /// Returns a group summary from this group.
     /// Does not include attributes because resolved Schema uses attribute refs,
     /// and this needs to fully resolve those attributes from the catalog.
-    pub(crate) fn from_without_attributes(group: &Group) -> Self {
+    pub(crate) fn from_without_attributes(group: &Group, source: GroupSource) -> Self {
         GroupSummary {
             r#type: group.r#type.clone(),
             brief: group.brief.clone(),
@@ -67,6 +80,7 @@ impl GroupSummary {
             span_kind: group.span_kind.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
+            source,
         }
     }
 }
@@ -158,29 +172,46 @@ impl ImportableDependency for V1Schema {
                     GroupType::Undefined => false,
                 }
         };
-        Ok(self
-            .registry
-            .groups
-            .iter()
-            .filter(|g| filter(g))
-            .cloned()
-            .map(|mut g| {
-                // We need to fix all the attribute references in this group to be
-                // against the passed in attribute catalog.
-                let mut attributes = vec![];
-                for a in g
-                    .attributes
-                    .iter()
-                    .filter_map(|ar| self.catalog().attribute(ar))
-                {
-                    let ar = attribute_catalog.attribute_ref(a.clone());
-                    attributes.push(ar);
-                }
-                g.attributes = attributes;
-                g
-            })
-            .collect())
+        let mut exclusion_errors: Vec<Error> = vec![];
+        let mut result: Vec<Group> = vec![];
+        for g in self.registry.groups.iter().filter(|g| filter(g)) {
+            if g.annotations.as_ref().is_some_and(is_excluded) {
+                exclusion_errors.push(Error::ExcludedFromDependencyResolution {
+                    id: g.id.clone(),
+                    r#type: g.r#type.to_string(),
+                    used_in: "imports".to_owned(),
+                });
+                continue;
+            }
+            let mut g = g.clone();
+            let mut attributes = vec![];
+            for a in g
+                .attributes
+                .iter()
+                .filter_map(|ar| self.catalog().attribute(ar))
+            {
+                attributes.push(attribute_catalog.attribute_ref(a.clone()));
+            }
+            g.attributes = attributes;
+            result.push(g);
+        }
+        if !exclusion_errors.is_empty() {
+            return Err(Error::CompoundError(exclusion_errors));
+        }
+        Ok(result)
     }
+}
+
+fn excluded_import_error(
+    annotations: &std::collections::BTreeMap<String, weaver_semconv::YamlValue>,
+    id: &str,
+    r#type: GroupType,
+) -> Option<Error> {
+    is_excluded(annotations).then(|| Error::ExcludedFromDependencyResolution {
+        id: id.to_owned(),
+        r#type: r#type.to_string(),
+        used_in: "imports".to_owned(),
+    })
 }
 
 /// Converts a V2 attribute (with no requirement level) to a v1 attribute.
@@ -216,6 +247,7 @@ impl ImportableDependency for V2Schema {
         attribute_catalog: &mut AttributeCatalog,
     ) -> Result<Vec<Group>, Error> {
         let mut result = vec![];
+        let mut exclusion_errors: Vec<Error> = vec![];
 
         // Helper to map V2 provenance to V1 provenance.
         let get_source_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| -> weaver_semconv::provenance::Provenance {
@@ -235,6 +267,12 @@ impl ImportableDependency for V2Schema {
             let metric_name: &str = &m.name;
             include_all || metrics_imports_matcher.is_match(metric_name)
         }) {
+            if let Some(err) =
+                excluded_import_error(&m.common.annotations, m.id(), GroupType::Metric)
+            {
+                exclusion_errors.push(err);
+                continue;
+            }
             let mut attributes = vec![];
             for ar in m.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
@@ -287,6 +325,12 @@ impl ImportableDependency for V2Schema {
             let event_name: &str = &e.name;
             include_all || events_imports_matcher.is_match(event_name)
         }) {
+            if let Some(err) =
+                excluded_import_error(&e.common.annotations, e.id(), GroupType::Event)
+            {
+                exclusion_errors.push(err);
+                continue;
+            }
             let mut attributes = vec![];
             for ar in e.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
@@ -339,6 +383,12 @@ impl ImportableDependency for V2Schema {
             let entity_type: &str = &e.r#type;
             include_all || entities_imports_matcher.is_match(entity_type)
         }) {
+            if let Some(err) =
+                excluded_import_error(&e.common.annotations, e.id(), GroupType::Entity)
+            {
+                exclusion_errors.push(err);
+                continue;
+            }
             let mut attributes = vec![];
             for ar in e.identity.iter() {
                 // TODO - this should be non-panic errors.
@@ -415,6 +465,11 @@ impl ImportableDependency for V2Schema {
             let span_name: &str = &s.r#type;
             include_all || spans_imports_matcher.is_match(span_name)
         }) {
+            if let Some(err) = excluded_import_error(&s.common.annotations, s.id(), GroupType::Span)
+            {
+                exclusion_errors.push(err);
+                continue;
+            }
             let mut attributes = vec![];
             for ar in s.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
@@ -470,6 +525,12 @@ impl ImportableDependency for V2Schema {
             let ag_id: &str = &ag.id;
             include_all || attribute_groups_imports_matcher.is_match(ag_id)
         }) {
+            if let Some(err) =
+                excluded_import_error(&ag.common.annotations, ag.id(), GroupType::AttributeGroup)
+            {
+                exclusion_errors.push(err);
+                continue;
+            }
             let mut attributes = vec![];
             for ar in ag.attributes.iter() {
                 let attr = self.attribute_catalog.attribute(ar).ok_or(
@@ -511,6 +572,9 @@ impl ImportableDependency for V2Schema {
                 is_v2: true,
                 span_name_note: None,
             });
+        }
+        if !exclusion_errors.is_empty() {
+            return Err(Error::CompoundError(exclusion_errors));
         }
         Ok(result)
     }
@@ -583,7 +647,7 @@ impl GroupRefinementLookup for V1Schema {
                     },
                 })
                 .collect();
-            let mut summary = GroupSummary::from_without_attributes(g);
+            let mut summary = GroupSummary::from_without_attributes(g, GroupSource::Dependency);
             summary.attributes = attributes;
             summary
         })
@@ -690,7 +754,7 @@ impl GroupRefinementLookup for V2Schema {
 
         // Now fill out all the attributes we need for `extends` and refinements.
         lookup_group.map(|g| {
-            let mut summary = GroupSummary::from_without_attributes(&g);
+            let mut summary = GroupSummary::from_without_attributes(&g, GroupSource::Dependency);
             summary.attributes = g
                 .attributes
                 .iter()

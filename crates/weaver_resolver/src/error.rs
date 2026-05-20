@@ -116,6 +116,19 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// A reference targets an item marked `dependency_resolution.exclude: true`.
+    /// Cross-registry references always fail; within the same registry, this
+    /// only fires when the using item is not itself excluded.
+    #[error("{type} '{id}' is marked as excluded from dependency resolution and cannot be used by '{used_in}'")]
+    ExcludedFromDependencyResolution {
+        /// Id of the excluded attribute or group.
+        id: String,
+        /// Kind: "Attribute" or a `GroupType` name.
+        r#type: String,
+        /// Id of the group or signal using the excluded item, or `imports` for manifest imports.
+        used_in: String,
+    },
+
     /// An invalid Schema path.
     #[error("Invalid Schema path: {path}")]
     InvalidSchemaPath {

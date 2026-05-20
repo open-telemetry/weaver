@@ -16,6 +16,7 @@ use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::dependency::ResolvedDependency;
+use crate::dependency_resolution::is_excluded;
 use crate::Error;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
@@ -151,6 +152,7 @@ impl AttributeCatalog {
         &mut self,
         group_id: &str,
         group_prefix: &str,
+        group_excluded: bool,
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
@@ -180,6 +182,25 @@ impl AttributeCatalog {
                     }
                 }
                 if let Some(root_attr) = root_attr {
+                    // Cross-registry refs to an excluded item always fail; within
+                    // the same registry, the consuming group gets a pass only if
+                    // it's also excluded.
+                    let target_excluded = root_attr
+                        .attribute
+                        .annotations
+                        .as_ref()
+                        .is_some_and(is_excluded);
+                    let fails = match &root_attr.source {
+                        AttributeSource::Dependency { .. } => target_excluded,
+                        AttributeSource::Local { .. } => target_excluded && !group_excluded,
+                    };
+                    if fails {
+                        return Err(Error::ExcludedFromDependencyResolution {
+                            id: r#ref.clone(),
+                            r#type: "Attribute".to_owned(),
+                            used_in: group_id.to_owned(),
+                        });
+                    }
                     let mut attr_lineage = match &root_attr.source {
                         AttributeSource::Local { group_id } => AttributeLineage::new(group_id),
                         AttributeSource::Dependency { schema_url } => {
@@ -268,6 +289,13 @@ impl AttributeCatalog {
                 annotations,
                 role,
             } => {
+                if !group_excluded && annotations.as_ref().is_some_and(is_excluded) {
+                    return Err(Error::ExcludedFromDependencyResolution {
+                        id: id.clone(),
+                        r#type: "Attribute".to_owned(),
+                        used_in: group_id.to_owned(),
+                    });
+                }
                 // Create a fully resolved attribute from an attribute spec (id),
                 // and check if it already exists in the catalog.
                 // If it does, return the reference to the existing attribute.
@@ -329,7 +357,6 @@ impl From<AttributeCatalog> for Catalog {
 }
 
 /// Helper trait for abstracting over V1 and V2 schema.
-/// Helper trait for abstracting over V1 and V2 schema.
 trait AttributeLookup {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error>;
 }
@@ -351,6 +378,20 @@ impl AttributeLookup for Vec<ResolvedDependency> {
                     None => Ok(Some(m.clone())),
                     // We have a previous match  - we need to deal with conflicts.
                     Some(existing) => {
+                        // An excluded match yields to a visible one — excluded
+                        // definitions are invisible to dependents and shouldn't
+                        // contribute to ambiguity. If both are excluded, pick one
+                        // so the caller raises ExcludedFromDependencyResolution.
+                        let m_excluded =
+                            m.attribute.annotations.as_ref().is_some_and(is_excluded);
+                        let existing_excluded = existing
+                            .attribute
+                            .annotations
+                            .as_ref()
+                            .is_some_and(is_excluded);
+                        if m_excluded || existing_excluded {
+                            return Ok(Some(if m_excluded { existing } else { m.clone() }));
+                        }
                         let result: Result<Option<AttributeWithSource>, Error> =
                             match (&m.source, &existing.source) {
                                 // This should be infeasible if code is accurate. Just pick existing.
@@ -735,6 +776,74 @@ mod tests {
             assert_eq!(schema_url2, "http://test/schema/v2");
         } else {
             panic!("Expected AmbiguousReference error, got {:?}", result);
+        }
+    }
+
+    fn v2_schema_with_attr(
+        url: &str,
+        key: &str,
+        excluded: bool,
+    ) -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+        use weaver_resolved_schema::v2::attribute::Attribute as AttributeV2;
+        use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+        use weaver_semconv::v2::CommonFields;
+        use weaver_semconv::YamlValue;
+
+        let mut common = CommonFields::default();
+        if excluded {
+            _ = common.annotations.insert(
+                "dependency_resolution".to_owned(),
+                YamlValue(serde_yaml::from_str("exclude: true").expect("valid yaml")),
+            );
+        }
+        let attr = AttributeV2 {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common,
+            provenance: Default::default(),
+        };
+        V2Schema {
+            file_format: "resolved/2.0".to_owned(),
+            schema_url: url.try_into().expect("valid url"),
+            attribute_catalog: vec![attr],
+            registry: weaver_resolved_schema::v2::registry::Registry {
+                attributes: vec![weaver_resolved_schema::v2::attribute::AttributeRef(0)],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: weaver_resolved_schema::v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+            },
+            dependencies: Default::default(),
+        }
+    }
+
+    #[test]
+    fn test_lookup_attribute_excluded_in_dep_is_hidden() {
+        // Excluded definitions are invisible to dependents, so a visible match
+        // in another dep wins over an excluded one without raising ambiguity.
+        let excluded = v2_schema_with_attr("http://test/schema/excluded", "error.type", true);
+        let visible = v2_schema_with_attr("http://test/schema/visible", "error.type", false);
+        let deps = vec![
+            ResolvedDependency::V2(Box::new(excluded)),
+            ResolvedDependency::V2(Box::new(visible)),
+        ];
+
+        let found = deps
+            .lookup_attribute("error.type")
+            .expect("lookup")
+            .expect("match");
+        match found.source {
+            AttributeSource::Dependency { schema_url } => {
+                assert_eq!(schema_url.to_string(), "http://test/schema/visible");
+            }
+            other => panic!("unexpected source {other:?}"),
         }
     }
 }
