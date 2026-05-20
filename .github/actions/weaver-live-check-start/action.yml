@@ -1,0 +1,190 @@
+name: 'Weaver Live Check (start)'
+description: >-
+  Start an OpenTelemetry Weaver `registry live-check` listener (OTLP/gRPC)
+  in the background and expose its endpoints as outputs. Pair with the
+  `weaver-live-check-stop` action after driving telemetry through it.
+  Linux runners only (v1).
+author: 'OpenTelemetry'
+
+branding:
+  icon: 'play'
+  color: 'blue'
+
+inputs:
+  registry:
+    description: >-
+      Semantic conventions registry to validate against. Accepts any value
+      `weaver registry live-check --registry` accepts (git URL, local path,
+      tarball URL with archive selector, etc.). Pin to a released tag for
+      reproducible runs.
+    required: true
+  otlp-grpc-port:
+    description: >-
+      Port the weaver OTLP/gRPC listener binds to (loopback only). Must be
+      a positive integer.
+    required: false
+    default: '4317'
+  admin-port:
+    description: >-
+      Port for weaver admin endpoints (`/health`, `/stop`). Must be a
+      positive integer and distinct from `otlp-grpc-port`.
+    required: false
+    default: '4320'
+  inactivity-timeout:
+    description: >-
+      Seconds the listener will stay idle (no telemetry) before exiting on
+      its own. A safety net; the stop action normally stops it sooner.
+    required: false
+    default: '120'
+  diagnostic-format:
+    description: >-
+      Format passed to `weaver registry live-check --diagnostic-format`.
+      `gh_workflow_command` surfaces findings as inline GitHub Actions
+      annotations.
+    required: false
+    default: 'gh_workflow_command'
+  startup-timeout:
+    description: >-
+      Seconds to wait for the weaver `/health` endpoint to come up. Cold
+      runners fetching a remote registry can take a while; raise this if
+      you see startup timeouts.
+    required: false
+    default: '120'
+  state-dir:
+    description: >-
+      Directory to persist run state (PID, ports, log) between this action
+      and `weaver-live-check-stop`. Defaults to a path under
+      `$RUNNER_TEMP`. Set this explicitly if you need to run multiple
+      live-check instances in the same job (and also override the ports).
+    required: false
+    default: ''
+
+outputs:
+  otlp-grpc-endpoint:
+    description: 'OTLP/gRPC endpoint URL for instrumented apps to export to.'
+    value: ${{ steps.start.outputs.otlp-grpc-endpoint }}
+  admin-endpoint:
+    description: 'Weaver admin base URL (for `/health`, `/stop`).'
+    value: ${{ steps.start.outputs.admin-endpoint }}
+  state-dir:
+    description: 'Directory holding run state for the stop action.'
+    value: ${{ steps.start.outputs.state-dir }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Verify weaver is on PATH
+      shell: bash
+      run: |
+        if ! command -v weaver >/dev/null 2>&1; then
+          echo "::error::weaver CLI not found on PATH. Add a setup step before this action, e.g.:" >&2
+          echo "::error::  - uses: open-telemetry/weaver/.github/actions/setup-weaver@<ref>" >&2
+          exit 1
+        fi
+        weaver --version
+
+    - name: Validate inputs
+      shell: bash
+      env:
+        INPUT_OTLP_PORT: ${{ inputs.otlp-grpc-port }}
+        INPUT_ADMIN_PORT: ${{ inputs.admin-port }}
+        INPUT_INACTIVITY_TIMEOUT: ${{ inputs.inactivity-timeout }}
+        INPUT_STARTUP_TIMEOUT: ${{ inputs.startup-timeout }}
+      run: |
+        set -euo pipefail
+        is_pos_int() { [[ "$1" =~ ^[1-9][0-9]*$ ]]; }
+        for var in INPUT_OTLP_PORT INPUT_ADMIN_PORT INPUT_INACTIVITY_TIMEOUT INPUT_STARTUP_TIMEOUT; do
+          val="${!var}"
+          if ! is_pos_int "$val"; then
+            echo "::error::input ${var,,} must be a positive integer, got '$val'" >&2
+            exit 1
+          fi
+        done
+        if [ "$INPUT_OTLP_PORT" = "$INPUT_ADMIN_PORT" ]; then
+          echo "::error::otlp-grpc-port and admin-port must differ (both $INPUT_OTLP_PORT)" >&2
+          exit 1
+        fi
+
+    - name: Start weaver live-check listener
+      id: start
+      shell: bash
+      env:
+        INPUT_REGISTRY: ${{ inputs.registry }}
+        INPUT_OTLP_PORT: ${{ inputs.otlp-grpc-port }}
+        INPUT_ADMIN_PORT: ${{ inputs.admin-port }}
+        INPUT_INACTIVITY_TIMEOUT: ${{ inputs.inactivity-timeout }}
+        INPUT_DIAG_FORMAT: ${{ inputs.diagnostic-format }}
+        INPUT_STARTUP_TIMEOUT: ${{ inputs.startup-timeout }}
+        INPUT_STATE_DIR: ${{ inputs.state-dir }}
+      run: |
+        set -euo pipefail
+
+        STATE_DIR="${INPUT_STATE_DIR:-$RUNNER_TEMP/weaver-live-check}"
+        mkdir -p "$STATE_DIR"
+
+        echo "Starting weaver live-check listener..."
+        echo "  registry:           $INPUT_REGISTRY"
+        echo "  OTLP/gRPC port:     $INPUT_OTLP_PORT"
+        echo "  admin port:         $INPUT_ADMIN_PORT"
+        echo "  inactivity-timeout: ${INPUT_INACTIVITY_TIMEOUT}s"
+        echo "  startup-timeout:    ${INPUT_STARTUP_TIMEOUT}s"
+        echo "  state dir:          $STATE_DIR"
+
+        # `--output=http` keeps the report in-memory and returns it as the
+        # body of the admin `POST /stop` response. No on-disk JSON file to
+        # locate; the stop action reads the body directly.
+        weaver registry live-check \
+          --registry "$INPUT_REGISTRY" \
+          --input-source otlp \
+          --otlp-grpc-port "$INPUT_OTLP_PORT" \
+          --admin-port "$INPUT_ADMIN_PORT" \
+          --inactivity-timeout "$INPUT_INACTIVITY_TIMEOUT" \
+          --format json \
+          --output http \
+          --diagnostic-format "$INPUT_DIAG_FORMAT" \
+          > "$STATE_DIR/weaver.log" 2>&1 &
+        WEAVER_PID=$!
+        echo "weaver PID: $WEAVER_PID"
+
+        # Persist state for the stop action (subsequent steps run in
+        # fresh shells, so the PID variable doesn't survive across steps).
+        {
+          echo "WEAVER_PID=$WEAVER_PID"
+          echo "ADMIN_PORT=$INPUT_ADMIN_PORT"
+          echo "OTLP_GRPC_PORT=$INPUT_OTLP_PORT"
+          echo "STATE_DIR=$STATE_DIR"
+        } > "$STATE_DIR/state.env"
+
+        # Wait for /health.
+        ready=0
+        for _ in $(seq 1 "$INPUT_STARTUP_TIMEOUT"); do
+          if curl -fsS "http://127.0.0.1:${INPUT_ADMIN_PORT}/health" >/dev/null 2>&1; then
+            ready=1
+            break
+          fi
+          if ! kill -0 "$WEAVER_PID" 2>/dev/null; then
+            echo "::error::weaver process exited before becoming ready" >&2
+            tail -n 200 "$STATE_DIR/weaver.log" >&2 || true
+            exit 1
+          fi
+          sleep 1
+        done
+
+        if [ "$ready" -ne 1 ]; then
+          echo "::error::weaver /health did not respond within ${INPUT_STARTUP_TIMEOUT}s" >&2
+          tail -n 200 "$STATE_DIR/weaver.log" >&2 || true
+          kill "$WEAVER_PID" 2>/dev/null || true
+          exit 1
+        fi
+
+        echo "weaver listener ready on OTLP/gRPC :${INPUT_OTLP_PORT} (admin :${INPUT_ADMIN_PORT})"
+
+        {
+          echo "otlp-grpc-endpoint=http://127.0.0.1:${INPUT_OTLP_PORT}"
+          echo "admin-endpoint=http://127.0.0.1:${INPUT_ADMIN_PORT}"
+          echo "state-dir=$STATE_DIR"
+        } >> "$GITHUB_OUTPUT"
+
+        # Also export the state dir as an env var so the stop action
+        # finds it without the caller re-passing it.
+        echo "WEAVER_LIVE_CHECK_STATE_DIR=$STATE_DIR" >> "$GITHUB_ENV"
