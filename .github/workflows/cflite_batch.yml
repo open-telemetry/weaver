@@ -22,12 +22,12 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
-        uses: google/clusterfuzzlite/actions/build_fuzzers@main
+        uses: google/clusterfuzzlite/actions/build_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # main
         with:
           language: rust
           sanitizer: ${{ matrix.sanitizer }}
       - name: Run ClusterFuzzLite batch fuzzing
-        uses: google/clusterfuzzlite/actions/run_fuzzers@main
+        uses: google/clusterfuzzlite/actions/run_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: 600
@@ -36,7 +36,7 @@ jobs:
           output-sarif: true
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           sarif_file: cifuzz-sarif/results.sarif
           category: clusterfuzzlite-${{ matrix.sanitizer }}
