@@ -2,7 +2,7 @@
 
 cd "$SRC/weaver"
 
-cargo +nightly fuzz build --manifest-path fuzz/Cargo.toml
+cargo +nightly fuzz build
 
 FUZZ_OUT="fuzz/target/x86_64-unknown-linux-gnu/release"
 cp "$FUZZ_OUT/live_check_json"       "$OUT/"
