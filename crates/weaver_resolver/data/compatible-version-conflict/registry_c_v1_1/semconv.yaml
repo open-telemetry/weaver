@@ -1,0 +1,15 @@
+file_format: definition/2
+attributes:
+  - key: c.attr1
+    type: string
+    brief: Attribute 1 from C v1.1
+    stability: stable
+
+metrics:
+  - name: c.metric.1
+    brief: Metric 1 in C v1.1
+    unit: "1"
+    instrument: counter
+    stability: stable
+    attributes:
+      - ref: c.attr1
