@@ -6530,6 +6530,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_test_support"
+version = "0.23.0"
+
+[[package]]
 name = "weaver_version"
 version = "0.23.0"
 dependencies = [
