@@ -73,7 +73,6 @@ toml = "0.9.8"
 zip = "5.1.1"
 assert_cmd = "2.2.1"
 semver = { version = "1.0.27", features = ["serde"] }
-portpicker = "0.1.1"
 glob = "0.3.3"
 
 # Features definition =========================================================
@@ -144,10 +143,10 @@ tokio.workspace = true
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
+weaver_test_support = { path = "crates/weaver_test_support" }
 tempfile.workspace = true
 ureq.workspace = true
 assert_cmd.workspace = true
-portpicker.workspace = true
 zip.workspace = true
 
 [build-dependencies]
