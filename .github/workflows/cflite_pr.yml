@@ -1,20 +1,20 @@
-name: ClusterFuzzLite batch fuzzing
+name: ClusterFuzzLite PR fuzzing
 
-# Nightly extended fuzzing across all targets. Companion to cflite_pr.yml
-# (per-PR fuzzing of changed code). NOTE: ClusterFuzzLite's `mode: batch`
-# does not currently populate SARIF results, so crashes found here will
-# appear in the run's `crashes` artifact but NOT in the Security tab.
-# PR-mode (code-change) is the path that reliably surfaces findings.
+# Per-PR fuzzing of changed code. Companion to cflite_batch.yml (nightly
+# scheduled batch runs). This workflow uses `mode: code-change`, which is the
+# only ClusterFuzzLite mode that reliably emits SARIF for the Security tab.
 
 on:
-  schedule:
-    - cron: '0 2 * * *'  # nightly at 02:00 UTC
-  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
 
 permissions: read-all
 
 jobs:
-  BatchFuzzing:
+  PRFuzzing:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,14 +29,15 @@ jobs:
         uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
         with:
           language: rust
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           sanitizer: ${{ matrix.sanitizer }}
-      - name: Run ClusterFuzzLite batch fuzzing
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Fuzzers (${{ matrix.sanitizer }})
+        id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          fuzz-seconds: 600
-          mode: batch
+          fuzz-seconds: 300
+          mode: code-change
           sanitizer: ${{ matrix.sanitizer }}
           output-sarif: true
       - name: Upload SARIF
