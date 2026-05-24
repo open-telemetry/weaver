@@ -8,6 +8,7 @@ use std::process::{Child, Command as StdCommand};
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
+use weaver_test_support::reserve_test_port;
 
 /// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
 struct ChildGuard(Option<Child>);
@@ -124,14 +125,15 @@ fn collect_violation_messages(value: &serde_json::Value, messages: &mut Vec<Stri
 #[cfg_attr(tarpaulin, ignore)]
 async fn test_livecheck_emit_roundtrip() {
     // 1. Allocate dynamic ports
-    let grpc_port = portpicker::pick_unused_port().expect("no free port for gRPC");
-    let admin_port = portpicker::pick_unused_port().expect("no free port for admin");
+    let grpc_port = reserve_test_port();
+    let admin_port = reserve_test_port();
 
     // 2. Start weaver live-check as a child process using the live_check model as registry
     //    The model dir is relative to this crate's manifest, so build an absolute path.
     let model_dir = format!("{}/model", env!("CARGO_MANIFEST_DIR"));
     #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
     let weaver_bin = assert_cmd::cargo::cargo_bin("weaver");
+
     let mut guard = ChildGuard(Some(
         StdCommand::new(weaver_bin)
             .args([
