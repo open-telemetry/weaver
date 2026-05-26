@@ -41,6 +41,7 @@ def main(argv: list[str]) -> int:
 
     stats = report.get("statistics") or {}
     level_counts = stats.get("advice_level_counts") or {}
+    highest_counts = stats.get("highest_advice_level_counts") or {}
     violations = int(level_counts.get("violation", 0))
     improvements = int(level_counts.get("improvement", 0))
     informations = int(level_counts.get("information", 0))
@@ -48,6 +49,8 @@ def main(argv: list[str]) -> int:
     total = stats.get("total_entities", 0) or 0
     by_type = stats.get("total_entities_by_type") or {}
     msg_counts = stats.get("advice_message_counts") or {}
+    coverage = stats.get("registry_coverage")
+    no_advice = stats.get("no_advice_count", 0) or 0
 
     if violations:
         status = "FAIL"
@@ -64,13 +67,19 @@ def main(argv: list[str]) -> int:
     if by_type:
         parts = ", ".join(f"{v} {k}" for k, v in sorted(by_type.items()))
         summary_lines.append(f"- Entities checked: **{total}** ({parts})")
+    if coverage is not None:
+        try:
+            summary_lines.append(f"- Registry coverage: **{float(coverage) * 100:.1f}%**")
+        except (TypeError, ValueError):
+            pass
     summary_lines += [
         "",
-        "| Level | Count |",
-        "| --- | ---: |",
-        f"| violation | {violations} |",
-        f"| improvement | {improvements} |",
-        f"| information | {informations} |",
+        "| Level | Findings | Worst-level entities |",
+        "| --- | ---: | ---: |",
+        f"| violation | {violations} | {int(highest_counts.get('violation', 0))} |",
+        f"| improvement | {improvements} | {int(highest_counts.get('improvement', 0))} |",
+        f"| information | {informations} | {int(highest_counts.get('information', 0))} |",
+        f"| (no advice) | — | {no_advice} |",
         "",
     ]
     if msg_counts:
@@ -84,6 +93,13 @@ def main(argv: list[str]) -> int:
             cleaned = (msg or "").replace("|", "\\|")
             summary_lines.append(f"| {count} | {cleaned} |")
         summary_lines.append("")
+
+    if violations or improvements or informations:
+        summary_lines += [
+            "> The full JSON report (every sample and every advisory) is uploaded as a workflow artifact — "
+            "look for **`weaver-live-check-report`** in the run's Artifacts section to investigate individual findings.",
+            "",
+        ]
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:

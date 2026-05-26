@@ -33,6 +33,21 @@ inputs:
       Must be a positive integer.
     required: false
     default: '30'
+  upload-report:
+    description: >-
+      When `true` (default), upload the captured live-check JSON report as
+      a workflow artifact so users can download and inspect the full
+      details when the job fails. Set to `false` to disable (e.g. if your
+      workflow uploads it itself or you do not want artifacts).
+    required: false
+    default: 'true'
+  report-artifact-name:
+    description: >-
+      Name of the uploaded artifact (when `upload-report` is `true`).
+      Override this when running multiple live-check instances in the
+      same job to avoid artifact name collisions.
+    required: false
+    default: 'weaver-live-check-report'
 
 outputs:
   report-path:
@@ -59,6 +74,7 @@ runs:
       env:
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_STOP_TIMEOUT: ${{ inputs.stop-timeout }}
+        INPUT_UPLOAD_REPORT: ${{ inputs.upload-report }}
       run: |
         set -euo pipefail
         case "$INPUT_FAIL_ON" in
@@ -72,6 +88,13 @@ runs:
           echo "::error::input stop-timeout must be a positive integer, got '$INPUT_STOP_TIMEOUT'" >&2
           exit 1
         fi
+        case "$INPUT_UPLOAD_REPORT" in
+          true|false) ;;
+          *)
+            echo "::error::input upload-report must be 'true' or 'false', got '$INPUT_UPLOAD_REPORT'" >&2
+            exit 1
+            ;;
+        esac
 
     - name: Stop weaver live-check and collect report
       id: stop
@@ -121,8 +144,24 @@ runs:
 
         if [ ! -s "$REPORT" ]; then
           echo "::error::No live-check report captured at $REPORT" >&2
+          # still expose the path so the upload step (if enabled) can
+          # short-circuit cleanly via `if-no-files-found: ignore`.
+          echo "report-path=$REPORT" >> "$GITHUB_OUTPUT"
           exit 1
         fi
 
+        # Expose the report path early so the upload step (which runs with
+        # `if: always()`) can find the artifact even if parsing later fails.
+        echo "report-path=$REPORT" >> "$GITHUB_OUTPUT"
+
         # Parse the report (writes step summary + outputs, decides pass/fail).
         python3 "${GITHUB_ACTION_PATH}/parse-report.py" "$REPORT" "$INPUT_FAIL_ON"
+
+    - name: Upload live-check report
+      if: always() && inputs.upload-report == 'true' && steps.stop.outputs.report-path != ''
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+      with:
+        name: ${{ inputs.report-artifact-name }}
+        path: ${{ steps.stop.outputs.report-path }}
+        if-no-files-found: ignore
+        retention-days: 14

@@ -18,6 +18,16 @@ inputs:
       tarball URL with archive selector, etc.). Pin to a released tag for
       reproducible runs.
     required: true
+  config:
+    description: >-
+      Optional path to a `.weaver.toml` configuration file passed to
+      `weaver registry live-check --config`. Use this to set live-check
+      options that have no dedicated input here — e.g. `[[live-check.finding_filters]]`
+      to exclude well-known noisy attributes, or `advice_policies` to
+      customize advice rules. See the weaver_config README for the full
+      schema.
+    required: false
+    default: ''
   otlp-grpc-port:
     description: >-
       Port the weaver OTLP/gRPC listener binds to (loopback only). Must be
@@ -39,8 +49,10 @@ inputs:
   diagnostic-format:
     description: >-
       Format passed to `weaver registry live-check --diagnostic-format`.
-      `gh_workflow_command` surfaces findings as inline GitHub Actions
-      annotations.
+      This controls how weaver renders its own diagnostics (e.g. registry
+      load warnings, parse errors) to stderr — it does **not** affect the
+      live-check findings themselves. `gh_workflow_command` surfaces such
+      diagnostics as inline GitHub Actions annotations.
     required: false
     default: 'gh_workflow_command'
   startup-timeout:
@@ -110,6 +122,7 @@ runs:
       shell: bash
       env:
         INPUT_REGISTRY: ${{ inputs.registry }}
+        INPUT_CONFIG: ${{ inputs.config }}
         INPUT_OTLP_PORT: ${{ inputs.otlp-grpc-port }}
         INPUT_ADMIN_PORT: ${{ inputs.admin-port }}
         INPUT_INACTIVITY_TIMEOUT: ${{ inputs.inactivity-timeout }}
@@ -124,6 +137,7 @@ runs:
 
         echo "Starting weaver live-check listener..."
         echo "  registry:           $INPUT_REGISTRY"
+        echo "  config:             ${INPUT_CONFIG:-<none>}"
         echo "  OTLP/gRPC port:     $INPUT_OTLP_PORT"
         echo "  admin port:         $INPUT_ADMIN_PORT"
         echo "  inactivity-timeout: ${INPUT_INACTIVITY_TIMEOUT}s"
@@ -133,8 +147,18 @@ runs:
         # `--output=http` keeps the report in-memory and returns it as the
         # body of the admin `POST /stop` response. No on-disk JSON file to
         # locate; the stop action reads the body directly.
+        CONFIG_ARG=()
+        if [ -n "$INPUT_CONFIG" ]; then
+          if [ ! -f "$INPUT_CONFIG" ]; then
+            echo "::error::config file not found: $INPUT_CONFIG" >&2
+            exit 1
+          fi
+          CONFIG_ARG=(--config "$INPUT_CONFIG")
+        fi
+
         weaver registry live-check \
           --registry "$INPUT_REGISTRY" \
+          "${CONFIG_ARG[@]}" \
           --input-source otlp \
           --otlp-grpc-port "$INPUT_OTLP_PORT" \
           --admin-port "$INPUT_ADMIN_PORT" \

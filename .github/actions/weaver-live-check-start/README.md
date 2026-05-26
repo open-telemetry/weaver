@@ -46,6 +46,7 @@ jobs:
 | Name | Required | Default | Description |
 |---|---|---|---|
 | `registry` | yes | — | Semantic conventions registry to validate against. Any value `weaver registry live-check --registry` accepts. Pin to a released tag for reproducibility. |
+| `config` | no | — | Optional `.weaver.toml` config path, passed to `weaver registry live-check --config`. Useful for `[[live-check.finding_filters]]` (drop noisy attributes), `advice_policies`, etc. |
 | `otlp-grpc-port` | no | `4317` | Port the weaver OTLP/gRPC listener binds to (loopback only). |
 | `admin-port` | no | `4320` | Port for weaver admin endpoints (`/health`, `/stop`). |
 | `inactivity-timeout` | no | `120` | Seconds the listener stays idle before exiting on its own (safety net). |

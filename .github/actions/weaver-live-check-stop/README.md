@@ -19,6 +19,8 @@ Linux runners only in v1.
 | `fail-on` | no | `violation` | Lowest finding level that should fail the job: `violation` \| `improvement` \| `information` \| `none`. Start with `none` when first adopting; tighten once existing findings are addressed. |
 | `state-dir` | no | `$WEAVER_LIVE_CHECK_STATE_DIR` | State directory produced by `weaver-live-check-start`. |
 | `stop-timeout` | no | `30` | Seconds to wait for weaver to flush and exit cleanly. |
+| `upload-report` | no | `true` | When `true`, upload the captured live-check JSON report as a workflow artifact so the full per-sample, per-advisory detail is downloadable from the run page. |
+| `report-artifact-name` | no | `weaver-live-check-report` | Artifact name. Override when running multiple live-check instances in the same job. |
 
 ## Outputs
 
@@ -32,18 +34,24 @@ Linux runners only in v1.
 
 ## Behavior
 
-- Validates `fail-on` and `stop-timeout` inputs.
+- Validates `fail-on`, `stop-timeout`, and `upload-report` inputs.
 - POSTs to weaver's admin `/stop`, capturing the in-memory report body to
   `state-dir/live_check.json`.
 - Waits for the weaver process to exit cleanly (up to `stop-timeout`);
   hard-kills if it does not.
 - Parses the report with `parse-report.py` (a Python script bundled
   alongside this action) and writes a markdown summary to
-  `$GITHUB_STEP_SUMMARY`.
+  `$GITHUB_STEP_SUMMARY` — including counts per level, registry
+  coverage, and a top-findings table.
+- Uploads the full JSON report as a workflow artifact (named
+  `weaver-live-check-report` by default) so users can drill into the
+  exact failing samples and advisories from the run page. Disable with
+  `upload-report: false`.
 - Sets action outputs for `report-path`, `violations`, `improvements`,
   `informations`, and `samples`.
 - Exits non-zero (failing the step) when the worst finding level meets
-  or exceeds the `fail-on` threshold.
+  or exceeds the `fail-on` threshold. The artifact is still uploaded in
+  this case (the upload step runs with `if: always()`).
 
 Call this action with `if: always()` in your workflow so that the
 listener is shut down and the report uploaded even if a preceding
