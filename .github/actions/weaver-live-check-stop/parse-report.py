@@ -45,8 +45,7 @@ def main(argv: list[str]) -> int:
     violations = int(level_counts.get("violation", 0))
     improvements = int(level_counts.get("improvement", 0))
     informations = int(level_counts.get("information", 0))
-    samples = len(report.get("samples") or [])
-    total = stats.get("total_entities", 0) or 0
+    samples = int(stats.get("total_entities", 0) or 0)
     by_type = stats.get("total_entities_by_type") or {}
     msg_counts = stats.get("advice_message_counts") or {}
     coverage = stats.get("registry_coverage")
@@ -62,11 +61,12 @@ def main(argv: list[str]) -> int:
     summary_lines: list[str] = [
         f"## Weaver live-check: {status}",
         "",
-        f"- Samples received: **{samples}**",
     ]
     if by_type:
         parts = ", ".join(f"{v} {k}" for k, v in sorted(by_type.items()))
-        summary_lines.append(f"- Entities checked: **{total}** ({parts})")
+        summary_lines.append(f"- Samples checked: **{samples}** ({parts})")
+    else:
+        summary_lines.append(f"- Samples checked: **{samples}**")
     if coverage is not None:
         try:
             summary_lines.append(f"- Registry coverage: **{float(coverage) * 100:.1f}%**")
@@ -74,7 +74,7 @@ def main(argv: list[str]) -> int:
             pass
     summary_lines += [
         "",
-        "| Level | Findings | Worst-level entities |",
+        "| Level | Findings | Worst-level samples |",
         "| --- | ---: | ---: |",
         f"| violation | {violations} | {int(highest_counts.get('violation', 0))} |",
         f"| improvement | {improvements} | {int(highest_counts.get('improvement', 0))} |",
