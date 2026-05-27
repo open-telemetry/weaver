@@ -220,6 +220,11 @@ pub enum Error {
         schema_url2: String,
     },
 
+    /// Deprecated `include_unreferenced` usage warning.
+    #[error("The flag `include_unreferenced` is deprecated. Please prefer manually adding the required imports to your schema files in the future.")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedIncludeUnreferencedWarning {},
+
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
