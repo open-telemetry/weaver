@@ -63,10 +63,11 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install dist
-        # we specify bash to get pipefail; it guards against the `curl` command
-        # failing. otherwise `sh` won't catch that `curl` returned non-0
         shell: bash
-        run: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.31.0/cargo-dist-installer.sh | sh"
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.31.0/cargo-dist-installer.sh -o /tmp/cargo-dist-installer.sh
+          echo "e79d87e418b9d2cbe992d014985457c28a5a7c553add3da4ed1047e161c928f4  /tmp/cargo-dist-installer.sh" | sha256sum -c
+          sh /tmp/cargo-dist-installer.sh
       - name: Cache dist
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
@@ -130,7 +131,9 @@ jobs:
         if: ${{ matrix.container }}
         run: |
           if ! command -v cargo > /dev/null 2>&1; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup-init.sh
+            echo "6c30b75a75b28a96fd913a037c8581b580080b6ee9b8169a3c0feb1af7fe8caf  /tmp/rustup-init.sh" | sha256sum -c
+            sh /tmp/rustup-init.sh -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
       - name: "Setup pnpm"

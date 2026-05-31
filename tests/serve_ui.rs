@@ -6,13 +6,12 @@ use std::io::Read;
 use std::process::Command as StdCommand;
 use std::thread::sleep;
 use std::time::Duration;
-
-use portpicker::pick_unused_port;
+use weaver_test_support::reserve_test_port;
 
 /// Test that weaver serve starts and serves the UI correctly.
 #[test]
 fn test_ui_served() {
-    let port = pick_unused_port().expect("no free port for weaver serve");
+    let port = reserve_test_port();
     let bind_address = format!("127.0.0.1:{port}");
 
     // Start weaver serve command as a background process on a non-standard port

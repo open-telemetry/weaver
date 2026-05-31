@@ -1,15 +1,17 @@
 # The build image
-FROM docker.io/rust:1.95.0@sha256:5b1e3484ddcd22a3738c0ec34a5e98bf19382eb295fb6db54295e62379119040 AS weaver-build
+FROM docker.io/rust:1.95.0@sha256:f49565f188ee00bc2a18dd418183f2c5f23ef7d6e691890517ed341a598f67c3 AS weaver-build
 WORKDIR /build
 
 # Install Node.js and musl build dependencies
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=24
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x -o /tmp/nodesource-setup.sh && \
+  echo "6e3d580f5bd7ccf2aa1e8df8d35c60d78e873c3ff8beb282c9bebd914904ad72  /tmp/nodesource-setup.sh" | sha256sum -c && \
+  bash /tmp/nodesource-setup.sh && \
   apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.33.4
 COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
 RUN cd /build/ui && pnpm install --frozen-lockfile
 

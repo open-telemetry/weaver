@@ -8,7 +8,7 @@ install:
     cargo install cargo-check-external-types@0.4.0 --locked
     cargo install git-cliff@2.13.1 --locked
     cargo install cargo-tarpaulin@0.35.4 --locked
-    cargo install cargo-nextest@0.9.135 --locked
+    cargo install cargo-nextest@0.9.136 --locked
 
 pre-push-check:
     cargo clean
@@ -45,6 +45,16 @@ fix-release-permissions:
 
 validate-workspace:
     cargo xtask validate
+
+# Run a single fuzz target locally. Requires nightly Rust and cargo-fuzz.
+fuzz target="live_check_json" seconds="30":
+    cd fuzz && cargo +nightly fuzz run {{target}} -- -max_total_time={{seconds}}
+
+# Run all fuzz targets locally for the given number of seconds each.
+fuzz-all seconds="30":
+    cd fuzz && failed=0; for target in live_check_json live_check_text semconv_yaml semconv_manifest_yaml forge_config_yaml weaver_config_toml policy_rego forge_jq forge_jinja; do \
+        cargo +nightly fuzz run $target -- -max_total_time={{seconds}} || { echo "CRASH in $target — check fuzz/artifacts/$target/"; failed=1; }; \
+    done; exit $failed
 
 check-external-types:
   ##################################################################################
