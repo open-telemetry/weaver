@@ -1,0 +1,167 @@
+name: 'Weaver Live Check (stop)'
+description: >-
+  Stop a previously-started `weaver registry live-check` listener, fetch
+  its JSON report, render a step summary, and (by default) fail the job
+  on semantic-convention findings. Does more than just stop — also
+  collects, summarizes, and grades the report. Pair with
+  `weaver-live-check-start`. Linux runners only (v1).
+author: 'OpenTelemetry'
+
+branding:
+  icon: 'check-square'
+  color: 'blue'
+
+inputs:
+  fail-on:
+    description: >-
+      Lowest finding level that should fail the job: `violation` (default,
+      strict CI gate), `improvement` (also fail on improvement-level
+      advisories), `information` (also fail on info-level), or `none`
+      (never fail; report-only). Start with `none` when first adopting,
+      then tighten once existing findings are addressed.
+    required: false
+    default: 'violation'
+  state-dir:
+    description: >-
+      State directory produced by `weaver-live-check-start`. Defaults to
+      the value exported via `$WEAVER_LIVE_CHECK_STATE_DIR`.
+    required: false
+    default: ''
+  stop-timeout:
+    description: >-
+      Seconds to wait for weaver to flush and exit cleanly after `/stop`.
+      Must be a positive integer.
+    required: false
+    default: '30'
+  upload-report:
+    description: >-
+      When `true` (default), upload the captured live-check JSON report as
+      a workflow artifact so users can download and inspect the full
+      details when the job fails. Set to `false` to disable (e.g. if your
+      workflow uploads it itself or you do not want artifacts).
+    required: false
+    default: 'true'
+  report-artifact-name:
+    description: >-
+      Name of the uploaded artifact (when `upload-report` is `true`).
+      Override this when running multiple live-check instances in the
+      same job to avoid artifact name collisions.
+    required: false
+    default: 'weaver-live-check-report'
+
+outputs:
+  report-path:
+    description: 'Path to the captured live-check JSON report on the runner.'
+    value: ${{ steps.stop.outputs.report-path }}
+  violations:
+    description: 'Number of violation-level findings.'
+    value: ${{ steps.stop.outputs.violations }}
+  improvements:
+    description: 'Number of improvement-level findings.'
+    value: ${{ steps.stop.outputs.improvements }}
+  informations:
+    description: 'Number of information-level findings.'
+    value: ${{ steps.stop.outputs.informations }}
+  samples:
+    description: 'Number of telemetry samples weaver received.'
+    value: ${{ steps.stop.outputs.samples }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_STOP_TIMEOUT: ${{ inputs.stop-timeout }}
+        INPUT_UPLOAD_REPORT: ${{ inputs.upload-report }}
+      run: |
+        set -euo pipefail
+        case "$INPUT_FAIL_ON" in
+          violation|improvement|information|none) ;;
+          *)
+            echo "::error::input fail-on must be one of violation|improvement|information|none, got '$INPUT_FAIL_ON'" >&2
+            exit 1
+            ;;
+        esac
+        if ! [[ "$INPUT_STOP_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error::input stop-timeout must be a positive integer, got '$INPUT_STOP_TIMEOUT'" >&2
+          exit 1
+        fi
+        case "$INPUT_UPLOAD_REPORT" in
+          true|false) ;;
+          *)
+            echo "::error::input upload-report must be 'true' or 'false', got '$INPUT_UPLOAD_REPORT'" >&2
+            exit 1
+            ;;
+        esac
+
+    - name: Stop weaver live-check and collect report
+      id: stop
+      shell: bash
+      env:
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_STATE_DIR: ${{ inputs.state-dir }}
+        INPUT_STOP_TIMEOUT: ${{ inputs.stop-timeout }}
+      run: |
+        set -euo pipefail
+
+        STATE_DIR="${INPUT_STATE_DIR:-${WEAVER_LIVE_CHECK_STATE_DIR:-}}"
+        if [ -z "$STATE_DIR" ] || [ ! -f "$STATE_DIR/state.env" ]; then
+          echo "::error::Could not locate live-check state. Did you run the weaver-live-check-start action first?" >&2
+          exit 1
+        fi
+
+        # shellcheck disable=SC1091
+        . "$STATE_DIR/state.env"
+
+        REPORT="$STATE_DIR/live_check.json"
+
+        # Tell weaver to stop accepting and return the in-memory report.
+        # `--output=http` (set by the start action) makes the body of the
+        # admin /stop response the JSON report itself.
+        echo "Stopping weaver listener (admin :${ADMIN_PORT})..."
+        if ! curl -fsS -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" -o "$REPORT"; then
+          echo "::warning::admin POST /stop failed; falling back to graceful kill"
+          kill "$WEAVER_PID" 2>/dev/null || true
+        fi
+
+        # Wait for weaver to exit (best-effort; the process was spawned in
+        # a different shell so we can't `wait` on it directly).
+        deadline=$(( $(date +%s) + INPUT_STOP_TIMEOUT ))
+        while kill -0 "$WEAVER_PID" 2>/dev/null; do
+          if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "::warning::weaver did not exit within ${INPUT_STOP_TIMEOUT}s; killing"
+            kill -9 "$WEAVER_PID" 2>/dev/null || true
+            break
+          fi
+          sleep 1
+        done
+
+        echo "::group::weaver log (tail)"
+        tail -n 200 "$STATE_DIR/weaver.log" 2>/dev/null || true
+        echo "::endgroup::"
+
+        if [ ! -s "$REPORT" ]; then
+          echo "::error::No live-check report captured at $REPORT" >&2
+          # still expose the path so the upload step (if enabled) can
+          # short-circuit cleanly via `if-no-files-found: ignore`.
+          echo "report-path=$REPORT" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Expose the report path early so the upload step (which runs with
+        # `if: always()`) can find the artifact even if parsing later fails.
+        echo "report-path=$REPORT" >> "$GITHUB_OUTPUT"
+
+        # Parse the report (writes step summary + outputs, decides pass/fail).
+        python3 "${GITHUB_ACTION_PATH}/parse-report.py" "$REPORT" "$INPUT_FAIL_ON"
+
+    - name: Upload live-check report
+      if: always() && inputs.upload-report == 'true' && steps.stop.outputs.report-path != ''
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+      with:
+        name: ${{ inputs.report-artifact-name }}
+        path: ${{ steps.stop.outputs.report-path }}
+        if-no-files-found: ignore
+        retention-days: 14
