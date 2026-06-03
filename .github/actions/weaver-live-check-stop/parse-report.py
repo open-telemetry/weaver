@@ -17,6 +17,38 @@ import sys
 LEVEL_ORDER = {"violation": 3, "improvement": 2, "information": 1, "none": 0}
 
 
+def _findings_by_level(report: dict) -> dict[str, dict[str, int]]:
+    """Walk the report and return {level: {message: count}}.
+
+    The flat `statistics.advice_message_counts` field does not carry
+    severity, so to render dedicated per-severity sections we need to
+    walk the report and group every advisory by its `advice_level`.
+    """
+    by_level: dict[str, dict[str, int]] = {}
+
+    def visit(node: object) -> None:
+        if isinstance(node, dict):
+            lcr = node.get("live_check_result")
+            if isinstance(lcr, dict):
+                for advice in lcr.get("all_advice") or []:
+                    if not isinstance(advice, dict):
+                        continue
+                    lvl = (advice.get("level") or advice.get("advice_level") or "").lower()
+                    if lvl not in LEVEL_ORDER or lvl == "none":
+                        continue
+                    msg = advice.get("message") or ""
+                    by_level.setdefault(lvl, {})
+                    by_level[lvl][msg] = by_level[lvl].get(msg, 0) + 1
+            for v in node.values():
+                visit(v)
+        elif isinstance(node, list):
+            for item in node:
+                visit(item)
+
+    visit(report)
+    return by_level
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 3:
         print(f"::error::usage: {argv[0]} <report-path> <fail-on>", file=sys.stderr)
@@ -83,16 +115,51 @@ def main(argv: list[str]) -> int:
         "",
     ]
     if msg_counts:
-        summary_lines += [
-            "### Top findings",
-            "",
-            "| Count | Message |",
-            "| ---: | --- |",
-        ]
-        for msg, count in sorted(msg_counts.items(), key=lambda kv: -kv[1])[:15]:
-            cleaned = (msg or "").replace("|", "\\|")
-            summary_lines.append(f"| {count} | {cleaned} |")
-        summary_lines.append("")
+        per_level = _findings_by_level(report)
+        rendered_any = False
+        for lvl, heading in (
+            ("violation", "### 🚫 Violations"),
+            ("improvement", "### ⚠️ Improvements"),
+            ("information", "### ℹ️ Information"),
+        ):
+            level_msgs = per_level.get(lvl) or {}
+            if not level_msgs:
+                continue
+            rendered_any = True
+            top = sorted(level_msgs.items(), key=lambda kv: -kv[1])[:15]
+            shown = sum(c for _, c in top)
+            total = sum(level_msgs.values())
+            suffix = (
+                f" (top {len(top)} of {len(level_msgs)} messages,"
+                f" {shown} of {total} findings)"
+                if len(level_msgs) > len(top)
+                else ""
+            )
+            summary_lines += [
+                f"{heading}{suffix}",
+                "",
+                "| Count | Message |",
+                "| ---: | --- |",
+            ]
+            for msg, count in top:
+                cleaned = (msg or "").replace("|", "\\|")
+                summary_lines.append(f"| {count} | {cleaned} |")
+            summary_lines.append("")
+
+        # Fallback: if per-level parsing produced nothing (older report
+        # shapes, missing `samples`, etc.) fall back to the original
+        # count-sorted top-N so the summary is never empty.
+        if not rendered_any:
+            summary_lines += [
+                "### Top findings",
+                "",
+                "| Count | Message |",
+                "| ---: | --- |",
+            ]
+            for msg, count in sorted(msg_counts.items(), key=lambda kv: -kv[1])[:15]:
+                cleaned = (msg or "").replace("|", "\\|")
+                summary_lines.append(f"| {count} | {cleaned} |")
+            summary_lines.append("")
 
     if violations or improvements or informations:
         summary_lines += [

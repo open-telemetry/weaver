@@ -42,7 +42,9 @@ Linux runners only in v1.
 - Parses the report with `parse-report.py` (a Python script bundled
   alongside this action) and writes a markdown summary to
   `$GITHUB_STEP_SUMMARY` — including counts per level, registry
-  coverage, and a top-findings table.
+  coverage, and one findings table **per severity** (Violations,
+  Improvements, Information) so the most actionable issues stay at
+  the top regardless of count.
 - Uploads the full JSON report as a workflow artifact (named
   `weaver-live-check-report` by default) so users can drill into the
   exact failing samples and advisories from the run page. Disable with
