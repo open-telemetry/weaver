@@ -6,25 +6,38 @@ use std::collections::BTreeMap;
 
 use crate::error::Error;
 use jaq_core::{
-    load::{parse::Def, Arena, File, Loader},
-    Ctx, Native, RcIter,
+    data,
+    load::{self, parse::Def, Arena, File, Loader},
+    val::unwrap_valr,
+    Ctx, Vars,
 };
 use jaq_json::Val;
 
 type JqFileType = ();
 
 fn semconv_prelude() -> impl Iterator<Item = Def<&'static str>> {
-    jaq_core::load::parse(crate::SEMCONV_JQ, |p| p.defs())
+    load::parse(crate::SEMCONV_JQ, |p| p.defs())
         .expect("BAD WEAVER BUILD - default JQ library failed to compile")
         .into_iter()
 }
 
-fn prepare_jq_context(params: &BTreeMap<String, serde_json::Value>) -> (Vec<String>, Vec<Val>) {
-    let (jq_vars, jq_ctx): (Vec<String>, Vec<Val>) = params
+fn serde_to_val(v: serde_json::Value) -> Result<Val, Error> {
+    serde_json::from_value(v)
+        .map_err(|e| Error::InternalError(format!("failed to convert JSON value to jaq Val: {e}")))
+}
+
+fn val_to_serde(v: Val) -> serde_json::Value {
+    serde_json::from_str(&v.to_string()).unwrap_or(serde_json::Value::Null)
+}
+
+fn prepare_jq_context(
+    params: &BTreeMap<String, serde_json::Value>,
+) -> Result<(Vec<String>, Vec<Val>), Error> {
+    params
         .iter()
-        .map(|(k, v)| (format!("${k}"), Val::from(v.clone())))
-        .unzip();
-    (jq_vars, jq_ctx)
+        .map(|(k, v)| Ok((format!("${k}"), serde_to_val(v.clone())?)))
+        .collect::<Result<Vec<_>, _>>()
+        .map(|pairs: Vec<_>| pairs.into_iter().unzip())
 }
 
 /// This is our single entry point for calling into the jaq library to run jq filters.
@@ -38,15 +51,16 @@ pub fn execute_jq(
 ) -> Result<serde_json::Value, Error> {
     if log::log_enabled!(log::Level::Trace) {
         log::trace!("Executing JQ filter: {filter_expr} with params {params:#?}, input {input:#?}");
-    } else if log::log_enabled!(log::Level::Trace) {
+    } else if log::log_enabled!(log::Level::Debug) {
         log::debug!("Executing JQ filter: {filter_expr} with params {params:#?}");
     }
 
     let loader = Loader::new(
         // ToDo: Allow custom preludes?
-        jaq_std::defs()
+        jaq_core::defs()
+            .chain(jaq_std::defs())
             .chain(jaq_json::defs())
-            .chain(semconv_prelude()), // [],
+            .chain(semconv_prelude()),
     );
     let arena = Arena::default();
     let program: File<&str, JqFileType> = File {
@@ -63,13 +77,15 @@ pub fn execute_jq(
             details,
         })?;
 
-    let (names, values) = prepare_jq_context(params);
-    let funs = jaq_std::funs().chain(jaq_json::funs());
+    let (names, values) = prepare_jq_context(params)?;
+    let funs = jaq_core::funs()
+        .chain(jaq_std::funs())
+        .chain(jaq_json::funs());
     #[allow(clippy::map_identity)]
-    let filter = jaq_core::Compiler::<_, Native<_>>::default()
+    let filter = jaq_core::Compiler::default()
         .with_global_vars(names.iter().map(|s| s.as_str()))
-        // To trick compiler, we re-borrow `&'static str` with shorter lifetime.
-        // This is *NOT* a simple identity function, but a lifetime inference workaround.
+        // Re-borrow &'static str with shorter lifetime so 'global_vars lifetime is unified.
+        // This is NOT a simple identity function — it's a lifetime inference workaround.
         .with_funs(funs.map(|x| x))
         .compile(modules)
         .map_err(compile_errors)
@@ -77,16 +93,19 @@ pub fn execute_jq(
             filter: filter_expr.to_owned(),
             details,
         })?;
-    let inputs = RcIter::new(core::iter::empty());
-    let ctx = Ctx::new(values, &inputs);
+
+    let ctx = Ctx::<data::JustLut<Val>>::new(&filter.lut, Vars::new(values));
 
     // Bundle Results
     let mut errs = Vec::new();
     let mut values = Vec::new();
-    let filter_result = filter.run((ctx, Val::from(input.clone())));
-    for r in filter_result {
+    for r in filter
+        .id
+        .run((ctx, serde_to_val(input.clone())?))
+        .map(unwrap_valr)
+    {
         match r {
-            Ok(v) => values.push(serde_json::Value::from(v)),
+            Ok(v) => values.push(val_to_serde(v)),
             Err(e) => errs.push(e),
         }
     }
@@ -173,8 +192,8 @@ fn get_source(whole: &str, part: &str) -> Option<Source> {
 }
 
 /// Turns loading errors from jaq into structured details.
-fn load_errors(errs: jaq_core::load::Errors<&str, JqFileType>) -> Vec<FilterErrorDetail> {
-    use jaq_core::load::Error;
+fn load_errors(errs: load::Errors<&str, JqFileType>) -> Vec<FilterErrorDetail> {
+    use load::Error;
     errs.into_iter()
         .flat_map(|(file, err)| {
             let code = file.code;
@@ -207,7 +226,7 @@ fn report_io((path, error): (&str, String)) -> FilterErrorDetail {
 }
 
 /// Turns lexing errors from JQ into structured details.
-fn report_lex(code: &str, (expected, span): jaq_core::load::lex::Error<&str>) -> FilterErrorDetail {
+fn report_lex(code: &str, (expected, span): load::lex::Error<&str>) -> FilterErrorDetail {
     FilterErrorDetail {
         error: format!("expected {}", expected.as_str()),
         source: get_source(code, span),
@@ -215,10 +234,7 @@ fn report_lex(code: &str, (expected, span): jaq_core::load::lex::Error<&str>) ->
 }
 
 /// Turns parsing errors from JQ into structured details.
-fn report_parse(
-    code: &str,
-    (expected, span): jaq_core::load::parse::Error<&str>,
-) -> FilterErrorDetail {
+fn report_parse(code: &str, (expected, span): load::parse::Error<&str>) -> FilterErrorDetail {
     FilterErrorDetail {
         error: format!("expected {}", expected.as_str()),
         source: get_source(code, span),
@@ -341,5 +357,14 @@ mod tests {
             "could not load file test_file.jq: permission denied"
         );
         assert!(detail.source.is_none());
+    }
+
+    #[test]
+    fn test_non_json_number_does_not_panic() {
+        // "00.0" triggers Val::Num with a leading-zero string that serde_json rejects.
+        // Previously this caused a panic in jaq_json 1.x via an unwrap().
+        let input = json!({});
+        let values = BTreeMap::new();
+        let _ = execute_jq(&input, "00.0", &values);
     }
 }
