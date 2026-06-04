@@ -9,7 +9,7 @@ for f in fuzz/fuzz_targets/*.rs; do
     name="$(basename "${f%.*}")"
     # forge_jinja is excluded from PR runs due to a known upstream minijinja
     # panic (float vs large integer comparison). It still runs in batch/nightly.
-    if [ "$name" = "forge_jinja" ] && [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
+    if [ "$name" = "forge_jinja" ] && [ -e "$SRC/weaver/.clusterfuzzlite/.pr_build" ]; then
         continue
     fi
     cp "$FUZZ_OUT/$name" "$OUT/"

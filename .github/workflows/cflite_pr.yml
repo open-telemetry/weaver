@@ -28,6 +28,8 @@ jobs:
       matrix:
         sanitizer: [address]
     steps:
+      - name: Mark as PR build for build.sh
+        run: touch .clusterfuzzlite/.pr_build
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
         uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
