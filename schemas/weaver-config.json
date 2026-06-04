@@ -228,6 +228,11 @@
           "description": "OTLP log emission settings.",
           "$ref": "#/$defs/LiveCheckEmitConfig"
         },
+        "fail_on": {
+          "description": "Severity threshold that causes a non-zero exit code. Findings at this\nlevel or higher fail the run. Use `none` to never fail.",
+          "$ref": "#/$defs/FailOnLevel",
+          "default": "violation"
+        },
         "finding_filters": {
           "description": "Filters control which findings are dropped. A filter without `signal_type`\napplies globally; a filter with `signal_type` applies only to that signal type.",
           "type": "array",
@@ -481,6 +486,31 @@
     }
   },
   "$defs": {
+    "FailOnLevel": {
+      "description": "Severity gate controlling when `registry live-check` exits non-zero.\n\nSupported thresholds (highest → lowest severity): `Violation`,\n`Improvement`, `Information`, `None`. A finding whose level is at or above\nthe chosen threshold causes a non-zero exit code. `None` disables the gate.",
+      "oneOf": [
+        {
+          "description": "Fail only on violations (default).",
+          "type": "string",
+          "const": "violation"
+        },
+        {
+          "description": "Fail on improvements or violations.",
+          "type": "string",
+          "const": "improvement"
+        },
+        {
+          "description": "Fail on any finding (information, improvement, or violation).",
+          "type": "string",
+          "const": "information"
+        },
+        {
+          "description": "Never fail based on findings — always exit 0 unless an internal error\noccurs.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
     "FindingFilter": {
       "description": "A filter that drops findings by ID exclusion or minimum level.\nOptional `signal_type` scopes the filter to a specific signal type.",
       "type": "object",

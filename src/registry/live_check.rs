@@ -13,8 +13,8 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_common::log_success;
-use weaver_config::WeaverConfig;
+use weaver_common::{log_success, log_warn};
+use weaver_config::{FailOnLevel, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
@@ -131,6 +131,13 @@ pub struct RegistryLiveCheckArgs {
     #[config(default = "false")]
     no_stats: Option<bool>,
 
+    /// Findings at this level or higher cause a non-zero exit code.
+    /// Levels (highest→lowest): violation, improvement, information.
+    /// Use `none` to never fail.
+    #[arg(long)]
+    #[config(default = "violation")]
+    fail_on: Option<FailOnLevel>,
+
     /// Path to save generated artifacts. Use "none" to suppress output,
     /// "http" to send as the /stop response.
     #[arg(short, long)]
@@ -228,6 +235,17 @@ pub(crate) fn command(
     let config = cmd_config.config;
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
+
+    // --no-stats disables the statistics accumulator, so --fail-on cannot be
+    // evaluated. Warn the user so the silent no-op is visible.
+    if config.no_stats && config.fail_on != FailOnLevel::None {
+        log_warn(format!(
+            "--no-stats disables statistics; --fail-on={} cannot be enforced. \
+             The command will exit 0 regardless of findings. \
+             Pass --fail-on=none to suppress this warning.",
+            config.fail_on
+        ));
+    }
 
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());
@@ -388,9 +406,13 @@ pub(crate) fn command(
     }
 
     stats.finalize();
-    // Set the exit_code to a non-zero code if there are any violations
-    if stats.has_violations() {
-        exit_code = 1;
+    // Set exit_code based on the configured --fail-on threshold. `None`
+    // threshold means "never fail". `fails_at` returns false for disabled
+    // stats; the startup check above rejects --no-stats + non-`none` gates.
+    if let Some(threshold) = config.fail_on.as_finding_threshold() {
+        if stats.fails_at(threshold) {
+            exit_code = 1;
+        }
     }
 
     if is_http_output {
