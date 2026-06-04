@@ -35,6 +35,11 @@ jobs:
           language: rust
           sanitizer: ${{ matrix.sanitizer }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      # forge_jinja triggers a known upstream panic in minijinja (float vs large
+      # integer comparison in Value::cmp). Exclude it from PR runs; it still
+      # runs in the nightly batch job (cflite_batch.yml).
+      - name: Exclude forge_jinja from PR fuzz run
+        run: sudo rm -f build-out/forge_jinja
       - name: Run Fuzzers (${{ matrix.sanitizer }})
         id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
