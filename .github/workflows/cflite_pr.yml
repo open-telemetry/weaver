@@ -35,6 +35,8 @@ jobs:
           language: rust
           sanitizer: ${{ matrix.sanitizer }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Exclude forge_jinja from PR fuzzing
+        run: rm -f build-out/forge_jinja
       - name: Run Fuzzers (${{ matrix.sanitizer }})
         id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
