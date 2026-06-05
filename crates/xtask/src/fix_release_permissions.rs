@@ -44,16 +44,16 @@ fn apply_patches(content: &str) -> anyhow::Result<String> {
                 "        # failing. otherwise `sh` won't catch that `curl` returned non-0\n",
                 "        shell: bash\n",
                 "        run: \"curl --proto '=https' --tlsv1.2 -LsSf",
-                " https://github.com/axodotdev/cargo-dist/releases/download/v0.31.0/cargo-dist-installer.sh | sh\"",
+                " https://github.com/axodotdev/cargo-dist/releases/download/v0.32.0/cargo-dist-installer.sh | sh\"",
             ),
             concat!(
                 "      - name: Install dist\n",
                 "        shell: bash\n",
                 "        run: |\n",
                 "          curl --proto '=https' --tlsv1.2 -LsSf",
-                " https://github.com/axodotdev/cargo-dist/releases/download/v0.31.0/cargo-dist-installer.sh",
+                " https://github.com/axodotdev/cargo-dist/releases/download/v0.32.0/cargo-dist-installer.sh",
                 " -o /tmp/cargo-dist-installer.sh\n",
-                "          echo \"e79d87e418b9d2cbe992d014985457c28a5a7c553add3da4ed1047e161c928f4",
+                "          echo \"b657cf8c04a8b7bc28f39d220f7e6dd11bbd2bdb072c552262bd9ccf597261b5",
                 "  /tmp/cargo-dist-installer.sh\" | sha256sum -c\n",
                 "          sh /tmp/cargo-dist-installer.sh",
             ),
@@ -66,6 +66,12 @@ fn apply_patches(content: &str) -> anyhow::Result<String> {
                 "  /tmp/rustup-init.sh\" | sha256sum -c\n",
                 "            sh /tmp/rustup-init.sh -y",
             ),
+        ),
+        // Scorecard Pinned-Dependencies: dist emits actions/attest@v4 unpinned; pin to the
+        // commit SHA that v4 resolves to (all other actions are already SHA-pinned).
+        (
+            "uses: actions/attest@v4",
+            "uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26",
         ),
     ];
 
