@@ -11,8 +11,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x -o /tmp/nodeso
   apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
-RUN npm install -g pnpm@10.34.1
 COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
+# Use Corepack to provision the hash-pinned pnpm declared in ui/package.json's
+# "packageManager" field; Corepack verifies the download against that integrity hash.
+RUN corepack enable
 RUN cd /build/ui && pnpm install --frozen-lockfile
 
 # Copy UI source files

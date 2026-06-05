@@ -30,16 +30,16 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.x'
 
       - name: Install OpenTelemetry Python (for synthetic traffic)
         run: |
           pip install --quiet \
-            opentelemetry-api \
-            opentelemetry-sdk \
-            opentelemetry-exporter-otlp-proto-grpc
+            opentelemetry-api==1.42.1 \
+            opentelemetry-sdk==1.42.1 \
+            opentelemetry-exporter-otlp-proto-grpc==1.42.1
 
       - name: Setup weaver
         uses: ./.github/actions/setup-weaver
