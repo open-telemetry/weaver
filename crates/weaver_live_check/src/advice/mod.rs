@@ -22,6 +22,7 @@ pub use deprecated_advisor::DeprecatedAdvisor;
 pub use enum_advisor::EnumAdvisor;
 pub use rego_advisor::RegoAdvisor;
 pub use stability_advisor::StabilityAdvisor;
+pub(crate) use type_advisor::check_entity_resource_attributes;
 pub use type_advisor::TypeAdvisor;
 
 /// Provides advice on a sample

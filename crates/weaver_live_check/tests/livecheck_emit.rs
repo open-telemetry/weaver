@@ -33,6 +33,7 @@ use serde_json::json;
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_live_check::otlp_logger::OtlpEmitter;
 use weaver_live_check::sample_attribute::SampleAttribute;
+use weaver_live_check::sample_log::SampleLog;
 use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
@@ -285,6 +286,41 @@ async fn test_livecheck_emit_roundtrip() {
             Some("span"),
             Some("db.query"),
             json!({"attribute_key": "db.statement", "deprecation_reason": "Use db.query.text"}),
+        );
+        emitter.emit_finding(&finding, &sample_ref, &parent);
+    }
+
+    // --- Finding 6: Entity required attribute not present (log sample with resource) ---
+    {
+        let resource = SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-test-service")),
+                r#type: None,
+                live_check_result: None,
+            }],
+            live_check_result: None,
+        };
+        let log = SampleLog {
+            event_name: "deployment.started".to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            live_check_result: None,
+            resource: Some(Rc::new(resource)),
+        };
+        let parent = Sample::Log(log.clone());
+        let sample_ref = SampleRef::Log(&log);
+        let finding = make_finding(
+            "entity_required_attribute_not_present",
+            "Required attribute 'deployment.name' for entity 'deployment' is not present in resource.",
+            FindingLevel::Violation,
+            Some("log"),
+            Some("deployment.started"),
+            json!({"attribute_key": "deployment.name", "entity_type": "deployment"}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }

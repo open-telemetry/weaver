@@ -84,6 +84,8 @@ pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
 pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 /// Metric name key in advice context
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
+/// Entity type key in advice context
+pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -212,6 +214,15 @@ impl VersionedSignal {
             VersionedSignal::Event(_) => None,
         }
     }
+}
+
+/// Versioned enum for an entity definition
+#[derive(Debug, Clone, PartialEq)]
+pub enum VersionedEntity {
+    /// v1 entity — a ResolvedGroup with GroupType::Entity
+    V1(Box<ResolvedGroup>),
+    /// v2 entity
+    V2(Box<weaver_forge::v2::entity::Entity>),
 }
 
 /// Weaver live check errors
