@@ -67,6 +67,12 @@ fn apply_patches(content: &str) -> anyhow::Result<String> {
                 "            sh /tmp/rustup-init.sh -y",
             ),
         ),
+        // Scorecard Pinned-Dependencies: dist emits actions/attest@v4 unpinned; pin to the
+        // commit SHA that v4 resolves to (all other actions are already SHA-pinned).
+        (
+            "uses: actions/attest@v4",
+            "uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26",
+        ),
     ];
 
     let mut result = content.to_owned();
