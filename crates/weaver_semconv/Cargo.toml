@@ -36,6 +36,7 @@ glob.workspace = true
 jsonschema = "0.46.4"        # JSON Schema validation used to enhance error messages
 saphyr = "0.0.6"             # YAML parser preserving span information (location in file)
 utoipa = { workspace = true, optional = true }
+semver = "1.0.27"
 
 [features]
 openapi = ["utoipa"]
