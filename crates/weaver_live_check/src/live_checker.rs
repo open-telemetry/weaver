@@ -2880,7 +2880,8 @@ mod tests {
             "neither group satisfied: expected a single aggregate finding, got {advice:?}"
         );
         assert_eq!(aggregates[0].level, FindingLevel::Violation);
-        let mut entities: Vec<&str> = aggregates[0].context.as_ref().expect("context")["entity_type"]
+        let mut entities: Vec<&str> = aggregates[0].context.as_ref().expect("context")
+            ["entity_type"]
             .as_array()
             .expect("entity_type array")
             .iter()
