@@ -316,7 +316,7 @@ async fn test_livecheck_emit_roundtrip() {
         let sample_ref = SampleRef::Log(&log);
         let finding = make_finding(
             "entity_required_attribute_not_present",
-            "Required attribute 'deployment.name' for entity 'deployment' is not present in resource.",
+            "Required attribute 'deployment.name' for entity 'deployment' is not present in the resource.",
             FindingLevel::Violation,
             Some("log"),
             Some("deployment.started"),

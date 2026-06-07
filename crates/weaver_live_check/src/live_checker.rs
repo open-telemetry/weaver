@@ -212,6 +212,7 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::entity_association::EntityAssociation;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
@@ -2188,7 +2189,7 @@ mod tests {
                     events: vec![V2Event {
                         name: "deployment.started".to_owned().into(),
                         attributes: vec![],
-                        entity_associations: vec!["deployment".to_owned()],
+                        entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
                         common: CommonFields {
                             brief: "A deployment has started".to_owned(),
                             note: "".to_owned(),
@@ -2362,7 +2363,7 @@ mod tests {
                         brief: "A deployment has started".to_owned(),
                         note: "".to_owned(),
                         prefix: "".to_owned(),
-                        entity_associations: vec!["deployment".to_owned()],
+                        entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
                         extends: None,
                         stability: Some(Stability::Stable),
                         deprecated: None,
@@ -2595,6 +2596,217 @@ mod tests {
         );
     }
 
+    /// Builds a minimal required-only string attribute for entity-association tests.
+    fn required_string_attr(name: &str) -> Attribute {
+        Attribute {
+            name: name.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            brief: String::new(),
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: None,
+            note: String::new(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
+            annotations: None,
+            role: Default::default(),
+        }
+    }
+
+    /// Builds a V1 entity group with a single required identity attribute.
+    fn entity_group(type_name: &str, attr: Attribute) -> ResolvedGroup {
+        ResolvedGroup {
+            id: format!("entity.{type_name}"),
+            r#type: GroupType::Entity,
+            brief: String::new(),
+            note: String::new(),
+            prefix: String::new(),
+            entity_associations: vec![],
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![attr],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            metric_requirement_level: None,
+            name: Some(type_name.to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+        }
+    }
+
+    /// Builds a V1 event group carrying the given entity associations.
+    fn assoc_event_group(name: &str, associations: Vec<EntityAssociation>) -> ResolvedGroup {
+        ResolvedGroup {
+            id: format!("event.{name}"),
+            r#type: GroupType::Event,
+            brief: String::new(),
+            note: String::new(),
+            prefix: String::new(),
+            entity_associations: associations,
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            metric_requirement_level: None,
+            name: Some(name.to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+        }
+    }
+
+    fn string_sample_attr(name: &str, value: &str) -> SampleAttribute {
+        SampleAttribute {
+            name: name.to_owned(),
+            value: Some(serde_json::json!(value)),
+            r#type: None,
+            live_check_result: None,
+        }
+    }
+
+    /// Runs live-check on a single log event and returns the accumulated findings.
+    fn run_event_check(
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        event_name: &str,
+        attrs: Vec<SampleAttribute>,
+    ) -> Vec<PolicyFinding> {
+        let mut sample = make_log_sample(event_name, attrs);
+        let snapshot = sample.clone();
+        sample
+            .run_live_check(live_checker, stats, None, &snapshot)
+            .expect("live check should not error");
+        match &sample {
+            Sample::Log(log) => log.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected log sample"),
+        }
+    }
+
+    #[test]
+    fn test_entity_association_one_of_all_of() {
+        // host (required host.name) and container (required container.id) entities, plus events
+        // associated with a `one_of` and an `all_of` of those two entities.
+        let registry = VersionedRegistry::V1(Box::new(ResolvedRegistry {
+            registry_url: "TEST_ASSOC".to_owned(),
+            groups: vec![
+                entity_group("host", required_string_attr("host.name")),
+                entity_group("container", required_string_attr("container.id")),
+                assoc_event_group(
+                    "one_of.evt",
+                    vec![EntityAssociation::OneOf {
+                        one_of: vec![
+                            EntityAssociation::Ref("host".to_owned()),
+                            EntityAssociation::Ref("container".to_owned()),
+                        ],
+                    }],
+                ),
+                assoc_event_group(
+                    "all_of.evt",
+                    vec![EntityAssociation::AllOf {
+                        all_of: vec![
+                            EntityAssociation::Ref("host".to_owned()),
+                            EntityAssociation::Ref("container".to_owned()),
+                        ],
+                    }],
+                ),
+            ],
+        }));
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        // one_of satisfied by host → no entity findings at all.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "one_of.evt",
+            vec![string_sample_attr("host.name", "h1")],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "one_of satisfied: expected no entity findings, got {advice:?}"
+        );
+
+        // one_of unsatisfied → exactly one aggregate finding, no per-branch required findings.
+        let advice = run_event_check(&mut live_checker, &mut stats, "one_of.evt", vec![]);
+        let aggregates: Vec<_> = advice
+            .iter()
+            .filter(|a| a.id == "entity_association_not_satisfied")
+            .collect();
+        assert_eq!(
+            aggregates.len(),
+            1,
+            "one_of unsatisfied: expected a single aggregate finding, got {advice:?}"
+        );
+        assert_eq!(aggregates[0].level, FindingLevel::Violation);
+        assert_eq!(
+            aggregates[0].context,
+            Some(json!({ "entity_type": ["host", "container"] }))
+        );
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "one_of unsatisfied: expected no per-branch required findings, got {advice:?}"
+        );
+
+        // all_of with only host present → container's required attribute is a violation, and no
+        // aggregate finding (all_of reports per-attribute).
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "all_of.evt",
+            vec![string_sample_attr("host.name", "h1")],
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_required_attribute_not_present"
+                    && a.context
+                        .as_ref()
+                        .is_some_and(|c| c["entity_type"] == "container")),
+            "all_of: expected a container required-attribute violation, got {advice:?}"
+        );
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_association_not_satisfied"),
+            "all_of: no aggregate finding expected, got {advice:?}"
+        );
+
+        // all_of fully satisfied → no entity findings.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "all_of.evt",
+            vec![
+                string_sample_attr("host.name", "h1"),
+                string_sample_attr("container.id", "c1"),
+            ],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "all_of satisfied: expected no entity findings, got {advice:?}"
+        );
+    }
+
     #[test]
     fn test_metric_entity_validation() {
         run_metric_entity_validation_test(false);
@@ -2638,7 +2850,7 @@ mod tests {
                         unit: "s".to_owned(),
                         requirement_level: None,
                         attributes: vec![],
-                        entity_associations: vec!["host".to_owned()],
+                        entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
                         common: CommonFields {
                             brief: "System uptime".to_owned(),
                             note: "".to_owned(),
@@ -2728,7 +2940,7 @@ mod tests {
                         brief: "System uptime".to_owned(),
                         note: "".to_owned(),
                         prefix: "".to_owned(),
-                        entity_associations: vec!["host".to_owned()],
+                        entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
                         extends: None,
                         stability: Some(Stability::Stable),
                         deprecated: None,

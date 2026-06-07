@@ -80,6 +80,10 @@ attributes:
           value: "entity_conditionally_required_attribute_not_present"
           brief: "A conditionally required entity attribute is absent from the resource"
           stability: development
+        - id: entity_association_not_satisfied
+          value: "entity_association_not_satisfied"
+          brief: "No entity in a one_of association group was satisfied by the resource"
+          stability: development
         # Default Rego policy findings (otel.rego)
         - id: missing_namespace
           value: "missing_namespace"

@@ -1,0 +1,76 @@
+# Demonstrates nested one_of / all_of entity associations for `weaver registry live-check`.
+#
+# Run against data/entity_associations.json, whose three resource+log pairs show:
+#   1. empty resource    -> tenant.id violation AND inner one_of(host, container) unsatisfied
+#   2. host.name present  -> inner one_of satisfied via host, but tenant.id still missing
+#   3. tenant.id + container.id present -> required levels satisfied; recommended container.name
+#      missing -> improvement
+groups:
+  # --- Attributes ---
+  - id: registry.service
+    type: attribute_group
+    stability: stable
+    brief: "Service attributes"
+    attributes:
+      - id: service.name
+        type: string
+        stability: stable
+        brief: "Service name"
+        examples: ["my-service"]
+
+  # --- Entities ---
+  - id: entity.host
+    type: entity
+    name: host
+    stability: stable
+    brief: "A host"
+    attributes:
+      - id: host.name
+        type: string
+        stability: stable
+        brief: "Host name"
+        requirement_level: required
+
+  - id: entity.container
+    type: entity
+    name: container
+    stability: stable
+    brief: "A container"
+    attributes:
+      - id: container.id
+        type: string
+        stability: stable
+        brief: "Container id"
+        requirement_level: required
+      - id: container.name
+        type: string
+        stability: stable
+        brief: "Container name"
+        requirement_level: recommended
+
+  - id: entity.tenant
+    type: entity
+    name: tenant
+    stability: stable
+    brief: "A tenant"
+    attributes:
+      - id: tenant.id
+        type: string
+        stability: stable
+        brief: "Tenant id"
+        requirement_level: required
+
+  # --- Event with a nested one_of / all_of entity association ---
+  # The resource must be associated with the tenant entity AND with at least
+  # one of the host or container entities.
+  - id: event.thing.happened
+    type: event
+    name: thing.happened
+    stability: stable
+    brief: "Something happened"
+    entity_associations:
+      - all_of:
+          - tenant
+          - one_of:
+              - host
+              - container

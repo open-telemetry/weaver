@@ -528,6 +528,47 @@
         "stability"
       ]
     },
+    "EntityAssociation": {
+      "description": "An entity association expression.\n\nIn YAML this is either a bare string (an entity reference), a `{ one_of: [...] }` map or a\n`{ all_of: [...] }` map, where each list element is itself an [`EntityAssociation`].",
+      "anyOf": [
+        {
+          "description": "A reference to an entity by its type name.",
+          "type": "string"
+        },
+        {
+          "description": "Satisfied when at least one of the contained expressions is satisfied.",
+          "type": "object",
+          "properties": {
+            "one_of": {
+              "description": "The candidate expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "one_of"
+          ]
+        },
+        {
+          "description": "Satisfied when every contained expression is satisfied.",
+          "type": "object",
+          "properties": {
+            "all_of": {
+              "description": "The required expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "all_of"
+          ]
+        }
+      ]
+    },
     "EntityRefinement": {
       "description": "A refinement of an existing entity.",
       "type": "object",
@@ -699,7 +740,7 @@
           "description": "Which resources this event should be associated with.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "name": {
@@ -762,7 +803,7 @@
           "description": "Which resources this event should be associated with.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -1041,7 +1082,7 @@
           "description": "Which resources this metric should be associated with.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "instrument": {
@@ -1125,7 +1166,7 @@
           "description": "Which resources this metric should be associated with.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -1300,7 +1341,7 @@
           "description": "Which resources this span should be associated with.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "kind": {
@@ -1530,7 +1571,7 @@
           "description": "Which resources this span should be associated with.\nNote: This field is currently not propagated during resolution.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {

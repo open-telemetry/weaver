@@ -16,6 +16,7 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
@@ -120,9 +121,12 @@ pub struct ResolvedGroup {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
     /// The associated entities of this group.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]

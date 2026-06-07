@@ -378,6 +378,47 @@
         "stability"
       ]
     },
+    "EntityAssociation": {
+      "description": "An entity association expression.\n\nIn YAML this is either a bare string (an entity reference), a `{ one_of: [...] }` map or a\n`{ all_of: [...] }` map, where each list element is itself an [`EntityAssociation`].",
+      "anyOf": [
+        {
+          "description": "A reference to an entity by its type name.",
+          "type": "string"
+        },
+        {
+          "description": "Satisfied when at least one of the contained expressions is satisfied.",
+          "type": "object",
+          "properties": {
+            "one_of": {
+              "description": "The candidate expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "one_of"
+          ]
+        },
+        {
+          "description": "Satisfied when every contained expression is satisfied.",
+          "type": "object",
+          "properties": {
+            "all_of": {
+              "description": "The required expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "all_of"
+          ]
+        }
+      ]
+    },
     "EntityAttributeRef": {
       "description": "A special type of reference to attributes that remembers entity-specicific information.",
       "type": "object",
@@ -499,7 +540,7 @@
           "description": "Which entities this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "name": {
@@ -582,7 +623,7 @@
           "description": "Which entities this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -781,7 +822,7 @@
           "description": "Which entities this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "instrument": {
@@ -885,7 +926,7 @@
           "description": "Which entities this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -1196,7 +1237,7 @@
           "description": "Which entities this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "kind": {
@@ -1340,7 +1381,7 @@
           "description": "Which entities this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {

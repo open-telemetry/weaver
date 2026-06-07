@@ -15,6 +15,7 @@ use crate::attribute::{
     AttributeSpec, AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec,
 };
 use crate::deprecated::Deprecated;
+use crate::entity_association::EntityAssociation;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::provenance::Provenance;
 use crate::semconv::Imports;
@@ -123,9 +124,12 @@ pub struct GroupSpec {
     pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
+    ///
+    /// The list is an implicit `one_of`: telemetry must satisfy at least one of the entries.
+    /// Each entry may be a bare entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
 
     /// Attribute groups to include - this parameter must not be provided
     /// in yaml, it's only used to convert v2 schema into v1
@@ -473,10 +477,49 @@ impl GroupSpec {
                     error: format!("Group with entity_associations cannot have type: {t:?}"),
                 }),
             }
+            // Reject empty `one_of`/`all_of` combinators and empty entity references.
+            for assoc in &self.entity_associations {
+                if let Err(error) = validate_entity_association(assoc) {
+                    errors.push(Error::InvalidGroup {
+                        path_or_url: path_or_url.to_owned(),
+                        group_id: self.id.clone(),
+                        error,
+                    });
+                }
+            }
         }
 
         WResult::with_non_fatal_errors((), errors)
     }
+}
+
+/// Recursively validates an entity association expression: combinators must be non-empty and
+/// entity references must be non-blank.
+fn validate_entity_association(assoc: &EntityAssociation) -> Result<(), String> {
+    match assoc {
+        EntityAssociation::Ref(name) => {
+            if name.trim().is_empty() {
+                return Err("entity_associations contains an empty entity reference".to_owned());
+            }
+        }
+        EntityAssociation::OneOf { one_of: children } => {
+            if children.is_empty() {
+                return Err("entity_associations contains an empty `one_of` group".to_owned());
+            }
+            for child in children {
+                validate_entity_association(child)?;
+            }
+        }
+        EntityAssociation::AllOf { all_of: children } => {
+            if children.is_empty() {
+                return Err("entity_associations contains an empty `all_of` group".to_owned());
+            }
+            for child in children {
+                validate_entity_association(child)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_duplicate_attribute_ref(
@@ -1990,7 +2033,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
-            entity_associations: vec!["test".to_owned()],
+            entity_associations: vec![EntityAssociation::Ref("test".to_owned())],
             visibility: None,
             is_v2: false,
             span_name_note: None,
@@ -1999,6 +2042,36 @@ mod tests {
             .validate("<test>")
             .into_result_failing_non_fatal()
             .is_ok());
+
+        // A nested one_of/all_of expression is valid.
+        group.entity_associations = vec![EntityAssociation::AllOf {
+            all_of: vec![
+                EntityAssociation::Ref("tenant".to_owned()),
+                EntityAssociation::OneOf {
+                    one_of: vec![
+                        EntityAssociation::Ref("host".to_owned()),
+                        EntityAssociation::Ref("container".to_owned()),
+                    ],
+                },
+            ],
+        }];
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // An empty combinator is rejected.
+        group.entity_associations = vec![EntityAssociation::OneOf { one_of: vec![] }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroup {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "entity_associations contains an empty `one_of` group".to_owned(),
+            }),
+            result
+        );
+        group.entity_associations = vec![EntityAssociation::Ref("test".to_owned())];
 
         // Span should allow associations.
         group.r#type = GroupType::Span;
