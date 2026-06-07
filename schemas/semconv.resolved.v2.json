@@ -537,7 +537,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAssociation"
@@ -620,7 +620,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAssociation"
@@ -819,7 +819,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAssociation"
@@ -923,7 +923,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAssociation"
@@ -1234,7 +1234,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAssociation"
@@ -1378,7 +1378,7 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAssociation"
