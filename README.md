@@ -15,6 +15,7 @@ _Treat your telemetry like a public API_
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Slack](https://img.shields.io/badge/Slack-%23otel--weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12876/badge)](https://www.bestpractices.dev/projects/12876)
 
 OpenTelemetry Weaver helps teams build observability by design, enabling consistent, type-safe, and automated telemetry through semantic conventions. With Weaver, you can define, validate, and evolve your telemetry schemas, ensuring reliability and clarity across your systems.
 
@@ -70,6 +71,7 @@ Weaver provides a _set of tools_ for working with **schematized telemetry**.
   - **Emitting** example telemetry based on a schema
 
 Further reading:
+
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
 - [Application Telemetry Schema OTEP](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
 
@@ -80,7 +82,6 @@ Further reading:
 - [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md) - A guide on how to define your own
   telemetry schema using semantic conventions.
 
-
 ## Media
 
 - [OpenTelemetry Weaver - Observability by Design](https://www.youtube.com/watch?v=BJt6LyJEYD0) - CNCF presentation introducing Weaver's core concepts
@@ -90,18 +91,17 @@ Further reading:
 
 ## Main Commands
 
-| Command                                                                   | Description                                 |
-|---------------------------------------------------------------------------|---------------------------------------------|
-| [weaver registry check](docs/usage.md#registry-check)                     | Validates a semantic convention registry    |
-| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolves a semantic convention registry     |
-| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff between two versions of a semantic convention registry |
-| [weaver registry generate](docs/usage.md#registry-generate)               | Generates artifacts from a semantic convention registry  |
+| Command                                                                   | Description                                                                                               |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [weaver registry check](docs/usage.md#registry-check)                     | Validates a semantic convention registry                                                                  |
+| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolves a semantic convention registry                                                                   |
+| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff between two versions of a semantic convention registry                                    |
+| [weaver registry generate](docs/usage.md#registry-generate)               | Generates artifacts from a semantic convention registry                                                   |
 | [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update markdown files that contain markers indicating the templates used to update the specified sections |
-| [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry |
-| [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver |
-| [weaver registry mcp](docs/mcp-server.md)                                 | Run an MCP server for LLM integration |
-| [weaver completion](docs/usage.md#completion)                             | Generate shell completions |
-
+| [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry                      |
+| [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver                             |
+| [weaver registry mcp](docs/mcp-server.md)                                 | Run an MCP server for LLM integration                                                                     |
+| [weaver completion](docs/usage.md#completion)                             | Generate shell completions                                                                                |
 
 ## Getting Help
 
