@@ -2808,6 +2808,99 @@ mod tests {
     }
 
     #[test]
+    fn test_entity_association_multiple_top_level_all_of() {
+        // Two `all_of` groups at the top level. The top-level list is an implicit `one_of`, so the
+        // telemetry must satisfy at least one of the two groups:
+        //   - all_of[tenant, host]
+        //   - all_of[container]
+        let registry = VersionedRegistry::V1(Box::new(ResolvedRegistry {
+            registry_url: "TEST_ASSOC_MULTI".to_owned(),
+            groups: vec![
+                entity_group("host", required_string_attr("host.name")),
+                entity_group("container", required_string_attr("container.id")),
+                entity_group("tenant", required_string_attr("tenant.id")),
+                assoc_event_group(
+                    "multi.evt",
+                    vec![
+                        EntityAssociation::AllOf {
+                            all_of: vec![
+                                EntityAssociation::Ref("tenant".to_owned()),
+                                EntityAssociation::Ref("host".to_owned()),
+                            ],
+                        },
+                        EntityAssociation::AllOf {
+                            all_of: vec![EntityAssociation::Ref("container".to_owned())],
+                        },
+                    ],
+                ),
+            ],
+        }));
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        // Satisfies the second group (container.id present) but not the first → overall satisfied
+        // via the implicit one_of, so no aggregate and no per-branch required violations.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "multi.evt",
+            vec![string_sample_attr("container.id", "c1")],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "one all_of group satisfied: expected no entity findings, got {advice:?}"
+        );
+
+        // Satisfies the first group fully (tenant.id + host.name) → also satisfied.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "multi.evt",
+            vec![
+                string_sample_attr("tenant.id", "t1"),
+                string_sample_attr("host.name", "h1"),
+            ],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "other all_of group satisfied: expected no entity findings, got {advice:?}"
+        );
+
+        // Satisfies neither group → single aggregate finding naming every candidate entity.
+        let advice = run_event_check(&mut live_checker, &mut stats, "multi.evt", vec![]);
+        let aggregates: Vec<_> = advice
+            .iter()
+            .filter(|a| a.id == "entity_association_not_satisfied")
+            .collect();
+        assert_eq!(
+            aggregates.len(),
+            1,
+            "neither group satisfied: expected a single aggregate finding, got {advice:?}"
+        );
+        assert_eq!(aggregates[0].level, FindingLevel::Violation);
+        let mut entities: Vec<&str> = aggregates[0].context.as_ref().expect("context")["entity_type"]
+            .as_array()
+            .expect("entity_type array")
+            .iter()
+            .map(|v| v.as_str().expect("string"))
+            .collect();
+        entities.sort_unstable();
+        assert_eq!(
+            entities,
+            vec!["container", "host", "tenant"],
+            "aggregate should list every candidate entity across both groups"
+        );
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "neither group satisfied: per-branch required findings should be suppressed, got {advice:?}"
+        );
+    }
+
+    #[test]
     fn test_metric_entity_validation() {
         run_metric_entity_validation_test(false);
     }
