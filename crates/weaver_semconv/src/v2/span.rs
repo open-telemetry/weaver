@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     attribute::AttributeSpec,
     deprecated::Deprecated,
+    entity_association::EntityAssociation,
     group::{GroupSpec, GroupType, SpanKindSpec},
     stability::Stability,
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
@@ -74,9 +75,12 @@ pub struct Span {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<SpanAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -95,10 +99,13 @@ pub struct SpanRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<SpanAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     /// Note: This field is currently not propagated during resolution.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
 
     /// Refines the brief description of the signal.
     /// Note: This field is currently not propagated during resolution.

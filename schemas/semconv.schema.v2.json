@@ -528,6 +528,47 @@
         "stability"
       ]
     },
+    "EntityAssociation": {
+      "description": "An entity association expression.\n\nIn YAML this is either a bare string (an entity reference), a `{ one_of: [...] }` map or a\n`{ all_of: [...] }` map, where each list element is itself an [`EntityAssociation`].",
+      "anyOf": [
+        {
+          "description": "A reference to an entity by its type name.",
+          "type": "string"
+        },
+        {
+          "description": "Satisfied when at least one of the contained expressions is satisfied.",
+          "type": "object",
+          "properties": {
+            "one_of": {
+              "description": "The candidate expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "one_of"
+          ]
+        },
+        {
+          "description": "Satisfied when every contained expression is satisfied.",
+          "type": "object",
+          "properties": {
+            "all_of": {
+              "description": "The required expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "all_of"
+          ]
+        }
+      ]
+    },
     "EntityRefinement": {
       "description": "A refinement of an existing entity.",
       "type": "object",
@@ -696,10 +737,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this event should be associated with.",
+          "description": "Which resources this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "name": {
@@ -759,10 +800,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this event should be associated with.",
+          "description": "Which resources this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -1038,10 +1079,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this metric should be associated with.",
+          "description": "Which resources this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "instrument": {
@@ -1122,10 +1163,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this metric should be associated with.",
+          "description": "Which resources this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -1297,10 +1338,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this span should be associated with.",
+          "description": "Which resources this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "kind": {
@@ -1527,10 +1568,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this span should be associated with.\nNote: This field is currently not propagated during resolution.",
+          "description": "Which resources this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.\nNote: This field is currently not propagated during resolution.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {

@@ -7,9 +7,10 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
+use weaver_semconv::entity_association::EntityAssociation;
 
 use crate::{
-    advice::{check_entity_resource_attributes, emit_findings, FindingBuilder},
+    advice::{check_entity_associations, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
     sample_resource::SampleResource,
@@ -95,28 +96,30 @@ impl LiveCheckRunner for SampleLog {
             .resource()
             .map(|r| r.attributes.as_slice())
             .unwrap_or(&[]);
-        let entity_associations: &[String] = match semconv_event.as_deref() {
+        let entity_associations: &[EntityAssociation] = match semconv_event.as_deref() {
             Some(VersionedSignal::Group(g)) => &g.entity_associations,
             Some(VersionedSignal::Event(e)) => &e.entity_associations,
             _ => &[],
         };
-        for entity_type in entity_associations {
-            if let Some(entity) = live_checker.find_entity(entity_type) {
-                let findings =
-                    check_entity_resource_attributes(&entity, resource_attributes, parent_signal);
-                let sample_ref = SampleRef::Log(self);
-                emit_findings(
-                    &findings,
-                    &sample_ref,
-                    live_checker.otlp_emitter.as_deref(),
-                    parent_signal,
-                );
-                result.add_advice_list(
-                    findings,
-                    live_checker.finding_modifier.as_ref(),
-                    &sample_ref,
-                );
-            }
+        let findings = check_entity_associations(
+            entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        );
+        if !findings.is_empty() {
+            let sample_ref = SampleRef::Log(self);
+            emit_findings(
+                &findings,
+                &sample_ref,
+                live_checker.otlp_emitter.as_deref(),
+                parent_signal,
+            );
+            result.add_advice_list(
+                findings,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
         }
 
         // Check attributes

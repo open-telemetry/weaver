@@ -12,13 +12,15 @@ use weaver_semconv::attribute::{
     TemplateTypeSpec,
 };
 
+use weaver_semconv::entity_association::EntityAssociation;
+
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
-    otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
-    Error, FindingId, Sample, SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
-    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
-    ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
-    INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
+    live_checker::LiveChecker, otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute,
+    sample_metric::SampleInstrument, Error, FindingId, Sample, SampleRef, VersionedAttribute,
+    VersionedEntity, VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
+    ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY, ENTITY_TYPE_ADVICE_CONTEXT_KEY,
+    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
@@ -99,24 +101,24 @@ pub(crate) fn check_entity_resource_attributes(
             RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
                 FindingId::EntityRequiredAttributeNotPresent,
                 FindingLevel::Violation,
-                format!("Required attribute '{key}' for entity '{entity_type}' is not present in resource."),
+                format!("Required attribute '{key}' for entity '{entity_type}' is not present in the resource."),
             ),
             RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
             | RequirementLevel::Recommended { .. } => (
                 FindingId::EntityRecommendedAttributeNotPresent,
                 FindingLevel::Improvement,
-                format!("Recommended attribute '{key}' for entity '{entity_type}' is not present in resource."),
+                format!("Recommended attribute '{key}' for entity '{entity_type}' is not present in the resource."),
             ),
             RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
             | RequirementLevel::OptIn { .. } => (
                 FindingId::EntityOptInAttributeNotPresent,
                 FindingLevel::Information,
-                format!("Opt-in attribute '{key}' for entity '{entity_type}' is not present in resource."),
+                format!("Opt-in attribute '{key}' for entity '{entity_type}' is not present in the resource."),
             ),
             RequirementLevel::ConditionallyRequired { .. } => (
                 FindingId::EntityConditionallyRequiredAttributeNotPresent,
                 FindingLevel::Information,
-                format!("Conditionally required attribute '{key}' for entity '{entity_type}' is not present in resource."),
+                format!("Conditionally required attribute '{key}' for entity '{entity_type}' is not present in the resource."),
             ),
         };
         advice_list.push(PolicyFinding {
@@ -158,6 +160,151 @@ pub(crate) fn check_entity_resource_attributes(
     }
 
     advice_list
+}
+
+/// The outcome of evaluating an entity association expression against the resource.
+struct AssocEval {
+    /// Whether the expression is satisfied (all required attributes of the chosen path present).
+    satisfied: bool,
+    /// Findings to surface to the user for the chosen path.
+    findings: Vec<PolicyFinding>,
+}
+
+/// Evaluates a signal's entity associations against the resource and returns the findings to emit.
+///
+/// The top-level list is an implicit `one_of`: the telemetry must satisfy at least one entry.
+/// `one_of`/`all_of` combinators may be nested arbitrarily.
+pub(crate) fn check_entity_associations(
+    associations: &[EntityAssociation],
+    live_checker: &LiveChecker,
+    resource_attributes: &[SampleAttribute],
+    parent_signal: &Sample,
+) -> Vec<PolicyFinding> {
+    match associations {
+        [] => Vec::new(),
+        // A single top-level entry is evaluated directly so a lone `all_of` keeps its detailed
+        // per-attribute findings instead of being collapsed into an aggregate.
+        [single] => {
+            evaluate_association(single, live_checker, resource_attributes, parent_signal).findings
+        }
+        // Multiple top-level entries combine as an implicit `one_of`.
+        many => evaluate_one_of(many, live_checker, resource_attributes, parent_signal).findings,
+    }
+}
+
+/// Recursively evaluates a single entity association expression.
+fn evaluate_association(
+    assoc: &EntityAssociation,
+    live_checker: &LiveChecker,
+    resource_attributes: &[SampleAttribute],
+    parent_signal: &Sample,
+) -> AssocEval {
+    match assoc {
+        EntityAssociation::Ref(name) => match live_checker.find_entity(name) {
+            Some(entity) => {
+                let findings =
+                    check_entity_resource_attributes(&entity, resource_attributes, parent_signal);
+                // Satisfied when no required (Violation-level) attribute is missing. Any
+                // remaining recommended/opt-in/conditional findings are surfaced as improvements.
+                let satisfied = !findings.iter().any(|f| f.level == FindingLevel::Violation);
+                AssocEval {
+                    satisfied,
+                    findings,
+                }
+            }
+            // Unknown entity references are skipped (treated as neutral) to avoid spurious
+            // violations for entities that are not present in the registry.
+            None => AssocEval {
+                satisfied: true,
+                findings: Vec::new(),
+            },
+        },
+        EntityAssociation::OneOf { one_of } => {
+            evaluate_one_of(one_of, live_checker, resource_attributes, parent_signal)
+        }
+        EntityAssociation::AllOf { all_of } => {
+            evaluate_all_of(all_of, live_checker, resource_attributes, parent_signal)
+        }
+    }
+}
+
+/// Evaluates an `all_of` group: every child must be satisfied; all child findings are surfaced.
+fn evaluate_all_of(
+    children: &[EntityAssociation],
+    live_checker: &LiveChecker,
+    resource_attributes: &[SampleAttribute],
+    parent_signal: &Sample,
+) -> AssocEval {
+    let mut satisfied = true;
+    let mut findings = Vec::new();
+    for child in children {
+        let eval = evaluate_association(child, live_checker, resource_attributes, parent_signal);
+        satisfied &= eval.satisfied;
+        findings.extend(eval.findings);
+    }
+    AssocEval {
+        satisfied,
+        findings,
+    }
+}
+
+/// Evaluates a `one_of` group: at least one child must be satisfied. When satisfied, only the
+/// satisfied branches' improvement findings are surfaced; when none are satisfied, a single
+/// aggregate finding naming the candidate entities is emitted.
+fn evaluate_one_of(
+    children: &[EntityAssociation],
+    live_checker: &LiveChecker,
+    resource_attributes: &[SampleAttribute],
+    parent_signal: &Sample,
+) -> AssocEval {
+    let mut any_satisfied = false;
+    let mut findings = Vec::new();
+    for child in children {
+        let eval = evaluate_association(child, live_checker, resource_attributes, parent_signal);
+        if eval.satisfied {
+            any_satisfied = true;
+            findings.extend(eval.findings);
+        }
+    }
+    if any_satisfied {
+        AssocEval {
+            satisfied: true,
+            findings,
+        }
+    } else {
+        AssocEval {
+            satisfied: false,
+            findings: vec![entity_association_not_satisfied(children, parent_signal)],
+        }
+    }
+}
+
+/// Builds the aggregate finding emitted when no branch of a `one_of` group is satisfied.
+fn entity_association_not_satisfied(
+    children: &[EntityAssociation],
+    parent_signal: &Sample,
+) -> PolicyFinding {
+    // Collect the candidate entity names, de-duplicated while preserving order.
+    let mut seen = HashSet::new();
+    let entities: Vec<&str> = children
+        .iter()
+        .flat_map(EntityAssociation::referenced_entities)
+        .filter(|name| seen.insert(*name))
+        .collect();
+    let message = format!(
+        "None of the associated entities [{}] were satisfied by the resource.",
+        entities.join(", ")
+    );
+    PolicyFinding {
+        id: FindingId::EntityAssociationNotSatisfied.into(),
+        context: Some(json!({
+            ENTITY_TYPE_ADVICE_CONTEXT_KEY: entities,
+        })),
+        message,
+        level: FindingLevel::Violation,
+        signal_type: parent_signal.signal_type(),
+        signal_name: parent_signal.signal_name(),
+    }
 }
 
 /// Checks if attributes from a resolved group are present in a list of sample attributes

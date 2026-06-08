@@ -15,6 +15,7 @@ use weaver_common::error::{format_errors, WeaverError};
 pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
+pub mod entity_association;
 pub mod group;
 pub mod json_schema;
 pub mod manifest;
