@@ -16,6 +16,7 @@ _Treat your telemetry like a public API_
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Slack](https://img.shields.io/badge/Slack-%23otel--weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12876/badge)](https://www.bestpractices.dev/projects/12876)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/open-telemetry/weaver/badge)](https://securityscorecards.dev/viewer/?uri=github.com/open-telemetry/weaver)
 
 OpenTelemetry Weaver helps teams build observability by design, enabling consistent, type-safe, and automated telemetry through semantic conventions. With Weaver, you can define, validate, and evolve your telemetry schemas, ensuring reliability and clarity across your systems.
 
