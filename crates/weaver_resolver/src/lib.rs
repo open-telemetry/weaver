@@ -19,13 +19,16 @@ mod error;
 mod loader;
 pub(crate) mod merge;
 mod registry;
+mod resolver_v2;
 
 // Make helper portions of this create public APIs.
 pub use crate::error::Error;
 pub use crate::loader::LoadedSemconvRegistry;
+pub use crate::resolver_v2::{WeaverResolver, WeaverResolverConfig};
 
 /// A resolver that can be used to load and resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
+#[deprecated(note = "Please use `WeaverResolver` instead.")]
 pub struct SchemaResolver {}
 
 impl SchemaResolver {
