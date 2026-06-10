@@ -1,0 +1,30 @@
+file_format: definition/2
+attributes:
+  - key: moved.attr
+    type: string
+    stability: stable
+    brief: Redefined attribute (same name as the deprecated parent item).
+spans:
+  - type: moved.span
+    kind: client
+    name:
+      note: Redefined span name.
+    stability: stable
+    brief: Redefined span (same type as the deprecated parent item).
+    attributes:
+      - ref: moved.attr
+        requirement_level: required
+metrics:
+  - name: moved.metric
+    instrument: counter
+    unit: "1"
+    stability: stable
+    brief: Redefined metric (same name as the deprecated parent item).
+    attributes:
+      - ref: moved.attr
+        requirement_level: required
+  - name: greenfield.requests
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    brief: Brand-new metric that doesn't reference any parent items.

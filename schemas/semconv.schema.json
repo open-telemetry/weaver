@@ -850,8 +850,43 @@
 			]
 		},
 		"EntityAssociation": {
-			"type": "string",
-			"description": "The name of the associated entity."
+			"description": "An entity association: a bare entity reference, or a `one_of`/`all_of` group of nested associations.",
+			"anyOf": [
+				{
+					"type": "string",
+					"description": "The name of the associated entity."
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": [
+						"one_of"
+					],
+					"properties": {
+						"one_of": {
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/EntityAssociation"
+							}
+						}
+					}
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": [
+						"all_of"
+					],
+					"properties": {
+						"all_of": {
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/EntityAssociation"
+							}
+						}
+					}
+				}
+			]
 		}
 	}
 }

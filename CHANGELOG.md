@@ -4,11 +4,15 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add `dependency_resolution.exclude` annotation to hide attributes, groups, and signals from registries that depend on this one. ([#1458](https://github.com/open-telemetry/weaver/pull/1458) by @lmolkova)
+- Add `one_of` and `all_of` combinators to `entity_associations`, letting a signal (span, metric, or event) require any-of or all-of a set of entities, nested arbitrarily. A bare list of entity references remains supported and is treated as an implicit `one_of`. See [`semconv-syntax.v2.md`](schemas/semconv-syntax.v2.md#entity-associations). ([#1493](https://github.com/open-telemetry/weaver/pull/1493) by @jerbly)
+- Add `weaver-live-check-start` and `weaver-live-check-stop` composite GitHub Actions for CI integration. ([#1448](https://github.com/open-telemetry/weaver/pull/1448))
 - Rename `resolved_schema_uri` to `resolved_registry_uri` in publication manifest and in `package` command. ([#1425](https://github.com/open-telemetry/weaver/pull/1425))
 - Fix V2 resolver overwriting `SpanName.note` with the span type id during resolution. ([#1401](https://github.com/open-telemetry/weaver/pull/1401))
 - Add `semconv_grouped_events` JQ helper with v1/v2 options parity and coverage. ([#1439](https://github.com/open-telemetry/weaver/pull/1439))
 - New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries, including GitHub private release assets. Auth is configured per-URL via `[[auth]]` entries in `.weaver.toml` (longest `url_prefix` wins), with tokens sourced from a literal `token`, a `token_env` variable, or a `token_command` helper (e.g. `["gh", "auth", "token"]`). ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
 - New feature - `.weaver.toml` project configuration now covers all subcommands allowing for simplified configuration management. See the [README.md](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_config/README.md) ([#1410](https://github.com/open-telemetry/weaver/pull/1410) by @jerbly)
+- Fix ([#1297](https://github.com/open-telemetry/weaver/issues/1297)) - Live-check: entity validation now supported. ([#1426](https://github.com/open-telemetry/weaver/pull/1426) by @jerbly)
 - Live-check OTLP log findings are now dog-fooded: the event schema, attributes, and enumerations are defined in a semconv model and code-generated using Weaver's own templates. See [`finding.md`](crates/weaver_live_check/docs/finding.md) for the generated reference documentation and [`dog-fooding.md`](crates/weaver_live_check/docs/dog-fooding.md) for the full dog-fooding guide.
 
   💥 BREAKING CHANGES 💥 to the log schema:

@@ -81,6 +81,16 @@ pub enum FindingId {
     OptInAttributeNotPresent,
     /// A conditionally required attribute is absent from the sample
     ConditionallyRequiredAttributeNotPresent,
+    /// A required entity attribute is absent from the resource
+    EntityRequiredAttributeNotPresent,
+    /// A recommended entity attribute is absent from the resource
+    EntityRecommendedAttributeNotPresent,
+    /// An opt-in entity attribute is absent from the resource
+    EntityOptInAttributeNotPresent,
+    /// A conditionally required entity attribute is absent from the resource
+    EntityConditionallyRequiredAttributeNotPresent,
+    /// No entity in a one_of association group was satisfied by the resource
+    EntityAssociationNotSatisfied,
     /// An attribute name has no dot-separated namespace
     MissingNamespace,
     /// An attribute or metric name does not match the required naming format
