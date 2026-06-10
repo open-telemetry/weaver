@@ -69,6 +69,7 @@ impl LoadedSemconvRegistry {
             })?;
         let spec_with_provenance =
             SemConvSpecWithProvenance::from_file(SchemaUrl::new_unknown(), temp_file.path())
+                .ignore(|e| matches!(e, weaver_semconv::Error::UnstableFileFormat { .. }))
                 .into_result_failing_non_fatal()
                 .map_err(|e| Error::InvalidUrl {
                     url: "test string".to_owned(),

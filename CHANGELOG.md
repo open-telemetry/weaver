@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add `dependency_resolution.exclude` annotation to hide attributes, groups, and signals from registries that depend on this one. ([#1458](https://github.com/open-telemetry/weaver/pull/1458) by @lmolkova)
 - Add `one_of` and `all_of` combinators to `entity_associations`, letting a signal (span, metric, or event) require any-of or all-of a set of entities, nested arbitrarily. A bare list of entity references remains supported and is treated as an implicit `one_of`. See [`semconv-syntax.v2.md`](schemas/semconv-syntax.v2.md#entity-associations). ([#1493](https://github.com/open-telemetry/weaver/pull/1493) by @jerbly)
 - Add `weaver-live-check-start` and `weaver-live-check-stop` composite GitHub Actions for CI integration. ([#1448](https://github.com/open-telemetry/weaver/pull/1448))
 - Rename `resolved_schema_uri` to `resolved_registry_uri` in publication manifest and in `package` command. ([#1425](https://github.com/open-telemetry/weaver/pull/1425))

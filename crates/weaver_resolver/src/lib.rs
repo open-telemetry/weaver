@@ -15,6 +15,7 @@ use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
 mod attribute;
 mod dependency;
+mod dependency_resolution;
 mod error;
 mod loader;
 pub(crate) mod merge;
@@ -186,7 +187,7 @@ mod tests {
     use weaver_common::result::WResult;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
-    use weaver_semconv::group::GroupType;
+    use weaver_semconv::group::{GroupType, ImportsWithProvenance};
     use weaver_semconv::registry_repo::RegistryRepo;
 
     #[test]
@@ -539,5 +540,496 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    fn resolve_at(
+        path: &str,
+    ) -> WResult<weaver_resolved_schema::ResolvedTelemetrySchema, crate::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: path.to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to create registry repo");
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect("Failed to load registry");
+        SchemaResolver::resolve(loaded, false)
+    }
+
+    fn resolve_inline_with_parent(
+        consumer_yaml: &str,
+        parent_path: &str,
+    ) -> WResult<weaver_resolved_schema::ResolvedTelemetrySchema, crate::Error> {
+        let parent_vpath = VirtualDirectoryPath::LocalFolder {
+            path: parent_path.to_owned(),
+        };
+        let parent_repo = RegistryRepo::try_new(None, &parent_vpath, &mut vec![])
+            .expect("Failed to create parent registry repo");
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let parent_loaded = SchemaResolver::load_semconv_repository(parent_repo, false)
+            .capture_non_fatal_errors(&mut diag_msgs)
+            .expect("Failed to load parent registry");
+
+        let consumer = crate::LoadedSemconvRegistry::create_from_string(consumer_yaml)
+            .expect("Failed to load consumer yaml");
+        let with_dep = match consumer {
+            crate::LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs,
+                imports,
+                ..
+            } => {
+                // create_from_string does not extract `imports:` from the spec;
+                // do it here so this helper handles imports-driven scenarios.
+                let mut all_imports = imports;
+                for s in &specs {
+                    let v1 = s.clone().into_v1();
+                    if let Some(i) = v1.spec.imports() {
+                        all_imports.push(ImportsWithProvenance {
+                            imports: i.clone(),
+                            provenance: v1.provenance.clone(),
+                        });
+                    }
+                }
+                crate::LoadedSemconvRegistry::Unresolved {
+                    repo,
+                    specs,
+                    imports: all_imports,
+                    dependencies: vec![parent_loaded],
+                }
+            }
+            _ => panic!("Expected unresolved consumer registry"),
+        };
+
+        SchemaResolver::resolve(with_dep, false)
+    }
+
+    fn assert_exclusion_errors(
+        result: WResult<weaver_resolved_schema::ResolvedTelemetrySchema, crate::Error>,
+        expected: &[(&str, &str)],
+    ) {
+        let err = match result {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected an exclusion error, got Ok");
+            }
+            WResult::FatalErr(e) => e,
+        };
+        let mut errors = vec![];
+        collect_errors(&err, &mut errors);
+        for (expected_id, expected_used_in) in expected {
+            let found = errors.iter().any(|e| {
+                matches!(
+                    e,
+                    crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                        if id == expected_id && used_in == expected_used_in
+                )
+            });
+            assert!(
+                found,
+                "expected ExcludedFromDependencyResolution(id={expected_id}, used_in={expected_used_in}); got {errors:#?}"
+            );
+        }
+    }
+
+    fn collect_errors<'a>(err: &'a crate::Error, out: &mut Vec<&'a crate::Error>) {
+        match err {
+            crate::Error::CompoundError(inner) => {
+                for e in inner {
+                    collect_errors(e, out);
+                }
+            }
+            other => out.push(other),
+        }
+    }
+
+    const PUBLISHED_V2_PATH: &str = "data/registry-test-dep-exclusion/published_v2";
+
+    #[test]
+    fn test_dep_exclusion_v2_fails() {
+        // Resolver is fail-fast across stages (extends, attr refs, imports),
+        // so each leak path is exercised in its own minimal consumer spec.
+        // Inline YAML keeps the test bodies adjacent to their assertions.
+        let ref_yaml = r#"
+file_format: definition/2
+metrics:
+  - name: consumer.requests
+    brief: References an excluded parent attribute.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      - ref: parent.excluded
+        requirement_level: required
+"#;
+        assert_exclusion_errors(
+            resolve_inline_with_parent(ref_yaml, PUBLISHED_V2_PATH),
+            &[("parent.excluded", "metric.consumer.requests")],
+        );
+
+        let extends_yaml = r#"
+groups:
+  - id: consumer.requests
+    type: metric
+    metric_name: consumer.requests
+    instrument: counter
+    unit: "1"
+    metric_requirement_level: recommended
+    stability: stable
+    brief: Extends an excluded parent metric.
+    extends: parent.excluded.metric
+"#;
+        assert_exclusion_errors(
+            resolve_inline_with_parent(extends_yaml, PUBLISHED_V2_PATH),
+            &[("parent.excluded.metric", "consumer.requests")],
+        );
+
+        let imports_yaml = r#"
+file_format: definition/2
+imports:
+  metrics:
+    - parent.excluded.metric
+"#;
+        assert_exclusion_errors(
+            resolve_inline_with_parent(imports_yaml, PUBLISHED_V2_PATH),
+            &[("parent.excluded.metric", "imports")],
+        );
+    }
+
+    #[test]
+    fn test_dep_exclusion_v2_excluded_user_still_fails() {
+        // Cross-registry references to an excluded item ALWAYS fail, even when
+        // the consumer's own using item is marked excluded. The boundary rule
+        // is absolute: excluded items in a dependency are invisible during
+        // resolution. (The within-registry "both excluded → ok" relaxation is
+        // covered by `test_within_registry_both_excluded`.)
+        let consumer = r#"
+file_format: definition/2
+metrics:
+  - name: consumer.also.excluded
+    brief: Consumer metric that itself is excluded.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+    attributes:
+      - ref: parent.excluded
+        requirement_level: required
+"#;
+        assert_exclusion_errors(
+            resolve_inline_with_parent(consumer, PUBLISHED_V2_PATH),
+            &[("parent.excluded", "metric.consumer.also.excluded")],
+        );
+    }
+
+    fn create_registry_from_string(
+        registry_spec: &str,
+    ) -> WResult<weaver_resolved_schema::registry::Registry, crate::Error> {
+        let loaded = crate::LoadedSemconvRegistry::create_from_string(registry_spec)
+            .expect("Failed to load semconv spec");
+        SchemaResolver::resolve(loaded, false).map(|schema| schema.registry)
+    }
+
+    #[test]
+    fn test_within_registry_leak_v1_ref() {
+        // Same registry: an excluded attribute is defined inside an excluded
+        // host group (so its definition is fine), but a non-excluded span
+        // refs it. The ref is the leak path.
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: attrs.private
+      type: attribute_group
+      brief: Private
+      annotations:
+        dependency_resolution:
+          exclude: true
+      attributes:
+        - id: secret.value
+          type: string
+          stability: stable
+          brief: Hidden detail.
+          examples: ['hidden']
+          annotations:
+            dependency_resolution:
+              exclude: true
+    - id: span.public
+      type: span
+      span_kind: internal
+      stability: stable
+      brief: A public span that leaks an excluded attribute.
+      attributes:
+        - ref: secret.value
+          requirement_level: required",
+        );
+
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an exclusion error"),
+            Err(crate::Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                            if id == "secret.value" && used_in == "span.public"
+                    )),
+                    "expected exclusion error on span.public, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
+    }
+
+    #[test]
+    fn test_within_registry_leak_inline_id() {
+        // A non-excluded group defines an attribute with `id:` that is marked
+        // excluded. Defining it inline means the group inlines that attribute
+        // into its resolved form — a leak.
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: span.public
+      type: span
+      span_kind: internal
+      stability: stable
+      brief: Public span with an inlined excluded attribute.
+      attributes:
+        - id: secret.value
+          type: string
+          stability: stable
+          brief: Hidden detail.
+          examples: ['hidden']
+          annotations:
+            dependency_resolution:
+              exclude: true",
+        );
+
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an exclusion error"),
+            Err(crate::Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                            if id == "secret.value" && used_in == "span.public"
+                    )),
+                    "expected exclusion error from inline-id, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
+    }
+
+    #[test]
+    fn test_within_registry_both_excluded() {
+        // When the using group is also excluded, leak validation is skipped.
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: attrs.private
+      type: attribute_group
+      brief: Private
+      annotations:
+        dependency_resolution:
+          exclude: true
+      attributes:
+        - id: secret.value
+          type: string
+          stability: stable
+          brief: Hidden detail.
+          examples: ['hidden']
+          annotations:
+            dependency_resolution:
+              exclude: true
+    - id: span.also.excluded
+      type: span
+      span_kind: internal
+      stability: stable
+      brief: Also excluded.
+      annotations:
+        dependency_resolution:
+          exclude: true
+      attributes:
+        - ref: secret.value
+          requirement_level: required",
+        );
+
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => {}
+            Err(e) => panic!("expected success when both are excluded; got {e:?}"),
+        }
+    }
+
+    #[test]
+    fn test_dep_exclusion_migration_redefine() {
+        // Parent registry has an attribute, a metric, and a span — all
+        // deprecated and excluded from dependency resolution. The consumer
+        // depends on the parent and redefines exactly the same items.
+        // Resolution must succeed: the parent items are hidden from
+        // dependents, so the consumer's redefinitions take effect.
+        let result = resolve_at("data/registry-test-dep-exclusion/migration_consumer");
+        let resolved = match result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+        };
+
+        let attrs: Vec<&str> = resolved
+            .catalog
+            .attributes()
+            .map(|a| a.name.as_str())
+            .collect();
+        assert!(
+            attrs.contains(&"moved.attr"),
+            "expected moved.attr in catalog, got {attrs:?}"
+        );
+
+        let metric = resolved
+            .groups(GroupType::Metric)
+            .get("metric.moved.metric")
+            .cloned()
+            .expect("metric.moved.metric should be present");
+        assert_eq!(
+            metric.deprecated, None,
+            "consumer metric must not inherit parent deprecation"
+        );
+
+        let span = resolved
+            .groups(GroupType::Span)
+            .get("span.moved.span")
+            .cloned()
+            .expect("span.moved.span should be present");
+        assert_eq!(
+            span.deprecated, None,
+            "consumer span must not inherit parent deprecation"
+        );
+
+        // Greenfield metric (no parent equivalent, no refs) resolves cleanly
+        // alongside the redefined items.
+        assert!(
+            resolved
+                .groups(GroupType::Metric)
+                .contains_key("metric.greenfield.requests"),
+            "greenfield metric should resolve"
+        );
+    }
+
+    #[test]
+    fn test_within_registry_leak_v2_refinement() {
+        // V2: a public metric_refinement targets an excluded base metric in
+        // the same registry. Exercises the `extends` exclusion path on V2.
+        assert_exclusion_errors(
+            resolve_at("data/registry-test-dep-exclusion/within_registry_v2_leak_ref"),
+            &[("metric.parent.base", "child.refined")],
+        );
+    }
+
+    #[test]
+    fn test_within_registry_internal_group_with_inline_excluded_attr() {
+        // An `attribute_group` with `visibility: internal` is dropped before
+        // the resolved schema is emitted, so an excluded inline attribute on
+        // it cannot leak. The same-registry leak check must therefore treat
+        // an internal group like an excluded one.
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: attrs.internal
+      type: attribute_group
+      brief: Internal-only group.
+      visibility: internal
+      attributes:
+        - id: secret.value
+          type: string
+          stability: stable
+          brief: Hidden detail.
+          examples: ['hidden']
+          annotations:
+            dependency_resolution:
+              exclude: true",
+        );
+
+        if let Err(e) = result.into_result_failing_non_fatal() {
+            panic!("expected success for internal group with inline excluded attr; got {e:?}");
+        }
+    }
+
+    #[test]
+    fn test_within_registry_internal_group_extends_excluded_parent() {
+        // Internal consumer extending an excluded parent group must also be
+        // exempt — same rationale as the inline-attr case, but exercised via
+        // the `extends` (excluded_parent_error) path.
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: attrs.private
+      type: attribute_group
+      brief: Private
+      annotations:
+        dependency_resolution:
+          exclude: true
+      attributes:
+        - id: secret.value
+          type: string
+          stability: stable
+          brief: Hidden detail.
+          examples: ['hidden']
+          annotations:
+            dependency_resolution:
+              exclude: true
+    - id: attrs.internal_consumer
+      type: attribute_group
+      brief: Internal group extending an excluded parent.
+      visibility: internal
+      extends: attrs.private",
+        );
+
+        if let Err(e) = result.into_result_failing_non_fatal() {
+            panic!("expected success for internal group extending excluded parent; got {e:?}");
+        }
+    }
+
+    #[test]
+    fn test_within_registry_internal_group_transitive_leak_still_fails() {
+        // Internal groups exempt themselves, not their consumers. A public
+        // span that pulls the internal group in via `include_groups` inherits
+        // the excluded attribute ref and must still trip the leak check.
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: attrs.internal
+      type: attribute_group
+      brief: Internal-only group hosting an excluded attribute.
+      visibility: internal
+      attributes:
+        - id: secret.value
+          type: string
+          stability: stable
+          brief: Hidden detail.
+          examples: ['hidden']
+          annotations:
+            dependency_resolution:
+              exclude: true
+    - id: span.leaks
+      type: span
+      span_kind: internal
+      stability: stable
+      brief: Public span that transitively pulls in an excluded attribute.
+      extends: attrs.internal",
+        );
+
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an exclusion error on span.leaks"),
+            Err(crate::Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                            if id == "secret.value" && used_in == "span.leaks"
+                    )),
+                    "expected exclusion error on span.leaks, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
     }
 }
