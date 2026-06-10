@@ -117,8 +117,7 @@ pub(crate) fn command(
         }
     };
 
-    let loaded = weaver.load_definitions(repo, &mut diag_msgs)?;
-    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
+    let resolved = weaver.load_and_resolve_repo(repo, &mut diag_msgs)?;
 
     let resolved_v2 = match resolved {
         crate::weaver::Resolved::V2(v) => v,

@@ -7,10 +7,49 @@ use std::sync::Arc;
 use lru::LruCache;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
+use crate::loader::LoadedSemconvRegistry;
 use crate::Error;
+
+/// A unified, version-agnostic bundle representing an optimized OpenTelemetry schema (either V1 or V2).
+#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum WeaverResolvedSchema {
+    /// An optimized OpenTelemetry V1 schema.
+    V1(V1Schema),
+    /// An optimized OpenTelemetry V2 schema.
+    V2(V2Schema),
+}
+
+impl WeaverResolvedSchema {
+    /// Returns the active schema URL string for this bundle.
+    pub fn schema_url_str(&self) -> &str {
+        match self {
+            Self::V1(s) => s.schema_url.as_str(),
+            Self::V2(s) => s.schema_url.as_str(),
+        }
+    }
+
+    /// Converts this bundle into an OpenTelemetry V1 schema if compatible, or returns an error.
+    pub fn into_v1(self) -> Result<V1Schema, Error> {
+        match self {
+            Self::V1(s) => Ok(s),
+            Self::V2(_) => Err(Error::ConvertingV2ToV1Unsupported),
+        }
+    }
+
+
+    /// Returns an OpenTelemetry V1 schema reference if this bundle holds a V1 schema.
+    pub fn as_v1(&self) -> Option<&V1Schema> {
+        match self {
+            Self::V1(s) => Some(s),
+            Self::V2(_) => None,
+        }
+    }
+}
 
 /// Encapsulates all runtime configuration parameters for the Weaver resolution engine.
 /// Designed to evolve over time without breaking caller API contracts.
@@ -40,11 +79,31 @@ impl Default for WeaverResolverConfig {
     }
 }
 
+/// A visitor trait allowing callers to intercept key stages of the semantic convention loading
+/// and resolution process, custom-process intermediate specifications, or capture external errors.
+pub trait SchemaLoadingVisitor {
+    /// Allows inspecting raw loaded files (unresolved specifications) immediately after successfully loading
+    /// a semantic convention repository from disk or virtual directory, before final graph deduplication.
+    ///
+    /// If this method returns `Err(())`, resolution is instantly aborted.
+    fn check_raw_loaded_schema_files(&mut self, _loaded: &LoadedSemconvRegistry) -> Result<(), ()> {
+        Ok(())
+    }
+}
+
+/// A default, no-op schema loading visitor that performs no actions.
+#[derive(Debug, Clone, Default)]
+pub struct DefaultSchemaVisitor;
+
+impl SchemaLoadingVisitor for DefaultSchemaVisitor {}
+
+
+
 /// A centralized, synchronous engine responsible for loading and resolving telemetry schemas,
 /// populating an internal LRU cache, and automatically serving pre-resolved dependency schemas.
 pub struct WeaverResolver {
-    /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schemas.
-    cache: LruCache<SchemaUrl, Arc<ResolvedTelemetrySchema>>,
+    /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schema bundles.
+    cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
     
     /// Internal engine configuration.
     config: WeaverResolverConfig,
@@ -56,6 +115,75 @@ impl WeaverResolver {
         Self {
             cache: LruCache::new(config.cache_capacity),
             config,
+        }
+    }
+
+    /// Loads a semantic convention repository without executing the final resolution step.
+    ///
+    /// Allows inspecting unresolved specifications or evaluating policy rules (e.g., BeforeResolution).
+    fn load_repository(
+        &mut self,
+        registry_repo: RegistryRepo,
+    ) -> WResult<LoadedSemconvRegistry, Error> {
+        crate::loader::load_semconv_repository(
+            registry_repo,
+            self.config.follow_symlinks,
+            &self.config.auth,
+        )
+    }
+
+    /// Resolves an already loaded semantic convention repository, executing graph deduplication
+    /// and populating the internal LRU cache.
+    fn resolve_loaded(
+        &mut self,
+        loaded: LoadedSemconvRegistry,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
+        match loaded {
+            LoadedSemconvRegistry::Unresolved {
+                repo,
+                specs,
+                imports,
+                dependencies,
+            } => {
+                let res = crate::SchemaResolver::resolve_registry(
+                    repo,
+                    specs,
+                    imports,
+                    dependencies,
+                    self.config.include_unreferenced,
+                );
+                match res {
+                    WResult::Ok(resolved) => {
+                        let arc = Arc::new(WeaverResolvedSchema::V1(resolved));
+                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                            _ = self.cache.put(url, arc.clone());
+                        }
+                        WResult::Ok(arc)
+                    }
+                    WResult::OkWithNFEs(resolved, nfes) => {
+                        let arc = Arc::new(WeaverResolvedSchema::V1(resolved));
+                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                            _ = self.cache.put(url, arc.clone());
+                        }
+                        WResult::OkWithNFEs(arc, nfes)
+                    }
+                    WResult::FatalErr(e) => WResult::FatalErr(e),
+                }
+            }
+            LoadedSemconvRegistry::Resolved(schema) => {
+                let arc = Arc::new(WeaverResolvedSchema::V1(schema));
+                if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    _ = self.cache.put(url, arc.clone());
+                }
+                WResult::Ok(arc)
+            }
+            LoadedSemconvRegistry::ResolvedV2(schema) => {
+                let arc = Arc::new(WeaverResolvedSchema::V2(schema));
+                if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    _ = self.cache.put(url, arc.clone());
+                }
+                WResult::Ok(arc)
+            }
         }
     }
 
@@ -71,7 +199,7 @@ impl WeaverResolver {
     pub fn resolve_schema(
         &mut self,
         schema_url: &SchemaUrl,
-    ) -> WResult<Arc<ResolvedTelemetrySchema>, Error> {
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
         if let Some(cached) = self.cache.get(schema_url) {
             return WResult::Ok(cached.clone());
         }
@@ -86,10 +214,14 @@ impl WeaverResolver {
             Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
         };
 
-        let res = self.load_and_resolve_schema(repo);
+        let res = self.load_and_resolve_schema(repo, DefaultSchemaVisitor);
         match res {
-            WResult::Ok(arc) => WResult::OkWithNFEs(arc, nfes.into_iter().map(Error::from).collect()),
-            WResult::OkWithNFEs(arc, more_nfes) => {
+            WResult::Ok(_) => {
+                let arc = self.cache.get(schema_url).expect("Just cached").clone();
+                WResult::OkWithNFEs(arc, nfes.into_iter().map(Error::from).collect())
+            }
+            WResult::OkWithNFEs(_, more_nfes) => {
+                let arc = self.cache.get(schema_url).expect("Just cached").clone();
                 let mut all_nfes = nfes.into_iter().map(Error::from).collect::<Vec<_>>();
                 all_nfes.extend(more_nfes);
                 WResult::OkWithNFEs(arc, all_nfes)
@@ -101,77 +233,55 @@ impl WeaverResolver {
     /// Loads and resolves a semantic convention repository directly from disk or virtual directory.
     ///
     /// - Evaluates the provided repository.
+    /// - Executes any configured interceptor actions (e.g., BeforeResolution policy evaluation).
     /// - Draws any manifested dependencies directly from the internal cache.
     /// - Inserts the final resolved schema into the cache under its identified SchemaUrl.
     ///
     /// Primary Consumer: Weaver CLI (`weaver registry generate`, `weaver registry resolve`).
-    pub fn load_and_resolve_schema(
+    pub fn load_and_resolve_schema<V: SchemaLoadingVisitor>(
         &mut self,
         registry_repo: RegistryRepo,
-    ) -> WResult<Arc<ResolvedTelemetrySchema>, Error> {
-        let loaded = crate::SchemaResolver::load_semconv_repository_with_auth(
-            registry_repo,
-            self.config.follow_symlinks,
-            &self.config.auth,
-        );
+        mut visitor: V,
+    ) -> WResult<WeaverResolvedSchema, Error> {
+        let (loaded, mut load_nfes) = match self.load_repository(registry_repo) {
+            WResult::Ok(loaded) => (loaded, vec![]),
+            WResult::OkWithNFEs(loaded, nfes) => (loaded, nfes),
+            WResult::FatalErr(e) => return WResult::FatalErr(e),
+        };
 
-        match loaded {
-            WResult::Ok(loaded) => {
-                match crate::SchemaResolver::resolve(loaded, self.config.include_unreferenced) {
-                    WResult::Ok(resolved) => {
-                        let arc = Arc::new(resolved);
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url.as_str()) {
-                            _ = self.cache.put(url, arc.clone());
-                        }
-                        WResult::Ok(arc)
-                    }
-                    WResult::OkWithNFEs(resolved, nfes) => {
-                        let arc = Arc::new(resolved);
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url.as_str()) {
-                            _ = self.cache.put(url, arc.clone());
-                        }
-                        WResult::OkWithNFEs(arc, nfes)
-                    }
-                    WResult::FatalErr(e) => WResult::FatalErr(e),
+        if visitor.check_raw_loaded_schema_files(&loaded).is_err() {
+            return WResult::FatalErr(Error::LoadingAbortedByVisitor);
+        }
+
+        match self.resolve_loaded(loaded) {
+            WResult::Ok(arc) => {
+                let owned = Arc::unwrap_or_clone(arc);
+                if load_nfes.is_empty() {
+                    WResult::Ok(owned)
+                } else {
+                    WResult::OkWithNFEs(owned, load_nfes)
                 }
             }
-            WResult::OkWithNFEs(loaded, nfes) => {
-                match crate::SchemaResolver::resolve(loaded, self.config.include_unreferenced) {
-                    WResult::Ok(resolved) => {
-                        let arc = Arc::new(resolved);
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url.as_str()) {
-                            _ = self.cache.put(url, arc.clone());
-                        }
-                        WResult::OkWithNFEs(arc, nfes)
-                    }
-                    WResult::OkWithNFEs(resolved, res_nfes) => {
-                        let arc = Arc::new(resolved);
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url.as_str()) {
-                            _ = self.cache.put(url, arc.clone());
-                        }
-                        let mut combined_nfes = nfes;
-                        combined_nfes.extend(res_nfes);
-                        WResult::OkWithNFEs(arc, combined_nfes)
-                    }
-                    WResult::FatalErr(e) => WResult::FatalErr(e),
-                }
+            WResult::OkWithNFEs(arc, res_nfes) => {
+                load_nfes.extend(res_nfes);
+                WResult::OkWithNFEs(Arc::unwrap_or_clone(arc), load_nfes)
             }
             WResult::FatalErr(e) => WResult::FatalErr(e),
         }
     }
 
-    /// Manually injects a pre-resolved schema into the LRU cache.
+    /// Manually injects a pre-resolved schema bundle into the LRU cache.
     /// Strictly restricted to unit and integration test suites.
     #[cfg(test)]
     pub fn cache_schema(
         &mut self,
-        schema: ResolvedTelemetrySchema,
-    ) -> Arc<ResolvedTelemetrySchema> {
-        let url = SchemaUrl::try_from(schema.schema_url.as_str())
-            .expect("ResolvedTelemetrySchema contains valid schema_url");
-        let arc = Arc::new(schema);
+        schema_bundle: WeaverResolvedSchema,
+    ) -> WeaverResolvedSchema {
+        let url = SchemaUrl::try_from(schema_bundle.schema_url_str())
+            .expect("WeaverResolvedSchema contains valid schema_url");
+        let arc = Arc::new(schema_bundle);
         _ = self.cache.put(url, arc.clone());
-        arc
+        Arc::unwrap_or_clone(arc)
     }
 }
 
@@ -194,19 +304,22 @@ mod tests {
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![]).expect("Failed to create RegistryRepo");
 
-        let resolved = match resolver.load_and_resolve_schema(registry_repo) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
             WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
         };
 
         let url = SchemaUrl::try_from(resolved.schema_url.as_str()).expect("Valid schema url");
-        let cached = match resolver.resolve_schema(&url) {
+        let cached1 = match resolver.resolve_schema(&url) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to get from cache: {e}"),
+        };
+        let cached2 = match resolver.resolve_schema(&url) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
             WResult::FatalErr(e) => panic!("Failed to get from cache: {e}"),
         };
 
-        assert_eq!(resolved.schema_url, cached.schema_url);
-        assert!(Arc::ptr_eq(&resolved, &cached));
+        assert!(Arc::ptr_eq(&cached1, &cached2));
     }
 
     #[test]
@@ -217,8 +330,8 @@ mod tests {
                 ..Default::default()
             };
             let mut resolver = WeaverResolver::new(config);
-            let resolved = match resolver.load_and_resolve_schema(registry_repo) {
-                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
                 WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
             };
 
@@ -317,8 +430,8 @@ mod tests {
         };
         let mut resolver = WeaverResolver::new(config);
         
-        let resolved = match resolver.load_and_resolve_schema(registry_repo) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
             WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
         };
 
@@ -395,8 +508,8 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
         
-        let resolved = match resolver.load_and_resolve_schema(registry_repo) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
             WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
         };
 
@@ -455,8 +568,8 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
 
-        let resolved = match resolver.load_and_resolve_schema(registry_repo) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
             WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
         };
 

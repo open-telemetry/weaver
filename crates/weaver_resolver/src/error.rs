@@ -223,6 +223,14 @@ pub enum Error {
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
+
+    /// Attempted to convert an OpenTelemetry V2 schema into a V1 schema.
+    #[error("Converting a V2 schema into a V1 schema is unsupported")]
+    ConvertingV2ToV1Unsupported,
+
+    /// A user-defined schema loading visitor hook aborted the resolution pass.
+    #[error("Schema loading aborted by visitor hook")]
+    LoadingAbortedByVisitor,
 }
 
 impl WeaverError<Error> for Error {

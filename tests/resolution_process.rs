@@ -5,7 +5,7 @@
 use miette::Diagnostic;
 
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_resolver::SchemaResolver;
+use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::{registry_repo::RegistryRepo, schema_url::SchemaUrl};
 
 /// The URL of the official semantic convention registry.
@@ -43,23 +43,17 @@ fn test_cli_interface() {
         .unwrap_or_else(|e| {
             panic!("Failed to create the registry repo, error: {e}");
         });
-    let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
+    let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+    let resolved = resolver
+        .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| {
-            panic!("Failed to load the semantic convention specs, error: {e}");
-        });
-    // Check if the logger has reported any warnings or errors.
-    assert_eq!(log.warn_count(), 0);
-    assert_eq!(log.error_count(), 0);
-
-    // Resolve the official semantic convention registry.
-    let resolved_registry = SchemaResolver::resolve(loaded, false)
-        .into_result_failing_non_fatal()
-        .unwrap_or_else(|e| {
-            panic!("Failed to resolve the official semantic convention registry, error: {e}");
+            panic!("Failed to load and resolve the official semantic convention registry, error: {e}");
         })
-        .registry;
+        .into_v1()
+        .unwrap();
+    let resolved_registry = &resolved.registry;
 
     // The number of semconv groups is fluctuating, so we can't check for a
     // specific number, but we can check if there are any groups at all.

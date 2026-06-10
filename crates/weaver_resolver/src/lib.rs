@@ -24,7 +24,10 @@ mod resolver_v2;
 // Make helper portions of this create public APIs.
 pub use crate::error::Error;
 pub use crate::loader::LoadedSemconvRegistry;
-pub use crate::resolver_v2::{WeaverResolver, WeaverResolverConfig};
+pub use crate::resolver_v2::{
+    DefaultSchemaVisitor, SchemaLoadingVisitor, WeaverResolvedSchema, WeaverResolver,
+    WeaverResolverConfig,
+};
 
 /// A resolver that can be used to load and resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.

@@ -55,12 +55,10 @@ pub(crate) fn command(
 
     // Initialize the baseline registry if provided.
     let baseline = if let Some(br) = args.baseline_registry.as_ref() {
-        // ignore warnings.
+        // ignore non-fatal loading warnings for baseline.
         let mut ignored = DiagnosticMessages::empty();
         let registry_repo = RegistryRepo::try_new_with_auth(None, br, &mut vec![], auth)?;
-        let loaded = weaver.load_definitions(registry_repo, &mut ignored)?;
-        // TODO - do we need to keep any loading diagnostic messages?
-        Some(weaver.resolve(loaded, &mut diag_msgs)?)
+        Some(weaver.load_and_resolve_repo(registry_repo, &mut ignored)?)
     } else {
         None
     };

@@ -9,7 +9,7 @@ use weaver_common::{
 };
 use weaver_forge::{registry::ResolvedGroup, OutputProcessor};
 use weaver_resolved_schema::{catalog::Catalog, registry::Group, ResolvedTelemetrySchema};
-use weaver_resolver::SchemaResolver;
+use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::{parser::GenerateMarkdownArgs, Error, MarkdownSnippetGenerator};
@@ -65,22 +65,18 @@ impl ResolvedSemconvRegistry {
         follow_symlinks: bool,
         include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let loaded =
-            match SchemaResolver::load_semconv_repository(registry_repo.clone(), follow_symlinks) {
-                WResult::Ok(semconv_specs) => semconv_specs,
-                WResult::OkWithNFEs(semconv_specs, errs) => {
-                    diag_msgs
-                        .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
-                    semconv_specs
-                }
-                WResult::FatalErr(err) => return Err(err.into()),
-            };
-
-        let schema = match SchemaResolver::resolve(loaded, include_unreferenced) {
-            WResult::Ok(schema) => schema,
-            WResult::OkWithNFEs(schema, errs) => {
-                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
-                schema
+        let config = WeaverResolverConfig {
+            follow_symlinks,
+            include_unreferenced,
+            ..Default::default()
+        };
+        let mut resolver = WeaverResolver::new(config);
+        let schema = match resolver.load_and_resolve_schema(registry_repo.clone(), DefaultSchemaVisitor) {
+            WResult::Ok(bundle) => bundle.into_v1().expect("V1 schema expected"),
+            WResult::OkWithNFEs(bundle, errs) => {
+                diag_msgs
+                    .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                bundle.into_v1().expect("V1 schema expected")
             }
             WResult::FatalErr(err) => return Err(err.into()),
         };

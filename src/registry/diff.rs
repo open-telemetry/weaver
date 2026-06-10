@@ -75,10 +75,8 @@ pub(crate) fn command(
     let baseline_registry_repo =
         RegistryRepo::try_new_with_auth(None, &args.baseline_registry, &mut vec![], auth)?;
 
-    let main = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
-    let baseline = weaver.load_definitions(baseline_registry_repo, &mut diag_msgs)?;
-    let main_resolved = weaver.resolve(main, &mut diag_msgs)?;
-    let baseline_resolved = weaver.resolve(baseline, &mut diag_msgs)?;
+    let main_resolved = weaver.load_and_resolve_repo(main_registry_repo, &mut diag_msgs)?;
+    let baseline_resolved = weaver.load_and_resolve_repo(baseline_registry_repo, &mut diag_msgs)?;
     let diff = main_resolved
         .diff(&baseline_resolved)
         .map_err(DiagnosticMessages::from_error)?;
