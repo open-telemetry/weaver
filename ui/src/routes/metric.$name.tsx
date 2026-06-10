@@ -4,6 +4,7 @@ import { Route as RootRoute } from './__root'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
+import { EntityAssociations } from '../components/EntityAssociations'
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
 import { useResourceFetch } from '../hooks/useResourceFetch'
 
@@ -179,6 +180,8 @@ function MetricDetail() {
               </div>
             </div>
           )}
+
+          <EntityAssociations associations={data.entity_associations} />
         </>
       )}
     </div>
