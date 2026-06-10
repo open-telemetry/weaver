@@ -31,6 +31,7 @@
       - [Uncategorized](#uncategorized)
     - [Annotations](#annotations)
       - [Code Generation Annotations](#code-generation-annotations)
+      - [Dependency Resolution Annotations](#dependency-resolution-annotations)
 
 <!-- tocstop -->
 
@@ -758,5 +759,43 @@ attributes:
       code_generation:
         exclude: true  # Skip this attribute during code generation
 ```
+
+#### Dependency Resolution Annotations
+
+The `dependency_resolution` annotation hides an attribute, group, or signal from
+registries that consume this one as a dependency. The owning registry still
+sees the item normally - resolution, codegen, and docs are unaffected — but any
+dependent registry that references the item (via `ref`, `extends`,
+`include_groups`, `imports`, or a v2 refinement) fails to resolve.
+
+This is intended for migrations where definitions move out of a parent registry
+into a new one. Marking the old definitions excluded prevents conflicts in
+downstream registries, without forcing an immediate breaking removal from the parent.
+
+```yaml
+attributes:
+  - key: gen_ai.system
+    type: string
+    stability: stable
+    brief: The Generative AI product as identified by the client or server instrumentation.
+    examples: ['openai']
+    annotations:
+      dependency_resolution:
+        exclude: true  # Hide this attribute from dependent registries
+
+metrics:
+  - name: gen_ai.client.token.usage
+    brief: Measures number of input and output tokens used.
+    instrument: histogram
+    unit: "{token}"
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true  # Hide this metric from dependent registries
+```
+
+To prevent excluded items from leaking transitively into the resolved output,
+resolution also fails if a non-excluded item within the *same* registry uses
+an excluded one by reference (via `ref`, `extends`, or in refinements).
 
 [DocumentStatus]: https://opentelemetry.io/docs/specs/otel/document-status

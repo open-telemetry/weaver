@@ -1,0 +1,24 @@
+file_format: definition/2
+attributes:
+- key: some.attr
+  type: string
+  brief: an attribute
+  stability: stable
+  annotations:
+    dependency_resolution:
+      exclude: true
+metrics:
+  - name: parent.base
+    instrument: counter
+    unit: "1"
+    stability: stable
+    brief: Excluded base metric in the same registry.
+    annotations:
+      dependency_resolution:
+        exclude: true
+    attributes: 
+      - ref: some.attr
+metric_refinements:
+  - id: child.refined
+    ref: parent.base
+    brief: Public refinement targeting an excluded base.

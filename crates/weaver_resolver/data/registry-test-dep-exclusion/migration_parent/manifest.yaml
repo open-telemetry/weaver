@@ -1,0 +1,5 @@
+file_format: manifest/2.0
+schema_url: https://migration.example.com/parent/0.0.1
+description: Parent registry whose items have been migrated out. All retained items are deprecated and excluded from dependency resolution.
+stability: development
+resolved_registry_uri: resolved.yaml
