@@ -44,7 +44,7 @@ All attributes are lower case.
 groups ::= semconv [imports]
        | semconv [imports] groups
 
-semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
+semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes] [entity_associations] [annotations] specificfields
 
 imports := [metrics] [events] [entities] [spans] [attribute_groups]
 metrics := <wildcard> {<wildcard>}         # e.g. "db.*"
@@ -123,6 +123,18 @@ examples ::= <example_value> {<example_value>}
 role ::= "identifying" # Default if not specified
          | "descriptive"
 
+entity_associations ::= entity_association {entity_association}
+
+entity_association ::= entity_ref
+                   |   one_of
+                   |   all_of
+
+entity_ref ::= string # MUST be the name of an existing entity
+
+one_of ::= entity_association {entity_association} # satisfied when at least one holds
+
+all_of ::= entity_association {entity_association} # satisfied when all hold
+
 specificfields ::= spanfields
                |   eventfields
                |   metricfields
@@ -195,8 +207,48 @@ The field `semconv` represents a semantic convention and it is made by:
 - `deprecated`, optional, when present marks the semantic convention as deprecated.
   The string provided as `<description>` MUST specify why it's deprecated and/or what to use instead.
 - `attributes`, list of attributes that belong to the semantic convention.
+- `entity_associations`, optional list of [entity association expressions](#entity-associations) describing which
+  entities telemetry in this group is expected to be associated with.
 - `annotations`, optional map of annotations. Annotations are key-value pairs that provide additional information about
   the group. The keys are strings and the values are any YAML value.
+
+#### Entity associations
+
+The `entity_associations` field declares which entities telemetry in a group is expected to be associated with. Each
+list element is an *entity association expression*, which is one of:
+
+- an **entity reference** — the name of an entity, written as a bare string;
+- **`one_of`** — a map with a list of expressions, satisfied when *at least one* of them is satisfied;
+- **`all_of`** — a map with a list of expressions, satisfied when *every* one of them is satisfied.
+
+`one_of` and `all_of` may be nested arbitrarily. A bare list of entity references (the historical syntax) is
+interpreted as an implicit `one_of` — telemetry must be associated with at least one of the listed entities. The
+following two forms are therefore equivalent:
+
+```yaml
+# Implicit one_of
+entity_associations:
+  - host
+  - container
+
+# Explicit one_of
+entity_associations:
+  - one_of:
+      - host
+      - container
+```
+
+A nested example — telemetry must be associated with the `tenant` entity **and** with at least one of `host` or
+`container`:
+
+```yaml
+entity_associations:
+  - all_of:
+      - tenant
+      - one_of:
+          - host
+          - container
+```
 
 #### Span semantic convention
 

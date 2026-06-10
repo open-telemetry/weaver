@@ -64,3 +64,10 @@ ui/package-lock.json
 
 # weaver config files
 .weaver.toml
+
+# Fuzz build artifacts, generated corpus, and crash inputs
+fuzz/target/
+fuzz/corpus/
+fuzz/artifacts/
+# Track fuzz lockfile so CI doesn't silently upgrade deps
+!fuzz/Cargo.lock

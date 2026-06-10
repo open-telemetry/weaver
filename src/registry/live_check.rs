@@ -26,8 +26,8 @@ use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{
-    CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
-    LiveCheckStatistics, Sample, VersionedRegistry,
+    sample_resource::SampleResource, CumulativeStatistics, DisabledStatistics, Error, Ingester,
+    LiveCheckReport, LiveCheckRunner, LiveCheckStatistics, Sample, VersionedRegistry,
 };
 use weaver_macros::weaver_command;
 
@@ -365,7 +365,18 @@ pub(crate) fn command(
     };
 
     let mut samples = Vec::new();
+    let mut current_resource: Option<std::rc::Rc<SampleResource>> = None;
     for mut sample in ingester {
+        // Track the most-recently-seen resource and attach it to signals that carry one.
+        // This mirrors what the OTLP ingester does when building metrics/logs/spans from
+        // OTLP protocol buffers, and allows JSON file inputs to associate a resource.
+        match &mut sample {
+            Sample::Resource(r) => current_resource = Some(std::rc::Rc::new(r.clone())),
+            Sample::Metric(m) => m.resource = current_resource.clone(),
+            Sample::Log(l) => l.resource = current_resource.clone(),
+            Sample::Span(s) => s.resource = current_resource.clone(),
+            _ => {}
+        }
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
         //TODO: Check for violations and set exit_code here for no-stats mode
         if report_mode {

@@ -18,6 +18,7 @@ use crate::registry::GroupStats::{
 use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
@@ -138,9 +139,11 @@ pub struct Group {
     pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
+    ///
+    /// The list is an implicit `one_of`: telemetry must satisfy at least one of the entries.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
     /// Visibility of the attribute group.
     /// This is only used for v2 conversion.
     #[serde(default)]

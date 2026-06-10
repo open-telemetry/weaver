@@ -7,8 +7,7 @@ use std::process::Command as StdCommand;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
-
-use portpicker::pick_unused_port;
+use weaver_test_support::reserve_test_port;
 
 /// This test verifies the roundtrip functionality of registry live check and emit commands.
 /// This test doesn't count for the coverage report as it runs separate processes.
@@ -30,8 +29,8 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .to_str()
         .expect("Failed to convert temp directory path to string");
 
-    let otlp_grpc_port = pick_unused_port().expect("no free OTLP gRPC port");
-    let admin_port = pick_unused_port().expect("no free admin port");
+    let otlp_grpc_port = reserve_test_port();
+    let admin_port = reserve_test_port();
 
     // Build the arguments for live check command
     // Note: --input-source otlp and --skip-policies false are explicitly set
@@ -150,11 +149,11 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 #[test]
 fn test_emit_with_resource_attributes() {
     // Ports for weaver3 (final collector)
-    let w3_grpc_port = pick_unused_port().expect("no free weaver3 OTLP gRPC port");
-    let w3_admin_port = pick_unused_port().expect("no free weaver3 admin port");
+    let w3_grpc_port = reserve_test_port();
+    let w3_admin_port = reserve_test_port();
     // Ports for weaver2 (middle live-check with emit)
-    let w2_grpc_port = pick_unused_port().expect("no free weaver2 OTLP gRPC port");
-    let w2_admin_port = pick_unused_port().expect("no free weaver2 admin port");
+    let w2_grpc_port = reserve_test_port();
+    let w2_admin_port = reserve_test_port();
 
     // Temp dir for weaver3's JSON output
     let temp_dir = tempdir().expect("Failed to create temporary directory");
