@@ -1,0 +1,46 @@
+file_format: resolved/2.0
+schema_url: https://parent.example.com/schemas/1.0.0
+attribute_catalog:
+- key: parent.visible
+  type: string
+  brief: A visible attribute.
+  stability: stable
+- key: parent.excluded
+  type: string
+  brief: An attribute marked for exclusion from dependency resolution.
+  stability: stable
+  annotations:
+    dependency_resolution:
+      exclude: true
+registry:
+  attributes:
+  - 0
+  - 1
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: parent.visible.metric
+    instrument: counter
+    unit: "1"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: A visible metric.
+    stability: stable
+  - name: parent.excluded.metric
+    instrument: counter
+    unit: "1"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: A metric marked for exclusion.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
