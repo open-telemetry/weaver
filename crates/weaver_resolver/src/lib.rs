@@ -111,10 +111,9 @@ pub trait SchemaLoadingVisitor {
     /// Allows inspecting raw loaded files (unresolved specifications) immediately after successfully loading
     /// a semantic convention repository from disk or virtual directory, before final graph deduplication.
     ///
-    /// If this method returns `Err(())`, resolution is instantly aborted.
-    #[allow(clippy::result_unit_err)]
-    fn check_raw_loaded_schema_files(&mut self, _loaded: &LoadedSemconvRegistry) -> Result<(), ()> {
-        Ok(())
+    /// If this method returns `false`, resolution is instantly aborted.
+    fn check_raw_loaded_schema_files(&mut self, _loaded: &LoadedSemconvRegistry) -> bool {
+        true
     }
 }
 
@@ -447,7 +446,7 @@ impl WeaverResolver {
             WResult::FatalErr(e) => return WResult::FatalErr(e),
         };
 
-        if visitor.check_raw_loaded_schema_files(&loaded).is_err() {
+        if !visitor.check_raw_loaded_schema_files(&loaded) {
             return WResult::FatalErr(Error::LoadingAbortedByVisitor);
         }
 

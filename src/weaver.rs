@@ -35,17 +35,17 @@ impl<'a> SchemaLoadingVisitor for PolicyVisitor<'a> {
     fn check_raw_loaded_schema_files(
         &mut self,
         loaded: &LoadedSemconvRegistry,
-    ) -> Result<(), ()> {
+    ) -> bool {
         if let LoadedSemconvRegistry::Unresolved { specs, .. } = loaded {
             let mut local_diags = DiagnosticMessages::empty();
             let res = check_policy(self.engine, specs).capture_non_fatal_errors(&mut local_diags);
             self.diag_msgs.extend(local_diags);
             if let Err(e) = res {
                 *self.fatal_err = Some(e);
-                return Err(());
+                return false;
             }
         }
-        Ok(())
+        true
     }
 }
 
