@@ -794,4 +794,27 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn test_schema_url_overrides() -> Result<(), Error> {
+        let schema_url = SchemaUrl::try_from("https://app.example.com/schemas/1.0.0").unwrap();
+        let override_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/app_registry".to_owned(),
+        };
+
+        let mut config = WeaverResolverConfig::default();
+        _ = config.schema_url_overrides.insert(schema_url.clone(), override_path);
+
+        let mut resolver = WeaverResolver::new(config);
+
+        // Resolving the schema URL should successfully load it from the override local folder
+        // rather than trying to fetch from remote network!
+        let resolved = match resolver.resolve_schema(&schema_url) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve overridden schema: {e}"),
+        };
+
+        assert_eq!(resolved.schema_url_str(), "https://app.example.com/schemas/1.0.0");
+        Ok(())
+    }
 }
