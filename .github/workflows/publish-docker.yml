@@ -63,6 +63,37 @@ jobs:
     - name: Test
       run: |
         docker run --rm ${{ env.TEST_WEAVER_TAG }} --help
+    - name: Install Playwright browser
+      run: pnpm exec playwright install --with-deps chromium
+      working-directory: ./ui
+    - name: Start weaver container
+      run: |
+        docker run --init -d --rm --name weaver-smoke -p 8080:8080 \
+          -v "$(pwd)/crates/weaver_live_check/model":/model \
+          ${{ env.TEST_WEAVER_TAG }} serve --registry /model --bind 0.0.0.0:8080
+        for i in $(seq 1 60); do
+          if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
+            echo "weaver container ready"; exit 0
+          fi
+          sleep 1
+        done
+        echo "weaver container failed to become ready"; docker logs weaver-smoke; exit 1
+    - name: Run UI smoke tests against container
+      env:
+        WEAVER_EXTERNAL_SERVER: "1"
+        WEAVER_BASE_URL: http://127.0.0.1:8080
+      run: pnpm test:e2e
+      working-directory: ./ui
+    - name: Stop weaver container
+      if: always()
+      run: docker rm -f weaver-smoke || true
+    - name: Upload Playwright report
+      if: failure()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: playwright-report-${{ matrix.runner }}
+        path: ui/playwright-report/
+        retention-days: 7
     - name: Log in to Docker Hub
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
