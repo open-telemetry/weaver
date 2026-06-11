@@ -5,7 +5,7 @@
 //! This crate is intended for use as a `[dev-dependencies]` entry only.
 
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::thread::sleep;
 use std::time::Duration;
@@ -65,18 +65,13 @@ pub fn reserve_test_port() -> u16 {
     let state_path = temp_dir.join("weaver_test_port_allocator.state");
     // TODO - we should use a real file lock if we truly want to prevent x-process failure.
     // This at least fixes flaky test issues experienced on some machines.
-    let mut next_port = if let Ok(mut file) = fs::File::open(&state_path) {
-        let mut contents = String::new();
-        if file.read_to_string(&mut contents).is_ok() {
-            contents.trim().parse::<u16>().unwrap_or(PORT_BASE)
-        } else {
-            PORT_BASE
-        }
+    let mut next_port = if let Ok(contents) = fs::read_to_string(&state_path) {
+        contents.trim().parse::<u16>().unwrap_or(PORT_BASE)
     } else {
         PORT_BASE
     };
 
-    if next_port < PORT_BASE || next_port > PORT_MAX {
+    if !(PORT_BASE..=PORT_MAX).contains(&next_port) {
         next_port = PORT_BASE;
     }
 
