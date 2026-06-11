@@ -826,46 +826,50 @@ mod tests {
         Ok(())
     }
 
-    fn resolve_at(
-        path: &str,
-    ) -> WResult<weaver_resolved_schema::ResolvedTelemetrySchema, crate::Error> {
+    fn resolve_at(path: &str) -> WResult<ResolvedTelemetrySchema, Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: path.to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("Failed to create registry repo");
-        let mut diag_msgs = DiagnosticMessages::empty();
-        let loaded = SchemaResolver::load_semconv_repository(registry_repo, false)
-            .capture_non_fatal_errors(&mut diag_msgs)
-            .expect("Failed to load registry");
-        SchemaResolver::resolve(loaded, false)
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) => r
+                .into_v1()
+                .map(WResult::Ok)
+                .unwrap_or_else(WResult::FatalErr),
+            WResult::OkWithNFEs(r, nfes) => match r.into_v1() {
+                Ok(v1) => WResult::OkWithNFEs(v1, nfes),
+                Err(e) => WResult::FatalErr(e),
+            },
+            WResult::FatalErr(e) => WResult::FatalErr(e),
+        }
     }
 
     fn resolve_inline_with_parent(
         consumer_yaml: &str,
         parent_path: &str,
-    ) -> WResult<weaver_resolved_schema::ResolvedTelemetrySchema, crate::Error> {
+    ) -> WResult<ResolvedTelemetrySchema, Error> {
         let parent_vpath = VirtualDirectoryPath::LocalFolder {
             path: parent_path.to_owned(),
         };
         let parent_repo = RegistryRepo::try_new(None, &parent_vpath, &mut vec![])
             .expect("Failed to create parent registry repo");
-        let mut diag_msgs = DiagnosticMessages::empty();
-        let parent_loaded = SchemaResolver::load_semconv_repository(parent_repo, false)
-            .capture_non_fatal_errors(&mut diag_msgs)
-            .expect("Failed to load parent registry");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let parent_loaded = match resolver.load_repository(parent_repo) {
+            WResult::Ok(l) | WResult::OkWithNFEs(l, _) => l,
+            WResult::FatalErr(e) => panic!("Failed to load parent: {e}"),
+        };
 
-        let consumer = crate::LoadedSemconvRegistry::create_from_string(consumer_yaml)
+        let consumer = LoadedSemconvRegistry::create_from_string(consumer_yaml)
             .expect("Failed to load consumer yaml");
         let with_dep = match consumer {
-            crate::LoadedSemconvRegistry::Unresolved {
+            LoadedSemconvRegistry::Unresolved {
                 repo,
                 specs,
                 imports,
                 ..
             } => {
-                // create_from_string does not extract `imports:` from the spec;
-                // do it here so this helper handles imports-driven scenarios.
                 let mut all_imports = imports;
                 for s in &specs {
                     let v1 = s.clone().into_v1();
@@ -876,7 +880,7 @@ mod tests {
                         });
                     }
                 }
-                crate::LoadedSemconvRegistry::Unresolved {
+                LoadedSemconvRegistry::Unresolved {
                     repo,
                     specs,
                     imports: all_imports,
@@ -886,11 +890,21 @@ mod tests {
             _ => panic!("Expected unresolved consumer registry"),
         };
 
-        SchemaResolver::resolve(with_dep, false)
+        match resolver.resolve_loaded(with_dep) {
+            WResult::Ok(arc) => Arc::unwrap_or_clone(arc)
+                .into_v1()
+                .map(WResult::Ok)
+                .unwrap_or_else(WResult::FatalErr),
+            WResult::OkWithNFEs(arc, nfes) => match Arc::unwrap_or_clone(arc).into_v1() {
+                Ok(v1) => WResult::OkWithNFEs(v1, nfes),
+                Err(e) => WResult::FatalErr(e),
+            },
+            WResult::FatalErr(e) => WResult::FatalErr(e),
+        }
     }
 
     fn assert_exclusion_errors(
-        result: WResult<weaver_resolved_schema::ResolvedTelemetrySchema, crate::Error>,
+        result: WResult<ResolvedTelemetrySchema, Error>,
         expected: &[(&str, &str)],
     ) {
         let err = match result {
@@ -905,7 +919,7 @@ mod tests {
             let found = errors.iter().any(|e| {
                 matches!(
                     e,
-                    crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                    Error::ExcludedFromDependencyResolution { id, used_in, .. }
                         if id == expected_id && used_in == expected_used_in
                 )
             });
@@ -916,9 +930,9 @@ mod tests {
         }
     }
 
-    fn collect_errors<'a>(err: &'a crate::Error, out: &mut Vec<&'a crate::Error>) {
+    fn collect_errors<'a>(err: &'a Error, out: &mut Vec<&'a Error>) {
         match err {
-            crate::Error::CompoundError(inner) => {
+            Error::CompoundError(inner) => {
                 for e in inner {
                     collect_errors(e, out);
                 }
@@ -1010,10 +1024,21 @@ metrics:
 
     fn create_registry_from_string(
         registry_spec: &str,
-    ) -> WResult<weaver_resolved_schema::registry::Registry, crate::Error> {
-        let loaded = crate::LoadedSemconvRegistry::create_from_string(registry_spec)
+    ) -> WResult<weaver_resolved_schema::registry::Registry, Error> {
+        let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
             .expect("Failed to load semconv spec");
-        SchemaResolver::resolve(loaded, false).map(|schema| schema.registry)
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        match resolver.resolve_loaded(loaded) {
+            WResult::Ok(arc) => Arc::unwrap_or_clone(arc)
+                .into_v1()
+                .map(|s| WResult::Ok(s.registry))
+                .unwrap_or_else(WResult::FatalErr),
+            WResult::OkWithNFEs(arc, nfes) => match Arc::unwrap_or_clone(arc).into_v1() {
+                Ok(v1) => WResult::OkWithNFEs(v1.registry, nfes),
+                Err(e) => WResult::FatalErr(e),
+            },
+            WResult::FatalErr(e) => WResult::FatalErr(e),
+        }
     }
 
     #[test]
@@ -1051,11 +1076,11 @@ groups:
 
         match result.into_result_failing_non_fatal() {
             Ok(_) => panic!("expected an exclusion error"),
-            Err(crate::Error::CompoundError(errors)) => {
+            Err(Error::CompoundError(errors)) => {
                 assert!(
                     errors.iter().any(|e| matches!(
                         e,
-                        crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                        Error::ExcludedFromDependencyResolution { id, used_in, .. }
                             if id == "secret.value" && used_in == "span.public"
                     )),
                     "expected exclusion error on span.public, got {errors:#?}"
@@ -1091,11 +1116,11 @@ groups:
 
         match result.into_result_failing_non_fatal() {
             Ok(_) => panic!("expected an exclusion error"),
-            Err(crate::Error::CompoundError(errors)) => {
+            Err(Error::CompoundError(errors)) => {
                 assert!(
                     errors.iter().any(|e| matches!(
                         e,
-                        crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                        Error::ExcludedFromDependencyResolution { id, used_in, .. }
                             if id == "secret.value" && used_in == "span.public"
                     )),
                     "expected exclusion error from inline-id, got {errors:#?}"
@@ -1303,11 +1328,11 @@ groups:
 
         match result.into_result_failing_non_fatal() {
             Ok(_) => panic!("expected an exclusion error on span.leaks"),
-            Err(crate::Error::CompoundError(errors)) => {
+            Err(Error::CompoundError(errors)) => {
                 assert!(
                     errors.iter().any(|e| matches!(
                         e,
-                        crate::Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                        Error::ExcludedFromDependencyResolution { id, used_in, .. }
                             if id == "secret.value" && used_in == "span.leaks"
                     )),
                     "expected exclusion error on span.leaks, got {errors:#?}"
