@@ -6527,6 +6527,7 @@ dependencies = [
  "regex",
  "saphyr",
  "schemars",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",

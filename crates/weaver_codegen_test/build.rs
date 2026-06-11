@@ -55,7 +55,7 @@ fn main() {
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e))
         .into_v1()
-        .unwrap();
+        .expect("Only V1 schemas are supported in this codegen test");
 
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));

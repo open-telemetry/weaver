@@ -103,9 +103,9 @@ impl<'a> WeaverEngine<'a> {
         let mut resolver = WeaverResolver::new(config);
 
         let mut fatal_err = None;
-        let resolved_bundle = if !self.registry_config.v2 && policy_engine.is_some() {
+        let resolved_bundle = if let (false, Some(policy_eng)) = (self.registry_config.v2, policy_engine.as_ref()) {
             let visitor = PolicyVisitor {
-                engine: policy_engine.as_ref().unwrap(),
+                engine: policy_eng,
                 diag_msgs,
                 fatal_err: &mut fatal_err,
             };
@@ -116,7 +116,7 @@ impl<'a> WeaverEngine<'a> {
                     r
                 }
                 WResult::FatalErr(weaver_resolver::Error::LoadingAbortedByVisitor) => {
-                    return Err(Error::Checker(fatal_err.unwrap()));
+                    return Err(Error::Checker(fatal_err.expect("LoadingAbortedByVisitor implies fatal_err is populated")));
                 }
                 WResult::FatalErr(e) => return Err(e.into()),
             }

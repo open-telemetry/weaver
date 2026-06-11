@@ -18,6 +18,11 @@ pub enum Error {
     #[diagnostic(transparent)]
     FailToResolveDefinition(#[from] weaver_semconv::Error),
 
+    /// Failed to access a virtual directory path.
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    VirtualDirectoryError(#[from] weaver_common::Error),
+
     /// We discovered a circular dependency we cannot resolve.
     #[error("Circular dependency detected: registry '{registry_name}' depends on itself through the chain: {chain}")]
     CircularDependency {
