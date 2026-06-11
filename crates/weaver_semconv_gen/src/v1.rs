@@ -71,11 +71,12 @@ impl ResolvedSemconvRegistry {
             ..Default::default()
         };
         let mut resolver = WeaverResolver::new(config);
-        let schema = match resolver.load_and_resolve_schema(registry_repo.clone(), DefaultSchemaVisitor) {
+        let schema = match resolver
+            .load_and_resolve_schema(registry_repo.clone(), DefaultSchemaVisitor)
+        {
             WResult::Ok(bundle) => bundle.into_v1().expect("V1 schema expected"),
             WResult::OkWithNFEs(bundle, errs) => {
-                diag_msgs
-                    .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
                 bundle.into_v1().expect("V1 schema expected")
             }
             WResult::FatalErr(err) => return Err(err.into()),

@@ -49,7 +49,9 @@ fn test_cli_interface() {
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| {
-            panic!("Failed to load and resolve the official semantic convention registry, error: {e}");
+            panic!(
+                "Failed to load and resolve the official semantic convention registry, error: {e}"
+            );
         })
         .into_v1()
         .unwrap();

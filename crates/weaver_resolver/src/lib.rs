@@ -2,10 +2,10 @@
 
 #![doc = include_str!("../README.md")]
 
+use lru::LruCache;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-use lru::LruCache;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
@@ -25,7 +25,6 @@ mod error;
 mod loader;
 pub(crate) mod merge;
 mod registry;
-
 
 pub use crate::error::Error;
 pub use crate::loader::LoadedSemconvRegistry;
@@ -78,13 +77,13 @@ impl WeaverResolvedSchema {
 pub struct WeaverResolverConfig {
     /// Maximum number of fully resolved schemas to retain in the internal LRU cache.
     pub cache_capacity: NonZeroUsize,
-    
+
     /// Whether to follow symbolic links during directory traversal.
     pub follow_symlinks: bool,
 
     /// Whether to include unreferenced groups in the resolved catalog.
     pub include_unreferenced: bool,
-    
+
     /// HTTP authentication credentials resolver for remote registry fetches.
     pub auth: HttpAuthResolver,
 
@@ -132,7 +131,7 @@ impl SchemaLoadingVisitor for DefaultSchemaVisitor {}
 pub struct WeaverResolver {
     /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schema bundles.
     cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
-    
+
     /// Internal engine configuration.
     config: WeaverResolverConfig,
 }
@@ -173,7 +172,10 @@ impl WeaverResolver {
         schema_url: SchemaUrl,
         target_path: weaver_common::vdir::VirtualDirectoryPath,
     ) {
-        _ = self.config.schema_url_overrides.insert(schema_url, target_path);
+        _ = self
+            .config
+            .schema_url_overrides
+            .insert(schema_url, target_path);
     }
 
     /// Loads a semantic convention repository without executing the final resolution step.
@@ -223,7 +225,8 @@ impl WeaverResolver {
             }
         }
 
-        let loaded = if let Some(override_path) = self.config.schema_url_overrides.get(&schema_url) {
+        let loaded = if let Some(override_path) = self.config.schema_url_overrides.get(&schema_url)
+        {
             let mut nfes = vec![];
             match RegistryRepo::try_new_with_auth(
                 Some(schema_url.clone()),
@@ -231,13 +234,11 @@ impl WeaverResolver {
                 &mut nfes,
                 &self.config.auth,
             ) {
-                Ok(repo) => {
-                    match self.load_repository(repo) {
-                        WResult::Ok(l) => l,
-                        WResult::OkWithNFEs(l, _) => l,
-                        WResult::FatalErr(e) => return WResult::FatalErr(e),
-                    }
-                }
+                Ok(repo) => match self.load_repository(repo) {
+                    WResult::Ok(l) => l,
+                    WResult::OkWithNFEs(l, _) => l,
+                    WResult::FatalErr(e) => return WResult::FatalErr(e),
+                },
                 Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
             }
         } else {
@@ -319,19 +320,17 @@ impl WeaverResolver {
             resolved_dependencies,
             include_unreferenced,
         )
-        .map(move |resolved_registry| {
-            ResolvedTelemetrySchema {
-                file_format: "1.0.0".to_owned(),
-                schema_url: schema_url.as_str().to_owned(),
-                registry_id: schema_url.name().to_owned(),
-                registry: resolved_registry,
-                catalog: attr_catalog.into(),
-                resource: None,
-                instrumentation_library: None,
-                dependencies,
-                versions: None,
-                registry_manifest: manifest,
-            }
+        .map(move |resolved_registry| ResolvedTelemetrySchema {
+            file_format: "1.0.0".to_owned(),
+            schema_url: schema_url.as_str().to_owned(),
+            registry_id: schema_url.name().to_owned(),
+            registry: resolved_registry,
+            catalog: attr_catalog.into(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies,
+            versions: None,
+            registry_manifest: manifest,
         })
     }
 
@@ -348,12 +347,7 @@ impl WeaverResolver {
                 imports,
                 dependencies,
             } => {
-                let res = self.resolve_registry_internal(
-                    repo,
-                    specs,
-                    imports,
-                    dependencies,
-                );
+                let res = self.resolve_registry_internal(repo, specs, imports, dependencies);
                 match res {
                     WResult::Ok(resolved) => {
                         let arc = Arc::new(WeaverResolvedSchema::V1(resolved));
@@ -480,10 +474,7 @@ impl WeaverResolver {
     /// Manually injects a pre-resolved schema bundle into the LRU cache.
     /// Strictly restricted to unit and integration test suites.
     #[cfg(test)]
-    pub fn cache_schema(
-        &mut self,
-        schema_bundle: WeaverResolvedSchema,
-    ) -> WeaverResolvedSchema {
+    pub fn cache_schema(&mut self, schema_bundle: WeaverResolvedSchema) -> WeaverResolvedSchema {
         let url = SchemaUrl::try_from(schema_bundle.schema_url_str())
             .expect("WeaverResolvedSchema contains valid schema_url");
         let arc = Arc::new(schema_bundle);
@@ -513,7 +504,8 @@ mod tests {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![]).expect("Failed to create RegistryRepo");
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to create RegistryRepo");
 
         let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
@@ -541,10 +533,11 @@ mod tests {
                 ..Default::default()
             };
             let mut resolver = WeaverResolver::new(config);
-            let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
-                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
-                WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
-            };
+            let resolved =
+                match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                    WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+                    WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+                };
 
             let resolved_registry = &resolved;
 
@@ -640,7 +633,7 @@ mod tests {
             ..Default::default()
         };
         let mut resolver = WeaverResolver::new(config);
-        
+
         let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
             WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
@@ -718,7 +711,7 @@ mod tests {
 
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
-        
+
         let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
             WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
@@ -812,7 +805,9 @@ mod tests {
         };
 
         let mut config = WeaverResolverConfig::default();
-        _ = config.schema_url_overrides.insert(schema_url.clone(), override_path);
+        _ = config
+            .schema_url_overrides
+            .insert(schema_url.clone(), override_path);
 
         let mut resolver = WeaverResolver::new(config);
 
@@ -823,7 +818,10 @@ mod tests {
             WResult::FatalErr(e) => panic!("Failed to resolve overridden schema: {e}"),
         };
 
-        assert_eq!(resolved.schema_url_str(), "https://app.example.com/schemas/1.0.0");
+        assert_eq!(
+            resolved.schema_url_str(),
+            "https://app.example.com/schemas/1.0.0"
+        );
         Ok(())
     }
 }

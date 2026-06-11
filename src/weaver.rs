@@ -32,10 +32,7 @@ struct PolicyVisitor<'a> {
 }
 
 impl<'a> SchemaLoadingVisitor for PolicyVisitor<'a> {
-    fn check_raw_loaded_schema_files(
-        &mut self,
-        loaded: &LoadedSemconvRegistry,
-    ) -> bool {
+    fn check_raw_loaded_schema_files(&mut self, loaded: &LoadedSemconvRegistry) -> bool {
         if let LoadedSemconvRegistry::Unresolved { specs, .. } = loaded {
             let mut local_diags = DiagnosticMessages::empty();
             let res = check_policy(self.engine, specs).capture_non_fatal_errors(&mut local_diags);
@@ -103,7 +100,9 @@ impl<'a> WeaverEngine<'a> {
         let mut resolver = WeaverResolver::new(config);
 
         let mut fatal_err = None;
-        let resolved_bundle = if let (false, Some(policy_eng)) = (self.registry_config.v2, policy_engine.as_ref()) {
+        let resolved_bundle = if let (false, Some(policy_eng)) =
+            (self.registry_config.v2, policy_engine.as_ref())
+        {
             let visitor = PolicyVisitor {
                 engine: policy_eng,
                 diag_msgs,
@@ -112,11 +111,14 @@ impl<'a> WeaverEngine<'a> {
             match resolver.load_and_resolve_schema(repo, visitor) {
                 WResult::Ok(r) => r,
                 WResult::OkWithNFEs(r, nfes) => {
-                    diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
+                    diag_msgs
+                        .extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
                     r
                 }
                 WResult::FatalErr(weaver_resolver::Error::LoadingAbortedByVisitor) => {
-                    return Err(Error::Checker(fatal_err.expect("LoadingAbortedByVisitor implies fatal_err is populated")));
+                    return Err(Error::Checker(
+                        fatal_err.expect("LoadingAbortedByVisitor implies fatal_err is populated"),
+                    ));
                 }
                 WResult::FatalErr(e) => return Err(e.into()),
             }
@@ -131,7 +133,8 @@ impl<'a> WeaverEngine<'a> {
             match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
                 WResult::Ok(r) => r,
                 WResult::OkWithNFEs(r, nfes) => {
-                    diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
+                    diag_msgs
+                        .extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
                     r
                 }
                 WResult::FatalErr(weaver_resolver::Error::LoadingAbortedByVisitor) => {

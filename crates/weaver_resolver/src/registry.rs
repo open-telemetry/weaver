@@ -947,8 +947,8 @@ mod tests {
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
-    use std::sync::Arc;
     use crate::{WeaverResolver, WeaverResolverConfig};
+    use std::sync::Arc;
 
     /// Settings for resolution tests.
     #[derive(Serialize, Deserialize, Default)]
@@ -1031,56 +1031,63 @@ mod tests {
             let location: VirtualDirectoryPath = format!("{test_dir}/registry")
                 .try_into()
                 .expect("Failed to parse file directory");
-            let mut resolver = WeaverResolver::new(WeaverResolverConfig { follow_symlinks: true, ..Default::default() });
-            let loaded = resolver.load_repository(
-                RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
-                    .expect("Failed to load registry"),
-            )
-            .ignore(|e| {
-                // Ignore prefix errors on tests of prefix.
-                test_dir.contains("prefix")
-                    && matches!(
+            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+                follow_symlinks: true,
+                ..Default::default()
+            });
+            let loaded = resolver
+                .load_repository(
+                    RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
+                        .expect("Failed to load registry"),
+                )
+                .ignore(|e| {
+                    // Ignore prefix errors on tests of prefix.
+                    test_dir.contains("prefix")
+                        && matches!(
+                            e,
+                            crate::Error::FailToResolveDefinition(
+                                weaver_semconv::Error::InvalidGroupUsesPrefix {
+                                    path_or_url: _,
+                                    group_id: _
+                                }
+                            )
+                        )
+                })
+                .ignore(|e| {
+                    matches!(
                         e,
                         crate::Error::FailToResolveDefinition(
-                            weaver_semconv::Error::InvalidGroupUsesPrefix {
-                                path_or_url: _,
-                                group_id: _
+                            weaver_semconv::Error::UnstableFileFormat {
+                                file_format: _,
+                                provenance: _,
                             }
                         )
                     )
-            })
-            .ignore(|e| {
-                matches!(
-                    e,
-                    crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::UnstableFileFormat {
-                            file_format: _,
-                            provenance: _,
-                        }
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::LegacyRegistryManifest { path: _ }
+                        )
                     )
-                )
-            })
-            .ignore(|e| {
-                matches!(
-                    e,
-                    crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::LegacyRegistryManifest { path: _ }
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
+                        )
                     )
-                )
-            })
-            .ignore(|e| {
-                matches!(
-                    e,
-                    crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
-                    )
-                )
-            })
-            .into_result_failing_non_fatal()
-            .expect("Failed to load semconv specs");
+                })
+                .into_result_failing_non_fatal()
+                .expect("Failed to load semconv specs");
 
             // We need to resolve dependencies.
-            let schema = resolver.resolve_loaded(loaded).map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap()).into_result_failing_non_fatal();
+            let schema = resolver
+                .resolve_loaded(loaded)
+                .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
+                .into_result_failing_non_fatal();
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
@@ -1206,7 +1213,9 @@ mod tests {
         let loaded = crate::LoadedSemconvRegistry::create_from_string(registry_spec)
             .expect("Failed to load semconv spec");
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
-        resolver.resolve_loaded(loaded).map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap().registry)
+        resolver
+            .resolve_loaded(loaded)
+            .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap().registry)
     }
 
     #[test]
@@ -1276,10 +1285,17 @@ groups:
             .expect("Should be valid schema url");
         let repo = RegistryRepo::try_new(Some(schema_url), &path, &mut vec![])
             .expect("Failed to load registry");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig { follow_symlinks: true, ..Default::default() });
-        let loaded = resolver.load_repository(repo).into_result_failing_non_fatal()?;
-        let resolved_schema: weaver_resolved_schema::ResolvedTelemetrySchema =
-            resolver.resolve_loaded(loaded).map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap()).into_result_failing_non_fatal()?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            follow_symlinks: true,
+            ..Default::default()
+        });
+        let loaded = resolver
+            .load_repository(repo)
+            .into_result_failing_non_fatal()?;
+        let resolved_schema: weaver_resolved_schema::ResolvedTelemetrySchema = resolver
+            .resolve_loaded(loaded)
+            .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
+            .into_result_failing_non_fatal()?;
 
         // Get the resolved registry by its ID.
         let resolved_registry = &resolved_schema.registry;

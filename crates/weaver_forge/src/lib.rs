@@ -1292,7 +1292,11 @@ mod tests {
             .expect("Failed to load and resolve registry")
             .0;
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test_with_registry("comment_format", Params::default(), schema.into_v1().unwrap());
+            prepare_test_with_registry(
+                "comment_format",
+                Params::default(),
+                schema.into_v1().unwrap(),
+            );
 
         engine
             .generate(
