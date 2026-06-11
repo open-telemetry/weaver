@@ -225,7 +225,12 @@ impl WeaverResolver {
 
         let loaded = if let Some(override_path) = self.config.schema_url_overrides.get(&schema_url) {
             let mut nfes = vec![];
-            match RegistryRepo::try_new(Some(schema_url.clone()), override_path, &mut nfes) {
+            match RegistryRepo::try_new_with_auth(
+                Some(schema_url.clone()),
+                override_path,
+                &mut nfes,
+                &self.config.auth,
+            ) {
                 Ok(repo) => {
                     match self.load_repository(repo) {
                         WResult::Ok(l) => l,
@@ -403,7 +408,12 @@ impl WeaverResolver {
 
         let mut nfes = vec![];
         let repo = if let Some(override_path) = self.config.schema_url_overrides.get(schema_url) {
-            match RegistryRepo::try_new(Some(schema_url.clone()), override_path, &mut nfes) {
+            match RegistryRepo::try_new_with_auth(
+                Some(schema_url.clone()),
+                override_path,
+                &mut nfes,
+                &self.config.auth,
+            ) {
                 Ok(r) => r,
                 Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
             }
