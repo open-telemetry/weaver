@@ -147,25 +147,6 @@ impl WeaverResolver {
         }
     }
 
-    /// Manually injects a fully resolved OpenTelemetry schema bundle into the internal memory cache.
-    /// Any subsequent dependency graph requests for this exact SchemaUrl will be served instantly
-    /// from memory, circumventing disk parsing and network downloads.
-    pub fn cache_resolved_schema(&mut self, schema_bundle: WeaverResolvedSchema) {
-        if let Ok(url) = SchemaUrl::try_from(schema_bundle.schema_url_str()) {
-            _ = self.cache.put(url, Arc::new(schema_bundle));
-        }
-    }
-
-    /// Populates multiple fully resolved OpenTelemetry schema bundles into the internal memory cache.
-    pub fn cache_resolved_schemas<I>(&mut self, schemas: I)
-    where
-        I: IntoIterator<Item = WeaverResolvedSchema>,
-    {
-        for schema in schemas {
-            self.cache_resolved_schema(schema);
-        }
-    }
-
     /// Configures an explicit location override for a specific SchemaUrl.
     /// When Weaver resolves this SchemaUrl, it will redirect the fetch to the target VirtualDirectoryPath.
     pub fn add_schema_url_override(
@@ -182,7 +163,7 @@ impl WeaverResolver {
     /// Loads a semantic convention repository without executing the final resolution step.
     ///
     /// Allows inspecting unresolved specifications or evaluating policy rules (e.g., BeforeResolution).
-    pub fn load_repository(
+    pub(crate) fn load_repository(
         &mut self,
         registry_repo: RegistryRepo,
     ) -> WResult<LoadedSemconvRegistry, Error> {
@@ -337,7 +318,7 @@ impl WeaverResolver {
 
     /// Resolves an already loaded semantic convention repository, executing graph deduplication
     /// and populating the internal LRU cache.
-    pub fn resolve_loaded(
+    pub(crate) fn resolve_loaded(
         &mut self,
         loaded: LoadedSemconvRegistry,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
