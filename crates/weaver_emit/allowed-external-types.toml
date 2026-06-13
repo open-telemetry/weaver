@@ -3,7 +3,11 @@
 # This is used with cargo-check-external-types to reduce the surface area of downstream crates from
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
-    "serde::ser::Serialize",
+    "serde_core::ser::Serialize",
     "miette::protocol::Diagnostic",
     "weaver_forge::registry::ResolvedRegistry",
+    "opentelemetry::common::KeyValue",
+    "weaver_resolved_schema::attribute::Attribute",
+    "weaver_forge::v2::attribute::Attribute",
+    "weaver_forge::v2::registry::ForgeResolvedRegistry",
 ]
