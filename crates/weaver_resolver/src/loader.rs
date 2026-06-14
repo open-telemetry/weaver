@@ -161,7 +161,17 @@ impl Display for LoadedSemconvRegistry {
 ///
 /// Note: This may load in a definition (raw) repository *or* an already resolved repository.
 ///       When loading a raw repository, dependencies will also be loaded.
+#[allow(dead_code)]
 pub(crate) fn load_semconv_repository(
+    registry_repo: RegistryRepo,
+    follow_symlinks: bool,
+    auth: &HttpAuthResolver,
+) -> WResult<LoadedSemconvRegistry, Error> {
+    load_semconv_repository_with_cache(None, registry_repo, follow_symlinks, auth)
+}
+
+pub(crate) fn load_semconv_repository_with_cache(
+    cache: Option<&lru::LruCache<SchemaUrl, std::sync::Arc<crate::WeaverResolvedSchema>>>,
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     auth: &HttpAuthResolver,
@@ -170,6 +180,7 @@ pub(crate) fn load_semconv_repository(
     let mut visited_registries = std::collections::HashMap::new();
     let mut dependency_chain = Vec::new();
     load_semconv_repository_recursive(
+        cache,
         registry_repo,
         follow_symlinks,
         MAX_DEPENDENCY_DEPTH,
@@ -179,9 +190,17 @@ pub(crate) fn load_semconv_repository(
     )
 }
 
+pub(crate) fn find_pre_resolved(
+    cache: &lru::LruCache<SchemaUrl, std::sync::Arc<crate::WeaverResolvedSchema>>,
+    schema_url: &SchemaUrl,
+) -> Option<std::sync::Arc<crate::WeaverResolvedSchema>> {
+    cache.peek(schema_url).cloned()
+}
+
 /// Recursively iterates over semconv dependencies and loads their definition.
 /// Note: Prevents circular dependencies.
 fn load_semconv_repository_recursive(
+    cache: Option<&lru::LruCache<SchemaUrl, std::sync::Arc<crate::WeaverResolvedSchema>>>,
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     max_dependency_depth: u32,
@@ -226,6 +245,18 @@ fn load_semconv_repository_recursive(
     // Add current registry to dependency chain
     dependency_chain.push(registry_name.clone());
 
+    // Check for pre-resolved schema in cache.
+    if let Some(cache) = cache {
+        if let Some(arc) = find_pre_resolved(cache, &schema_url) {
+            let loaded = match &*arc {
+                crate::WeaverResolvedSchema::V1(s) => LoadedSemconvRegistry::Resolved(s.clone()),
+                crate::WeaverResolvedSchema::V2(s) => LoadedSemconvRegistry::ResolvedV2(s.clone()),
+            };
+            let _ = dependency_chain.pop();
+            return WResult::Ok(loaded);
+        }
+    }
+
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = registry_repo.resolved_registry_uri() {
@@ -263,6 +294,7 @@ fn load_semconv_repository_recursive(
                             .extend(semconv_nfes.into_iter().map(Error::FailToResolveDefinition));
                         // so we need to make sure the dependency chain only include direct dependencies of each other.
                         match load_semconv_repository_recursive(
+                            cache,
                             d_repo,
                             follow_symlinks,
                             max_dependency_depth - 1,
@@ -522,6 +554,7 @@ mod tests {
             std::collections::HashMap::new();
         let mut dependency_chain = Vec::new();
         let result = load_semconv_repository_recursive(
+            None,
             registry_repo,
             true,
             1,

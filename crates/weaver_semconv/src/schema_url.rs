@@ -101,6 +101,13 @@ impl SchemaUrl {
         }
     }
 
+    /// Parses and returns the semantic version string as a `semver::Version`.
+    /// Strips leading 'v' if present.
+    pub fn semver(&self) -> Result<semver::Version, semver::Error> {
+        let version_str = self.version().trim_start_matches('v');
+        semver::Version::parse(version_str)
+    }
+
     /// Returns a default unknown schema URL.
     #[must_use]
     pub fn new_unknown() -> Self {

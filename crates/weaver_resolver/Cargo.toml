@@ -28,6 +28,7 @@ itertools.workspace = true
 globset.workspace = true
 log.workspace = true
 rand.workspace = true
+lru.workspace = true
 
 [dev-dependencies]
 glob.workspace = true
