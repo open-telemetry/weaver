@@ -5,7 +5,7 @@ install:
     cargo install cargo-machete@0.9.2 --locked
     cargo install cargo-depgraph@1.6.0 --locked
     cargo install cargo-edit@0.13.11 --locked
-    cargo install cargo-check-external-types@0.4.0 --locked
+    cargo install cargo-check-external-types@0.5.0 --locked
     cargo install git-cliff@2.13.1 --locked
     cargo install cargo-tarpaulin@0.35.4 --locked
     cargo install cargo-nextest@0.9.137 --locked
@@ -57,10 +57,4 @@ fuzz-all seconds="30":
     done; exit $failed
 
 check-external-types:
-  ##################################################################################
-  # TODO Enable this once check-external-types support is available in a version
-  #      that is compatible with our current MSRV.
-  # See: https://github.com/open-telemetry/weaver/pull/651#issuecomment-2747851893
-  ##################################################################################
-  #  scripts/check_external_types.sh
-  ##################################################################################
+  scripts/check_external_types.sh

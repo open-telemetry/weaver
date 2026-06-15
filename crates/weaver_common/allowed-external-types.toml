@@ -4,5 +4,9 @@
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
     "miette::protocol::*",
-    "serde::ser::Serialize",
+    "serde_core::ser::Serialize",
+    "serde_core::de::Deserialize",
+    "schemars::JsonSchema",
+    "log::Log",
+    "log::Level",
 ]
