@@ -59,6 +59,12 @@ ui/dist/
 ui/.vite/
 ui/package-lock.json
 
+# Playwright e2e artifacts
+ui/test-results/
+ui/playwright-report/
+ui/blob-report/
+ui/.playwright/
+
 # claude
 .claude/
 
