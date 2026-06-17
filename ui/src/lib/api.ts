@@ -72,6 +72,11 @@ export interface AttributeResponse {
   examples?: unknown[];
 }
 
+export type EntityAssociation =
+  | string
+  | { one_of: EntityAssociation[] }
+  | { all_of: EntityAssociation[] };
+
 export interface MetricAttribute {
   key: string;
   'r#type': string | { members: Array<{ value?: string; id?: string; brief?: string }> };
@@ -95,7 +100,7 @@ export interface MetricResponse {
   instrument: string;
   unit: string;
   attributes?: MetricAttribute[];
-  entity_associations?: string[];
+  entity_associations?: EntityAssociation[];
 }
 
 export interface SpanAttribute {
@@ -121,6 +126,7 @@ export interface SpanResponse {
   note?: string;
   kind?: string;
   attributes?: SpanAttribute[];
+  entity_associations?: EntityAssociation[];
 }
 
 export interface EventAttribute {
@@ -144,6 +150,7 @@ export interface EventResponse {
   brief?: string;
   note?: string;
   attributes?: EventAttribute[];
+  entity_associations?: EntityAssociation[];
 }
 
 export interface EntityAttribute {
