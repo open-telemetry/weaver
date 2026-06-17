@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "packageManager": "pnpm@10.34.2+sha512.9ae7e3fe477c52bbce1ddc8aa196ff243ed4b48f1ceaa7455820adfa7a48b5f57e817ed2d20e5f3c2c3646dfedba360567693e534572dccd252fb2eb8b7c044c",
+  "packageManager": "pnpm@10.34.3+sha512.f2c531b08829d7be7f03c90addc266615f9c5477463e4bf1d275cb263ce9ea57cf0d5599110d94649a9bb3fed9f0b5efcea74a7016b61532a24cb9ad87860c1d",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -26,7 +26,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "^1.60.0",
-    "@tailwindcss/vite": "4.3.0",
+    "@tailwindcss/vite": "4.3.1",
     "@types/node": "25.9.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -36,7 +36,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "17.6.0",
-    "tailwindcss": "4.3.0",
+    "tailwindcss": "4.3.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.4",
     "vite": "8.0.16"
