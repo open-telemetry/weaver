@@ -966,6 +966,7 @@ mod tests {
                 }],
                 events: vec![Event {
                     name: SignalId::from("db.query".to_owned()),
+                    requirement_level: None,
                     attributes: vec![],
                     entity_associations: vec![],
                     common: CommonFields::default(),
