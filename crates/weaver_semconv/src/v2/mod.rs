@@ -302,7 +302,9 @@ mod tests {
     #[test]
     fn test_v2_missing_requirement_level_future_mode() {
         use miette::{Diagnostic, Severity};
-        use weaver_common::diagnostic::{disable_future_mode, enable_future_mode, DiagnosticMessage};
+        use weaver_common::diagnostic::{
+            disable_future_mode, enable_future_mode, DiagnosticMessage,
+        };
 
         let errors =
             validate_yaml("spans:\n  - type: my_span\n    brief: b\n    stability: stable\n    kind: client\n    name:\n      note: n\n");
