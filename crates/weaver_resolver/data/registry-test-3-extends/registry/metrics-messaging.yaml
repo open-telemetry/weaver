@@ -19,7 +19,6 @@ groups:
     brief: "Measures the duration of publish operation."
     instrument: histogram
     unit: "s"
-    metric_requirement_level: recommended
     extends: metric.messaging.attributes
 
   - id: metric.messaging.receive.duration
@@ -29,7 +28,6 @@ groups:
     brief: "Measures the duration of receive operation."
     instrument: histogram
     unit: "s"
-    metric_requirement_level: recommended
     extends: metric.messaging.attributes
 
   - id: metric.messaging.deliver.duration
@@ -39,7 +37,6 @@ groups:
     brief: "Measures the duration of deliver operation."
     instrument: histogram
     unit: "s"
-    metric_requirement_level: recommended
     extends: metric.messaging.attributes
 
   # counters
@@ -50,7 +47,6 @@ groups:
     brief: "Measures the number of published messages."
     instrument: counter
     unit: "{message}"
-    metric_requirement_level: recommended
     extends: metric.messaging.attributes
 
   - id: metric.messaging.receive.messages
@@ -60,7 +56,6 @@ groups:
     brief: "Measures the number of received messages."
     instrument: counter
     unit: "{message}"
-    metric_requirement_level: recommended
     extends: metric.messaging.attributes
 
   - id: metric.messaging.deliver.messages
@@ -70,5 +65,4 @@ groups:
     brief: "Measures the number of delivered messages."
     instrument: counter
     unit: "{message}"
-    metric_requirement_level: recommended
     extends: metric.messaging.attributes

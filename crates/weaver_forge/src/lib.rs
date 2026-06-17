@@ -952,6 +952,7 @@ mod tests {
                 attribute_groups: vec![],
                 metrics: vec![],
                 spans: vec![Span {
+                    requirement_level: None,
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {

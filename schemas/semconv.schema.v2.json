@@ -511,6 +511,17 @@
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
         },
+        "requirement_level": {
+          "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -750,6 +761,17 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -1101,7 +1123,7 @@
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BasicRequirementLevelSpec"
+              "$ref": "#/$defs/SignalRequirementLevel"
             },
             {
               "type": "null"
@@ -1304,6 +1326,21 @@
       "description": "An identifier for a signal.  Should be `.` separated namespaces and names.",
       "type": "string"
     },
+    "SignalRequirementLevel": {
+      "description": "The requirement level of a signal (metric, span, event, entity). It is\nguidance for instrumentation authors about what should be emitted by default\nversus what should be opt-in. Unlike attribute requirement levels, signals\nonly support these two levels.",
+      "oneOf": [
+        {
+          "description": "Instrumentations should implement and emit the signal by default.",
+          "type": "string",
+          "const": "recommended"
+        },
+        {
+          "description": "Disabled by default; instrumentations MAY implement the signal.",
+          "type": "string",
+          "const": "opt_in"
+        }
+      ]
+    },
     "Span": {
       "description": "Defines a new Span signal.",
       "type": "object",
@@ -1355,6 +1392,17 @@
         "note": {
           "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
           "type": "string"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",

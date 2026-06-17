@@ -13,6 +13,7 @@ use weaver_semconv::attribute::{AttributeRole, BasicRequirementLevelSpec, Requir
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 
 use crate::{
@@ -47,8 +48,8 @@ pub(crate) struct GroupSummary {
     pub instrument: Option<InstrumentSpec>,
     /// The unit.
     pub unit: Option<String>,
-    /// The requirement level of the metric.
-    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
+    /// The requirement level of the signal.
+    pub requirement_level: Option<SignalRequirementLevel>,
     /// Specifies the kind of the span.
     pub span_kind: Option<SpanKindSpec>,
     /// The attributes from this group before being completely resolved to a catalog.
@@ -73,7 +74,7 @@ impl GroupSummary {
             metric_name: group.metric_name.clone(),
             instrument: group.instrument.clone(),
             unit: group.unit.clone(),
-            metric_requirement_level: group.metric_requirement_level.clone(),
+            requirement_level: group.requirement_level.clone(),
             span_kind: group.span_kind.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
@@ -337,7 +338,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: Some(m.name.to_string()),
                 instrument: Some(m.instrument.clone()),
                 unit: Some(m.unit.clone()),
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: None,
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&m.provenance),
@@ -404,7 +405,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: Some(e.name.to_string()),
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&e.provenance),
@@ -495,7 +496,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: Some(e.r#type.to_string()),
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&e.provenance),
@@ -562,7 +563,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: Some(s.r#type.to_string()),
                 lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
                     get_source_provenance(&s.provenance),
@@ -632,7 +633,7 @@ impl ImportableDependency for V2Schema {
                 metric_name: None,
                 instrument: None,
                 unit: None,
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: None,
                 lineage: None,
                 display_name: None,
@@ -747,7 +748,7 @@ impl GroupRefinementLookup for V2Schema {
                 metric_name: Some(m.name.to_string()),
                 instrument: Some(m.instrument.clone()),
                 unit: Some(m.unit.clone()),
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: None,
                 lineage: None,
                 display_name: None,
@@ -778,7 +779,7 @@ impl GroupRefinementLookup for V2Schema {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some(e.name.to_string()),
                         lineage: None,
                         display_name: None,
@@ -810,7 +811,7 @@ impl GroupRefinementLookup for V2Schema {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some(e.r#type.to_string()),
                         lineage: None,
                         display_name: None,
@@ -941,7 +942,7 @@ mod tests {
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
-                        metric_requirement_level: Default::default(),
+                        requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -967,7 +968,7 @@ mod tests {
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
-                        metric_requirement_level: Default::default(),
+                        requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -1037,6 +1038,7 @@ mod tests {
                     name: "event.b".to_owned().into(),
                     attributes: vec![],
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
                 }],
@@ -1048,6 +1050,7 @@ mod tests {
                     },
                     attributes: vec![],
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
                 }],
@@ -1055,6 +1058,7 @@ mod tests {
                     r#type: "entity.c".to_owned().into(),
                     identity: vec![],
                     description: vec![],
+                    requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
                 }],

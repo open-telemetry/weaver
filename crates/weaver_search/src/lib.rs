@@ -566,6 +566,7 @@ mod tests {
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::span::SpanName;
     use weaver_semconv::v2::CommonFields;
@@ -660,9 +661,7 @@ mod tests {
                     name: "http.server.request.duration".to_owned().into(),
                     instrument: InstrumentSpec::Histogram,
                     unit: "s".to_owned(),
-                    requirement_level: Some(
-                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                    ),
+                    requirement_level: Some(SignalRequirementLevel::OptIn),
                     attributes: vec![],
                     entity_associations: vec![],
                     common: CommonFields {
@@ -675,6 +674,7 @@ mod tests {
                     provenance: Default::default(),
                 }],
                 spans: vec![Span {
+                    requirement_level: None,
                     r#type: "http.client".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
@@ -692,6 +692,7 @@ mod tests {
                     provenance: Default::default(),
                 }],
                 events: vec![Event {
+                    requirement_level: None,
                     name: "exception".to_owned().into(),
                     attributes: vec![],
                     entity_associations: vec![],
@@ -705,6 +706,7 @@ mod tests {
                     provenance: Default::default(),
                 }],
                 entities: vec![Entity {
+                    requirement_level: None,
                     r#type: "service".to_owned().into(),
                     identity: vec![],
                     description: vec![],

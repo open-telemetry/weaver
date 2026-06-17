@@ -16,11 +16,11 @@ use crate::registry::GroupStats::{
     AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
-use weaver_semconv::attribute::BasicRequirementLevelSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
+use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use weaver_semconv::YamlValue;
@@ -114,11 +114,6 @@ pub struct Group {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
-    /// The requirement level of the metric. Defaults to `recommended` when omitted.
-    /// Note: This field is only valid if type is metric.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metric_requirement_level: Option<BasicRequirementLevelSpec>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -163,6 +158,15 @@ pub struct Group {
     /// An optional note for the span name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span_name_note: Option<String>,
+
+    /// Requirement level of the signal (metric, span, event, entity).
+    /// This is a v2-only concept carried through the v1 intermediate
+    /// representation during resolution; it is omitted from v1 serialization
+    /// and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<SignalRequirementLevel>,
 }
 
 impl Group {

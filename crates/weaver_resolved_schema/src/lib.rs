@@ -112,6 +112,7 @@ impl ResolvedTelemetrySchema {
         attrs: [Attribute; N],
         deprecated: Option<Deprecated>,
     ) {
+        use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
         let mut builder = catalog::test_utils::CatalogBuilder::from_catalog(&self.catalog);
         let attr_refs: Vec<attribute::AttributeRef> = attrs
             .into_iter()
@@ -136,9 +137,7 @@ impl ResolvedTelemetrySchema {
             metric_name: Some(metric_name.to_owned()),
             instrument: Some(weaver_semconv::group::InstrumentSpec::Gauge),
             unit: Some("{things}".to_owned()),
-            metric_requirement_level: Some(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
-            ),
+            requirement_level: Some(SignalRequirementLevel::Recommended),
             body: None,
             annotations: None,
             entity_associations: vec![],
@@ -189,7 +188,7 @@ impl ResolvedTelemetrySchema {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
+            requirement_level: None,
             body: None,
             annotations: None,
             entity_associations: vec![],
@@ -536,9 +535,9 @@ impl ResolvedTelemetrySchema {
 mod tests {
     use crate::attribute::Attribute;
     use crate::ResolvedTelemetrySchema;
-    use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::group::GroupType;
+    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_version::schema_changes::{SchemaItemChange, SchemaItemType};
 
     #[test]
@@ -876,7 +875,7 @@ mod tests {
             metric_name: Some("test.metric".to_owned()),
             instrument: Some(InstrumentSpec::Counter),
             unit: Some("{request}".to_owned()),
-            metric_requirement_level: Some(BasicRequirementLevelSpec::Required),
+            requirement_level: Some(SignalRequirementLevel::OptIn),
             body: None,
             annotations: None,
             entity_associations: vec![],
@@ -888,9 +887,6 @@ mod tests {
         let groups = schema.groups(GroupType::Metric);
         assert_eq!(groups.len(), 1);
         let group = groups.get("metrics.test").unwrap();
-        assert_eq!(
-            group.metric_requirement_level,
-            Some(BasicRequirementLevelSpec::Required)
-        );
+        assert_eq!(group.requirement_level, Some(SignalRequirementLevel::OptIn));
     }
 }
