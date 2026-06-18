@@ -1237,7 +1237,7 @@
       "description": "The requirement level of a signal (metric, span, event, entity). It is\nguidance for instrumentation authors about what should be emitted by default\nversus what should be opt-in. Unlike attribute requirement levels, signals\nonly support these two levels.",
       "oneOf": [
         {
-          "description": "Instrumentations should implement and emit the signal by default.",
+          "description": "Instrumentations should implement and emit the signal by default.\nThis is the default for signals that do not specify a requirement level.",
           "type": "string",
           "const": "recommended"
         },
