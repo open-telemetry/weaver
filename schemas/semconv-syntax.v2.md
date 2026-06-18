@@ -322,6 +322,7 @@ The spans section contains a list of span definitions. A span definition consist
 - `brief` - Required. A short description of the operation this span represents
 - `note` - Optional. A more elaborate description of the operation
 - `stability` - Required. Specifies the [stability](#stability-levels) of the span definition
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `name` - Required. Specification of how the [span name](#span-name) should be formatted.
 - `deprecated` - Optional. When present, marks the span as deprecated. See [deprecated](#deprecated-structure) for details
 - `attributes` - Optional. List of [attribute references](#attribute-reference) applicable to this span.
@@ -382,6 +383,7 @@ An entity definition consists of the following properties:
 - `brief` - Required. A short description of what this entity represents.
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
@@ -464,6 +466,7 @@ An event definition consists of the following properties:
 - `brief` - Required. A short description of what this event represents.
 - `note` - Optional. A more elaborate description of the event.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the event definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that can be set on this event type.
 - `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this event can be associated with.
 - `deprecated` - Optional. When present, marks the event as deprecated. See [deprecated](#deprecated-structure) for details.
@@ -519,6 +522,7 @@ A metric definition consists of the following properties:
   - `gauge` - A value that can arbitrarily go up and down, used for temperature or current memory usage
   - `histogram` - Distribution of recorded values, used for latencies or request sizes
 - `stability` - Required. Specifies the [stability](#stability-levels) of the metric definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that can be set on this metric.
 - `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this metric can be associated with.
 - `deprecated` - Optional. When present, marks the metric as deprecated. See [deprecated](#deprecated-structure) for details.
@@ -649,6 +653,13 @@ imports:
 ### Stability levels
 
 The following stability levels are supported: `stable`, `development`, `alpha`, `beta`, `release_candidate`. See [OpenTelemetry stability definitions](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/document-status.md) for details.
+
+### Signal requirement levels
+
+The `requirement_level` on a signal (metric, span, event, or entity) is guidance for instrumentation authors about whether the signal should be emitted by default. It is distinct from the per-attribute requirement level and supports two values:
+
+- `recommended` - Instrumentations should implement and emit the signal by default. This is the default when `requirement_level` is omitted.
+- `opt_in` - The signal is disabled by default; instrumentations MAY implement it and let users opt in.
 
 ### Deprecated structure
 

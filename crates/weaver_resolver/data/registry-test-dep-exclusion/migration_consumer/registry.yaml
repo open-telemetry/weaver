@@ -6,6 +6,7 @@ attributes:
     brief: Redefined attribute (same name as the deprecated parent item).
 spans:
   - type: moved.span
+    requirement_level: recommended
     kind: client
     name:
       note: Redefined span name.
@@ -16,6 +17,7 @@ spans:
         requirement_level: required
 metrics:
   - name: moved.metric
+    requirement_level: recommended
     instrument: counter
     unit: "1"
     stability: stable
@@ -24,6 +26,7 @@ metrics:
       - ref: moved.attr
         requirement_level: required
   - name: greenfield.requests
+    requirement_level: recommended
     instrument: counter
     unit: "{request}"
     stability: stable

@@ -1,17 +1,17 @@
 <!-- semconv registry.spans.trace.test -->
-trace.test param
+trace.test param recommended
 <!-- endsemconv -->
 
 <!-- semconv refinements.metrics.test(metric_table) -->
-test.metric param
+test.metric param opt_in
 <!-- endsemconv -->
 
 <!-- semconv refinements.events.test -->
-test.event param
+test.event param recommended
 <!-- endsemconv -->
 
 <!-- semconv registry.entities.test.entity -->
-test.entity param
+test.entity param opt_in
 <!-- endsemconv -->
 
 <!-- semconv registry.attribute_groups.test.common -->

@@ -24,6 +24,7 @@ pub mod registry;
 pub mod registry_repo;
 pub mod schema_url;
 pub mod semconv;
+pub mod signal_requirement_level;
 pub mod stability;
 pub mod stats;
 pub mod v2;
@@ -228,15 +229,15 @@ pub enum Error {
         group_id: String,
     },
 
-    /// This warning indicates that a metric group does not set a requirement level.
+    /// This warning indicates that a signal group does not set a requirement level.
     /// It is treated as a non-critical warning unless the `--future` flag is enabled.
     /// With the `--future` flag, this warning is elevated to an error.
-    #[error("The metric group `{group_id}` does not set `requirement_level`. This will be required in the future.\nProvenance: {path_or_url:?}")]
+    #[error("The signal group `{group_id}` does not set `requirement_level`. This will be required in the future.\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Warning))]
-    MissingMetricRequirementLevelWarning {
+    MissingRequirementLevelWarning {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,
-        /// The group id of the metric.
+        /// The group id of the signal.
         group_id: String,
     },
 

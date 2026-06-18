@@ -272,6 +272,7 @@ mod test {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
                     note: "".to_owned(),
@@ -307,6 +308,7 @@ mod test {
                     ),
                 }],
                 description: vec![],
+                requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
                     note: "".to_owned(),

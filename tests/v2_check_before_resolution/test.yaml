@@ -17,12 +17,14 @@ attribute_groups:
     visibility: public
 events:
   - name: my.event
+    requirement_level: recommended
     brief: A test event
     stability: stable
     attributes:
       - ref: my.attr
 entities:
   - type: my.entity
+    requirement_level: recommended
     identity:
       - ref: my.attr
     description:
@@ -31,6 +33,7 @@ entities:
     stability: stable
 metrics:
   - name: my.metric
+    requirement_level: recommended
     brief: A count of something.
     instrument: counter
     unit: "{1}"
@@ -39,6 +42,7 @@ metrics:
     - ref: my.attr
 spans:
   - type: my.span
+    requirement_level: recommended
     name:
       note: Some name pattern
     kind: client

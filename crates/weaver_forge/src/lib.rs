@@ -953,6 +953,7 @@ mod tests {
                 attribute_groups: vec![],
                 metrics: vec![],
                 spans: vec![Span {
+                    requirement_level: None,
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
@@ -965,6 +966,7 @@ mod tests {
                 }],
                 events: vec![Event {
                     name: SignalId::from("db.query".to_owned()),
+                    requirement_level: None,
                     attributes: vec![],
                     entity_associations: vec![],
                     common: CommonFields::default(),

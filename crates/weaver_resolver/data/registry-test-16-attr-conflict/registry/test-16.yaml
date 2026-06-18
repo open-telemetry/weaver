@@ -24,6 +24,7 @@ spans:
   - type: test.span
     brief: 'A span for testing attribute conflict across groups'
     kind: client
+    requirement_level: recommended
     name:
       note: "{test.attr.one}"
     stability: stable
