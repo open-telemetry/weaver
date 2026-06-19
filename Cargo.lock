@@ -6177,7 +6177,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "assert_cmd",
  "axum",
@@ -6233,7 +6233,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "globset",
  "miette",
@@ -6249,7 +6249,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "dirs",
  "log",
@@ -6264,7 +6264,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "axum",
  "dirs",
@@ -6292,7 +6292,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_config"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "log",
  "schemars",
@@ -6307,7 +6307,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -6316,7 +6316,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "futures-util",
  "miette",
@@ -6335,7 +6335,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "convert_case 0.11.0",
  "dirs",
@@ -6374,7 +6374,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_infer"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "convert_case 0.11.0",
  "log",
@@ -6387,7 +6387,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "assert_cmd",
  "log",
@@ -6417,7 +6417,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_macros"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6426,7 +6426,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_mcp"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "log",
  "miette",
@@ -6455,7 +6455,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "log",
  "schemars",
@@ -6470,7 +6470,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "glob",
  "globset",
@@ -6493,7 +6493,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_search"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "schemars",
  "serde",
@@ -6504,7 +6504,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "glob",
  "globset",
@@ -6529,7 +6529,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "miette",
  "nom 8.0.0",
@@ -6546,11 +6546,11 @@ dependencies = [
 
 [[package]]
 name = "weaver_test_support"
-version = "0.23.0"
+version = "0.24.0"
 
 [[package]]
 name = "weaver_version"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "schemars",
  "semver",

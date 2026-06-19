@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# Unreleased
+# [0.24.0] - 2026-06-19
 
 - Add `requirement_level` (`recommended`/`opt_in`) for all v2 signals (metrics, spans, events, entities). ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @lmolkova)
 - Add `dependency_resolution.exclude` annotation to hide attributes, groups, and signals from registries that depend on this one. ([#1458](https://github.com/open-telemetry/weaver/pull/1458) by @lmolkova)
