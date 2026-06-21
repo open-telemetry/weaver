@@ -230,3 +230,26 @@ async fn serve_ui(uri: axum::http::Uri) -> impl IntoResponse {
     // No UI available
     (StatusCode::NOT_FOUND, "UI not available").into_response()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test for the OpenAPI schema generation.
+    ///
+    /// Recursive schemas such as `EntityAssociation` (a `one_of`/`all_of` tree)
+    /// must break their cycle with `#[schema(no_recursion)]`; otherwise
+    /// `ApiDoc::openapi()` inlines them forever and overflows the stack, taking
+    /// down the whole `weaver serve` process when `/api/v1/openapi.json` is hit.
+    #[test]
+    fn openapi_spec_generates_without_overflow() {
+        let doc = ApiDoc::openapi();
+        assert!(!doc.paths.paths.is_empty(), "expected at least one path");
+
+        let components = doc.components.expect("components should be present");
+        assert!(
+            components.schemas.contains_key("EntityAssociation"),
+            "the recursive EntityAssociation schema should be registered as a component",
+        );
+    }
+}
