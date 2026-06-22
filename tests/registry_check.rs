@@ -31,8 +31,6 @@ fn test_cli_interface() {
         .arg("check")
         .arg("-r")
         .arg("crates/weaver_codegen_test/semconv_registry/")
-        .arg("--skip-policies")
-        .arg("false")
         .arg("--diagnostic-format")
         .arg("json")
         .arg("--diagnostic-stdout")

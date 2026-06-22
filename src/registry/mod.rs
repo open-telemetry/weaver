@@ -186,19 +186,19 @@ pub struct RegistryArgs {
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
     /// [default: false]
-    #[arg(short = 's', long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(short = 's', long, num_args = 0, default_missing_value = "true")]
     pub(crate) follow_symlinks: Option<bool>,
 
     /// Boolean flag to include signals and attributes defined in dependency registries,
     /// even if they are not explicitly referenced in the current (custom) registry.
     /// [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(long, num_args = 0, default_missing_value = "true")]
     pub(crate) include_unreferenced: Option<bool>,
 
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
     /// [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(long, num_args = 0, default_missing_value = "true")]
     pub v2: Option<bool>,
 }
 
@@ -238,11 +238,11 @@ pub struct PolicyArgs {
     pub policies: Option<Vec<VirtualDirectoryPath>>,
 
     /// Skip the policy checks. [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(long, num_args = 0, default_missing_value = "true")]
     pub skip_policies: Option<bool>,
 
     /// Display the policy coverage report (useful for debugging). [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(long, num_args = 0, default_missing_value = "true")]
     pub display_policy_coverage: Option<bool>,
 }
 
