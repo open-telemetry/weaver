@@ -42,11 +42,19 @@
     "vite": "8.0.16"
   },
   "overrides-notes": {
-    "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0"
+    "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0",
+    "form-data": "transitive dep pulled below the patched 4.0.6 (CRLF injection, GHSA-fjxv-7rqg-78g4); remove when dependents pull >=4.0.6",
+    "js-yaml": "transitive dep pinned at 4.1.1 (quadratic-complexity DoS, GHSA-mw6h-x9hf-q4rm); pinned to 4.x (^4.2.0) to avoid the js-yaml 5 major bump; remove when dependents pull >=4.2.0",
+    "@babel/core": "build-tool dep with arbitrary file read advisory; pinned to 7.x (^7.29.6) to avoid the babel 8 major bump; remove when @vitejs/plugin-react pulls >=7.29.6",
+    "esbuild": "vite 8 (rolldown) pulls esbuild 0.27.3 as an optional peer (dev-server file read on Windows); remove when vite pulls >=0.28.1"
   },
   "pnpm": {
     "overrides": {
-      "monaco-editor>dompurify": ">=3.4.2"
+      "monaco-editor>dompurify": ">=3.4.2",
+      "form-data": ">=4.0.6",
+      "js-yaml": "^4.2.0",
+      "@babel/core": "^7.29.6",
+      "esbuild": ">=0.28.1"
     }
   }
 }
