@@ -31,6 +31,7 @@ fn test_cli_interface() {
         .arg("crates/weaver_codegen_test/semconv_registry/")
         .arg("-t")
         .arg("crates/weaver_codegen_test/templates/")
+        .arg("--skip-policies=false")
         .arg("--diagnostic-format")
         .arg("json")
         .arg("--diagnostic-stdout")
