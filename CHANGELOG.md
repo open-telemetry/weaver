@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# [Unreleased]
+
+- Fix boolean flags (`--v2`, `--skip-policies`, etc.) consuming the following positional argument; bare flags work again and `--flag=false` overrides `.weaver.toml`. ([#1532](https://github.com/open-telemetry/weaver/pull/1532) by @jerbly)
+
 # [0.24.1] - 2026-06-21
 
 - Fix stack overflow when generating OpenAPI spec ([#1521](https://github.com/open-telemetry/weaver/pull/1521) by @jerbly)
