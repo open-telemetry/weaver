@@ -635,8 +635,9 @@ impl VirtualDirectory {
             tmp_path.clone(),
             Kind::WithWorktree,
             create::Options {
-                destination_must_be_empty: true,
+                destination_must_be_empty: Some(true),
                 fs_capabilities: None,
+                object_hash: None,
             },
             if is_git_credentials_enabled() {
                 open::Options::default()
