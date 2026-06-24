@@ -17,7 +17,9 @@ use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{GroupSpecWithProvenance, GroupType, ImportsWithProvenance};
+use weaver_semconv::group::{
+    GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
+};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
@@ -116,6 +118,32 @@ pub(crate) fn resolve_registry_with_dependencies(
         dependencies,
     };
 
+    let mut errors = vec![];
+
+    if include_unreferenced {
+        errors.push(Error::DeprecatedIncludeUnreferencedWarning {});
+        let glob = match globset::Glob::new("*") {
+            Ok(g) => g,
+            Err(e) => {
+                return WResult::FatalErr(Error::InvalidWildcard {
+                    error: e.to_string(),
+                });
+            }
+        };
+        let wildcard = GroupWildcard(glob);
+        let glob_imports = weaver_semconv::semconv::Imports {
+            metrics: Some(vec![wildcard.clone()]),
+            events: Some(vec![wildcard.clone()]),
+            entities: Some(vec![wildcard.clone()]),
+            spans: Some(vec![wildcard.clone()]),
+            attribute_groups: Some(vec![wildcard.clone()]),
+        };
+        ureg.imports.push(ImportsWithProvenance {
+            imports: glob_imports,
+            provenance: Provenance::new(repo.schema_url().clone(), "--include-unreferenced"),
+        });
+    }
+
     // Now we do the resolution.
     if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
         return WResult::FatalErr(e);
@@ -130,14 +158,11 @@ pub(crate) fn resolve_registry_with_dependencies(
     }
 
     // We need to *import* objects from the dependencies as required.
-    // If the flag to pull in all dependencies is set, we should grab ALL
-    // groups from our dependency.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, include_unreferenced) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog) {
         return WResult::FatalErr(e);
     }
 
     // Now we do validations.
-    let mut errors = vec![];
 
     // Note: this will remove all the `groups` from UnresolvedRegistry and create
     // a complete `Registry` that is returned.
@@ -353,18 +378,14 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 }
 
 /// Resolves imports defined on dependencies.
-///
-/// If `include_all` is true, then all groups are imported
-/// from all dependencies.
 fn resolve_dependency_imports(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
-    include_all: bool,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
-    let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
+    let groups = dependencies.import_groups(imports, attribute_catalog)?;
     for group in groups {
         let provenance = group.provenance();
         let is_v2 = group.is_v2();

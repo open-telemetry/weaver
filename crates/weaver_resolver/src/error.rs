@@ -238,6 +238,10 @@ pub enum Error {
         /// The second SchemaURL found.
         schema_url2: String,
     },
+    /// Deprecated `include_unreferenced` usage warning.
+    #[error("The flag `include_unreferenced` is deprecated. Please prefer manually adding the required imports to your schema files in the future.")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedIncludeUnreferencedWarning {},
 
     /// Mismatch between expected and actual schema URL.
     #[error("Mismatch between expected schema URL `{expected}` and actual schema URL `{actual}` resolved from definition.\nThis is likely because you are using schema_url overrides and trying to replace one version with another.")]
