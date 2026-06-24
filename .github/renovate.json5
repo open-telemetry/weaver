@@ -74,6 +74,14 @@
       ],
       automerge: true,
     },
+    {
+      // cargo check-external-types only works on this pinned nightly — don't let Renovate bump it
+      matchFileNames: [
+        '.github/workflows/ci.yml',
+      ],
+      matchCurrentValue: '/^nightly-/',
+      enabled: false,
+    },
   ],
   customManagers: [
     {
@@ -138,6 +146,19 @@
       currentValueTemplate: "0.0.0",
       extractVersionTemplate: "^v(?<version>.*)$",
       depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update pnpm version in Dockerfile",
+      managerFilePatterns: [
+        "Dockerfile",
+      ],
+      matchStrings: [
+        "npm install -g pnpm@(?<currentValue>[0-9.]+)",
+      ],
+      depNameTemplate: "pnpm",
+      datasourceTemplate: "npm",
+      versioningTemplate: "semver",
     },
     {
       customType: "regex",

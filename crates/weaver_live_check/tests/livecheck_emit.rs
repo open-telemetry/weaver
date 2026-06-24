@@ -8,6 +8,7 @@ use std::process::{Child, Command as StdCommand};
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
+use weaver_test_support::reserve_test_port;
 
 /// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
 struct ChildGuard(Option<Child>);
@@ -32,6 +33,7 @@ use serde_json::json;
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_live_check::otlp_logger::OtlpEmitter;
 use weaver_live_check::sample_attribute::SampleAttribute;
+use weaver_live_check::sample_log::SampleLog;
 use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
@@ -124,14 +126,15 @@ fn collect_violation_messages(value: &serde_json::Value, messages: &mut Vec<Stri
 #[cfg_attr(tarpaulin, ignore)]
 async fn test_livecheck_emit_roundtrip() {
     // 1. Allocate dynamic ports
-    let grpc_port = portpicker::pick_unused_port().expect("no free port for gRPC");
-    let admin_port = portpicker::pick_unused_port().expect("no free port for admin");
+    let grpc_port = reserve_test_port();
+    let admin_port = reserve_test_port();
 
     // 2. Start weaver live-check as a child process using the live_check model as registry
     //    The model dir is relative to this crate's manifest, so build an absolute path.
     let model_dir = format!("{}/model", env!("CARGO_MANIFEST_DIR"));
     #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
     let weaver_bin = assert_cmd::cargo::cargo_bin("weaver");
+
     let mut guard = ChildGuard(Some(
         StdCommand::new(weaver_bin)
             .args([
@@ -283,6 +286,41 @@ async fn test_livecheck_emit_roundtrip() {
             Some("span"),
             Some("db.query"),
             json!({"attribute_key": "db.statement", "deprecation_reason": "Use db.query.text"}),
+        );
+        emitter.emit_finding(&finding, &sample_ref, &parent);
+    }
+
+    // --- Finding 6: Entity required attribute not present (log sample with resource) ---
+    {
+        let resource = SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-test-service")),
+                r#type: None,
+                live_check_result: None,
+            }],
+            live_check_result: None,
+        };
+        let log = SampleLog {
+            event_name: "deployment.started".to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            live_check_result: None,
+            resource: Some(Rc::new(resource)),
+        };
+        let parent = Sample::Log(log.clone());
+        let sample_ref = SampleRef::Log(&log);
+        let finding = make_finding(
+            "entity_required_attribute_not_present",
+            "Required attribute 'deployment.name' for entity 'deployment' is not present in the resource.",
+            FindingLevel::Violation,
+            Some("log"),
+            Some("deployment.started"),
+            json!({"attribute_key": "deployment.name", "entity_type": "deployment"}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }

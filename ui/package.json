@@ -3,12 +3,14 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "packageManager": "pnpm@10.33.4",
+  "packageManager": "pnpm@10.34.4+sha512.8768be55200ae3f2226b6527fcca2687e14bc4e5f12d7721a0f25da3df47915177058648db4177baf348120fa0ba2752d8d8d93f6beaf1fe64ae18da8de961af",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -16,27 +18,29 @@
     "@tanstack/react-router-devtools": "^1.146.0",
     "dompurify": "^3.4.2",
     "marked": "^18.0.3",
-    "rapidoc": "^9.3.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "swagger-ui-react": "^5.32.6",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@tailwindcss/vite": "4.3.0",
-    "@types/node": "25.6.2",
-    "@types/react": "19.2.14",
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/vite": "4.3.1",
+    "@types/node": "25.9.4",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.1",
-    "daisyui": "5.5.19",
-    "eslint": "10.3.0",
+    "@types/swagger-ui-react": "^5.18.0",
+    "@vitejs/plugin-react": "6.0.2",
+    "daisyui": "5.5.23",
+    "eslint": "10.5.0",
     "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-react-refresh": "0.5.2",
+    "eslint-plugin-react-refresh": "0.5.3",
     "globals": "17.6.0",
-    "tailwindcss": "4.3.0",
+    "tailwindcss": "4.3.1",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.59.3",
-    "vite": "8.0.12"
+    "typescript-eslint": "8.59.4",
+    "vite": "8.0.16"
   },
   "overrides-notes": {
     "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0"

@@ -1,6 +1,6 @@
 # Contributing to the OpenTelemetry Weaver project
 
-The Weaver project is a part of the [Semantic Conventions (General) SiG](https://github.com/open-telemetry/community/?tab=readme-ov-file#specification-sigs).  This group meets weekly on Mondays at 8 AM Pacific Time. The meeting is subject to change depending on contributors' availability. Check the OpenTelemetry community calendar for specific dates and for Zoom meeting links. "OTel Semconv" is the name of meeting for this group.
+The Weaver project is a part of the [Semantic Conventions (General) SiG](https://github.com/open-telemetry/community/?tab=readme-ov-file#specification-sigs). This group meets weekly on Mondays at 8 AM Pacific Time. The meeting is subject to change depending on contributors' availability. Check the OpenTelemetry community calendar for specific dates and for Zoom meeting links. "OTel Semconv" is the name of meeting for this group.
 
 Meeting notes are available as a public Google doc. If you have trouble accessing the doc, please get in touch on Slack.
 
@@ -13,7 +13,7 @@ Additionally, Weaver has its own CNCF slack channel at [#otel-weaver](https://cl
 For an overview of the project architecture and crate descriptions, see [docs/architecture.md](docs/architecture.md).
 For a guide on making schema changes, see [docs/developer-guide.md](docs/developer-guide.md).
 
-### How to build  and test a change
+### How to build and test a change
 
 Run `cargo xtask validate` to check the structure of the project.
 
@@ -105,32 +105,35 @@ Before creating a release tag, you need to prepare a Pull Request (PR) with the 
 
 1. **Update Versions**: Bump the version numbers for all crates in the project.
 2. **Update CHANGELOG.md**: Add appropriate entries in `CHANGELOG.md` to reflect the new release, detailing the changes,
-enhancements, and bug fixes.
+   enhancements, and bug fixes.
 
 ##### Steps:
 
 1. **Checkout a new branch**:
-    ```bash
-    git checkout -b prepare-release-vX.Y.Z
-    ```
+
+   ```bash
+   git checkout -b prepare-release-vX.Y.Z
+   ```
 
 2. **Update the version numbers**: Update the `Cargo.toml` files in each crate to reflect the new version.
 
 3. **Update CHANGELOG.md**: Add a new section for the upcoming release version and list all relevant changes.
 
 4. **Commit your changes**:
-    ```bash
-    git add .
-    git commit -m "Prepare release vX.Y.Z"
-    ```
+
+   ```bash
+   git add .
+   git commit -m "Prepare release vX.Y.Z"
+   ```
 
 5. **Push your branch**:
-    ```bash
-    git push origin prepare-release-vX.Y.Z
-    ```
+
+   ```bash
+   git push origin prepare-release-vX.Y.Z
+   ```
 
 6. **Open a Pull Request**: Go to the GitHub repository and open a PR from your branch. Request reviews and wait for
-approval.
+   approval.
 
 #### 2. Merge the PR
 
@@ -143,21 +146,37 @@ After merging the PR, create a signed tag for the new release.
 ##### Steps:
 
 1. **Checkout the `main` branch**:
-    ```bash
-    git checkout main
-    git pull origin main
-    ```
+
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
 
 2. **Create a signed tag**:
-    ```bash
-    git tag -s vX.Y.Z -m "Release vX.Y.Z"
-    ```
+
+   ```bash
+   git tag -s vX.Y.Z -m "Release vX.Y.Z"
+   ```
+
    Replace `X.Y.Z` with the new version number. You will be prompted to enter your GPG passphrase to sign the tag.
 
 3. **Push the tag to the upstream repository**:
-    ```bash
-    git push upstream vX.Y.Z
-    ```
+   ```bash
+   git push upstream vX.Y.Z
+   ```
+
+#### Upgrading cargo-dist
+
+When upgrading `cargo-dist`, update `cargo-dist-version` in `dist-workspace.toml` and regenerate
+`.github/workflows/release.yml`. Because `allow-dirty = ["ci"]` is set (to preserve hand-patched
+job permissions), `dist generate` will refuse to overwrite the file by default. To force
+regeneration:
+
+1. Temporarily remove `allow-dirty = ["ci"]` from `dist-workspace.toml`.
+2. Run `dist init`.
+3. Update the versions and shas in `crates/xtask/src/fix_release_permissions.rs`.
+4. Run `just fix-release-permissions` to re-apply the required permission patches.
+5. Restore `allow-dirty = ["ci"]` in `dist-workspace.toml`.
 
 #### 4. Monitor the CI/CD Process
 
@@ -181,20 +200,19 @@ Once all workflows are successful:
 
 1. **Check the Release List**: Go to the "Releases" section of the Weaver project on GitHub.
 2. **Update the Release Description**: Edit the release description to ensure it is complete and informative. At this
-time, we do not have an automation for generating a detailed release description, so this step needs to be done manually.
+   time, we do not have an automation for generating a detailed release description, so this step needs to be done manually.
 
 #### 6. Announce the Release
 
 The final step is to announce the new release:
 
 1. **Post in the Slack Channel**: Inform the team and the community about the new release by posting an announcement in
-the relevant Slack channel. Include a summary of the key changes and a link to the release notes.
+   the relevant Slack channel. Include a summary of the key changes and a link to the release notes.
 
 ### Repository background
 
 The OpenTelemetry Weaver was initially developed in the
 `github.com/f5/otel-weaver` repository.
-
 
 ## Approvers and Maintainers
 
@@ -205,7 +223,7 @@ For github groups see the [codeowners](CODEOWNERS) file.
 - [Jeremy Blythe](https://github.com/jerbly) Evertz
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
 - [Laurent Quérel](https://github.com/lquerel) F5 Networks
-- [Liudmila Molkova](https://github.com/lmolkova), Grafana Labs
+- [Liudmila Molkova](https://github.com/lmolkova), Google
 
 For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 

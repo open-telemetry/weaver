@@ -8,9 +8,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute::BasicRequirementLevelSpec,
     deprecated::Deprecated,
+    entity_association::EntityAssociation,
     group::{GroupSpec, InstrumentSpec},
+    signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
     v2::{
         attribute::{split_attributes_and_groups, AttributeOrGroupRef},
@@ -41,12 +42,15 @@ pub struct Metric {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
     /// The requirement level of the metric. Defaults to 'recommended' when omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub requirement_level: Option<BasicRequirementLevelSpec>,
+    pub requirement_level: Option<SignalRequirementLevel>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -65,9 +69,12 @@ pub struct MetricRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
 
     /// Refines the brief description of the signal.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,7 +115,6 @@ impl Metric {
             metric_name: Some(self.name.into_v1()),
             instrument: Some(self.instrument),
             unit: Some(self.unit),
-            metric_requirement_level: self.requirement_level,
             name: None,
             display_name: None,
             body: None,
@@ -121,6 +127,7 @@ impl Metric {
             visibility: None,
             is_v2: true,
             span_name_note: None,
+            requirement_level: self.requirement_level,
         }
     }
 }
@@ -146,7 +153,6 @@ impl MetricRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: None,
             display_name: None,
             body: None,
@@ -159,6 +165,7 @@ impl MetricRefinement {
             visibility: None,
             is_v2: true,
             span_name_note: None,
+            requirement_level: None,
         }
     }
 }
@@ -183,7 +190,7 @@ brief: Test metric
 stability: stable
 instrument: histogram
 unit: s
-requirement_level: required
+requirement_level: opt_in
 "#,
             // V1 - Group
             r#"id: metric.my_metric
@@ -194,7 +201,7 @@ stability: stable
 is_v2: true
 instrument: histogram
 unit: s
-metric_requirement_level: required
+requirement_level: opt_in
 "#,
         );
     }

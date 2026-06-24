@@ -1,6 +1,7 @@
 file_format: definition/2
 metrics:
   - name: http.server.request.duration
+    requirement_level: recommended
     brief: "Duration of HTTP server requests."
     instrument: histogram
     unit: "s"

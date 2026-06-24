@@ -7,11 +7,15 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
+use weaver_semconv::entity_association::EntityAssociation;
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_resource::SampleResource, Error, FindingId, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
+    Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -87,6 +91,37 @@ impl LiveCheckRunner for SampleLog {
                 &sample_ref,
             );
         }
+        // Check entity attribute requirements against the resource (empty slice if no resource)
+        let resource_attributes: &[SampleAttribute] = parent_signal
+            .resource()
+            .map(|r| r.attributes.as_slice())
+            .unwrap_or(&[]);
+        let entity_associations: &[EntityAssociation] = match semconv_event.as_deref() {
+            Some(VersionedSignal::Group(g)) => &g.entity_associations,
+            Some(VersionedSignal::Event(e)) => &e.entity_associations,
+            _ => &[],
+        };
+        let findings = check_entity_associations(
+            entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        );
+        if !findings.is_empty() {
+            let sample_ref = SampleRef::Log(self);
+            emit_findings(
+                &findings,
+                &sample_ref,
+                live_checker.otlp_emitter.as_deref(),
+                parent_signal,
+            );
+            result.add_advice_list(
+                findings,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
+        }
+
         // Check attributes
         self.attributes.run_live_check(
             live_checker,

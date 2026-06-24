@@ -29,7 +29,6 @@
       "metric_name": "faas.coldstarts",
       "instrument": "counter",
       "unit": "{coldstart}",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -59,7 +58,6 @@
       "metric_name": "faas.cpu_usage",
       "instrument": "histogram",
       "unit": "s",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -89,7 +87,6 @@
       "metric_name": "faas.errors",
       "instrument": "counter",
       "unit": "{error}",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -119,7 +116,6 @@
       "metric_name": "faas.init_duration",
       "instrument": "histogram",
       "unit": "s",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -149,7 +145,6 @@
       "metric_name": "faas.invocations",
       "instrument": "counter",
       "unit": "{invocation}",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -179,7 +174,6 @@
       "metric_name": "faas.invoke_duration",
       "instrument": "histogram",
       "unit": "s",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -209,7 +203,6 @@
       "metric_name": "faas.mem_usage",
       "instrument": "histogram",
       "unit": "By",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -239,7 +232,6 @@
       "metric_name": "faas.net_io",
       "instrument": "histogram",
       "unit": "By",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",
@@ -269,7 +261,6 @@
       "metric_name": "faas.timeouts",
       "instrument": "counter",
       "unit": "{timeout}",
-      "metric_requirement_level": "recommended",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",

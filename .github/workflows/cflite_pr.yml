@@ -1,0 +1,57 @@
+name: ClusterFuzzLite PR fuzzing
+
+# Per-PR fuzzing of changed code. Companion to cflite_batch.yml (nightly
+# scheduled batch runs). This workflow uses `mode: code-change`, which is the
+# only ClusterFuzzLite mode that reliably emits SARIF for the Security tab.
+
+on:
+  pull_request:
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  PRFuzzing:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address]
+    steps:
+      - name: Build Fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: rust
+          sanitizer: ${{ matrix.sanitizer }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # forge_jinja triggers a known upstream panic in minijinja (float vs large
+      # integer comparison in Value::cmp). Exclude it from PR runs; it still
+      # runs in the nightly batch job (cflite_batch.yml).
+      - name: Exclude forge_jinja from PR fuzz run
+        run: sudo rm -f build-out/forge_jinja
+      - name: Run Fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 300
+          mode: code-change
+          sanitizer: ${{ matrix.sanitizer }}
+          output-sarif: true
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          sarif_file: cifuzz-sarif/results.sarif
+          category: clusterfuzzlite-${{ matrix.sanitizer }}

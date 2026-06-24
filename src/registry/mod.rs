@@ -185,20 +185,26 @@ pub struct RegistryArgs {
     pub registry: Option<VirtualDirectoryPath>,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
+    /// A bare `--follow-symlinks` means `true`; use the `=` form (e.g.
+    /// `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI.
     /// [default: false]
-    #[arg(short = 's', long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(short = 's', long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub(crate) follow_symlinks: Option<bool>,
 
     /// Boolean flag to include signals and attributes defined in dependency registries,
     /// even if they are not explicitly referenced in the current (custom) registry.
+    /// A bare `--include-unreferenced` means `true`; use the `=` form (e.g.
+    /// `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI.
     /// [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub(crate) include_unreferenced: Option<bool>,
 
     /// Whether or not to output version 2 of the schema.
     /// Note: this will impact both output to templates *and* policies.
+    /// A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to
+    /// override a `.weaver.toml` value from the CLI.
     /// [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub v2: Option<bool>,
 }
 
@@ -237,12 +243,18 @@ pub struct PolicyArgs {
     #[arg(short = 'p', long = "policy")]
     pub policies: Option<Vec<VirtualDirectoryPath>>,
 
-    /// Skip the policy checks. [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    /// Skip the policy checks.
+    /// A bare `--skip-policies` means `true`; use the `=` form (e.g.
+    /// `--skip-policies=false`) to override a `.weaver.toml` value from the CLI.
+    /// [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub skip_policies: Option<bool>,
 
-    /// Display the policy coverage report (useful for debugging). [default: false]
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    /// Display the policy coverage report (useful for debugging).
+    /// A bare `--display-policy-coverage` means `true`; use the `=` form (e.g.
+    /// `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI.
+    /// [default: false]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub display_policy_coverage: Option<bool>,
 }
 

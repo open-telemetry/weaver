@@ -63,6 +63,27 @@ attributes:
           value: "conditionally_required_attribute_not_present"
           brief: "A conditionally required attribute is absent from the sample"
           stability: development
+        # Entity requirement-level findings (resource attributes checked against entity associations)
+        - id: entity_required_attribute_not_present
+          value: "entity_required_attribute_not_present"
+          brief: "A required entity attribute is absent from the resource"
+          stability: development
+        - id: entity_recommended_attribute_not_present
+          value: "entity_recommended_attribute_not_present"
+          brief: "A recommended entity attribute is absent from the resource"
+          stability: development
+        - id: entity_opt_in_attribute_not_present
+          value: "entity_opt_in_attribute_not_present"
+          brief: "An opt-in entity attribute is absent from the resource"
+          stability: development
+        - id: entity_conditionally_required_attribute_not_present
+          value: "entity_conditionally_required_attribute_not_present"
+          brief: "A conditionally required entity attribute is absent from the resource"
+          stability: development
+        - id: entity_association_not_satisfied
+          value: "entity_association_not_satisfied"
+          brief: "No entity in a one_of association group was satisfied by the resource"
+          stability: development
         # Default Rego policy findings (otel.rego)
         - id: missing_namespace
           value: "missing_namespace"

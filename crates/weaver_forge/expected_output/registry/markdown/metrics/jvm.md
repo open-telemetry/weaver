@@ -3,7 +3,6 @@
 This document describes the `jvm` metrics.
 
 ## `jvm.class.count`
-This metric is recommended.
 
 Number of classes currently loaded.
 
@@ -14,7 +13,6 @@ Number of classes currently loaded.
 | Stability | Stable |
 
 ## `jvm.class.loaded`
-This metric is recommended.
 
 Number of classes loaded since JVM start.
 
@@ -25,7 +23,6 @@ Number of classes loaded since JVM start.
 | Stability | Stable |
 
 ## `jvm.class.unloaded`
-This metric is recommended.
 
 Number of classes unloaded since JVM start.
 
@@ -36,7 +33,6 @@ Number of classes unloaded since JVM start.
 | Stability | Stable |
 
 ## `jvm.cpu.count`
-This metric is recommended.
 
 Number of processors available to the Java virtual machine.
 
@@ -47,7 +43,6 @@ Number of processors available to the Java virtual machine.
 | Stability | Stable |
 
 ## `jvm.cpu.recent_utilization`
-This metric is recommended.
 
 Recent CPU utilization for the process as reported by the JVM.
 
@@ -60,7 +55,6 @@ The value range is [0.0,1.0]. This utilization is not defined as being for the s
 | Stability | Stable |
 
 ## `jvm.cpu.time`
-This metric is recommended.
 
 CPU time used by the process as reported by the JVM.
 
@@ -71,7 +65,6 @@ CPU time used by the process as reported by the JVM.
 | Stability | Stable |
 
 ## `jvm.gc.duration`
-This metric is recommended.
 
 Duration of JVM garbage collection actions.
 
@@ -91,7 +84,6 @@ Duration of JVM garbage collection actions.
  |
 
 ## `jvm.memory.committed`
-This metric is recommended.
 
 Measure of memory committed.
 
@@ -111,7 +103,6 @@ Measure of memory committed.
  |
 
 ## `jvm.memory.deprecated`
-This metric is .
 
 Measure something deprecated.
 
@@ -123,7 +114,6 @@ Measure something deprecated.
 | Deprecated | Use `metric.jvm.memory.used` instead. |
 
 ## `jvm.memory.limit`
-This metric is recommended.
 
 Measure of max obtainable memory.
 
@@ -143,7 +133,6 @@ Measure of max obtainable memory.
  |
 
 ## `jvm.memory.used`
-This metric is recommended.
 
 Measure of memory used.
 
@@ -169,7 +158,6 @@ Measure of memory used.
  |
 
 ## `jvm.memory.used_after_last_gc`
-This metric is recommended.
 
 Measure of memory used, as measured after the most recent garbage collection event on this pool.
 
@@ -189,7 +177,6 @@ Measure of memory used, as measured after the most recent garbage collection eve
  |
 
 ## `jvm.thread.count`
-This metric is recommended.
 
 Number of executing platform threads.
 

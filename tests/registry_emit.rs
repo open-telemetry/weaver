@@ -7,8 +7,7 @@ use std::process::Command as StdCommand;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
-
-use portpicker::pick_unused_port;
+use weaver_test_support::reserve_test_port;
 
 /// This test verifies the roundtrip functionality of registry live check and emit commands.
 /// This test doesn't count for the coverage report as it runs separate processes.
@@ -30,11 +29,11 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .to_str()
         .expect("Failed to convert temp directory path to string");
 
-    let otlp_grpc_port = pick_unused_port().expect("no free OTLP gRPC port");
-    let admin_port = pick_unused_port().expect("no free admin port");
+    let otlp_grpc_port = reserve_test_port();
+    let admin_port = reserve_test_port();
 
     // Build the arguments for live check command
-    // Note: --input-source otlp and --skip-policies false are explicitly set
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut live_check_args = vec![
         "registry".to_owned(),
@@ -44,7 +43,6 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         "--input-source".to_owned(),
         "otlp".to_owned(),
         "--skip-policies".to_owned(),
-        "true".to_owned(),
         "--format".to_owned(),
         "json".to_owned(),
         "--output".to_owned(),
@@ -150,11 +148,11 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 #[test]
 fn test_emit_with_resource_attributes() {
     // Ports for weaver3 (final collector)
-    let w3_grpc_port = pick_unused_port().expect("no free weaver3 OTLP gRPC port");
-    let w3_admin_port = pick_unused_port().expect("no free weaver3 admin port");
+    let w3_grpc_port = reserve_test_port();
+    let w3_admin_port = reserve_test_port();
     // Ports for weaver2 (middle live-check with emit)
-    let w2_grpc_port = pick_unused_port().expect("no free weaver2 OTLP gRPC port");
-    let w2_admin_port = pick_unused_port().expect("no free weaver2 admin port");
+    let w2_grpc_port = reserve_test_port();
+    let w2_admin_port = reserve_test_port();
 
     // Temp dir for weaver3's JSON output
     let temp_dir = tempdir().expect("Failed to create temporary directory");
@@ -164,7 +162,7 @@ fn test_emit_with_resource_attributes() {
         .expect("Failed to convert temp directory path to string");
 
     // --- Start weaver3: receives OTLP logs from weaver2, writes JSON report ---
-    // Note: --input-source otlp and --skip-policies true are explicitly set
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w3_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
@@ -175,7 +173,6 @@ fn test_emit_with_resource_attributes() {
             "--input-source",
             "otlp",
             "--skip-policies",
-            "true",
             "--format",
             "json",
             "--output",
@@ -193,7 +190,7 @@ fn test_emit_with_resource_attributes() {
     sleep(Duration::from_secs(2));
 
     // --- Start weaver2: receives OTLP from weaver1, emits findings as OTLP logs to weaver3 ---
-    // Note: --input-source otlp and --skip-policies true are explicitly set
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w2_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
@@ -204,7 +201,6 @@ fn test_emit_with_resource_attributes() {
             "--input-source",
             "otlp",
             "--skip-policies",
-            "true",
             "--output",
             "none",
             "--no-stats",

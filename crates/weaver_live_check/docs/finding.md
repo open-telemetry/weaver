@@ -105,6 +105,11 @@ Custom Rego policies may emit additional finding IDs not listed here.
 | `recommended_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A recommended attribute is absent from the sample |
 | `opt_in_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | An opt-in attribute is absent from the sample |
 | `conditionally_required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A conditionally required attribute is absent from the sample |
+| `entity_required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A required entity attribute is absent from the resource |
+| `entity_recommended_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A recommended entity attribute is absent from the resource |
+| `entity_opt_in_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | An opt-in entity attribute is absent from the resource |
+| `entity_conditionally_required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A conditionally required entity attribute is absent from the resource |
+| `entity_association_not_satisfied` | ![Development](https://img.shields.io/badge/-development-blue) | No entity in a one_of association group was satisfied by the resource |
 | `missing_namespace` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute name has no dot-separated namespace |
 | `invalid_format` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute or metric name does not match the required naming format |
 | `illegal_namespace` | ![Development](https://img.shields.io/badge/-development-blue) | An attribute name uses a namespace that collides with an existing attribute |

@@ -134,8 +134,7 @@ impl Versioned {
     pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
         match self {
             Versioned::V1(v1) => v1.validate(provenance).map(Versioned::V1),
-            // TODO - what validation is needed on V2?
-            Versioned::V2(v2) => WResult::Ok(Versioned::V2(v2)),
+            Versioned::V2(v2) => v2.validate(provenance).map(Versioned::V2),
         }
     }
 }
@@ -444,6 +443,8 @@ mod tests {
             crate::schema_url::SchemaUrl::new_unknown(),
             temp_file.path(),
         )
+        // The missing-requirement-level nudge is a `--future` warning and not
+        // relevant to these parsing tests.
     }
 
     #[test]
@@ -814,6 +815,7 @@ attributes:
           stability: "stable"
           brief: "description2"
           kind: "server"
+          requirement_level: recommended
           name:
            note: "{myspan}"
           attributes:
