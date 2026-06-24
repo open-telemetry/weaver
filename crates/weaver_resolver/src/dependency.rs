@@ -314,7 +314,8 @@ fn convert_v2_attribute(
         value: None,
         role,
     }
-}impl ImportableDependency for V2Schema {
+}
+impl ImportableDependency for V2Schema {
     fn import_groups(
         &self,
         imports: &[ImportsWithProvenance],
