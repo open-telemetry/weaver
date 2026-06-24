@@ -8,12 +8,11 @@ use clap::Args;
 
 use log::info;
 use miette::Diagnostic;
-use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_forge::{OutputProcessor, OutputTarget};
-use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{PolicyError, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
@@ -87,24 +86,7 @@ pub(crate) fn command(
     info!("Resolving registry `{}`", registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
     let weaver = WeaverEngine::new(&registry, &policy, auth);
-    let registry_path = &registry.registry;
-
-    let mut nfes = vec![];
-    let main_registry_repo = RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
-
-    diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
-
-    let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
-    // TODO - only do this in weaver check?
-    if registry.v2 {
-        // Issue a warning so we fail --future.
-        if loaded.has_before_resolution_policy() {
-            diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
-        }
-    } else {
-        loaded.check_before_resolution_policy(&mut diag_msgs)?;
-    }
-    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     let target = OutputTarget::from_optional_file(args.output.as_ref());
     let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
