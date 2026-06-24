@@ -125,7 +125,7 @@ impl LiveChecker {
         }
 
         // Sort templates by name length in descending order
-        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
+        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
 
         LiveChecker {
             registry,

@@ -100,7 +100,7 @@ impl SearchContext {
         }
 
         // Sort templates by key length descending (longest first for prefix matching)
-        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
+        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
 
         // Index all metrics
         for metric in &registry.registry.metrics {
@@ -346,7 +346,7 @@ fn search_mode_with_total(
         .collect();
 
     // Sort by score descending
-    scored_items.sort_by(|a, b| b.0.cmp(&a.0));
+    scored_items.sort_by_key(|b| std::cmp::Reverse(b.0));
 
     // Calculate total before taking limit
     let total = scored_items.len();

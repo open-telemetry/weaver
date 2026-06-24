@@ -584,7 +584,7 @@ pub fn convert_v1_to_v2(
             }
         }
     }
-    attributes.sort_by(|a, b| a.0.cmp(&b.0));
+    attributes.sort_by_key(|a| a.0);
     attributes.dedup();
 
     let v2_registry = Registry {

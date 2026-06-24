@@ -74,7 +74,7 @@ impl HttpAuthResolver {
     /// internally; caller need not pre-sort.
     #[must_use]
     pub fn new(mut rules: Vec<AuthMatchRule>) -> Self {
-        rules.sort_by(|a, b| b.url_prefix.len().cmp(&a.url_prefix.len()));
+        rules.sort_by_key(|b| std::cmp::Reverse(b.url_prefix.len()));
         Self {
             inner: Arc::new(Inner {
                 rules,
