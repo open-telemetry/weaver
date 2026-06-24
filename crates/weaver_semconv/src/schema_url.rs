@@ -27,6 +27,12 @@ pub struct SchemaUrl {
 impl SchemaUrl {
     /// Create a new SchemaUrl from a string, computing and caching the component offsets.
     fn new(url: String) -> Result<Self, String> {
+        // Normalize SchemaURLs
+        let url = if url.ends_with('/') {
+            url.trim_end_matches('/').to_owned()
+        } else {
+            url
+        };
         let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid schema URL: {e}"))?;
         let has_path = parsed
             .path_segments()
@@ -99,6 +105,16 @@ impl SchemaUrl {
         } else {
             format!("https://{}/{}", name.trim_end_matches('/'), version).try_into()
         }
+    }
+
+    /// Parses and returns the semantic version string as a `semver::Version`.
+    /// Strips leading 'v' if present.
+    pub fn semver(&self) -> Result<semver::Version, crate::Error> {
+        let version_str = self.version().trim_start_matches('v');
+        semver::Version::parse(version_str).map_err(|e| crate::Error::InvalidSemVer {
+            schema_url: self.url.clone(),
+            err: e.to_string(),
+        })
     }
 
     /// Returns a default unknown schema URL.
@@ -413,5 +429,28 @@ mod tests {
         let cloned = original.clone();
         assert_eq!(original.as_str(), cloned.as_str());
         assert_eq!(original.name(), cloned.name());
+    }
+
+    #[test]
+    fn test_trailing_slash_normalization() {
+        let url_no_slash: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let url_slash: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0/"
+            .try_into()
+            .unwrap();
+        let url_double_slash: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0//"
+            .try_into()
+            .unwrap();
+
+        assert_eq!(url_no_slash, url_slash);
+        assert_eq!(url_no_slash, url_double_slash);
+        assert_eq!(
+            url_no_slash.as_str(),
+            "https://opentelemetry.io/schemas/1.0.0"
+        );
+        assert_eq!(url_slash.as_str(), "https://opentelemetry.io/schemas/1.0.0");
+        assert_eq!(
+            url_double_slash.as_str(),
+            "https://opentelemetry.io/schemas/1.0.0"
+        );
     }
 }

@@ -390,6 +390,16 @@ pub enum Error {
         schema_url: String,
     },
 
+    /// A schema_url has an invalid version component.
+    #[error("Registry `{schema_url}` contains an invalid version: {err}.")]
+    #[diagnostic(severity(Error))]
+    InvalidSemVer {
+        /// The schema url with invalid version.
+        schema_url: String,
+        /// The semver parsing error.
+        err: String,
+    },
+
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
