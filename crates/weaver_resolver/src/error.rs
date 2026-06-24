@@ -239,6 +239,16 @@ pub enum Error {
         schema_url2: String,
     },
 
+    /// Mismatch between expected and actual schema URL.
+    #[error("Mismatch between expected schema URL `{expected}` and actual schema URL `{actual}` resolved from definition.\nThis is likely because you are using schema_url overrides and trying to replace one version with another.")]
+    #[diagnostic(severity(Error))]
+    MismatchSchemaUrl {
+        /// The expected schema URL.
+        expected: String,
+        /// The actual schema URL resolved.
+        actual: String,
+    },
+
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),

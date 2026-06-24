@@ -19,10 +19,13 @@ struct PortLock {
 }
 
 impl PortLock {
+    #[allow(clippy::print_stderr)]
     fn acquire() -> Self {
         let temp_dir = std::env::temp_dir();
         let lock_path = temp_dir.join("weaver_test_port_allocator.lock");
 
+        let mut retries = 0;
+        let max_retries = 400; // 2 seconds (400 * 5ms)
         loop {
             // Attempt to exclusively create the lock file
             match OpenOptions::new()
@@ -33,7 +36,14 @@ impl PortLock {
                 Ok(_) => break,
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::AlreadyExists {
-                        sleep(Duration::from_millis(5));
+                        retries += 1;
+                        if retries >= max_retries {
+                            eprintln!("Warning: lock file {lock_path:?} could not be acquired after 2 seconds. Assuming orphaned; removing it and retrying.");
+                            let _ = fs::remove_file(&lock_path);
+                            retries = 0;
+                        } else {
+                            sleep(Duration::from_millis(5));
+                        }
                     } else {
                         // If we encounter another error (like permissions),
                         // fall back to breaking and proceeding so we don't completely wedge.

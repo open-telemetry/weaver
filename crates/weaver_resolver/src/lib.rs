@@ -406,12 +406,26 @@ impl WeaverResolver {
 
         let res = self.load_and_resolve_schema(repo, DefaultSchemaVisitor);
         match res {
-            WResult::Ok(_) => {
-                let arc = self.cache.get(schema_url).expect("Just cached").clone();
+            WResult::Ok(resolved) => {
+                if resolved.schema_url_str() != schema_url.as_str() {
+                    return WResult::FatalErr(Error::MismatchSchemaUrl {
+                        expected: schema_url.as_str().to_owned(),
+                        actual: resolved.schema_url_str().to_owned(),
+                    });
+                }
+                let arc = Arc::new(resolved);
+                _ = self.cache.put(schema_url.clone(), arc.clone());
                 WResult::OkWithNFEs(arc, nfes.into_iter().map(Error::from).collect())
             }
-            WResult::OkWithNFEs(_, more_nfes) => {
-                let arc = self.cache.get(schema_url).expect("Just cached").clone();
+            WResult::OkWithNFEs(resolved, more_nfes) => {
+                if resolved.schema_url_str() != schema_url.as_str() {
+                    return WResult::FatalErr(Error::MismatchSchemaUrl {
+                        expected: schema_url.as_str().to_owned(),
+                        actual: resolved.schema_url_str().to_owned(),
+                    });
+                }
+                let arc = Arc::new(resolved);
+                _ = self.cache.put(schema_url.clone(), arc.clone());
                 let mut all_nfes = nfes.into_iter().map(Error::from).collect::<Vec<_>>();
                 all_nfes.extend(more_nfes);
                 WResult::OkWithNFEs(arc, all_nfes)
@@ -804,6 +818,38 @@ mod tests {
             resolved.schema_url_str(),
             "https://app.example.com/schemas/1.0.0"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_schema_url_overrides_mismatch() -> Result<(), Error> {
+        let schema_url = SchemaUrl::try_from("https://mismatch.example.com/schemas/1.0.0").unwrap();
+        let override_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/app_registry".to_owned(),
+        };
+
+        let mut config = WeaverResolverConfig::default();
+        _ = config
+            .schema_url_overrides
+            .insert(schema_url.clone(), override_path);
+
+        let mut resolver = WeaverResolver::new(config);
+
+        // Resolving the schema URL should fail because the target defines a different schema URL
+        match resolver.resolve_schema(&schema_url) {
+            WResult::FatalErr(Error::MismatchSchemaUrl { expected, actual }) => {
+                assert_eq!(expected, "https://mismatch.example.com/schemas/1.0.0");
+                assert_eq!(actual, "https://app.example.com/schemas/1.0.0");
+            }
+            WResult::Ok(_) => panic!("Expected FatalErr(MismatchSchemaUrl), got Ok"),
+            WResult::OkWithNFEs(_, _) => {
+                panic!("Expected FatalErr(MismatchSchemaUrl), got OkWithNFEs")
+            }
+            WResult::FatalErr(e) => panic!(
+                "Expected FatalErr(MismatchSchemaUrl), got FatalErr({:?})",
+                e
+            ),
+        }
         Ok(())
     }
 
