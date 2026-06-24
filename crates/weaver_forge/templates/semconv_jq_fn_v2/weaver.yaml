@@ -4,3 +4,8 @@ templates:
       semconv_grouped_spans({"v2": true})
     application_mode: single
     file_name: semconv_spans.json
+  - template: semconv_events.j2
+    filter: >
+      semconv_grouped_events({"v2": true})
+    application_mode: single
+    file_name: semconv_events.json

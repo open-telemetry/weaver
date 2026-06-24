@@ -25,11 +25,15 @@ pub enum EntityAssociation {
     /// Satisfied when at least one of the contained expressions is satisfied.
     OneOf {
         /// The candidate expressions.
+        // `no_recursion` stops utoipa from inlining the self-referential schema
+        // forever (it would otherwise overflow the stack at generation time).
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         one_of: Vec<EntityAssociation>,
     },
     /// Satisfied when every contained expression is satisfied.
     AllOf {
         /// The required expressions.
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         all_of: Vec<EntityAssociation>,
     },
 }

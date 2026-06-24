@@ -11,6 +11,7 @@ use crate::{
     deprecated::Deprecated,
     entity_association::EntityAssociation,
     group::{GroupSpec, GroupType},
+    signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
     v2::{
         attribute::{split_attributes_and_groups, AttributeOrGroupRef},
@@ -37,6 +38,9 @@ pub struct Event {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
+    /// The requirement level of the event. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -101,7 +105,6 @@ impl Event {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: Some(self.name.into_v1()),
             display_name: None,
             body: None,
@@ -114,6 +117,7 @@ impl Event {
             visibility: None,
             is_v2: true,
             span_name_note: None,
+            requirement_level: self.requirement_level,
         }
     }
 }
@@ -139,7 +143,6 @@ impl EventRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: Some(self.id.into_v1()),
             display_name: None,
             body: None,
@@ -152,6 +155,7 @@ impl EventRefinement {
             visibility: None,
             is_v2: true,
             span_name_note: None,
+            requirement_level: None,
         }
     }
 }

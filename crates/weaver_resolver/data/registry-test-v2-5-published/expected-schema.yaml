@@ -46,6 +46,7 @@ registry:
     attributes:
     - base: 0
       requirement_level: recommended
+    requirement_level: recommended
     brief: a local span
     note: a local span note
     stability: stable
@@ -75,6 +76,7 @@ refinements:
     attributes:
     - base: 0
       requirement_level: recommended
+    requirement_level: recommended
     brief: a local span
     note: a local span note
     stability: stable

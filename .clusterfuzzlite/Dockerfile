@@ -1,4 +1,4 @@
-FROM gcr.io/oss-fuzz-base/base-builder-rust@sha256:dd7ae83552d3c91fbdaa3198d85b89701687cd69ecacfbd1970669bf2adf4744
+FROM gcr.io/oss-fuzz-base/base-builder-rust@sha256:266156b055e6e6412a29570933d18084f182481854c8494f830e82fddaf35e10
 
 COPY . $SRC/weaver
 WORKDIR $SRC/weaver

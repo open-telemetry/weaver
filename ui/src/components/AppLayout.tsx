@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router'
+import { SwaggerUiReference } from './SwaggerUiReference'
 
 export function AppLayout() {
   const location = useLocation()
@@ -15,6 +16,14 @@ export function AppLayout() {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  // swagger-ui-react breaks if remounted, so the docs are mounted once (on first
+  // visit) and kept alive here; only their visibility toggles with the route.
+  const onApiDocs = location.pathname === '/api-docs'
+  const [apiDocsVisited, setApiDocsVisited] = useState(onApiDocs)
+  if (onApiDocs && !apiDocsVisited) {
+    setApiDocsVisited(true)
+  }
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
@@ -121,6 +130,12 @@ export function AppLayout() {
         <main id="main-content" className="flex-1 p-6">
           <Outlet />
         </main>
+
+        {apiDocsVisited && (
+          <div className="api-docs-container" style={{ display: onApiDocs ? undefined : 'none' }}>
+            <SwaggerUiReference specUrl="/api/v1/openapi.json" />
+          </div>
+        )}
       </div>
 
       <div className="drawer-side">

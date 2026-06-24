@@ -937,6 +937,7 @@ metrics:
     instrument: counter
     unit: "{request}"
     stability: stable
+    requirement_level: recommended
     attributes:
       - ref: parent.excluded
         requirement_level: required
@@ -953,7 +954,6 @@ groups:
     metric_name: consumer.requests
     instrument: counter
     unit: "1"
-    metric_requirement_level: recommended
     stability: stable
     brief: Extends an excluded parent metric.
     extends: parent.excluded.metric
@@ -990,6 +990,7 @@ metrics:
     instrument: counter
     unit: "{request}"
     stability: stable
+    requirement_level: recommended
     annotations:
       dependency_resolution:
         exclude: true

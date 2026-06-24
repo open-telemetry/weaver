@@ -74,6 +74,14 @@
       ],
       automerge: true,
     },
+    {
+      // cargo check-external-types only works on this pinned nightly — don't let Renovate bump it
+      matchFileNames: [
+        '.github/workflows/ci.yml',
+      ],
+      matchCurrentValue: '/^nightly-/',
+      enabled: false,
+    },
   ],
   customManagers: [
     {

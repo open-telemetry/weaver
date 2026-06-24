@@ -8,6 +8,7 @@ use weaver_semconv::{
     attribute::RequirementLevel,
     entity_association::EntityAssociation,
     group::SpanKindSpec,
+    signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
@@ -34,6 +35,10 @@ pub struct Span {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
+
+    /// The requirement level of the span. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]

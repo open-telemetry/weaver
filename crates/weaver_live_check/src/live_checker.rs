@@ -125,7 +125,7 @@ impl LiveChecker {
         }
 
         // Sort templates by name length in descending order
-        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
+        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
 
         LiveChecker {
             registry,
@@ -213,6 +213,7 @@ mod tests {
     };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::entity_association::EntityAssociation;
+    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
@@ -785,7 +786,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -848,7 +849,7 @@ mod tests {
                             name: "system.uptime".to_owned().into(),
                             instrument: InstrumentSpec::Gauge,
                             unit: "s".to_owned(),
-                            requirement_level: Some(BasicRequirementLevelSpec::Required),
+                            requirement_level: Some(SignalRequirementLevel::OptIn),
                             attributes: vec![],
                             entity_associations: vec![],
                             common: CommonFields {
@@ -864,7 +865,7 @@ mod tests {
                             name: "system.memory.usage".to_owned().into(),
                             instrument: InstrumentSpec::UpDownCounter,
                             unit: "By".to_owned(),
-                            requirement_level: Some(BasicRequirementLevelSpec::Required),
+                            requirement_level: Some(SignalRequirementLevel::OptIn),
                             attributes: vec![MetricAttribute {
                                 base: memory_state_attr.clone(),
                                 requirement_level: RequirementLevel::Recommended {
@@ -955,7 +956,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: None,
                         lineage: None,
                         display_name: Some("System Memory Attributes".to_owned()),
@@ -979,7 +980,7 @@ mod tests {
                         metric_name: Some("system.uptime".to_owned()),
                         instrument: Some(InstrumentSpec::Gauge),
                         unit: Some("s".to_owned()),
-                        metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
+                        requirement_level: Some(SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1023,7 +1024,7 @@ mod tests {
                         metric_name: Some("system.memory.usage".to_owned()),
                         instrument: Some(InstrumentSpec::UpDownCounter),
                         unit: Some("By".to_owned()),
-                        metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
+                        requirement_level: Some(SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1063,6 +1064,7 @@ mod tests {
                     attribute_groups: vec![],
                     metrics: vec![],
                     spans: vec![V2Span {
+                        requirement_level: None,
                         r#type: "custom.comprehensive.internal".to_owned().into(),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
@@ -1134,7 +1136,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -1585,6 +1587,7 @@ mod tests {
                     spans: vec![],
                     events: vec![
                         V2Event {
+                            requirement_level: None,
                             name: "session.start".to_owned().into(),
                             attributes: vec![
                                 EventAttribute {
@@ -1624,6 +1627,7 @@ mod tests {
                             provenance: Default::default(),
                         },
                         V2Event {
+                            requirement_level: None,
                             name: "example.event".to_owned().into(),
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1723,7 +1727,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("session.start".to_owned()),
                         lineage: None,
                         display_name: Some("Session Start Event".to_owned()),
@@ -1753,7 +1757,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("example.event".to_owned()),
                         lineage: None,
                         display_name: Some("Example Event".to_owned()),
@@ -2187,6 +2191,7 @@ mod tests {
                     metrics: vec![],
                     spans: vec![],
                     events: vec![V2Event {
+                        requirement_level: None,
                         name: "deployment.started".to_owned().into(),
                         attributes: vec![],
                         entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
@@ -2200,6 +2205,7 @@ mod tests {
                         provenance: Default::default(),
                     }],
                     entities: vec![V2Entity {
+                        requirement_level: None,
                         r#type: SignalId::from("deployment".to_owned()),
                         identity: vec![EntityAttribute {
                             base: deployment_name_attr,
@@ -2349,7 +2355,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("deployment".to_owned()),
                         lineage: None,
                         display_name: None,
@@ -2373,7 +2379,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("deployment.started".to_owned()),
                         lineage: None,
                         display_name: None,
@@ -2635,7 +2641,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
+            requirement_level: None,
             name: Some(type_name.to_owned()),
             lineage: None,
             display_name: None,
@@ -2662,7 +2668,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
+            requirement_level: None,
             name: Some(name.to_owned()),
             lineage: None,
             display_name: None,
@@ -2957,6 +2963,7 @@ mod tests {
                     spans: vec![],
                     events: vec![],
                     entities: vec![V2Entity {
+                        requirement_level: None,
                         r#type: SignalId::from("host".to_owned()),
                         identity: vec![EntityAttribute {
                             base: host_name_attr,
@@ -3021,7 +3028,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("host".to_owned()),
                         lineage: None,
                         display_name: None,
@@ -3044,7 +3051,7 @@ mod tests {
                         metric_name: Some("system.uptime".to_owned()),
                         instrument: Some(InstrumentSpec::Gauge),
                         unit: Some("s".to_owned()),
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: None,
                         lineage: None,
                         display_name: None,

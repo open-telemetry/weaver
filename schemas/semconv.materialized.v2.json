@@ -327,6 +327,17 @@
           "description": "The provenance of the entity.",
           "$ref": "#/$defs/Provenance"
         },
+        "requirement_level": {
+          "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -572,6 +583,17 @@
           "description": "The provenance of the event.",
           "$ref": "#/$defs/Provenance"
         },
+        "requirement_level": {
+          "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -710,6 +732,17 @@
         "provenance": {
           "description": "The provenance of the event.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -914,7 +947,7 @@
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BasicRequirementLevelSpec"
+              "$ref": "#/$defs/SignalRequirementLevel"
             },
             {
               "type": "null"
@@ -1074,7 +1107,7 @@
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BasicRequirementLevelSpec"
+              "$ref": "#/$defs/SignalRequirementLevel"
             },
             {
               "type": "null"
@@ -1328,6 +1361,21 @@
       "description": "An identifier for a signal.  Should be `.` separated namespaces and names.",
       "type": "string"
     },
+    "SignalRequirementLevel": {
+      "description": "The requirement level of a signal (metric, span, event, entity). It is\nguidance for instrumentation authors about what should be emitted by default\nversus what should be opt-in. Unlike attribute requirement levels, signals\nonly support these two levels.",
+      "oneOf": [
+        {
+          "description": "Instrumentations should implement and emit the signal by default.\nThis is the default for signals that do not specify a requirement level.",
+          "type": "string",
+          "const": "recommended"
+        },
+        {
+          "description": "Disabled by default; instrumentations MAY implement the signal.",
+          "type": "string",
+          "const": "opt_in"
+        }
+      ]
+    },
     "Span": {
       "description": "The definition of a span signal.",
       "type": "object",
@@ -1383,6 +1431,17 @@
         "provenance": {
           "description": "The provenance of the span.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -1583,6 +1642,17 @@
         "provenance": {
           "description": "The provenance of the span.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",

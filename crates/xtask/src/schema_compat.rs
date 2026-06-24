@@ -44,8 +44,9 @@ fn fetch_repo() -> anyhow::Result<Repository> {
         TEMP_REPO_DIR,
         Kind::WithWorktree,
         create::Options {
-            destination_must_be_empty: true,
+            destination_must_be_empty: Some(true),
             fs_capabilities: None,
+            object_hash: None,
         },
         open::Options::isolated(),
     )?;

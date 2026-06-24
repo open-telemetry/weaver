@@ -868,6 +868,7 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
+    use crate::v2::event::Event;
     use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
@@ -950,6 +951,7 @@ mod tests {
                 attribute_groups: vec![],
                 metrics: vec![],
                 spans: vec![Span {
+                    requirement_level: None,
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
@@ -960,7 +962,14 @@ mod tests {
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
-                events: vec![],
+                events: vec![Event {
+                    name: SignalId::from("db.query".to_owned()),
+                    requirement_level: None,
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
                 entities: vec![],
             },
             refinements: Refinements {
@@ -1354,6 +1363,55 @@ mod tests {
             "test": expected.clone()
         });
         let result = run_filter_raw(&input, ".test").expect("failed to run raw filter `.test`");
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_events_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "events": [
+                    {
+                        "name": "http.request",
+                        "brief": "stable event",
+                        "stability": "stable"
+                    },
+                    {
+                        "name": "db.query",
+                        "brief": "deprecated event",
+                        "stability": "stable",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "name": "other.event",
+                        "brief": "excluded namespace",
+                        "stability": "stable"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_events({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_events for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "http",
+                "events": [
+                    {
+                        "name": "http.request",
+                        "brief": "stable event",
+                        "stability": "stable",
+                        "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
         assert_eq!(result, expected);
     }
 

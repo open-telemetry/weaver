@@ -28,6 +28,7 @@ attribute_groups:
 
 metrics:
   - name: base.metric
+    requirement_level: recommended
     instrument: histogram
     unit: s
     brief: Base metric
@@ -57,6 +58,7 @@ metric_refinements:
       - ref_group: test.refine.extras
 spans:
   - type: base.span
+    requirement_level: recommended
     kind: client
     name:
       note: "base span"
@@ -70,6 +72,7 @@ span_refinements:
 
 events:
   - name: base.event
+    requirement_level: recommended
     brief: Base event
     stability: stable
 
@@ -80,6 +83,7 @@ event_refinements:
 
 entities:
   - type: base.entity
+    requirement_level: recommended
     identity:
       - ref: test.attr
     brief: Base entity

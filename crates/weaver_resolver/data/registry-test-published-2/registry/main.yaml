@@ -10,6 +10,7 @@ attributes:
     stability: stable
 spans:
 - type: local-span
+  requirement_level: recommended
   name:
     note: span
   brief: a local span
