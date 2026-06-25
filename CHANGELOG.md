@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Refactor resolution engine so we can support multiple schema urls registered
+  and cached ([#1504](https://github.com/open-telemetry/weaver/pull/1504) by @jsuereth).
+- Change `--include-unreferenced` so that this is the same as creating a
+  a set of `import:` statements in the registry manifest. ([#1442](https://github.com/open-telemetry/weaver/pull/1442) by @jsuereth)
+
+# [0.24.2] - 2026-06-23
+
+- Fix boolean flags (`--v2`, `--skip-policies`, etc.) consuming the following positional argument; bare flags work again and `--flag=false` overrides `.weaver.toml`. ([#1532](https://github.com/open-telemetry/weaver/pull/1532) by @jerbly)
+
 # [0.24.1] - 2026-06-21
 
 - Fix stack overflow when generating OpenAPI spec ([#1521](https://github.com/open-telemetry/weaver/pull/1521) by @jerbly)

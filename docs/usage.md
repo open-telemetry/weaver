@@ -91,25 +91,25 @@ The process exits with a code of 0 if the registry validation is successful.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
 * `--baseline-registry <BASELINE_REGISTRY>` — Parameters to specify the baseline semantic convention registry
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -146,24 +146,24 @@ The process exits with a code of 0 if the generation is successful.
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -189,15 +189,15 @@ Please use 'weaver registry generate' or 'weaver registry package' instead.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -209,11 +209,11 @@ Please use 'weaver registry generate' or 'weaver registry package' instead.
 
   Default value: `yaml`
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -239,15 +239,15 @@ DEPRECATED - Searches a registry. This command is deprecated and will be removed
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -272,15 +272,15 @@ Calculate a set of general statistics on a semantic convention registry
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -309,15 +309,15 @@ Update markdown files that contain markers indicating the templates used to upda
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -401,15 +401,15 @@ This diff can then be rendered in multiple formats:
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -437,24 +437,24 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -483,24 +483,24 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -556,15 +556,15 @@ The server communicates over stdio using JSON-RPC.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -611,26 +611,26 @@ Packages a semantic convention registry into a self-contained artifact.
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Path to the directory where the package will be written. [default: output]
 * `--resolved-registry-uri <RESOLVED_REGISTRY_URI>` — URI where the resolved registry artifact will eventually be published. This value is embedded in the publication manifest as `resolved_registry_uri`
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
@@ -705,24 +705,24 @@ Start the API server (Experimental)
 ###### **Options:**
 
 * `-r`, `--registry <REGISTRY>` — Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a reference can be specified using the `@refspec` syntax and a sub-folder can be specified using the `[sub-folder]` syntax after the URL. [default: `https://github.com/open-telemetry/semantic-conventions.git[model]`]
-* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. [default: false]
+* `-s`, `--follow-symlinks <FOLLOW_SYMLINKS>` — Boolean flag to specify whether to follow symlinks when loading the registry. A bare `--follow-symlinks` means `true`; use the `=` form (e.g. `--follow-symlinks=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. [default: false]
+* `--include-unreferenced <INCLUDE_UNREFERENCED>` — Boolean flag to include signals and attributes defined in dependency registries, even if they are not explicitly referenced in the current (custom) registry. A bare `--include-unreferenced` means `true`; use the `=` form (e.g. `--include-unreferenced=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. [default: false]
+* `--v2 <V2>` — Whether or not to output version 2 of the schema. Note: this will impact both output to templates *and* policies. A bare `--v2` means `true`; use the `=` form (e.g. `--v2=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
 * `-p`, `--policy <POLICIES>` — Optional list of policy files or directories to check against the files of the semantic convention registry.  If a directory is provided all `.rego` files in the directory will be loaded
-* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. [default: false]
+* `--skip-policies <SKIP_POLICIES>` — Skip the policy checks. A bare `--skip-policies` means `true`; use the `=` form (e.g. `--skip-policies=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 
-* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). [default: false]
+* `--display-policy-coverage <DISPLAY_POLICY_COVERAGE>` — Display the policy coverage report (useful for debugging). A bare `--display-policy-coverage` means `true`; use the `=` form (e.g. `--display-policy-coverage=false`) to override a `.weaver.toml` value from the CLI. [default: false]
 
   Possible values: `true`, `false`
 

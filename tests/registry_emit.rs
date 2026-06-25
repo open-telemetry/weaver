@@ -33,7 +33,7 @@ fn run_emit_with_live_check_test(use_v2: bool) {
     let admin_port = reserve_test_port();
 
     // Build the arguments for live check command
-    // Note: --input-source otlp and --skip-policies false are explicitly set
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut live_check_args = vec![
         "registry".to_owned(),
@@ -43,7 +43,6 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         "--input-source".to_owned(),
         "otlp".to_owned(),
         "--skip-policies".to_owned(),
-        "true".to_owned(),
         "--format".to_owned(),
         "json".to_owned(),
         "--output".to_owned(),
@@ -163,7 +162,7 @@ fn test_emit_with_resource_attributes() {
         .expect("Failed to convert temp directory path to string");
 
     // --- Start weaver3: receives OTLP logs from weaver2, writes JSON report ---
-    // Note: --input-source otlp and --skip-policies true are explicitly set
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w3_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
@@ -174,7 +173,6 @@ fn test_emit_with_resource_attributes() {
             "--input-source",
             "otlp",
             "--skip-policies",
-            "true",
             "--format",
             "json",
             "--output",
@@ -192,7 +190,7 @@ fn test_emit_with_resource_attributes() {
     sleep(Duration::from_secs(2));
 
     // --- Start weaver2: receives OTLP from weaver1, emits findings as OTLP logs to weaver3 ---
-    // Note: --input-source otlp and --skip-policies true are explicitly set
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
     // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w2_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
@@ -203,7 +201,6 @@ fn test_emit_with_resource_attributes() {
             "--input-source",
             "otlp",
             "--skip-policies",
-            "true",
             "--output",
             "none",
             "--no-stats",

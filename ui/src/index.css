@@ -88,7 +88,7 @@
   left: 256px;
   right: 0;
   bottom: 0;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 @media (max-width: 1024px) {
@@ -97,13 +97,87 @@
   }
 }
 
-rapi-doc {
-  display: block;
-  width: 100%;
-  height: 100%;
+/* Swagger UI ships a light-only theme; override its colors for dark mode
+   (palette mirrors the app's DaisyUI dark theme). */
+[data-theme='dark'] .swagger-ui {
+  color: #a6adba;
 }
 
-rapi-doc::part(section-navbar) {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
+[data-theme='dark'] .swagger-ui .info .title,
+[data-theme='dark'] .swagger-ui .info p,
+[data-theme='dark'] .swagger-ui .info li,
+[data-theme='dark'] .swagger-ui .info a,
+[data-theme='dark'] .swagger-ui .info table,
+[data-theme='dark'] .swagger-ui .opblock-tag,
+[data-theme='dark'] .swagger-ui .opblock-tag small,
+[data-theme='dark'] .swagger-ui .opblock .opblock-summary-operation-id,
+[data-theme='dark'] .swagger-ui .opblock .opblock-summary-path,
+[data-theme='dark'] .swagger-ui .opblock .opblock-summary-path__deprecated,
+[data-theme='dark'] .swagger-ui .opblock .opblock-summary-description,
+[data-theme='dark'] .swagger-ui .opblock-description-wrapper p,
+[data-theme='dark'] .swagger-ui .opblock-external-docs-wrapper p,
+[data-theme='dark'] .swagger-ui .opblock-title_normal p,
+[data-theme='dark'] .swagger-ui .opblock-section-header h4,
+[data-theme='dark'] .swagger-ui .opblock-section-header > label,
+[data-theme='dark'] .swagger-ui .tab li,
+[data-theme='dark'] .swagger-ui .response-col_status,
+[data-theme='dark'] .swagger-ui .response-col_links,
+[data-theme='dark'] .swagger-ui .responses-inner h4,
+[data-theme='dark'] .swagger-ui .responses-inner h5,
+[data-theme='dark'] .swagger-ui table thead tr td,
+[data-theme='dark'] .swagger-ui table thead tr th,
+[data-theme='dark'] .swagger-ui .parameter__name,
+[data-theme='dark'] .swagger-ui .parameter__type,
+[data-theme='dark'] .swagger-ui .parameter__in,
+[data-theme='dark'] .swagger-ui .prop-type,
+[data-theme='dark'] .swagger-ui .prop-format,
+[data-theme='dark'] .swagger-ui label,
+[data-theme='dark'] .swagger-ui .model-title,
+[data-theme='dark'] .swagger-ui .model,
+[data-theme='dark'] .swagger-ui .models h4,
+[data-theme='dark'] .swagger-ui .markdown p,
+[data-theme='dark'] .swagger-ui .markdown li,
+[data-theme='dark'] .swagger-ui .renderedMarkdown p,
+[data-theme='dark'] .swagger-ui .btn {
+  color: #a6adba;
+}
+
+[data-theme='dark'] .swagger-ui .scheme-container,
+[data-theme='dark'] .swagger-ui section.models,
+[data-theme='dark'] .swagger-ui section.models .model-container,
+[data-theme='dark'] .swagger-ui .opblock .opblock-section-header {
+  background: #1d232a;
+  box-shadow: none;
+}
+
+[data-theme='dark'] .swagger-ui .opblock {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: #2a323c;
+}
+
+[data-theme='dark'] .swagger-ui .opblock .opblock-summary {
+  border-color: #2a323c;
+}
+
+[data-theme='dark'] .swagger-ui section.models,
+[data-theme='dark'] .swagger-ui section.models .model-container {
+  border-color: #2a323c;
+}
+
+[data-theme='dark'] .swagger-ui input,
+[data-theme='dark'] .swagger-ui textarea,
+[data-theme='dark'] .swagger-ui select {
+  background: #1d232a;
+  color: #a6adba;
+  border-color: #2a323c;
+}
+
+[data-theme='dark'] .swagger-ui .microlight,
+[data-theme='dark'] .swagger-ui .highlight-code {
+  background: #0f1419;
+}
+
+[data-theme='dark'] .swagger-ui .model-toggle::after,
+[data-theme='dark'] .swagger-ui svg.arrow {
+  filter: invert(0.8);
 }

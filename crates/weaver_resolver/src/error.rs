@@ -18,6 +18,11 @@ pub enum Error {
     #[diagnostic(transparent)]
     FailToResolveDefinition(#[from] weaver_semconv::Error),
 
+    /// Failed to access a virtual directory path.
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    VirtualDirectoryError(#[from] weaver_common::Error),
+
     /// We discovered a circular dependency we cannot resolve.
     #[error("Circular dependency detected: registry '{registry_name}' depends on itself through the chain: {chain}")]
     CircularDependency {
@@ -233,10 +238,32 @@ pub enum Error {
         /// The second SchemaURL found.
         schema_url2: String,
     },
+    /// Deprecated `include_unreferenced` usage warning.
+    #[error("The flag `include_unreferenced` is deprecated. Please prefer manually adding the required imports to your schema files in the future.")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedIncludeUnreferencedWarning {},
+
+    /// Mismatch between expected and actual schema URL.
+    #[error("Mismatch between expected schema URL `{expected}` and actual schema URL `{actual}` resolved from definition.\nThis is likely because you are using schema_url overrides and trying to replace one version with another.")]
+    #[diagnostic(severity(Error))]
+    MismatchSchemaUrl {
+        /// The expected schema URL.
+        expected: String,
+        /// The actual schema URL resolved.
+        actual: String,
+    },
 
     /// A container for multiple errors.
     #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
+
+    /// Attempted to convert an OpenTelemetry V2 schema into a V1 schema.
+    #[error("Converting a V2 schema into a V1 schema is unsupported")]
+    ConvertingV2ToV1Unsupported,
+
+    /// A user-defined schema loading visitor hook aborted the resolution pass.
+    #[error("Schema loading aborted by visitor hook")]
+    LoadingAbortedByVisitor,
 }
 
 impl WeaverError<Error> for Error {

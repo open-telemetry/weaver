@@ -27,7 +27,7 @@ members = ["crates/*"]
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.24.1"
+version = "0.24.2"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -74,6 +74,7 @@ zip = "5.1.1"
 assert_cmd = "2.2.1"
 semver = { version = "1.0.27", features = ["serde"] }
 glob = "0.3.3"
+lru = "0.16.0"
 
 # Features definition =========================================================
 [features]
