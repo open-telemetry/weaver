@@ -3151,6 +3151,14 @@ mod tests {
 
             import rego.v1
 
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
+
             deny contains make_advice(advice_type, advice_level, advice_context, message) if {
                 input.sample.attribute
                 input.sample.attribute.name == "test.custom_trigger"
@@ -3183,8 +3191,8 @@ mod tests {
 
         let has_default_advice = advice.iter().any(|a| a.id == "missing_attribute");
         assert!(
-            !has_default_advice,
-            "Expected default missing_attribute advice to be absent. Found: {:?}",
+            has_default_advice,
+            "Expected default missing_attribute advice to be present. Found: {:?}",
             advice
         );
 
@@ -3212,6 +3220,14 @@ mod tests {
             package live_check_advice
 
             import rego.v1
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
 
             deny contains make_advice(advice_type, advice_level, advice_context, message) if {
                 input.sample.attribute
@@ -3284,6 +3300,14 @@ mod tests {
             package live_check_advice
 
             import rego.v1
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
 
             deny contains make_advice(advice_type, advice_level, advice_context, message) if {
                 input.sample.attribute

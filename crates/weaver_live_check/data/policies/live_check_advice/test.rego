@@ -77,6 +77,14 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
     message := sprintf("This is a low number of seconds: %v", [input.sample.exemplar.value])
 }
 
+make_advice(advice_type, advice_level, advice_context, message) := {
+    "type": "advice",
+    "advice_type": advice_type,
+    "advice_level": advice_level,
+    "advice_context": advice_context,
+    "message": message,
+}
+
 
 # Log with an event_name that we can compare against the matched event in the model.
 # If the registry_group is present, check for an annotation that specifies a phrase
