@@ -35,7 +35,7 @@ pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Error {
     /// An invalid policy.
-    #[error("Invalid policy file '{file}', error: {error})")]
+    #[error("Invalid policy file '{file}', error: {error}")]
     #[diagnostic(
         url("https://www.openpolicyagent.org/docs/latest/policy-language/"),
         help("Check the policy file for syntax errors.")
@@ -67,26 +67,13 @@ pub enum Error {
         error: String,
     },
 
-    /// An invalid policy glob pattern.
-    #[error("Invalid policy glob pattern '{pattern}', error: {error})")]
+    /// An invalid glob pattern.
+    #[error("Invalid glob pattern '{pattern}', error: {error}")]
     #[diagnostic(
         url("https://docs.rs/globset/latest/globset/"),
         help("Check the glob pattern for syntax errors.")
     )]
-    InvalidPolicyGlobPattern {
-        /// The glob pattern that caused the error.
-        pattern: String,
-        /// The error that occurred.
-        error: String,
-    },
-
-    /// An invalid data glob pattern.
-    #[error("Invalid data glob pattern '{pattern}', error: {error})")]
-    #[diagnostic(
-        url("https://docs.rs/globset/latest/globset/"),
-        help("Check the glob pattern for syntax errors.")
-    )]
-    InvalidDataGlobPattern {
+    InvalidGlobPattern {
         /// The glob pattern that caused the error.
         pattern: String,
         /// The error that occurred.
@@ -94,7 +81,7 @@ pub enum Error {
     },
 
     /// An invalid data.
-    #[error("Invalid data, error: {error})")]
+    #[error("Invalid data, error: {error}")]
     #[diagnostic()]
     InvalidData {
         /// The error that occurred.
@@ -102,7 +89,7 @@ pub enum Error {
     },
 
     /// An invalid input.
-    #[error("Invalid input, error: {error})")]
+    #[error("Invalid input, error: {error}")]
     #[diagnostic()]
     InvalidInput {
         /// The error that occurred.
@@ -309,7 +296,7 @@ impl Engine {
         }
 
         let glob = Glob::new(&glob_pattern)
-            .map_err(|e| Error::InvalidDataGlobPattern {
+            .map_err(|e| Error::InvalidGlobPattern {
                 pattern: glob_pattern.clone(),
                 error: e.to_string(),
             })?
@@ -465,7 +452,7 @@ impl Engine {
         let mut added_policy_count = 0;
 
         let policy_glob = Glob::new(policy_glob_pattern)
-            .map_err(|e| Error::InvalidPolicyGlobPattern {
+            .map_err(|e| Error::InvalidGlobPattern {
                 pattern: policy_glob_pattern.to_owned(),
                 error: e.to_string(),
             })?
