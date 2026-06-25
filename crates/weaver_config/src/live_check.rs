@@ -46,6 +46,10 @@ pub struct LiveCheckConfig {
     /// Advice policies directory. Overrides the built-in default policies.
     pub advice_policies: Option<PathBuf>,
 
+    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
+    /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
+    pub advice_data: Option<String>,
+
     /// Advice preprocessor — a jq script run once over the registry data before
     /// being passed to rego policies.
     pub advice_preprocessor: Option<PathBuf>,
@@ -69,6 +73,7 @@ impl Default for LiveCheckConfig {
             no_stats: false,
             output: None,
             advice_policies: None,
+            advice_data: None,
             advice_preprocessor: None,
             otlp: LiveCheckOtlpConfig::default(),
             emit: LiveCheckEmitConfig::default(),
@@ -227,6 +232,7 @@ no_stream = false
 no_stats = true
 output = "reports"
 advice_policies = "policies"
+advice_data = "data"
 advice_preprocessor = "pre.jq"
 
 ["live-check".otlp]
@@ -250,6 +256,7 @@ otlp_logs_stdout = false
         assert!(lc.no_stats);
         assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
         assert_eq!(lc.advice_policies.as_deref(), Some(Path::new("policies")));
+        assert_eq!(lc.advice_data.as_deref(), Some("data"));
         assert_eq!(lc.advice_preprocessor.as_deref(), Some(Path::new("pre.jq")));
 
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");

@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::fs::metadata;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use globset::Glob;
 use miette::Diagnostic;
@@ -269,6 +269,122 @@ impl Engine {
         };
         Ok(())
     }
+
+    /// Adds OPA data document from a JSON/YAML file, directory or a glob pattern.
+    pub fn add_data_from_file_or_dir(&mut self, pattern: &str) -> Result<(), Error> {
+        let (mut base, mut glob_pattern) = split_glob(pattern);
+
+        // If the base path is empty, use the current directory.
+        if base.as_os_str().is_empty() {
+            base = PathBuf::from(".");
+        }
+
+        // If glob pattern is empty, load all files under base path.
+        if glob_pattern.is_empty() {
+            if base.is_file() {
+                let root = base.parent().unwrap_or_else(|| Path::new("."));
+                return self.add_data_file_from_dir(root, &base);
+            }
+            glob_pattern = "**/*".to_owned();
+        }
+
+        let glob = Glob::new(&glob_pattern)
+            .map_err(|e| Error::InvalidPolicyGlobPattern {
+                pattern: glob_pattern.clone(),
+                error: e.to_string(),
+            })?
+            .compile_matcher();
+
+        let mut errors = Vec::new();
+        for entry in walkdir::WalkDir::new(&base)
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+            .flatten()
+        {
+            let entry_path = entry.path();
+            if entry_path.is_file() {
+                let rel_path = entry_path
+                    .strip_prefix(&base)
+                    .map_err(|e| Error::InvalidData {
+                        error: format!("Failed to get relative path: {e}"),
+                    })?;
+                if glob.is_match(rel_path) {
+                    if let Err(err) = self.add_data_file_from_dir(&base, entry_path) {
+                        errors.push(err);
+                    }
+                }
+            }
+        }
+        handle_errors(errors)?;
+        Ok(())
+    }
+
+    fn add_data_file_from_dir<P1: AsRef<Path>, P2: AsRef<Path>>(
+        &mut self,
+        root_dir: P1,
+        path: P2,
+    ) -> Result<(), Error> {
+        let root = root_dir.as_ref();
+        let file_path = path.as_ref();
+
+        let rel_path = file_path
+            .strip_prefix(root)
+            .map_err(|e| Error::InvalidData {
+                error: format!("Failed to get relative path: {e}"),
+            })?;
+
+        let extension = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+        let content = std::fs::read_to_string(file_path).map_err(|e| Error::AccessDenied {
+            path: file_path.to_string_lossy().to_string(),
+            error: e.to_string(),
+        })?;
+
+        // OPA Rego requires data documents to be structured values. We deserialize the
+        // content here to validate the structure and pass it to the engine.
+        let parsed_value: serde_json::Value = match extension {
+            "json" => {
+                log::debug!("Including JSON data file {}", file_path.display());
+                serde_json::from_str(&content).map_err(|e| Error::InvalidData {
+                    error: format!("Invalid JSON file {}: {}", file_path.display(), e),
+                })?
+            }
+            "yaml" | "yml" => {
+                log::debug!("Including YAML data file {}", file_path.display());
+                serde_yaml::from_str(&content).map_err(|e| Error::InvalidData {
+                    error: format!("Invalid YAML file {}: {}", file_path.display(), e),
+                })?
+            }
+            _ => {
+                log::debug!(
+                    "Skipping file {} (unsupported extension)",
+                    file_path.display()
+                );
+                return Ok(());
+            }
+        };
+
+        let mut components: Vec<String> = Vec::new();
+        if let Some(parent) = rel_path.parent() {
+            for comp in parent.components() {
+                if let std::path::Component::Normal(os_str) = comp {
+                    components.push(os_str.to_string_lossy().into_owned());
+                }
+            }
+        }
+        if let Some(stem) = file_path.file_stem() {
+            components.push(stem.to_string_lossy().into_owned());
+        }
+
+        let mut wrapped = parsed_value;
+        for key in components.into_iter().rev() {
+            let mut map = serde_json::Map::new();
+            let _ = map.insert(key, wrapped);
+            wrapped = serde_json::Value::Object(map);
+        }
+
+        self.add_data(&wrapped)?;
+        Ok(())
+    }
     /// Adds a policy file to the policy engine.
     /// A policy file is a `rego` file that contains the policies to be evaluated.
     ///
@@ -315,14 +431,6 @@ impl Engine {
         policy_dir: P,
         policy_glob_pattern: &str,
     ) -> Result<usize, Error> {
-        fn is_hidden(entry: &DirEntry) -> bool {
-            entry
-                .file_name()
-                .to_str()
-                .map(|s| s.starts_with('.'))
-                .unwrap_or(false)
-        }
-
         let mut errors = Vec::new();
         let mut added_policy_count = 0;
 
@@ -339,10 +447,11 @@ impl Engine {
         };
 
         // Visit recursively all the files in the policy directory
-        for entry in walkdir::WalkDir::new(policy_dir).into_iter().flatten() {
-            if is_hidden(&entry) {
-                continue;
-            }
+        for entry in walkdir::WalkDir::new(policy_dir)
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+            .flatten()
+        {
             if is_policy_file(&entry) {
                 if let Err(err) = self.add_policy_from_file(entry.path()) {
                     errors.push(err);
@@ -470,6 +579,44 @@ impl Engine {
     }
 }
 
+fn split_glob(pattern: &str) -> (PathBuf, String) {
+    let path = Path::new(pattern);
+    let mut base = PathBuf::new();
+    let mut rest = Vec::new();
+    let mut found_wildcard = false;
+
+    for component in path.components() {
+        let component_str = component.as_os_str().to_string_lossy();
+        if found_wildcard
+            || component_str.contains('*')
+            || component_str.contains('?')
+            || component_str.contains('[')
+        {
+            found_wildcard = true;
+            rest.push(component_str.into_owned());
+        } else {
+            base.push(component);
+        }
+    }
+
+    if rest.is_empty() {
+        (base, "".to_owned())
+    } else {
+        (base, rest.join("/"))
+    }
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    if entry.depth() == 0 {
+        return false;
+    }
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with('.'))
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -479,7 +626,7 @@ mod tests {
     use weaver_common::error::format_errors;
 
     use crate::finding::PolicyFinding;
-    use crate::{Engine, Error, PolicyStage};
+    use crate::{split_glob, Engine, Error, PolicyStage};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -671,5 +818,140 @@ mod tests {
         engine.add_policy_from_file_or_dir("data/multi-policies")?;
         assert!(engine.has_stage(PolicyStage::BeforeResolution));
         Ok(())
+    }
+
+    #[test]
+    fn test_add_policy_from_file_or_dir_with_nested_data() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp_dir = tempfile::tempdir()?;
+        let temp_path = temp_dir.path();
+        let policy_path = temp_path.join("policy.rego");
+        let schemas_dir = temp_path.join("schemas");
+        let _ = std::fs::create_dir_all(&schemas_dir);
+        let schema_path = schemas_dir.join("user.json");
+
+        let rego_content = r#"
+            package before_resolution
+
+            import rego.v1
+
+            deny contains {
+                "id": "user_id_invalid",
+                "message": sprintf("User ID '%v' is invalid", [input.user_id]),
+                "level": "violation"
+            } if {
+                input.user_id
+                not is_number(input.user_id)
+                data.schemas.user.properties.user_id.type == "number"
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content)?;
+
+        let json_content = r#"
+            {
+                "properties": {
+                    "user_id": {
+                        "type": "number"
+                    }
+                }
+            }
+        "#;
+        std::fs::write(&schema_path, json_content)?;
+
+        let mut engine = Engine::new();
+        engine.add_policy_from_file_or_dir(temp_path)?;
+        let glob_pattern = format!("{}/**/*.json", temp_path.to_str().unwrap());
+        engine.add_data_from_file_or_dir(&glob_pattern)?;
+
+        // Set input that triggers the rule (user_id is a string, not a number)
+        let input = serde_json::json!({
+            "user_id": "not-a-number"
+        });
+        engine.set_input(&input)?;
+
+        let violations = engine.check(PolicyStage::BeforeResolution)?;
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].id, "user_id_invalid");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_data_from_file_or_dir_with_paths() -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = tempfile::tempdir()?;
+        let temp_path = temp_dir.path();
+
+        let policy_path = temp_path.join("policy.rego");
+        let schemas_dir = temp_path.join("schemas");
+        let _ = std::fs::create_dir_all(&schemas_dir);
+        let user_schema_path = schemas_dir.join("user.json");
+        let admin_schema_path = schemas_dir.join("admin.yaml");
+
+        let rego_content = r#"
+            package before_resolution
+            import rego.v1
+            deny contains {
+                "id": "test_err",
+                "message": "test error",
+                "level": "violation"
+            } if {
+                data.user.properties.user_id.type == "number"
+                data.admin.properties.role.type == "string"
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content)?;
+
+        let user_json = r#"{"properties": {"user_id": {"type": "number"}}}"#;
+        std::fs::write(&user_schema_path, user_json)?;
+
+        let admin_yaml = r#"
+            properties:
+              role:
+                type: string
+        "#;
+        std::fs::write(&admin_schema_path, admin_yaml)?;
+
+        // Test loading direct directory path (with no wildcards)
+        let mut engine_dir = Engine::new();
+        engine_dir.add_policy_from_file_or_dir(temp_path)?;
+        engine_dir.add_data_from_file_or_dir(schemas_dir.to_str().unwrap())?;
+        let violations = engine_dir.check(PolicyStage::BeforeResolution)?;
+        assert!(!violations.is_empty());
+
+        // Test loading direct individual file paths
+        let mut engine_files = Engine::new();
+        engine_files.add_policy_from_file_or_dir(temp_path)?;
+        engine_files.add_data_from_file_or_dir(user_schema_path.to_str().unwrap())?;
+        engine_files.add_data_from_file_or_dir(admin_schema_path.to_str().unwrap())?;
+        let violations = engine_files.check(PolicyStage::BeforeResolution)?;
+        assert!(!violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_split_glob() {
+        let cases = vec![
+            ("schemas/*.json", "schemas", "*.json"),
+            ("schemas/**/*.json", "schemas", "**/*.json"),
+            ("user.json", "user.json", ""),
+            (
+                "/absolute/path/to/schemas/*.json",
+                "/absolute/path/to/schemas",
+                "*.json",
+            ),
+            ("a/b/c/d", "a/b/c/d", ""),
+        ];
+
+        for (pattern, expected_base, expected_glob) in cases {
+            let (base, glob) = split_glob(pattern);
+            assert_eq!(
+                base.to_str().unwrap(),
+                expected_base,
+                "Pattern: {}",
+                pattern
+            );
+            assert_eq!(glob, expected_glob, "Pattern: {}", pattern);
+        }
     }
 }

@@ -25,6 +25,7 @@ impl RegoAdvisor {
         live_checker: &LiveChecker,
         policy_dir: &Option<PathBuf>,
         jq_preprocessor: &Option<PathBuf>,
+        policy_data: &Option<String>,
     ) -> Result<Self, Error> {
         let mut engine = Engine::new();
         if let Some(path) = policy_dir {
@@ -36,6 +37,14 @@ impl RegoAdvisor {
         } else {
             let _ = engine
                 .add_policy(DEFAULT_LIVE_CHECK_REGO_POLICY_PATH, DEFAULT_LIVE_CHECK_REGO)
+                .map_err(|e| Error::AdviceError {
+                    error: e.to_string(),
+                })?;
+        }
+
+        if let Some(pattern) = policy_data {
+            engine
+                .add_data_from_file_or_dir(pattern)
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
                 })?;
