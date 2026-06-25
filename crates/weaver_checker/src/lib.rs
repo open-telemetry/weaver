@@ -80,6 +80,19 @@ pub enum Error {
         error: String,
     },
 
+    /// An invalid data glob pattern.
+    #[error("Invalid data glob pattern '{pattern}', error: {error})")]
+    #[diagnostic(
+        url("https://docs.rs/globset/latest/globset/"),
+        help("Check the glob pattern for syntax errors.")
+    )]
+    InvalidDataGlobPattern {
+        /// The glob pattern that caused the error.
+        pattern: String,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// An invalid data.
     #[error("Invalid data, error: {error})")]
     #[diagnostic()]
@@ -279,9 +292,16 @@ impl Engine {
             base = PathBuf::from(".");
         }
 
+        // Fail fast if the base path doesn't exist / isn't accessible.
+        // Otherwise, WalkDir errors would be silently ignored or dropped by WalkDir.
+        let md = metadata(&base).map_err(|err| Error::AccessDenied {
+            path: base.to_string_lossy().to_string(),
+            error: err.to_string(),
+        })?;
+
         // If glob pattern is empty, load all files under base path.
         if glob_pattern.is_empty() {
-            if base.is_file() {
+            if md.is_file() {
                 let root = base.parent().unwrap_or_else(|| Path::new("."));
                 return self.add_data_file_from_dir(root, &base);
             }
@@ -289,7 +309,7 @@ impl Engine {
         }
 
         let glob = Glob::new(&glob_pattern)
-            .map_err(|e| Error::InvalidPolicyGlobPattern {
+            .map_err(|e| Error::InvalidDataGlobPattern {
                 pattern: glob_pattern.clone(),
                 error: e.to_string(),
             })?
@@ -299,8 +319,17 @@ impl Engine {
         for entry in walkdir::WalkDir::new(&base)
             .into_iter()
             .filter_entry(|e| !is_hidden(e))
-            .flatten()
         {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(err) => {
+                    errors.push(Error::AccessDenied {
+                        path: base.to_string_lossy().to_string(),
+                        error: err.to_string(),
+                    });
+                    continue;
+                }
+            };
             let entry_path = entry.path();
             if entry_path.is_file() {
                 let rel_path = entry_path
@@ -953,5 +982,17 @@ mod tests {
             );
             assert_eq!(glob, expected_glob, "Pattern: {}", pattern);
         }
+    }
+
+    #[test]
+    fn test_add_data_from_file_or_dir_invalid_paths() {
+        let mut engine = Engine::new();
+        // A non-existent file/directory should return an AccessDenied error
+        let result = engine.add_data_from_file_or_dir("/non/existent/path/to/data");
+        assert!(matches!(result, Err(Error::AccessDenied { .. })));
+
+        // A non-existent base path for a glob pattern should also return AccessDenied
+        let result = engine.add_data_from_file_or_dir("/non/existent/path/*.json");
+        assert!(matches!(result, Err(Error::AccessDenied { .. })));
     }
 }
