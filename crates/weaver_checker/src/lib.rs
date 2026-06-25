@@ -334,7 +334,8 @@ impl Engine {
             if entry_path.is_file() {
                 let rel_path = entry_path
                     .strip_prefix(&base)
-                    .map_err(|e| Error::InvalidData {
+                    .map_err(|e| Error::AccessDenied {
+                        path: entry_path.to_string_lossy().to_string(),
                         error: format!("Failed to get relative path: {e}"),
                     })?;
                 if glob.is_match(rel_path) {
@@ -975,7 +976,7 @@ mod tests {
         for (pattern, expected_base, expected_glob) in cases {
             let (base, glob) = split_glob(pattern);
             assert_eq!(
-                base.to_str().unwrap(),
+                base.to_string_lossy().replace('\\', "/"),
                 expected_base,
                 "Pattern: {}",
                 pattern
