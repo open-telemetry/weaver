@@ -14,12 +14,37 @@ use weaver_common::vdir::VirtualDirectory;
 use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_resolver::{LoadedSemconvRegistry, SchemaResolver};
+use weaver_resolver::{
+    DefaultSchemaVisitor, LoadedSemconvRegistry, SchemaLoadingVisitor, WeaverResolvedSchema,
+    WeaverResolver, WeaverResolverConfig,
+};
 use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
 use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig};
+
+/// Visitor that runs Rego policy evaluation during semantic convention loading.
+struct PolicyVisitor<'a> {
+    engine: &'a Engine,
+    diag_msgs: &'a mut DiagnosticMessages,
+    fatal_err: &'a mut Option<weaver_checker::Error>,
+}
+
+impl<'a> SchemaLoadingVisitor for PolicyVisitor<'a> {
+    fn check_raw_loaded_schema_files(&mut self, loaded: &LoadedSemconvRegistry) -> bool {
+        if let LoadedSemconvRegistry::Unresolved { specs, .. } = loaded {
+            let mut local_diags = DiagnosticMessages::empty();
+            let res = check_policy(self.engine, specs).capture_non_fatal_errors(&mut local_diags);
+            self.diag_msgs.extend(local_diags);
+            if let Err(e) = res {
+                *self.fatal_err = Some(e);
+                return false;
+            }
+        }
+        true
+    }
+}
 
 /// Engine that loads, resolves, and policy-checks a semantic convention registry.
 pub struct WeaverEngine<'a> {
@@ -43,89 +68,96 @@ impl<'a> WeaverEngine<'a> {
         }
     }
 
-    /// Loads  previously resolved schemas or loads and resolves "raw" definitions, executing all policies there-in.
+    /// Loads previously resolved schemas or loads and resolves "raw" definitions, executing all policies there-in.
     pub fn load_and_resolve_main(
         &self,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Resolved, Error> {
-        let loaded = self.load_main_definitions(diag_msgs)?;
-        if self.registry_config.v2 {
-            // Issue a warning so we fail --future.
-            if loaded.has_before_resolution_policy() {
-                diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
-            }
-        } else {
-            loaded.check_before_resolution_policy(diag_msgs)?;
-        }
-        self.resolve(loaded, diag_msgs)
-    }
-
-    /// Loads "main" weaver definition files (from our config).
-    pub fn load_main_definitions(
-        &self,
-        diag_msgs: &mut DiagnosticMessages,
-    ) -> Result<Loaded, Error> {
         let registry_path = &self.registry_config.registry;
         let mut nfes = vec![];
         let main_registry_repo =
             RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, self.auth)?;
-
         diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
-        self.load_definitions(main_registry_repo, diag_msgs)
+        self.load_and_resolve_repo(main_registry_repo, diag_msgs)
     }
 
-    /// Loads "raw" weaver definitions files from some external source.
-    pub fn load_definitions(
+    /// Loads and resolves any OpenTelemetry repository (V1 or V2), evaluating all configured Rego policies.
+    pub fn load_and_resolve_repo(
         &self,
         repo: RegistryRepo,
         diag_msgs: &mut DiagnosticMessages,
-    ) -> Result<Loaded, Error> {
-        // TODO - avoid cloning the repo here.
-        let loaded = SchemaResolver::load_semconv_repository_with_auth(
-            repo.clone(),
-            self.registry_config.follow_symlinks,
-            self.auth,
-        )
-        .capture_non_fatal_errors(diag_msgs)?;
-
-        // Optionally init policy engine
-        let policy_engine = prepare_policy_engine(self.policy_config, &repo, self.auth)?;
-        Ok(Loaded {
-            loaded,
-            policy_engine,
-        })
-    }
-
-    /// Resolves a loaded set of weaver definitions into a Resolved Registry.
-    pub fn resolve(
-        &self,
-        loaded: Loaded,
-        diag_msgs: &mut DiagnosticMessages,
     ) -> Result<Resolved, Error> {
-        let registry_path_repr: String = loaded.loaded.registry_path_repr().to_owned();
-        let res_v1 = match loaded.loaded {
-            LoadedSemconvRegistry::Unresolved { .. } | LoadedSemconvRegistry::Resolved(_) => {
-                let resolved = SchemaResolver::resolve(
-                    loaded.loaded,
-                    self.registry_config.include_unreferenced,
-                )
-                .capture_non_fatal_errors(diag_msgs)?;
+        let registry_path_repr: String = repo.registry_path_repr().to_owned();
+        let policy_engine = prepare_policy_engine(self.policy_config, &repo, self.auth)?;
 
-                // This creates the template/json friendly registry.
+        let config = WeaverResolverConfig {
+            follow_symlinks: self.registry_config.follow_symlinks,
+            include_unreferenced: self.registry_config.include_unreferenced,
+            auth: self.auth.clone(),
+            ..Default::default()
+        };
+        let mut resolver = WeaverResolver::new(config);
+
+        let mut fatal_err = None;
+        let resolved_bundle = if let (false, Some(policy_eng)) =
+            (self.registry_config.v2, policy_engine.as_ref())
+        {
+            let visitor = PolicyVisitor {
+                engine: policy_eng,
+                diag_msgs,
+                fatal_err: &mut fatal_err,
+            };
+            match resolver.load_and_resolve_schema(repo, visitor) {
+                WResult::Ok(r) => r,
+                WResult::OkWithNFEs(r, nfes) => {
+                    diag_msgs
+                        .extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
+                    r
+                }
+                WResult::FatalErr(weaver_resolver::Error::LoadingAbortedByVisitor) => {
+                    return Err(Error::Checker(
+                        fatal_err.expect("LoadingAbortedByVisitor implies fatal_err is populated"),
+                    ));
+                }
+                WResult::FatalErr(e) => return Err(e.into()),
+            }
+        } else {
+            if self.registry_config.v2 {
+                if let Some(engine) = policy_engine.as_ref() {
+                    if engine.has_stage(PolicyStage::BeforeResolution) {
+                        diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
+                    }
+                }
+            }
+            match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+                WResult::Ok(r) => r,
+                WResult::OkWithNFEs(r, nfes) => {
+                    diag_msgs
+                        .extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
+                    r
+                }
+                WResult::FatalErr(weaver_resolver::Error::LoadingAbortedByVisitor) => {
+                    unreachable!("Dummy visitor never aborts");
+                }
+                WResult::FatalErr(e) => return Err(e.into()),
+            }
+        };
+
+        let res_v1 = match resolved_bundle {
+            WeaverResolvedSchema::V1(resolved) => {
                 let template = ResolvedRegistry::try_from_resolved_registry(
                     &resolved.registry,
                     resolved.catalog(),
                 )?;
-
                 Resolved::V1(ResolvedV1 {
                     resolved_schema: resolved,
                     template_schema: template,
                     registry_path_repr,
-                    policy_engine: loaded.policy_engine,
+                    policy_engine,
                 })
             }
-            LoadedSemconvRegistry::ResolvedV2(resolved) => {
+            WeaverResolvedSchema::V2(resolved) => {
                 if !self.registry_config.v2 {
                     diag_msgs.extend(Error::V2FlagMissingWarning.into());
                 }
@@ -137,7 +169,7 @@ impl<'a> WeaverEngine<'a> {
                     resolved_schema: resolved,
                     template_schema: template,
                     registry_path_repr,
-                    policy_engine: loaded.policy_engine,
+                    policy_engine,
                 }));
             }
         };
@@ -148,37 +180,6 @@ impl<'a> WeaverEngine<'a> {
             }
         }
         Ok(res_v1)
-    }
-}
-
-/// A loaded set of weaver definition files.
-///
-/// Contains the repository definition and raw files and an optional policy engine with policies for this repo.
-pub struct Loaded {
-    loaded: LoadedSemconvRegistry,
-    policy_engine: Option<Engine>,
-}
-impl Loaded {
-    /// Checks if we have any before resolution policies.
-    pub fn has_before_resolution_policy(&self) -> bool {
-        self.policy_engine
-            .as_ref()
-            .map(|engine| engine.has_stage(PolicyStage::BeforeResolution))
-            .unwrap_or(false)
-    }
-
-    /// Checks before resolution policies.
-    pub fn check_before_resolution_policy(
-        &self,
-        diag_msgs: &mut DiagnosticMessages,
-    ) -> Result<(), Error> {
-        if let Some(policy_engine) = self.policy_engine.as_ref() {
-            // Note: We can't check polices on resolved registries.
-            if let LoadedSemconvRegistry::Unresolved { specs, .. } = &self.loaded {
-                check_policy(policy_engine, specs).capture_non_fatal_errors(diag_msgs)?;
-            }
-        }
-        Ok(())
     }
 }
 

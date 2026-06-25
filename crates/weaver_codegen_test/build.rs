@@ -18,7 +18,7 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
-use weaver_resolver::SchemaResolver;
+use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
@@ -44,13 +44,18 @@ fn main() {
     };
     let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
         .unwrap_or_else(|e| process_error(&logger, e));
-    let loaded = SchemaResolver::load_semconv_repository(registry_repo, FOLLOW_SYMLINKS)
+    let resolver_config = WeaverResolverConfig {
+        follow_symlinks: FOLLOW_SYMLINKS,
+        ..Default::default()
+    };
+    let mut resolver = WeaverResolver::new(resolver_config);
+    let schema = resolver
+        .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
-        .unwrap_or_else(|e| process_error(&logger, e));
-    let schema = SchemaResolver::resolve(loaded, false)
-        .into_result_failing_non_fatal()
-        .unwrap_or_else(|e| process_error(&logger, e));
+        .unwrap_or_else(|e| process_error(&logger, e))
+        .into_v1()
+        .expect("Only V1 schemas are supported in this codegen test");
 
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));

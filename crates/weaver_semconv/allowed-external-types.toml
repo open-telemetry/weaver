@@ -18,4 +18,5 @@ allowed_external_types = [
     "utoipa::PartialSchema",
     "schemars::schema::Schema",
     "globset::glob::Glob",
+    "semver::Version",
 ]
