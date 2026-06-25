@@ -6,10 +6,6 @@ settings:
 
 overrides:
   monaco-editor>dompurify: '>=3.4.2'
-  form-data: '>=4.0.6'
-  js-yaml: ^4.2.0
-  '@babel/core': ^7.29.6
-  esbuild: '>=0.28.1'
 
 importers:
 
@@ -37,8 +33,8 @@ importers:
         specifier: ^19.2.0
         version: 19.2.7(react@19.2.7)
       swagger-ui-react:
-        specifier: ^5.32.6
-        version: 5.32.6(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^5.32.8
+        version: 5.32.8(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       yaml:
         specifier: ^2.8.2
         version: 2.9.0
@@ -129,7 +125,7 @@ packages:
     resolution: {integrity: sha512-UPUVSyXbOh627KiCIGQSgwWzGeBKLkaJ9PJEdrngIwMSzxLR4jS4+f1f1jb7VzBbg8nFLaYotvVPFCTqdrmTAg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.29.6
+      '@babel/core': ^7.0.0
 
   '@babel/helper-string-parser@7.27.1':
     resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
@@ -1247,10 +1243,6 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@4.1.1:
-    resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
-    hasBin: true
-
   js-yaml@4.2.0:
     resolution: {integrity: sha512-ePWsvanv0DWuDRsW8dnt+R4jQ31SCRCQ7hhNcPXZPsoBZiemuZNYGf7adZdqX2D86j6rvKp3RpCxVTSb8WQlOw==}
     hasBin: true
@@ -1700,8 +1692,8 @@ packages:
     resolution: {integrity: sha512-MuABJgD8vIsT5GVBTGj3HjmiEhArf58ng+YP4fo23NOJb/mKXOpKW3Rln90fnoi7ROt6IJsJy9d5kg8Yidn0/Q==}
     engines: {node: '>=22'}
 
-  swagger-ui-react@5.32.6:
-    resolution: {integrity: sha512-2q2kXd6eDR+syyWV5HE2CkWANyr2MHPkNezG4M7fC0FPlBUZEsNgyA/2dcb9dIwgE5xd995dO42h89fNMF5/ng==}
+  swagger-ui-react@5.32.8:
+    resolution: {integrity: sha512-Cstx4Tq8fT5l2TBxHxts8pG+ks0qKSkuO1pwUwgrQQiZ241Mqs+KUODLVIonsYXL/gqX143rkcipUa4d0Rid7w==}
     peerDependencies:
       react: '>=16.8.0 <20'
       react-dom: '>=16.8.0 <20'
@@ -1814,7 +1806,7 @@ packages:
     peerDependencies:
       '@types/node': ^20.19.0 || >=22.12.0
       '@vitejs/devtools': ^0.1.18
-      esbuild: '>=0.28.1'
+      esbuild: ^0.27.0 || ^0.28.0
       jiti: '>=1.21.0'
       less: ^4.0.0
       sass: ^1.70.0
@@ -3325,10 +3317,6 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
-  js-yaml@4.1.1:
-    dependencies:
-      argparse: 2.0.1
-
   js-yaml@4.2.0:
     dependencies:
       argparse: 2.0.1
@@ -3738,7 +3726,7 @@ snapshots:
       - debug
       - supports-color
 
-  swagger-ui-react@5.32.6(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  swagger-ui-react@5.32.8(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       '@babel/runtime-corejs3': 7.29.7
       '@scarf/scarf': 1.4.0
@@ -3751,7 +3739,7 @@ snapshots:
       ieee754: 1.2.1
       immutable: 3.8.3
       js-file-download: 0.4.12
-      js-yaml: 4.1.1
+      js-yaml: 4.2.0
       lodash: 4.18.1
       prop-types: 15.8.1
       randexp: 0.5.3
