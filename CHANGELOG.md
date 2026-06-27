@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Add optional `name` field to `SpanRefinement` in v2 syntax. ([#1403](https://github.com/open-telemetry/weaver/pull/1403) by @lmolkova)
+- Add optional `name` field to `SpanRefinement` in v2 syntax, and fix span name propagation so refinements (and imported spans) inherit the base span's `name` when they don't override it. ([#1403](https://github.com/open-telemetry/weaver/pull/1403) by @lmolkova)
 - Refactor resolution engine so we can support multiple schema urls registered
   and cached ([#1504](https://github.com/open-telemetry/weaver/pull/1504) by @jsuereth).
 - Change `--include-unreferenced` so that this is the same as creating a
