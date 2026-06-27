@@ -741,65 +741,34 @@ impl VirtualDirectory {
     /// This avoids the `main_worktree()` path which can only checkout HEAD or
     /// a symbolic ref.
     fn checkout_sha(repo: &gix::Repository, sha: &str, url: &str) -> Result<(), Error> {
-        let workdir = repo.workdir().ok_or_else(|| GitError {
+        let checkout = || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+            let workdir = repo.workdir().ok_or("repository has no worktree")?;
+            let id = gix::ObjectId::from_hex(sha.as_bytes())?;
+            let tree_id = repo.find_object(id)?.peel_to_tree()?.id;
+            let mut index = repo.index_from_tree(&tree_id)?;
+
+            let mut opts = repo
+                .checkout_options(gix::worktree::stack::state::attributes::Source::IdMapping)?;
+            opts.destination_is_initially_empty = true;
+
+            let _outcome = gix::worktree::state::checkout(
+                &mut index,
+                workdir,
+                repo.objects.clone().into_arc()?,
+                &progress::Discard,
+                &progress::Discard,
+                &AtomicBool::new(false),
+                opts,
+            )?;
+
+            index.write(Default::default())?;
+            Ok(())
+        };
+
+        checkout().map_err(|e| GitError {
             repo_url: url.to_owned(),
-            message: "repository has no worktree".to_owned(),
-        })?;
-
-        let id = gix::ObjectId::from_hex(sha.as_bytes()).map_err(|e| GitError {
-            repo_url: url.to_owned(),
-            message: format!("invalid commit SHA {sha}: {e}"),
-        })?;
-
-        let tree_id = repo
-            .find_object(id)
-            .map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: format!("commit {sha} not found: {e}"),
-            })?
-            .peel_to_tree()
-            .map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: format!("failed to peel {sha} to tree: {e}"),
-            })?
-            .id;
-
-        let mut index = repo.index_from_tree(&tree_id).map_err(|e| GitError {
-            repo_url: url.to_owned(),
-            message: format!("failed to build index from tree: {e}"),
-        })?;
-
-        let mut opts = repo
-            .checkout_options(gix::worktree::stack::state::attributes::Source::IdMapping)
-            .map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: format!("failed to get checkout options: {e}"),
-            })?;
-        opts.destination_is_initially_empty = true;
-
-        let _outcome = gix::worktree::state::checkout(
-            &mut index,
-            workdir,
-            repo.objects.clone().into_arc().map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: format!("failed to create object store handle: {e}"),
-            })?,
-            &progress::Discard,
-            &progress::Discard,
-            &AtomicBool::new(false),
-            opts,
-        )
-        .map_err(|e| GitError {
-            repo_url: url.to_owned(),
-            message: format!("checkout failed: {e}"),
-        })?;
-
-        index.write(Default::default()).map_err(|e| GitError {
-            repo_url: url.to_owned(),
-            message: format!("failed to write index: {e}"),
-        })?;
-
-        Ok(())
+            message: format!("failed to checkout commit {sha}: {e}"),
+        })
     }
 
     /// Create a new `VirtualDirectory` from a local archive.
