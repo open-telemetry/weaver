@@ -696,7 +696,13 @@ impl VirtualDirectory {
             let repo = checkout.persist();
             Self::checkout_sha(&repo, sha, url)?;
         } else {
-            let _repo = checkout
+            // Call purely for its side effect: `main_worktree` checks out the
+            // default branch onto disk at `tmp_path`, which is what the returned
+            // `VirtualDirectory` points at. We don't need the resulting
+            // `Repository` — and dropping it is safe: `main_worktree` mutates `checkout`
+            // disarming its delete-clone-on-drop guard, so the worktree files
+            // persist. Temp-dir will be cleaned up separately.
+            let _ = checkout
                 .main_worktree(progress::Discard, &AtomicBool::new(false))
                 .map_err(|e| GitError {
                     repo_url: url.to_owned(),
