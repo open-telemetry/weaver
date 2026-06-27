@@ -10,7 +10,7 @@ use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
     advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
-    VersionedAttribute, VersionedRegistry, VersionedSignal,
+    VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
 };
 
 #[cfg(test)]
@@ -25,6 +25,8 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
+    #[serde(skip)]
+    semconv_entities: HashMap<String, Rc<VersionedEntity>>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
@@ -50,6 +52,8 @@ impl LiveChecker {
         let mut semconv_metrics = HashMap::new();
         // Hashmap of events by name
         let mut semconv_events = HashMap::new();
+        // Hashmap of entities by type name
+        let mut semconv_entities = HashMap::new();
 
         match registry.as_ref() {
             VersionedRegistry::V1(registry) => {
@@ -64,6 +68,12 @@ impl LiveChecker {
                         if let Some(event_name) = &group.name {
                             let group_rc = Rc::new(VersionedSignal::Group(Box::new(group.clone())));
                             let _ = semconv_events.insert(event_name.clone(), group_rc);
+                        }
+                    }
+                    if group.r#type == GroupType::Entity {
+                        if let Some(entity_name) = &group.name {
+                            let entity_rc = Rc::new(VersionedEntity::V1(Box::new(group.clone())));
+                            let _ = semconv_entities.insert(entity_name.clone(), entity_rc);
                         }
                     }
                     for attribute in &group.attributes {
@@ -94,6 +104,11 @@ impl LiveChecker {
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
+                for entity in &registry.registry.entities {
+                    let entity_type = entity.r#type.to_string();
+                    let entity_rc = Rc::new(VersionedEntity::V2(Box::new(entity.clone())));
+                    let _ = semconv_entities.insert(entity_type, entity_rc);
+                }
                 for attribute in &registry.registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
@@ -110,7 +125,7 @@ impl LiveChecker {
         }
 
         // Sort templates by name length in descending order
-        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
+        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
 
         LiveChecker {
             registry,
@@ -118,6 +133,7 @@ impl LiveChecker {
             semconv_templates,
             semconv_metrics,
             semconv_events,
+            semconv_entities,
             advisors,
             templates_by_length,
             otlp_emitter: None,
@@ -148,6 +164,12 @@ impl LiveChecker {
         self.semconv_events.get(name).map(Rc::clone)
     }
 
+    /// Find an entity in the registry by type name
+    #[must_use]
+    pub fn find_entity(&self, entity_type: &str) -> Option<Rc<VersionedEntity>> {
+        self.semconv_entities.get(entity_type).map(Rc::clone)
+    }
+
     /// Find a template in the registry
     #[must_use]
     pub fn find_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
@@ -176,6 +198,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::sample_log::SampleLog;
     use serde_json::json;
     use serde_yaml;
     use std::collections::BTreeMap;
@@ -189,6 +212,8 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::entity_association::EntityAssociation;
+    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
@@ -199,7 +224,6 @@ mod tests {
         stability::Stability,
         YamlValue,
     };
-
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
         match sample {
             Sample::Attribute(sample_attribute) => sample_attribute
@@ -272,16 +296,16 @@ mod tests {
         assert_eq!(all_advice[0].id, "invalid_format");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "testString2" }))
+            Some(json!({"attribute_key": "testString2" }))
         );
         assert_eq!(
             all_advice[0].message,
-            "Attribute 'testString2' does not match name formatting rules."
+            "Attribute key 'testString2' does not match name formatting rules."
         );
         assert_eq!(all_advice[1].id, "missing_attribute");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "testString2"}))
+            Some(json!({"attribute_key": "testString2"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -290,9 +314,9 @@ mod tests {
         assert_eq!(all_advice[2].id, "missing_namespace");
         assert_eq!(
             all_advice[2].context,
-            Some(json!({"attribute_name": "testString2"}))
+            Some(json!({"attribute_key": "testString2"}))
         );
-        assert_eq!(all_advice[2].message, "Attribute name 'testString2' must include a namespace (e.g. '{namespace}.{attribute_key}')");
+        assert_eq!(all_advice[2].message, "Attribute key 'testString2' must include a namespace (e.g. '{namespace}.{attribute_key}')");
 
         let all_advice = get_all_advice(&mut samples[2]);
         assert_eq!(all_advice.len(), 3);
@@ -300,7 +324,7 @@ mod tests {
         assert_eq!(
             all_advice[0].context,
             Some(
-                json!({"attribute_name": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
+                json!({"attribute_key": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
             )
         );
         assert_eq!(
@@ -311,7 +335,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "not_stable");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.deprecated", "stability": "development"}))
+            Some(json!({"attribute_key": "test.deprecated", "stability": "development"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -322,7 +346,7 @@ mod tests {
         assert_eq!(
             all_advice[2].context,
             Some(
-                json!({"attribute_name": "test.deprecated", "attribute_type": "int", "expected": "string"})
+                json!({"attribute_key": "test.deprecated", "attribute_type": "int", "expected": "string"})
             )
         );
         assert_eq!(
@@ -335,7 +359,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "aws.s3.bucket.name"}))
+            Some(json!({"attribute_key": "aws.s3.bucket.name"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -347,7 +371,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "undefined_enum_variant");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.enum", "attribute_value": "foo"}))
+            Some(json!({"attribute_key": "test.enum", "attribute_value": "foo"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -359,7 +383,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "type_mismatch");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.enum", "attribute_type": "double"}))
+            Some(json!({"attribute_key": "test.enum", "attribute_type": "double"}))
         );
         assert_eq!(all_advice[0].message, "Enum attribute 'test.enum' has type 'double'. Enum value type should be 'string' or 'int'.");
 
@@ -372,16 +396,16 @@ mod tests {
         assert_eq!(all_advice[0].id, "extends_namespace");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.string.not.allowed", "namespace": "test"}))
+            Some(json!({"attribute_key": "test.string.not.allowed", "namespace": "test"}))
         );
         assert_eq!(
             all_advice[0].message,
-            "Attribute name 'test.string.not.allowed' collides with existing namespace 'test'"
+            "Attribute key 'test.string.not.allowed' collides with existing namespace 'test'"
         );
         assert_eq!(all_advice[1].id, "illegal_namespace");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.string.not.allowed", "namespace": "test.string"}))
+            Some(json!({"attribute_key": "test.string.not.allowed", "namespace": "test.string"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -391,7 +415,7 @@ mod tests {
         assert_eq!(
             all_advice[2].context,
             Some(json!({
-                "attribute_name": "test.string.not.allowed"
+                "attribute_key": "test.string.not.allowed"
             }))
         );
         assert_eq!(
@@ -404,7 +428,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.extends"}))
+            Some(json!({"attribute_key": "test.extends"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -413,11 +437,11 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.extends", "namespace": "test"}))
+            Some(json!({"attribute_key": "test.extends", "namespace": "test"}))
         );
         assert_eq!(
             all_advice[1].message,
-            "Attribute name 'test.extends' collides with existing namespace 'test'"
+            "Attribute key 'test.extends' collides with existing namespace 'test'"
         );
 
         // test.template
@@ -427,7 +451,7 @@ mod tests {
         assert_eq!(
             all_advice[0].context,
             Some(
-                json!({"attribute_name": "test.template.my.key", "template_name": "test.template"})
+                json!({"attribute_key": "test.template.my.key", "template_name": "test.template"})
             )
         );
         assert_eq!(
@@ -438,7 +462,7 @@ mod tests {
         assert_eq!(
             all_advice[1].context,
             Some(
-                json!({"attribute_name": "test.template.my.key", "attribute_type": "int", "expected": "string"})
+                json!({"attribute_key": "test.template.my.key", "attribute_type": "int", "expected": "string"})
             )
         );
         assert_eq!(
@@ -453,7 +477,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.deprecated.allowed"}))
+            Some(json!({"attribute_key": "test.deprecated.allowed"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -462,11 +486,11 @@ mod tests {
         assert_eq!(all_advice[1].id, "extends_namespace");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.deprecated.allowed", "namespace": "test"}))
+            Some(json!({"attribute_key": "test.deprecated.allowed", "namespace": "test"}))
         );
         assert_eq!(
             all_advice[1].message,
-            "Attribute name 'test.deprecated.allowed' collides with existing namespace 'test'"
+            "Attribute key 'test.deprecated.allowed' collides with existing namespace 'test'"
         );
 
         let all_advice = get_all_advice(&mut samples[11]);
@@ -474,7 +498,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "undefined_enum_variant");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.enum", "attribute_value": 17}))
+            Some(json!({"attribute_key": "test.enum", "attribute_value": 17}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -762,7 +786,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -825,7 +849,7 @@ mod tests {
                             name: "system.uptime".to_owned().into(),
                             instrument: InstrumentSpec::Gauge,
                             unit: "s".to_owned(),
-                            requirement_level: Some(BasicRequirementLevelSpec::Required),
+                            requirement_level: Some(SignalRequirementLevel::OptIn),
                             attributes: vec![],
                             entity_associations: vec![],
                             common: CommonFields {
@@ -841,7 +865,7 @@ mod tests {
                             name: "system.memory.usage".to_owned().into(),
                             instrument: InstrumentSpec::UpDownCounter,
                             unit: "By".to_owned(),
-                            requirement_level: Some(BasicRequirementLevelSpec::Required),
+                            requirement_level: Some(SignalRequirementLevel::OptIn),
                             attributes: vec![MetricAttribute {
                                 base: memory_state_attr.clone(),
                                 requirement_level: RequirementLevel::Recommended {
@@ -932,7 +956,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: None,
                         lineage: None,
                         display_name: Some("System Memory Attributes".to_owned()),
@@ -956,7 +980,7 @@ mod tests {
                         metric_name: Some("system.uptime".to_owned()),
                         instrument: Some(InstrumentSpec::Gauge),
                         unit: Some("s".to_owned()),
-                        metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
+                        requirement_level: Some(SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1000,7 +1024,7 @@ mod tests {
                         metric_name: Some("system.memory.usage".to_owned()),
                         instrument: Some(InstrumentSpec::UpDownCounter),
                         unit: Some("By".to_owned()),
-                        metric_requirement_level: Some(BasicRequirementLevelSpec::Recommended),
+                        requirement_level: Some(SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1040,6 +1064,7 @@ mod tests {
                     attribute_groups: vec![],
                     metrics: vec![],
                     spans: vec![V2Span {
+                        requirement_level: None,
                         r#type: "custom.comprehensive.internal".to_owned().into(),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
@@ -1111,7 +1136,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -1169,7 +1194,7 @@ mod tests {
         assert_eq!(all_advice[0].id, "missing_attribute");
         assert_eq!(
             all_advice[0].context,
-            Some(json!({"attribute_name": "test.string"}))
+            Some(json!({"attribute_key": "test.string"}))
         );
         assert_eq!(
             all_advice[0].message,
@@ -1178,7 +1203,7 @@ mod tests {
         assert_eq!(all_advice[1].id, "contains_test");
         assert_eq!(
             all_advice[1].context,
-            Some(json!({"attribute_name": "test.string"}))
+            Some(json!({"attribute_key": "test.string"}))
         );
         assert_eq!(
             all_advice[1].message,
@@ -1562,6 +1587,7 @@ mod tests {
                     spans: vec![],
                     events: vec![
                         V2Event {
+                            requirement_level: None,
                             name: "session.start".to_owned().into(),
                             attributes: vec![
                                 EventAttribute {
@@ -1601,6 +1627,7 @@ mod tests {
                             provenance: Default::default(),
                         },
                         V2Event {
+                            requirement_level: None,
                             name: "example.event".to_owned().into(),
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1700,7 +1727,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("session.start".to_owned()),
                         lineage: None,
                         display_name: Some("Session Start Event".to_owned()),
@@ -1730,7 +1757,7 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
-                        metric_requirement_level: None,
+                        requirement_level: None,
                         name: Some("example.event".to_owned()),
                         lineage: None,
                         display_name: Some("Example Event".to_owned()),
@@ -2074,5 +2101,1036 @@ mod tests {
         } else {
             panic!("Expected Cumulative statistics");
         }
+    }
+
+    #[test]
+    fn test_entity_validation() {
+        run_entity_validation_test(false);
+    }
+
+    #[test]
+    fn test_entity_validation_v2() {
+        run_entity_validation_test(true);
+    }
+
+    fn make_entity_registry(use_v2: bool) -> VersionedRegistry {
+        // A "deployment" entity with:
+        //   identity:    deployment.name  (Required)
+        //   description: deployment.environment (Recommended)
+        //                deployment.tier         (OptIn)
+        //                deployment.region       (ConditionallyRequired)
+        if use_v2 {
+            use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
+            use weaver_semconv::v2::signal_id::SignalId;
+
+            let deployment_name_attr = V2Attribute {
+                key: "deployment.name".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The deployment name".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+            let deployment_env_attr = V2Attribute {
+                key: "deployment.environment".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The deployment environment".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+            let deployment_tier_attr = V2Attribute {
+                key: "deployment.tier".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The deployment tier".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+            let deployment_region_attr = V2Attribute {
+                key: "deployment.region".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The deployment region".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.0.0"
+                    .try_into()
+                    .expect("valid schema url"),
+                registry: Registry {
+                    attributes: vec![
+                        deployment_name_attr.clone(),
+                        deployment_env_attr.clone(),
+                        deployment_tier_attr.clone(),
+                        deployment_region_attr.clone(),
+                    ],
+                    attribute_groups: vec![],
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![V2Event {
+                        requirement_level: None,
+                        name: "deployment.started".to_owned().into(),
+                        attributes: vec![],
+                        entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
+                        common: CommonFields {
+                            brief: "A deployment has started".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    }],
+                    entities: vec![V2Entity {
+                        requirement_level: None,
+                        r#type: SignalId::from("deployment".to_owned()),
+                        identity: vec![EntityAttribute {
+                            base: deployment_name_attr,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
+                        description: vec![
+                            EntityAttribute {
+                                base: deployment_env_attr,
+                                requirement_level: RequirementLevel::Recommended {
+                                    text: "".to_owned(),
+                                },
+                            },
+                            EntityAttribute {
+                                base: deployment_tier_attr,
+                                requirement_level: RequirementLevel::OptIn {
+                                    text: "".to_owned(),
+                                },
+                            },
+                            EntityAttribute {
+                                base: deployment_region_attr,
+                                requirement_level: RequirementLevel::ConditionallyRequired {
+                                    text: "When multi-region".to_owned(),
+                                },
+                            },
+                        ],
+                        common: CommonFields {
+                            brief: "A deployment entity".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    }],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            }))
+        } else {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
+                registry_url: "TEST_ENTITY".to_owned(),
+                groups: vec![
+                    // Entity group
+                    ResolvedGroup {
+                        id: "entity.deployment".to_owned(),
+                        r#type: GroupType::Entity,
+                        brief: "A deployment entity".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![
+                            Attribute {
+                                name: "deployment.name".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: None,
+                                brief: "The deployment name".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Required,
+                                ),
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Stable),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                            Attribute {
+                                name: "deployment.environment".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: None,
+                                brief: "The deployment environment".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Recommended {
+                                    text: "".to_owned(),
+                                },
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Stable),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                            Attribute {
+                                name: "deployment.tier".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: None,
+                                brief: "The deployment tier".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::OptIn,
+                                ),
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Stable),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                            Attribute {
+                                name: "deployment.region".to_owned(),
+                                r#type: AttributeType::PrimitiveOrArray(
+                                    PrimitiveOrArrayTypeSpec::String,
+                                ),
+                                examples: None,
+                                brief: "The deployment region".to_owned(),
+                                tag: None,
+                                requirement_level: RequirementLevel::ConditionallyRequired {
+                                    text: "When multi-region".to_owned(),
+                                },
+                                sampling_relevant: None,
+                                note: "".to_owned(),
+                                stability: Some(Stability::Stable),
+                                deprecated: None,
+                                prefix: false,
+                                tags: None,
+                                value: None,
+                                annotations: None,
+                                role: Default::default(),
+                            },
+                        ],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        requirement_level: None,
+                        name: Some("deployment".to_owned()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: None,
+                    },
+                    // Event group with entity association
+                    ResolvedGroup {
+                        id: "event.deployment.started".to_owned(),
+                        r#type: GroupType::Event,
+                        brief: "A deployment has started".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        requirement_level: None,
+                        name: Some("deployment.started".to_owned()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: None,
+                    },
+                ],
+            }))
+        }
+    }
+
+    fn make_log_sample(event_name: &str, resource_attributes: Vec<SampleAttribute>) -> Sample {
+        use crate::sample_log::SampleLog;
+        use crate::sample_resource::SampleResource;
+
+        let resource = Rc::new(SampleResource {
+            attributes: resource_attributes,
+            live_check_result: None,
+        });
+        Sample::Log(SampleLog {
+            event_name: event_name.to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            live_check_result: None,
+            resource: Some(resource),
+        })
+    }
+
+    fn run_entity_validation_test(use_v2: bool) {
+        let registry = make_entity_registry(use_v2);
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        // Case 1: both entity attributes missing from resource
+        let mut sample_both_missing = make_log_sample("deployment.started", vec![]);
+        sample_both_missing
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &sample_both_missing.clone(),
+            )
+            .expect("live check should not error");
+
+        let advice = match &sample_both_missing {
+            Sample::Log(log) => log.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected log sample"),
+        };
+        assert_eq!(
+            advice.len(),
+            4,
+            "all four entity attributes should produce findings"
+        );
+        let required_finding = advice
+            .iter()
+            .find(|a| a.id == "entity_required_attribute_not_present")
+            .expect("should have entity_required_attribute_not_present finding");
+        assert_eq!(required_finding.level, FindingLevel::Violation);
+        assert_eq!(
+            required_finding.context,
+            Some(json!({"attribute_key": "deployment.name", "entity_type": "deployment"}))
+        );
+        let recommended_finding = advice
+            .iter()
+            .find(|a| a.id == "entity_recommended_attribute_not_present")
+            .expect("should have entity_recommended_attribute_not_present finding");
+        assert_eq!(recommended_finding.level, FindingLevel::Improvement);
+        assert_eq!(
+            recommended_finding.context,
+            Some(json!({"attribute_key": "deployment.environment", "entity_type": "deployment"}))
+        );
+        let opt_in_finding = advice
+            .iter()
+            .find(|a| a.id == "entity_opt_in_attribute_not_present")
+            .expect("should have entity_opt_in_attribute_not_present finding");
+        assert_eq!(opt_in_finding.level, FindingLevel::Information);
+        let conditional_finding = advice
+            .iter()
+            .find(|a| a.id == "entity_conditionally_required_attribute_not_present")
+            .expect("should have entity_conditionally_required_attribute_not_present finding");
+        assert_eq!(conditional_finding.level, FindingLevel::Information);
+
+        // Case 2: required present, recommended missing
+        let mut sample_required_only = make_log_sample(
+            "deployment.started",
+            vec![SampleAttribute {
+                name: "deployment.name".to_owned(),
+                value: Some(serde_json::json!("my-app")),
+                r#type: None,
+                live_check_result: None,
+            }],
+        );
+        sample_required_only
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &sample_required_only.clone(),
+            )
+            .expect("live check should not error");
+
+        let advice = match &sample_required_only {
+            Sample::Log(log) => log.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected log sample"),
+        };
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "required attribute is present, no violation expected"
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_recommended_attribute_not_present"),
+            "recommended attribute still missing"
+        );
+
+        // Case 3: all entity attributes present — no entity findings
+        let mut sample_all_present = make_log_sample(
+            "deployment.started",
+            vec![
+                SampleAttribute {
+                    name: "deployment.name".to_owned(),
+                    value: Some(serde_json::json!("my-app")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "deployment.environment".to_owned(),
+                    value: Some(serde_json::json!("production")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "deployment.tier".to_owned(),
+                    value: Some(serde_json::json!("frontend")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "deployment.region".to_owned(),
+                    value: Some(serde_json::json!("us-east-1")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+            ],
+        );
+        sample_all_present
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &sample_all_present.clone(),
+            )
+            .expect("live check should not error");
+
+        let advice = match &sample_all_present {
+            Sample::Log(log) => log.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected log sample"),
+        };
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "no entity findings expected when all attributes present"
+        );
+
+        // Case 4: no resource — entity findings still emitted (treated as empty resource)
+        let mut sample_no_resource = Sample::Log(SampleLog {
+            event_name: "deployment.started".to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            live_check_result: None,
+            resource: None,
+        });
+        sample_no_resource
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &sample_no_resource.clone(),
+            )
+            .expect("live check should not error");
+
+        let advice = match &sample_no_resource {
+            Sample::Log(log) => log.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected log sample"),
+        };
+        assert_eq!(
+            advice.len(),
+            4,
+            "entity findings should still be emitted when no resource is present"
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_required_attribute_not_present"),
+            "required entity attribute finding expected even without resource"
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_opt_in_attribute_not_present"),
+            "opt-in entity attribute finding expected even without resource"
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_conditionally_required_attribute_not_present"),
+            "conditionally required entity attribute finding expected even without resource"
+        );
+    }
+
+    /// Builds a minimal required-only string attribute for entity-association tests.
+    fn required_string_attr(name: &str) -> Attribute {
+        Attribute {
+            name: name.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            brief: String::new(),
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: None,
+            note: String::new(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
+            annotations: None,
+            role: Default::default(),
+        }
+    }
+
+    /// Builds a V1 entity group with a single required identity attribute.
+    fn entity_group(type_name: &str, attr: Attribute) -> ResolvedGroup {
+        ResolvedGroup {
+            id: format!("entity.{type_name}"),
+            r#type: GroupType::Entity,
+            brief: String::new(),
+            note: String::new(),
+            prefix: String::new(),
+            entity_associations: vec![],
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![attr],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some(type_name.to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+        }
+    }
+
+    /// Builds a V1 event group carrying the given entity associations.
+    fn assoc_event_group(name: &str, associations: Vec<EntityAssociation>) -> ResolvedGroup {
+        ResolvedGroup {
+            id: format!("event.{name}"),
+            r#type: GroupType::Event,
+            brief: String::new(),
+            note: String::new(),
+            prefix: String::new(),
+            entity_associations: associations,
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some(name.to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+        }
+    }
+
+    fn string_sample_attr(name: &str, value: &str) -> SampleAttribute {
+        SampleAttribute {
+            name: name.to_owned(),
+            value: Some(serde_json::json!(value)),
+            r#type: None,
+            live_check_result: None,
+        }
+    }
+
+    /// Runs live-check on a single log event and returns the accumulated findings.
+    fn run_event_check(
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        event_name: &str,
+        attrs: Vec<SampleAttribute>,
+    ) -> Vec<PolicyFinding> {
+        let mut sample = make_log_sample(event_name, attrs);
+        let snapshot = sample.clone();
+        sample
+            .run_live_check(live_checker, stats, None, &snapshot)
+            .expect("live check should not error");
+        match &sample {
+            Sample::Log(log) => log.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected log sample"),
+        }
+    }
+
+    #[test]
+    fn test_entity_association_one_of_all_of() {
+        // host (required host.name) and container (required container.id) entities, plus events
+        // associated with a `one_of` and an `all_of` of those two entities.
+        let registry = VersionedRegistry::V1(Box::new(ResolvedRegistry {
+            registry_url: "TEST_ASSOC".to_owned(),
+            groups: vec![
+                entity_group("host", required_string_attr("host.name")),
+                entity_group("container", required_string_attr("container.id")),
+                assoc_event_group(
+                    "one_of.evt",
+                    vec![EntityAssociation::OneOf {
+                        one_of: vec![
+                            EntityAssociation::Ref("host".to_owned()),
+                            EntityAssociation::Ref("container".to_owned()),
+                        ],
+                    }],
+                ),
+                assoc_event_group(
+                    "all_of.evt",
+                    vec![EntityAssociation::AllOf {
+                        all_of: vec![
+                            EntityAssociation::Ref("host".to_owned()),
+                            EntityAssociation::Ref("container".to_owned()),
+                        ],
+                    }],
+                ),
+            ],
+        }));
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        // one_of satisfied by host → no entity findings at all.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "one_of.evt",
+            vec![string_sample_attr("host.name", "h1")],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "one_of satisfied: expected no entity findings, got {advice:?}"
+        );
+
+        // one_of unsatisfied → exactly one aggregate finding, no per-branch required findings.
+        let advice = run_event_check(&mut live_checker, &mut stats, "one_of.evt", vec![]);
+        let aggregates: Vec<_> = advice
+            .iter()
+            .filter(|a| a.id == "entity_association_not_satisfied")
+            .collect();
+        assert_eq!(
+            aggregates.len(),
+            1,
+            "one_of unsatisfied: expected a single aggregate finding, got {advice:?}"
+        );
+        assert_eq!(aggregates[0].level, FindingLevel::Violation);
+        assert_eq!(
+            aggregates[0].context,
+            Some(json!({ "entity_type": ["host", "container"] }))
+        );
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "one_of unsatisfied: expected no per-branch required findings, got {advice:?}"
+        );
+
+        // all_of with only host present → container's required attribute is a violation, and no
+        // aggregate finding (all_of reports per-attribute).
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "all_of.evt",
+            vec![string_sample_attr("host.name", "h1")],
+        );
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_required_attribute_not_present"
+                    && a.context
+                        .as_ref()
+                        .is_some_and(|c| c["entity_type"] == "container")),
+            "all_of: expected a container required-attribute violation, got {advice:?}"
+        );
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_association_not_satisfied"),
+            "all_of: no aggregate finding expected, got {advice:?}"
+        );
+
+        // all_of fully satisfied → no entity findings.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "all_of.evt",
+            vec![
+                string_sample_attr("host.name", "h1"),
+                string_sample_attr("container.id", "c1"),
+            ],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "all_of satisfied: expected no entity findings, got {advice:?}"
+        );
+    }
+
+    #[test]
+    fn test_entity_association_multiple_top_level_all_of() {
+        // Two `all_of` groups at the top level. The top-level list is an implicit `one_of`, so the
+        // telemetry must satisfy at least one of the two groups:
+        //   - all_of[tenant, host]
+        //   - all_of[container]
+        let registry = VersionedRegistry::V1(Box::new(ResolvedRegistry {
+            registry_url: "TEST_ASSOC_MULTI".to_owned(),
+            groups: vec![
+                entity_group("host", required_string_attr("host.name")),
+                entity_group("container", required_string_attr("container.id")),
+                entity_group("tenant", required_string_attr("tenant.id")),
+                assoc_event_group(
+                    "multi.evt",
+                    vec![
+                        EntityAssociation::AllOf {
+                            all_of: vec![
+                                EntityAssociation::Ref("tenant".to_owned()),
+                                EntityAssociation::Ref("host".to_owned()),
+                            ],
+                        },
+                        EntityAssociation::AllOf {
+                            all_of: vec![EntityAssociation::Ref("container".to_owned())],
+                        },
+                    ],
+                ),
+            ],
+        }));
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        // Satisfies the second group (container.id present) but not the first → overall satisfied
+        // via the implicit one_of, so no aggregate and no per-branch required violations.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "multi.evt",
+            vec![string_sample_attr("container.id", "c1")],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "one all_of group satisfied: expected no entity findings, got {advice:?}"
+        );
+
+        // Satisfies the first group fully (tenant.id + host.name) → also satisfied.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "multi.evt",
+            vec![
+                string_sample_attr("tenant.id", "t1"),
+                string_sample_attr("host.name", "h1"),
+            ],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "other all_of group satisfied: expected no entity findings, got {advice:?}"
+        );
+
+        // Satisfies neither group → single aggregate finding naming every candidate entity.
+        let advice = run_event_check(&mut live_checker, &mut stats, "multi.evt", vec![]);
+        let aggregates: Vec<_> = advice
+            .iter()
+            .filter(|a| a.id == "entity_association_not_satisfied")
+            .collect();
+        assert_eq!(
+            aggregates.len(),
+            1,
+            "neither group satisfied: expected a single aggregate finding, got {advice:?}"
+        );
+        assert_eq!(aggregates[0].level, FindingLevel::Violation);
+        let mut entities: Vec<&str> = aggregates[0].context.as_ref().expect("context")
+            ["entity_type"]
+            .as_array()
+            .expect("entity_type array")
+            .iter()
+            .map(|v| v.as_str().expect("string"))
+            .collect();
+        entities.sort_unstable();
+        assert_eq!(
+            entities,
+            vec!["container", "host", "tenant"],
+            "aggregate should list every candidate entity across both groups"
+        );
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "neither group satisfied: per-branch required findings should be suppressed, got {advice:?}"
+        );
+    }
+
+    #[test]
+    fn test_metric_entity_validation() {
+        run_metric_entity_validation_test(false);
+    }
+
+    #[test]
+    fn test_metric_entity_validation_v2() {
+        run_metric_entity_validation_test(true);
+    }
+
+    fn make_metric_entity_registry(use_v2: bool) -> VersionedRegistry {
+        // A "host" entity with host.name (Required) associated with metric system.uptime
+        if use_v2 {
+            use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
+            use weaver_semconv::v2::signal_id::SignalId;
+
+            let host_name_attr = V2Attribute {
+                key: "host.name".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "The host name".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            };
+
+            VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+                schema_url: "https://example.com/schemas/1.0.0"
+                    .try_into()
+                    .expect("valid schema url"),
+                registry: Registry {
+                    attributes: vec![host_name_attr.clone()],
+                    attribute_groups: vec![],
+                    metrics: vec![V2Metric {
+                        name: "system.uptime".to_owned().into(),
+                        instrument: InstrumentSpec::Gauge,
+                        unit: "s".to_owned(),
+                        requirement_level: None,
+                        attributes: vec![],
+                        entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
+                        common: CommonFields {
+                            brief: "System uptime".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    }],
+                    spans: vec![],
+                    events: vec![],
+                    entities: vec![V2Entity {
+                        requirement_level: None,
+                        r#type: SignalId::from("host".to_owned()),
+                        identity: vec![EntityAttribute {
+                            base: host_name_attr,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
+                        description: vec![],
+                        common: CommonFields {
+                            brief: "A host entity".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    }],
+                },
+                refinements: Refinements {
+                    metrics: vec![],
+                    spans: vec![],
+                    events: vec![],
+                },
+            }))
+        } else {
+            VersionedRegistry::V1(Box::new(ResolvedRegistry {
+                registry_url: "TEST_METRIC_ENTITY".to_owned(),
+                groups: vec![
+                    ResolvedGroup {
+                        id: "entity.host".to_owned(),
+                        r#type: GroupType::Entity,
+                        brief: "A host entity".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![Attribute {
+                            name: "host.name".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: None,
+                            brief: "The host name".to_owned(),
+                            tag: None,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                            sampling_relevant: None,
+                            note: "".to_owned(),
+                            stability: Some(Stability::Stable),
+                            deprecated: None,
+                            prefix: false,
+                            tags: None,
+                            value: None,
+                            annotations: None,
+                            role: Default::default(),
+                        }],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        requirement_level: None,
+                        name: Some("host".to_owned()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: None,
+                    },
+                    ResolvedGroup {
+                        id: "metric.system.uptime".to_owned(),
+                        r#type: GroupType::Metric,
+                        brief: "System uptime".to_owned(),
+                        note: "".to_owned(),
+                        prefix: "".to_owned(),
+                        entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
+                        extends: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        attributes: vec![],
+                        span_kind: None,
+                        events: vec![],
+                        metric_name: Some("system.uptime".to_owned()),
+                        instrument: Some(InstrumentSpec::Gauge),
+                        unit: Some("s".to_owned()),
+                        requirement_level: None,
+                        name: None,
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: None,
+                    },
+                ],
+            }))
+        }
+    }
+
+    fn run_metric_entity_validation_test(use_v2: bool) {
+        use crate::sample_metric::{DataPoints, SampleMetric, SampleNumberDataPoint};
+        use crate::sample_resource::SampleResource;
+
+        let registry = make_metric_entity_registry(use_v2);
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        let make_metric = |resource_attributes: Vec<SampleAttribute>| {
+            let resource = Rc::new(SampleResource {
+                attributes: resource_attributes,
+                live_check_result: None,
+            });
+            Sample::Metric(SampleMetric {
+                name: "system.uptime".to_owned(),
+                unit: "s".to_owned(),
+                instrument: SampleInstrument::Supported(InstrumentSpec::Gauge),
+                data_points: Some(DataPoints::Number(vec![SampleNumberDataPoint {
+                    attributes: vec![],
+                    value: serde_json::json!(42.0),
+                    flags: 0,
+                    exemplars: vec![],
+                    live_check_result: None,
+                }])),
+                live_check_result: None,
+                resource: Some(resource),
+            })
+        };
+
+        // Resource missing host.name — expect entity_required_attribute_not_present on the metric
+        let mut sample_missing = make_metric(vec![]);
+        sample_missing
+            .run_live_check(&mut live_checker, &mut stats, None, &sample_missing.clone())
+            .expect("live check should not error");
+
+        let advice = match &sample_missing {
+            Sample::Metric(m) => m.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected metric sample"),
+        };
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_required_attribute_not_present"),
+            "expected entity_required_attribute_not_present when host.name absent from resource"
+        );
+
+        // Resource with host.name — no entity findings
+        let mut sample_present = make_metric(vec![SampleAttribute {
+            name: "host.name".to_owned(),
+            value: Some(serde_json::json!("my-host")),
+            r#type: None,
+            live_check_result: None,
+        }]);
+        sample_present
+            .run_live_check(&mut live_checker, &mut stats, None, &sample_present.clone())
+            .expect("live check should not error");
+
+        let advice = match &sample_present {
+            Sample::Metric(m) => m.live_check_result.as_ref().unwrap().all_advice.clone(),
+            _ => panic!("expected metric sample"),
+        };
+        assert!(
+            advice
+                .iter()
+                .all(|a| a.id != "entity_required_attribute_not_present"),
+            "no entity findings expected when host.name present in resource"
+        );
     }
 }

@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     attribute::AttributeSpec,
     deprecated::Deprecated,
+    entity_association::EntityAssociation,
     group::{GroupSpec, GroupType, SpanKindSpec},
+    signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
     YamlValue,
@@ -74,9 +76,15 @@ pub struct Span {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<SpanAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
+    /// The requirement level of the span. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -100,10 +108,13 @@ pub struct SpanRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<SpanAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     /// Note: This field is currently not propagated during resolution.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
 
     /// Refines the brief description of the signal.
     /// Note: This field is currently not propagated during resolution.
@@ -149,7 +160,6 @@ impl Span {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: Some(format!("{}", &self.r#type)),
             display_name: None,
             body: None,
@@ -161,6 +171,8 @@ impl Span {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: Some(self.name.note),
+            requirement_level: self.requirement_level,
         }
     }
 }
@@ -186,7 +198,6 @@ impl SpanRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: Some(format!("{}", &self.id)),
             display_name: None,
             body: None,
@@ -198,6 +209,8 @@ impl SpanRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
+            span_name_note: None,
+            requirement_level: None,
         }
     }
 }
@@ -282,6 +295,7 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
+span_name_note: "{some} {name}"
 "#,
         );
     }
@@ -291,6 +305,32 @@ is_v2: true
         let expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
         assert_eq!(expected, span.into_v1_group());
+    }
+
+    #[test]
+    fn test_span_requirement_level_translation() {
+        parse_and_translate(
+            // V2 - Span
+            r#"type: my_span
+name:
+  note: "{some} {name}"
+stability: stable
+kind: client
+brief: Test span
+requirement_level: opt_in
+"#,
+            // V1 - Group
+            r#"id: span.my_span
+type: span
+brief: Test span
+name: my_span
+span_kind: client
+stability: stable
+is_v2: true
+span_name_note: "{some} {name}"
+requirement_level: opt_in
+"#,
+        );
     }
 
     #[test]

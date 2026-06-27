@@ -8,6 +8,10 @@ attributes:
     type: string
     brief: Test attribute 2
     stability: stable
+  - key: test.attr3
+    type: string
+    brief: Test attribute 3
+    stability: stable
 
 attribute_groups:
   - id: test.group
@@ -16,9 +20,15 @@ attribute_groups:
     stability: stable
     attributes:
       - ref: test.attr
+  - id: test.refine.extras
+    visibility: internal
+    attributes:
+      - ref: test.attr3
+        requirement_level: recommended
 
 metrics:
   - name: base.metric
+    requirement_level: recommended
     instrument: histogram
     unit: s
     brief: Base metric
@@ -44,8 +54,11 @@ metric_refinements:
         nested:
           b: 99
           c: 3
+    attributes:
+      - ref_group: test.refine.extras
 spans:
   - type: base.span
+    requirement_level: recommended
     kind: client
     name:
       note: "base span"
@@ -59,6 +72,7 @@ span_refinements:
 
 events:
   - name: base.event
+    requirement_level: recommended
     brief: Base event
     stability: stable
 
@@ -69,6 +83,7 @@ event_refinements:
 
 entities:
   - type: base.entity
+    requirement_level: recommended
     identity:
       - ref: test.attr
     brief: Base entity

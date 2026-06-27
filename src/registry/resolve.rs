@@ -8,15 +8,14 @@ use clap::Args;
 
 use log::info;
 use miette::Diagnostic;
-use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_forge::{OutputProcessor, OutputTarget};
-use weaver_semconv::registry_repo::RegistryRepo;
 
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::weaver::{PolicyError, WeaverEngine};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::WeaverConfig;
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum Error {
@@ -61,7 +60,7 @@ pub struct RegistryResolveArgs {
 /// file or print it to stdout.
 pub(crate) fn command(
     args: &RegistryResolveArgs,
-    _cfg: Option<&WeaverConfig>,
+    cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     // Display deprecation warning
@@ -72,27 +71,22 @@ pub(crate) fn command(
     log::warn!("The 'weaver registry resolve' command is deprecated and will be removed in a future version.");
     log::warn!("Please use 'weaver registry generate' or 'weaver registry package' instead.");
 
-    info!("Resolving registry `{}`", args.registry.registry);
-    let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&args.registry, &args.policy, auth);
-    let registry_path = &args.registry.registry;
-
-    let mut nfes = vec![];
-    let main_registry_repo = RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, auth)?;
-
-    diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
-
-    let loaded = weaver.load_definitions(main_registry_repo, &mut diag_msgs)?;
-    // TODO - only do this in weaver check?
-    if args.registry.v2 {
-        // Issue a warning so we fail --future.
-        if loaded.has_before_resolution_policy() {
-            diag_msgs.extend(PolicyError::BeforeResolutionUnsupported.into());
-        }
-    } else {
-        loaded.check_before_resolution_policy(&mut diag_msgs)?;
+    let mut registry = EffectiveRegistryConfig::default();
+    if let Some(wc) = cfg {
+        registry.layer_config(&wc.registry);
     }
-    let resolved = weaver.resolve(loaded, &mut diag_msgs)?;
+    args.registry.apply_to(&mut registry);
+
+    let mut policy = EffectivePolicyConfig::default();
+    if let Some(wc) = cfg {
+        policy.layer_config(&wc.policy);
+    }
+    args.policy.apply_to(&mut policy);
+
+    info!("Resolving registry `{}`", registry.registry);
+    let mut diag_msgs = DiagnosticMessages::empty();
+    let weaver = WeaverEngine::new(&registry, &policy, auth);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     let target = OutputTarget::from_optional_file(args.output.as_ref());
     let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
@@ -134,20 +128,17 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     lineage: true,
                     output: None,
                     format: "yaml".to_owned(),
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
                 }),
@@ -168,20 +159,16 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
-                        v2: false,
+                        }),
+                        ..Default::default()
                     },
                     lineage: true,
                     output: None,
                     format: "json".to_owned(),
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: false,
-                        display_policy_coverage: false,
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
                 }),

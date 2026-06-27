@@ -6,7 +6,6 @@ groups:
     instrument: histogram
     unit: "s"
     stability: stable
-    metric_requirement_level: required
   - id: trace.test
     type: span
     span_kind: client

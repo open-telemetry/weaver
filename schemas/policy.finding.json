@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "context": {
-      "description": "The context associated with the finding e.g. { \"attribute_name\": \"foo.bar\", \"attribute_value\": \"bar\" }\nThe context should contain all dynamic parts of the message\nContext values may be used with custom templates and filters to customize reports."
+      "description": "The context associated with the finding e.g. { \"attribute_key\": \"foo.bar\", \"attribute_value\": \"bar\" }\nThe context should contain all dynamic parts of the message\nContext values may be used with custom templates and filters to customize reports."
     },
     "id": {
       "description": "The id of violation e.g. \"is_deprecated\". This should be a short,\nmachine-readable string that categorizes the finding.",

@@ -6,10 +6,14 @@ use std::io::Read;
 use std::process::Command as StdCommand;
 use std::thread::sleep;
 use std::time::Duration;
+use weaver_test_support::reserve_test_port;
 
 /// Test that weaver serve starts and serves the UI correctly.
 #[test]
 fn test_ui_served() {
+    let port = reserve_test_port();
+    let bind_address = format!("127.0.0.1:{port}");
+
     // Start weaver serve command as a background process on a non-standard port
     let mut serve_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
@@ -17,7 +21,7 @@ fn test_ui_served() {
             "-r",
             "crates/weaver_emit/data",
             "--bind",
-            "127.0.0.1:9080",
+            &bind_address,
         ])
         .spawn()
         .expect("Failed to start weaver serve process");
@@ -26,7 +30,7 @@ fn test_ui_served() {
     sleep(Duration::from_secs(3));
 
     // Fetch index.html
-    let index_response = ureq::get("http://localhost:9080/").call();
+    let index_response = ureq::get(&format!("http://localhost:{port}/")).call();
 
     assert!(
         index_response.is_ok(),

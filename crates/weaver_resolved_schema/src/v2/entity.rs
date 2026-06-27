@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
+    signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, CommonFields},
 };
 
@@ -23,6 +24,10 @@ pub struct Entity {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub description: Vec<EntityAttributeRef>,
+
+    /// The requirement level of the entity. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     group::GroupSpec,
+    signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
     v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
     YamlValue,
@@ -27,6 +28,9 @@ pub struct Entity {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub description: Vec<AttributeRef>,
+    /// The requirement level of the entity. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
@@ -91,7 +95,6 @@ impl Entity {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: Some(self.r#type.into_v1()),
             display_name: None,
             body: None,
@@ -103,6 +106,8 @@ impl Entity {
             entity_associations: Default::default(),
             visibility: None,
             is_v2: true,
+            span_name_note: None,
+            requirement_level: self.requirement_level,
         }
     }
 }
@@ -133,7 +138,6 @@ impl EntityRefinement {
             metric_name: None,
             instrument: None,
             unit: None,
-            metric_requirement_level: None,
             name: Some(self.id.into_v1()),
             display_name: None,
             body: None,
@@ -145,6 +149,8 @@ impl EntityRefinement {
             entity_associations: Default::default(),
             visibility: None,
             is_v2: true,
+            span_name_note: None,
+            requirement_level: None,
         }
     }
 }

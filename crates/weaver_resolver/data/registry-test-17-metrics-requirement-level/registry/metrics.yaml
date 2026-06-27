@@ -6,5 +6,4 @@ groups:
     brief: "Measures something"
     instrument: histogram
     unit: "s"
-    metric_requirement_level: required
     attributes:

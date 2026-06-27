@@ -22,6 +22,7 @@ pub use deprecated_advisor::DeprecatedAdvisor;
 pub use enum_advisor::EnumAdvisor;
 pub use rego_advisor::RegoAdvisor;
 pub use stability_advisor::StabilityAdvisor;
+pub(crate) use type_advisor::check_entity_associations;
 pub use type_advisor::TypeAdvisor;
 
 /// Provides advice on a sample
@@ -196,7 +197,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].id, crate::DEPRECATED_ADVICE_TYPE);
+        assert_eq!(findings[0].id, crate::FindingId::Deprecated.to_string());
 
         // Test TypeAdvisor
         let mut type_advisor = TypeAdvisor;
@@ -234,7 +235,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].id, crate::TYPE_MISMATCH_ADVICE_TYPE);
+        assert_eq!(findings[0].id, crate::FindingId::TypeMismatch.to_string());
 
         // Test StabilityAdvisor
         let mut stability_advisor = StabilityAdvisor;
@@ -270,6 +271,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].id, crate::NOT_STABLE_ADVICE_TYPE);
+        assert_eq!(findings[0].id, crate::FindingId::NotStable.to_string());
     }
 }

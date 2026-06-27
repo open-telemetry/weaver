@@ -1,6 +1,7 @@
 file_format: definition/2
 metrics:
   - name: consumer.request.count
+    requirement_level: recommended
     brief: Count of consumer requests.
     instrument: counter
     unit: "{request}"
@@ -12,6 +13,7 @@ metrics:
         requirement_level: recommended
         brief: The server port used by the consumer.
   - name: consumer.request.active
+    requirement_level: recommended
     brief: Number of active consumer requests.
     instrument: updowncounter
     unit: "{request}"

@@ -31,6 +31,7 @@
       - [Uncategorized](#uncategorized)
     - [Annotations](#annotations)
       - [Code Generation Annotations](#code-generation-annotations)
+      - [Dependency Resolution Annotations](#dependency-resolution-annotations)
 
 <!-- tocstop -->
 
@@ -321,10 +322,11 @@ The spans section contains a list of span definitions. A span definition consist
 - `brief` - Required. A short description of the operation this span represents
 - `note` - Optional. A more elaborate description of the operation
 - `stability` - Required. Specifies the [stability](#stability-levels) of the span definition
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `name` - Required. Specification of how the [span name](#span-name) should be formatted.
 - `deprecated` - Optional. When present, marks the span as deprecated. See [deprecated](#deprecated-structure) for details
 - `attributes` - Optional. List of [attribute references](#attribute-reference) applicable to this span.
-- `entity_associations` - Optional. List of entity types that can be associated with this span type
+- `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this span type can be associated with.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the span. See [annotations](#annotations) for details
 
 Example:
@@ -346,7 +348,7 @@ spans:
         sampling_relevant: true
       # ...
     entity_associations:
-      - ref: service.instance
+      - service.instance
 ```
 
 ### `span_refinements` definition
@@ -359,7 +361,7 @@ A span refinement definition consists of the following properties:
 - `ref` - Required. The type of the span being refined.
 - `name` - Optional. Overrides the [span name](#span-name) specification from the referenced base span. If set, the entire `name` structure from the refinement replaces the base span's `name`; otherwise, the base span's `name` is inherited.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
-- `entity_associations` - Optional. Which resources this span should be associated with.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -382,6 +384,7 @@ An entity definition consists of the following properties:
 - `brief` - Required. A short description of what this entity represents.
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
@@ -418,6 +421,41 @@ An entity refinement definition consists of the following properties:
 - `deprecated` - Optional. Specifies if the signal is deprecated.
 - `annotations` - Optional. Additional annotations for the signal.
 
+### Entity associations
+
+The `entity_associations` field on spans, metrics, and events (and their refinements) declares which [entities](#entities-definition) a signal is expected to be associated with. Each list element is an *entity association expression*, which is one of:
+
+- An **entity reference** — the `type` of an entity, written as a bare string.
+- **`one_of`** — a map with a list of expressions; satisfied when *at least one* of them is satisfied.
+- **`all_of`** — a map with a list of expressions; satisfied when *every* one of them is satisfied.
+
+`one_of` and `all_of` may be nested arbitrarily, so complex requirements can be expressed.
+
+A bare list of entity references (the historical syntax) is interpreted as an implicit `one_of` — the telemetry must be associated with at least one of the listed entities. These two forms are therefore equivalent:
+
+```yaml
+# Implicit one_of
+entity_associations:
+  - host
+  - container
+
+# Explicit one_of
+entity_associations:
+  - one_of:
+      - host
+      - container
+```
+
+A nested example — the signal must be associated with the `tenant` entity **and** with at least one of `host` or `container`:
+
+```yaml
+entity_associations:
+  - all_of:
+      - tenant
+      - one_of:
+          - host
+          - container
+```
 
 ### `events` definition
 
@@ -429,8 +467,9 @@ An event definition consists of the following properties:
 - `brief` - Required. A short description of what this event represents.
 - `note` - Optional. A more elaborate description of the event.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the event definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that can be set on this event type.
-- `entity_associations` - Optional. List of entities that this event can be associated with.
+- `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this event can be associated with.
 - `deprecated` - Optional. When present, marks the event as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the event. See [annotations](#annotations) for details.
 
@@ -449,7 +488,7 @@ events:
       - ref: exception.stacktrace
         requirement_level: recommended
     entity_associations:
-      - ref: service.instance
+      - service.instance
 ```
 
 ### `event_refinements` definition
@@ -461,7 +500,7 @@ An event refinement definition consists of the following properties:
 - `id` - Required. Uniquely identifies the event refinement.
 - `ref` - Required. The name of the event being refined.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
-- `entity_associations` - Optional. Which resources this event should be associated with.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -484,8 +523,9 @@ A metric definition consists of the following properties:
   - `gauge` - A value that can arbitrarily go up and down, used for temperature or current memory usage
   - `histogram` - Distribution of recorded values, used for latencies or request sizes
 - `stability` - Required. Specifies the [stability](#stability-levels) of the metric definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that can be set on this metric.
-- `entity_associations` - Optional. List of entity types that this metric can be associated with.
+- `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this metric can be associated with.
 - `deprecated` - Optional. When present, marks the metric as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the metric. See [annotations](#annotations) for details.
 
@@ -505,7 +545,7 @@ metrics:
         requirement_level: required
       # ...
     entity_associations:
-      - ref: service.instance
+      - service.instance
 ```
 
 ### `metric_refinements` definition
@@ -517,7 +557,7 @@ A metric refinement definition consists of the following properties:
 - `id` - Required. Uniquely identifies the metric refinement.
 - `ref` - Required. The name of the metric being refined.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
-- `entity_associations` - Optional. Which resources this metric should be associated with.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -614,6 +654,13 @@ imports:
 ### Stability levels
 
 The following stability levels are supported: `stable`, `development`, `alpha`, `beta`, `release_candidate`. See [OpenTelemetry stability definitions](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/document-status.md) for details.
+
+### Signal requirement levels
+
+The `requirement_level` on a signal (metric, span, event, or entity) is guidance for instrumentation authors about whether the signal should be emitted by default. It is distinct from the per-attribute requirement level and supports two values:
+
+- `recommended` - Instrumentations should implement and emit the signal by default. This is the default when `requirement_level` is omitted.
+- `opt_in` - The signal is disabled by default; instrumentations MAY implement it and let users opt in.
 
 ### Deprecated structure
 
@@ -724,5 +771,43 @@ attributes:
       code_generation:
         exclude: true  # Skip this attribute during code generation
 ```
+
+#### Dependency Resolution Annotations
+
+The `dependency_resolution` annotation hides an attribute, group, or signal from
+registries that consume this one as a dependency. The owning registry still
+sees the item normally - resolution, codegen, and docs are unaffected — but any
+dependent registry that references the item (via `ref`, `extends`,
+`include_groups`, `imports`, or a v2 refinement) fails to resolve.
+
+This is intended for migrations where definitions move out of a parent registry
+into a new one. Marking the old definitions excluded prevents conflicts in
+downstream registries, without forcing an immediate breaking removal from the parent.
+
+```yaml
+attributes:
+  - key: gen_ai.system
+    type: string
+    stability: stable
+    brief: The Generative AI product as identified by the client or server instrumentation.
+    examples: ['openai']
+    annotations:
+      dependency_resolution:
+        exclude: true  # Hide this attribute from dependent registries
+
+metrics:
+  - name: gen_ai.client.token.usage
+    brief: Measures number of input and output tokens used.
+    instrument: histogram
+    unit: "{token}"
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true  # Hide this metric from dependent registries
+```
+
+To prevent excluded items from leaking transitively into the resolved output,
+resolution also fails if a non-excluded item within the *same* registry uses
+an excluded one by reference (via `ref`, `extends`, or in refinements).
 
 [DocumentStatus]: https://opentelemetry.io/docs/specs/otel/document-status

@@ -4,8 +4,10 @@ use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::{BasicRequirementLevelSpec, RequirementLevel},
+    attribute::RequirementLevel,
+    entity_association::EntityAssociation,
     group::InstrumentSpec,
+    signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, CommonFields},
 };
 
@@ -32,15 +34,15 @@ pub struct Metric {
     // TODO - Should Entity Associations be "strong" links?
     /// Which entities this metric should be associated with.
     ///
-    /// This list is an "any of" list, where a metric may be associated with one or more entities, but should
-    /// be associated with at least one in this list.
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
 
     /// The requirement level of the metric. Defaults to 'recommended' when omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub requirement_level: Option<BasicRequirementLevelSpec>,
+    pub requirement_level: Option<SignalRequirementLevel>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "PublicationRegistryManifest",
-  "description": "Represents the publication manifest for a packaged semantic convention registry.\n\nThis is produced by `weaver registry package` and describes the contents of\na self-contained registry artifact, including its resolved schema location.",
+  "description": "Represents the publication manifest for a packaged semantic convention registry.\n\nThis is produced by `weaver registry package` and describes the contents of\na self-contained registry artifact, including the URI of the resolved\nregistry artifact (`resolved.yaml`).",
   "type": "object",
   "properties": {
     "dependencies": {
@@ -23,8 +23,8 @@
       "type": "string",
       "const": "manifest/2.0"
     },
-    "resolved_schema_uri": {
-      "description": "URI pointing to the resolved telemetry schema included in this package.",
+    "resolved_registry_uri": {
+      "description": "URI pointing to the resolved registry artifact included in this package.",
       "type": "string"
     },
     "schema_url": {
@@ -40,7 +40,7 @@
   "required": [
     "file_format",
     "schema_url",
-    "resolved_schema_uri"
+    "resolved_registry_uri"
   ],
   "$defs": {
     "Dependency": {

@@ -1,6 +1,7 @@
 file_format: definition/2
 metrics:
   - name: app.request.count
+    requirement_level: recommended
     brief: Count of app requests.
     instrument: counter
     unit: "{request}"

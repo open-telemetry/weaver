@@ -23,11 +23,11 @@ const TEMP_REPO_DIR: &str = "schema-compat-temp-repo";
 // Temporarily disabled compat testing for V2 schemas.
 // TODO: Enable testing when V2 schemas are marked stable.
 const CHECKS: &[(&str, &str, &str)] = &[
-    (
-        "publication-manifest-v2",
-        "schemas/publication-manifest.v2.json",
-        "PublicationManifestV2",
-    ),
+    //     (
+    //         "publication-manifest-v2",
+    //         "schemas/publication-manifest.v2.json",
+    //         "PublicationManifestV2",
+    //     ),
     //     (
     //         "resolved-registry-v2",
     //         "schemas/semconv.resolved.v2.json",
@@ -44,8 +44,9 @@ fn fetch_repo() -> anyhow::Result<Repository> {
         TEMP_REPO_DIR,
         Kind::WithWorktree,
         create::Options {
-            destination_must_be_empty: true,
+            destination_must_be_empty: Some(true),
             fs_capabilities: None,
+            object_hash: None,
         },
         open::Options::isolated(),
     )?;

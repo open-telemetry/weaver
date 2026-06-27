@@ -1,0 +1,54 @@
+file_format: resolved/2.0
+schema_url: https://migration.example.com/parent/0.0.1
+attribute_catalog:
+- key: moved.attr
+  type: string
+  brief: Attribute moved to the consumer registry.
+  stability: stable
+  deprecated:
+    reason: uncategorized
+    note: Moved into the consumer registry.
+  annotations:
+    dependency_resolution:
+      exclude: true
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans:
+  - type: moved.span
+    kind: client
+    name:
+      note: Span moved to the consumer registry.
+    attributes:
+    - base: 0
+      requirement_level: required
+    brief: Span moved to the consumer registry.
+    stability: stable
+    deprecated:
+      reason: uncategorized
+      note: Moved into the consumer registry.
+    annotations:
+      dependency_resolution:
+        exclude: true
+  metrics:
+  - name: moved.metric
+    instrument: counter
+    unit: "1"
+    attributes:
+    - base: 0
+      requirement_level: required
+    brief: Metric moved to the consumer registry.
+    stability: stable
+    deprecated:
+      reason: uncategorized
+      note: Moved into the consumer registry.
+    annotations:
+      dependency_resolution:
+        exclude: true
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []

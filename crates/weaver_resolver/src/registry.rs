@@ -4,6 +4,7 @@
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::{ImportableDependency, ResolvedDependency};
+use crate::dependency_resolution::{is_excluded, is_group_excluded};
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;
@@ -16,13 +17,15 @@ use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{GroupSpecWithProvenance, GroupType, ImportsWithProvenance};
+use weaver_semconv::group::{
+    GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
+};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
-use crate::dependency::GroupSummary;
+use crate::dependency::{GroupSource, GroupSummary};
 
 /// A registry containing unresolved groups.
 #[derive(Debug)]
@@ -115,6 +118,32 @@ pub(crate) fn resolve_registry_with_dependencies(
         dependencies,
     };
 
+    let mut errors = vec![];
+
+    if include_unreferenced {
+        errors.push(Error::DeprecatedIncludeUnreferencedWarning {});
+        let glob = match globset::Glob::new("*") {
+            Ok(g) => g,
+            Err(e) => {
+                return WResult::FatalErr(Error::InvalidWildcard {
+                    error: e.to_string(),
+                });
+            }
+        };
+        let wildcard = GroupWildcard(glob);
+        let glob_imports = weaver_semconv::semconv::Imports {
+            metrics: Some(vec![wildcard.clone()]),
+            events: Some(vec![wildcard.clone()]),
+            entities: Some(vec![wildcard.clone()]),
+            spans: Some(vec![wildcard.clone()]),
+            attribute_groups: Some(vec![wildcard.clone()]),
+        };
+        ureg.imports.push(ImportsWithProvenance {
+            imports: glob_imports,
+            provenance: Provenance::new(repo.schema_url().clone(), "--include-unreferenced"),
+        });
+    }
+
     // Now we do the resolution.
     if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
         return WResult::FatalErr(e);
@@ -129,14 +158,11 @@ pub(crate) fn resolve_registry_with_dependencies(
     }
 
     // We need to *import* objects from the dependencies as required.
-    // If the flag to pull in all dependencies is set, we should grab ALL
-    // groups from our dependency.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, include_unreferenced) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog) {
         return WResult::FatalErr(e);
     }
 
     // Now we do validations.
-    let mut errors = vec![];
 
     // Note: this will remove all the `groups` from UnresolvedRegistry and create
     // a complete `Registry` that is returned.
@@ -315,7 +341,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             metric_name: group.spec.metric_name,
             instrument: group.spec.instrument,
             unit: group.spec.unit,
-            metric_requirement_level: group.spec.metric_requirement_level,
+            requirement_level: group.spec.requirement_level,
             name: group.spec.name,
             lineage: Some(GroupLineage::new(group.provenance.clone())),
             display_name: group.spec.display_name,
@@ -324,6 +350,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             entity_associations: group.spec.entity_associations,
             visibility: group.spec.visibility.clone(),
             is_v2: group.spec.is_v2,
+            span_name_note: group.spec.span_name_note,
         },
         attributes: attrs,
         provenance: Some(group.provenance),
@@ -351,18 +378,14 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 }
 
 /// Resolves imports defined on dependencies.
-///
-/// If `include_all` is true, then all groups are imported
-/// from all dependencies.
 fn resolve_dependency_imports(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
-    include_all: bool,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
-    let groups = dependencies.import_groups(imports, include_all, attribute_catalog)?;
+    let groups = dependencies.import_groups(imports, attribute_catalog)?;
     for group in groups {
         let provenance = group.provenance();
         let is_v2 = group.is_v2();
@@ -406,26 +429,39 @@ fn resolve_attribute_references(
             // Remove attributes that are resolved and keep unresolved attributes
             // in the group for the next iteration.
             let mut still_unresolved = vec![];
+            let group_excluded = is_group_excluded(
+                &unresolved_group.group.annotations,
+                unresolved_group.visibility.as_ref(),
+                &unresolved_group.group.r#type,
+            );
             for attr in unresolved_group.attributes.clone() {
-                let attr_ref = attr_catalog.resolve(
+                match attr_catalog.resolve(
                     &unresolved_group.group.id,
                     &unresolved_group.group.prefix,
+                    group_excluded,
                     &attr.spec,
                     unresolved_group.group.lineage.as_mut(),
                     &ureg.dependencies,
-                )?;
-                if let Some(attr_ref) = attr_ref {
-                    resolved_attr.push(attr_ref);
-                    resolved_attr_count += 1;
-                } else {
-                    if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
-                        errors.push(Error::UnresolvedAttributeRef {
-                            group_id: unresolved_group.group.id.clone(),
-                            attribute_ref: r#ref.clone(),
-                            provenance: unresolved_group.provenance.clone().map(Box::new),
-                        });
+                ) {
+                    Ok(Some(attr_ref)) => {
+                        resolved_attr.push(attr_ref);
+                        resolved_attr_count += 1;
                     }
-                    still_unresolved.push(attr);
+                    Ok(None) => {
+                        if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
+                            errors.push(Error::UnresolvedAttributeRef {
+                                group_id: unresolved_group.group.id.clone(),
+                                attribute_ref: r#ref.clone(),
+                                provenance: unresolved_group.provenance.clone().map(Box::new),
+                            });
+                        }
+                        still_unresolved.push(attr);
+                    }
+                    Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                        errors.push(e);
+                        still_unresolved.push(attr);
+                    }
+                    Err(e) => return Err(e),
                 }
             }
             unresolved_group.attributes = still_unresolved;
@@ -466,7 +502,8 @@ fn add_resolved_group_to_index(
     );
     _ = unresolved_group.group.extends.take();
     unresolved_group.include_groups.clear();
-    let mut summary = GroupSummary::from_without_attributes(&unresolved_group.group);
+    let mut summary =
+        GroupSummary::from_without_attributes(&unresolved_group.group, GroupSource::Local);
     summary.attributes = unresolved_group.attributes.clone();
     _ = group_index.insert(unresolved_group.group.id.clone(), summary);
     *resolved_group_count += 1;
@@ -497,7 +534,8 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         .map(|a| a.spec.id().clone())
                         .collect::<Vec<_>>()
                 );
-                let mut summary = GroupSummary::from_without_attributes(&group.group);
+                let mut summary =
+                    GroupSummary::from_without_attributes(&group.group, GroupSource::Local);
                 summary.attributes = group.attributes.clone();
                 _ = group_index.insert(group.group.id.clone(), summary);
             }
@@ -506,91 +544,122 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         for unresolved_group in ureg.groups.iter_mut() {
             // TODO - also look in dependencies.
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
-                if let Some(parent_summary) =
-                    lookup_group_with_dependencies(dependencies, &group_index, extends)
+                let lookup = lookup_group_with_dependencies(
+                    dependencies,
+                    &group_index,
+                    extends,
+                    &unresolved_group.group.id,
+                );
+                let parent_summary = match lookup {
+                    Ok(Some(s)) => s,
+                    Ok(None) => {
+                        // TODO - first check imports.
+                        errors.push(Error::UnresolvedExtendsRef {
+                            group_id: unresolved_group.group.id.clone(),
+                            extends_ref: extends.clone(),
+                            provenance: unresolved_group.provenance.clone().map(Box::new),
+                        });
+                        continue;
+                    }
+                    Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                        errors.push(e);
+                        continue;
+                    }
+                    Err(e) => return Err(e),
+                };
+                if let Some(err) = excluded_parent_error(unresolved_group, extends, &parent_summary)
                 {
-                    unresolved_group.attributes = resolve_inheritance_attrs_unified(
-                        &unresolved_group.group.id,
-                        &unresolved_group.attributes,
-                        vec![(extends, &parent_summary.attributes)],
-                        unresolved_group.group.lineage.as_mut(),
-                    );
-                    if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
-                        lineage.extends(extends);
+                    errors.push(err);
+                    continue;
+                }
+                unresolved_group.attributes = resolve_inheritance_attrs_unified(
+                    &unresolved_group.group.id,
+                    &unresolved_group.attributes,
+                    vec![(extends, &parent_summary.attributes)],
+                    unresolved_group.group.lineage.as_mut(),
+                );
+                if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                    lineage.extends(extends);
+                }
+
+                // Inherit fields for v2 groups.
+                if unresolved_group.is_v2 {
+                    if unresolved_group.group.r#type != parent_summary.r#type {
+                        errors.push(Error::InvalidRefinement {
+                            refinement_id: unresolved_group.group.id.clone(),
+                            r#ref: extends.clone(),
+                            refinement_type: format!("{:?}", unresolved_group.group.r#type),
+                            signal_type: format!("{:?}", parent_summary.r#type),
+                        });
+                    }
+                    // Copy over fields refinements MUST use.
+                    unresolved_group.group.instrument = parent_summary.instrument.clone();
+                    unresolved_group.group.unit = parent_summary.unit.clone();
+                    unresolved_group.group.span_kind = parent_summary.span_kind;
+                    unresolved_group.group.metric_name = parent_summary.metric_name.clone();
+                    unresolved_group.group.requirement_level =
+                        parent_summary.requirement_level.clone();
+
+                    // Optionally copy over fields if refinements have not set them.
+                    if unresolved_group.group.stability.is_none() {
+                        unresolved_group.group.stability = parent_summary.stability.clone();
+                    } else {
+                        // TODO: Validate that the refinement cannot be more stable than the definition.
+                    }
+                    if unresolved_group.group.deprecated.is_none() {
+                        unresolved_group.group.deprecated = parent_summary.deprecated.clone();
+                    }
+                    if unresolved_group.group.brief.is_empty() {
+                        unresolved_group.group.brief = parent_summary.brief.clone();
+                    }
+                    if unresolved_group.group.note.is_empty() {
+                        unresolved_group.group.note = parent_summary.note.clone();
                     }
 
-                    // Inherit fields for v2 groups.
-                    if unresolved_group.is_v2 {
-                        if unresolved_group.group.r#type != parent_summary.r#type {
-                            errors.push(Error::InvalidRefinement {
-                                refinement_id: unresolved_group.group.id.clone(),
-                                r#ref: extends.clone(),
-                                refinement_type: format!("{:?}", unresolved_group.group.r#type),
-                                signal_type: format!("{:?}", parent_summary.r#type),
-                            });
-                        }
-                        // Copy over fields refinements MUST use.
-                        unresolved_group.group.instrument = parent_summary.instrument.clone();
-                        unresolved_group.group.unit = parent_summary.unit.clone();
-                        unresolved_group.group.span_kind = parent_summary.span_kind;
-                        unresolved_group.group.metric_name = parent_summary.metric_name.clone();
-                        unresolved_group.group.metric_requirement_level =
-                            parent_summary.metric_requirement_level.clone();
-
-                        // Optionally copy over fields if refinements have not set them.
-                        if unresolved_group.group.stability.is_none() {
-                            unresolved_group.group.stability = parent_summary.stability.clone();
-                        } else {
-                            // TODO: Validate that the refinement cannot be more stable than the definition.
-                        }
-                        if unresolved_group.group.deprecated.is_none() {
-                            unresolved_group.group.deprecated = parent_summary.deprecated.clone();
-                        }
-                        if unresolved_group.group.brief.is_empty() {
-                            unresolved_group.group.brief = parent_summary.brief.clone();
-                        }
-                        if unresolved_group.group.note.is_empty() {
-                            unresolved_group.group.note = parent_summary.note.clone();
-                        }
-
-                        // Here we need to do more complicated "merge" logic for fields which require it.
-                        // Merge annotations
-                        let mut merged_annotations =
-                            parent_summary.annotations.clone().unwrap_or_default();
-                        if let Some(child_annotations) = &unresolved_group.group.annotations {
-                            merged_annotations = crate::merge::merge_annotations(
-                                merged_annotations,
-                                child_annotations,
-                            );
-                        }
-                        unresolved_group.group.annotations = if merged_annotations.is_empty() {
-                            None
-                        } else {
-                            Some(merged_annotations)
-                        };
+                    // Here we need to do more complicated "merge" logic for fields which require it.
+                    // Merge annotations
+                    let mut merged_annotations =
+                        parent_summary.annotations.clone().unwrap_or_default();
+                    if let Some(child_annotations) = &unresolved_group.group.annotations {
+                        merged_annotations =
+                            crate::merge::merge_annotations(merged_annotations, child_annotations);
                     }
+                    unresolved_group.group.annotations = if merged_annotations.is_empty() {
+                        None
+                    } else {
+                        Some(merged_annotations)
+                    };
+                }
 
+                if unresolved_group.include_groups.is_empty() {
                     add_resolved_group_to_index(
                         &mut group_index,
                         unresolved_group,
                         &mut resolved_group_count,
                     );
-                // TODO - first check imports.
                 } else {
-                    errors.push(Error::UnresolvedExtendsRef {
-                        group_id: unresolved_group.group.id.clone(),
-                        extends_ref: extends.clone(),
-                        provenance: unresolved_group.provenance.clone().map(Box::new),
-                    });
+                    // The group has both `extends` and `include_groups`.
+                    // We already resolved extends above; now clear it and
+                    // fall through to resolve `include_groups` below.
+                    _ = unresolved_group.group.extends.take();
                 }
-            } else if !unresolved_group.include_groups.is_empty() {
-                // Iterate over all groups and resolve the `include_groups` clauses.
+            }
+            if unresolved_group.group.extends.is_none()
+                && !unresolved_group.include_groups.is_empty()
+            {
                 let mut attr_ids = HashMap::new();
                 let mut attrs_by_group = HashMap::new();
                 let mut all_resolved = true;
 
                 for include_group in unresolved_group.include_groups.iter() {
                     if let Some(summary) = group_index.get(include_group) {
+                        if let Some(err) =
+                            excluded_parent_error(unresolved_group, include_group, summary)
+                        {
+                            errors.push(err);
+                            all_resolved = false;
+                            continue;
+                        }
                         // check if any attribute in the attrs is already in the all_attrs
                         // and fail - this is a diamond include problem and is not allowed.
                         // Otherwise add all of them to all_attrs
@@ -855,17 +924,57 @@ fn resolve_inheritance_attr(
 // We do NOT borrow the index as mutable when iterating over groups, but
 // Rust's type system is not advanced enough to know about partial mutable
 // borrowing of a reference.
+/// Hides excluded dep matches from dependents; raises if all dep matches are excluded.
 fn lookup_group_with_dependencies(
     dependencies: &[ResolvedDependency],
     local_index: &HashMap<String, GroupSummary>,
     id: &str,
-) -> Option<GroupSummary> {
-    // First check our direct groups.
+    used_in: &str,
+) -> Result<Option<GroupSummary>, Error> {
     if let Some(summary) = local_index.get(id) {
-        return Some(summary.clone());
+        return Ok(Some(summary.clone()));
     }
-    // Now check dependencies in order.
-    dependencies.iter().find_map(|d| d.lookup_group_summary(id))
+    let mut excluded_match: Option<GroupSummary> = None;
+    for d in dependencies.iter() {
+        if let Some(summary) = d.lookup_group_summary(id) {
+            if summary.annotations.as_ref().is_some_and(is_excluded) {
+                _ = excluded_match.get_or_insert(summary);
+            } else {
+                return Ok(Some(summary));
+            }
+        }
+    }
+    if let Some(summary) = excluded_match {
+        return Err(Error::ExcludedFromDependencyResolution {
+            id: id.to_owned(),
+            r#type: summary.r#type.to_string(),
+            used_in: used_in.to_owned(),
+        });
+    }
+    Ok(None)
+}
+
+fn excluded_parent_error(
+    used_in: &UnresolvedGroup,
+    target_id: &str,
+    target: &GroupSummary,
+) -> Option<Error> {
+    if !matches!(target.source, GroupSource::Local) {
+        return None;
+    }
+    if !target.annotations.as_ref().is_some_and(is_excluded) {
+        return None;
+    }
+    let used_in_excluded = is_group_excluded(
+        &used_in.group.annotations,
+        used_in.visibility.as_ref(),
+        &used_in.group.r#type,
+    );
+    (!used_in_excluded).then(|| Error::ExcludedFromDependencyResolution {
+        id: target_id.to_owned(),
+        r#type: target.r#type.to_string(),
+        used_in: used_in.group.id.clone(),
+    })
 }
 
 /// This will sort the clean and sort the attribute catalog and registry.
@@ -937,8 +1046,8 @@ mod tests {
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
-    use crate::LoadedSemconvRegistry;
-    use crate::SchemaResolver;
+    use crate::{WeaverResolver, WeaverResolverConfig};
+    use std::sync::Arc;
 
     /// Settings for resolution tests.
     #[derive(Serialize, Deserialize, Default)]
@@ -983,7 +1092,8 @@ mod tests {
             // "registry-test-7-spans",
             // "registry-test-8-http",
             // "registry-test-v2-2-multifile",
-            "registry-test-v2-dep", // tested separately in lib.rs
+            "registry-test-v2-dep",        // tested separately in lib.rs
+            "registry-test-dep-exclusion", // multi-registry; tested separately in lib.rs
         ];
         // Iterate over all directories in the data directory and
         // starting with registry-test-*
@@ -1021,56 +1131,63 @@ mod tests {
             let location: VirtualDirectoryPath = format!("{test_dir}/registry")
                 .try_into()
                 .expect("Failed to parse file directory");
-            let loaded = SchemaResolver::load_semconv_repository(
-                RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
-                    .expect("Failed to load registry"),
-                true,
-            )
-            .ignore(|e| {
-                // Ignore prefix errors on tests of prefix.
-                test_dir.contains("prefix")
-                    && matches!(
+            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+                follow_symlinks: true,
+                ..Default::default()
+            });
+            let loaded = resolver
+                .load_repository(
+                    RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
+                        .expect("Failed to load registry"),
+                )
+                .ignore(|e| {
+                    // Ignore prefix errors on tests of prefix.
+                    test_dir.contains("prefix")
+                        && matches!(
+                            e,
+                            crate::Error::FailToResolveDefinition(
+                                weaver_semconv::Error::InvalidGroupUsesPrefix {
+                                    path_or_url: _,
+                                    group_id: _
+                                }
+                            )
+                        )
+                })
+                .ignore(|e| {
+                    matches!(
                         e,
                         crate::Error::FailToResolveDefinition(
-                            weaver_semconv::Error::InvalidGroupUsesPrefix {
-                                path_or_url: _,
-                                group_id: _
+                            weaver_semconv::Error::UnstableFileFormat {
+                                file_format: _,
+                                provenance: _,
                             }
                         )
                     )
-            })
-            .ignore(|e| {
-                matches!(
-                    e,
-                    crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::UnstableFileFormat {
-                            file_format: _,
-                            provenance: _,
-                        }
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::LegacyRegistryManifest { path: _ }
+                        )
                     )
-                )
-            })
-            .ignore(|e| {
-                matches!(
-                    e,
-                    crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::LegacyRegistryManifest { path: _ }
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
+                        )
                     )
-                )
-            })
-            .ignore(|e| {
-                matches!(
-                    e,
-                    crate::Error::FailToResolveDefinition(
-                        weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
-                    )
-                )
-            })
-            .into_result_failing_non_fatal()
-            .expect("Failed to load semconv specs");
+                })
+                .into_result_failing_non_fatal()
+                .expect("Failed to load semconv specs");
 
             // We need to resolve dependencies.
-            let schema = SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal();
+            let schema = resolver
+                .resolve_loaded(loaded)
+                .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
+                .into_result_failing_non_fatal();
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
@@ -1193,9 +1310,12 @@ mod tests {
     }
 
     fn create_registry_from_string(registry_spec: &str) -> WResult<Registry, crate::Error> {
-        let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
+        let loaded = crate::LoadedSemconvRegistry::create_from_string(registry_spec)
             .expect("Failed to load semconv spec");
-        SchemaResolver::resolve(loaded, false).map(|schema| schema.registry)
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        resolver
+            .resolve_loaded(loaded)
+            .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap().registry)
     }
 
     #[test]
@@ -1265,21 +1385,28 @@ groups:
             .expect("Should be valid schema url");
         let repo = RegistryRepo::try_new(Some(schema_url), &path, &mut vec![])
             .expect("Failed to load registry");
-        let loaded =
-            SchemaResolver::load_semconv_repository(repo, true).into_result_failing_non_fatal()?;
-        let resolved_schema =
-            SchemaResolver::resolve(loaded, false).into_result_failing_non_fatal()?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            follow_symlinks: true,
+            ..Default::default()
+        });
+        let loaded = resolver
+            .load_repository(repo)
+            .into_result_failing_non_fatal()?;
+        let resolved_schema: weaver_resolved_schema::ResolvedTelemetrySchema = resolver
+            .resolve_loaded(loaded)
+            .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
+            .into_result_failing_non_fatal()?;
 
         // Get the resolved registry by its ID.
         let resolved_registry = &resolved_schema.registry;
 
         // Get the catalog of the resolved telemetry schema.
-        let catalog = resolved_schema.catalog();
+        let catalog = &resolved_schema.catalog;
         // Scan over all the metrics
         let mut metric_count = 0;
         for metric in resolved_registry.groups(GroupType::Metric) {
             metric_count += 1;
-            let _resolved_attributes = metric.attributes(catalog)?;
+            let _resolved_attributes: Vec<&Attribute> = metric.attributes(catalog)?;
             // Do something with the resolved attributes.
         }
         assert_eq!(
@@ -1291,7 +1418,7 @@ groups:
         let mut span_count = 0;
         for span in resolved_registry.groups(GroupType::Span) {
             span_count += 1;
-            let _resolved_attributes = span.attributes(catalog)?;
+            let _resolved_attributes: Vec<&Attribute> = span.attributes(catalog)?;
             // Do something with the resolved attributes.
         }
         assert_eq!(span_count, 10, "10 spans in the resolved registry expected");
@@ -1348,7 +1475,7 @@ groups:
                     metric_name: Default::default(),
                     instrument: Default::default(),
                     unit: Default::default(),
-                    metric_requirement_level: Default::default(),
+                    requirement_level: Default::default(),
                     name: Default::default(),
                     lineage: Default::default(),
                     display_name: Default::default(),
@@ -1357,6 +1484,7 @@ groups:
                     entity_associations: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
+                    span_name_note: None,
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
@@ -1437,7 +1565,7 @@ groups:
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
-                        metric_requirement_level: Default::default(),
+                        requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -1446,6 +1574,7 @@ groups:
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: false,
+                        span_name_note: None,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -1472,7 +1601,7 @@ groups:
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
-                        metric_requirement_level: Default::default(),
+                        requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -1481,6 +1610,7 @@ groups:
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: false,
+                        span_name_note: None,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -1507,7 +1637,7 @@ groups:
                         metric_name: Default::default(),
                         instrument: Default::default(),
                         unit: Default::default(),
-                        metric_requirement_level: Default::default(),
+                        requirement_level: Default::default(),
                         name: Default::default(),
                         lineage: Default::default(),
                         display_name: Default::default(),
@@ -1516,6 +1646,7 @@ groups:
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: false,
+                        span_name_note: None,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),

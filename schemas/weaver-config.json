@@ -1,11 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "WeaverConfig",
+  "title": "WeaverConfigSchema",
   "description": "Top-level Weaver configuration.",
   "type": "object",
   "properties": {
     "auth": {
-      "description": "Per-URL HTTP authentication entries for downloading remote registries.\nSee [`auth::AuthEntry`] for the schema.",
       "type": "array",
       "items": {
         "description": "A single entry in the `[[auth]]` array of `.weaver.toml`.\n\n```toml\n[[auth]]\nurl_prefix = \"https://github.com/acme/\"\ntoken_env  = \"ACME_GITHUB_TOKEN\"\n\n[[auth]]\nurl_prefix    = \"https://github.com/\"\ntoken_command = [\"gh\", \"auth\", \"token\"]\n```\n\nExactly one of `token`, `token_env`, or `token_command` must be specified.",
@@ -71,8 +70,12 @@
         "unevaluatedProperties": false
       }
     },
+    "check": {
+      "description": "Validate a semantic convention registry against policies and schema rules.",
+      "type": "object"
+    },
     "diagnostics": {
-      "description": "Shared diagnostic output settings (apply to all subcommands that accept them).",
+      "description": "Diagnostic output configuration.",
       "type": "object",
       "properties": {
         "format": {
@@ -101,8 +104,108 @@
         }
       }
     },
-    "live_check": {
-      "description": "Live-check specific configuration.",
+    "diff": {
+      "description": "Compare two versions of a semantic convention registry and report the differences.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Format used to render the schema changes. Predefined formats are: ansi, json,\nand markdown.\n[default: ansi]",
+          "type": "string",
+          "default": "ansi"
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\nIf not specified, the diff report is printed to stdout",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the schema changes templates are located.\n[default: diff_templates]",
+          "type": "string",
+          "default": "diff_templates"
+        }
+      }
+    },
+    "emit": {
+      "description": "Emit a resolved registry as OTLP or to stdout.",
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "description": "Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.\n[default: http://localhost:4317]",
+          "type": "string",
+          "default": "http://localhost:4317"
+        },
+        "stdout": {
+          "description": "Write the telemetry to standard output\n[default: false]",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "generate": {
+      "description": "Generate artifacts from a semantic convention registry using Jinja templates.",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\nDefault is the `output` directory.",
+          "type": "string",
+          "default": "output"
+        },
+        "target": {
+          "description": "Target to generate the artifacts for.",
+          "type": "string",
+          "default": ""
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.\nDefault is the `templates` directory.\n[default: templates]",
+          "type": "string",
+          "default": "templates"
+        }
+      }
+    },
+    "infer": {
+      "description": "Infer a semantic convention registry by observing live OTLP telemetry.",
+      "type": "object",
+      "properties": {
+        "admin_port": {
+          "description": "Port used by the HTTP admin server (endpoints: /stop).\n[default: 8080]",
+          "type": "integer",
+          "format": "uint16",
+          "default": 8080,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "grpc_address": {
+          "description": "Address used by the gRPC OTLP listener.\n[default: 0.0.0.0]",
+          "type": "string",
+          "default": "0.0.0.0"
+        },
+        "grpc_port": {
+          "description": "Port used by the gRPC OTLP listener.\n[default: 4317]",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "inactivity_timeout": {
+          "description": "Seconds of inactivity before auto-stop (0 = never).\n[default: 60]",
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "output": {
+          "description": "Output folder for generated YAML files.\n[default: ./inferred-registry/]",
+          "type": "string",
+          "default": "./inferred-registry/"
+        }
+      }
+    },
+    "live-check": {
+      "description": "Validate live telemetry against a semantic convention registry.",
       "type": "object",
       "properties": {
         "advice_policies": {
@@ -176,10 +279,64 @@
         }
       }
     },
-    "policy": {
-      "description": "Shared policy settings (apply to all subcommands that accept them).",
+    "mcp": {
+      "description": "Expose a semantic convention registry over the Model Context Protocol (MCP).",
       "type": "object",
       "properties": {
+        "advice_policies": {
+          "description": "Advice policies directory. Set this to override the default policies.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_preprocessor": {
+          "description": "Advice preprocessor. A jq script to preprocess the registry data before passing to rego.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "namespace_separator": {
+          "description": "Namespace separator used in attribute keys. Defaults to \".\".\nUsed by namespace browsing and search token splitting.\n[default: .]",
+          "type": "string",
+          "default": "."
+        }
+      }
+    },
+    "package": {
+      "description": "Package a resolved registry for publication (produces `resolved.yaml` and `manifest.yaml`).",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Path to the directory where the package will be written.\n[default: output]",
+          "type": "string",
+          "default": "output"
+        },
+        "resolved_registry_uri": {
+          "description": "URI where the resolved registry artifact will eventually be published.\nThis value is embedded in the publication manifest as `resolved_registry_uri`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "policy": {
+      "description": "Policy configuration — which policy files to check against.",
+      "type": "object",
+      "properties": {
+        "display_policy_coverage": {
+          "description": "Display the policy coverage report.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
         "paths": {
           "description": "Policy file or directory paths. Directories load all `.rego` files.",
           "type": [
@@ -202,7 +359,7 @@
       }
     },
     "registry": {
-      "description": "Shared registry settings (apply to all subcommands that accept them).",
+      "description": "Registry configuration — where to load the semantic convention registry from.",
       "type": "object",
       "properties": {
         "follow_symlinks": {
@@ -236,6 +393,89 @@
             "null"
           ],
           "default": null
+        }
+      }
+    },
+    "serve": {
+      "description": "Serve a resolved registry over a local HTTP API for browsing and search.",
+      "type": "object",
+      "properties": {
+        "bind": {
+          "description": "Address to bind the server to.\n[default: 127.0.0.1:8080]",
+          "type": "string",
+          "default": "127.0.0.1:8080"
+        },
+        "cors_origins": {
+          "description": "Allowed CORS origins (comma-separated). Use '*' for any origin.\nIf not specified, CORS is disabled (same-origin only).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "stats": {
+      "description": "Compute and display statistics about a semantic convention registry.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Output format for the stats.\nPredefined formats are: text, json, yaml, jsonl, mute.\n[default: text]",
+          "type": "string",
+          "default": "text"
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\nIf not specified, the stats are printed to stdout.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the stats templates are located.\n[default: stats_templates]",
+          "type": "string",
+          "default": "stats_templates"
+        }
+      }
+    },
+    "update-markdown": {
+      "description": "Update Jinja-marker sections inside Markdown files from a resolved registry.",
+      "type": "object",
+      "properties": {
+        "attribute_registry_base_url": {
+          "description": "Optional path to the attribute registry.\nIf provided, all attributes will be linked here.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "dry_run": {
+          "description": "Whether or not to run updates in dry-run mode.\n[default: false]",
+          "type": "boolean",
+          "default": false
+        },
+        "markdown_dir": {
+          "description": "Path to the directory where the markdown files are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "target": {
+          "description": "The target to generate snippets with.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.\n[default: templates]",
+          "type": "string",
+          "default": "templates"
         }
       }
     }

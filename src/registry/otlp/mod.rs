@@ -612,11 +612,12 @@ mod tests {
     use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
     use std::thread;
+    use weaver_test_support::reserve_test_port;
 
     #[test]
     fn test_inactivity_stop_after_1_second() {
-        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
-        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let grpc_port = reserve_test_port();
+        let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(1);
 
         let (mut receiver, _report_sender) =
@@ -708,8 +709,8 @@ mod tests {
 
     #[test]
     fn test_http_stop_endpoint_with_report() {
-        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
-        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let grpc_port = reserve_test_port();
+        let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(5);
 
         let (mut receiver, report_sender) =
@@ -755,8 +756,8 @@ mod tests {
 
     #[test]
     fn test_http_stop_endpoint_immediate() {
-        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
-        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let grpc_port = reserve_test_port();
+        let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(5);
 
         let (mut receiver, _report_sender) =
@@ -790,8 +791,8 @@ mod tests {
 
     #[test]
     fn test_health_endpoint() {
-        let grpc_port = portpicker::pick_unused_port().expect("No free ports");
-        let admin_port = portpicker::pick_unused_port().expect("No free ports");
+        let grpc_port = reserve_test_port();
+        let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(5);
 
         let (_receiver, _report_sender) =

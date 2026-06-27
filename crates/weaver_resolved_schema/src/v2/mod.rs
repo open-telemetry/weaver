@@ -294,11 +294,15 @@ pub fn convert_v1_to_v2(
                             .span_kind
                             .clone()
                             .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                        // TODO - Pass advanced name controls through V1 groups.
+                        // Use span_name_note (carried from v2) if available, fall back to g.name.
                         name: SpanName {
-                            note: g.name.clone().unwrap_or_default(),
+                            note: g
+                                .span_name_note
+                                .clone()
+                                .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
                         },
                         entity_associations: g.entity_associations.clone(),
+                        requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
@@ -333,11 +337,15 @@ pub fn convert_v1_to_v2(
                                 .span_kind
                                 .clone()
                                 .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                            // TODO - Pass advanced name controls through V1 groups.
+                            // Use span_name_note (carried from v2) if available, fall back to g.name.
                             name: SpanName {
-                                note: g.name.clone().unwrap_or_default(),
+                                note: g
+                                    .span_name_note
+                                    .clone()
+                                    .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
                             },
                             entity_associations: g.entity_associations.clone(),
+                            requirement_level: g.requirement_level.clone(),
                             common: CommonFields {
                                 brief: g.brief.clone(),
                                 note: g.note.clone(),
@@ -380,6 +388,7 @@ pub fn convert_v1_to_v2(
                         name: name.into(),
                         attributes: event_attributes,
                         entity_associations: g.entity_associations.clone(),
+                        requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
@@ -449,7 +458,7 @@ pub fn convert_v1_to_v2(
                         .expect("unit must exist on metrics prior to translation to v2"),
                     attributes: metric_attributes,
                     entity_associations: g.entity_associations.clone(),
-                    requirement_level: g.metric_requirement_level.clone(),
+                    requirement_level: g.requirement_level.clone(),
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
@@ -502,6 +511,7 @@ pub fn convert_v1_to_v2(
                     r#type: fix_group_id("entity.", &g.id),
                     identity: id_attrs,
                     description: desc_attrs,
+                    requirement_level: g.requirement_level.clone(),
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
@@ -574,7 +584,7 @@ pub fn convert_v1_to_v2(
             }
         }
     }
-    attributes.sort_by(|a, b| a.0.cmp(&b.0));
+    attributes.sort_by_key(|a| a.0);
     attributes.dedup();
 
     let v2_registry = Registry {
@@ -760,7 +770,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: Some("my span name".to_owned()),
                     lineage: None,
                     display_name: None,
@@ -769,6 +779,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -785,7 +796,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: Some("my span name".to_owned()),
                     lineage: Some(refinement_span_lineage),
                     display_name: None,
@@ -794,6 +805,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
             ],
         };
@@ -900,7 +912,7 @@ mod tests {
                     metric_name: Some("http".to_owned()),
                     instrument: Some(weaver_semconv::group::InstrumentSpec::UpDownCounter),
                     unit: Some("s".to_owned()),
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -909,6 +921,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -925,7 +938,7 @@ mod tests {
                     metric_name: Some("http".to_owned()),
                     instrument: Some(weaver_semconv::group::InstrumentSpec::UpDownCounter),
                     unit: Some("s".to_owned()),
-                    metric_requirement_level: None,
+                    requirement_level: None,
                     name: None,
                     lineage: Some(refinement_metric_lineage),
                     display_name: None,
@@ -934,6 +947,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
+                    span_name_note: None,
                 },
             ],
         };
@@ -1008,7 +1022,7 @@ mod tests {
                 metric_name: None,
                 instrument: None,
                 unit: None,
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: Some("my-event".to_owned()),
                 lineage: None,
                 display_name: None,
@@ -1017,6 +1031,7 @@ mod tests {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: false,
+                span_name_note: None,
             }],
         };
         let dependencies = BTreeSet::new();
@@ -1075,7 +1090,7 @@ mod tests {
                 metric_name: None,
                 instrument: None,
                 unit: None,
-                metric_requirement_level: None,
+                requirement_level: None,
                 name: Some("my-entity".to_owned()),
                 lineage: Some(GroupLineage::new(Provenance::new(
                     "https://my.dependency.url/1.0.0".try_into().unwrap(),
@@ -1087,6 +1102,7 @@ mod tests {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: false,
+                span_name_note: None,
             }],
         };
         let mut dependencies = BTreeSet::new();
@@ -1284,6 +1300,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            requirement_level: None,
             provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
@@ -1297,6 +1314,7 @@ mod tests {
             r#type: "test.entity".to_owned().into(),
             identity: vec![],
             description: vec![],
+            requirement_level: None,
             provenance: Default::default(),
         });
         let diff = latest.diff(&baseline);
@@ -1321,6 +1339,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            requirement_level: None,
             provenance: Default::default(),
         });
         let mut latest = empty_v2_schema();
@@ -1328,6 +1347,7 @@ mod tests {
             name: "test.event".to_owned().into(),
             attributes: vec![],
             entity_associations: vec![],
+            requirement_level: None,
             common: CommonFields {
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "note".to_owned(),

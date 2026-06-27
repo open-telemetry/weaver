@@ -1,16 +1,20 @@
 # The build image
-FROM docker.io/rust:1.95.0@sha256:a9cfb755b33f5bb872610cbdb25da61f527416b28fc9c052bbce4bef93e7799a AS weaver-build
+FROM docker.io/rust:1.96.0@sha256:e7336b1e0bb2290b0d7bfd3ce1237bf11e5c2ae937ee3e250e6554b98338bea6 AS weaver-build
 WORKDIR /build
 
 # Install Node.js and musl build dependencies
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=24
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x -o /tmp/nodesource-setup.sh && \
+  echo "6e3d580f5bd7ccf2aa1e8df8d35c60d78e873c3ff8beb282c9bebd914904ad72  /tmp/nodesource-setup.sh" | sha256sum -c && \
+  bash /tmp/nodesource-setup.sh && \
   apt-get install -y nodejs musl-tools musl-dev perl
 
 # Copy UI package files first for better layer caching
-RUN npm install -g pnpm
 COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
+# Use Corepack to provision the hash-pinned pnpm declared in ui/package.json's
+# "packageManager" field; Corepack verifies the download against that integrity hash.
+RUN corepack enable
 RUN cd /build/ui && pnpm install --frozen-lockfile
 
 # Copy UI source files
@@ -35,7 +39,7 @@ RUN cd /build/ui && pnpm build
 RUN ./cross-arch-build.sh
 
 # The runtime image
-FROM docker.io/alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+FROM docker.io/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \

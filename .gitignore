@@ -59,8 +59,21 @@ ui/dist/
 ui/.vite/
 ui/package-lock.json
 
+# Playwright e2e artifacts
+ui/test-results/
+ui/playwright-report/
+ui/blob-report/
+ui/.playwright/
+
 # claude
 .claude/
 
 # weaver config files
 .weaver.toml
+
+# Fuzz build artifacts, generated corpus, and crash inputs
+fuzz/target/
+fuzz/corpus/
+fuzz/artifacts/
+# Track fuzz lockfile so CI doesn't silently upgrade deps
+!fuzz/Cargo.lock

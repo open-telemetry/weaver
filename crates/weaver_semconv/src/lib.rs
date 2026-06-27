@@ -15,6 +15,7 @@ use weaver_common::error::{format_errors, WeaverError};
 pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
+pub mod entity_association;
 pub mod group;
 pub mod json_schema;
 pub mod manifest;
@@ -23,6 +24,7 @@ pub mod registry;
 pub mod registry_repo;
 pub mod schema_url;
 pub mod semconv;
+pub mod signal_requirement_level;
 pub mod stability;
 pub mod stats;
 pub mod v2;
@@ -227,15 +229,15 @@ pub enum Error {
         group_id: String,
     },
 
-    /// This warning indicates that a metric group does not set a requirement level.
+    /// This warning indicates that a signal group does not set a requirement level.
     /// It is treated as a non-critical warning unless the `--future` flag is enabled.
     /// With the `--future` flag, this warning is elevated to an error.
-    #[error("The metric group `{group_id}` does not set `requirement_level`. This will be required in the future.\nProvenance: {path_or_url:?}")]
+    #[error("The signal group `{group_id}` does not set `requirement_level`. This will be required in the future.\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Warning))]
-    MissingMetricRequirementLevelWarning {
+    MissingRequirementLevelWarning {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,
-        /// The group id of the metric.
+        /// The group id of the signal.
         group_id: String,
     },
 
@@ -386,6 +388,16 @@ pub enum Error {
     UnexpectedPublicationManifest {
         /// The schema URL of the publication manifest.
         schema_url: String,
+    },
+
+    /// A schema_url has an invalid version component.
+    #[error("Registry `{schema_url}` contains an invalid version: {err}.")]
+    #[diagnostic(severity(Error))]
+    InvalidSemVer {
+        /// The schema url with invalid version.
+        schema_url: String,
+        /// The semver parsing error.
+        err: String,
     },
 
     /// A container for multiple errors.

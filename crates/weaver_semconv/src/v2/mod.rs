@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use weaver_common::result::WResult;
+
 use crate::{
     deprecated::Deprecated,
     group::GroupSpec,
@@ -17,7 +19,7 @@ use crate::{
         entity::EntityRefinement, event::Event, event::EventRefinement, metric::Metric,
         metric::MetricRefinement, span::Span, span::SpanRefinement,
     },
-    YamlValue,
+    Error, YamlValue,
 };
 
 pub mod attribute;
@@ -115,6 +117,42 @@ impl SemConvSpecV2 {
         serde_json::from_value(schema).expect("Failed to deserialize schema")
     }
 
+    /// Validates invariants on the v2 model.
+    ///
+    /// Currently this checks that every signal (metric, span, event, entity)
+    /// declares a `requirement_level`. A missing requirement level is a
+    /// non-fatal warning that is elevated to an error under `--future`.
+    pub(crate) fn validate(self, provenance: &str) -> WResult<Self, Error> {
+        let mut errors: Vec<Error> = vec![];
+
+        let mut check = |missing: bool, group_id: String| {
+            if missing {
+                errors.push(Error::MissingRequirementLevelWarning {
+                    path_or_url: provenance.to_owned(),
+                    group_id,
+                });
+            }
+        };
+
+        for m in &self.metrics {
+            check(m.requirement_level.is_none(), format!("metric.{}", m.name));
+        }
+        for s in &self.spans {
+            check(s.requirement_level.is_none(), format!("span.{}", s.r#type));
+        }
+        for e in &self.events {
+            check(e.requirement_level.is_none(), format!("event.{}", e.name));
+        }
+        for e in &self.entities {
+            check(
+                e.requirement_level.is_none(),
+                format!("entity.{}", e.r#type),
+            );
+        }
+
+        WResult::with_non_fatal_errors(self, errors)
+    }
+
     /// Converts the version 2 schema into the version 1 group spec.
     pub(crate) fn into_v1_specification(self, file_name: &str) -> SemConvSpecV1 {
         log::debug!("Translating v2 spec into v1 spec for {file_name}");
@@ -133,6 +171,7 @@ impl SemConvSpecV2 {
                     .collect(),
                 brief: "<synthetic v2>".to_owned(),
                 is_v2: true,
+                span_name_note: None,
                 ..Default::default()
             });
         }
@@ -202,6 +241,82 @@ impl Default for CommonFields {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn validate_yaml(v2: &str) -> Vec<Error> {
+        let spec = serde_yaml::from_str::<SemConvSpecV2>(v2).expect("Failed to parse YAML string");
+        match spec.validate("<test>") {
+            WResult::Ok(_) => vec![],
+            WResult::OkWithNFEs(_, nfes) => nfes,
+            WResult::FatalErr(e) => vec![e],
+        }
+    }
+
+    #[test]
+    fn test_v2_missing_requirement_level_warns() {
+        // Each signal type missing requirement_level produces a warning.
+        for (signal, yaml) in [
+            (
+                "metric.my_metric",
+                "metrics:\n  - name: my_metric\n    brief: b\n    stability: stable\n    instrument: counter\n    unit: \"1\"\n",
+            ),
+            (
+                "span.my_span",
+                "spans:\n  - type: my_span\n    brief: b\n    stability: stable\n    kind: client\n    name:\n      note: n\n",
+            ),
+            (
+                "event.my_event",
+                "events:\n  - name: my_event\n    brief: b\n    stability: stable\n",
+            ),
+            (
+                "entity.my_entity",
+                "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    identity:\n      - ref: some.attr\n",
+            ),
+        ] {
+            let errors = validate_yaml(yaml);
+            assert!(
+                errors.iter().any(|e| matches!(
+                    e,
+                    Error::MissingRequirementLevelWarning { group_id, .. } if group_id == signal
+                )),
+                "expected MissingRequirementLevelWarning for `{signal}`, got: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_v2_requirement_level_set_no_warning() {
+        for level in ["recommended", "opt_in"] {
+            let yaml = format!(
+                "metrics:\n  - name: my_metric\n    brief: b\n    stability: stable\n    instrument: counter\n    unit: \"1\"\n    requirement_level: {level}\n"
+            );
+            let errors = validate_yaml(&yaml);
+            assert!(
+                !errors
+                    .iter()
+                    .any(|e| matches!(e, Error::MissingRequirementLevelWarning { .. })),
+                "did not expect a warning when requirement_level={level}, got: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_v2_missing_requirement_level_future_mode() {
+        use miette::{Diagnostic, Severity};
+        use weaver_common::diagnostic::{
+            disable_future_mode, enable_future_mode, DiagnosticMessage,
+        };
+
+        let errors =
+            validate_yaml("spans:\n  - type: my_span\n    brief: b\n    stability: stable\n    kind: client\n    name:\n      note: n\n");
+        let warn = errors.into_iter().next().expect("expected a warning");
+        assert_eq!(warn.severity(), Some(Severity::Warning));
+
+        // Under --future the warning is elevated to an error.
+        enable_future_mode();
+        let diag = DiagnosticMessage::new(warn);
+        assert!(!diag.is_warning(), "expected error severity under --future");
+        disable_future_mode();
+    }
 
     fn parse_and_translate(v2: &str, v1: &str) {
         let spec = serde_yaml::from_str::<SemConvSpecV2>(v2).expect("Failed to parse YAML string");
@@ -308,6 +423,7 @@ groups:
   span_kind: client
   stability: stable
   is_v2: true
+  span_name_note: "{some} {name}"
 - id: test
   type: attribute_group
   brief: test

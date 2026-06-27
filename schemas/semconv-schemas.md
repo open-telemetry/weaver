@@ -117,9 +117,9 @@ See the [publication manifest JSON schema](/schemas/publication-manifest.v2.json
 
 Properties:
 
-- **file_format**: `"manifest/2.0.0"`
+- **file_format**: `"manifest/2.0"`
 - **schema_url**: Schema URL that uniquely identifies this registry and its version.
-- **resolved_schema_uri**: URI pointing to the resolved schema file included in the package.
+- **resolved_registry_uri**: URI pointing to the resolved registry artifact included in the package.
 - **stability**: Stability level of the registry (optional, defaults to `development`).
 - **description**: Description of the registry (optional).
 - **dependencies**: Same structure as in the [definition manifest](#definition-manifest).
@@ -127,9 +127,9 @@ Properties:
 For example, the publication manifest produced from the definition manifest above:
 
 ```yaml
-file_format: "manifest/2.0.0"
+file_format: "manifest/2.0"
 schema_url: https://acme.com/schemas/my-registry/1.0.0
-resolved_schema_uri: https://acme.com/schemas/my-registry/1.0.0/resolved.yaml
+resolved_registry_uri: https://acme.com/schemas/my-registry/1.0.0/resolved.yaml
 stability: development
 description: My custom registry
 dependencies:
@@ -149,7 +149,7 @@ The resolved version of the metric above would look like this:
 
 ```yaml
 # returned from https://acme.com/schemas/my-registry/1.0.0/resolved.yaml
-file_format: "resolved/2.0.0"
+file_format: "resolved/2.0"
 schema_url: https://opentelemetry.io/schemas/semconv/1.{future}.0
 attribute_catalog:
 ...
@@ -189,7 +189,7 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
 
 #### Resolved schema properties
 
-- **file_format**: `"resolved/2.0.0"`
+- **file_format**: `"resolved/2.0"`
 - **schema_url**: The Schema URL where this registry is or will be published
 - **attribute_catalog**: All attribute definitions. May include duplicate entries for the same key when
   refinements override attribute properties. Each entry has:

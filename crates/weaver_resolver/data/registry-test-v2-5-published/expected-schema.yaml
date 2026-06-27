@@ -42,10 +42,11 @@ registry:
   - type: local-span
     kind: client
     name:
-      note: local-span
+      note: span
     attributes:
     - base: 0
       requirement_level: recommended
+    requirement_level: recommended
     brief: a local span
     note: a local span note
     stability: stable
@@ -71,10 +72,11 @@ refinements:
     type: local-span
     kind: client
     name:
-      note: local-span
+      note: span
     attributes:
     - base: 0
       requirement_level: recommended
+    requirement_level: recommended
     brief: a local span
     note: a local span note
     stability: stable

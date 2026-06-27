@@ -3,15 +3,16 @@
 # This is used with cargo-check-external-types to reduce the surface area of downstream crates from
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
-    "serde::ser::Serialize",
-    "serde::de::Deserialize",
+    "serde_core::ser::Serialize",
+    "serde_core::de::Deserialize",
     "serde_json::value::Value",
     "serde_yaml::value::Value",
     "weaver_common::*",
     "weaver_resolved_schema::*",
     "weaver_semconv::*",
-    "minijinja::value::Value",
     "miette::protocol::Diagnostic",
     "include_dir::dir::Dir",
     "schemars::JsonSchema",
+    "utoipa::ToSchema",
+    "utoipa::__dev::ComposeSchema",
 ]

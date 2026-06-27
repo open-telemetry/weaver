@@ -6,7 +6,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
+    entity_association::EntityAssociation,
     group::SpanKindSpec,
+    signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
@@ -28,11 +30,15 @@ pub struct Span {
     pub attributes: Vec<SpanAttribute>,
     /// Which resources this span should be associated with.
     ///
-    /// This list is an "any of" list, where a span may be associated with one or more entities, but should
-    /// be associated with at least one in this list.
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
+
+    /// The requirement level of the span. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]

@@ -8,12 +8,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use weaver_checker::FindingLevel;
+use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_resource::SampleResource, Advisable, Error, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, Sample, SampleRef, VersionedSignal, MISSING_METRIC_ADVICE_TYPE,
+    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
+    Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    SampleRef, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -303,7 +307,7 @@ impl LiveCheckRunner for SampleMetric {
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            let finding = FindingBuilder::new(MISSING_METRIC_ADVICE_TYPE)
+            let finding = FindingBuilder::new(FindingId::MissingMetric)
                 .message("Metric does not exist in the registry.")
                 .level(FindingLevel::Violation)
                 .signal(parent_signal)
@@ -331,6 +335,37 @@ impl LiveCheckRunner for SampleMetric {
                 &sample_ref,
             );
         }
+        // Check entity attribute requirements against the resource (empty slice if no resource)
+        let resource_attributes: &[SampleAttribute] = parent_signal
+            .resource()
+            .map(|r| r.attributes.as_slice())
+            .unwrap_or(&[]);
+        let entity_associations: &[EntityAssociation] = match semconv_metric.as_deref() {
+            Some(VersionedSignal::Group(g)) => &g.entity_associations,
+            Some(VersionedSignal::Metric(m)) => &m.entity_associations,
+            _ => &[],
+        };
+        let findings = check_entity_associations(
+            entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        );
+        if !findings.is_empty() {
+            let sample_ref = SampleRef::Metric(self);
+            emit_findings(
+                &findings,
+                &sample_ref,
+                live_checker.otlp_emitter.as_deref(),
+                parent_signal,
+            );
+            result.add_advice_list(
+                findings,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
+        }
+
         // Get advice for the data points
         match &mut self.data_points {
             Some(DataPoints::Number(points)) => {

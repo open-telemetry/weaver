@@ -7,6 +7,7 @@ use std::process::Command as StdCommand;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
+use weaver_test_support::reserve_test_port;
 
 /// This test verifies the roundtrip functionality of registry live check and emit commands.
 /// This test doesn't count for the coverage report as it runs separate processes.
@@ -28,30 +29,33 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .to_str()
         .expect("Failed to convert temp directory path to string");
 
+    let otlp_grpc_port = reserve_test_port();
+    let admin_port = reserve_test_port();
+
     // Build the arguments for live check command
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
+    // to ensure the test is not affected by a local .weaver.toml config file.
     let mut live_check_args = vec![
-        "registry",
-        "live-check",
-        "-r",
-        "crates/weaver_emit/data",
-        "--format",
-        "json",
-        "--output",
-        temp_dir_path,
-        "--inactivity-timeout",
-        "8",
+        "registry".to_owned(),
+        "live-check".to_owned(),
+        "-r".to_owned(),
+        "crates/weaver_emit/data".to_owned(),
+        "--input-source".to_owned(),
+        "otlp".to_owned(),
+        "--skip-policies".to_owned(),
+        "--format".to_owned(),
+        "json".to_owned(),
+        "--output".to_owned(),
+        temp_dir_path.to_owned(),
+        "--inactivity-timeout".to_owned(),
+        "8".to_owned(),
+        "--otlp-grpc-port".to_owned(),
+        otlp_grpc_port.to_string(),
+        "--admin-port".to_owned(),
+        admin_port.to_string(),
     ];
     if use_v2 {
-        live_check_args.push("--v2");
-        live_check_args.push("--otlp-grpc-port");
-        live_check_args.push("5300");
-        live_check_args.push("--admin-port");
-        live_check_args.push("5301");
-    } else {
-        live_check_args.push("--otlp-grpc-port");
-        live_check_args.push("5200");
-        live_check_args.push("--admin-port");
-        live_check_args.push("5201");
+        live_check_args.push("--v2".to_owned());
     }
 
     // Start registry live check command as a background process
@@ -75,12 +79,10 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 
     if use_v2 {
         emit_args = emit_args.arg("--v2");
-        emit_args = emit_args.arg("--endpoint");
-        emit_args = emit_args.arg("http://localhost:5300");
-    } else {
-        emit_args = emit_args.arg("--endpoint");
-        emit_args = emit_args.arg("http://localhost:5200");
     }
+    emit_args = emit_args
+        .arg("--endpoint")
+        .arg(format!("http://localhost:{otlp_grpc_port}"));
 
     let emit_output = emit_args
         .timeout(Duration::from_secs(60))
@@ -141,16 +143,16 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 /// Triple-weaver setup:
 ///   weaver1 (emit) --> weaver2 (live-check --emit-otlp-logs) --> weaver3 (live-check --format json)
 ///
-/// weaver3's JSON output is checked for `weaver.finding.resource_attribute.*` attributes
+/// weaver3's JSON output is checked for `weaver.finding.resource.attribute.*` attributes
 /// on the ingested log samples, confirming the resource attributes flow through.
 #[test]
 fn test_emit_with_resource_attributes() {
     // Ports for weaver3 (final collector)
-    let w3_grpc_port = "5400";
-    let w3_admin_port = "5401";
+    let w3_grpc_port = reserve_test_port();
+    let w3_admin_port = reserve_test_port();
     // Ports for weaver2 (middle live-check with emit)
-    let w2_grpc_port = "5402";
-    let w2_admin_port = "5403";
+    let w2_grpc_port = reserve_test_port();
+    let w2_admin_port = reserve_test_port();
 
     // Temp dir for weaver3's JSON output
     let temp_dir = tempdir().expect("Failed to create temporary directory");
@@ -160,12 +162,17 @@ fn test_emit_with_resource_attributes() {
         .expect("Failed to convert temp directory path to string");
 
     // --- Start weaver3: receives OTLP logs from weaver2, writes JSON report ---
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
+    // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w3_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
             "registry",
             "live-check",
             "-r",
             "crates/weaver_emit/data",
+            "--input-source",
+            "otlp",
+            "--skip-policies",
             "--format",
             "json",
             "--output",
@@ -173,9 +180,9 @@ fn test_emit_with_resource_attributes() {
             "--inactivity-timeout",
             "8",
             "--otlp-grpc-port",
-            w3_grpc_port,
+            &w3_grpc_port.to_string(),
             "--admin-port",
-            w3_admin_port,
+            &w3_admin_port.to_string(),
         ])
         .spawn()
         .expect("Failed to start weaver3 (collector)");
@@ -183,21 +190,26 @@ fn test_emit_with_resource_attributes() {
     sleep(Duration::from_secs(2));
 
     // --- Start weaver2: receives OTLP from weaver1, emits findings as OTLP logs to weaver3 ---
+    // Note: --input-source otlp and --skip-policies (bare flag) are explicitly set
+    // to ensure the test is not affected by a local .weaver.toml config file.
     let mut w2_cmd = StdCommand::new(env!("CARGO_BIN_EXE_weaver"))
         .args([
             "registry",
             "live-check",
             "-r",
             "crates/weaver_emit/data",
+            "--input-source",
+            "otlp",
+            "--skip-policies",
             "--output",
             "none",
             "--no-stats",
             "--inactivity-timeout",
             "4",
             "--otlp-grpc-port",
-            w2_grpc_port,
+            &w2_grpc_port.to_string(),
             "--admin-port",
-            w2_admin_port,
+            &w2_admin_port.to_string(),
             "--emit-otlp-logs",
             "--otlp-logs-endpoint",
             &format!("http://localhost:{w3_grpc_port}"),
@@ -255,17 +267,17 @@ fn test_emit_with_resource_attributes() {
         .as_array()
         .expect("Failed to get samples array from weaver3 report");
 
-    // Look for log samples that have weaver.finding.resource_attribute.* attributes
+    // Look for log samples that have weaver.finding.resource.attribute.* attributes
     let mut found_resource_attr = false;
     for sample in samples {
         if let Some(log) = sample.get("log") {
             if let Some(attrs) = log.get("attributes").and_then(|a| a.as_array()) {
                 for attr in attrs {
                     if let Some(name) = attr.get("name").and_then(|n| n.as_str()) {
-                        if name.starts_with("weaver.finding.resource_attribute.") {
+                        if name.starts_with("weaver.finding.resource.attribute.") {
                             found_resource_attr = true;
                             // Verify the service.name resource attribute is present
-                            if name == "weaver.finding.resource_attribute.service.name" {
+                            if name == "weaver.finding.resource.attribute.service.name" {
                                 assert_eq!(
                                     attr.get("value").and_then(|v| v.as_str()),
                                     Some("weaver"),
@@ -281,7 +293,7 @@ fn test_emit_with_resource_attributes() {
 
     assert!(
         found_resource_attr,
-        "No weaver.finding.resource_attribute.* attributes found in weaver3's log samples. \
+        "No weaver.finding.resource.attribute.* attributes found in weaver3's log samples. \
          Resource attributes should flow from weaver1 → weaver2 → weaver3."
     );
 }

@@ -361,6 +361,17 @@
           "description": "The provenance of the Entity.",
           "$ref": "#/$defs/Provenance"
         },
+        "requirement_level": {
+          "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
           "$ref": "#/$defs/Stability"
@@ -376,6 +387,47 @@
         "identity",
         "brief",
         "stability"
+      ]
+    },
+    "EntityAssociation": {
+      "description": "An entity association expression.\n\nIn YAML this is either a bare string (an entity reference), a `{ one_of: [...] }` map or a\n`{ all_of: [...] }` map, where each list element is itself an [`EntityAssociation`].",
+      "anyOf": [
+        {
+          "description": "A reference to an entity by its type name.",
+          "type": "string"
+        },
+        {
+          "description": "Satisfied when at least one of the contained expressions is satisfied.",
+          "type": "object",
+          "properties": {
+            "one_of": {
+              "description": "The candidate expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "one_of"
+          ]
+        },
+        {
+          "description": "Satisfied when every contained expression is satisfied.",
+          "type": "object",
+          "properties": {
+            "all_of": {
+              "description": "The required expressions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EntityAssociation"
+              }
+            }
+          },
+          "required": [
+            "all_of"
+          ]
+        }
       ]
     },
     "EntityAttributeRef": {
@@ -496,10 +548,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "name": {
@@ -513,6 +565,17 @@
         "provenance": {
           "description": "The provenance of the Event.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -579,10 +642,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this event should be associated with.\n\nThis list is an \"any of\" list, where a event may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -600,6 +663,17 @@
         "provenance": {
           "description": "The provenance of the Event.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -778,10 +852,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "instrument": {
@@ -804,7 +878,7 @@
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BasicRequirementLevelSpec"
+              "$ref": "#/$defs/SignalRequirementLevel"
             },
             {
               "type": "null"
@@ -882,10 +956,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this metric should be associated with.\n\nThis list is an \"any of\" list, where a metric may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -912,7 +986,7 @@
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BasicRequirementLevelSpec"
+              "$ref": "#/$defs/SignalRequirementLevel"
             },
             {
               "type": "null"
@@ -1159,6 +1233,21 @@
       "description": "An identifier for a signal.  Should be `.` separated namespaces and names.",
       "type": "string"
     },
+    "SignalRequirementLevel": {
+      "description": "The requirement level of a signal (metric, span, event, entity). It is\nguidance for instrumentation authors about what should be emitted by default\nversus what should be opt-in. Unlike attribute requirement levels, signals\nonly support these two levels.",
+      "oneOf": [
+        {
+          "description": "Instrumentations should implement and emit the signal by default.\nThis is the default for signals that do not specify a requirement level.",
+          "type": "string",
+          "const": "recommended"
+        },
+        {
+          "description": "Disabled by default; instrumentations MAY implement the signal.",
+          "type": "string",
+          "const": "opt_in"
+        }
+      ]
+    },
     "Span": {
       "description": "The definition of a Span signal.",
       "type": "object",
@@ -1193,10 +1282,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "kind": {
@@ -1214,6 +1303,17 @@
         "provenance": {
           "description": "The provenance of the Span.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -1337,10 +1437,10 @@
           ]
         },
         "entity_associations": {
-          "description": "Which entities this span should be associated with.\n\nThis list is an \"any of\" list, where a span may be associated with one or more entities, but should\nbe associated with at least one in this list.",
+          "description": "Which entities this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EntityAssociation"
           }
         },
         "id": {
@@ -1362,6 +1462,17 @@
         "provenance": {
           "description": "The provenance of the Span.",
           "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
