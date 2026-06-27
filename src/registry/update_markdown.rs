@@ -264,6 +264,19 @@ mod tests {
 
     #[test]
     fn test_registry_update_markdown_templates_without_registry_subdir() {
+        // Build a templates directory that has NO `registry` subdirectory and holds
+        // the target template directly at `{templates}/{target}/snippet.md.j2`. This
+        // verifies update-markdown resolves templates without requiring a wrapping
+        // `registry` subdir, matching `registry generate`.
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let target_dir = temp_dir.path().join("markdown");
+        std::fs::create_dir_all(&target_dir).expect("failed to create target dir");
+        let _ = std::fs::copy(
+            "data/update_markdown/templates/registry/markdown/snippet.md.j2",
+            target_dir.join("snippet.md.j2"),
+        )
+        .expect("failed to copy snippet template");
+
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -281,7 +294,7 @@ mod tests {
                     },
                     dry_run: Some(true),
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: Some("data/update_markdown/templates/registry".to_owned()),
+                    templates: Some(temp_dir.path().to_str().unwrap().to_owned()),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,
