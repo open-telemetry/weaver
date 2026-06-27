@@ -465,7 +465,7 @@
           "default": null
         },
         "target": {
-          "description": "The target to generate snippets with.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.",
+          "description": "The target to generate snippets with.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2\n  if a `registry` subdirectory is present.",
           "type": [
             "string",
             "null"
@@ -473,7 +473,7 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.\n[default: templates]",
+          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2\n  if a `registry` subdirectory is present.\n[default: templates]",
           "type": "string",
           "default": "templates"
         }
