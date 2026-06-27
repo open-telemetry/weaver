@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix `registry update-markdown` so it does not require `registry` subdirectory matching `registry generate` behavior. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @lmolkova)
+- Fix `registry update-markdown` so it does not require `registry` subdirectory matching `registry generate` behavior. ([#1544](https://github.com/open-telemetry/weaver/pull/1544) by @lmolkova)
 - Refactor resolution engine so we can support multiple schema urls registered
   and cached ([#1504](https://github.com/open-telemetry/weaver/pull/1504) by @jsuereth).
 - Change `--include-unreferenced` so that this is the same as creating a
