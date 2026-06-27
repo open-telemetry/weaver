@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
 - Refactor resolution engine so we can support multiple schema urls registered
   and cached ([#1504](https://github.com/open-telemetry/weaver/pull/1504) by @jsuereth).
 - Change `--include-unreferenced` so that this is the same as creating a
