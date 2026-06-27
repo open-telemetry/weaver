@@ -276,14 +276,16 @@ const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
 const ZIP_EXT: &str = ".zip";
 
-/// Returns `true` if `s` looks like a full-length hex commit SHA.
+/// Returns `true` if `s` is a full-length hex object id (commit SHA).
 ///
-/// Git uses SHA-1 (40 hex chars) or SHA-256 (64 hex chars). This helper is
-/// intentionally strict: it only matches full-length hashes so that short
-/// branch/tag names that happen to be hex (e.g. `deadbeef`) are not
-/// misidentified.
+/// Delegates to [`gix::ObjectId::from_hex`] so it accepts exactly the hash
+/// kinds gix is actually built with (currently SHA-1, i.e. 40 hex chars; it
+/// will pick up SHA-256 automatically if/when that feature is enabled).
+///
+///  Note that a branch or tag whose name is itself a full-length hex string is
+/// indistinguishable from an object id and will be treated as a SHA.
 fn is_commit_sha(s: &str) -> bool {
-    (s.len() == 40 || s.len() == 64) && s.bytes().all(|b| b.is_ascii_hexdigit())
+    gix::ObjectId::from_hex(s.as_bytes()).is_ok()
 }
 
 /// Regex to parse a virtual directory path string.
@@ -1728,31 +1730,22 @@ mod tests {
         use super::is_commit_sha;
 
         // Valid SHA-1 (40 hex chars)
-        assert!(is_commit_sha(
-            "d84341cf20a1fef1a833ef44d318c41a770e6e64"
-        ));
-        assert!(is_commit_sha(
-            "0000000000000000000000000000000000000000"
-        ));
-        assert!(is_commit_sha(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        ));
-        // Valid SHA-256 (64 hex chars)
-        assert!(is_commit_sha(
+        assert!(is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e64"));
+        assert!(is_commit_sha("0000000000000000000000000000000000000000"));
+        assert!(is_commit_sha("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        // 64 hex chars (SHA-256). gix is built with the `sha1` feature only.
+        // If gix gains SHA-256 support this should flip.
+        assert!(!is_commit_sha(
             "d84341cf20a1fef1a833ef44d318c41a770e6e64d84341cf20a1fef1a833ef44"
         ));
 
         // Too short / too long
         assert!(!is_commit_sha("d84341cf"));
         assert!(!is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e6")); // 39 chars
-        assert!(!is_commit_sha(
-            "d84341cf20a1fef1a833ef44d318c41a770e6e640"
-        )); // 41 chars
+        assert!(!is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e640")); // 41 chars
 
         // Non-hex characters
-        assert!(!is_commit_sha(
-            "g84341cf20a1fef1a833ef44d318c41a770e6e64"
-        ));
+        assert!(!is_commit_sha("g84341cf20a1fef1a833ef44d318c41a770e6e64"));
 
         // Symbolic refs
         assert!(!is_commit_sha("main"));
