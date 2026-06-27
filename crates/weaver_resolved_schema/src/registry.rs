@@ -155,9 +155,13 @@ pub struct Group {
     #[schemars(skip)]
     pub is_v2: bool,
 
-    /// An optional note for the span name.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub span_name_note: Option<String>,
+    /// The v2 span name specification, carried through the v1 intermediate
+    /// representation during resolution; it is omitted from v1 serialization
+    /// and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
 
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate

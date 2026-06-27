@@ -171,7 +171,7 @@ impl Span {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
-            span_name_note: Some(self.name.note),
+            span_name: Some(self.name),
             requirement_level: self.requirement_level,
         }
     }
@@ -209,7 +209,7 @@ impl SpanRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
-            span_name_note: None,
+            span_name: self.name,
             requirement_level: None,
         }
     }
@@ -295,7 +295,8 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
-span_name_note: "{some} {name}"
+span_name:
+  note: "{some} {name}"
 "#,
         );
     }
@@ -327,7 +328,8 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
-span_name_note: "{some} {name}"
+span_name:
+  note: "{some} {name}"
 requirement_level: opt_in
 "#,
         );
@@ -365,7 +367,8 @@ name:
 brief: Test span refinement with custom name
 stability: stable
 "#,
-            // V1 - Group (name is still the refinement id)
+            // V1 - Group. The group `name` stays the refinement id, but the
+            // overriding span name format is carried in `span_name`.
             r#"id: span.refinement.my_span
 type: span
 brief: Test span refinement with custom name
@@ -373,6 +376,8 @@ name: span.refinement.my_span
 extends: span.my_span
 stability: stable
 is_v2: true
+span_name:
+  note: "{gen_ai.operation.name} {gen_ai.request.model}"
 "#,
         );
     }

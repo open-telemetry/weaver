@@ -171,7 +171,7 @@ impl SemConvSpecV2 {
                     .collect(),
                 brief: "<synthetic v2>".to_owned(),
                 is_v2: true,
-                span_name_note: None,
+                span_name: None,
                 ..Default::default()
             });
         }
@@ -423,7 +423,8 @@ groups:
   span_kind: client
   stability: stable
   is_v2: true
-  span_name_note: "{some} {name}"
+  span_name:
+    note: "{some} {name}"
 - id: test
   type: attribute_group
   brief: test
