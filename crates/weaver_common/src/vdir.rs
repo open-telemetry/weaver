@@ -747,8 +747,8 @@ impl VirtualDirectory {
             let tree_id = repo.find_object(id)?.peel_to_tree()?.id;
             let mut index = repo.index_from_tree(&tree_id)?;
 
-            let mut opts = repo
-                .checkout_options(gix::worktree::stack::state::attributes::Source::IdMapping)?;
+            let mut opts =
+                repo.checkout_options(gix::worktree::stack::state::attributes::Source::IdMapping)?;
             opts.destination_is_initially_empty = true;
 
             let _outcome = gix::worktree::state::checkout(
