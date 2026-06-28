@@ -32,6 +32,7 @@ ignore = [
     "RUSTSEC-2024-0436", # paste - unmaintained
     "RUSTSEC-2023-0081", # safemem - unmaintained
     "RUSTSEC-2021-0146", # twoway - unmaintained
+    "RUSTSEC-2026-0173", # proc-macro-error2 - unmaintained; transitive via jiff's optional defmt feature (not enabled, never compiled)
 ]
 
 # This section is considered when running `cargo deny check licenses`
