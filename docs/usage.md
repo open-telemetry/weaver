@@ -537,6 +537,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop)
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
+* `--advice-data <ADVICE_DATA>` — Glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 
 
@@ -576,6 +577,7 @@ The server communicates over stdio using JSON-RPC.
 
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
+* `--advice-data <ADVICE_DATA>` — Glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 * `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting. [default: .]
 
 
