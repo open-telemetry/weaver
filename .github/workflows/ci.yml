@@ -445,7 +445,7 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Gather coverage
-        run: cargo tarpaulin --workspace --output-dir coverage --out lcov --ignore-tests -e xtask -e weaver -e weaver_macros -e weaver_test_support --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*' 'crates/weaver_live_check/tests/*'
+        run: cargo tarpaulin --engine llvm --workspace --output-dir coverage --out lcov --ignore-tests -e xtask -e weaver -e weaver_macros -e weaver_test_support --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*' 'crates/weaver_live_check/tests/*'
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
         with:
