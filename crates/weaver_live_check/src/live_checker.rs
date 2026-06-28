@@ -3361,4 +3361,19 @@ mod tests {
             advice
         );
     }
+
+    #[test]
+    fn test_rego_advisor_advice_data_invalid_path() {
+        let registry = make_registry(false);
+        let live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+
+        // A non-existent advice_data path should surface as an AdviceError.
+        let result = RegoAdvisor::new(
+            &live_checker,
+            &None,
+            &None,
+            &Some("/non/existent/path/*.json".to_owned()),
+        );
+        assert!(matches!(result, Err(crate::Error::AdviceError { .. })));
+    }
 }

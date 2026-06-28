@@ -983,4 +983,51 @@ mod tests {
         let result = engine.add_data_from_file_or_dir("/non/existent/path/*.json");
         assert!(matches!(result, Err(Error::AccessDenied { .. })));
     }
+
+    #[test]
+    fn test_add_data_from_file_or_dir_invalid_glob_pattern() {
+        // The base path exists, but the glob portion is malformed (unclosed character class).
+        let temp_dir = tempfile::tempdir().unwrap();
+        let pattern = format!("{}/[", temp_dir.path().to_str().unwrap());
+        let mut engine = Engine::new();
+        let result = engine.add_data_from_file_or_dir(&pattern);
+        assert!(matches!(result, Err(Error::InvalidGlobPattern { .. })));
+    }
+
+    #[test]
+    fn test_add_data_from_file_or_dir_invalid_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        std::fs::write(temp_dir.path().join("bad.json"), "{ not valid json").unwrap();
+        let mut engine = Engine::new();
+        // Loading a directory collects per-file errors; an invalid JSON file surfaces as InvalidData.
+        let result = engine.add_data_from_file_or_dir(temp_dir.path().to_str().unwrap());
+        assert!(matches!(result, Err(Error::InvalidData { .. })));
+    }
+
+    #[test]
+    fn test_add_data_from_file_or_dir_invalid_yaml() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        std::fs::write(temp_dir.path().join("bad.yaml"), "foo: [bar").unwrap();
+        let mut engine = Engine::new();
+        let result = engine.add_data_from_file_or_dir(temp_dir.path().to_str().unwrap());
+        assert!(matches!(result, Err(Error::InvalidData { .. })));
+    }
+
+    #[test]
+    fn test_add_data_from_file_or_dir_skips_unsupported_extension() {
+        // A file with an unsupported extension is silently skipped rather than erroring.
+        let temp_dir = tempfile::tempdir().unwrap();
+        std::fs::write(temp_dir.path().join("notes.txt"), "ignored").unwrap();
+        let mut engine = Engine::new();
+        let result = engine.add_data_from_file_or_dir(temp_dir.path().to_str().unwrap());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_policies_invalid_glob_pattern() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut engine = Engine::new();
+        let result = engine.add_policies(temp_dir.path(), "[");
+        assert!(matches!(result, Err(Error::InvalidGlobPattern { .. })));
+    }
 }
