@@ -208,6 +208,14 @@
       "description": "Validate live telemetry against a semantic convention registry.",
       "type": "object",
       "properties": {
+        "advice_data": {
+          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "advice_policies": {
           "description": "Advice policies directory. Overrides the built-in default policies.",
           "type": [
@@ -283,6 +291,14 @@
       "description": "Expose a semantic convention registry over the Model Context Protocol (MCP).",
       "type": "object",
       "properties": {
+        "advice_data": {
+          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "advice_policies": {
           "description": "Advice policies directory. Set this to override the default policies.",
           "type": [

@@ -1,0 +1,5 @@
+# OSV-Scanner / OSSF Scorecard vulnerability ignore list.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0173"
+reason = "proc-macro-error2 is unmaintained with no patched release. It is an orphan Cargo.lock entry pulled transitively via jiff's optional `defmt` feature, which is never enabled or compiled in this project."

@@ -177,6 +177,11 @@ pub struct RegistryLiveCheckArgs {
     #[config]
     advice_policies: Option<PathBuf>,
 
+    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
+    #[arg(long)]
+    #[config]
+    advice_data: Option<String>,
+
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
     #[arg(long)]
     #[config]
@@ -285,6 +290,7 @@ pub(crate) fn command(
         &live_checker,
         &config.advice_policies,
         &config.advice_preprocessor,
+        &config.advice_data,
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
 
