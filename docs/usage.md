@@ -328,8 +328,8 @@ Update markdown files that contain markers indicating the templates used to upda
 * `--attribute-registry-base-url <ATTRIBUTE_REGISTRY_BASE_URL>` — Optional path to the attribute registry. If provided, all attributes will be linked here
 * `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
 * `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
-* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2. [default: templates]
-* `--target <TARGET>` — The target to generate snippets with. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2
+* `-t`, `--templates <TEMPLATES>` — Path to the directory where the templates are located. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2 if a `registry` subdirectory is present. [default: templates]
+* `--target <TARGET>` — The target to generate snippets with. Note: `registry update-markdown` will look for a specific jinja template: {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2 if a `registry` subdirectory is present
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command. [default: ansi]
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located. [default: diagnostic_templates]
 * `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr. [default: false]

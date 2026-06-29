@@ -3,7 +3,7 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::generate::generate_params_shared;
+use crate::registry::generate::{generate_params_shared, resolve_templates_root};
 use crate::registry::{load_config, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
@@ -69,14 +69,16 @@ pub struct RegistryUpdateMarkdownArgs {
 
     /// Path to the directory where the templates are located.
     /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   {templates}/{target}/snippet.md.j2.
+    ///   {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2
+    ///   if a `registry` subdirectory is present.
     #[arg(short = 't', long)]
     #[config(default = "templates")]
     pub templates: Option<String>,
 
     /// The target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   {templates}/{target}/snippet.md.j2.
+    ///   {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2
+    ///   if a `registry` subdirectory is present.
     #[arg(long)]
     #[config]
     pub target: Option<String>,
@@ -136,7 +138,8 @@ pub(crate) fn command(
             }
         })?;
     let output = {
-        let loader = FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &target)?;
+        let loader =
+            FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
@@ -246,6 +249,56 @@ mod tests {
                     dry_run: Some(true),
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
                     templates: Some("data/update_markdown/templates".to_owned()),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli);
+        // The command should succeed.
+        assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_update_markdown_templates_without_registry_subdir() {
+        // Build a templates directory that has NO `registry` subdirectory and holds
+        // the target template directly at `{templates}/{target}/snippet.md.j2`.
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let target_dir = temp_dir.path().join("markdown");
+        std::fs::create_dir_all(&target_dir).expect("failed to create target dir");
+        let _ = std::fs::copy(
+            "data/update_markdown/templates/registry/markdown/snippet.md.j2",
+            target_dir.join("snippet.md.j2"),
+        )
+        .expect("failed to copy snippet template");
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: Some("data/update_markdown/markdown".to_owned()),
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: "data/update_markdown/registry".to_owned(),
+                        }),
+                        ..Default::default()
+                    },
+                    dry_run: Some(true),
+                    attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
+                    templates: Some(
+                        temp_dir
+                            .path()
+                            .to_str()
+                            .expect("temp dir path is valid UTF-8")
+                            .to_owned(),
+                    ),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,
