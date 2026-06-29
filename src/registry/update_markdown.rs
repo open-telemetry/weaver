@@ -292,7 +292,13 @@ mod tests {
                     },
                     dry_run: Some(true),
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: Some(temp_dir.path().to_str().expect("temp dir path is valid UTF-8").to_owned()),
+                    templates: Some(
+                        temp_dir
+                            .path()
+                            .to_str()
+                            .expect("temp dir path is valid UTF-8")
+                            .to_owned(),
+                    ),
                     diagnostic: Default::default(),
                     target: Some("markdown".to_owned()),
                     param: None,
