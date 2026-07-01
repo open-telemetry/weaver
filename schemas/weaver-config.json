@@ -208,6 +208,14 @@
       "description": "Validate live telemetry against a semantic convention registry.",
       "type": "object",
       "properties": {
+        "advice_data": {
+          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "advice_policies": {
           "description": "Advice policies directory. Overrides the built-in default policies.",
           "type": [
@@ -283,6 +291,14 @@
       "description": "Expose a semantic convention registry over the Model Context Protocol (MCP).",
       "type": "object",
       "properties": {
+        "advice_data": {
+          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "advice_policies": {
           "description": "Advice policies directory. Set this to override the default policies.",
           "type": [
@@ -465,7 +481,7 @@
           "default": null
         },
         "target": {
-          "description": "The target to generate snippets with.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.",
+          "description": "The target to generate snippets with.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2\n  if a `registry` subdirectory is present.",
           "type": [
             "string",
             "null"
@@ -473,7 +489,7 @@
           "default": null
         },
         "templates": {
-          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2.\n[default: templates]",
+          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2\n  if a `registry` subdirectory is present.\n[default: templates]",
           "type": "string",
           "default": "templates"
         }

@@ -62,3 +62,9 @@ fuzz-all seconds="30":
 
 check-external-types:
   scripts/check_external_types.sh
+
+# Vulnerabilities check (OSV). Honors the osv-scanner.toml ignore files.
+# Install: `brew install osv-scanner` (or see https://google.github.io/osv-scanner/installation/)
+# Scan both lockfiles for known vulnerabilities, mirroring the OSSF Scorecard
+osv-scan:
+    osv-scanner scan source --lockfile Cargo.lock --lockfile fuzz/Cargo.lock
