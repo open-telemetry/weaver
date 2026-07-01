@@ -98,6 +98,11 @@ pub struct SpanRefinement {
     pub id: SignalId,
     /// The name of the span being refined.
     pub r#ref: SignalId,
+    /// Overrides the span name specification from the referenced base span.
+    /// If set, the entire `name` structure from the refinement replaces the
+    /// base span's `name`; otherwise, the base span's `name` is inherited.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<SpanName>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -166,7 +171,7 @@ impl Span {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
-            span_name_note: Some(self.name.note),
+            span_name: Some(self.name),
             requirement_level: self.requirement_level,
         }
     }
@@ -204,7 +209,7 @@ impl SpanRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
-            span_name_note: None,
+            span_name: self.name,
             requirement_level: None,
         }
     }
@@ -290,7 +295,8 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
-span_name_note: "{some} {name}"
+span_name:
+  note: "{some} {name}"
 "#,
         );
     }
@@ -322,7 +328,8 @@ name: my_span
 span_kind: client
 stability: stable
 is_v2: true
-span_name_note: "{some} {name}"
+span_name:
+  note: "{some} {name}"
 requirement_level: opt_in
 "#,
         );
@@ -347,5 +354,57 @@ stability: stable
 is_v2: true
 "#,
         );
+    }
+
+    #[test]
+    fn test_span_refinement_with_name_override() {
+        parse_and_translate_refinement(
+            // V2 - SpanRefinement with name override
+            r#"id: span.refinement.my_span
+ref: my_span
+name:
+  note: "{gen_ai.operation.name} {gen_ai.request.model}"
+brief: Test span refinement with custom name
+stability: stable
+"#,
+            // V1 - Group. The group `name` stays the refinement id, but the
+            // overriding span name format is carried in `span_name`.
+            r#"id: span.refinement.my_span
+type: span
+brief: Test span refinement with custom name
+name: span.refinement.my_span
+extends: span.my_span
+stability: stable
+is_v2: true
+span_name:
+  note: "{gen_ai.operation.name} {gen_ai.request.model}"
+"#,
+        );
+    }
+
+    #[test]
+    fn test_span_refinement_name_deserialization() {
+        // Verify that a SpanRefinement without name parses correctly
+        let without_name: SpanRefinement = serde_yaml::from_str(
+            r#"id: my.refinement
+ref: base.span
+brief: No name override
+"#,
+        )
+        .expect("Failed to parse refinement without name");
+        assert!(without_name.name.is_none());
+
+        // Verify that a SpanRefinement with name parses correctly
+        let with_name: SpanRefinement = serde_yaml::from_str(
+            r#"id: my.refinement
+ref: base.span
+name:
+  note: "{custom} {name_format}"
+brief: With name override
+"#,
+        )
+        .expect("Failed to parse refinement with name");
+        assert!(with_name.name.is_some());
+        assert_eq!(with_name.name.unwrap().note, "{custom} {name_format}");
     }
 }

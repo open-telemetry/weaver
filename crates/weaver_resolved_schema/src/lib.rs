@@ -143,7 +143,7 @@ impl ResolvedTelemetrySchema {
             entity_associations: vec![],
             visibility: None,
             is_v2: false,
-            span_name_note: None,
+            span_name: None,
         });
     }
 
@@ -194,7 +194,7 @@ impl ResolvedTelemetrySchema {
             entity_associations: vec![],
             visibility: None,
             is_v2: false,
-            span_name_note: None,
+            span_name: None,
         });
     }
 
@@ -881,7 +881,7 @@ mod tests {
             entity_associations: vec![],
             visibility: None,
             is_v2: false,
-            span_name_note: None,
+            span_name: None,
         });
 
         let groups = schema.groups(GroupType::Metric);
