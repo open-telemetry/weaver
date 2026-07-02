@@ -704,14 +704,20 @@
           ]
         },
         "value": {
-          "description": "String, int, or boolean; value of the enum entry.",
-          "$ref": "#/$defs/ValueSpec"
+          "description": "String, int, or boolean; value of the enum entry.\nIf omitted, defaults to the value of `id`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "required": [
-        "id",
-        "value"
+        "id"
       ]
     },
     "Event": {
