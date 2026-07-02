@@ -273,8 +273,8 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+            .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats =
@@ -1172,6 +1172,7 @@ mod tests {
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
+            &None,
         )
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1257,8 +1258,8 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+            .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats =
@@ -1323,6 +1324,7 @@ mod tests {
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
+            &None,
         )
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1376,8 +1378,8 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+            .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats =
@@ -1462,6 +1464,7 @@ mod tests {
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
+            &None,
         )
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1511,6 +1514,7 @@ mod tests {
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
+            &None,
         )
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1803,8 +1807,8 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+            .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats =
@@ -1888,6 +1892,7 @@ mod tests {
             &live_checker,
             &Some("data/policies/bad_advice/".into()),
             &Some("data/jq/test.jq".into()),
+            &None,
         )
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -2029,6 +2034,7 @@ mod tests {
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
+            &None,
         )
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -3132,5 +3138,242 @@ mod tests {
                 .all(|a| a.id != "entity_required_attribute_not_present"),
             "no entity findings expected when host.name present in resource"
         );
+    }
+
+    #[test]
+    fn test_live_checker_loads_only_custom_policies() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let temp_path = temp_dir.path();
+        let policy_path = temp_path.join("custom.rego");
+
+        let rego_content = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.sample.attribute
+                input.sample.attribute.name == "test.custom_trigger"
+                advice_type := "custom_advice_finding"
+                advice_level := "violation"
+                advice_context := {"trigger": "test.custom_trigger"}
+                message := "Custom advisor rule triggered"
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
+
+        let registry = make_registry(false);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &Some(temp_path.to_path_buf()), &None, &None)
+                .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut sample =
+            Sample::Attribute(SampleAttribute::try_from("test.custom_trigger=val").unwrap());
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
+        assert!(result.is_ok());
+
+        let advice = get_all_advice(&mut sample);
+        assert!(!advice.is_empty(), "Expected advice findings");
+
+        let has_default_advice = advice.iter().any(|a| a.id == "missing_attribute");
+        assert!(
+            has_default_advice,
+            "Expected default missing_attribute advice to be present. Found: {:?}",
+            advice
+        );
+
+        let has_custom_advice = advice.iter().any(|a| a.id == "custom_advice_finding");
+        assert!(
+            has_custom_advice,
+            "Expected custom_advice_finding to be present. Found: {:?}",
+            advice
+        );
+    }
+
+    #[test]
+    fn test_live_checker_loads_advice_data() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let temp_path = temp_dir.path();
+        let policy_dir = temp_path.join("policies");
+        let _ = std::fs::create_dir_all(&policy_dir);
+        let data_dir = temp_path.join("data");
+        let _ = std::fs::create_dir_all(&data_dir);
+
+        let policy_path = policy_dir.join("custom.rego");
+        let schema_path = data_dir.join("user.json");
+
+        let rego_content = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.sample.attribute
+                input.sample.attribute.name == "test.custom_trigger"
+                data.user.properties.user_id.type == "number"
+                advice_type := "custom_advice_finding"
+                advice_level := "violation"
+                advice_context := {"trigger": "test.custom_trigger"}
+                message := "Custom advisor rule triggered with data"
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
+
+        let json_content = r#"
+            {
+                "properties": {
+                    "user_id": {
+                        "type": "number"
+                    }
+                }
+            }
+        "#;
+        std::fs::write(&schema_path, json_content).expect("Failed to write schema json");
+
+        let registry = make_registry(false);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some(policy_dir),
+            &None,
+            &Some(format!("{}/**/*.json", data_dir.to_str().unwrap())),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut sample =
+            Sample::Attribute(SampleAttribute::try_from("test.custom_trigger=val").unwrap());
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
+        assert!(result.is_ok());
+
+        let advice = get_all_advice(&mut sample);
+        assert!(!advice.is_empty(), "Expected advice findings");
+
+        let has_custom_advice = advice.iter().any(|a| a.id == "custom_advice_finding");
+        assert!(
+            has_custom_advice,
+            "Expected custom_advice_finding to be present. Found: {:?}",
+            advice
+        );
+    }
+
+    #[test]
+    fn test_live_checker_loads_advice_data_with_glob() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let temp_path = temp_dir.path();
+        let policy_dir = temp_path.join("policies");
+        let _ = std::fs::create_dir_all(&policy_dir);
+        let data_dir = temp_path.join("data");
+        let _ = std::fs::create_dir_all(&data_dir);
+
+        let policy_path = policy_dir.join("custom.rego");
+        let schema_path_load = data_dir.join("user.json");
+        let schema_path_skip = data_dir.join("admin.txt");
+
+        let rego_content = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.sample.attribute
+                input.sample.attribute.name == "test.custom_trigger"
+                data.user.properties.user_id.type == "number"
+                advice_type := "custom_advice_finding"
+                advice_level := "violation"
+                advice_context := {"trigger": "test.custom_trigger"}
+                message := "Custom advisor rule triggered with glob data"
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
+
+        let json_content = r#"
+            {
+                "properties": {
+                    "user_id": {
+                        "type": "number"
+                    }
+                }
+            }
+        "#;
+        std::fs::write(&schema_path_load, json_content).expect("Failed to write schema json");
+        std::fs::write(&schema_path_skip, "some dummy text").expect("Failed to write dummy file");
+
+        let registry = make_registry(false);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+
+        let glob_pattern = format!("{}/data/*.json", temp_path.to_str().unwrap());
+
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &Some(policy_dir), &None, &Some(glob_pattern))
+                .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut sample =
+            Sample::Attribute(SampleAttribute::try_from("test.custom_trigger=val").unwrap());
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
+        assert!(result.is_ok());
+
+        let advice = get_all_advice(&mut sample);
+        assert!(!advice.is_empty(), "Expected advice findings");
+
+        let has_custom_advice = advice.iter().any(|a| a.id == "custom_advice_finding");
+        assert!(
+            has_custom_advice,
+            "Expected custom_advice_finding to be present. Found: {:?}",
+            advice
+        );
+    }
+
+    #[test]
+    fn test_rego_advisor_advice_data_invalid_path() {
+        let registry = make_registry(false);
+        let live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+
+        // A non-existent advice_data path should surface as an AdviceError.
+        let result = RegoAdvisor::new(
+            &live_checker,
+            &None,
+            &None,
+            &Some("/non/existent/path/*.json".to_owned()),
+        );
+        assert!(matches!(result, Err(crate::Error::AdviceError { .. })));
     }
 }

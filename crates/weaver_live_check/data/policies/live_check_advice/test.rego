@@ -85,6 +85,7 @@ make_advice(advice_type, advice_level, advice_context, message) := {
     "message": message,
 }
 
+
 # Log with an event_name that we can compare against the matched event in the model.
 # If the registry_group is present, check for an annotation that specifies a phrase
 # which should be found in the body.
