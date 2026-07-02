@@ -1228,6 +1228,29 @@ mod tests {
             weaver_semconv::group::GroupType::Entity
         );
 
+        let result_span = d.lookup_group_summary("span.d");
+        assert!(result_span.is_some(), "Should find span.d");
+        let span_summary = result_span.unwrap();
+        assert_eq!(span_summary.r#type, weaver_semconv::group::GroupType::Span);
+        assert_eq!(
+            span_summary.span_kind,
+            Some(weaver_semconv::group::SpanKindSpec::Client)
+        );
+        // The span name (with its note) is carried over so refinements that do
+        // not override it inherit the dependency's definition.
+        assert_eq!(
+            span_summary.span_name,
+            Some(weaver_semconv::v2::span::SpanName {
+                note: "test".to_owned(),
+            })
+        );
+
+        // Unknown ids resolve to nothing.
+        assert!(
+            d.lookup_group_summary("does.not.exist").is_none(),
+            "Should not find an unknown group id"
+        );
+
         Ok(())
     }
 
