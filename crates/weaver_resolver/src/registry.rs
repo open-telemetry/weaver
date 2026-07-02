@@ -350,7 +350,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             entity_associations: group.spec.entity_associations,
             visibility: group.spec.visibility.clone(),
             is_v2: group.spec.is_v2,
-            span_name_note: group.spec.span_name_note,
+            span_name: group.spec.span_name,
         },
         attributes: attrs,
         provenance: Some(group.provenance),
@@ -614,6 +614,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     }
                     if unresolved_group.group.note.is_empty() {
                         unresolved_group.group.note = parent_summary.note.clone();
+                    }
+                    if unresolved_group.group.span_name.is_none() {
+                        unresolved_group.group.span_name = parent_summary.span_name.clone();
                     }
 
                     // Here we need to do more complicated "merge" logic for fields which require it.
@@ -1484,7 +1487,7 @@ groups:
                     entity_associations: Default::default(),
                     visibility: Default::default(),
                     is_v2: false,
-                    span_name_note: None,
+                    span_name: None,
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
@@ -1574,7 +1577,7 @@ groups:
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: false,
-                        span_name_note: None,
+                        span_name: None,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -1610,7 +1613,7 @@ groups:
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: false,
-                        span_name_note: None,
+                        span_name: None,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -1646,7 +1649,7 @@ groups:
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: false,
-                        span_name_note: None,
+                        span_name: None,
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
