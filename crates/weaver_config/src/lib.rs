@@ -21,7 +21,9 @@ pub use effective::{
     EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
     DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE, DEFAULT_REGISTRY,
 };
-pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
+pub use live_check::{
+    FailOnLevel, FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig,
+};
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
 pub use weaver_common::http_auth::TokenSource;

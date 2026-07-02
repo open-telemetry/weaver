@@ -211,6 +211,18 @@ impl CumulativeStatistics {
             .contains_key(&FindingLevel::Violation)
     }
 
+    /// Returns the most severe level currently recorded, or `None` if no
+    /// findings have been accumulated. Severity ordering is defined by
+    /// [`FindingLevel`]'s derived `Ord`: Information < Improvement < Violation.
+    pub(crate) fn worst_level(&self) -> Option<FindingLevel> {
+        self.highest_advice_level_counts.keys().copied().max()
+    }
+
+    /// Returns true if any recorded finding is at or above `threshold`.
+    pub(crate) fn fails_at(&self, threshold: FindingLevel) -> bool {
+        self.worst_level().is_some_and(|level| level >= threshold)
+    }
+
     /// Finalize the statistics by calculating registry coverage
     pub(crate) fn finalize(&mut self) {
         // Calculate the registry coverage
@@ -326,6 +338,18 @@ impl LiveCheckStatistics {
         }
     }
 
+    /// Returns true if any recorded finding is at or above `threshold`.
+    /// Always returns `false` for [`LiveCheckStatistics::Disabled`]; the
+    /// caller is responsible for rejecting `--no-stats` + a stats-dependent
+    /// gate at startup.
+    #[must_use]
+    pub fn fails_at(&self, threshold: FindingLevel) -> bool {
+        match self {
+            Self::Cumulative(stats) => stats.fails_at(threshold),
+            Self::Disabled(_) => false,
+        }
+    }
+
     /// Finalize the statistics
     pub fn finalize(&mut self) {
         if let Self::Cumulative(stats) = self {
@@ -390,5 +414,87 @@ mod tests {
         // Verify has_violations works for both
         assert!(!disabled_stats.has_violations()); // Always false for disabled
         assert!(!normal_stats.has_violations()); // No violations added yet
+    }
+
+    fn empty_cumulative() -> CumulativeStatistics {
+        let registry = ResolvedRegistry {
+            groups: vec![],
+            registry_url: String::new(),
+        };
+        let versioned_registry = VersionedRegistry::V1(Box::new(registry));
+        CumulativeStatistics::new(&versioned_registry)
+    }
+
+    #[test]
+    fn test_worst_level_empty() {
+        let stats = empty_cumulative();
+        assert_eq!(stats.worst_level(), None);
+        assert!(!stats.fails_at(FindingLevel::Information));
+        assert!(!stats.fails_at(FindingLevel::Improvement));
+        assert!(!stats.fails_at(FindingLevel::Violation));
+    }
+
+    #[test]
+    fn test_worst_level_information_only() {
+        let mut stats = empty_cumulative();
+        stats.add_highest_advice_level(&FindingLevel::Information);
+        assert_eq!(stats.worst_level(), Some(FindingLevel::Information));
+        assert!(stats.fails_at(FindingLevel::Information));
+        assert!(!stats.fails_at(FindingLevel::Improvement));
+        assert!(!stats.fails_at(FindingLevel::Violation));
+    }
+
+    #[test]
+    fn test_worst_level_improvement_only() {
+        let mut stats = empty_cumulative();
+        stats.add_highest_advice_level(&FindingLevel::Improvement);
+        assert_eq!(stats.worst_level(), Some(FindingLevel::Improvement));
+        assert!(stats.fails_at(FindingLevel::Information));
+        assert!(stats.fails_at(FindingLevel::Improvement));
+        assert!(!stats.fails_at(FindingLevel::Violation));
+    }
+
+    #[test]
+    fn test_worst_level_violation_dominates() {
+        let mut stats = empty_cumulative();
+        stats.add_highest_advice_level(&FindingLevel::Information);
+        stats.add_highest_advice_level(&FindingLevel::Improvement);
+        stats.add_highest_advice_level(&FindingLevel::Violation);
+        assert_eq!(stats.worst_level(), Some(FindingLevel::Violation));
+        assert!(stats.fails_at(FindingLevel::Violation));
+        assert!(stats.fails_at(FindingLevel::Improvement));
+        assert!(stats.fails_at(FindingLevel::Information));
+    }
+
+    #[test]
+    fn test_has_violations_matches_fails_at_violation() {
+        // Backward-compat parity: has_violations() and fails_at(Violation)
+        // must agree across all observed level combinations.
+        for levels in [
+            vec![],
+            vec![FindingLevel::Information],
+            vec![FindingLevel::Improvement],
+            vec![FindingLevel::Violation],
+            vec![FindingLevel::Information, FindingLevel::Violation],
+            vec![FindingLevel::Improvement, FindingLevel::Information],
+        ] {
+            let mut stats = empty_cumulative();
+            for l in &levels {
+                stats.add_highest_advice_level(l);
+            }
+            assert_eq!(
+                stats.has_violations(),
+                stats.fails_at(FindingLevel::Violation),
+                "mismatch for {levels:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_disabled_fails_at_always_false() {
+        let disabled = LiveCheckStatistics::Disabled(DisabledStatistics);
+        assert!(!disabled.fails_at(FindingLevel::Information));
+        assert!(!disabled.fails_at(FindingLevel::Improvement));
+        assert!(!disabled.fails_at(FindingLevel::Violation));
     }
 }

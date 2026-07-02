@@ -2,11 +2,75 @@
 
 //! Configuration structs for the `registry live-check` subcommand.
 
+use std::fmt;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
+
+/// Severity gate controlling when `registry live-check` exits non-zero.
+///
+/// Supported thresholds (highest → lowest severity): `Violation`,
+/// `Improvement`, `Information`, `None`. A finding whose level is at or above
+/// the chosen threshold causes a non-zero exit code. `None` disables the gate.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum FailOnLevel {
+    /// Fail only on violations (default).
+    #[default]
+    Violation,
+    /// Fail on improvements or violations.
+    Improvement,
+    /// Fail on any finding (information, improvement, or violation).
+    Information,
+    /// Never fail based on findings — always exit 0 unless an internal error
+    /// occurs.
+    None,
+}
+
+impl FailOnLevel {
+    /// Map this gate to the underlying `FindingLevel` threshold, if any.
+    /// Returns `None` for [`FailOnLevel::None`] (meaning "never fail").
+    #[must_use]
+    pub fn as_finding_threshold(self) -> Option<FindingLevel> {
+        match self {
+            Self::Violation => Some(FindingLevel::Violation),
+            Self::Improvement => Some(FindingLevel::Improvement),
+            Self::Information => Some(FindingLevel::Information),
+            Self::None => None,
+        }
+    }
+}
+
+impl fmt::Display for FailOnLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Violation => "violation",
+            Self::Improvement => "improvement",
+            Self::Information => "information",
+            Self::None => "none",
+        };
+        f.write_str(s)
+    }
+}
+
+impl FromStr for FailOnLevel {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "violation" => Ok(Self::Violation),
+            "improvement" => Ok(Self::Improvement),
+            "information" => Ok(Self::Information),
+            "none" => Ok(Self::None),
+            other => Err(format!(
+                "invalid fail-on level '{other}' (expected one of: violation, improvement, information, none)"
+            )),
+        }
+    }
+}
 
 /// Validate live telemetry against a semantic convention registry.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
@@ -37,6 +101,10 @@ pub struct LiveCheckConfig {
 
     /// Disable statistics accumulation. Useful for long-running live-check sessions.
     pub no_stats: bool,
+
+    /// Severity threshold that causes a non-zero exit code. Findings at this
+    /// level or higher fail the run. Use `none` to never fail.
+    pub fail_on: FailOnLevel,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// `none` disables all template output rendering.
@@ -71,6 +139,7 @@ impl Default for LiveCheckConfig {
             templates: PathBuf::from("live_check_templates"),
             no_stream: false,
             no_stats: false,
+            fail_on: FailOnLevel::default(),
             output: None,
             advice_policies: None,
             advice_data: None,
@@ -230,6 +299,7 @@ format = "ansi"
 templates = "live_check_templates"
 no_stream = false
 no_stats = true
+fail_on = "improvement"
 output = "reports"
 advice_policies = "policies"
 advice_data = "data"
@@ -254,6 +324,7 @@ otlp_logs_stdout = false
         assert_eq!(lc.templates, Path::new("live_check_templates"));
         assert!(!lc.no_stream);
         assert!(lc.no_stats);
+        assert_eq!(lc.fail_on, FailOnLevel::Improvement);
         assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
         assert_eq!(lc.advice_policies.as_deref(), Some(Path::new("policies")));
         assert_eq!(lc.advice_data.as_deref(), Some("data"));
@@ -323,5 +394,77 @@ min_level = "violation"
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let lc = live_check(&config);
         assert!(lc.finding_filters[0].exclude_samples.is_empty());
+    }
+
+    #[test]
+    fn test_fail_on_default_is_violation() {
+        let lc = LiveCheckConfig::default();
+        assert_eq!(lc.fail_on, FailOnLevel::Violation);
+    }
+
+    #[test]
+    fn test_fail_on_round_trip_all_values() {
+        for (text, expected) in [
+            ("violation", FailOnLevel::Violation),
+            ("improvement", FailOnLevel::Improvement),
+            ("information", FailOnLevel::Information),
+            ("none", FailOnLevel::None),
+        ] {
+            let toml = format!("fail_on = \"{text}\"\ninput_source = \"x\"\ninput_format = \"y\"\nformat = \"z\"\ntemplates = \"t\"\n");
+            let lc: LiveCheckConfig = toml::from_str(&toml).expect("Failed to parse fail_on TOML");
+            assert_eq!(lc.fail_on, expected, "round-trip for {text}");
+            assert_eq!(expected.to_string(), text);
+        }
+    }
+
+    #[test]
+    fn test_fail_on_invalid_value_errors() {
+        // Deserialize the typed config directly so we observe the error
+        // instead of `command_config`'s silent `unwrap_or_default()`.
+        let toml = "fail_on = \"bogus\"\ninput_source = \"x\"\ninput_format = \"y\"\nformat = \"z\"\ntemplates = \"t\"\n";
+        let err = toml::from_str::<LiveCheckConfig>(toml).expect_err("expected parse error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("unknown variant") || msg.contains("bogus"),
+            "unexpected error message: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_fail_on_threshold_mapping() {
+        assert_eq!(
+            FailOnLevel::Violation.as_finding_threshold(),
+            Some(FindingLevel::Violation)
+        );
+        assert_eq!(
+            FailOnLevel::Improvement.as_finding_threshold(),
+            Some(FindingLevel::Improvement)
+        );
+        assert_eq!(
+            FailOnLevel::Information.as_finding_threshold(),
+            Some(FindingLevel::Information)
+        );
+        assert_eq!(FailOnLevel::None.as_finding_threshold(), None);
+    }
+
+    #[test]
+    fn test_fail_on_from_str() {
+        use std::str::FromStr;
+        assert_eq!(
+            FailOnLevel::from_str("violation").unwrap(),
+            FailOnLevel::Violation
+        );
+        assert_eq!(
+            FailOnLevel::from_str("improvement").unwrap(),
+            FailOnLevel::Improvement
+        );
+        assert_eq!(
+            FailOnLevel::from_str("information").unwrap(),
+            FailOnLevel::Information
+        );
+        assert_eq!(FailOnLevel::from_str("none").unwrap(), FailOnLevel::None);
+        let err = FailOnLevel::from_str("bogus").unwrap_err();
+        assert!(err.contains("bogus"));
+        assert!(err.contains("violation"));
     }
 }
