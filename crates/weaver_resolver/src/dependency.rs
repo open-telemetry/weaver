@@ -52,6 +52,9 @@ pub(crate) struct GroupSummary {
     pub requirement_level: Option<SignalRequirementLevel>,
     /// Specifies the kind of the span.
     pub span_kind: Option<SpanKindSpec>,
+    /// The v2 span name specification, inherited by refinements that do not
+    /// override it.
+    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
@@ -76,6 +79,7 @@ impl GroupSummary {
             unit: group.unit.clone(),
             requirement_level: group.requirement_level.clone(),
             span_kind: group.span_kind.clone(),
+            span_name: group.span_name.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
             source,
@@ -457,7 +461,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: m.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
-                span_name_note: None,
+                span_name: None,
             });
         }
 
@@ -523,7 +527,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: e.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
-                span_name_note: None,
+                span_name: None,
             });
         }
 
@@ -613,7 +617,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: true,
-                span_name_note: None,
+                span_name: None,
             });
         }
 
@@ -679,7 +683,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: s.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
-                span_name_note: None,
+                span_name: Some(s.name.clone()),
             });
         }
 
@@ -743,7 +747,7 @@ impl ImportableDependency for V2Schema {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: true,
-                span_name_note: None,
+                span_name: None,
             });
         }
         if !exclusion_errors.is_empty() {
@@ -852,7 +856,7 @@ impl GroupRefinementLookup for V2Schema {
                 entity_associations: m.entity_associations.clone(),
                 visibility: None,
                 is_v2: true,
-                span_name_note: None,
+                span_name: None,
             })
             .or_else(|| {
                 self.registry
@@ -883,7 +887,7 @@ impl GroupRefinementLookup for V2Schema {
                         entity_associations: e.entity_associations.clone(),
                         visibility: None,
                         is_v2: true,
-                        span_name_note: None,
+                        span_name: None,
                     })
             })
             .or_else(|| {
@@ -915,7 +919,39 @@ impl GroupRefinementLookup for V2Schema {
                         entity_associations: vec![],
                         visibility: None,
                         is_v2: true,
-                        span_name_note: None,
+                        span_name: None,
+                    })
+            })
+            .or_else(|| {
+                self.registry
+                    .spans
+                    .iter()
+                    .find(|s| s.id() == id)
+                    .map(|s| Group {
+                        id: s.id().to_owned(),
+                        r#type: GroupType::Span,
+                        brief: s.common.brief.clone(),
+                        note: s.common.note.clone(),
+                        prefix: "".to_owned(),
+                        extends: None,
+                        stability: Some(s.common.stability.clone()),
+                        deprecated: s.common.deprecated.clone(),
+                        attributes: vec![],
+                        span_kind: Some(s.kind.clone()),
+                        events: vec![],
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        requirement_level: None,
+                        name: Some(s.r#type.to_string()),
+                        lineage: None,
+                        display_name: None,
+                        body: None,
+                        annotations: Some(s.common.annotations.clone()),
+                        entity_associations: s.entity_associations.clone(),
+                        visibility: None,
+                        is_v2: true,
+                        span_name: Some(s.name.clone()),
                     })
             });
 
@@ -1044,7 +1080,7 @@ mod tests {
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: Default::default(),
-                        span_name_note: None,
+                        span_name: None,
                     },
                     weaver_resolved_schema::registry::Group {
                         id: "span.v1".to_owned(),
@@ -1070,7 +1106,7 @@ mod tests {
                         entity_associations: Default::default(),
                         visibility: Default::default(),
                         is_v2: Default::default(),
-                        span_name_note: None,
+                        span_name: None,
                     },
                 ],
             },
@@ -1190,6 +1226,29 @@ mod tests {
         assert_eq!(
             result_entity.unwrap().r#type,
             weaver_semconv::group::GroupType::Entity
+        );
+
+        let result_span = d.lookup_group_summary("span.d");
+        assert!(result_span.is_some(), "Should find span.d");
+        let span_summary = result_span.unwrap();
+        assert_eq!(span_summary.r#type, weaver_semconv::group::GroupType::Span);
+        assert_eq!(
+            span_summary.span_kind,
+            Some(weaver_semconv::group::SpanKindSpec::Client)
+        );
+        // The span name (with its note) is carried over so refinements that do
+        // not override it inherit the dependency's definition.
+        assert_eq!(
+            span_summary.span_name,
+            Some(weaver_semconv::v2::span::SpanName {
+                note: "test".to_owned(),
+            })
+        );
+
+        // Unknown ids resolve to nothing.
+        assert!(
+            d.lookup_group_summary("does.not.exist").is_none(),
+            "Should not find an unknown group id"
         );
 
         Ok(())

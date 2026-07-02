@@ -116,7 +116,7 @@ impl Event {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
-            span_name_note: None,
+            span_name: None,
             requirement_level: self.requirement_level,
         }
     }
@@ -154,7 +154,7 @@ impl EventRefinement {
             entity_associations: self.entity_associations,
             visibility: None,
             is_v2: true,
-            span_name_note: None,
+            span_name: None,
             requirement_level: None,
         }
     }

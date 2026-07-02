@@ -30,7 +30,7 @@ registry:
   - type: imported.span.a
     kind: client
     name:
-      note: imported.span.a
+      note: span name
     attributes:
     - base: 2
       requirement_level: required
@@ -59,7 +59,7 @@ refinements:
     type: imported.span.a
     kind: client
     name:
-      note: imported.span.a
+      note: span name
     attributes:
     - base: 2
       requirement_level: required
