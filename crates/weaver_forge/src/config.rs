@@ -669,6 +669,28 @@ impl WeaverConfig {
             self.acronyms = child.acronyms;
         }
     }
+
+    /// Merge additional acronyms from a higher-precedence source, such as the
+    /// project-level `.weaver.toml` `[template]` section, into the template
+    /// package's own acronyms (from `weaver.yaml`).
+    ///
+    /// On a case-insensitive collision the toml file wins.
+    pub fn merge_acronyms(&mut self, acronyms: Option<Vec<String>>) {
+        let Some(incoming) = acronyms else {
+            return;
+        };
+        let mut merged = self.acronyms.take().unwrap_or_default();
+        for acronym in incoming {
+            match merged
+                .iter_mut()
+                .find(|existing| existing.to_lowercase() == acronym.to_lowercase())
+            {
+                Some(existing) => *existing = acronym,
+                None => merged.push(acronym),
+            }
+        }
+        self.acronyms = Some(merged);
+    }
 }
 
 #[cfg(test)]
@@ -958,6 +980,55 @@ mod tests {
         let local: WeaverConfig = serde_yaml::from_str("acronyms: []").unwrap();
         parent.override_with(local);
         assert_eq!(parent.acronyms, Some(vec![]));
+    }
+
+    #[test]
+    fn test_merge_acronyms() {
+        // Project acronyms are unioned with the package's, project ones appended.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec!["HTTP".to_owned(), "SDK".to_owned()]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec![
+                "iOS".to_owned(),
+                "API".to_owned(),
+                "URL".to_owned(),
+                "HTTP".to_owned(),
+                "SDK".to_owned(),
+            ])
+        );
+
+        // No project acronyms (None) keeps the package's acronyms untouched.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(None);
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
+        );
+
+        // An empty project list adds nothing, leaving the package list intact.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec![]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
+        );
+
+        // Merging into a config with no package acronyms yields the project list.
+        let mut config = WeaverConfig::default();
+        config.merge_acronyms(Some(vec!["API".to_owned()]));
+        assert_eq!(config.acronyms, Some(vec!["API".to_owned()]));
+
+        // On a case-insensitive collision the project casing wins, in place.
+        let mut config: WeaverConfig = serde_yaml::from_str("acronyms: ['api', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec!["API".to_owned(), "SDK".to_owned()]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["API".to_owned(), "URL".to_owned(), "SDK".to_owned()])
+        );
     }
 
     #[test]
