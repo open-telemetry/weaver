@@ -43,6 +43,12 @@ pub struct RegistryMcpArgs {
     #[config]
     pub advice_preprocessor: Option<PathBuf>,
 
+    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
+    /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
+    #[arg(long)]
+    #[config]
+    pub advice_data: Option<String>,
+
     /// Namespace separator used in attribute keys. Defaults to ".".
     /// Used by namespace browsing and search token splitting.
     #[arg(long)]
@@ -78,6 +84,7 @@ pub(crate) fn command(
     // Build MCP config from effective config
     let mcp_config = weaver_mcp::McpConfig {
         advice_policies: cmd_config.config.advice_policies,
+        advice_data: cmd_config.config.advice_data,
         advice_preprocessor: cmd_config.config.advice_preprocessor,
         namespace_separator: cmd_config.config.namespace_separator,
     };
