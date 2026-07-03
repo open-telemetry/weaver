@@ -4,6 +4,7 @@
 
 use assert_cmd::Command;
 use std::fs;
+use std::path::Path;
 
 /// This test checks the CLI interface for the registry generate command.
 /// This test doesn't count for the coverage report as it runs a separate process.
@@ -61,8 +62,10 @@ fn test_cli_interface() {
 /// flag, which collides with `generate`'s own `-c`).
 #[test]
 fn test_generate_merges_template_acronyms_from_weaver_toml() {
-    let repo_root = env!("CARGO_MANIFEST_DIR");
-    let registry = format!("{repo_root}/crates/weaver_codegen_test/semconv_registry/");
+    let registry = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("crates")
+        .join("weaver_codegen_test")
+        .join("semconv_registry");
 
     let project = tempfile::tempdir().expect("Failed to create temp dir");
     let proj = project.path();
@@ -125,8 +128,10 @@ fn test_generate_merges_template_acronyms_from_weaver_toml() {
 
 #[test]
 fn test_generate_merges_template_text_maps_from_weaver_toml() {
-    let repo_root = env!("CARGO_MANIFEST_DIR");
-    let registry = format!("{repo_root}/crates/weaver_codegen_test/semconv_registry/");
+    let registry = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("crates")
+        .join("weaver_codegen_test")
+        .join("semconv_registry");
 
     let project = tempfile::tempdir().expect("Failed to create temp dir");
     let proj = project.path();
@@ -204,8 +209,10 @@ templates:
 /// when the param flips the `when` expression to true.
 #[test]
 fn test_generate_template_when_gates_output() {
-    let repo_root = env!("CARGO_MANIFEST_DIR");
-    let registry = format!("{repo_root}/crates/weaver_codegen_test/semconv_registry/");
+    let registry = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("crates")
+        .join("weaver_codegen_test")
+        .join("semconv_registry");
 
     // Two templates: `always.md` (no `when`) and `readme.md` gated on the
     // `gen_readme` param, defaulting to false at the top level.
@@ -232,14 +239,16 @@ templates:
 
     let templates_path = templates.path().to_str().unwrap();
 
-    let run = |out_dir: &std::path::Path, extra: &[&str]| {
+    let registry = registry.to_str().unwrap();
+
+    let run = |out_dir: &Path, extra: &[&str]| {
         let out = out_dir.to_str().unwrap();
         let mut args: Vec<&str> = vec![
             "--quiet",
             "registry",
             "generate",
             "-r",
-            registry.as_str(),
+            registry,
             "-t",
             templates_path,
             "--skip-policies",

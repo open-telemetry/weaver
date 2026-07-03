@@ -343,6 +343,11 @@ impl TemplateEngine {
             for template in tmpl_matcher.matches(file_to_process.clone()) {
                 let yaml_params = Self::init_params(template.params.clone())?;
                 let params = Self::prepare_jq_context(&yaml_params)?;
+
+                if !self.evaluate_when(template, &context, &params)? {
+                    continue;
+                }
+
                 let filter = Filter::new(template.filter.as_str());
                 let filtered_result = filter.apply(context.clone(), &params)?;
 
@@ -1210,6 +1215,127 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_when() {
+        use std::collections::BTreeMap;
+
+        let (engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let context = serde_json::to_value(&registry).expect("Failed to serialize registry");
+
+        let template = |when: Option<&str>| TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: when.map(str::to_owned),
+        };
+
+        let no_params = BTreeMap::new();
+
+        // No `when` clause -> always applied.
+        assert!(engine
+            .evaluate_when(&template(None), &context, &no_params)
+            .unwrap());
+
+        // Truthy / falsy constant expressions (only `false` and `null` are falsy).
+        assert!(engine
+            .evaluate_when(&template(Some("true")), &context, &no_params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(&template(Some("false")), &context, &no_params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(&template(Some("null")), &context, &no_params)
+            .unwrap());
+
+        // Expression referencing template params exposed under `$params`.
+        let params = TemplateEngine::prepare_jq_context(
+            &TemplateEngine::init_params(Some(BTreeMap::from([(
+                "gen_readme".to_owned(),
+                serde_yaml::Value::Bool(true),
+            )])))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(engine
+            .evaluate_when(&template(Some("$params.gen_readme")), &context, &params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(
+                &template(Some("$params.gen_readme | not")),
+                &context,
+                &params
+            )
+            .unwrap());
+
+        // A malformed expression is a hard error.
+        assert!(engine
+            .evaluate_when(
+                &template(Some("this is not valid jq (")),
+                &context,
+                &no_params
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn test_generate_skips_template_when_false() {
+        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+
+        // A single template gated on a constant-false `when` clause must be
+        // skipped entirely, producing no output file.
+        engine.target_config.templates = Some(vec![TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: Some("converter.md".to_owned()),
+            auto_escape: AutoEscapeMode::None,
+            when: Some("false".to_owned()),
+        }]);
+
+        let output = tempfile::tempdir().expect("Failed to create temp dir");
+        engine
+            .generate(&registry, output.path(), &OutputDirective::File)
+            .expect("Failed to generate registry assets");
+
+        assert!(
+            !output.path().join("converter.md").exists(),
+            "template gated on a false `when` clause must be skipped"
+        );
+    }
+
+    #[test]
+    fn test_generate_to_string_skips_template_when_false() {
+        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+
+        let template = |when: &str| TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: Some(when.to_owned()),
+        };
+
+        // With a truthy `when`, string generation renders the template.
+        engine.target_config.templates = Some(vec![template("true")]);
+        let rendered = engine
+            .generate_to_string(&registry)
+            .expect("generate_to_string should succeed");
+        assert!(!rendered.is_empty(), "truthy `when` should render output");
+
+        // With a falsy `when`, the same template is skipped and produces nothing.
+        engine.target_config.templates = Some(vec![template("false")]);
+        let skipped = engine
+            .generate_to_string(&registry)
+            .expect("generate_to_string should succeed");
+        assert!(skipped.is_empty(), "falsy `when` should skip output");
     }
 
     #[test]
