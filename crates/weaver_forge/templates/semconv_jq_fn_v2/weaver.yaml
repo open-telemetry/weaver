@@ -9,3 +9,13 @@ templates:
       semconv_grouped_events({"v2": true})
     application_mode: single
     file_name: semconv_events.json
+  - template: semconv_metrics.j2
+    filter: >
+      semconv_grouped_metrics({"v2": true})
+    application_mode: single
+    file_name: semconv_metrics.json
+  - template: semconv_entities.j2
+    filter: >
+      semconv_grouped_entities({"v2": true})
+    application_mode: single
+    file_name: semconv_entities.json

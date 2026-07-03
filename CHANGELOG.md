@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Add `semconv_grouped_entities` JQ helper, plus v2 test coverage for grouped metrics and entities. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @lmolkova)
 - Add optional `name` field to `SpanRefinement` in v2 syntax, and fix span name propagation so refinements (and imported spans) inherit the base span's `name` when they don't override it. ([#1403](https://github.com/open-telemetry/weaver/pull/1403) by @lmolkova)
 - Fix `registry update-markdown` so it does not require `registry` subdirectory matching `registry generate` behavior. ([#1544](https://github.com/open-telemetry/weaver/pull/1544) by @lmolkova)
 - Live-check: support loading additional Rego data from glob patterns via `--advice-data`. ([#1539](https://github.com/open-telemetry/weaver/pull/1539) by @lmolkova).
