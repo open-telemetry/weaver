@@ -367,13 +367,14 @@ pub fn load_config<A: CliOverrides>(
 
 /// Merge the project-level `[template]` settings from `.weaver.toml` into a
 /// template package's forge configuration (loaded from `weaver.yaml`).
-/// Only `acronyms` is wired today.
+/// Only `acronyms` and `text_maps` are wired today.
 pub(crate) fn apply_template_config(
     config: &mut weaver_forge::config::WeaverConfig,
     weaver_config: Option<&weaver_config::WeaverConfig>,
 ) {
     if let Some(wc) = weaver_config {
         config.merge_acronyms(wc.template.acronyms.clone());
+        config.merge_text_maps(wc.template.text_maps.clone());
     }
 }
 

@@ -691,6 +691,22 @@ impl WeaverConfig {
         }
         self.acronyms = Some(merged);
     }
+
+    /// Merge additional `text_maps` from a higher-precedence source, such as the
+    /// project-level `.weaver.toml` `[template]` section, into the template
+    /// package's own `text_maps` (from `weaver.yaml`).
+    ///
+    /// On a name conflict the incoming (toml) map replaces the yaml.
+    pub fn merge_text_maps(&mut self, text_maps: Option<HashMap<String, HashMap<String, String>>>) {
+        let Some(incoming) = text_maps else {
+            return;
+        };
+        let merged = self.text_maps.get_or_insert_with(HashMap::new);
+        for (name, map) in incoming {
+            // Top-level override: replace the whole named map, don't merge values.
+            let _ = merged.insert(name, map);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1028,6 +1044,67 @@ mod tests {
         assert_eq!(
             config.acronyms,
             Some(vec!["API".to_owned(), "URL".to_owned(), "SDK".to_owned()])
+        );
+    }
+
+    #[test]
+    fn test_merge_text_maps() {
+        use std::collections::HashMap;
+
+        fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect()
+        }
+
+        // No incoming (None) leaves the package's text_maps untouched.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+        config.merge_text_maps(None);
+        assert_eq!(
+            config.text_maps,
+            Some([("type_mapping".to_owned(), map(&[("int", "int64")]))].into())
+        );
+
+        // A named map only the project defines is added; the package's other
+        // named maps are kept.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+        config.merge_text_maps(Some(
+            [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some(
+                [
+                    ("type_mapping".to_owned(), map(&[("int", "int64")])),
+                    ("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")])),
+                ]
+                .into()
+            )
+        );
+
+        // On a name conflict the project's map replaces the package's wholesale
+        // (inner entries are not merged: `str` is dropped).
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64, str: string}}").unwrap();
+        config.merge_text_maps(Some(
+            [("type_mapping".to_owned(), map(&[("int", "i64")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some([("type_mapping".to_owned(), map(&[("int", "i64")]))].into())
+        );
+
+        // Merging into a config with no text_maps yields the project's maps.
+        let mut config = WeaverConfig::default();
+        config.merge_text_maps(Some(
+            [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some([("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into())
         );
     }
 

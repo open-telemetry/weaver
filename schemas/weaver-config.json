@@ -460,7 +460,7 @@
       "type": "object",
       "properties": {
         "acronyms": {
-          "description": "List of acronyms treated as unmodifiable words during case conversion.\nWhen set, these are merged into the package's own `acronyms` list (the\nproject wins on case-insensitive conflicts).",
+          "description": "List of acronyms treated as unmodifiable words during case conversion.",
           "type": [
             "array",
             "null"
@@ -469,6 +469,20 @@
           "items": {
             "type": "string"
           }
+        },
+        "text_maps": {
+          "description": "Named text mappings used by the `map_text` filter (e.g. a\n`namespace_mapping` from `CICD` to `CI/CD`).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "default": null
         }
       }
     },

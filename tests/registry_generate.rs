@@ -122,3 +122,78 @@ fn test_generate_merges_template_acronyms_from_weaver_toml() {
     // and the project's `IOS` wins the case-insensitive collision with `iOS`.
     assert_eq!(generated.trim(), "API URL IOS gRPC SDK http");
 }
+
+#[test]
+fn test_generate_merges_template_text_maps_from_weaver_toml() {
+    let repo_root = env!("CARGO_MANIFEST_DIR");
+    let registry = format!("{repo_root}/crates/weaver_codegen_test/semconv_registry/");
+
+    let project = tempfile::tempdir().expect("Failed to create temp dir");
+    let proj = project.path();
+
+    // Project config overrides only the `namespace_mapping` map.
+    fs::write(
+        proj.join(".weaver.toml"),
+        "[template.text_maps.namespace_mapping]\nCICD = \"CI/CD\"\n",
+    )
+    .expect("Failed to write .weaver.toml");
+
+    // Package declares two named maps and a template exercising `map_text`.
+    let tdir = proj.join("templates").join("registry").join("tgt");
+    fs::create_dir_all(&tdir).expect("Failed to create template dir");
+    fs::write(
+        tdir.join("weaver.yaml"),
+        r#"text_maps:
+  type_mapping:
+    int: int64
+  namespace_mapping:
+    CICD: WRONG
+    EXTRA: kept
+templates:
+  - template: "out.md"
+    filter: "."
+    application_mode: single
+"#,
+    )
+    .expect("Failed to write weaver.yaml");
+    fs::write(
+        tdir.join("out.md"),
+        "{{ \"CICD\" | map_text(\"namespace_mapping\") }}\n\
+         {{ \"EXTRA\" | map_text(\"namespace_mapping\", \"dropped\") }}\n\
+         {{ \"int\" | map_text(\"type_mapping\") }}\n",
+    )
+    .expect("Failed to write template");
+
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let output = cmd
+        .current_dir(proj)
+        .arg("--quiet")
+        .arg("registry")
+        .arg("generate")
+        .arg("-r")
+        .arg(&registry)
+        .arg("-t")
+        .arg("templates")
+        .arg("--skip-policies")
+        .arg("tgt")
+        .arg("out")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(
+        output.status.success(),
+        "generate failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let generated =
+        fs::read_to_string(proj.join("out").join("out.md")).expect("Failed to read generated file");
+    let lines: Vec<&str> = generated.lines().collect();
+    // `namespace_mapping` is replaced wholesale by the project map: `CICD`
+    // resolves to the project's value, and the package-only `EXTRA` entry is
+    // gone (falls back to the default). The package-only `type_mapping` survives.
+    assert_eq!(lines[0], "CI/CD");
+    assert_eq!(lines[1], "dropped");
+    assert_eq!(lines[2], "int64");
+}
