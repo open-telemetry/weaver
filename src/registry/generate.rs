@@ -160,7 +160,7 @@ pub(crate) fn command(
 /// Compute the effective templates root.
 /// If a `registry` subdirectory exists under the provided templates directory,
 /// that subdirectory is returned, otherwise the original directory path is returned.
-fn resolve_templates_root(templates_dir: &VirtualDirectory) -> PathBuf {
+pub(crate) fn resolve_templates_root(templates_dir: &VirtualDirectory) -> PathBuf {
     let base = templates_dir.path();
     let candidate = base.join("registry");
     if candidate.is_dir() {

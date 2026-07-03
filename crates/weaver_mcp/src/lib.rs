@@ -34,6 +34,10 @@ pub struct McpConfig {
     /// If None, default built-in policies are used.
     pub advice_policies: Option<PathBuf>,
 
+    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
+    /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
+    pub advice_data: Option<String>,
+
     /// Path to a jq preprocessor script for Rego policies.
     /// The script transforms registry data before passing to Rego.
     pub advice_preprocessor: Option<PathBuf>,
@@ -47,6 +51,7 @@ impl Default for McpConfig {
     fn default() -> Self {
         Self {
             advice_policies: None,
+            advice_data: None,
             advice_preprocessor: None,
             namespace_separator: ".".to_owned(),
         }
@@ -76,7 +81,7 @@ impl std::error::Error for McpError {}
 ///
 /// # Errors
 ///
-/// Returns an error if there's an IO error during communication.
+/// Errors if there's an IO error during communication.
 pub fn run(registry: ForgeResolvedRegistry) -> Result<(), McpError> {
     run_with_config(registry, McpConfig::default())
 }
@@ -92,7 +97,7 @@ pub fn run(registry: ForgeResolvedRegistry) -> Result<(), McpError> {
 ///
 /// # Errors
 ///
-/// Returns an error if there's an IO error during communication.
+/// Errors if there's an IO error during communication.
 pub fn run_with_config(registry: ForgeResolvedRegistry, config: McpConfig) -> Result<(), McpError> {
     // Create a tokio runtime for the async rmcp server
     let rt = tokio::runtime::Runtime::new().map_err(|e| McpError(e.to_string()))?;
@@ -143,6 +148,7 @@ mod tests {
     fn test_mcp_config_default() {
         let config = McpConfig::default();
         assert!(config.advice_policies.is_none());
+        assert!(config.advice_data.is_none());
         assert!(config.advice_preprocessor.is_none());
     }
 
@@ -150,6 +156,7 @@ mod tests {
     fn test_mcp_config_with_paths() {
         let config = McpConfig {
             advice_policies: Some(PathBuf::from("/path/to/policies")),
+            advice_data: Some("/path/to/data".to_owned()),
             advice_preprocessor: Some(PathBuf::from("/path/to/preprocessor.jq")),
             namespace_separator: ".".to_owned(),
         };
@@ -157,6 +164,7 @@ mod tests {
             config.advice_policies,
             Some(PathBuf::from("/path/to/policies"))
         );
+        assert_eq!(config.advice_data, Some("/path/to/data".to_owned()));
         assert_eq!(
             config.advice_preprocessor,
             Some(PathBuf::from("/path/to/preprocessor.jq"))

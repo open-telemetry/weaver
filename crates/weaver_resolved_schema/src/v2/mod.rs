@@ -294,13 +294,10 @@ pub fn convert_v1_to_v2(
                             .span_kind
                             .clone()
                             .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                        // Use span_name_note (carried from v2) if available, fall back to g.name.
-                        name: SpanName {
-                            note: g
-                                .span_name_note
-                                .clone()
-                                .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
-                        },
+                        // Use span_name (carried from v2) if available, fall back to g.name.
+                        name: g.span_name.clone().unwrap_or_else(|| SpanName {
+                            note: g.name.clone().unwrap_or_default(),
+                        }),
                         entity_associations: g.entity_associations.clone(),
                         requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
@@ -337,13 +334,10 @@ pub fn convert_v1_to_v2(
                                 .span_kind
                                 .clone()
                                 .unwrap_or(weaver_semconv::group::SpanKindSpec::Internal),
-                            // Use span_name_note (carried from v2) if available, fall back to g.name.
-                            name: SpanName {
-                                note: g
-                                    .span_name_note
-                                    .clone()
-                                    .unwrap_or_else(|| g.name.clone().unwrap_or_default()),
-                            },
+                            // Use span_name (carried from v2) if available, fall back to g.name.
+                            name: g.span_name.clone().unwrap_or_else(|| SpanName {
+                                note: g.name.clone().unwrap_or_default(),
+                            }),
                             entity_associations: g.entity_associations.clone(),
                             requirement_level: g.requirement_level.clone(),
                             common: CommonFields {
@@ -779,7 +773,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
-                    span_name_note: None,
+                    span_name: None,
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -805,7 +799,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
-                    span_name_note: None,
+                    span_name: None,
                 },
             ],
         };
@@ -833,6 +827,82 @@ mod tests {
         assert_eq!(
             span_ref_ids,
             vec!["my-span".to_owned(), "custom".to_owned()]
+        );
+    }
+
+    /// A refinement that carries `span_name` (set from a v2 `name`
+    /// override or inherited from its base) must surface it as the resolved
+    /// span's `name.note`, rather than falling back to the refinement id.
+    #[test]
+    fn test_span_refinement_name_note_propagates() {
+        let v1_catalog = crate::catalog::test_utils::CatalogBuilder::default().build();
+        // Helper to build a minimal v1 span Group for this test.
+        let span_group =
+            |id: &str, lineage: Option<GroupLineage>, span_name: Option<SpanName>| Group {
+                id: id.to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![],
+                span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                name: Some(id.to_owned()),
+                lineage,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name,
+            };
+        let mut refinement_lineage =
+            GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
+        refinement_lineage.extends("span.my-span");
+        let v1_registry = crate::registry::Registry {
+            registry_url: "my.schema.url".to_owned(),
+            groups: vec![
+                // The base span the refinement points at; its presence (as a
+                // span) is what makes the refinement be recognized as a
+                // refinement rather than a standalone span.
+                span_group(
+                    "span.my-span",
+                    None,
+                    Some(SpanName {
+                        note: "base note".to_owned(),
+                    }),
+                ),
+                // The refinement, carrying its own `name` override.
+                span_group(
+                    "span.custom",
+                    Some(refinement_lineage),
+                    Some(SpanName {
+                        note: "{gen_ai.operation.name} {gen_ai.request.model}".to_owned(),
+                    }),
+                ),
+            ],
+        };
+        let (_, _, v2_refinements, _) = convert_v1_to_v2(v1_catalog, v1_registry, BTreeSet::new())
+            .expect("Failed to convert v1 to v2");
+        let refinement = v2_refinements
+            .spans
+            .iter()
+            .find(|s| s.id.to_string() == "custom")
+            .expect("expected the `custom` span refinement");
+        // Confirm this went through the refinement branch (it refines
+        // `my-span`), not the standalone-span branch.
+        assert_eq!(refinement.span.r#type.to_string(), "my-span");
+        assert_eq!(
+            refinement.span.name.note,
+            "{gen_ai.operation.name} {gen_ai.request.model}"
         );
     }
 
@@ -921,7 +991,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
-                    span_name_note: None,
+                    span_name: None,
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -947,7 +1017,7 @@ mod tests {
                     entity_associations: vec![],
                     visibility: None,
                     is_v2: false,
-                    span_name_note: None,
+                    span_name: None,
                 },
             ],
         };
@@ -1031,7 +1101,7 @@ mod tests {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: false,
-                span_name_note: None,
+                span_name: None,
             }],
         };
         let dependencies = BTreeSet::new();
@@ -1102,7 +1172,7 @@ mod tests {
                 entity_associations: vec![],
                 visibility: None,
                 is_v2: false,
-                span_name_note: None,
+                span_name: None,
             }],
         };
         let mut dependencies = BTreeSet::new();

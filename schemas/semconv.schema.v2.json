@@ -1626,6 +1626,17 @@
           "description": "The ID of the refinement.",
           "$ref": "#/$defs/SignalId"
         },
+        "name": {
+          "description": "Overrides the span name specification from the referenced base span.\nIf set, the entire `name` structure from the refinement replaces the\nbase span's `name`; otherwise, the base span's `name` is inherited.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpanName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "note": {
           "description": "Refines the more elaborate description of the signal.\nNote: This field is currently not propagated during resolution.",
           "type": [

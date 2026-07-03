@@ -46,6 +46,8 @@ pub struct WeaverMcpService {
     versioned_registry: Arc<VersionedRegistry>,
     /// Path to custom Rego advice policies directory.
     advice_policies: Option<PathBuf>,
+    /// Path to the directory or file containing additional rego data (JSON/YAML files) or a glob pattern.
+    advice_data: Option<String>,
     /// Path to jq preprocessor script for Rego policies.
     advice_preprocessor: Option<PathBuf>,
 }
@@ -66,6 +68,7 @@ impl WeaverMcpService {
             search_context,
             versioned_registry,
             advice_policies: config.advice_policies,
+            advice_data: config.advice_data,
             advice_preprocessor: config.advice_preprocessor,
         }
     }
@@ -83,6 +86,7 @@ impl WeaverMcpService {
             &live_checker,
             &self.advice_policies,
             &self.advice_preprocessor,
+            &self.advice_data,
         )
         .map_err(|e| format!("Failed to initialize RegoAdvisor: {e}"))?;
         live_checker.add_advisor(Box::new(rego_advisor));

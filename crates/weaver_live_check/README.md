@@ -422,3 +422,59 @@ weaver registry emit --skip-policies
 kill -HUP $LIVE_CHECK_PID
 wait $LIVE_CHECK_PID
 ```
+
+## Loading Additional Rego Data
+
+You can load additional JSON/YAML files (e.g. schemas, configuration mapping) into OPA `data` namespace using the `--advice-data` flag,
+or the corresponding `advice_data` property under the `[live-check]` section in the `.weaver.toml` config file:
+
+```toml
+["live-check"]
+advice_data = "schemas/**/*.json"
+```
+
+Files are nested under `data` using their relative path inside the glob pattern base directory. Other file extensions are ignored.
+
+For example, if you run:
+```sh
+weaver registry live-check --advice-data "schemas/**/*.json"
+```
+
+And you have the file `schemas/user.json` with the following content:
+```json
+{
+  "allowed_ids": [
+    "usr_123",
+    "usr_456"
+  ]
+}
+```
+
+It will be parsed and loaded into the OPA engine under the `data.user` path:
+* `data.user.allowed_ids` => `["usr_123", "usr_456"]`
+
+You can then write a Rego rule to check whether the incoming telemetry attribute matches one of the allowed IDs:
+```rego
+package live_check_advice
+
+import rego.v1
+
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+    attr := input.sample.attribute
+    attr.name == "user.id"
+    
+    # Check if the incoming attribute value is not in the allowed list
+    not attr.value in data.user.allowed_ids
+    
+    advice_type := "invalid_user_id"
+    advice_level := "violation"
+    advice_context := {
+        "attribute_key": attr.name,
+        "attribute_value": attr.value,
+        "allowed_ids": data.user.allowed_ids
+    }
+    message := sprintf("User ID '%s' is not in the allowed list: %v", [attr.value, data.user.allowed_ids])
+}
+```
+
+
