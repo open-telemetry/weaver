@@ -451,6 +451,31 @@ impl TemplateEngine {
         handle_errors(errs)
     }
 
+    /// Evaluate a template's optional `when` JQ expression.
+    ///
+    /// The expression is evaluated against the same context as the template's
+    /// `filter` (the resolved registry), with the template parameters exposed as
+    /// JQ variables — namespaced under `$params` (e.g. `$params.gen_readme ==
+    /// true`). The template is applied only when the result is truthy (by JQ
+    /// rules: only `false` and `null` are falsy). A template without a `when`
+    /// clause is always applied. A malformed or failing expression is a hard error.
+    fn evaluate_when(
+        &self,
+        template: &TemplateConfig,
+        context: &serde_json::Value,
+        params: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<bool, Error> {
+        let Some(when) = template.when.as_deref() else {
+            return Ok(true);
+        };
+
+        let result = Filter::new(when).apply(context.clone(), params)?;
+        Ok(!matches!(
+            result,
+            serde_json::Value::Bool(false) | serde_json::Value::Null
+        ))
+    }
+
     /// Process a single template file with the given template configuration,
     /// context, output directory, and output directive.
     fn process_template(
@@ -467,6 +492,17 @@ impl TemplateEngine {
 
         let yaml_params = Self::init_params(template.params.clone())?;
         let params = Self::prepare_jq_context(&yaml_params)?;
+
+        // A template with a `when` clause is only applied when the JQ expression
+        // is truthy. Evaluated before filtering so a skipped template does no work.
+        if !self.evaluate_when(template, context, &params)? {
+            log::debug!(
+                "Skipping template file `{template_file:#?}`: `when` clause `{}` is not met",
+                template.when.as_deref().unwrap_or_default()
+            );
+            return Ok(());
+        }
+
         let filter = Filter::new(template.filter.as_str());
         let filtered_result = filter.apply(context.clone(), &params)?;
 
@@ -1133,6 +1169,7 @@ mod tests {
             params: None,
             file_name: None,
             auto_escape: AutoEscapeMode::None,
+            when: None,
         });
         engine.target_config.templates = Some(templates);
 

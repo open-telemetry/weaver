@@ -207,6 +207,13 @@ pub(crate) struct TemplateConfig {
     /// disable escaping for sections.
     #[serde(default)]
     pub(crate) auto_escape: AutoEscapeMode,
+    /// An optional JQ expression gating whether this template is applied.
+    /// Like `filter`, it is evaluated against the resolved registry, with the
+    /// template parameters exposed as JQ variables under `$params` (e.g.
+    /// `$params.gen_readme == true`). When it evaluates to a falsy value (`false`
+    /// or `null`) the template is skipped. When absent, the template is always
+    /// applied.
+    pub(crate) when: Option<String>,
 }
 
 fn default_filter() -> String {

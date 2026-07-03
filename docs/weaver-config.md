@@ -93,6 +93,7 @@ templates:
       # ...
     file_name: <relative_file_path>  # optional
     auto_escape: none|html|json      # optional, default: none
+    when: <jq_expression>            # optional; apply this template only when truthy
   - ...
 ```
 
@@ -190,6 +191,43 @@ templates:
 Within a template, `{% autoescape false %}...{% endautoescape %}` blocks can selectively
 disable escaping for specific sections. For explicit one-off JSON serialization without
 setting the mode, use the `|tojson` filter (e.g. `{{ value|tojson }}`).
+
+## Conditionally Applying a Template (`when`)
+
+An optional `when` clause gates whether a template is applied at all. It is a JQ
+expression (the same language as `filter`) evaluated against the resolved registry,
+with the template `params` exposed as JQ variables under `$params`. The template is
+applied only when the expression is **truthy** — by JQ rules, only `false` and `null`
+are falsy; every other value is truthy. When `when` is omitted, the template is always
+applied.
+
+```yaml
+# `gen_readme` acts as a feature flag with a default of `false`.
+params:
+  gen_readme: false
+
+templates:
+  # Always generated.
+  - template: attributes.md.j2
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  # Generated only when the `gen_readme` parameter is true, e.g. by passing
+  # `--param gen_readme=true` on the command line.
+  - template: registry_readme.md.j2
+    filter: "."
+    application_mode: single
+    file_name: README.md
+    when: $params.gen_readme == true
+```
+
+`when` can also test the registry content itself (not just parameters), since it sees the
+same context as `filter` — for example, `when: '(.groups | length) > 0'` to only apply a
+template when the registry has groups. A malformed `when` expression is a hard error.
+
+> [!NOTE]
+> The `when` clause is a gate on the whole template entry: it is evaluated once, before
+> `filter` is applied, and is not evaluated per item when `application_mode` is `each`.
 
 # Configuration File Loading Order and Overriding Rules
 

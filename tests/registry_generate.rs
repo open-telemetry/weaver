@@ -197,3 +197,90 @@ templates:
     assert_eq!(lines[1], "dropped");
     assert_eq!(lines[2], "int64");
 }
+
+/// End-to-end check that a template `when` clause (a JQ expression over the
+/// template params under `$params`) gates whether the template is applied. The
+/// unconditional template is always generated; the conditional one appears only
+/// when the param flips the `when` expression to true.
+#[test]
+fn test_generate_template_when_gates_output() {
+    let repo_root = env!("CARGO_MANIFEST_DIR");
+    let registry = format!("{repo_root}/crates/weaver_codegen_test/semconv_registry/");
+
+    // Two templates: `always.md` (no `when`) and `readme.md` gated on the
+    // `gen_readme` param, defaulting to false at the top level.
+    let templates = tempfile::tempdir().expect("Failed to create temp dir");
+    let tdir = templates.path().join("registry").join("tgt");
+    fs::create_dir_all(&tdir).expect("Failed to create template dir");
+    fs::write(
+        tdir.join("weaver.yaml"),
+        r#"params:
+  gen_readme: false
+templates:
+  - template: "always.md"
+    filter: "."
+    application_mode: single
+  - template: "readme.md"
+    filter: "."
+    application_mode: single
+    when: "$params.gen_readme == true"
+"#,
+    )
+    .expect("Failed to write weaver.yaml");
+    fs::write(tdir.join("always.md"), "always\n").expect("Failed to write template");
+    fs::write(tdir.join("readme.md"), "readme\n").expect("Failed to write template");
+
+    let templates_path = templates.path().to_str().unwrap();
+
+    let run = |out_dir: &std::path::Path, extra: &[&str]| {
+        let out = out_dir.to_str().unwrap();
+        let mut args: Vec<&str> = vec![
+            "--quiet",
+            "registry",
+            "generate",
+            "-r",
+            registry.as_str(),
+            "-t",
+            templates_path,
+            "--skip-policies",
+        ];
+        args.extend_from_slice(extra);
+        args.push("tgt");
+        args.push(out);
+        let mut cmd = Command::cargo_bin("weaver").unwrap();
+        let output = cmd
+            .args(&args)
+            .timeout(std::time::Duration::from_secs(60))
+            .output()
+            .expect("failed to execute process");
+        assert!(
+            output.status.success(),
+            "generate failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+
+    // Default: gen_readme is false, so the conditional template is skipped.
+    let off = templates.path().join("out_off");
+    run(&off, &[]);
+    assert!(
+        off.join("always.md").exists(),
+        "always.md should be generated"
+    );
+    assert!(
+        !off.join("readme.md").exists(),
+        "readme.md should be skipped when the `when` clause is false"
+    );
+
+    // Flip the flag via a CLI param: the conditional template is now applied.
+    let on = templates.path().join("out_on");
+    run(&on, &["-D", "gen_readme=true"]);
+    assert!(
+        on.join("always.md").exists(),
+        "always.md should be generated"
+    );
+    assert!(
+        on.join("readme.md").exists(),
+        "readme.md should be generated when the `when` clause is true"
+    );
+}
