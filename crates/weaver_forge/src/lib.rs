@@ -479,9 +479,13 @@ impl TemplateEngine {
             return Ok(true);
         };
 
-        let result = Filter::new(when).apply(context.clone(), params)?;
+        let result = jq::execute_jq(context, when, params)?;
         match result {
-            serde_json::Value::Bool(b) => Ok(b),
+            serde_json::Value::Bool(true) => Ok(true),
+            serde_json::Value::Bool(false) => {
+                log::debug!("Skipping template: `when` clause `{when}` is not met");
+                Ok(false)
+            }
             other => Err(Error::WhenClauseNotBoolean {
                 when: when.to_owned(),
                 actual: other.to_string(),
@@ -510,10 +514,6 @@ impl TemplateEngine {
         // evaluates to `true`. Evaluated before filtering so a skipped template
         // does no work.
         if !self.evaluate_when(template, context, &params)? {
-            log::debug!(
-                "Skipping template file `{template_file:#?}`: `when` clause `{}` is not met",
-                template.when.as_deref().unwrap_or_default()
-            );
             return Ok(());
         }
 
@@ -1262,7 +1262,12 @@ mod tests {
         // Non-boolean outputs are a hard error rather than being coerced.
         // `null`, an empty stream (`[]`) such as `.groups[] | select(...)`
         // matching nothing, and plain values must all be rejected.
-        for expr in ["null", "1", "\"yes\"", ".groups[] | select(.id == \"nope\")"] {
+        for expr in [
+            "null",
+            "1",
+            "\"yes\"",
+            ".groups[] | select(.id == \"nope\")",
+        ] {
             assert!(
                 matches!(
                     engine.evaluate_when(&template(Some(expr)), &context, &no_params),

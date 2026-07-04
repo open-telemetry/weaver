@@ -691,9 +691,10 @@ impl WeaverConfig {
         };
         let mut merged = self.acronyms.take().unwrap_or_default();
         for acronym in incoming {
+            let acronym_lower = acronym.to_lowercase();
             match merged
                 .iter_mut()
-                .find(|existing| existing.to_lowercase() == acronym.to_lowercase())
+                .find(|existing| existing.to_lowercase() == acronym_lower)
             {
                 Some(existing) => *existing = acronym,
                 None => merged.push(acronym),
@@ -711,11 +712,9 @@ impl WeaverConfig {
         let Some(incoming) = text_maps else {
             return;
         };
-        let merged = self.text_maps.get_or_insert_with(HashMap::new);
-        for (name, map) in incoming {
-            // Top-level override: replace the whole named map, don't merge values.
-            let _ = merged.insert(name, map);
-        }
+        self.text_maps
+            .get_or_insert_with(HashMap::new)
+            .extend(incoming);
     }
 }
 
