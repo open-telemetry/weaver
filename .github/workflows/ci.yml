@@ -18,7 +18,7 @@ jobs:
     needs:
       [
         test,
-        ui-smoke,
+        ui-test,
         msrv,
         docs,
         rustfmt,
@@ -79,8 +79,8 @@ jobs:
         run: cargo xtask history
       - name: Schema compat check
         run: cargo xtask schema-compat
-  ui-smoke:
-    name: UI Smoke Test
+  ui-test:
+    name: UI Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -114,8 +114,8 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
         working-directory: ./ui
-      - name: Run smoke tests
-        # The Playwright webServer boots `cargo run -- serve` against the bundled model.
+      - name: Run UI e2e tests
+        # Playwright boots `cargo run -- serve` against the fixture registry.
         run: pnpm test:e2e
         working-directory: ./ui
       - name: Upload Playwright report
