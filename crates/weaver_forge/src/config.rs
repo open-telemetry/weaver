@@ -210,9 +210,12 @@ pub(crate) struct TemplateConfig {
     /// An optional JQ expression gating whether this template is applied.
     /// Like `filter`, it is evaluated against the resolved registry, with the
     /// template parameters exposed as JQ variables under `$params` (e.g.
-    /// `$params.gen_readme == true`). When it evaluates to a falsy value (`false`
-    /// or `null`) the template is skipped. When absent, the template is always
-    /// applied.
+    /// `$params.gen_readme == true`). It must evaluate to a single boolean:
+    /// `true` applies the template, `false` skips it. Any other output — a
+    /// non-boolean value or an empty stream (e.g. `.groups[] | select(...)`
+    /// matching nothing) — is an error, so use `any(...)`/`all(...)` or an
+    /// explicit comparison to produce a boolean. When absent, the template is
+    /// always applied.
     pub(crate) when: Option<String>,
 }
 

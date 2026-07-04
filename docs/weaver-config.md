@@ -93,7 +93,7 @@ templates:
       # ...
     file_name: <relative_file_path>  # optional
     auto_escape: none|html|json      # optional, default: none
-    when: <jq_expression>            # optional; apply this template only when truthy
+    when: <jq_expression>            # optional; JQ expression that must evaluate to a boolean
   - ...
 ```
 
@@ -196,10 +196,13 @@ setting the mode, use the `|tojson` filter (e.g. `{{ value|tojson }}`).
 
 An optional `when` clause gates whether a template is applied at all. It is a JQ
 expression (the same language as `filter`) evaluated against the resolved registry,
-with the template `params` exposed as JQ variables under `$params`. The template is
-applied only when the expression is **truthy** — by JQ rules, only `false` and `null`
-are falsy; every other value is truthy. When `when` is omitted, the template is always
-applied.
+with the template `params` exposed as JQ variables under `$params`. The expression must
+evaluate to a **single boolean**: `true` applies the template, `false` skips it. Any other
+output — a non-boolean value, or an empty stream — is a hard error. In particular, a
+stream expression like `.groups[] | select(...)` that matches nothing produces an empty
+result and is **rejected**, rather than being silently treated as truthy; wrap such
+expressions in `any(...)` / `all(...)` or an explicit comparison to yield a boolean. When
+`when` is omitted, the template is always applied.
 
 ```yaml
 # `gen_readme` acts as a feature flag with a default of `false`.
@@ -223,7 +226,8 @@ templates:
 
 `when` can also test the registry content itself (not just parameters), since it sees the
 same context as `filter` — for example, `when: '(.groups | length) > 0'` to only apply a
-template when the registry has groups. A malformed `when` expression is a hard error.
+template when the registry has groups, or `when: '.groups | any(.type == "metric")'` to
+apply it only when a matching group exists. A malformed `when` expression is a hard error.
 
 > [!NOTE]
 > The `when` clause is a gate on the whole template entry: it is evaluated once, before

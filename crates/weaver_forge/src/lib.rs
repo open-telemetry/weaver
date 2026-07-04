@@ -461,9 +461,14 @@ impl TemplateEngine {
     /// The expression is evaluated against the same context as the template's
     /// `filter` (the resolved registry), with the template parameters exposed as
     /// JQ variables — namespaced under `$params` (e.g. `$params.gen_readme ==
-    /// true`). The template is applied only when the result is truthy (by JQ
-    /// rules: only `false` and `null` are falsy). A template without a `when`
-    /// clause is always applied. A malformed or failing expression is a hard error.
+    /// true`). The expression must evaluate to a single boolean: `true` applies
+    /// the template, `false` skips it. Any other output — including an empty
+    /// stream (`[]`) or a non-boolean value — is a hard error, so an expression
+    /// like `.groups[] | select(...)` that matches nothing is rejected rather
+    /// than silently treated as truthy. Wrap such expressions in `any(...)` /
+    /// `all(...)` or an explicit comparison to yield a boolean. A template
+    /// without a `when` clause is always applied. A malformed or failing
+    /// expression is also a hard error.
     fn evaluate_when(
         &self,
         template: &TemplateConfig,
@@ -475,10 +480,13 @@ impl TemplateEngine {
         };
 
         let result = Filter::new(when).apply(context.clone(), params)?;
-        Ok(!matches!(
-            result,
-            serde_json::Value::Bool(false) | serde_json::Value::Null
-        ))
+        match result {
+            serde_json::Value::Bool(b) => Ok(b),
+            other => Err(Error::WhenClauseNotBoolean {
+                when: when.to_owned(),
+                actual: other.to_string(),
+            }),
+        }
     }
 
     /// Process a single template file with the given template configuration,
@@ -499,7 +507,8 @@ impl TemplateEngine {
         let params = Self::prepare_jq_context(&yaml_params)?;
 
         // A template with a `when` clause is only applied when the JQ expression
-        // is truthy. Evaluated before filtering so a skipped template does no work.
+        // evaluates to `true`. Evaluated before filtering so a skipped template
+        // does no work.
         if !self.evaluate_when(template, context, &params)? {
             log::debug!(
                 "Skipping template file `{template_file:#?}`: `when` clause `{}` is not met",
@@ -906,6 +915,7 @@ mod tests {
         ApplicationMode, AutoEscapeMode, CaseConvention, Params, TemplateConfig, WeaverConfig,
     };
     use crate::debug::print_dedup_errors;
+    use crate::error::Error;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
@@ -1241,16 +1251,26 @@ mod tests {
             .evaluate_when(&template(None), &context, &no_params)
             .unwrap());
 
-        // Truthy / falsy constant expressions (only `false` and `null` are falsy).
+        // Boolean constant expressions apply/skip the template.
         assert!(engine
             .evaluate_when(&template(Some("true")), &context, &no_params)
             .unwrap());
         assert!(!engine
             .evaluate_when(&template(Some("false")), &context, &no_params)
             .unwrap());
-        assert!(!engine
-            .evaluate_when(&template(Some("null")), &context, &no_params)
-            .unwrap());
+
+        // Non-boolean outputs are a hard error rather than being coerced.
+        // `null`, an empty stream (`[]`) such as `.groups[] | select(...)`
+        // matching nothing, and plain values must all be rejected.
+        for expr in ["null", "1", "\"yes\"", ".groups[] | select(.id == \"nope\")"] {
+            assert!(
+                matches!(
+                    engine.evaluate_when(&template(Some(expr)), &context, &no_params),
+                    Err(Error::WhenClauseNotBoolean { .. })
+                ),
+                "expected `when` expression `{expr}` to be rejected as non-boolean"
+            );
+        }
 
         // Expression referencing template params exposed under `$params`.
         let params = TemplateEngine::prepare_jq_context(
@@ -1323,19 +1343,20 @@ mod tests {
             when: Some(when.to_owned()),
         };
 
-        // With a truthy `when`, string generation renders the template.
+        // With a `when` that evaluates to `true`, string generation renders the template.
         engine.target_config.templates = Some(vec![template("true")]);
         let rendered = engine
             .generate_to_string(&registry)
             .expect("generate_to_string should succeed");
-        assert!(!rendered.is_empty(), "truthy `when` should render output");
+        assert!(!rendered.is_empty(), "`when: true` should render output");
 
-        // With a falsy `when`, the same template is skipped and produces nothing.
+        // With a `when` that evaluates to `false`, the same template is skipped
+        // and produces nothing.
         engine.target_config.templates = Some(vec![template("false")]);
         let skipped = engine
             .generate_to_string(&registry)
             .expect("generate_to_string should succeed");
-        assert!(skipped.is_empty(), "falsy `when` should skip output");
+        assert!(skipped.is_empty(), "`when: false` should skip output");
     }
 
     #[test]
