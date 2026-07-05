@@ -317,3 +317,35 @@ def semconv_grouped_events($options): semconv_events($options) | semconv_group_e
 
 # Convenience function to group all events by their root namespace without any filtering options.
 def semconv_grouped_events: semconv_grouped_events({});
+
+# Entity Functions
+# Groups the entities by their root namespace and sorts entities by type.
+def semconv_group_entities_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, entities: . | sort_by(.type) });
+
+# Extracts and processes semantic convention entities based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable entities and non-stable attributes on stable entities.
+# - exclude_deprecated: a boolean to exclude deprecated entities and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level entity and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable entities instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_entities($options): semconv_signal("entity"; $options) | sort_by(.type);
+
+# Convenience function to extract all entities without any filtering options.
+def semconv_entities: semconv_entities({});
+
+# Groups the processed entities by their root namespace based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable entities and non-stable attributes on stable entities.
+# - exclude_deprecated: a boolean to exclude deprecated entities and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level entity and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable entities instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_grouped_entities($options): semconv_entities($options) | semconv_group_entities_by_root_namespace;
+
+# Convenience function to group all entities by their root namespace without any filtering options.
+def semconv_grouped_entities: semconv_grouped_entities({});

@@ -919,11 +919,13 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
+    use crate::v2::entity::Entity;
     use crate::v2::event::Event;
+    use crate::v2::metric::Metric;
     use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
-    use weaver_semconv::group::SpanKindSpec;
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
     fn prepare_test(
@@ -1000,7 +1002,16 @@ mod tests {
             registry: V2Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
-                metrics: vec![],
+                metrics: vec![Metric {
+                    name: SignalId::from("db.client.operation.duration".to_owned()),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
                 spans: vec![Span {
                     requirement_level: None,
                     r#type: SignalId::from("db.client".to_owned()),
@@ -1021,7 +1032,14 @@ mod tests {
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
-                entities: vec![],
+                entities: vec![Entity {
+                    r#type: SignalId::from("db.client".to_owned()),
+                    identity: vec![],
+                    description: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
             },
             refinements: Refinements {
                 metrics: vec![],
@@ -1595,6 +1613,112 @@ mod tests {
                         "brief": "stable event",
                         "stability": "stable",
                         "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_metrics_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "metrics": [
+                    {
+                        "name": "http.server.request.duration",
+                        "brief": "stable metric",
+                        "stability": "stable",
+                        "instrument": "histogram",
+                        "unit": "s"
+                    },
+                    {
+                        "name": "db.client.connection.count",
+                        "brief": "deprecated metric",
+                        "stability": "stable",
+                        "instrument": "updowncounter",
+                        "unit": "{connection}",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "name": "other.metric",
+                        "brief": "excluded namespace",
+                        "stability": "stable",
+                        "instrument": "counter",
+                        "unit": "1"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_metrics({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_metrics for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "http",
+                "metrics": [
+                    {
+                        "name": "http.server.request.duration",
+                        "brief": "stable metric",
+                        "stability": "stable",
+                        "instrument": "histogram",
+                        "unit": "s",
+                        "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_entities_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "entities": [
+                    {
+                        "type": "host",
+                        "brief": "stable entity",
+                        "stability": "stable"
+                    },
+                    {
+                        "type": "k8s.pod",
+                        "brief": "deprecated entity",
+                        "stability": "stable",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "type": "other.entity",
+                        "brief": "excluded namespace",
+                        "stability": "stable"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_entities({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_entities for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "host",
+                "entities": [
+                    {
+                        "type": "host",
+                        "brief": "stable entity",
+                        "stability": "stable",
+                        "root_namespace": "host",
                         "attributes": null
                     }
                 ]
