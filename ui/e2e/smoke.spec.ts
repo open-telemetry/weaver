@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test'
 
-// Foundational smoke tests: prove the embedded UI is built and interactive
-// against a running `weaver serve` (binary or container). These assume the
-// bundled crates/weaver_live_check/model registry is loaded.
+// App-shell smoke tests (search, stats, API docs) — the pages render.spec.ts
+// doesn't cover. Model-agnostic; run against the same fixture registry.
 
 test('app loads and search renders results', async ({ page }) => {
   // Root redirects to /search (see ui/src/routes/index.tsx).
@@ -27,7 +26,7 @@ test('searching and clicking a result opens a detail page', async ({ page }) => 
 
   await page
     .getByPlaceholder(/Search attributes, metrics, spans/)
-    .fill('finding')
+    .fill('counter')
 
   // Wait for the (debounced) results to settle, then open the first card.
   const firstCard = page.locator('a.card').first()
@@ -61,8 +60,7 @@ test('stats page shows counts and links into filtered search', async ({ page }) 
 test('API docs render the Swagger UI for the OpenAPI spec', async ({ page }) => {
   await page.goto('/api-docs')
 
-  // Swagger UI mounts and the spec loads (also guards that /api/v1/openapi.json
-  // does not crash the server while generating the schema).
+  // Swagger UI mounts and the spec loads.
   await expect(page.locator('.swagger-ui .info .title')).toContainText('Weaver API')
   await expect(page.getByText('Failed to load API definition')).toHaveCount(0)
 
@@ -72,9 +70,8 @@ test('API docs render the Swagger UI for the OpenAPI spec', async ({ page }) => 
 })
 
 test('Schemas section stays toggleable after navigating away and back', async ({ page }) => {
-  // Regression: swagger-ui-react breaks when unmounted/remounted, so the docs are
-  // kept mounted in AppLayout. Navigating away and back (client-side) must not
-  // break the Schemas collapse toggle.
+  // Regression: swagger-ui-react breaks on remount, so docs stay mounted in
+  // AppLayout; navigating away and back must not break the Schemas toggle.
   await page.goto('/api-docs')
 
   const models = page.locator('.swagger-ui section.models')

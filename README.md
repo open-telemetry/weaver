@@ -53,9 +53,19 @@ cd weaver
 cargo build --release
 ```
 
-**GitHub Actions:**
+### GitHub Actions
 
-Use Weaver in your CI/CD workflows with the `setup-weaver` action. See the [setup-weaver documentation](.github/actions/setup-weaver/README.md) or check out [opentelemetry-weaver-examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) for practical CI workflow examples.
+| Action | Purpose |
+| --- | --- |
+| [`setup-weaver`](.github/actions/setup-weaver/README.md) | Install weaver in a CI workflow |
+| [`weaver-live-check-start`](.github/actions/weaver-live-check-start/README.md) | Start a weaver live-check session (OTLP receiver for runtime validation) |
+| [`weaver-live-check-stop`](.github/actions/weaver-live-check-stop/README.md) | Stop the session, collect findings, optionally fail on severity threshold |
+
+See [opentelemetry-weaver-examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) for general CI workflow examples. For live-check CI examples, see:
+
+- [opentelemetry-rust-contrib: tower instrumentation](https://github.com/open-telemetry/opentelemetry-rust-contrib/blob/main/.github/workflows/weaver-live-check-tower.yml)
+- [opentelemetry-rust-contrib: actix instrumentation](https://github.com/open-telemetry/opentelemetry-rust-contrib/blob/main/.github/workflows/weaver-live-check-actix.yml)
+- [otel-arrow: df-engine internal observability](https://github.com/open-telemetry/otel-arrow/blob/main/.github/workflows/df-engine-internal-observability.yml)
 
 ## Usage
 
