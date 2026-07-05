@@ -13,7 +13,7 @@ export const Route = createRoute({
   component: EntityDetail,
 })
 
-function formatType(type: EntityAttribute['r#type']): string {
+function formatType(type: EntityAttribute['type']): string {
   if (typeof type === 'string') return type
   if (type && typeof type === 'object' && 'members' in type) {
     return 'enum'
@@ -120,7 +120,7 @@ function EntityDetail() {
                               {attr.key}
                             </Link>
                           </td>
-                          <td className="font-mono text-sm">{formatType(attr['r#type'])}</td>
+                          <td className="font-mono text-sm">{formatType(attr.type)}</td>
                           <td className="max-w-xs truncate"><InlineMarkdown content={attr.brief || '-'} /></td>
                         </tr>
                       ))}
@@ -153,7 +153,7 @@ function EntityDetail() {
                               {attr.key}
                             </Link>
                           </td>
-                          <td className="font-mono text-sm">{formatType(attr['r#type'])}</td>
+                          <td className="font-mono text-sm">{formatType(attr.type)}</td>
                           <td className="max-w-xs truncate"><InlineMarkdown content={attr.brief || '-'} /></td>
                         </tr>
                       ))}

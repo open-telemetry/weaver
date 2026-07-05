@@ -67,9 +67,10 @@ jobs:
       run: pnpm exec playwright install --with-deps chromium
       working-directory: ./ui
     - name: Start weaver container
+      # Serve the fixture registry so the UI suite runs against the built image.
       run: |
         docker run --init -d --rm --name weaver-smoke -p 8080:8080 \
-          -v "$(pwd)/crates/weaver_live_check/model":/model \
+          -v "$(pwd)/ui/e2e/fixtures/render-registry":/model \
           ${{ env.TEST_WEAVER_TAG }} serve --registry /model --bind 0.0.0.0:8080
         for i in $(seq 1 60); do
           if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
@@ -78,7 +79,7 @@ jobs:
           sleep 1
         done
         echo "weaver container failed to become ready"; docker logs weaver-smoke; exit 1
-    - name: Run UI smoke tests against container
+    - name: Run UI e2e tests against container
       env:
         WEAVER_EXTERNAL_SERVER: "1"
         WEAVER_BASE_URL: http://127.0.0.1:8080

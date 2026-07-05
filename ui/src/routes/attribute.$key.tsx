@@ -134,15 +134,24 @@ function AttributeDetail() {
             <div className="card bg-base-200">
               <div className="card-body">
                 <h2 className="card-title">Examples</h2>
-                {data.examples && data.examples.length > 0 ? (
-                  <ul className="list-disc list-inside">
-                    {data.examples.map((example, index) => (
-                      <li key={index} className="font-mono">{JSON.stringify(example)}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-base-content/70">No examples available.</p>
-                )}
+                {(() => {
+                  // A single example is a bare scalar; normalize to an array.
+                  const examples =
+                    data.examples == null
+                      ? []
+                      : Array.isArray(data.examples)
+                        ? data.examples
+                        : [data.examples]
+                  return examples.length > 0 ? (
+                    <ul className="list-disc list-inside">
+                      {examples.map((example, index) => (
+                        <li key={index} className="font-mono">{JSON.stringify(example)}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-base-content/70">No examples available.</p>
+                  )
+                })()}
               </div>
             </div>
           </div>
