@@ -69,7 +69,8 @@ export interface AttributeResponse {
   brief?: string;
   note?: string;
   type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
-  examples?: unknown[];
+  // A single example is a bare scalar; multiple is an array.
+  examples?: unknown[] | unknown;
 }
 
 export type EntityAssociation =
@@ -79,7 +80,7 @@ export type EntityAssociation =
 
 export interface MetricAttribute {
   key: string;
-  'r#type': string | { members: Array<{ value?: string; id?: string; brief?: string }> };
+  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
   brief?: string;
   requirement_level:
     | 'required'
@@ -155,7 +156,7 @@ export interface EventResponse {
 
 export interface EntityAttribute {
   key: string;
-  'r#type': string | { members: Array<{ value?: string; id?: string; brief?: string }> };
+  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
   brief?: string;
 }
 

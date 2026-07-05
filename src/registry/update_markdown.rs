@@ -140,7 +140,8 @@ pub(crate) fn command(
     let output = {
         let loader =
             FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &target)?;
-        let config = WeaverConfig::try_from_loader(&loader)?;
+        let mut config = WeaverConfig::try_from_loader(&loader)?;
+        crate::registry::apply_template_config(&mut config, cfg);
         OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
     let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);

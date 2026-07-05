@@ -88,10 +88,10 @@ auto-start:
 WEAVER_EXTERNAL_SERVER=1 WEAVER_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e
 ```
 
-| Env var                 | Default                  | Purpose                                          |
-| ----------------------- | ------------------------ | ------------------------------------------------ |
-| `WEAVER_BASE_URL`       | `http://127.0.0.1:8080`  | URL of the UI under test.                         |
-| `WEAVER_EXTERNAL_SERVER`| _(unset)_                | When set, don't auto-start a server.              |
+| Env var                  | Default                 | Purpose                              |
+| ------------------------ | ----------------------- | ------------------------------------ |
+| `WEAVER_BASE_URL`        | `http://127.0.0.1:8080` | URL of the UI under test.            |
+| `WEAVER_EXTERNAL_SERVER` | _(unset)_               | When set, don't auto-start a server. |
 
 ### Watching / debugging
 
@@ -109,7 +109,7 @@ To slow a headed run down, add `launchOptions: { slowMo: 1000 }` under `use` in
 
 ## CI
 
-- **`ci.yml`** (`ui-smoke` job) builds the UI and binary, then runs the suite
+- **`ci.yml`** (`ui-test` job) builds the UI and binary, then runs the suite
   against `cargo run -- serve`.
 - **`publish-docker.yml`** starts the freshly built `otel/weaver` container with
   the live_check model mounted and runs the same suite with

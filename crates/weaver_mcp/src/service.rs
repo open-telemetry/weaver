@@ -1215,4 +1215,428 @@ mod tests {
         assert!(!attr_findings.is_empty());
         assert_eq!(attr_findings[0]["name"], "nonexistent.resource.attr");
     }
+
+    // collect_compact_findings: one match arm per Sample variant.
+
+    #[test]
+    fn test_live_check_findings_only_metric() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "metric": { "name": "nonexistent.metric", "instrument": "gauge", "unit": "1" }
+        }))
+        .expect("metric sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(
+            !findings.is_empty(),
+            "unknown metric should produce findings"
+        );
+        assert_eq!(findings[0]["type"], "metric");
+        assert_eq!(findings[0]["name"], "nonexistent.metric");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_log() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "log": {
+                "event_name": "my.event",
+                "attributes": [{ "name": "nonexistent.log.attr", "value": "x" }]
+            }
+        }))
+        .expect("log sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "log");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.log.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_event() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span_event": {
+                "name": "my.event",
+                "attributes": [{ "name": "nonexistent.evt.attr", "value": "x" }]
+            }
+        }))
+        .expect("span_event sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "span_event");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.evt.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_link() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span_link": {
+                "attributes": [{ "name": "nonexistent.link.attr", "value": "x" }]
+            }
+        }))
+        .expect("span_link sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "span_link");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.link.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_nested_events() {
+        let service = create_test_service();
+
+        // Nested span event: exercises the span_events loop in the Span arm.
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span": {
+                "name": "GET /users",
+                "kind": "server",
+                "attributes": [],
+                "span_events": [
+                    {
+                        "name": "evt",
+                        "attributes": [{ "name": "nonexistent.nested.attr", "value": "x" }]
+                    }
+                ]
+            }
+        }))
+        .expect("span sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        let evt = findings
+            .iter()
+            .find(|f| f["type"] == "span_event")
+            .expect("nested span_event finding entry");
+        let attr_findings = evt["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.nested.attr");
+    }
+
+    #[test]
+    fn test_live_check_reports_live_checker_init_failure() {
+        // A missing preprocessor makes RegoAdvisor::new fail; live_check should
+        // surface that instead of panicking.
+        let registry = Arc::new(make_test_registry());
+        let config = McpConfig {
+            advice_preprocessor: Some(PathBuf::from("/nonexistent/does-not-exist.jq")),
+            ..McpConfig::default()
+        };
+        let service = WeaverMcpService::new(registry, config);
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": "http.request.method", "value": "GET" }
+        }))
+        .expect("attribute sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::Full,
+        };
+
+        let result = service.live_check(Parameters(params));
+        assert!(
+            result.starts_with("Failed to create live checker"),
+            "expected init failure message, got: {result}"
+        );
+    }
+
+    // Custom advice_policies / advice_data wiring, using fixtures under
+    // tests/fixtures/ (custom.rego: a hardcoded rule + a denylist-driven rule).
+
+    fn fixture_path(rel: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(rel)
+    }
+
+    /// Finding ids reported for a named sample in findings_only output.
+    fn finding_ids_for<'a>(parsed: &'a serde_json::Value, name: &str) -> Vec<&'a str> {
+        parsed["findings"]
+            .as_array()
+            .expect("findings array")
+            .iter()
+            .find(|f| f["name"] == name)
+            .map(|entry| {
+                entry["findings"]
+                    .as_array()
+                    .expect("inner findings array")
+                    .iter()
+                    .filter_map(|f| f["id"].as_str())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn run_findings_only(service: &WeaverMcpService, attr_name: &str) -> serde_json::Value {
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": attr_name, "value": "x" }
+        }))
+        .expect("attribute sample should deserialize");
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+        let result = service.live_check(Parameters(params));
+        serde_json::from_str(&result).expect("live_check returns JSON")
+    }
+
+    #[test]
+    fn test_live_check_custom_advice_policies() {
+        // No advice_data: only the hardcoded rule can fire.
+        let registry = Arc::new(make_test_registry());
+        let config = McpConfig {
+            advice_policies: Some(fixture_path("policies")),
+            ..McpConfig::default()
+        };
+        let service = WeaverMcpService::new(registry, config);
+
+        let parsed = run_findings_only(&service, "custom.sentinel");
+        let ids = finding_ids_for(&parsed, "custom.sentinel");
+        assert!(
+            ids.contains(&"custom_sentinel"),
+            "custom policy should fire the sentinel rule, got ids: {ids:?}"
+        );
+    }
+
+    #[test]
+    fn test_live_check_custom_advice_data() {
+        // With the denylist loaded, the data-driven rule fires.
+        let registry = Arc::new(make_test_registry());
+        let config = McpConfig {
+            advice_policies: Some(fixture_path("policies")),
+            advice_data: Some(
+                fixture_path("data/denylist.json")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            ..McpConfig::default()
+        };
+        let service = WeaverMcpService::new(registry, config);
+
+        let parsed = run_findings_only(&service, "custom.blocked");
+        let ids = finding_ids_for(&parsed, "custom.blocked");
+        assert!(
+            ids.contains(&"custom_denylisted"),
+            "denylist data should drive a finding, got ids: {ids:?}"
+        );
+    }
+
+    // Protocol-level tests: a real rmcp client drives the service over an
+    // in-memory transport, exercising JSON-RPC dispatch, tool discovery,
+    // generated schemas, and wire deserialization that method calls bypass.
+
+    use rmcp::model::{CallToolRequestParams, CallToolResult};
+    use rmcp::service::RunningService;
+    use rmcp::{RoleClient, ServiceExt};
+
+    /// Connect a client to the service over an in-memory transport. The server
+    /// task lives until the client is cancelled or dropped.
+    async fn connect_test_client() -> RunningService<RoleClient, ()> {
+        let service = create_test_service();
+        let (server_transport, client_transport) = tokio::io::duplex(4096);
+        let _server_task = tokio::spawn(async move {
+            if let Ok(server) = service.serve(server_transport).await {
+                let _ = server.waiting().await;
+            }
+        });
+        ().serve(client_transport)
+            .await
+            .expect("client should initialize")
+    }
+
+    /// Extract the text payload from a tool call result.
+    fn tool_text(result: &CallToolResult) -> String {
+        result
+            .content
+            .iter()
+            .find_map(|c| c.as_text().map(|t| t.text.clone()))
+            .expect("tool result should contain text content")
+    }
+
+    /// Convert a JSON value into a tool-call arguments object.
+    fn args(value: serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
+        value
+            .as_object()
+            .expect("arguments must be a JSON object")
+            .clone()
+    }
+
+    #[tokio::test]
+    async fn test_protocol_list_tools_exposes_all_eight() {
+        let client = connect_test_client().await;
+        let tools = client.list_all_tools().await.expect("list_tools");
+
+        let names: std::collections::BTreeSet<&str> =
+            tools.iter().map(|t| t.name.as_ref()).collect();
+        for expected in [
+            "search",
+            "get_attribute",
+            "get_metric",
+            "get_span",
+            "get_event",
+            "get_entity",
+            "live_check",
+            "browse_namespace",
+        ] {
+            assert!(names.contains(expected), "missing tool: {expected}");
+        }
+        assert_eq!(tools.len(), 8, "expected exactly 8 tools");
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_get_span_schema_renames_type() {
+        // The advertised schema must expose `type`, not the Rust field
+        // `span_type` (rename) — only observable at the protocol layer.
+        let client = connect_test_client().await;
+        let tools = client.list_all_tools().await.expect("list_tools");
+
+        let span = tools
+            .iter()
+            .find(|t| t.name == "get_span")
+            .expect("get_span tool present");
+        let props = span
+            .input_schema
+            .get("properties")
+            .and_then(|p| p.as_object())
+            .expect("input schema has properties");
+        assert!(props.contains_key("type"), "schema should expose 'type'");
+        assert!(
+            !props.contains_key("span_type"),
+            "schema should not leak the Rust field name"
+        );
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_call_search() {
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("search")
+                    .with_arguments(args(json!({ "query": "http" }))),
+            )
+            .await
+            .expect("call_tool search");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("search returns JSON");
+        assert!(parsed.get("results").is_some());
+        assert!(parsed.get("total").is_some());
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_call_get_span_deserializes_type_argument() {
+        // `{"type": ...}` must deserialize into the renamed `span_type` field.
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("get_span")
+                    .with_arguments(args(json!({ "type": "http.client" }))),
+            )
+            .await
+            .expect("call_tool get_span");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("get_span returns JSON");
+        assert_eq!(parsed["type"], "http.client");
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_call_live_check_findings_only() {
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("live_check").with_arguments(args(json!({
+                    "samples": [{ "attribute": { "name": "nonexistent.attr", "value": "x" } }],
+                    "output": "findings_only"
+                }))),
+            )
+            .await
+            .expect("call_tool live_check");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("live_check returns JSON");
+        assert_eq!(parsed["total_samples_checked"], 1);
+        assert_eq!(parsed["samples_with_findings"], 1);
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_unknown_tool_is_rejected() {
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(CallToolRequestParams::new("does_not_exist"))
+            .await;
+
+        match result {
+            Err(_) => {}
+            Ok(r) => assert_eq!(r.is_error, Some(true), "unknown tool should not succeed"),
+        }
+
+        let _ = client.cancel().await.expect("cancel");
+    }
 }

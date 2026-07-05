@@ -207,6 +207,16 @@ pub(crate) struct TemplateConfig {
     /// disable escaping for sections.
     #[serde(default)]
     pub(crate) auto_escape: AutoEscapeMode,
+    /// An optional JQ expression gating whether this template is applied.
+    /// Like `filter`, it is evaluated against the resolved registry, with the
+    /// template parameters exposed as JQ variables under `$params` (e.g.
+    /// `$params.gen_readme == true`). It must evaluate to a single boolean:
+    /// `true` applies the template, `false` skips it. Any other output — a
+    /// non-boolean value or an empty stream (e.g. `.groups[] | select(...)`
+    /// matching nothing) — is an error, so use `any(...)`/`all(...)` or an
+    /// explicit comparison to produce a boolean. When absent, the template is
+    /// always applied.
+    pub(crate) when: Option<String>,
 }
 
 fn default_filter() -> String {
@@ -669,6 +679,43 @@ impl WeaverConfig {
             self.acronyms = child.acronyms;
         }
     }
+
+    /// Merge additional acronyms from a higher-precedence source, such as the
+    /// project-level `.weaver.toml` `[template]` section, into the template
+    /// package's own acronyms (from `weaver.yaml`).
+    ///
+    /// On a case-insensitive collision the toml file wins.
+    pub fn merge_acronyms(&mut self, acronyms: Option<Vec<String>>) {
+        let Some(incoming) = acronyms else {
+            return;
+        };
+        let mut merged = self.acronyms.take().unwrap_or_default();
+        for acronym in incoming {
+            let acronym_lower = acronym.to_lowercase();
+            match merged
+                .iter_mut()
+                .find(|existing| existing.to_lowercase() == acronym_lower)
+            {
+                Some(existing) => *existing = acronym,
+                None => merged.push(acronym),
+            }
+        }
+        self.acronyms = Some(merged);
+    }
+
+    /// Merge additional `text_maps` from a higher-precedence source, such as the
+    /// project-level `.weaver.toml` `[template]` section, into the template
+    /// package's own `text_maps` (from `weaver.yaml`).
+    ///
+    /// On a name conflict the incoming (toml) map replaces the yaml.
+    pub fn merge_text_maps(&mut self, text_maps: Option<HashMap<String, HashMap<String, String>>>) {
+        let Some(incoming) = text_maps else {
+            return;
+        };
+        self.text_maps
+            .get_or_insert_with(HashMap::new)
+            .extend(incoming);
+    }
 }
 
 #[cfg(test)]
@@ -958,6 +1005,116 @@ mod tests {
         let local: WeaverConfig = serde_yaml::from_str("acronyms: []").unwrap();
         parent.override_with(local);
         assert_eq!(parent.acronyms, Some(vec![]));
+    }
+
+    #[test]
+    fn test_merge_acronyms() {
+        // Project acronyms are unioned with the package's, project ones appended.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec!["HTTP".to_owned(), "SDK".to_owned()]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec![
+                "iOS".to_owned(),
+                "API".to_owned(),
+                "URL".to_owned(),
+                "HTTP".to_owned(),
+                "SDK".to_owned(),
+            ])
+        );
+
+        // No project acronyms (None) keeps the package's acronyms untouched.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(None);
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
+        );
+
+        // An empty project list adds nothing, leaving the package list intact.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec![]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
+        );
+
+        // Merging into a config with no package acronyms yields the project list.
+        let mut config = WeaverConfig::default();
+        config.merge_acronyms(Some(vec!["API".to_owned()]));
+        assert_eq!(config.acronyms, Some(vec!["API".to_owned()]));
+
+        // On a case-insensitive collision the project casing wins, in place.
+        let mut config: WeaverConfig = serde_yaml::from_str("acronyms: ['api', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec!["API".to_owned(), "SDK".to_owned()]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["API".to_owned(), "URL".to_owned(), "SDK".to_owned()])
+        );
+    }
+
+    #[test]
+    fn test_merge_text_maps() {
+        use std::collections::HashMap;
+
+        fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect()
+        }
+
+        // No incoming (None) leaves the package's text_maps untouched.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+        config.merge_text_maps(None);
+        assert_eq!(
+            config.text_maps,
+            Some([("type_mapping".to_owned(), map(&[("int", "int64")]))].into())
+        );
+
+        // A named map only the project defines is added; the package's other
+        // named maps are kept.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+        config.merge_text_maps(Some(
+            [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some(
+                [
+                    ("type_mapping".to_owned(), map(&[("int", "int64")])),
+                    ("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")])),
+                ]
+                .into()
+            )
+        );
+
+        // On a name conflict the project's map replaces the package's wholesale
+        // (inner entries are not merged: `str` is dropped).
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64, str: string}}").unwrap();
+        config.merge_text_maps(Some(
+            [("type_mapping".to_owned(), map(&[("int", "i64")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some([("type_mapping".to_owned(), map(&[("int", "i64")]))].into())
+        );
+
+        // Merging into a config with no text_maps yields the project's maps.
+        let mut config = WeaverConfig::default();
+        config.merge_text_maps(Some(
+            [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some([("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into())
+        );
     }
 
     #[test]
