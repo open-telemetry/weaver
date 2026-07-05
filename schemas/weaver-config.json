@@ -455,6 +455,37 @@
         }
       }
     },
+    "template": {
+      "description": "Project-level template settings shared across all template packages.\n\nA value left unset (`None`) does not override the package configuration;\nthe package's own `weaver.yaml` value is kept.",
+      "type": "object",
+      "properties": {
+        "acronyms": {
+          "description": "List of acronyms treated as unmodifiable words during case conversion.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        },
+        "text_maps": {
+          "description": "Named text mappings used by the `map_text` filter (e.g. a\n`namespace_mapping` from `CICD` to `CI/CD`).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "default": null
+        }
+      }
+    },
     "update-markdown": {
       "description": "Update Jinja-marker sections inside Markdown files from a resolved registry.",
       "type": "object",

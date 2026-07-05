@@ -217,6 +217,19 @@ pub enum Error {
         details: Vec<FilterErrorDetail>,
     },
 
+    /// A template's `when` clause did not evaluate to a single boolean.
+    #[error(
+        "The `when` clause `{when}` must evaluate to a single boolean (`true` or `false`), but it produced `{actual}`. \
+         Wrap the expression so it yields a boolean, e.g. use `any(...)`/`all(...)` or an explicit comparison \
+         (`.groups | any(.id == \"foo\")` instead of `.groups[] | select(.id == \"foo\")`)."
+    )]
+    WhenClauseNotBoolean {
+        /// The `when` expression that was evaluated.
+        when: String,
+        /// The JSON value the expression produced, for diagnostics.
+        actual: String,
+    },
+
     /// Import JQ package error.
     #[error("Import JQ package '{package}' failed: {error}")]
     ImportError {

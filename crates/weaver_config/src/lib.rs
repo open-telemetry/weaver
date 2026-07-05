@@ -14,6 +14,7 @@ pub mod effective;
 pub mod live_check;
 mod overrides;
 pub mod registry;
+pub mod template;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
@@ -24,6 +25,7 @@ pub use effective::{
 pub use live_check::{FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig};
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+pub use template::TemplateConfig;
 pub use weaver_common::http_auth::TokenSource;
 // Re-export the WeaverCommand derive macro and the weaver_command attribute
 // macro so command files only need `use weaver_config::{WeaverCommand, weaver_command}`.
@@ -43,6 +45,9 @@ pub struct WeaverConfig {
     pub policy: PolicyConfig,
     /// Shared diagnostic output settings (apply to all subcommands that accept them).
     pub diagnostics: DiagnosticsConfig,
+    /// Project-level template settings applied on top of every template package
+    /// used by the project, layering over the package's own `weaver.yaml`.
+    pub template: TemplateConfig,
     /// Per-URL HTTP authentication entries for downloading remote registries.
     pub auth: Vec<AuthEntry>,
     /// Per-command configuration sections, stored as raw TOML values.
