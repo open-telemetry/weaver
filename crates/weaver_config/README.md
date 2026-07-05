@@ -30,6 +30,13 @@ skip = true
 [diagnostics]
 format = "ansi"   # ansi | json | gh_workflow_command
 
+# Shared template settings — applied on top of every template package's `weaver.yaml`.
+[template]
+acronyms = ["API", "HTTP", "SDK", "iOS"] 
+
+[template.text_maps.namespace_mapping]
+CICD = "CI/CD"
+
 # Per-command sections — each matches the CLI subcommand name.
 [emit]
 stdout = true
