@@ -125,11 +125,12 @@ pub(crate) fn command(
         }
     })?;
     let loader = FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &target)?;
-    let config = if let Some(paths) = &args.config {
+    let mut config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)
     } else {
         WeaverConfig::try_from_path(loader.root())
     }?;
+    crate::registry::apply_template_config(&mut config, cfg);
     let mut output = OutputProcessor::from_template_config(
         config,
         loader,

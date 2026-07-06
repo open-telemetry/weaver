@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{
-    AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, WeaverConfig,
+    AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, TemplateConfig,
+    WeaverConfig,
 };
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
@@ -26,6 +27,7 @@ struct WeaverConfigSchema {
     pub registry: RegistryConfig,
     pub policy: PolicyConfig,
     pub diagnostics: DiagnosticsConfig,
+    pub template: TemplateConfig,
     pub auth: Vec<AuthEntry>,
     pub check: super::check::CheckConfig,
     pub diff: super::diff::DiffConfig,

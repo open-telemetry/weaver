@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
+- Add `semconv_grouped_entities` JQ helper. ([#1560](https://github.com/open-telemetry/weaver/pull/1560) by @lmolkova)
+- Add optional `when` clause to template entries in `weaver.yaml` — a JQ expression that gates whether a template is applied. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
+- Add `[template]` section to `.weaver.toml` with `acronyms` and `text_maps`, applied on top of every template's `weaver.yaml`. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
 - Add optional `name` field to `SpanRefinement` in v2 syntax, and fix span name propagation so refinements (and imported spans) inherit the base span's `name` when they don't override it. ([#1403](https://github.com/open-telemetry/weaver/pull/1403) by @lmolkova)
 - Fix `registry update-markdown` so it does not require `registry` subdirectory matching `registry generate` behavior. ([#1544](https://github.com/open-telemetry/weaver/pull/1544) by @lmolkova)
 - Live-check: support loading additional Rego data from glob patterns via `--advice-data`. ([#1539](https://github.com/open-telemetry/weaver/pull/1539) by @lmolkova).

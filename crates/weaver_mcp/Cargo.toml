@@ -25,3 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 miette.workspace = true
 log.workspace = true
+
+[dev-dependencies]
+# Enables the in-memory rmcp client used by the protocol-level tests.
+rmcp = { version = "1.0", features = ["client"] }

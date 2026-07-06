@@ -182,7 +182,9 @@ For convenience, Weaver provides pre-built helper filters for common operations:
 
 - **`semconv_grouped_attributes`** - Groups attributes by root namespace (e.g., `http`, `db`)
 - **`semconv_grouped_metrics`** - Groups metrics by root namespace
+- **`semconv_grouped_spans`** - Groups spans by root namespace
 - **`semconv_grouped_events`** - Groups events by root namespace
+- **`semconv_grouped_entities`** - Groups entities by root namespace
 
 ### Filter Options
 

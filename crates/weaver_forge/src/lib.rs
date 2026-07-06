@@ -343,6 +343,11 @@ impl TemplateEngine {
             for template in tmpl_matcher.matches(file_to_process.clone()) {
                 let yaml_params = Self::init_params(template.params.clone())?;
                 let params = Self::prepare_jq_context(&yaml_params)?;
+
+                if !self.evaluate_when(template, &context, &params)? {
+                    continue;
+                }
+
                 let filter = Filter::new(template.filter.as_str());
                 let filtered_result = filter.apply(context.clone(), &params)?;
 
@@ -451,6 +456,43 @@ impl TemplateEngine {
         handle_errors(errs)
     }
 
+    /// Evaluate a template's optional `when` JQ expression.
+    ///
+    /// The expression is evaluated against the same context as the template's
+    /// `filter` (the resolved registry), with the template parameters exposed as
+    /// JQ variables — namespaced under `$params` (e.g. `$params.gen_readme ==
+    /// true`). The expression must evaluate to a single boolean: `true` applies
+    /// the template, `false` skips it. Any other output — including an empty
+    /// stream (`[]`) or a non-boolean value — is a hard error, so an expression
+    /// like `.groups[] | select(...)` that matches nothing is rejected rather
+    /// than silently treated as truthy. Wrap such expressions in `any(...)` /
+    /// `all(...)` or an explicit comparison to yield a boolean. A template
+    /// without a `when` clause is always applied. A malformed or failing
+    /// expression is also a hard error.
+    fn evaluate_when(
+        &self,
+        template: &TemplateConfig,
+        context: &serde_json::Value,
+        params: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<bool, Error> {
+        let Some(when) = template.when.as_deref() else {
+            return Ok(true);
+        };
+
+        let result = jq::execute_jq(context, when, params)?;
+        match result {
+            serde_json::Value::Bool(true) => Ok(true),
+            serde_json::Value::Bool(false) => {
+                log::debug!("Skipping template: `when` clause `{when}` is not met");
+                Ok(false)
+            }
+            other => Err(Error::WhenClauseNotBoolean {
+                when: when.to_owned(),
+                actual: other.to_string(),
+            }),
+        }
+    }
+
     /// Process a single template file with the given template configuration,
     /// context, output directory, and output directive.
     fn process_template(
@@ -467,6 +509,14 @@ impl TemplateEngine {
 
         let yaml_params = Self::init_params(template.params.clone())?;
         let params = Self::prepare_jq_context(&yaml_params)?;
+
+        // A template with a `when` clause is only applied when the JQ expression
+        // evaluates to `true`. Evaluated before filtering so a skipped template
+        // does no work.
+        if !self.evaluate_when(template, context, &params)? {
+            return Ok(());
+        }
+
         let filter = Filter::new(template.filter.as_str());
         let filtered_result = filter.apply(context.clone(), &params)?;
 
@@ -865,14 +915,17 @@ mod tests {
         ApplicationMode, AutoEscapeMode, CaseConvention, Params, TemplateConfig, WeaverConfig,
     };
     use crate::debug::print_dedup_errors;
+    use crate::error::Error;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
+    use crate::v2::entity::Entity;
     use crate::v2::event::Event;
+    use crate::v2::metric::Metric;
     use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
-    use weaver_semconv::group::SpanKindSpec;
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
     fn prepare_test(
@@ -949,7 +1002,16 @@ mod tests {
             registry: V2Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
-                metrics: vec![],
+                metrics: vec![Metric {
+                    name: SignalId::from("db.client.operation.duration".to_owned()),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
                 spans: vec![Span {
                     requirement_level: None,
                     r#type: SignalId::from("db.client".to_owned()),
@@ -970,7 +1032,14 @@ mod tests {
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
-                entities: vec![],
+                entities: vec![Entity {
+                    r#type: SignalId::from("db.client".to_owned()),
+                    identity: vec![],
+                    description: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
             },
             refinements: Refinements {
                 metrics: vec![],
@@ -1133,6 +1202,7 @@ mod tests {
             params: None,
             file_name: None,
             auto_escape: AutoEscapeMode::None,
+            when: None,
         });
         engine.target_config.templates = Some(templates);
 
@@ -1173,6 +1243,143 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_when() {
+        use std::collections::BTreeMap;
+
+        let (engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let context = serde_json::to_value(&registry).expect("Failed to serialize registry");
+
+        let template = |when: Option<&str>| TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: when.map(str::to_owned),
+        };
+
+        let no_params = BTreeMap::new();
+
+        // No `when` clause -> always applied.
+        assert!(engine
+            .evaluate_when(&template(None), &context, &no_params)
+            .unwrap());
+
+        // Boolean constant expressions apply/skip the template.
+        assert!(engine
+            .evaluate_when(&template(Some("true")), &context, &no_params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(&template(Some("false")), &context, &no_params)
+            .unwrap());
+
+        // Non-boolean outputs are a hard error rather than being coerced.
+        // `null`, an empty stream (`[]`) such as `.groups[] | select(...)`
+        // matching nothing, and plain values must all be rejected.
+        for expr in [
+            "null",
+            "1",
+            "\"yes\"",
+            ".groups[] | select(.id == \"nope\")",
+        ] {
+            assert!(
+                matches!(
+                    engine.evaluate_when(&template(Some(expr)), &context, &no_params),
+                    Err(Error::WhenClauseNotBoolean { .. })
+                ),
+                "expected `when` expression `{expr}` to be rejected as non-boolean"
+            );
+        }
+
+        // Expression referencing template params exposed under `$params`.
+        let params = TemplateEngine::prepare_jq_context(
+            &TemplateEngine::init_params(Some(BTreeMap::from([(
+                "gen_readme".to_owned(),
+                serde_yaml::Value::Bool(true),
+            )])))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(engine
+            .evaluate_when(&template(Some("$params.gen_readme")), &context, &params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(
+                &template(Some("$params.gen_readme | not")),
+                &context,
+                &params
+            )
+            .unwrap());
+
+        // A malformed expression is a hard error.
+        assert!(engine
+            .evaluate_when(
+                &template(Some("this is not valid jq (")),
+                &context,
+                &no_params
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn test_generate_skips_template_when_false() {
+        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+
+        // A single template gated on a constant-false `when` clause must be
+        // skipped entirely, producing no output file.
+        engine.target_config.templates = Some(vec![TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: Some("converter.md".to_owned()),
+            auto_escape: AutoEscapeMode::None,
+            when: Some("false".to_owned()),
+        }]);
+
+        let output = tempfile::tempdir().expect("Failed to create temp dir");
+        engine
+            .generate(&registry, output.path(), &OutputDirective::File)
+            .expect("Failed to generate registry assets");
+
+        assert!(
+            !output.path().join("converter.md").exists(),
+            "template gated on a false `when` clause must be skipped"
+        );
+    }
+
+    #[test]
+    fn test_generate_to_string_skips_template_when_false() {
+        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+
+        let template = |when: &str| TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: Some(when.to_owned()),
+        };
+
+        // With a `when` that evaluates to `true`, string generation renders the template.
+        engine.target_config.templates = Some(vec![template("true")]);
+        let rendered = engine
+            .generate_to_string(&registry)
+            .expect("generate_to_string should succeed");
+        assert!(!rendered.is_empty(), "`when: true` should render output");
+
+        // With a `when` that evaluates to `false`, the same template is skipped
+        // and produces nothing.
+        engine.target_config.templates = Some(vec![template("false")]);
+        let skipped = engine
+            .generate_to_string(&registry)
+            .expect("generate_to_string should succeed");
+        assert!(skipped.is_empty(), "`when: false` should skip output");
     }
 
     #[test]
@@ -1406,6 +1613,112 @@ mod tests {
                         "brief": "stable event",
                         "stability": "stable",
                         "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_metrics_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "metrics": [
+                    {
+                        "name": "http.server.request.duration",
+                        "brief": "stable metric",
+                        "stability": "stable",
+                        "instrument": "histogram",
+                        "unit": "s"
+                    },
+                    {
+                        "name": "db.client.connection.count",
+                        "brief": "deprecated metric",
+                        "stability": "stable",
+                        "instrument": "updowncounter",
+                        "unit": "{connection}",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "name": "other.metric",
+                        "brief": "excluded namespace",
+                        "stability": "stable",
+                        "instrument": "counter",
+                        "unit": "1"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_metrics({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_metrics for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "http",
+                "metrics": [
+                    {
+                        "name": "http.server.request.duration",
+                        "brief": "stable metric",
+                        "stability": "stable",
+                        "instrument": "histogram",
+                        "unit": "s",
+                        "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_entities_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "entities": [
+                    {
+                        "type": "host",
+                        "brief": "stable entity",
+                        "stability": "stable"
+                    },
+                    {
+                        "type": "k8s.pod",
+                        "brief": "deprecated entity",
+                        "stability": "stable",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "type": "other.entity",
+                        "brief": "excluded namespace",
+                        "stability": "stable"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_entities({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_entities for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "host",
+                "entities": [
+                    {
+                        "type": "host",
+                        "brief": "stable entity",
+                        "stability": "stable",
+                        "root_namespace": "host",
                         "attributes": null
                     }
                 ]
