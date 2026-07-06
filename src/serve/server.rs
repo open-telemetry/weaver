@@ -24,7 +24,7 @@ use weaver_forge::v2::{
 use weaver_semconv::stability::Stability;
 
 use super::handlers;
-use super::types::{RegistryCounts, RegistryStats, SearchResponse};
+use super::types::SearchResponse;
 use super::ui::UI_DIST;
 use weaver_search::{ScoredResult, SearchContext, SearchResult, SearchType};
 
@@ -34,6 +34,8 @@ pub struct AppState {
     pub registry: ForgeResolvedRegistry,
     /// Pre-built search context for fast lookups.
     pub search_ctx: SearchContext,
+    /// Full registry statistics, serialized once at startup and served verbatim.
+    pub stats_json: String,
 }
 
 /// Error type for server operations.
@@ -45,11 +47,25 @@ pub enum Error {
         /// The error message.
         error: String,
     },
+    /// JSON serialization error
+    #[error("Serialization error: {error}")]
+    Serialization {
+        /// The error message.
+        error: String,
+    },
 }
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::Io {
+            error: err.to_string(),
+        }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::Serialization {
             error: err.to_string(),
         }
     }
@@ -85,8 +101,6 @@ impl From<std::io::Error> for Error {
     ),
     components(
         schemas(
-            RegistryStats,
-            RegistryCounts,
             SearchType,
             SearchResponse,
             SearchResult,
@@ -122,10 +136,12 @@ async fn openapi_spec() -> Json<utoipa::openapi::OpenApi> {
 ///
 /// * `bind_addr` - The address to bind the server to.
 /// * `registry` - The resolved V2 registry to serve.
+/// * `stats_json` - Full registry statistics, pre-serialized to JSON at startup.
 /// * `cors_origins` - Optional CORS origins. Use "*" for any origin, comma-separated for specific origins, or None for no CORS.
 pub async fn run_server(
     bind_addr: SocketAddr,
     registry: ForgeResolvedRegistry,
+    stats_json: String,
     cors_origins: Option<&str>,
 ) -> Result<(), Error> {
     // Build search context once at startup
@@ -134,6 +150,7 @@ pub async fn run_server(
     let state = Arc::new(AppState {
         registry,
         search_ctx,
+        stats_json,
     });
 
     let mut app = Router::new()

@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../../../schemas/semconv.schema.v2.json
+file_format: definition/2
+
+# Attributes only — deliberately no metrics, spans, events, or entities so the
+# stats dashboard has empty sections to hide. See e2e/empty-sections.spec.ts.
+attributes:
+  - key: attronly.string
+    type: string
+    brief: A stable string attribute.
+    stability: stable
+    examples: "example"
+
+  - key: attronly.int
+    type: int
+    brief: A development int attribute.
+    stability: development
+    examples: 1

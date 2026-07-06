@@ -17,7 +17,7 @@ use weaver_forge::run_filter_raw;
 use crate::serve::types::FilterParams;
 
 use super::server::AppState;
-use super::types::{RegistryCounts, RegistryStats, SearchParams, SearchResponse};
+use super::types::{SearchParams, SearchResponse};
 
 /// Health check.
 #[utoipa::path(
@@ -78,30 +78,25 @@ pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
 }
 
 /// Get statistics for the registry.
+///
+/// Returns the full `weaver registry stats` output: counts, and type/stability/
+/// instrument/unit/span-kind breakdowns plus deprecation and documentation coverage.
 #[utoipa::path(
     get,
     path = "/api/v1/registry/stats",
     responses(
-        (status = 200, description = "Registry stats", body = RegistryStats)
+        (status = 200, description = "Registry stats", content_type = "application/json")
     ),
     tag = "registry"
 )]
 pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let registry = &state.registry;
-
-    let stats = RegistryStats {
-        schema_url: registry.schema_url.to_string(),
-        counts: RegistryCounts {
-            attributes: registry.registry.attributes.len(),
-            metrics: registry.registry.metrics.len(),
-            spans: registry.registry.spans.len(),
-            events: registry.registry.events.len(),
-            entities: registry.registry.entities.len(),
-            attribute_groups: registry.registry.attribute_groups.len(),
-        },
-    };
-
-    Json(stats)
+    // The stats are static for the life of the process, so they are serialized
+    // once at startup and served verbatim here.
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        state.stats_json.clone(),
+    )
 }
 
 /// Get an attribute by key.
