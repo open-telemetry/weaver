@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Add a stats dashboard with charts to the `serve` UI. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @jerbly)
+- Add a stats dashboard with charts to the `serve` UI. ([#1570](https://github.com/open-telemetry/weaver/pull/1570) by @jerbly)
 - Add `semconv_grouped_entities` JQ helper. ([#1560](https://github.com/open-telemetry/weaver/pull/1560) by @lmolkova)
 - Add optional `when` clause to template entries in `weaver.yaml` — a JQ expression that gates whether a template is applied. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
 - Add `[template]` section to `.weaver.toml` with `acronyms` and `text_maps`, applied on top of every template's `weaver.yaml`. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
