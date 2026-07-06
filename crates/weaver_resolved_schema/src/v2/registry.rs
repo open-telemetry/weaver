@@ -388,4 +388,48 @@ mod test {
         assert_eq!(stats.events.common.total_with_note, 0);
         assert_eq!(stats.events.event_names.len(), 0);
     }
+
+    #[test]
+    fn test_stats_empty_registry() {
+        // A registry with no signals of any kind must still produce zeroed stats
+        // without panicking (e.g. no division-by-zero, empty breakdown maps).
+        let catalog: Vec<Attribute> = vec![];
+        let registry = Registry {
+            attribute_groups: vec![],
+            spans: vec![],
+            metrics: vec![],
+            events: vec![],
+            entities: vec![],
+            attributes: vec![],
+        };
+        let stats = registry.stats(&catalog);
+
+        assert_eq!(stats.attributes.attribute_count, 0);
+        assert!(stats.attributes.attribute_type_breakdown.is_empty());
+        assert!(stats.attributes.stability_breakdown.is_empty());
+        assert_eq!(stats.attributes.deprecated_count, 0);
+
+        assert_eq!(stats.metrics.common.count, 0);
+        assert_eq!(stats.metrics.common.deprecated_count, 0);
+        assert_eq!(stats.metrics.common.total_with_note, 0);
+        assert!(stats.metrics.common.stability_breakdown.is_empty());
+        assert!(stats.metrics.metric_names.is_empty());
+        assert!(stats.metrics.instrument_breakdown.is_empty());
+        assert!(stats.metrics.unit_breakdown.is_empty());
+
+        assert_eq!(stats.spans.common.count, 0);
+        assert!(stats.spans.span_kind_breakdown.is_empty());
+
+        assert_eq!(stats.events.common.count, 0);
+        assert!(stats.events.event_names.is_empty());
+
+        assert_eq!(stats.entities.common.count, 0);
+        assert!(stats.entities.entity_types.is_empty());
+        assert!(stats
+            .entities
+            .entity_identity_length_distribution
+            .is_empty());
+
+        assert_eq!(stats.attribute_groups.common.count, 0);
+    }
 }
