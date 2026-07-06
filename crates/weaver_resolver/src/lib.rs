@@ -1369,4 +1369,29 @@ groups:
             Err(e) => panic!("expected CompoundError, got {e:?}"),
         }
     }
+
+    #[test]
+    fn test_diamond_dependency_attribute_conflict() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/diamond-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        // Verify that conflict_attr from registry_c v1.2 was selected
+        // because it has a higher version than v1.1.
+        let (attr, _) = resolved
+            .catalog
+            .root_attribute("conflict_attr")
+            .expect("conflict_attr not found in catalog");
+
+        assert_eq!(attr.brief, "Attribute from C v1.2");
+        Ok(())
+    }
 }

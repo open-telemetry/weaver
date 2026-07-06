@@ -15,6 +15,7 @@ use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
@@ -106,6 +107,14 @@ impl ResolvedDependency {
     }
 }
 
+/// A group with its source provenance.
+pub struct GroupWithProvenance {
+    /// The group definition.
+    pub group: Group,
+    /// The schema URL of the registry it came from.
+    pub schema_url: SchemaUrl,
+}
+
 /// Allows importing dependencies
 pub(crate) trait ImportableDependency {
     /// Imports groups from the given dependency using the flags provided.
@@ -113,7 +122,7 @@ pub(crate) trait ImportableDependency {
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error>;
+    ) -> Result<Vec<GroupWithProvenance>, Error>;
 }
 
 impl ImportableDependency for V1Schema {
@@ -121,7 +130,7 @@ impl ImportableDependency for V1Schema {
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         let explicit_imports: Vec<&ImportsWithProvenance> = imports
             .iter()
             .filter(|i| i.provenance.path != "--include-unreferenced")
@@ -223,7 +232,14 @@ impl ImportableDependency for V1Schema {
         };
 
         let mut exclusion_errors: Vec<Error> = vec![];
-        let mut result: Vec<Group> = vec![];
+        let mut result: Vec<GroupWithProvenance> = vec![];
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| {
+            Error::InvalidUrl {
+                url: self.schema_url.to_string(),
+                error: e,
+            }
+        })?;
+
         for g in self.registry.groups.iter() {
             let matched_explicitly = matches_explicitly(g);
             let matched_by_any = matches_by_any(g);
@@ -250,15 +266,82 @@ impl ImportableDependency for V1Schema {
                 .iter()
                 .filter_map(|ar| self.catalog().attribute(ar))
             {
-                attributes.push(attribute_catalog.attribute_ref(a.clone()));
+                let source = find_attribute_source(self, &a.name, &my_schema_url);
+                let ar = attribute_catalog.attribute_ref_with_provenance(a.clone(), source)?;
+                attributes.push(ar);
             }
             g.attributes = attributes;
-            result.push(g);
+            result.push(GroupWithProvenance {
+                group: g,
+                schema_url: my_schema_url.clone(),
+            });
         }
         if !exclusion_errors.is_empty() {
             return Err(Error::CompoundError(exclusion_errors));
         }
         Ok(result)
+    }
+}
+
+/// Finds the attribute source for a V1 attribute.
+fn find_attribute_source(
+    schema: &V1Schema,
+    attr_name: &str,
+    my_schema_url: &SchemaUrl,
+) -> AttributeSource {
+    if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
+        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            schema.registry.groups.iter().find(|g| {
+                if let Some(prov) = g.provenance() {
+                    prov.schema_url.name() == schema_name
+                } else {
+                    false
+                }
+            })
+        } else {
+            schema
+                .registry
+                .groups
+                .iter()
+                .find(|g| g.id == *source_group_id)
+        };
+        if let Some(group) = group {
+            if let Some(prov) = group.provenance() {
+                AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                }
+            } else {
+                AttributeSource::Dependency {
+                    schema_url: my_schema_url.clone(),
+                }
+            }
+        } else {
+            AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            }
+        }
+    } else {
+        // Fallback: search in all groups to find where this attribute came from
+        schema
+            .registry
+            .groups
+            .iter()
+            .find(|group| {
+                group.attributes.iter().any(|ar| {
+                    schema
+                        .catalog()
+                        .attribute(ar)
+                        .map_or(false, |attr| attr.name == attr_name)
+                })
+            })
+            .and_then(|group| {
+                group.provenance().map(|prov| AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                })
+            })
+            .unwrap_or_else(|| AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            })
     }
 }
 
@@ -324,7 +407,7 @@ impl ImportableDependency for V2Schema {
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
         let mut exclusion_errors: Vec<Error> = vec![];
 
@@ -336,6 +419,24 @@ impl ImportableDependency for V2Schema {
                 self.schema_url.clone()
             };
             weaver_semconv::provenance::Provenance::new(url, &prov.path)
+        };
+
+        // Helper to get attribute source based on provenance.
+        let get_attribute_source = |attr: &weaver_resolved_schema::v2::attribute::Attribute| -> AttributeSource {
+            if let Some(dep_ref) = &attr.provenance.source {
+                AttributeSource::Dependency {
+                    schema_url: self
+                        .dependencies
+                        .iter()
+                        .nth(dep_ref.0 as usize)
+                        .cloned()
+                        .unwrap_or_else(|| self.schema_url.clone()),
+                }
+            } else {
+                AttributeSource::Dependency {
+                    schema_url: self.schema_url.clone(),
+                }
+            }
         };
 
         let explicit_imports: Vec<&ImportsWithProvenance> = imports
@@ -428,12 +529,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                )?);
             }
             result.push(Group {
                 id: m.id().to_owned(),
@@ -494,12 +594,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                )?);
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -561,16 +660,15 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(
                         attr,
                         ar.requirement_level.clone(),
                         Some(AttributeRole::Identifying),
                     ),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                )?);
             }
             for ar in e.description.iter() {
                 // TODO - this should be non-panic errors.
@@ -580,16 +678,15 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(
                         attr,
                         ar.requirement_level.clone(),
                         Some(AttributeRole::Descriptive),
                     ),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                )?);
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -650,12 +747,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                )?);
             }
             result.push(Group {
                 id: s.id().to_owned(),
@@ -716,12 +812,11 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, RequirementLevel::default(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                )?);
             }
             result.push(Group {
                 id: ag.id().to_owned(),
@@ -753,7 +848,13 @@ impl ImportableDependency for V2Schema {
         if !exclusion_errors.is_empty() {
             return Err(Error::CompoundError(exclusion_errors));
         }
-        Ok(result)
+        Ok(result
+            .into_iter()
+            .map(|group| GroupWithProvenance {
+                group,
+                schema_url: self.schema_url.clone(),
+            })
+            .collect())
     }
 }
 
@@ -762,7 +863,7 @@ impl ImportableDependency for ResolvedDependency {
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         match self {
             ResolvedDependency::V1(schema) => schema.import_groups(imports, attribute_catalog),
             ResolvedDependency::V2(schema) => schema.import_groups(imports, attribute_catalog),
@@ -776,7 +877,7 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         self.iter()
             .map(|d| d.import_groups(imports, attribute_catalog))
             .try_fold(vec![], |mut result, next| {

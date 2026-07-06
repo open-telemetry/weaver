@@ -386,9 +386,17 @@ fn resolve_dependency_imports(
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog)?;
-    for group in groups {
-        let provenance = group.provenance();
+    for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
         let is_v2 = group.is_v2();
+        let prov_url = if let Some(prov) = group.provenance() {
+            prov.schema_url.clone()
+        } else {
+            schema_url
+        };
+        let provenance = Some(Provenance {
+            schema_url: prov_url.clone(),
+            path: "".to_owned(),
+        });
         ureg.groups.push(UnresolvedGroup {
             group,
             attributes: vec![],
@@ -1199,11 +1207,14 @@ mod tests {
                 assert!(schema.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
-                let observed_errors = serde_json::to_string(&schema.err()).unwrap();
+                let observed_errors = serde_json::to_string(&schema.err())
+                    .expect("Failed to serialize schema error to JSON");
                 // Write observed errors.
                 assert_eq!(
-                    canonicalize_json_string(&observed_errors).unwrap(),
-                    canonicalize_json_string(&expected_errors).unwrap(),
+                    canonicalize_json_string(&observed_errors)
+                        .expect("Failed to canonicalize JSON string"),
+                    canonicalize_json_string(&expected_errors)
+                        .expect("Failed to canonicalize JSON string"),
                     "Observed and expected errors don't match for `{}`.\n{}",
                     test_dir,
                     weaver_diff::diff_output(&expected_errors, &observed_errors)
@@ -1435,25 +1446,34 @@ groups:
         // Create 26 attribute refs, and then randomize them.
         let mut attr_refs = vec![];
         for c in 'a'..='z' {
-            attr_refs.push(catalog.attribute_ref(Attribute {
-                name: format!("{c}"),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                brief: Default::default(),
-                examples: Default::default(),
-                tag: Default::default(),
-                requirement_level: Default::default(),
-                sampling_relevant: Default::default(),
-                note: Default::default(),
-                stability: Default::default(),
-                deprecated: Default::default(),
-                prefix: Default::default(),
-                tags: Default::default(),
-                annotations: Default::default(),
-                value: Default::default(),
-                role: Default::default(),
-            }));
+            attr_refs.push(
+                catalog
+                    .attribute_ref_with_provenance(
+                        Attribute {
+                            name: format!("{c}"),
+                            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            brief: Default::default(),
+                            examples: Default::default(),
+                            tag: Default::default(),
+                            requirement_level: Default::default(),
+                            sampling_relevant: Default::default(),
+                            note: Default::default(),
+                            stability: Default::default(),
+                            deprecated: Default::default(),
+                            prefix: Default::default(),
+                            tags: Default::default(),
+                            annotations: Default::default(),
+                            value: Default::default(),
+                            role: Default::default(),
+                        },
+                        crate::attribute::AttributeSource::Local {
+                            group_id: "test".to_owned(),
+                        },
+                    )
+                    .expect("Failed to create attribute reference with provenance in test"),
+            );
         }
 
         // We only need to file out portions here.
@@ -1521,25 +1541,34 @@ groups:
         // Create 26 attribute refs, and then randomize them.
         let mut attr_refs = vec![];
         for c in 'a'..='z' {
-            attr_refs.push(catalog.attribute_ref(Attribute {
-                name: format!("{c}"),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                brief: Default::default(),
-                examples: Default::default(),
-                tag: Default::default(),
-                requirement_level: Default::default(),
-                sampling_relevant: Default::default(),
-                note: Default::default(),
-                stability: Default::default(),
-                deprecated: Default::default(),
-                prefix: Default::default(),
-                tags: Default::default(),
-                annotations: Default::default(),
-                value: Default::default(),
-                role: Default::default(),
-            }));
+            attr_refs.push(
+                catalog
+                    .attribute_ref_with_provenance(
+                        Attribute {
+                            name: format!("{c}"),
+                            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            brief: Default::default(),
+                            examples: Default::default(),
+                            tag: Default::default(),
+                            requirement_level: Default::default(),
+                            sampling_relevant: Default::default(),
+                            note: Default::default(),
+                            stability: Default::default(),
+                            deprecated: Default::default(),
+                            prefix: Default::default(),
+                            tags: Default::default(),
+                            annotations: Default::default(),
+                            value: Default::default(),
+                            role: Default::default(),
+                        },
+                        crate::attribute::AttributeSource::Local {
+                            group_id: "test".to_owned(),
+                        },
+                    )
+                    .expect("Failed to create attribute reference with provenance in test"),
+            );
         }
         // 2. Get a thread-local random number generator (RNG)
         let mut rng = rng();
