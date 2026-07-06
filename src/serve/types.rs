@@ -4,35 +4,23 @@
 
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
+use weaver_resolved_schema::v2::stats::Stats;
 use weaver_search::{SearchResult, SearchType};
 use weaver_semconv::stability::Stability;
 
 /// Registry stats response.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct RegistryStats {
+///
+/// Serves the full output of `weaver registry stats` (the same `Stats` struct
+/// computed by the CLI) so the UI can render detailed breakdowns and charts.
+#[derive(Debug, Serialize)]
+pub struct RegistryStatsResponse {
     /// The schema URL.
     pub schema_url: String,
-    /// Counts of different entity types.
-    pub counts: RegistryCounts,
-    // TODO: It would be better to serve the output of `weaver registry stats` here
-    // then we could draw graphs in the UI.
-}
-
-/// Counts of different entity types in the registry.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct RegistryCounts {
-    /// Number of attributes.
-    pub attributes: usize,
-    /// Number of metrics.
-    pub metrics: usize,
-    /// Number of spans.
-    pub spans: usize,
-    /// Number of events.
-    pub events: usize,
-    /// Number of entities.
-    pub entities: usize,
-    /// Number of attribute groups.
-    pub attribute_groups: usize,
+    /// The resolved schema version these stats were computed from.
+    pub version: &'static str,
+    /// The full registry and refinement statistics.
+    #[serde(flatten)]
+    pub stats: Stats,
 }
 
 /// Query parameters for search endpoint.

@@ -88,7 +88,20 @@ fn run_serve(
         crate::weaver::Resolved::V1(v) => v.try_into().map_err(DiagnosticMessages::from_error)?,
         crate::weaver::Resolved::V2(v) => v,
     };
+
+    // Compute the full registry stats once, before the resolved schema is consumed
+    // into the template (forge) representation.
+    let stats = resolved_v2.resolved_schema().stats();
     let forge_registry = resolved_v2.into_template_schema();
+
+    let stats_response = types::RegistryStatsResponse {
+        schema_url: forge_registry.schema_url.to_string(),
+        version: "v2",
+        stats,
+    };
+    let stats_json = serde_json::to_string(&stats_response)
+        .map_err(server::Error::from)
+        .map_err(DiagnosticMessages::from_error)?;
 
     if !diag_msgs.is_empty() {
         // Log warnings but continue
@@ -112,7 +125,7 @@ fn run_serve(
     // Run the async server using tokio runtime
     tokio::runtime::Runtime::new()
         .expect("Failed to create tokio runtime")
-        .block_on(async { run_server(bind, forge_registry, cors_origins).await })
+        .block_on(async { run_server(bind, forge_registry, stats_json, cors_origins).await })
         .map_err(DiagnosticMessages::from_error)?;
 
     Ok(ExitDirectives {
