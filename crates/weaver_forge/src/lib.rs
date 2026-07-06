@@ -930,6 +930,7 @@ mod tests {
 
     fn prepare_test(
         target: &str,
+        output_name: &str,
         cli_params: Params,
         ignore_non_fatal_errors: bool,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
@@ -956,11 +957,12 @@ mod tests {
                 .into_result_failing_non_fatal()
                 .expect("Failed to load and resolve the registry")
         };
-        prepare_test_with_registry(target, cli_params, schema.into_v1().unwrap())
+        prepare_test_with_registry(target, output_name, cli_params, schema.into_v1().unwrap())
     }
 
     fn prepare_test_with_registry(
         target: &str,
+        output_name: &str,
         cli_params: Params,
         schema: weaver_resolved_schema::ResolvedTelemetrySchema,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
@@ -976,26 +978,26 @@ mod tests {
                     panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
 
-        // Delete all the files in the observed_output/target directory
+        // Delete all the files in the observed_output/output_name directory
         // before generating the new files.
-        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+        fs::remove_dir_all(format!("observed_output/{output_name}")).unwrap_or_default();
 
         (
             engine,
             template_registry,
-            PathBuf::from(format!("observed_output/{target}")),
-            PathBuf::from(format!("expected_output/{target}")),
+            PathBuf::from(format!("observed_output/{output_name}")),
+            PathBuf::from(format!("expected_output/{output_name}")),
         )
     }
 
-    fn prepare_test_v2(target: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
+    fn prepare_test_v2(target: &str, output_name: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
         let engine = TemplateEngine::try_new(config, loader, Params::default())
             .expect("Failed to create template engine");
 
-        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+        fs::remove_dir_all(format!("observed_output/{output_name}")).unwrap_or_default();
 
         let registry = ForgeResolvedRegistry {
             schema_url: "https://example.com/1.0.0".try_into().unwrap(),
@@ -1051,8 +1053,8 @@ mod tests {
         (
             engine,
             registry,
-            PathBuf::from(format!("observed_output/{target}")),
-            PathBuf::from(format!("expected_output/{target}")),
+            PathBuf::from(format!("observed_output/{output_name}")),
+            PathBuf::from(format!("expected_output/{output_name}")),
         )
     }
 
@@ -1249,7 +1251,7 @@ mod tests {
     fn test_evaluate_when() {
         use std::collections::BTreeMap;
 
-        let (engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let (engine, registry, _, _) = prepare_test("test", "test_evaluate_when", Params::default(), true);
         let context = serde_json::to_value(&registry).expect("Failed to serialize registry");
 
         let template = |when: Option<&str>| TemplateConfig {
@@ -1327,7 +1329,7 @@ mod tests {
 
     #[test]
     fn test_generate_skips_template_when_false() {
-        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let (mut engine, registry, _, _) = prepare_test("test", "test_generate_skips_template_when_false", Params::default(), true);
 
         // A single template gated on a constant-false `when` clause must be
         // skipped entirely, producing no output file.
@@ -1354,7 +1356,7 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_skips_template_when_false() {
-        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let (mut engine, registry, _, _) = prepare_test("test", "test_generate_to_string_skips_template_when_false", Params::default(), true);
 
         let template = |when: &str| TemplateConfig {
             template: Glob::new("converter.md").unwrap(),
@@ -1385,7 +1387,7 @@ mod tests {
     #[test]
     fn test_whitespace_control() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("whitespace_control", Params::default(), true);
+            prepare_test("whitespace_control", "whitespace_control", Params::default(), true);
 
         engine
             .generate(
@@ -1434,7 +1436,7 @@ mod tests {
     #[test]
     fn test_semconv_jq_functions() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("semconv_jq_fn", Params::default(), true);
+            prepare_test("semconv_jq_fn", "semconv_jq_fn", Params::default(), true);
 
         engine
             .generate(
@@ -1453,7 +1455,7 @@ mod tests {
     #[test]
     fn test_semconv_jq_functions_v2_spans() {
         let (engine, registry, observed_output, expected_output) =
-            prepare_test_v2("semconv_jq_fn_v2");
+            prepare_test_v2("semconv_jq_fn_v2", "semconv_jq_fn_v2");
 
         engine
             .generate(&registry, observed_output.as_path(), &OutputDirective::File)
@@ -1475,7 +1477,7 @@ mod tests {
             ("shared_2", serde_yaml::Value::Bool(true)),
         ]);
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("template_params", cli_params, true);
+            prepare_test("template_params", "template_params", cli_params, true);
 
         engine
             .generate(
@@ -1510,6 +1512,7 @@ mod tests {
         let (engine, template_registry, observed_output, expected_output) =
             prepare_test_with_registry(
                 "comment_format",
+                "comment_format",
                 Params::default(),
                 schema.into_v1().unwrap(),
             );
@@ -1531,7 +1534,7 @@ mod tests {
     #[test]
     fn test_registry_markdown() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("registry/markdown", Params::default(), true);
+            prepare_test("registry/markdown", "registry/markdown", Params::default(), true);
 
         engine
             .generate(
