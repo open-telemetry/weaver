@@ -413,10 +413,10 @@ pub(crate) fn command(
 
     stats.finalize();
     // Set exit_code based on the configured --fail-on threshold. `None`
-    // threshold means "never fail". `fails_at` returns false for disabled
-    // stats; the startup check above rejects --no-stats + non-`none` gates.
+    // threshold means "never fail". `should_fail` returns false for disabled
+    // stats; the startup check above warns about --no-stats + non-`none` gates.
     if let Some(threshold) = config.fail_on.as_finding_threshold() {
-        if stats.fails_at(threshold) {
+        if stats.should_fail(threshold) {
             exit_code = 1;
         }
     }

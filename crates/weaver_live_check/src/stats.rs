@@ -214,13 +214,13 @@ impl CumulativeStatistics {
     /// Returns the most severe level currently recorded, or `None` if no
     /// findings have been accumulated. Severity ordering is defined by
     /// [`FindingLevel`]'s derived `Ord`: Information < Improvement < Violation.
-    pub(crate) fn worst_level(&self) -> Option<FindingLevel> {
+    pub(crate) fn max_level(&self) -> Option<FindingLevel> {
         self.highest_advice_level_counts.keys().copied().max()
     }
 
     /// Returns true if any recorded finding is at or above `threshold`.
-    pub(crate) fn fails_at(&self, threshold: FindingLevel) -> bool {
-        self.worst_level().is_some_and(|level| level >= threshold)
+    pub(crate) fn should_fail(&self, threshold: FindingLevel) -> bool {
+        self.max_level().is_some_and(|level| level >= threshold)
     }
 
     /// Finalize the statistics by calculating registry coverage
@@ -340,12 +340,12 @@ impl LiveCheckStatistics {
 
     /// Returns true if any recorded finding is at or above `threshold`.
     /// Always returns `false` for [`LiveCheckStatistics::Disabled`]; the
-    /// caller is responsible for rejecting `--no-stats` + a stats-dependent
-    /// gate at startup.
+    /// caller is responsible for warning about `--no-stats` + a
+    /// stats-dependent gate at startup.
     #[must_use]
-    pub fn fails_at(&self, threshold: FindingLevel) -> bool {
+    pub fn should_fail(&self, threshold: FindingLevel) -> bool {
         match self {
-            Self::Cumulative(stats) => stats.fails_at(threshold),
+            Self::Cumulative(stats) => stats.should_fail(threshold),
             Self::Disabled(_) => false,
         }
     }
@@ -426,49 +426,49 @@ mod tests {
     }
 
     #[test]
-    fn test_worst_level_empty() {
+    fn test_max_level_empty() {
         let stats = empty_cumulative();
-        assert_eq!(stats.worst_level(), None);
-        assert!(!stats.fails_at(FindingLevel::Information));
-        assert!(!stats.fails_at(FindingLevel::Improvement));
-        assert!(!stats.fails_at(FindingLevel::Violation));
+        assert_eq!(stats.max_level(), None);
+        assert!(!stats.should_fail(FindingLevel::Information));
+        assert!(!stats.should_fail(FindingLevel::Improvement));
+        assert!(!stats.should_fail(FindingLevel::Violation));
     }
 
     #[test]
-    fn test_worst_level_information_only() {
+    fn test_max_level_information_only() {
         let mut stats = empty_cumulative();
         stats.add_highest_advice_level(&FindingLevel::Information);
-        assert_eq!(stats.worst_level(), Some(FindingLevel::Information));
-        assert!(stats.fails_at(FindingLevel::Information));
-        assert!(!stats.fails_at(FindingLevel::Improvement));
-        assert!(!stats.fails_at(FindingLevel::Violation));
+        assert_eq!(stats.max_level(), Some(FindingLevel::Information));
+        assert!(stats.should_fail(FindingLevel::Information));
+        assert!(!stats.should_fail(FindingLevel::Improvement));
+        assert!(!stats.should_fail(FindingLevel::Violation));
     }
 
     #[test]
-    fn test_worst_level_improvement_only() {
+    fn test_max_level_improvement_only() {
         let mut stats = empty_cumulative();
         stats.add_highest_advice_level(&FindingLevel::Improvement);
-        assert_eq!(stats.worst_level(), Some(FindingLevel::Improvement));
-        assert!(stats.fails_at(FindingLevel::Information));
-        assert!(stats.fails_at(FindingLevel::Improvement));
-        assert!(!stats.fails_at(FindingLevel::Violation));
+        assert_eq!(stats.max_level(), Some(FindingLevel::Improvement));
+        assert!(stats.should_fail(FindingLevel::Information));
+        assert!(stats.should_fail(FindingLevel::Improvement));
+        assert!(!stats.should_fail(FindingLevel::Violation));
     }
 
     #[test]
-    fn test_worst_level_violation_dominates() {
+    fn test_max_level_violation_dominates() {
         let mut stats = empty_cumulative();
         stats.add_highest_advice_level(&FindingLevel::Information);
         stats.add_highest_advice_level(&FindingLevel::Improvement);
         stats.add_highest_advice_level(&FindingLevel::Violation);
-        assert_eq!(stats.worst_level(), Some(FindingLevel::Violation));
-        assert!(stats.fails_at(FindingLevel::Violation));
-        assert!(stats.fails_at(FindingLevel::Improvement));
-        assert!(stats.fails_at(FindingLevel::Information));
+        assert_eq!(stats.max_level(), Some(FindingLevel::Violation));
+        assert!(stats.should_fail(FindingLevel::Violation));
+        assert!(stats.should_fail(FindingLevel::Improvement));
+        assert!(stats.should_fail(FindingLevel::Information));
     }
 
     #[test]
-    fn test_has_violations_matches_fails_at_violation() {
-        // Backward-compat parity: has_violations() and fails_at(Violation)
+    fn test_has_violations_matches_should_fail_violation() {
+        // Backward-compat parity: has_violations() and should_fail(Violation)
         // must agree across all observed level combinations.
         for levels in [
             vec![],
@@ -484,17 +484,17 @@ mod tests {
             }
             assert_eq!(
                 stats.has_violations(),
-                stats.fails_at(FindingLevel::Violation),
+                stats.should_fail(FindingLevel::Violation),
                 "mismatch for {levels:?}"
             );
         }
     }
 
     #[test]
-    fn test_disabled_fails_at_always_false() {
+    fn test_disabled_should_fail_always_false() {
         let disabled = LiveCheckStatistics::Disabled(DisabledStatistics);
-        assert!(!disabled.fails_at(FindingLevel::Information));
-        assert!(!disabled.fails_at(FindingLevel::Improvement));
-        assert!(!disabled.fails_at(FindingLevel::Violation));
+        assert!(!disabled.should_fail(FindingLevel::Information));
+        assert!(!disabled.should_fail(FindingLevel::Improvement));
+        assert!(!disabled.should_fail(FindingLevel::Violation));
     }
 }
