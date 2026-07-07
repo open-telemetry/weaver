@@ -21,6 +21,30 @@ pub use v2::SnippetGenerator as SnipperGeneratorV2;
 
 use crate::parser::{GenerateMarkdownArgs, WeaverGenerateMarkdownArgs};
 
+/// A suspicious markdown snippet marker found in a markdown document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvalidSnippetMarker {
+    /// One-based line number.
+    pub line: usize,
+    /// The marker line.
+    pub marker: String,
+}
+
+/// Returns snippet-looking HTML comments that do not parse as supported markers.
+#[must_use]
+pub fn invalid_snippet_markers(contents: &str) -> Vec<InvalidSnippetMarker> {
+    contents
+        .lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            parser::is_invalid_snippet_marker(line).then(|| InvalidSnippetMarker {
+                line: index + 1,
+                marker: line.to_owned(),
+            })
+        })
+        .collect()
+}
+
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]

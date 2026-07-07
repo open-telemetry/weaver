@@ -10,7 +10,7 @@ use nom::multi::many0_count;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, multispace0},
+    character::complete::{alpha1, alphanumeric1, multispace0, multispace1},
     combinator::{opt, recognize, value},
     multi::separated_list0,
     sequence::pair,
@@ -159,7 +159,7 @@ fn parse_html_comment(input: &str) -> IResult<&str, &str> {
 fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdownArgs> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag(SEMCONV_HEADER)(input)?;
-    let (input, _) = multispace0(input)?;
+    let (input, _) = multispace1(input)?;
     let (input, id) = parse_id(input)?;
     let (input, opt_args) = opt(parse_markdown_gen_parameters).parse(input)?;
     let (input, _) = multispace0(input)?;
@@ -176,7 +176,7 @@ fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdow
 fn parse_weaver_snippet_args(input: &str) -> IResult<&str, WeaverGenerateMarkdownArgs> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag(WEAVER_HEADER)(input)?;
-    let (input, _) = multispace0(input)?;
+    let (input, _) = multispace1(input)?;
     // TODO - parse JQ expression and optional template to use.
     let (input, template) = opt(parse_weaver_template_directive).parse(input)?;
     let (input, _) = multispace0(input)?;
@@ -256,6 +256,29 @@ fn parse_semconv_trailer(input: &str) -> IResult<&str, ()> {
             ErrorKind::Not,
         )))
     }
+}
+
+/// Returns true if the line is an HTML comment that looks like a snippet marker,
+/// but does not parse as a supported marker.
+pub fn is_invalid_snippet_marker(line: &str) -> bool {
+    let Ok((rest, snippet)) = parse_html_comment(line) else {
+        return false;
+    };
+    if !rest.trim().is_empty() {
+        return false;
+    }
+
+    let snippet = snippet.trim();
+    let looks_like_snippet = snippet.starts_with(SEMCONV_HEADER)
+        || snippet.starts_with(SEMCONV_TRAILER)
+        || snippet.starts_with(WEAVER_HEADER)
+        || snippet.starts_with(WEAVER_TRAILER);
+
+    looks_like_snippet
+        && !is_markdown_snippet_directive(line)
+        && !is_semconv_trailer(line)
+        && !is_weaver_directive(line)
+        && !is_weaver_trailer(line)
 }
 
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
@@ -439,9 +462,9 @@ fn parse_refinement_lookup(input: &str) -> IResult<&str, RefinementLookup> {
 mod tests {
 
     use crate::parser::{
-        is_markdown_snippet_directive, is_semconv_trailer, is_weaver_trailer, parse_id_lookup_v2,
-        parse_weaver_snippet_directive, IdLookupV2, MarkdownGenParameters, RefinementLookup,
-        RegistryLookup,
+        is_invalid_snippet_marker, is_markdown_snippet_directive, is_semconv_trailer,
+        is_weaver_trailer, parse_id_lookup_v2, parse_weaver_snippet_directive, IdLookupV2,
+        MarkdownGenParameters, RefinementLookup, RegistryLookup,
     };
     use crate::Error;
 
@@ -539,6 +562,19 @@ mod tests {
     fn parse_weaver_trailer() {
         assert!(is_weaver_trailer("<!-- endweaver -->"));
         assert!(!is_weaver_trailer("<!-- endweaverded -->"));
+    }
+
+    #[test]
+    fn recognizes_invalid_snippet_markers() {
+        assert!(is_invalid_snippet_marker("<!-- semconvmetric.foo -->"));
+        assert!(is_invalid_snippet_marker(
+            "<!-- semconv metric.foo(bad) -->"
+        ));
+        assert!(is_invalid_snippet_marker("<!-- endsemconvded -->"));
+        assert!(!is_invalid_snippet_marker("<!-- semconv metric.foo-->"));
+        assert!(!is_invalid_snippet_marker("<!-- endsemconv-->"));
+        assert!(!is_invalid_snippet_marker("<!-- other semconv stuff -->"));
+        assert!(!is_invalid_snippet_marker("hello"));
     }
 
     #[test]
