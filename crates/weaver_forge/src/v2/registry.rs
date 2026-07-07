@@ -21,7 +21,7 @@ use crate::{
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
 ///
-/// This includes all registrys fully fleshed out and ready for codegen.
+/// This includes all registries fully fleshed out and ready for codegen.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ForgeResolvedRegistry {
