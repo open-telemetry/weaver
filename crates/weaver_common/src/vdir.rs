@@ -276,6 +276,18 @@ const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
 const ZIP_EXT: &str = ".zip";
 
+/// Returns `true` if `s` is a full-length hex object id (commit SHA).
+///
+/// Delegates to [`gix::ObjectId::from_hex`] so it accepts exactly the hash
+/// kinds gix is actually built with (currently SHA-1, i.e. 40 hex chars; it
+/// will pick up SHA-256 automatically if/when that feature is enabled).
+///
+///  Note that a branch or tag whose name is itself a full-length hex string is
+/// indistinguishable from an object id and will be treated as a SHA.
+fn is_commit_sha(s: &str) -> bool {
+    gix::ObjectId::from_hex(s.as_bytes()).is_ok()
+}
+
 /// Regex to parse a virtual directory path string.
 ///
 /// Supports the following general format: `source[@refspec][\[sub_folder]]`
@@ -555,6 +567,34 @@ pub struct VirtualDirectory {
     tmp_dir: Arc<Option<TempDir>>,
 }
 
+/// Errors returned by the individual gix calls in [`VirtualDirectory::checkout_sha`].
+///
+/// This exists purely so those calls can use `?` directly (via the `#[from]`
+/// conversions below) instead of being wrapped in a closure. It is private to
+/// this module and gets converted into [`Error::GitError`] — adding the repo URL
+/// as context — at the single call site.
+#[derive(thiserror::Error, Debug)]
+enum CheckoutError {
+    #[error("repository has no worktree")]
+    NoWorktree,
+    #[error(transparent)]
+    DecodeSha(#[from] gix::hash::decode::Error),
+    #[error(transparent)]
+    FindObject(#[from] gix::object::find::existing::Error),
+    #[error(transparent)]
+    PeelToTree(#[from] gix::object::peel::to_kind::Error),
+    #[error(transparent)]
+    IndexFromTree(#[from] gix::repository::index_from_tree::Error),
+    #[error(transparent)]
+    CheckoutOptions(#[from] gix::config::checkout_options::Error),
+    #[error(transparent)]
+    OpenObjectStore(#[from] io::Error),
+    #[error(transparent)]
+    Checkout(#[from] gix::worktree::state::checkout::Error),
+    #[error(transparent)]
+    WriteIndex(#[from] gix::index::file::write::Error),
+}
+
 impl VirtualDirectory {
     /// Resolve a [`VirtualDirectoryPath`] with no HTTP credentials configured.
     /// For remote paths behind private registries, use [`Self::try_new_with_auth`].
@@ -650,6 +690,10 @@ impl VirtualDirectory {
             message: e.to_string(),
         })?;
 
+        // Determine whether the refspec is a commit SHA. `with_ref_name` only
+        // accepts symbolic refs (branches/tags) and panics on raw object IDs.
+        let is_sha = refspec.as_ref().is_some_and(|r| is_commit_sha(r));
+
         let mut fetch = if refspec.is_none() {
             prepare.with_shallow(Shallow::DepthAtRemote(
                 NonZeroU32::new(1).expect("1 is not zero"),
@@ -657,25 +701,45 @@ impl VirtualDirectory {
         } else {
             prepare
         }
-        .with_ref_name(refspec.as_ref())
+        // Only pass the refspec to `with_ref_name` when it is a symbolic ref.
+        // Commit SHAs are handled via `checkout_sha` after fetching.
+        .with_ref_name(if is_sha { None } else { refspec.as_ref() })
         .map_err(|e| GitError {
             repo_url: url.to_owned(),
             message: e.to_string(),
         })?;
 
-        let (mut prepare, _outcome) = fetch
+        let (mut checkout, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
             .map_err(|e| GitError {
                 repo_url: url.to_owned(),
                 message: e.to_string(),
             })?;
 
-        let (_repo, _outcome) = prepare
-            .main_worktree(progress::Discard, &AtomicBool::new(false))
-            .map_err(|e| GitError {
+        if is_sha {
+            // For commit SHAs we skip `main_worktree()` (which would checkout
+            // the default branch) and instead checkout the requested commit
+            // directly using gix APIs.
+            let sha = refspec.as_ref().expect("is_sha implies Some");
+            let repo = checkout.persist();
+            Self::checkout_sha(&repo, sha).map_err(|e| GitError {
                 repo_url: url.to_owned(),
-                message: e.to_string(),
+                message: format!("failed to checkout commit {sha}: {e}"),
             })?;
+        } else {
+            // Call purely for its side effect: `main_worktree` checks out the
+            // default branch onto disk at `tmp_path`, which is what the returned
+            // `VirtualDirectory` points at. We don't need the resulting
+            // `Repository` — and dropping it is safe: `main_worktree` mutates `checkout`
+            // disarming its delete-clone-on-drop guard, so the worktree files
+            // persist. Temp-dir will be cleaned up separately.
+            let _ = checkout
+                .main_worktree(progress::Discard, &AtomicBool::new(false))
+                .map_err(|e| GitError {
+                    repo_url: url.to_owned(),
+                    message: e.to_string(),
+                })?;
+        }
 
         // Determines the final path to the repo taking into account the sub_folder.
         let path = if let Some(sub_folder) = sub_folder {
@@ -700,6 +764,38 @@ impl VirtualDirectory {
             path,
             tmp_dir: Arc::new(Some(tmp_dir)),
         })
+    }
+
+    /// Checkout a specific commit SHA in a cloned repository using gix APIs.
+    ///
+    /// Resolves `sha` to a tree, builds an index, and writes the worktree.
+    /// This avoids the `main_worktree()` path which can only checkout HEAD or
+    /// a symbolic ref.
+    // The gix error types wrapped by `CheckoutError` are large; boxing them would
+    // break the `#[from]`/`?` conversions this helper relies on, so allow the lint.
+    #[allow(clippy::result_large_err)]
+    fn checkout_sha(repo: &gix::Repository, sha: &str) -> Result<(), CheckoutError> {
+        let workdir = repo.workdir().ok_or(CheckoutError::NoWorktree)?;
+        let id = gix::ObjectId::from_hex(sha.as_bytes())?;
+        let tree_id = repo.find_object(id)?.peel_to_tree()?.id;
+        let mut index = repo.index_from_tree(&tree_id)?;
+
+        let mut opts =
+            repo.checkout_options(gix::worktree::stack::state::attributes::Source::IdMapping)?;
+        opts.destination_is_initially_empty = true;
+
+        let _outcome = gix::worktree::state::checkout(
+            &mut index,
+            workdir,
+            repo.objects.clone().into_arc()?,
+            &progress::Discard,
+            &progress::Discard,
+            &AtomicBool::new(false),
+            opts,
+        )?;
+
+        index.write(Default::default())?;
+        Ok(())
     }
 
     /// Create a new `VirtualDirectory` from a local archive.
@@ -1245,6 +1341,36 @@ mod tests {
     }
 
     #[test]
+    fn test_semconv_registry_git_repo_with_commit_sha() {
+        // Regression test for the panic that occurred when a refspec is a raw
+        // commit SHA (rather than a branch/tag): `with_ref_name` panics on object
+        // IDs, so SHAs must go through the `checkout_sha` path instead.
+        //
+        // `9adff43…` is the commit tagged `v1.26.0`, an ancestor of the default
+        // branch, so a full clone fetches it and `checkout_sha` can resolve it.
+        let registry_path = VirtualDirectoryPath::GitRepo {
+            url: "https://github.com/open-telemetry/semantic-conventions.git".to_owned(),
+            sub_folder: Some("model".to_owned()),
+            refspec: Some(String::from("9adff435c76ea3b8cba89babefc832d3dd3c1ab9")),
+        };
+        check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_semconv_registry_git_repo_with_nonexistent_commit_sha() {
+        // A well-formed SHA that does not exist in the repo must fail gracefully
+        // (a `GitError`, not a panic) when `checkout_sha` cannot resolve it.
+        let url = "https://github.com/open-telemetry/semantic-conventions.git".to_owned();
+        let registry_path = VirtualDirectoryPath::GitRepo {
+            url: url.clone(),
+            sub_folder: Some("model".to_owned()),
+            refspec: Some(String::from("0000000000000000000000000000000000000000")),
+        };
+        let repo = VirtualDirectory::try_new(&registry_path);
+        assert!(matches!(repo, Err(GitError { repo_url, .. }) if repo_url == url));
+    }
+
+    #[test]
     fn test_semconv_registry_git_repo_with_invalid_refspec() {
         // This git repo is expected to be available.
         let url = "https://github.com/open-telemetry/semantic-conventions.git".to_owned();
@@ -1629,5 +1755,33 @@ mod tests {
         let no_url = serde_json::json!({ "assets": [{ "name": "manifest.yaml" }] });
         let err = find_asset_url(&no_url, "manifest.yaml", "v1", "orig").expect_err("missing url");
         assert!(matches!(&err, RemoteFileDownloadFailed { error, .. } if error.contains("'url'")));
+    }
+
+    #[test]
+    fn test_is_commit_sha() {
+        use super::is_commit_sha;
+
+        // Valid SHA-1 (40 hex chars)
+        assert!(is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e64"));
+        assert!(is_commit_sha("0000000000000000000000000000000000000000"));
+        assert!(is_commit_sha("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        // 64 hex chars (SHA-256). gix is built with the `sha1` feature only.
+        // If gix gains SHA-256 support this should flip.
+        assert!(!is_commit_sha(
+            "d84341cf20a1fef1a833ef44d318c41a770e6e64d84341cf20a1fef1a833ef44"
+        ));
+
+        // Too short / too long
+        assert!(!is_commit_sha("d84341cf"));
+        assert!(!is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e6")); // 39 chars
+        assert!(!is_commit_sha("d84341cf20a1fef1a833ef44d318c41a770e6e640")); // 41 chars
+
+        // Non-hex characters
+        assert!(!is_commit_sha("g84341cf20a1fef1a833ef44d318c41a770e6e64"));
+
+        // Symbolic refs
+        assert!(!is_commit_sha("main"));
+        assert!(!is_commit_sha("v1.0.0"));
+        assert!(!is_commit_sha("refs/heads/main"));
     }
 }
