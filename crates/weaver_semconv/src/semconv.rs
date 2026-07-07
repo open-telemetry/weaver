@@ -726,6 +726,52 @@ mod tests {
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 2);
     }
 
+    #[test]
+    fn test_enum_member_value_defaults_to_id() {
+        let spec = r#"
+        groups:
+          - id: registry.test
+            type: attribute_group
+            brief: Test attributes
+            attributes:
+              - id: test.environment
+                brief: Test environment.
+                stability: stable
+                type:
+                  members:
+                    - id: production
+                      brief: Production environment.
+                      stability: stable
+                    - id: staging
+                      value: stage
+                      brief: Staging environment.
+                      stability: stable
+        "#;
+
+        let semconv_spec = semconv_from_file(spec)
+            .into_result_failing_non_fatal()
+            .unwrap()
+            .spec
+            .into_v1("test");
+        let crate::attribute::AttributeSpec::Id { r#type, .. } =
+            &semconv_spec.groups[0].attributes[0]
+        else {
+            panic!("expected local attribute definition");
+        };
+        let crate::attribute::AttributeType::Enum { members } = r#type else {
+            panic!("expected enum attribute type");
+        };
+
+        assert_eq!(
+            members[0].value,
+            crate::attribute::ValueSpec::String("production".to_owned())
+        );
+        assert_eq!(
+            members[1].value,
+            crate::attribute::ValueSpec::String("stage".to_owned())
+        );
+    }
+
     fn parse_versioned(spec: &str) -> Versioned {
         let temp_file = make_temp_file(spec);
         SemConvSpecWithProvenance::from_file(

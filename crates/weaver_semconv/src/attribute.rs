@@ -389,6 +389,7 @@ impl Display for TemplateTypeSpec {
 )]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
+#[serde(from = "EnumEntriesSpecDeserialize")]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
     pub id: String,
@@ -415,6 +416,53 @@ pub struct EnumEntriesSpec {
     /// Annotations for the member.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
+}
+
+/// Deserialization helper for [`EnumEntriesSpec`] that allows `value` to be
+/// omitted and defaulted from `id`. The fields mirror [`EnumEntriesSpec`]
+/// (including doc comments) so the generated JSON schema retains field
+/// descriptions when `#[serde(from = "...")]` redirects schema derivation here.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct EnumEntriesSpecDeserialize {
+    /// String that uniquely identifies the enum entry.
+    id: String,
+    /// String, int, or boolean; value of the enum entry.
+    /// If omitted, defaults to the value of `id`.
+    value: Option<ValueSpec>,
+    /// Brief description of the enum entry value.
+    /// It defaults to the value of id.
+    brief: Option<String>,
+    /// Longer description.
+    /// It defaults to an empty string.
+    note: Option<String>,
+    /// Stability of this enum value.
+    stability: Option<Stability>,
+    /// Deprecation note.
+    #[serde(
+        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+        default
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deprecated: Option<Deprecated>,
+    /// Annotations for the member.
+    annotations: Option<BTreeMap<String, YamlValue>>,
+}
+
+impl From<EnumEntriesSpecDeserialize> for EnumEntriesSpec {
+    fn from(entry: EnumEntriesSpecDeserialize) -> Self {
+        Self {
+            value: entry
+                .value
+                .unwrap_or_else(|| ValueSpec::String(entry.id.clone())),
+            id: entry.id,
+            brief: entry.brief,
+            note: entry.note,
+            stability: entry.stability,
+            deprecated: entry.deprecated,
+            annotations: entry.annotations,
+        }
+    }
 }
 
 /// Implements a human readable display for EnumEntries.
