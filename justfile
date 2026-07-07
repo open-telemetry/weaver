@@ -9,11 +9,13 @@ install:
     cargo install git-cliff@2.13.1 --locked
     cargo install cargo-tarpaulin@0.37.0 --locked
     cargo install cargo-nextest@0.9.140 --locked
+    cargo install typos-cli@1.48.0 --locked
 
 pre-push-check:
     cargo clean
     cargo update
     cargo machete
+    typos
     cargo fmt --all
     # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
     # [ToDo LQ] Re-enable --all-features once the issue is resolved
