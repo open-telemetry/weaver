@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ForgeResolvedRegistry",
-  "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registrys fully fleshed out and ready for codegen.",
+  "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registries fully fleshed out and ready for codegen.",
   "type": "object",
   "properties": {
     "refinements": {
