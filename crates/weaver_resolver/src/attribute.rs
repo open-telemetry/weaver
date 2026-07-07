@@ -149,7 +149,6 @@ fn resolve_conflict(
 }
 
 impl AttributeCatalog {
-
     /// Returns a list of deduplicated attributes ordered by their references.
     #[must_use]
     pub fn drain_attributes(self) -> Vec<attribute::Attribute> {
@@ -432,25 +431,27 @@ impl AttributeLookup for Vec<ResolvedDependency> {
                 matches.push(at);
             }
         }
-        matches.into_iter().try_fold(None, |acc: Option<AttributeWithSource>, m| match acc {
-            None => Ok(Some(m)),
-            Some(existing) => {
-                // Handle Exclusions first.  We can exclude groups from dependency resolution,
-                // e.g. in Semconv we deprecate a group and move it to a new schema_url - and
-                // this will mean we don't get conflicts or resolve the deprecated group.
-                let m_excluded = m.attribute.annotations.as_ref().is_some_and(is_excluded);
-                let existing_excluded = existing
-                    .attribute
-                    .annotations
-                    .as_ref()
-                    .is_some_and(is_excluded);
-                if m_excluded || existing_excluded {
-                    return Ok(Some(if m_excluded { existing } else { m }));
+        matches
+            .into_iter()
+            .try_fold(None, |acc: Option<AttributeWithSource>, m| match acc {
+                None => Ok(Some(m)),
+                Some(existing) => {
+                    // Handle Exclusions first.  We can exclude groups from dependency resolution,
+                    // e.g. in Semconv we deprecate a group and move it to a new schema_url - and
+                    // this will mean we don't get conflicts or resolve the deprecated group.
+                    let m_excluded = m.attribute.annotations.as_ref().is_some_and(is_excluded);
+                    let existing_excluded = existing
+                        .attribute
+                        .annotations
+                        .as_ref()
+                        .is_some_and(is_excluded);
+                    if m_excluded || existing_excluded {
+                        return Ok(Some(if m_excluded { existing } else { m }));
+                    }
+                    // Handle real version conflicts next.
+                    Ok(Some(resolve_conflict(key, m, existing)?))
                 }
-                // Handle real version conflicts next.
-                Ok(Some(resolve_conflict(key, m, existing)?))
-            }
-        })
+            })
     }
 }
 

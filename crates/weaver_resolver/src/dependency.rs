@@ -13,9 +13,9 @@ use weaver_semconv::attribute::{AttributeRole, BasicRequirementLevelSpec, Requir
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
-use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
@@ -233,12 +233,11 @@ impl ImportableDependency for V1Schema {
 
         let mut exclusion_errors: Vec<Error> = vec![];
         let mut result: Vec<GroupWithProvenance> = vec![];
-        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| {
-            Error::InvalidUrl {
+        let my_schema_url =
+            SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| Error::InvalidUrl {
                 url: self.schema_url.to_string(),
                 error: e,
-            }
-        })?;
+            })?;
 
         for g in self.registry.groups.iter() {
             let matched_explicitly = matches_explicitly(g);
@@ -422,22 +421,23 @@ impl ImportableDependency for V2Schema {
         };
 
         // Helper to get attribute source based on provenance.
-        let get_attribute_source = |attr: &weaver_resolved_schema::v2::attribute::Attribute| -> AttributeSource {
-            if let Some(dep_ref) = &attr.provenance.source {
-                AttributeSource::Dependency {
-                    schema_url: self
-                        .dependencies
-                        .iter()
-                        .nth(dep_ref.0 as usize)
-                        .cloned()
-                        .unwrap_or_else(|| self.schema_url.clone()),
+        let get_attribute_source =
+            |attr: &weaver_resolved_schema::v2::attribute::Attribute| -> AttributeSource {
+                if let Some(dep_ref) = &attr.provenance.source {
+                    AttributeSource::Dependency {
+                        schema_url: self
+                            .dependencies
+                            .iter()
+                            .nth(dep_ref.0 as usize)
+                            .cloned()
+                            .unwrap_or_else(|| self.schema_url.clone()),
+                    }
+                } else {
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    }
                 }
-            } else {
-                AttributeSource::Dependency {
-                    schema_url: self.schema_url.clone(),
-                }
-            }
-        };
+            };
 
         let explicit_imports: Vec<&ImportsWithProvenance> = imports
             .iter()

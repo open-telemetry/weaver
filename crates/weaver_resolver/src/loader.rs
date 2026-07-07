@@ -743,19 +743,45 @@ mod tests {
             path: "data/compatible-version-conflict/main".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let mut diag_msgs = DiagnosticMessages::empty();
         let result = load_semconv_repository(
             registry_repo,
             true,
             &weaver_common::http_auth::HttpAuthResolver::empty(),
-        ).capture_non_fatal_errors(&mut diag_msgs);
+        );
 
-        if let Err(e) = result {
-            panic!(
-                "Expected success loading compatible version conflict registry, got error: {:?}",
-                e
-            );
-        }
+        let loaded = match result {
+            WResult::Ok(l) | WResult::OkWithNFEs(l, _) => l,
+            WResult::FatalErr(fatal) => {
+                panic!("Expected success, but got fatal error: {fatal}");
+            }
+        };
+
+        // Resolve the registry
+        let mut resolver = crate::WeaverResolver::new(crate::WeaverResolverConfig::default());
+        let resolved_result = resolver.resolve_loaded(loaded);
+        let resolved_schema = match resolved_result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => {
+                std::sync::Arc::unwrap_or_clone(s).into_v1().unwrap()
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Failed to resolve registry: {fatal}");
+            }
+        };
+
+        // Verify that attributes in the catalog use the V1.2 definitions.
+        // c.attr1 should be from V1.2 (updated)
+        let (attr1, _) = resolved_schema
+            .catalog
+            .root_attribute("c.attr1")
+            .expect("c.attr1 not found in catalog");
+        assert_eq!(attr1.brief, "Attribute 1 from C v1.2 (updated)");
+
+        // c.attr2 should be from V1.2 (new)
+        let (attr2, _) = resolved_schema
+            .catalog
+            .root_attribute("c.attr2")
+            .expect("c.attr2 not found in catalog");
+        assert_eq!(attr2.brief, "Attribute 2 from C v1.2 (new)");
 
         Ok(())
     }

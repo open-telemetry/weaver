@@ -990,7 +990,10 @@ mod tests {
         )
     }
 
-    fn prepare_test_v2(target: &str, output_name: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
+    fn prepare_test_v2(
+        target: &str,
+        output_name: &str,
+    ) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
@@ -1251,7 +1254,8 @@ mod tests {
     fn test_evaluate_when() {
         use std::collections::BTreeMap;
 
-        let (engine, registry, _, _) = prepare_test("test", "test_evaluate_when", Params::default(), true);
+        let (engine, registry, _, _) =
+            prepare_test("test", "test_evaluate_when", Params::default(), true);
         let context = serde_json::to_value(&registry).expect("Failed to serialize registry");
 
         let template = |when: Option<&str>| TemplateConfig {
@@ -1329,7 +1333,12 @@ mod tests {
 
     #[test]
     fn test_generate_skips_template_when_false() {
-        let (mut engine, registry, _, _) = prepare_test("test", "test_generate_skips_template_when_false", Params::default(), true);
+        let (mut engine, registry, _, _) = prepare_test(
+            "test",
+            "test_generate_skips_template_when_false",
+            Params::default(),
+            true,
+        );
 
         // A single template gated on a constant-false `when` clause must be
         // skipped entirely, producing no output file.
@@ -1356,7 +1365,12 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_skips_template_when_false() {
-        let (mut engine, registry, _, _) = prepare_test("test", "test_generate_to_string_skips_template_when_false", Params::default(), true);
+        let (mut engine, registry, _, _) = prepare_test(
+            "test",
+            "test_generate_to_string_skips_template_when_false",
+            Params::default(),
+            true,
+        );
 
         let template = |when: &str| TemplateConfig {
             template: Glob::new("converter.md").unwrap(),
@@ -1386,8 +1400,12 @@ mod tests {
 
     #[test]
     fn test_whitespace_control() {
-        let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("whitespace_control", "whitespace_control", Params::default(), true);
+        let (engine, template_registry, observed_output, expected_output) = prepare_test(
+            "whitespace_control",
+            "whitespace_control",
+            Params::default(),
+            true,
+        );
 
         engine
             .generate(
@@ -1533,8 +1551,12 @@ mod tests {
 
     #[test]
     fn test_registry_markdown() {
-        let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("registry/markdown", "registry/markdown", Params::default(), true);
+        let (engine, template_registry, observed_output, expected_output) = prepare_test(
+            "registry/markdown",
+            "registry/markdown",
+            Params::default(),
+            true,
+        );
 
         engine
             .generate(
