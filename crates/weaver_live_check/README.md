@@ -181,6 +181,7 @@ format = "ansi"
 templates = "live_check_templates"
 no_stream = false
 no_stats = false
+fail_on = "violation"  # violation | improvement | information | none
 output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
