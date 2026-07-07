@@ -205,12 +205,6 @@ impl CumulativeStatistics {
         }
     }
 
-    /// Are there any violations in the statistics?
-    pub(crate) fn has_violations(&self) -> bool {
-        self.highest_advice_level_counts
-            .contains_key(&FindingLevel::Violation)
-    }
-
     /// Returns the most severe level currently recorded, or `None` if no
     /// findings have been accumulated. Severity ordering is defined by
     /// [`FindingLevel`]'s derived `Ord`: Information < Improvement < Violation.
@@ -329,15 +323,6 @@ impl LiveCheckStatistics {
         }
     }
 
-    /// Are there any violations in the statistics?
-    #[must_use]
-    pub fn has_violations(&self) -> bool {
-        match self {
-            Self::Cumulative(stats) => stats.has_violations(),
-            Self::Disabled(_) => false,
-        }
-    }
-
     /// Returns true if any recorded finding is at or above `threshold`.
     /// Always returns `false` for [`LiveCheckStatistics::Disabled`]; the
     /// caller is responsible for warning about `--no-stats` + a
@@ -411,9 +396,8 @@ mod tests {
             panic!("Expected Cumulative statistics");
         }
 
-        // Verify has_violations works for both
-        assert!(!disabled_stats.has_violations()); // Always false for disabled
-        assert!(!normal_stats.has_violations()); // No violations added yet
+        assert!(!disabled_stats.should_fail(FindingLevel::Violation));
+        assert!(!normal_stats.should_fail(FindingLevel::Violation));
     }
 
     fn empty_cumulative() -> CumulativeStatistics {
@@ -464,30 +448,6 @@ mod tests {
         assert!(stats.should_fail(FindingLevel::Violation));
         assert!(stats.should_fail(FindingLevel::Improvement));
         assert!(stats.should_fail(FindingLevel::Information));
-    }
-
-    #[test]
-    fn test_has_violations_matches_should_fail_violation() {
-        // Backward-compat parity: has_violations() and should_fail(Violation)
-        // must agree across all observed level combinations.
-        for levels in [
-            vec![],
-            vec![FindingLevel::Information],
-            vec![FindingLevel::Improvement],
-            vec![FindingLevel::Violation],
-            vec![FindingLevel::Information, FindingLevel::Violation],
-            vec![FindingLevel::Improvement, FindingLevel::Information],
-        ] {
-            let mut stats = empty_cumulative();
-            for l in &levels {
-                stats.add_highest_advice_level(l);
-            }
-            assert_eq!(
-                stats.has_violations(),
-                stats.should_fail(FindingLevel::Violation),
-                "mismatch for {levels:?}"
-            );
-        }
     }
 
     #[test]

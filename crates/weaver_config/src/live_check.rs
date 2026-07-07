@@ -451,19 +451,22 @@ min_level = "violation"
     fn test_fail_on_from_str() {
         use std::str::FromStr;
         assert_eq!(
-            FailOnLevel::from_str("violation").unwrap(),
+            FailOnLevel::from_str("violation").expect("violation should parse"),
             FailOnLevel::Violation
         );
         assert_eq!(
-            FailOnLevel::from_str("improvement").unwrap(),
+            FailOnLevel::from_str("improvement").expect("improvement should parse"),
             FailOnLevel::Improvement
         );
         assert_eq!(
-            FailOnLevel::from_str("information").unwrap(),
+            FailOnLevel::from_str("information").expect("information should parse"),
             FailOnLevel::Information
         );
-        assert_eq!(FailOnLevel::from_str("none").unwrap(), FailOnLevel::None);
-        let err = FailOnLevel::from_str("bogus").unwrap_err();
+        assert_eq!(
+            FailOnLevel::from_str("none").expect("none should parse"),
+            FailOnLevel::None
+        );
+        let err = FailOnLevel::from_str("bogus").expect_err("bogus should fail to parse");
         assert!(err.contains("bogus"));
         assert!(err.contains("violation"));
     }
