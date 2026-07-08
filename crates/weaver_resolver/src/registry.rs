@@ -89,13 +89,14 @@ pub struct UnresolvedGroup {
 ///
 /// This function returns the resolved registry or an error if the resolution process
 /// failed.
-pub(crate) fn resolve_registry_with_dependencies(
+pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     attr_catalog: &mut AttributeCatalog,
     repo: RegistryRepo,
     specs: Vec<SemConvSpecWithProvenance>,
     imports: Vec<ImportsWithProvenance>,
     dependencies: Vec<ResolvedDependency>,
     include_unreferenced: bool,
+    cache_lookup: &C,
 ) -> WResult<Registry, Error> {
     let groups = specs
         .into_iter()
@@ -153,12 +154,12 @@ pub(crate) fn resolve_registry_with_dependencies(
         return WResult::FatalErr(e);
     }
 
-    if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog) {
+    if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog, cache_lookup) {
         return WResult::FatalErr(e);
     }
 
     // We need to *import* objects from the dependencies as required.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
         return WResult::FatalErr(e);
     }
 
@@ -378,21 +379,31 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 }
 
 /// Resolves imports defined on dependencies.
-fn resolve_dependency_imports(
+fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
-    let groups = dependencies.import_groups(imports, attribute_catalog)?;
+    let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
     for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
         let is_v2 = group.is_v2();
-        let prov_url = if let Some(prov) = group.provenance() {
+        let mut prov_url = if let Some(prov) = group.provenance() {
             prov.schema_url.clone()
         } else {
             schema_url
         };
+        if let Some(chosen_url) = cache_lookup.chosen_version(prov_url.name()) {
+            if chosen_url != &prov_url {
+                if let (Ok(chosen_v), Ok(cur_v)) = (chosen_url.semver(), prov_url.semver()) {
+                    if chosen_v > cur_v && chosen_v.major == cur_v.major {
+                        prov_url = chosen_url.clone();
+                    }
+                }
+            }
+        }
         let provenance = Some(Provenance {
             schema_url: prov_url.clone(),
             path: "".to_owned(),
@@ -418,9 +429,10 @@ fn resolve_dependency_imports(
 /// attribute references.
 ///
 /// Returns true if all the attribute references could be resolved.
-fn resolve_attribute_references(
+fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
 ) -> Result<(), Error> {
     // TODO - Right now the attribute registry does NOT have any of the
     // attributes from dependencies. We expect to resolve all groups in the current
@@ -450,6 +462,7 @@ fn resolve_attribute_references(
                     &attr.spec,
                     unresolved_group.group.lineage.as_mut(),
                     &ureg.dependencies,
+                    cache_lookup,
                 ) {
                     Ok(Some(attr_ref)) => {
                         resolved_attr.push(attr_ref);
@@ -1471,6 +1484,7 @@ groups:
                         crate::attribute::AttributeSource::Local {
                             group_id: "test".to_owned(),
                         },
+                        &(),
                     )
                     .expect("Failed to create attribute reference with provenance in test"),
             );
@@ -1566,6 +1580,7 @@ groups:
                         crate::attribute::AttributeSource::Local {
                             group_id: "test".to_owned(),
                         },
+                        &(),
                     )
                     .expect("Failed to create attribute reference with provenance in test"),
             );

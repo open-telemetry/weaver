@@ -579,7 +579,6 @@ fn check_version_compatibility(
 
 #[cfg(test)]
 mod tests {
-    use weaver_semconv::schema_url::SchemaUrl;
 
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,

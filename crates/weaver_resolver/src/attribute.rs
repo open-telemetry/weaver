@@ -71,16 +71,91 @@ impl AttributeCatalog {
 
     /// Returns an attribute ref from the catalog and also registers the attribute
     /// in `root_attributes` so its provenance is recorded.
-    pub fn attribute_ref_with_provenance(
+    ///
+    /// # Transitive Dependency Version Upgrading (`cache_lookup`)
+    /// When `self` (the parent catalog being resolved, e.g. `main`) imports groups across a
+    /// multi-registry diamond dependency graph (e.g., `main` -> [`a/0.1.0`, `b/0.1.0`]),
+    /// each dependency (`a` or `b`) may have been resolved against a different version of a shared
+    /// transitive dependency (`c/1.1.0` inside `a` vs. `c/1.2.0` inside `b`).
+    ///
+    /// If an attribute (`c.attr1`) is imported solely via `a/0.1.0`, `resolve_conflict` will NOT be
+    /// triggered because no second path (`b`) brings in `c.attr1`. Without intervention, `main`
+    /// would retain the stale `v1.1.0` definition of `c.attr1` while simultaneously using `v1.2.0` for
+    /// `c.attr2` (imported via `b`).
+    ///
+    /// To ensure complete SemVer consistency across all attributes in the graph, we query `cache_lookup`:
+    /// 1. If `attr_with_source` has `AttributeSource::Dependency { schema_url: dep_url }` (`c/1.1.0`),
+    ///    we check if `cache_lookup.chosen_version("c")` has selected a newer compatible version (`c/1.2.0`).
+    /// 2. If `chosen_url > dep_url` (with matching major version), we query the `cache_lookup` for the
+    ///    pre-resolved `WeaverResolvedSchema` of `chosen_url` (`c/1.2.0`).
+    /// 3. We look up `attr.name` inside `chosen_url`. If found, we replace `attr_with_source` on-the-fly with
+    ///    the upgraded definition (`c.attr1` from `v1.2.0`) and update its provenance to `chosen_url`.
+    /// 4. If not found in `chosen_url` (e.g., attribute was deprecated/removed in a minor bump), we retain
+    ///    the existing definition or defer to SemVer resolution rules.
+    pub(crate) fn upgrade_attribute_with_source<C: crate::SchemaCacheLookup>(
+        mut attr_with_source: AttributeWithSource,
+        cache_lookup: &C,
+    ) -> Result<AttributeWithSource, Error> {
+        if let AttributeSource::Dependency { schema_url } = &attr_with_source.source {
+            let reg_name = schema_url.name();
+            if let Some(chosen_url) = cache_lookup.chosen_version(reg_name) {
+                if chosen_url != schema_url {
+                    if let (Ok(chosen_v), Ok(cur_v)) = (chosen_url.semver(), schema_url.semver()) {
+                        if chosen_v > cur_v && chosen_v.major == cur_v.major {
+                            if let Some(upgraded_schema) = cache_lookup.lookup_schema(chosen_url) {
+                                if let Some(upgraded_attr) = upgraded_schema
+                                    .lookup_attribute(&attr_with_source.attribute.name)?
+                                {
+                                    attr_with_source = upgraded_attr;
+                                    attr_with_source.source = AttributeSource::Dependency {
+                                        schema_url: chosen_url.clone(),
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(attr_with_source)
+    }
+
+    /// Returns an attribute ref from the catalog and also registers the attribute
+    /// in `root_attributes` so its provenance is recorded.
+    ///
+    /// # Transitive Dependency Version Upgrading (`cache_lookup`)
+    /// When `self` (the parent catalog being resolved, e.g. `main`) imports groups across a
+    /// multi-registry diamond dependency graph (e.g., `main` -> [`a/0.1.0`, `b/0.1.0`]),
+    /// each dependency (`a` or `b`) may have been resolved against a different version of a shared
+    /// transitive dependency (`c/1.1.0` inside `a` vs. `c/1.2.0` inside `b`).
+    ///
+    /// If an attribute (`c.attr1`) is imported solely via `a/0.1.0`, `resolve_conflict` will NOT be
+    /// triggered because no second path (`b`) brings in `c.attr1`. Without intervention, `main`
+    /// would retain the stale `v1.1.0` definition of `c.attr1` while simultaneously using `v1.2.0` for
+    /// `c.attr2` (imported via `b`).
+    ///
+    /// To ensure complete SemVer consistency across all attributes in the graph, we query `cache_lookup`:
+    /// 1. If `attr_with_source` has `AttributeSource::Dependency { schema_url: dep_url }` (`c/1.1.0`),
+    ///    we check if `cache_lookup.chosen_version("c")` has selected a newer compatible version (`c/1.2.0`).
+    /// 2. If `chosen_url > dep_url` (with matching major version), we query the `cache_lookup` for the
+    ///    pre-resolved `WeaverResolvedSchema` of `chosen_url` (`c/1.2.0`).
+    /// 3. We look up `attr.name` inside `chosen_url`. If found, we replace `attr_with_source` on-the-fly with
+    ///    the upgraded definition (`c.attr1` from `v1.2.0`) and update its provenance to `chosen_url`.
+    /// 4. If not found in `chosen_url` (e.g., attribute was deprecated/removed in a minor bump), we retain
+    ///    the existing definition or defer to SemVer resolution rules.
+    pub fn attribute_ref_with_provenance<C: crate::SchemaCacheLookup>(
         &mut self,
         attr: attribute::Attribute,
         source: AttributeSource,
+        cache_lookup: &C,
     ) -> Result<AttributeRef, Error> {
         let attr_name = attr.name.clone();
-        let new_attr = AttributeWithSource {
+        let mut new_attr = AttributeWithSource {
             attribute: attr,
             source,
         };
+
+        new_attr = Self::upgrade_attribute_with_source(new_attr, cache_lookup)?;
 
         let winning_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
             resolve_conflict(&attr_name, new_attr, existing.clone())?
@@ -210,7 +285,7 @@ impl AttributeCatalog {
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.
     /// Returns `None` if the attribute spec is a ref and it does not exist yet
     /// in the catalog.
-    pub(crate) fn resolve(
+    pub(crate) fn resolve<C: crate::SchemaCacheLookup>(
         &mut self,
         group_id: &str,
         group_prefix: &str,
@@ -218,6 +293,7 @@ impl AttributeCatalog {
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
+        cache_lookup: &C,
     ) -> Result<Option<AttributeRef>, Error> {
         match attr {
             AttributeSpec::Ref {
@@ -239,6 +315,7 @@ impl AttributeCatalog {
                 // If we fail to find an attribute, check dependencies first.
                 if root_attr.is_none() {
                     if let Some(at) = dependencies.lookup_attribute(r#ref)? {
+                        let at = Self::upgrade_attribute_with_source(at, cache_lookup)?;
                         _ = self.root_attributes.insert(r#ref.to_owned(), at);
                         root_attr = self.root_attributes.get(r#ref);
                     }
@@ -419,8 +496,17 @@ impl From<AttributeCatalog> for Catalog {
 }
 
 /// Helper trait for abstracting over V1 and V2 schema.
-trait AttributeLookup {
+pub(crate) trait AttributeLookup {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error>;
+}
+
+impl AttributeLookup for crate::WeaverResolvedSchema {
+    fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
+        match self {
+            crate::WeaverResolvedSchema::V1(s) => s.lookup_attribute(key),
+            crate::WeaverResolvedSchema::V2(s) => s.lookup_attribute(key),
+        }
+    }
 }
 
 impl AttributeLookup for Vec<ResolvedDependency> {
@@ -874,7 +960,7 @@ mod tests {
         }) = result
         {
             assert_eq!(r#ref, attr_name);
-            let urls = vec![schema_url1, schema_url2];
+            let urls = [schema_url1, schema_url2];
             assert!(urls.contains(&"http://test/schema/1.0.0".to_owned()));
             assert!(urls.contains(&"http://test/schema/2.0.0".to_owned()));
         } else {
