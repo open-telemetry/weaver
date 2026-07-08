@@ -928,6 +928,13 @@ mod tests {
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
     fn prepare_test(
         target: &str,
         cli_params: Params,
