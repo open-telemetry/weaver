@@ -928,11 +928,17 @@ mod tests {
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
-    fn prepare_test(
-        target: &str,
-        cli_params: Params,
+    fn prepare_engine(target: &str, cli_params: Params) -> TemplateEngine {
+        let loader = FileSystemFileLoader::try_new("templates".into(), target)
+            .expect("Failed to create file system loader");
+        let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
+        TemplateEngine::try_new(config, loader, cli_params)
+            .expect("Failed to create template engine")
+    }
+
+    fn prepare_schema(
         ignore_non_fatal_errors: bool,
-    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
+    ) -> weaver_resolved_schema::ResolvedTelemetrySchema {
         let schema_url: Option<SchemaUrl> = Some(
             "https://default/1.0.0"
                 .try_into()
@@ -956,25 +962,71 @@ mod tests {
                 .into_result_failing_non_fatal()
                 .expect("Failed to load and resolve the registry")
         };
-        prepare_test_with_registry(target, cli_params, schema.into_v1().unwrap())
+        schema.into_v1().unwrap()
     }
 
-    fn prepare_test_with_registry(
+    fn prepare_test_readonly(
+        target: &str,
+        cli_params: Params,
+        ignore_non_fatal_errors: bool,
+    ) -> (TemplateEngine, ResolvedRegistry) {
+        let schema = prepare_schema(ignore_non_fatal_errors);
+        prepare_test_with_registry_readonly(target, cli_params, schema)
+    }
+
+    fn prepare_test_with_registry_readonly(
         target: &str,
         cli_params: Params,
         schema: weaver_resolved_schema::ResolvedTelemetrySchema,
-    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
-        let loader = FileSystemFileLoader::try_new("templates".into(), target)
-            .expect("Failed to create file system loader");
-        let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
-        let engine = TemplateEngine::try_new(config, loader, cli_params)
-            .expect("Failed to create template engine");
-
+    ) -> (TemplateEngine, ResolvedRegistry) {
+        let engine = prepare_engine(target, cli_params);
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
                     panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
+        (engine, template_registry)
+    }
+
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
+    fn prepare_test(
+        target: &str,
+        cli_params: Params,
+        ignore_non_fatal_errors: bool,
+    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
+        let (engine, template_registry) =
+            prepare_test_readonly(target, cli_params, ignore_non_fatal_errors);
+
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+
+        (
+            engine,
+            template_registry,
+            PathBuf::from(format!("observed_output/{target}")),
+            PathBuf::from(format!("expected_output/{target}")),
+        )
+    }
+
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
+    fn prepare_test_with_registry(
+        target: &str,
+        cli_params: Params,
+        schema: weaver_resolved_schema::ResolvedTelemetrySchema,
+    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
+        let (engine, template_registry) =
+            prepare_test_with_registry_readonly(target, cli_params, schema);
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
@@ -988,14 +1040,8 @@ mod tests {
         )
     }
 
-    fn prepare_test_v2(target: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
-        let loader = FileSystemFileLoader::try_new("templates".into(), target)
-            .expect("Failed to create file system loader");
-        let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
-        let engine = TemplateEngine::try_new(config, loader, Params::default())
-            .expect("Failed to create template engine");
-
-        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+    fn prepare_test_v2_readonly(target: &str) -> (TemplateEngine, ForgeResolvedRegistry) {
+        let engine = prepare_engine(target, Params::default());
 
         let registry = ForgeResolvedRegistry {
             schema_url: "https://example.com/1.0.0".try_into().unwrap(),
@@ -1047,6 +1093,21 @@ mod tests {
                 events: vec![],
             },
         };
+
+        (engine, registry)
+    }
+
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
+    fn prepare_test_v2(target: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
+        let (engine, registry) = prepare_test_v2_readonly(target);
+
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
 
         (
             engine,
@@ -1249,7 +1310,7 @@ mod tests {
     fn test_evaluate_when() {
         use std::collections::BTreeMap;
 
-        let (engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let (engine, registry) = prepare_test_readonly("test", Params::default(), true);
         let context = serde_json::to_value(&registry).expect("Failed to serialize registry");
 
         let template = |when: Option<&str>| TemplateConfig {
@@ -1327,7 +1388,7 @@ mod tests {
 
     #[test]
     fn test_generate_skips_template_when_false() {
-        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let (mut engine, registry) = prepare_test_readonly("test", Params::default(), true);
 
         // A single template gated on a constant-false `when` clause must be
         // skipped entirely, producing no output file.
@@ -1354,7 +1415,7 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_skips_template_when_false() {
-        let (mut engine, registry, _, _) = prepare_test("test", Params::default(), true);
+        let (mut engine, registry) = prepare_test_readonly("test", Params::default(), true);
 
         let template = |when: &str| TemplateConfig {
             template: Glob::new("converter.md").unwrap(),
