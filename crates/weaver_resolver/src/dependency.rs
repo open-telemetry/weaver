@@ -19,6 +19,7 @@ use weaver_semconv::stability::Stability;
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
+    conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion},
     dependency_resolution::is_excluded,
     Error,
 };
@@ -385,10 +386,10 @@ impl ImportableDependency for V1Schema {
             let mut g_url = my_schema_url.clone();
             if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
                 if chosen_url != &g_url {
-                    if let (Ok(chosen_v), Ok(cur_v)) = (chosen_url.semver(), g_url.semver()) {
-                        if chosen_v > cur_v && chosen_v.major == cur_v.major {
-                            g_url = chosen_url.clone();
-                        }
+                    if let Ok(winning_url) =
+                        UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
+                    {
+                        g_url = winning_url;
                     }
                 }
             }
@@ -980,10 +981,10 @@ impl ImportableDependency for V2Schema {
         let mut g_url = self.schema_url.clone();
         if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
             if chosen_url != &g_url {
-                if let (Ok(chosen_v), Ok(cur_v)) = (chosen_url.semver(), g_url.semver()) {
-                    if chosen_v > cur_v && chosen_v.major == cur_v.major {
-                        g_url = chosen_url.clone();
-                    }
+                if let Ok(winning_url) =
+                    UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
+                {
+                    g_url = winning_url;
                 }
             }
         }

@@ -20,6 +20,7 @@ use crate::dependency::ResolvedDependency;
 use crate::registry::resolve_registry_with_dependencies;
 
 mod attribute;
+pub(crate) mod conflict_strategy;
 mod dependency;
 mod dependency_resolution;
 mod error;
@@ -29,6 +30,7 @@ mod registry;
 
 pub use crate::error::Error;
 pub use crate::loader::LoadedSemconvRegistry;
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 
 // -----------------------------------------------------------------------------
 // Core Enums and Traits
@@ -294,10 +296,8 @@ impl<'a> SchemaCacheLookup for SchemaLookupContext<'a> {
 fn collect_chosen_versions_from_url(url: &SchemaUrl, chosen: &mut HashMap<String, SchemaUrl>) {
     let name = url.name().to_owned();
     if let Some(existing) = chosen.get(&name) {
-        if let (Ok(cur_v), Ok(prev_v)) = (url.semver(), existing.semver()) {
-            if cur_v > prev_v {
-                let _ = chosen.insert(name, url.clone());
-            }
+        if let Ok(chosen_url) = UseLatestMajorVersion.resolve_conflict(existing, url) {
+            let _ = chosen.insert(name, chosen_url);
         }
     } else {
         let _ = chosen.insert(name, url.clone());

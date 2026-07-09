@@ -17,6 +17,7 @@ use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::dependency::ResolvedDependency;
 use crate::dependency_resolution::is_excluded;
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2AttributeCatalogTrait;
 
@@ -72,7 +73,8 @@ impl AttributeCatalog {
     /// Returns an attribute ref from the catalog and also registers the attribute
     /// in `root_attributes` so its provenance is recorded.
     ///
-    /// # Transitive Dependency Version Upgrading (`cache_lookup`)
+    /// # Transitive Dependency Version Upgrading
+    /// 
     /// When `self` (the parent catalog being resolved, e.g. `main`) imports groups across a
     /// multi-registry diamond dependency graph (e.g., `main` -> [`a/0.1.0`, `b/0.1.0`]),
     /// each dependency (`a` or `b`) may have been resolved against a different version of a shared
@@ -100,8 +102,10 @@ impl AttributeCatalog {
             let reg_name = schema_url.name();
             if let Some(chosen_url) = cache_lookup.chosen_version(reg_name) {
                 if chosen_url != schema_url {
-                    if let (Ok(chosen_v), Ok(cur_v)) = (chosen_url.semver(), schema_url.semver()) {
-                        if chosen_v > cur_v && chosen_v.major == cur_v.major {
+                    if let Ok(winning_url) =
+                        UseLatestMajorVersion.resolve_conflict(schema_url, chosen_url)
+                    {
+                        if winning_url == *chosen_url {
                             if let Some(upgraded_schema) = cache_lookup.lookup_schema(chosen_url) {
                                 if let Some(upgraded_attr) = upgraded_schema
                                     .lookup_attribute(&attr_with_source.attribute.name)?
@@ -123,26 +127,8 @@ impl AttributeCatalog {
     /// Returns an attribute ref from the catalog and also registers the attribute
     /// in `root_attributes` so its provenance is recorded.
     ///
-    /// # Transitive Dependency Version Upgrading (`cache_lookup`)
-    /// When `self` (the parent catalog being resolved, e.g. `main`) imports groups across a
-    /// multi-registry diamond dependency graph (e.g., `main` -> [`a/0.1.0`, `b/0.1.0`]),
-    /// each dependency (`a` or `b`) may have been resolved against a different version of a shared
-    /// transitive dependency (`c/1.1.0` inside `a` vs. `c/1.2.0` inside `b`).
-    ///
-    /// If an attribute (`c.attr1`) is imported solely via `a/0.1.0`, `resolve_conflict` will NOT be
-    /// triggered because no second path (`b`) brings in `c.attr1`. Without intervention, `main`
-    /// would retain the stale `v1.1.0` definition of `c.attr1` while simultaneously using `v1.2.0` for
-    /// `c.attr2` (imported via `b`).
-    ///
-    /// To ensure complete SemVer consistency across all attributes in the graph, we query `cache_lookup`:
-    /// 1. If `attr_with_source` has `AttributeSource::Dependency { schema_url: dep_url }` (`c/1.1.0`),
-    ///    we check if `cache_lookup.chosen_version("c")` has selected a newer compatible version (`c/1.2.0`).
-    /// 2. If `chosen_url > dep_url` (with matching major version), we query the `cache_lookup` for the
-    ///    pre-resolved `WeaverResolvedSchema` of `chosen_url` (`c/1.2.0`).
-    /// 3. We look up `attr.name` inside `chosen_url`. If found, we replace `attr_with_source` on-the-fly with
-    ///    the upgraded definition (`c.attr1` from `v1.2.0`) and update its provenance to `chosen_url`.
-    /// 4. If not found in `chosen_url` (e.g., attribute was deprecated/removed in a minor bump), we retain
-    ///    the existing definition or defer to SemVer resolution rules.
+    /// Note: This may "upgrade" an attribute reference to use a different version
+    /// when dealing with transitive dependencies and version conflicts.
     pub fn attribute_ref_with_provenance<C: crate::SchemaCacheLookup>(
         &mut self,
         attr: attribute::Attribute,
@@ -154,9 +140,10 @@ impl AttributeCatalog {
             attribute: attr,
             source,
         };
-
+        // Make sure we pick the attribute from the *correct* version of a transitive dependency.
         new_attr = Self::upgrade_attribute_with_source(new_attr, cache_lookup)?;
 
+        // If we have a version conflict - resolve it.
         let winning_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
             resolve_conflict(&attr_name, new_attr, existing.clone())?
         } else {
@@ -196,28 +183,17 @@ fn resolve_conflict(
                 schema_url: schema_url2,
             },
         ) => {
-            if schema_url.name() == schema_url2.name() {
-                let v1 = schema_url.semver()?;
-                let v2 = schema_url2.semver()?;
-                if v1.major == v2.major {
-                    if v1 > v2 {
-                        Ok(m)
-                    } else {
-                        Ok(existing)
-                    }
-                } else {
-                    Err(Error::AmbiguousReference {
-                        r#ref: key.to_owned(),
-                        schema_url1: schema_url.to_string(),
-                        schema_url2: schema_url2.to_string(),
-                    })
-                }
-            } else {
-                Err(Error::AmbiguousReference {
+            let winning_url = UseLatestMajorVersion
+                .resolve_conflict(schema_url, schema_url2)
+                .map_err(|_| Error::AmbiguousReference {
                     r#ref: key.to_owned(),
                     schema_url1: schema_url.to_string(),
                     schema_url2: schema_url2.to_string(),
-                })
+                })?;
+            if winning_url == *schema_url2 {
+                Ok(existing)
+            } else {
+                Ok(m)
             }
         }
     }

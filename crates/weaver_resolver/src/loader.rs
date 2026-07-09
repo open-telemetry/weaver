@@ -17,6 +17,7 @@ use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGI
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
 
 /// Maximum allowed depth for registry dependency chains.
@@ -264,21 +265,11 @@ fn load_semconv_repository_recursive(
     // Check for conflict across the graph
     if let Some(prev_schema_url) = chosen_versions.get(&registry_name) {
         if prev_schema_url != &schema_url {
-            if let Err(e) =
-                check_version_compatibility(&registry_name, prev_schema_url, &schema_url)
-            {
-                return WResult::FatalErr(e);
-            }
-
-            let prev_v = prev_schema_url
-                .semver()
-                .expect("already validated by check_version_compatibility");
-            let cur_v = schema_url
-                .semver()
-                .expect("already validated by check_version_compatibility");
-
-            if cur_v > prev_v {
-                let _ = chosen_versions.insert(registry_name.clone(), schema_url.clone());
+            match UseLatestMajorVersion.resolve_conflict(prev_schema_url, &schema_url) {
+                Ok(chosen) => {
+                    let _ = chosen_versions.insert(registry_name.clone(), chosen);
+                }
+                Err(e) => return WResult::FatalErr(e),
             }
         }
     } else {
@@ -316,21 +307,11 @@ fn load_semconv_repository_recursive(
                     let dep_name = dep.name().to_owned();
                     if let Some(prev_schema_url) = chosen_versions.get(&dep_name) {
                         if prev_schema_url != dep {
-                            if let Err(e) =
-                                check_version_compatibility(&dep_name, prev_schema_url, dep)
-                            {
-                                return WResult::FatalErr(e);
-                            }
-
-                            let prev_v = prev_schema_url
-                                .semver()
-                                .expect("already validated by check_version_compatibility");
-                            let cur_v = dep
-                                .semver()
-                                .expect("already validated by check_version_compatibility");
-
-                            if cur_v > prev_v {
-                                let _ = chosen_versions.insert(dep_name, dep.clone());
+                            match UseLatestMajorVersion.resolve_conflict(prev_schema_url, dep) {
+                                Ok(chosen) => {
+                                    let _ = chosen_versions.insert(dep_name, chosen);
+                                }
+                                Err(e) => return WResult::FatalErr(e),
                             }
                         }
                     } else {
@@ -561,19 +542,11 @@ fn load_definition_repository(
 
 /// Checks version compatibility between two schema URLs.
 fn check_version_compatibility(
-    registry_name: &str,
+    _registry_name: &str,
     prev_schema_url: &SchemaUrl,
     schema_url: &SchemaUrl,
 ) -> Result<(), Error> {
-    let prev_v = prev_schema_url.semver()?;
-    let cur_v = schema_url.semver()?;
-    if prev_v.major != cur_v.major {
-        return Err(Error::DuplicateDependency {
-            name: registry_name.to_owned(),
-            version1: prev_schema_url.version().to_owned(),
-            version2: schema_url.version().to_owned(),
-        });
-    }
+    let _ = UseLatestMajorVersion.resolve_conflict(prev_schema_url, schema_url)?;
     Ok(())
 }
 

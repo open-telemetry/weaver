@@ -5,6 +5,7 @@
 use crate::attribute::AttributeCatalog;
 use crate::dependency::{ImportableDependency, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;
@@ -397,10 +398,10 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
         };
         if let Some(chosen_url) = cache_lookup.chosen_version(prov_url.name()) {
             if chosen_url != &prov_url {
-                if let (Ok(chosen_v), Ok(cur_v)) = (chosen_url.semver(), prov_url.semver()) {
-                    if chosen_v > cur_v && chosen_v.major == cur_v.major {
-                        prov_url = chosen_url.clone();
-                    }
+                if let Ok(winning_url) =
+                    UseLatestMajorVersion.resolve_conflict(&prov_url, chosen_url)
+                {
+                    prov_url = winning_url;
                 }
             }
         }
