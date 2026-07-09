@@ -3,9 +3,9 @@
 //! Functions to resolve a semantic convention registry.
 
 use crate::attribute::AttributeCatalog;
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::dependency::{ImportableDependency, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
-use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;

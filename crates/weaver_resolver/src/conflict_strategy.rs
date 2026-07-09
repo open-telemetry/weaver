@@ -2,8 +2,8 @@
 
 //! Dependency version conflict resolution strategies.
 
-use weaver_semconv::schema_url::SchemaUrl;
 use crate::Error;
+use weaver_semconv::schema_url::SchemaUrl;
 
 /// Trait defining a strategy for resolving version conflicts between two dependencies.
 pub(crate) trait DependencyVersionConflictStrategy {

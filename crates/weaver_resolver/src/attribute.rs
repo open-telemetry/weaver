@@ -15,9 +15,9 @@ use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::schema_url::SchemaUrl;
 
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::dependency::ResolvedDependency;
 use crate::dependency_resolution::is_excluded;
-use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2AttributeCatalogTrait;
 
@@ -74,7 +74,7 @@ impl AttributeCatalog {
     /// in `root_attributes` so its provenance is recorded.
     ///
     /// # Transitive Dependency Version Upgrading
-    /// 
+    ///
     /// When `self` (the parent catalog being resolved, e.g. `main`) imports groups across a
     /// multi-registry diamond dependency graph (e.g., `main` -> [`a/0.1.0`, `b/0.1.0`]),
     /// each dependency (`a` or `b`) may have been resolved against a different version of a shared

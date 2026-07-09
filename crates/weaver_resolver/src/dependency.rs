@@ -981,8 +981,7 @@ impl ImportableDependency for V2Schema {
         let mut g_url = self.schema_url.clone();
         if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
             if chosen_url != &g_url {
-                if let Ok(winning_url) =
-                    UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
+                if let Ok(winning_url) = UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
                 {
                     g_url = winning_url;
                 }

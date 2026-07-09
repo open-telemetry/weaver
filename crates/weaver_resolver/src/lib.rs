@@ -28,9 +28,9 @@ mod loader;
 pub(crate) mod merge;
 mod registry;
 
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 pub use crate::error::Error;
 pub use crate::loader::LoadedSemconvRegistry;
-use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 
 // -----------------------------------------------------------------------------
 // Core Enums and Traits
