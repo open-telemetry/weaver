@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
+- Add a stats dashboard with charts to the `serve` UI. ([#1570](https://github.com/open-telemetry/weaver/pull/1570) by @jerbly)
 - Add `semconv_grouped_entities` JQ helper. ([#1560](https://github.com/open-telemetry/weaver/pull/1560) by @lmolkova)
 - Add optional `when` clause to template entries in `weaver.yaml` — a JQ expression that gates whether a template is applied. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
 - Add `[template]` section to `.weaver.toml` with `acronyms` and `text_maps`, applied on top of every template's `weaver.yaml`. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
@@ -18,6 +20,7 @@ All notable changes to this project will be documented in this file.
 # [0.24.2] - 2026-06-23
 
 - Fix boolean flags (`--v2`, `--skip-policies`, etc.) consuming the following positional argument; bare flags work again and `--flag=false` overrides `.weaver.toml`. ([#1532](https://github.com/open-telemetry/weaver/pull/1532) by @jerbly)
+- Add `--fail-on <violation|improvement|information|none>` to `weaver registry live-check` to choose the severity threshold that produces a non-zero exit code. Defaults to `violation` (preserves the current behavior). ([#1473](https://github.com/open-telemetry/weaver/issues/1473))
 
 # [0.24.1] - 2026-06-21
 

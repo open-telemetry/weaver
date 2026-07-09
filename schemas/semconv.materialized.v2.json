@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ForgeResolvedRegistry",
-  "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registrys fully fleshed out and ready for codegen.",
+  "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registries fully fleshed out and ready for codegen.",
   "type": "object",
   "properties": {
     "refinements": {
@@ -521,14 +521,20 @@
           ]
         },
         "value": {
-          "description": "String, int, or boolean; value of the enum entry.",
-          "$ref": "#/$defs/ValueSpec"
+          "description": "String, int, or boolean; value of the enum entry.\nIf omitted, defaults to the value of `id`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "required": [
-        "id",
-        "value"
+        "id"
       ]
     },
     "Event": {

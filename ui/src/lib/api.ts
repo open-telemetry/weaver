@@ -45,18 +45,66 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export interface RegistryStats {
-  registry_url: string;
-  counts: RegistryCounts;
+/** A breakdown map: label -> count. */
+export type Breakdown = Record<string, number>;
+
+/** Statistics shared by every signal type (metrics, spans, events, entities, attribute groups). */
+export interface CommonSignalStats {
+  count: number;
+  stability_breakdown: Breakdown;
+  deprecated_count: number;
+  total_with_note: number;
 }
 
-export interface RegistryCounts {
-  attributes: number;
-  metrics: number;
-  spans: number;
-  events: number;
-  entities: number;
-  attribute_groups: number;
+export interface AttributeStats {
+  attribute_count: number;
+  attribute_type_breakdown: Breakdown;
+  stability_breakdown: Breakdown;
+  deprecated_count: number;
+}
+
+export interface MetricStats {
+  common: CommonSignalStats;
+  metric_names: string[];
+  instrument_breakdown: Breakdown;
+  unit_breakdown: Breakdown;
+}
+
+export interface SpanStats {
+  common: CommonSignalStats;
+  span_kind_breakdown: Breakdown;
+}
+
+export interface EventStats {
+  common: CommonSignalStats;
+  event_names: string[];
+}
+
+export interface EntityStats {
+  common: CommonSignalStats;
+  entity_types: string[];
+  entity_identity_length_distribution: Breakdown;
+}
+
+export interface AttributeGroupStats {
+  common: CommonSignalStats;
+}
+
+export interface RegistryStatsDetail {
+  attributes: AttributeStats;
+  metrics: MetricStats;
+  spans: SpanStats;
+  events: EventStats;
+  entities: EntityStats;
+  attribute_groups: AttributeGroupStats;
+}
+
+/** Full registry statistics — the same data produced by `weaver registry stats`. */
+export interface RegistryStats {
+  schema_url: string;
+  version: string;
+  registry: RegistryStatsDetail;
+  refinements: Record<string, unknown>;
 }
 
 export interface AttributeResponse {
