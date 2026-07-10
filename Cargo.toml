@@ -41,7 +41,7 @@ serde_yaml = "0.9.34"
 serde_json = { version = "1.0.145" }
 thiserror = "2.0.17"
 url = "2.5.4"
-ureq = "3.1.4"
+ureq = { version = "3.1.4", features = ["platform-verifier"] }
 regex = "1.11.3"
 rayon = "1.11.0"
 openssl = { version = "0.10.78", features = ["vendored"] }
