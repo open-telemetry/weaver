@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Preserve per-attribute `requirement_level` on attribute refs of public attribute groups in the v2 resolved and materialized schemas. ([#1584](https://github.com/open-telemetry/weaver/pull/1584) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 Preserve per-attribute `requirement_level` on attribute refs of public attribute groups in the v2 resolved and materialized schemas. Each entry in an attribute group's `attributes` is now an object (`{ base, requirement_level }`) instead of a bare `attribute_catalog` index. ([#1584](https://github.com/open-telemetry/weaver/pull/1584) by @lmolkova)
 - Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
 - Add a stats dashboard with charts to the `serve` UI. ([#1570](https://github.com/open-telemetry/weaver/pull/1570) by @jerbly)
 - Add `semconv_grouped_entities` JQ helper. ([#1560](https://github.com/open-telemetry/weaver/pull/1560) by @lmolkova)
