@@ -23,7 +23,8 @@ registry:
   attribute_groups:
   - id: local.group
     attributes:
-    - 1
+    - base: 1
+      requirement_level: required
     brief: local group
     stability: stable
   spans:

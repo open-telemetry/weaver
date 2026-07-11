@@ -26,6 +26,7 @@ attribute_groups:
   stability: stable
   attributes:
   - ref: local.group.attr
+    requirement_level: required
 imports:
   spans:
     - imported.*

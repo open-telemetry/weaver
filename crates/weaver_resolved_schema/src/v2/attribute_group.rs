@@ -4,7 +4,10 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::v2::{signal_id::SignalId, CommonFields};
+use weaver_semconv::{
+    attribute::RequirementLevel,
+    v2::{signal_id::SignalId, CommonFields},
+};
 
 use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
@@ -23,7 +26,7 @@ pub struct AttributeGroup {
     pub id: SignalId,
 
     /// List of attributes and group references that belong to this group
-    pub attributes: Vec<AttributeRef>,
+    pub attributes: Vec<AttributeGroupAttributeRef>,
 
     /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
@@ -33,6 +36,22 @@ pub struct AttributeGroup {
     #[serde(default)]
     #[serde(skip_serializing_if = "Provenance::is_empty")]
     pub provenance: Provenance,
+}
+
+/// A reference to an attribute in a public attribute group that remembers the
+/// group-specific requirement level refinement.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+pub struct AttributeGroupAttributeRef {
+    /// Reference, by index, to the attribute catalog.
+    pub base: AttributeRef,
+    /// Specifies if the attribute is mandatory. Can be "required",
+    /// "conditionally_required", "recommended" or "opt_in". When omitted,
+    /// the attribute is "recommended". When set to
+    /// "conditionally_required", the string provided as `condition` MUST
+    /// specify the conditions under which the attribute is required.
+    pub requirement_level: RequirementLevel,
 }
 
 impl Signal for AttributeGroup {

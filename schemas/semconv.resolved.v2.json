@@ -127,7 +127,7 @@
           "description": "List of attributes and group references that belong to this group",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRef"
+            "$ref": "#/$defs/AttributeGroupAttributeRef"
           }
         },
         "brief": {
@@ -168,6 +168,25 @@
         "attributes",
         "brief",
         "stability"
+      ]
+    },
+    "AttributeGroupAttributeRef": {
+      "description": "A reference to an attribute in a public attribute group that remembers the\ngroup-specific requirement level refinement.",
+      "type": "object",
+      "properties": {
+        "base": {
+          "description": "Reference, by index, to the attribute catalog.",
+          "$ref": "#/$defs/AttributeRef"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
+          "$ref": "#/$defs/RequirementLevel"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "requirement_level"
       ]
     },
     "AttributeRef": {

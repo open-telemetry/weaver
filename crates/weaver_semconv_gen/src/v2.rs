@@ -257,18 +257,21 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
 fn resolved_attribute_group<AC: AttributeCatalog>(s: &AttributeGroup, catalog: &AC) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
-        let attr = catalog.attribute(ar).unwrap_or_else(|| {
+        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
             panic!(
                 "Invalid schema file: Attribute reference {} does not exist",
-                ar.0
+                ar.base.0
             )
         });
-        attributes.push(weaver_forge::v2::attribute::Attribute {
-            key: attr.key.clone(),
-            r#type: attr.r#type.clone(),
-            examples: attr.examples.clone(),
-            common: attr.common.clone(),
-            provenance: Default::default(),
+        attributes.push(weaver_forge::v2::attribute_group::AttributeGroupAttribute {
+            base: weaver_forge::v2::attribute::Attribute {
+                key: attr.key.clone(),
+                r#type: attr.r#type.clone(),
+                examples: attr.examples.clone(),
+                common: attr.common.clone(),
+                provenance: Default::default(),
+            },
+            requirement_level: ar.requirement_level.clone(),
         });
     }
     ResolvedId::AttributeGroup(ResolvedAttributeGroup {
@@ -415,7 +418,7 @@ mod tests {
     };
     use weaver_resolved_schema::v2::{
         attribute::{Attribute, AttributeRef},
-        attribute_group::AttributeGroup,
+        attribute_group::{AttributeGroup, AttributeGroupAttributeRef},
         entity::{Entity, EntityAttributeRef},
         event::{Event, EventAttributeRef, EventRefinement},
         metric::{Metric, MetricAttributeRef, MetricRefinement},
@@ -480,7 +483,12 @@ mod tests {
                 attributes: vec![],
                 attribute_groups: vec![AttributeGroup {
                     id: "test.common".to_owned().into(),
-                    attributes: vec![AttributeRef(0)],
+                    attributes: vec![AttributeGroupAttributeRef {
+                        base: AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                        ),
+                    }],
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],

@@ -710,14 +710,14 @@ impl ImportableDependency for V2Schema {
             }
             let mut attributes = vec![];
             for ar in ag.attributes.iter() {
-                let attr = self.attribute_catalog.attribute(ar).ok_or(
+                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
                     Error::InvalidRegistryAttributeRef {
                         registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.0,
+                        attribute_ref: ar.base.0,
                     },
                 )?;
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, RequirementLevel::default(), None),
+                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
                     AttributeSource::Dependency {
                         schema_url: self.schema_url.clone(),
                     },
@@ -1148,7 +1148,18 @@ mod tests {
                 attribute_groups: vec![
                     weaver_resolved_schema::v2::attribute_group::AttributeGroup {
                         id: "attribute_group.e".to_owned().into(),
-                        attributes: vec![],
+                        // A public group whose attribute ref carries a
+                        // non-default requirement level; importing the group
+                        // must preserve it.
+                        attributes: vec![
+                            weaver_resolved_schema::v2::attribute_group::AttributeGroupAttributeRef {
+                                base: weaver_resolved_schema::v2::attribute::AttributeRef(0),
+                                requirement_level:
+                                    weaver_semconv::attribute::RequirementLevel::Basic(
+                                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                                    ),
+                            },
+                        ],
                         common: Default::default(),
                         provenance: Default::default(),
                     },
@@ -1193,7 +1204,15 @@ mod tests {
                 }],
                 attributes: vec![],
             },
-            attribute_catalog: vec![],
+            attribute_catalog: vec![weaver_resolved_schema::v2::attribute::Attribute {
+                key: "attr.in.group".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                examples: None,
+                common: Default::default(),
+                provenance: Default::default(),
+            }],
             refinements: weaver_resolved_schema::v2::refinements::Refinements {
                 spans: vec![],
                 metrics: vec![],
@@ -1322,6 +1341,24 @@ mod tests {
             result.len(),
             5,
             "Should import metric, event, entity, span and attribute_group"
+        );
+
+        // The imported public attribute group must preserve the per-attribute
+        // requirement level authored on its ref (rather than resetting it to
+        // the default).
+        let group = result
+            .iter()
+            .find(|g| g.id == "attribute_group.e")
+            .expect("attribute_group.e should be imported");
+        assert_eq!(group.attributes.len(), 1);
+        let attr = catalog
+            .attribute(&group.attributes[0])
+            .expect("imported attribute should exist in the catalog");
+        assert_eq!(
+            attr.requirement_level,
+            weaver_semconv::attribute::RequirementLevel::Basic(
+                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+            )
         );
 
         Ok(())
