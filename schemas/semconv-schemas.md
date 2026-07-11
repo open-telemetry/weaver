@@ -202,7 +202,7 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
   - **attributes**: Indexes into `attribute_catalog` for original attribute definitions. No duplicates.
   - **attribute_groups**: Public attribute groups
     - `id`: Unique identifier
-    - `attributes`: Attribute references (optional)
+    - `attributes`: Attribute references
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
     - [Common properties](#common-signal-and-attribute-properties)

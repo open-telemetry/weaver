@@ -46,11 +46,11 @@ pub struct AttributeGroup {
 pub struct AttributeGroupAttributeRef {
     /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,
-    /// Specifies if the attribute is mandatory. Can be "required",
-    /// "conditionally_required", "recommended" or "opt_in". When omitted,
-    /// the attribute is "recommended". When set to
-    /// "conditionally_required", the string provided as `condition` MUST
-    /// specify the conditions under which the attribute is required.
+    /// The requirement level of the attribute within this group. One of
+    /// "required", "conditionally_required", "recommended" or "opt_in".
+    /// When set to "conditionally_required", the string provided as
+    /// `condition` MUST specify the conditions under which the attribute
+    /// is required.
     pub requirement_level: RequirementLevel,
 }
 

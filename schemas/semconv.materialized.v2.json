@@ -198,7 +198,7 @@
           "$ref": "#/$defs/Provenance"
         },
         "requirement_level": {
-          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\". When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
+          "description": "The requirement level of the attribute within this group. One of\n\"required\", \"conditionally_required\", \"recommended\" or \"opt_in\".\nWhen set to \"conditionally_required\", the string provided as\n`condition` MUST specify the conditions under which the attribute\nis required.",
           "$ref": "#/$defs/RequirementLevel"
         },
         "stability": {

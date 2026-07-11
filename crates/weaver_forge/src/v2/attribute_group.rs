@@ -36,10 +36,10 @@ pub struct AttributeGroupAttribute {
     /// Base attribute definition.
     #[serde(flatten)]
     pub base: Attribute,
-    /// Specifies if the attribute is mandatory. Can be "required",
-    /// "conditionally_required", "recommended" or "opt_in". When omitted,
-    /// the attribute is "recommended". When set to
-    /// "conditionally_required", the string provided as `condition` MUST
-    /// specify the conditions under which the attribute is required.
+    /// The requirement level of the attribute within this group. One of
+    /// "required", "conditionally_required", "recommended" or "opt_in".
+    /// When set to "conditionally_required", the string provided as
+    /// `condition` MUST specify the conditions under which the attribute
+    /// is required.
     pub requirement_level: RequirementLevel,
 }
