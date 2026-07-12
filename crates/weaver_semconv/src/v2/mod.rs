@@ -179,8 +179,7 @@ impl SemConvSpecV2 {
     /// that is elevated to an error under `--future`.
     ///
     /// It also rejects entities and entity refinements that list the same
-    /// attribute under both `identity` and `description` — the two lists
-    /// assign contradicting roles, so this is a fatal definition error.
+    /// attribute under both `identity` and `description`.
     pub(crate) fn validate(self, provenance: &str) -> WResult<Self, Error> {
         let mut errors: Vec<Error> = vec![];
         let mut fatal_errors: Vec<Error> = vec![];

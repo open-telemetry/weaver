@@ -599,7 +599,11 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     errors.push(err);
                     continue;
                 }
-                if unresolved_group.is_v2 && unresolved_group.group.r#type == GroupType::Entity {
+                // Only meaningful when refining another entity
+                if unresolved_group.is_v2
+                    && unresolved_group.group.r#type == GroupType::Entity
+                    && parent_summary.r#type == GroupType::Entity
+                {
                     fatal_errors.extend(entity_identity_refinement_errors(
                         unresolved_group,
                         extends,
@@ -770,7 +774,8 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
     }
 }
 
-/// Errors when an entity refinement alters the identity of the base entity.
+/// Errors when an entity refinement alters the identity of the base entity
+/// (demoting, promoting, or adding an identity attribute).
 fn entity_identity_refinement_errors(
     group: &UnresolvedGroup,
     extends: &str,
