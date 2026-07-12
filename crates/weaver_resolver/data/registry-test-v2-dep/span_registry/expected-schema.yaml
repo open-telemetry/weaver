@@ -1,0 +1,43 @@
+file_format: resolved/2.0
+schema_url: https://span-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Different brief
+  note: Different note
+  stability: stable
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Refined server port
+  stability: stable
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans:
+  - id: refined.request
+    type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 0
+      requirement_level: required
+      sampling_relevant: true
+    - base: 1
+      requirement_level: recommended
+    brief: Refined server request span
+    stability: stable
+  metrics: []
+  events: []
+dependencies:
+- https://server.example.com/schemas/1.0.0

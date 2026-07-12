@@ -1,0 +1,11 @@
+file_format: definition/2
+metric_refinements:
+  # Refines `server.request.duration` from the dependency: `server.port` gets
+  # a refined brief; `server.address` is not mentioned and must be inherited
+  # from the dependency with its `required` requirement level.
+  - id: refined.duration
+    ref: server.request.duration
+    brief: Refined server request duration
+    attributes:
+      - ref: server.port
+        brief: Refined server port

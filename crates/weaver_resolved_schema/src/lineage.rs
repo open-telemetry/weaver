@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use weaver_semconv::attribute::{AttributeRole, AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::group::GroupType;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
@@ -42,6 +43,18 @@ pub struct GroupLineage {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub extends_group: Option<String>,
+
+    /// The type of the extended group, resolved from the parent at extends
+    /// resolution time (the parent may live in a dependency). Used to tell a
+    /// refinement from a plain base signal without inferring from the id.
+    ///
+    /// In-memory only: it is derived during resolution and consumed by the
+    /// v1→v2 conversion in the same run, so it is never serialized (keeping
+    /// the resolved file format unchanged).
+    /// TODO: it's only necessary for v1->v2 conversion and
+    /// we should clean this up when removing v1
+    #[serde(skip)]
+    pub extends_group_type: Option<GroupType>,
 
     /// The lineage per attribute.
     ///
@@ -481,14 +494,16 @@ impl GroupLineage {
         Self {
             provenance,
             extends_group: None,
+            extends_group_type: None,
             attributes: Default::default(),
             includes_group: Default::default(),
         }
     }
 
-    /// Declares this group extended another group.
-    pub fn extends(&mut self, extends_group: &str) {
+    /// Declares this group extended another group of the given type.
+    pub fn extends(&mut self, extends_group: &str, extends_group_type: GroupType) {
         self.extends_group = Some(extends_group.to_owned());
+        self.extends_group_type = Some(extends_group_type);
     }
 
     /// Records what attribute groups were included (v2 only).
