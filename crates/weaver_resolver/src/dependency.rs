@@ -958,9 +958,9 @@ impl GroupRefinementLookup for V2Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
-                        attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant)
-                    })
+                    self.attribute_catalog
+                        .get(ar.base.0 as usize)
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant))
                 })
                 .collect();
             let mut summary = signal_summary(

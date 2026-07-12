@@ -820,7 +820,7 @@ mod tests {
     }
 
     /// End-to-end test for an entity refinement over a v2 dependency
-    /// 
+    ///
     /// TODO: ignored until entity refinement inheritance preserves the
     /// attribute role. Currently the dependency lookup drops the role (see
     /// `attr_spec` in dependency.rs), so the base entity's identity
