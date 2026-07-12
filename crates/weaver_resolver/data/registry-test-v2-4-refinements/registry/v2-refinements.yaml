@@ -86,6 +86,8 @@ entities:
     requirement_level: recommended
     identity:
       - ref: test.attr
+    description:
+      - ref: test.attr2
     brief: Base entity
     stability: stable
 
@@ -93,5 +95,11 @@ entity_refinements:
   - id: entity.refined.entity
     ref: base.entity
     brief: Refined entity
-    description:
+    identity:
+      - ref: test.attr
+        brief: Refined identity attribute
+      # Promotes a descriptive attribute of the base entity to identifying.
       - ref: test.attr2
+    description:
+      # Adds a new descriptive attribute.
+      - ref: test.attr3

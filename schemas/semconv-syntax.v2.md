@@ -414,7 +414,8 @@ An entity refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the entity refinement.
 - `ref` - Required. The name of the entity being refined.
-- `description` - Optional. The additional attributes to describe the Entity.
+- `identity` - Optional. List of [attribute references](#attribute-reference) refining identity attributes of the entity. Attributes listed here have the identifying role, so an identity attribute of the base entity can be refined (`brief`, `note`, `examples`, etc.) while keeping its role. Listing a descriptive attribute of the base entity here promotes it to identifying.
+- `description` - Optional. The additional attributes to describe the Entity. Attributes listed here have the descriptive role.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.

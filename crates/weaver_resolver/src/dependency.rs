@@ -1072,20 +1072,13 @@ impl GroupRefinementLookup for V1Schema {
 }
 
 /// Converts a v2 catalog attribute into an unresolved attribute spec with
-/// the given requirement level and sampling relevance taken from the
+/// the given requirement level, sampling relevance and role taken from the
 /// signal's attribute reference.
-///
-/// TODO: this drops the attribute role (identifying vs descriptive). For
-/// entity refinements over a v2 dependency that loses the identity/description
-/// split — all inherited attributes collapse into `description` because the
-/// v1→v2 conversion routes to `identity` only when the role is `Identifying`.
-/// Thread the role through here and set it in the entity branch when we fix
-/// entity refinement inheritance (see the ignored
-/// `test_v2_dependency_entity_refinement_inherits_attributes`).
 fn attr_spec(
     a: &weaver_resolved_schema::v2::attribute::Attribute,
     requirement_level: RequirementLevel,
     sampling_relevant: Option<bool>,
+    role: Option<AttributeRole>,
 ) -> UnresolvedAttribute {
     UnresolvedAttribute {
         spec: weaver_semconv::attribute::AttributeSpec::Id {
@@ -1100,7 +1093,7 @@ fn attr_spec(
             stability: Some(a.common.stability.clone()),
             deprecated: a.common.deprecated.clone(),
             annotations: Some(a.common.annotations.clone()),
-            role: None,
+            role,
         },
     }
 }
@@ -1131,11 +1124,44 @@ fn signal_summary(
     }
 }
 
+/// Builds a group summary for an entity, with identity attributes tagged
+/// with the identifying role and description attributes with the
+/// descriptive role, so refinements inherit them correctly.
+fn entity_group_summary(
+    schema: &V2Schema,
+    e: &weaver_resolved_schema::v2::entity::Entity,
+) -> GroupSummary {
+    let attributes = e
+        .identity
+        .iter()
+        .map(|ar| (ar, AttributeRole::Identifying))
+        .chain(
+            e.description
+                .iter()
+                .map(|ar| (ar, AttributeRole::Descriptive)),
+        )
+        .filter_map(|(ar, role)| {
+            schema
+                .attribute_catalog
+                .get(ar.base.0 as usize)
+                .map(|a| attr_spec(a, ar.requirement_level.clone(), None, Some(role)))
+        })
+        .collect();
+    signal_summary(
+        GroupType::Entity,
+        &e.common,
+        e.requirement_level.clone(),
+        attributes,
+    )
+}
+
 impl GroupRefinementLookup for V2Schema {
     fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
-        // groups that come from v2 published signals don't have `span|metrics|etc.` prefix
-        // groups that come from v1 have it
-        // strip it when looking up v1 groups
+        // An `extends` clause references either the v1 group id
+        // (`entity.host`, written by v2 refinements over prefix-stripped
+        // published signals) or the raw published signal id
+        // (`parent.metric`, written by v1 groups), so try the stripped id
+        // first and fall back to the raw id.
         fn find<'a, S: Signal>(signals: &'a [S], id: &str, prefix: &str) -> Option<&'a S> {
             let by_id = |n: &str| signals.iter().find(|s| s.id() == n);
             id.strip_prefix(prefix)
@@ -1144,22 +1170,7 @@ impl GroupRefinementLookup for V2Schema {
         }
 
         if let Some(e) = find(&self.registry.entities, id, "entity.") {
-            let attributes = e
-                .identity
-                .iter()
-                .chain(e.description.iter())
-                .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None))
-                })
-                .collect();
-            return Some(signal_summary(
-                GroupType::Entity,
-                &e.common,
-                e.requirement_level.clone(),
-                attributes,
-            ));
+            return Some(entity_group_summary(self, e));
         }
         if let Some(m) = find(&self.registry.metrics, id, "metric.") {
             let attributes = m
@@ -1168,7 +1179,7 @@ impl GroupRefinementLookup for V2Schema {
                 .filter_map(|ar| {
                     self.attribute_catalog
                         .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None))
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None, None))
                 })
                 .collect();
             let mut summary = signal_summary(
@@ -1189,7 +1200,7 @@ impl GroupRefinementLookup for V2Schema {
                 .filter_map(|ar| {
                     self.attribute_catalog
                         .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None))
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None, None))
                 })
                 .collect();
             return Some(signal_summary(
@@ -1204,9 +1215,9 @@ impl GroupRefinementLookup for V2Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant, None)
+                    })
                 })
                 .collect();
             let mut summary = signal_summary(
@@ -1454,6 +1465,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: std::collections::BTreeSet::new(),
         }

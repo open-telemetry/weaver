@@ -724,6 +724,7 @@ mod tests {
                 metrics: vec![],
                 spans: vec![],
                 events: vec![],
+                entities: vec![],
             },
         }
     }

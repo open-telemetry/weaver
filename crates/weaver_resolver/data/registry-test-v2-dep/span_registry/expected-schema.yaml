@@ -39,5 +39,6 @@ refinements:
     stability: stable
   metrics: []
   events: []
+  entities: []
 dependencies:
 - https://server.example.com/schemas/1.0.0

@@ -256,6 +256,7 @@ pub fn convert_v1_to_v2(
     let mut events = Vec::new();
     let mut event_refinements = Vec::new();
     let mut entities = Vec::new();
+    let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
     for g in r.groups.iter() {
         match g.r#type {
@@ -468,6 +469,12 @@ pub fn convert_v1_to_v2(
                 }
             }
             GroupType::Entity => {
+                // Check if we refine another entity.
+                let is_refinement = g
+                    .lineage
+                    .as_ref()
+                    .map(|l| l.extends_group_type == Some(GroupType::Entity))
+                    .unwrap_or(false);
                 let mut id_attrs = Vec::new();
                 let mut desc_attrs = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -490,8 +497,17 @@ pub fn convert_v1_to_v2(
                         // TODO logic error!
                     }
                 }
-                entities.push(Entity {
-                    r#type: fix_group_id("entity.", &g.id),
+                let entity_type = if is_refinement {
+                    g.lineage
+                        .as_ref()
+                        .and_then(|l| l.extends_group.as_ref())
+                        .map(|id| fix_group_id("entity.", id))
+                        .expect("Refinement extraction issue - this is a logic bug")
+                } else {
+                    fix_group_id("entity.", &g.id)
+                };
+                let entity = Entity {
+                    r#type: entity_type,
                     identity: id_attrs,
                     description: desc_attrs,
                     requirement_level: g.requirement_level.clone(),
@@ -506,7 +522,19 @@ pub fn convert_v1_to_v2(
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
                     provenance: get_provenance(g),
-                });
+                };
+                if is_refinement {
+                    entity_refinements.push(entity::EntityRefinement {
+                        id: fix_group_id("entity.", &g.id),
+                        entity,
+                    });
+                } else {
+                    entities.push(entity.clone());
+                    entity_refinements.push(entity::EntityRefinement {
+                        id: entity.r#type.clone(),
+                        entity,
+                    });
+                }
             }
             GroupType::AttributeGroup => {
                 if g.visibility
@@ -585,6 +613,7 @@ pub fn convert_v1_to_v2(
         spans: span_refinements,
         metrics: metric_refinements,
         events: event_refinements,
+        entities: entity_refinements,
     };
     Ok((v2_catalog.into(), v2_registry, v2_refinements, dependencies))
 }
@@ -1524,6 +1553,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: BTreeSet::new(),
         }
