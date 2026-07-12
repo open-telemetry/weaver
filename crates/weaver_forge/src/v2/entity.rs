@@ -24,7 +24,7 @@ pub struct Entity {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub identity: Vec<EntityAttribute>,
 
-    /// List of attributes that describe to this entity.
+    /// List of attributes that describe this entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub description: Vec<EntityAttribute>,
