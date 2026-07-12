@@ -187,7 +187,7 @@ pub enum Error {
     },
 
     /// Entity refinement changes identity.
-    #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role}`.\nProvenance: {provenance:?}")]
+    #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role:?}`.\nProvenance: {provenance:?}")]
     #[diagnostic(help(
         "A refinement must preserve the base entity's identity: keep base attributes under the same section (`identity` or `description`) as the base, and do not add new `identity` attributes."
     ))]

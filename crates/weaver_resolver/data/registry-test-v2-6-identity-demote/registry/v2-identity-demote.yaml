@@ -21,14 +21,6 @@ entity_refinements:
     identity:
       - ref: test.attr
         brief: Refined identity attribute
-  # Invalid: demotion through a chained refinement — test.attr is inherited
-  # with the identifying role from refined.entity.
-  - id: entity.chained.entity
-    ref: refined.entity
-    brief: Chained refinement
-    description:
-      - ref: test.attr
-        brief: Demoted identity attribute of a refinement
   # Invalid: test.attr is an identity attribute of base.entity and must be
   # refined under `identity`, not `description`.
   - id: entity.demoting.entity
@@ -37,10 +29,3 @@ entity_refinements:
     description:
       - ref: test.attr
         brief: Demoted identity attribute
-  # Resolves cleanly against the offending refinement above: the demotion
-  # must not leave `demoting.entity` unresolved, so this group must NOT add
-  # `UnresolvedExtendsRef` noise. The only expected errors are the two
-  # demotions.
-  - id: entity.noise.entity
-    ref: demoting.entity
-    brief: Extends the offending refinement

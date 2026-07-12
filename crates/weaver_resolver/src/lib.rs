@@ -939,7 +939,7 @@ mod tests {
                 let msg = e.to_string();
                 assert!(
                     msg.contains("Entity refinement `demoted.host` changes the identity of")
-                        && msg.contains("referencing `host.id` under `description`"),
+                        && msg.contains("referencing `host.id` under `Descriptive`"),
                     "Expected identity demotion error, got: {msg}"
                 );
             }
