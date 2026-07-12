@@ -1,0 +1,52 @@
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: int
+    brief: Test attribute
+    stability: stable
+  - key: test.attr2
+    type: string
+    brief: Test attribute 2
+    stability: stable
+
+entities:
+  - type: base.entity
+    requirement_level: recommended
+    identity:
+      - ref: test.attr
+    description:
+      - ref: test.attr2
+    brief: Base entity
+    stability: stable
+
+entity_refinements:
+  # Valid: refines the descriptive attribute under `description`.
+  - id: entity.refined.entity
+    ref: base.entity
+    brief: Refined entity
+    description:
+      - ref: test.attr2
+        brief: Refined descriptive attribute
+  # Invalid: promotion through a chained refinement — test.attr2 is inherited
+  # with the descriptive role from refined.entity.
+  - id: entity.chained.entity
+    ref: refined.entity
+    brief: Chained refinement
+    identity:
+      - ref: test.attr2
+        brief: Promoted descriptive attribute of a refinement
+  # Invalid: test.attr2 is a descriptive attribute of base.entity and must be
+  # refined under `description`, not `identity`.
+  - id: entity.promoting.entity
+    ref: base.entity
+    brief: Promoting entity
+    identity:
+      - ref: test.attr2
+        brief: Promoted descriptive attribute
+  # Resolves cleanly against the offending refinement above: the promotion
+  # must not leave `promoting.entity` unresolved, so this group must NOT add
+  # `UnresolvedExtendsRef` noise. The only expected errors are the two
+  # promotions.
+  - id: entity.noise.entity
+    ref: promoting.entity
+    brief: Extends the offending refinement

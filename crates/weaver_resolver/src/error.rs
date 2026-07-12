@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::log_error;
+use weaver_semconv::attribute::AttributeRole;
 use weaver_semconv::provenance::Provenance;
 
 /// An error that can occur while resolving a telemetry schema.
@@ -183,6 +184,25 @@ pub enum Error {
         refinement_type: String,
         /// The type of the refined signal.
         signal_type: String,
+    },
+
+    /// Entity refinement changes identity.
+    #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role}`.\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "A refinement must preserve the base entity's identity: keep base attributes under the same section (`identity` or `description`) as the base, and do not add new `identity` attributes."
+    ))]
+    EntityRefinementChangedIdentity {
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The entity being refined, as written in the refinement's `ref`.
+        r#ref: String,
+        /// The attribute whose identity role the refinement changes.
+        attribute_id: String,
+        /// The section the refinement lists the attribute under
+        /// (`identity` or `description`).
+        role: AttributeRole,
+        /// The provenance of the refinement (URL or path).
+        provenance: Option<Box<Provenance>>,
     },
 
     /// A duplicate attribute id error.

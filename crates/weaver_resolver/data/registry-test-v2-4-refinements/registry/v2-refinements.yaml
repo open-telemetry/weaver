@@ -98,8 +98,10 @@ entity_refinements:
     identity:
       - ref: test.attr
         brief: Refined identity attribute
-      # Promotes a descriptive attribute of the base entity to identifying.
-      - ref: test.attr2
     description:
+      # Refines a descriptive attribute of the base entity.
+      - ref: test.attr2
+        brief: Refined description attribute
       # Adds a new descriptive attribute.
       - ref: test.attr3
+        brief: Added description attribute

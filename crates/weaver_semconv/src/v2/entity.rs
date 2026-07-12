@@ -44,16 +44,16 @@ pub struct EntityRefinement {
     pub id: SignalId,
     /// The name of the entity being refined.
     pub r#ref: SignalId,
-    // TODO(entity-identity-validation): the identity/description lists are not
-    // validated yet. A follow-up must reject (1) the same attribute appearing
-    // in both lists and (2) a refinement demoting a base entity's identity
-    // attribute to `description`. Until then both are silently accepted.
-    /// Refinements or additional identity attributes of the Entity.
-    /// Attributes listed here keep (or are given) the identifying role.
+    /// Refinements of the base entity's identity attributes.
+    ///
+    /// A refinement must not change *which* attributes identify the entity: it
+    /// may only refine attributes the base entity already lists under
+    /// `identity`.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub identity: Vec<AttributeRef>,
     /// Refinements or additional attributes to describe the Entity.
+    ///
     /// Attributes listed here have the descriptive role.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -127,9 +127,9 @@ impl EntityRefinement {
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
         // Roles are set explicitly from the list the attribute appears in.
-        // TODO(entity-identity-validation): a refinement that demotes a base
-        // identity attribute to descriptive is not rejected yet; see the TODO
-        // on `EntityRefinement::identity`.
+        // Changing a base entity's identity (demoting/promoting an attribute or
+        // adding a new identity attribute) is rejected downstream during
+        // resolution; see `entity_identity_refinement_errors` in weaver_resolver.
         let attributes = self
             .identity
             .into_iter()

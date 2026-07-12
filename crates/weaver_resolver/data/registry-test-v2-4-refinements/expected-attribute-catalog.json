@@ -25,17 +25,17 @@
   {
     "name": "test.attr2",
     "type": "string",
-    "brief": "Test attribute 2",
+    "brief": "Refined description attribute",
     "requirement_level": "recommended",
-    "stability": "stable"
+    "stability": "stable",
+    "role": "descriptive"
   },
   {
     "name": "test.attr2",
     "type": "string",
     "brief": "Test attribute 2",
     "requirement_level": "recommended",
-    "stability": "stable",
-    "role": "identifying"
+    "stability": "stable"
   },
   {
     "name": "test.attr2",
@@ -48,16 +48,16 @@
   {
     "name": "test.attr3",
     "type": "string",
-    "brief": "Test attribute 3",
+    "brief": "Added description attribute",
     "requirement_level": "recommended",
-    "stability": "stable"
+    "stability": "stable",
+    "role": "descriptive"
   },
   {
     "name": "test.attr3",
     "type": "string",
     "brief": "Test attribute 3",
     "requirement_level": "recommended",
-    "stability": "stable",
-    "role": "descriptive"
+    "stability": "stable"
   }
 ]

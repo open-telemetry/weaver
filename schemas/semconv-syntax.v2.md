@@ -385,7 +385,7 @@ An entity definition consists of the following properties:
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
 - `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
-- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
+- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity. The same attribute must **not** appear under both `identity` and `description`.
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the entity. See [annotations](#annotations) for details.
@@ -414,7 +414,7 @@ An entity refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the entity refinement.
 - `ref` - Required. The name of the entity being refined.
-- `identity` - Optional. List of [attribute references](#attribute-reference) refining identity attributes of the entity. Attributes listed here have the identifying role, so an identity attribute of the base entity can be refined (`brief`, `note`, `examples`, etc.) while keeping its role. Listing a descriptive attribute of the base entity here promotes it to identifying.
+- `identity` - Optional. List of [attribute references](#attribute-reference) refining identity attributes of the entity. Attributes listed here have the identifying role, so an identity attribute of the base entity can be refined (`brief`, `note`, `examples`, etc.) while keeping its role. A refinement must **not change the identity** of the base entity: it may only list attribute keys the base entity already declares under `identity`.
 - `description` - Optional. The additional attributes to describe the Entity. Attributes listed here have the descriptive role.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.

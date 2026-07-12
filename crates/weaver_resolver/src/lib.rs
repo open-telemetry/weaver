@@ -922,6 +922,31 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
     }
 
+    /// Can't demote an identity attribute of a base entity.
+    #[test]
+    fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/entity_demote_registry/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected resolution to fail with an identity demotion error")
+            }
+            WResult::FatalErr(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("Entity refinement `demoted.host` changes the identity of")
+                        && msg.contains("referencing `host.id` under `description`"),
+                    "Expected identity demotion error, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     fn test_v2_three_layer_dependency_resolution() -> Result<(), weaver_semconv::Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {

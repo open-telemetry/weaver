@@ -263,6 +263,17 @@ impl AttributeRole {
     }
 }
 
+impl Display for AttributeRole {
+    /// Renders the role as the yaml section attributes with that role are
+    /// declared under (`identity` / `description`).
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Identifying => write!(f, "identity"),
+            Self::Descriptive => write!(f, "description"),
+        }
+    }
+}
+
 /// Primitive or array types.
 #[derive(
     Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
