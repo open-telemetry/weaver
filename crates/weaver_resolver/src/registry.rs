@@ -798,7 +798,9 @@ fn entity_identity_refinement_errors(
             let changes_identity = match parent_attrs.iter().find(|p| p.spec.id() == *r#ref) {
                 // Attribute declared by the base entity: its identity role
                 // must not change.
-                Some(base) => role_of(&base.spec).is_some_and(|base_role| base_role != *refined_role),
+                Some(base) => {
+                    role_of(&base.spec).is_some_and(|base_role| base_role != *refined_role)
+                }
                 // Attribute introduced by the refinement: allowed only under
                 // `description`, never as a new identity attribute.
                 None => *refined_role == AttributeRole::Identifying,
