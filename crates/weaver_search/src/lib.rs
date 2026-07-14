@@ -25,6 +25,11 @@ use weaver_semconv::stability::Stability;
 //TODO: Consider using a fuzzy matching crate for improved search capabilities.
 // e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
 
+/// Maximum number of results a single `search` call returns. Requested limits
+/// above this are clamped. Kept in sync with the documented maximum of the
+/// `/api/v1/registry/search` endpoint (`SearchParams::limit`).
+pub const MAX_SEARCH_LIMIT: usize = 1000;
+
 /// Search context for performing fuzzy searches and O(1) lookups across the registry.
 pub struct SearchContext {
     /// All searchable items for fuzzy search.
@@ -165,7 +170,7 @@ impl SearchContext {
         limit: usize,
         offset: usize,
     ) -> (Vec<SearchResult>, usize) {
-        let limit = limit.min(200); // Cap at 200
+        let limit = limit.min(MAX_SEARCH_LIMIT);
 
         // Filter by type
         let mut items: Vec<&SearchableItem> = self
@@ -188,7 +193,7 @@ impl SearchContext {
                 (results, total)
             } else {
                 // Non-empty query - search mode with scoring
-                search_mode_with_total(items, q, limit, &self.separator)
+                search_mode_with_total(items, q, limit, offset, &self.separator)
             }
         } else {
             // No query - browse mode
@@ -331,6 +336,7 @@ fn search_mode_with_total(
     items: Vec<&SearchableItem>,
     query: &str,
     limit: usize,
+    offset: usize,
     separator: &str,
 ) -> (Vec<SearchResult>, usize) {
     let mut scored_items: Vec<(u32, &SearchableItem)> = items
@@ -348,12 +354,13 @@ fn search_mode_with_total(
     // Sort by score descending
     scored_items.sort_by_key(|b| std::cmp::Reverse(b.0));
 
-    // Calculate total before taking limit
+    // Calculate total before paginating
     let total = scored_items.len();
 
-    // Take top N and convert to results
+    // Page through the ranked matches and convert to results
     let results = scored_items
         .into_iter()
+        .skip(offset)
         .take(limit)
         .map(|(score, item)| item.to_search_result(score))
         .collect();
@@ -893,16 +900,45 @@ mod tests {
     }
 
     #[test]
-    fn test_search_limit_capped_at_200() {
+    fn test_search_limit_capped_at_max() {
         let registry = make_test_registry();
         let ctx = SearchContext::from_registry(&registry);
 
-        // Request limit > 200 should be capped
-        let (results, _) = ctx.search(None, SearchType::All, None, 500, 0);
+        // Request limit > MAX_SEARCH_LIMIT should be capped
+        let (results, _) = ctx.search(None, SearchType::All, None, MAX_SEARCH_LIMIT + 1, 0);
 
         // We only have 9 items, so we get 9 (not testing the cap directly,
         // but ensuring it doesn't crash with large limit)
         assert_eq!(results.len(), 9);
+    }
+
+    #[test]
+    fn test_search_query_mode_pagination() {
+        let registry = make_test_registry();
+        let ctx = SearchContext::from_registry(&registry);
+
+        // Collect all matches in one call, then re-fetch them one page at a time.
+        let (all_results, total) = ctx.search(Some("http"), SearchType::All, None, 100, 0);
+        assert_eq!(all_results.len(), total);
+        assert!(total >= 4);
+
+        let (page1, _) = ctx.search(Some("http"), SearchType::All, None, 2, 0);
+        let (page2, _) = ctx.search(Some("http"), SearchType::All, None, 2, 2);
+        assert_eq!(page1.len(), 2);
+
+        // Pages must continue the ranked list, not repeat the top results.
+        let paged: Vec<_> = page1.iter().chain(page2.iter()).collect();
+        for (paged_item, full_item) in paged.iter().zip(all_results.iter()) {
+            assert_eq!(
+                serde_json::to_value(paged_item).unwrap(),
+                serde_json::to_value(full_item).unwrap()
+            );
+        }
+
+        // Offset past the end returns an empty page but the same total.
+        let (past_end, past_end_total) = ctx.search(Some("http"), SearchType::All, None, 10, total);
+        assert!(past_end.is_empty());
+        assert_eq!(past_end_total, total);
     }
 
     #[test]

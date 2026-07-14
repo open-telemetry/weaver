@@ -8,10 +8,14 @@ import {
   useState,
 } from 'react'
 import { InlineMarkdown } from '../components/InlineMarkdown'
+import { NamespaceTree } from '../components/NamespaceTree'
 import { Pagination } from '../components/Pagination'
 import { StabilityBadge } from '../components/StabilityBadge'
-import { search } from '../lib/api'
-import type { SearchResponse, SearchResult, StabilityFilter, TypeFilter } from '../lib/api'
+import { TypeBadge } from '../components/TypeBadge'
+import { ListViewIcon, TreeViewIcon } from '../components/ViewModeIcons'
+import { search, searchAll } from '../lib/api'
+import type { SearchResponse, StabilityFilter, TypeFilter } from '../lib/api'
+import { getResultId, getResultLink, getResultMeta } from '../lib/searchResults'
 import { Route as RootRoute } from './__root'
 
 const itemsPerPage = 50
@@ -26,11 +30,14 @@ const stabilityOptions: Array<Exclude<StabilityFilter, null>> = [
   'deprecated',
 ]
 
+type ViewMode = 'list' | 'tree'
+
 interface SearchState {
   query: string
   searchType: TypeFilter
   stabilityFilter: StabilityFilter
   currentPage: number
+  view: ViewMode
 }
 
 const parseTypeFilter = (value: string | null): TypeFilter =>
@@ -40,6 +47,8 @@ const parseStabilityFilter = (value: string | null): StabilityFilter =>
   stabilityOptions.includes(value as Exclude<StabilityFilter, null>)
     ? (value as Exclude<StabilityFilter, null>)
     : null
+
+const parseViewMode = (value: string | null): ViewMode => (value === 'tree' ? 'tree' : 'list')
 
 export const Route = createRoute({
   getParentRoute: () => RootRoute,
@@ -54,6 +63,7 @@ function Search() {
   const [searchType, setSearchType] = useState<TypeFilter>('all')
   const [stabilityFilter, setStabilityFilter] = useState<StabilityFilter>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [view, setView] = useState<ViewMode>('list')
   const [results, setResults] = useState<SearchResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -70,7 +80,10 @@ function Search() {
       if (state.query) params.set('q', state.query)
       if (state.searchType !== 'all') params.set('type', state.searchType)
       if (state.stabilityFilter) params.set('stability', state.stabilityFilter)
-      if (state.currentPage > 1) params.set('page', state.currentPage.toString())
+      if (state.view === 'tree') params.set('view', 'tree')
+      if (state.view === 'list' && state.currentPage > 1) {
+        params.set('page', state.currentPage.toString())
+      }
 
       const queryString = params.toString()
       const nextSearch = queryString ? `?${queryString}` : ''
@@ -89,6 +102,7 @@ function Search() {
       const nextType = overrides.searchType ?? searchType
       const nextStability = overrides.stabilityFilter ?? stabilityFilter
       const nextPage = overrides.currentPage ?? currentPage
+      const nextView = overrides.view ?? view
       const nextOffset = (nextPage - 1) * itemsPerPage
 
       setLoading(true)
@@ -102,14 +116,15 @@ function Search() {
 
       try {
         const normalizedQuery = nextQuery.trim() || null
-        const response = await search(
-          normalizedQuery,
-          nextType,
-          nextStability,
-          itemsPerPage,
-          nextOffset,
-          { signal: controller.signal }
-        )
+        // The tree view needs the complete result set; the list view pages.
+        const response =
+          nextView === 'tree'
+            ? await searchAll(normalizedQuery, nextType, nextStability, {
+                signal: controller.signal,
+              })
+            : await search(normalizedQuery, nextType, nextStability, itemsPerPage, nextOffset, {
+                signal: controller.signal,
+              })
         if (requestVersion !== requestVersionRef.current) return
         setResults(response)
         updateURL({
@@ -117,6 +132,7 @@ function Search() {
           searchType: nextType,
           stabilityFilter: nextStability,
           currentPage: nextPage,
+          view: nextView,
         })
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -128,7 +144,7 @@ function Search() {
         setLoading(false)
       }
     },
-    [currentPage, query, searchType, stabilityFilter, updateURL]
+    [currentPage, query, searchType, stabilityFilter, updateURL, view]
   )
 
   useEffect(() => {
@@ -137,6 +153,7 @@ function Search() {
       const initialQuery = params.get('q') ?? ''
       const initialType = parseTypeFilter(params.get('type'))
       const initialStability = parseStabilityFilter(params.get('stability'))
+      const initialView = parseViewMode(params.get('view'))
       const parsedPage = Number.parseInt(params.get('page') ?? '1', 10)
       const initialPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage
 
@@ -144,6 +161,7 @@ function Search() {
       setSearchType(initialType)
       setStabilityFilter(initialStability)
       setCurrentPage(initialPage)
+      setView(initialView)
       setInitialized(true)
 
       void performSearch({
@@ -151,6 +169,7 @@ function Search() {
         searchType: initialType,
         stabilityFilter: initialStability,
         currentPage: initialPage,
+        view: initialView,
       })
     }
   }, [initialized, location.search, performSearch])
@@ -202,62 +221,17 @@ function Search() {
     void performSearch({ stabilityFilter: nextStability, currentPage: 1 })
   }
 
+  const handleViewChange = (nextView: ViewMode) => {
+    if (nextView === view) return
+    setView(nextView)
+    setCurrentPage(1)
+    void performSearch({ view: nextView, currentPage: 1 })
+  }
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
     void performSearch({ currentPage: page })
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const getItemLink = (result: SearchResult) => {
-    switch (result.result_type) {
-      case 'attribute':
-        return `/attribute/${result.key ?? ''}`
-      case 'metric':
-        return `/metric/${result.name ?? ''}`
-      case 'span':
-        return `/span/${result.type ?? ''}`
-      case 'event':
-        return `/event/${result.name ?? ''}`
-      case 'entity':
-        return `/entity/${result.type ?? ''}`
-      default:
-        return '#'
-    }
-  }
-
-  const getItemId = (result: SearchResult) => {
-    if (result.result_type === 'span' || result.result_type === 'entity') {
-      return String(result.type ?? '')
-    }
-    return String(result.key ?? result.name ?? result.type ?? '')
-  }
-
-  const formatType = (type: SearchResult['type']) => {
-    if (typeof type === 'string') return type
-    if (type && typeof type === 'object') {
-      const typed = type as { members?: unknown[]; type?: string }
-      if (Array.isArray(typed.members)) return 'enum'
-      if (typeof typed.type === 'string') return typed.type
-    }
-    return type ? JSON.stringify(type) : ''
-  }
-
-  const getTypeSpecificInfo = (result: SearchResult) => {
-    switch (result.result_type) {
-      case 'attribute':
-        return [{ label: 'Type', value: formatType(result.type) }]
-      case 'metric':
-        return [
-          { label: 'Instrument', value: result.instrument ?? '-' },
-          { label: 'Unit', value: result.unit || '-' },
-        ]
-      case 'span':
-        return [{ label: 'Kind', value: result.kind || '-' }]
-      case 'event':
-      case 'entity':
-      default:
-        return []
-    }
   }
 
   return (
@@ -294,6 +268,26 @@ function Search() {
           <option value="release_candidate">Release Candidate</option>
           <option value="deprecated">Deprecated</option>
         </select>
+        <div className="join" role="group" aria-label="Result view">
+          <button
+            type="button"
+            className={`join-item btn${view === 'list' ? ' btn-active' : ''}`}
+            aria-pressed={view === 'list'}
+            onClick={() => handleViewChange('list')}
+          >
+            <ListViewIcon />
+            List
+          </button>
+          <button
+            type="button"
+            className={`join-item btn${view === 'tree' ? ' btn-active' : ''}`}
+            aria-pressed={view === 'tree'}
+            onClick={() => handleViewChange('tree')}
+          >
+            <TreeViewIcon />
+            Tree
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -302,16 +296,19 @@ function Search() {
         </div>
       ) : results ? (
         <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-base-content/70">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-sm text-base-content/70">
               {results.query ? (
                 <>Found {results.total} results for "{results.query}"</>
+              ) : view === 'tree' ? (
+                <>Showing all {results.total} items</>
               ) : (
                 <>Showing {results.count} of {results.total} items</>
               )}
+              {loading ? <span className="loading loading-spinner loading-xs" /> : null}
             </p>
 
-            {totalPages > 1 ? (
+            {view === 'list' && totalPages > 1 ? (
               <Pagination
                 total={results.total}
                 limit={itemsPerPage}
@@ -325,25 +322,34 @@ function Search() {
             <div className="alert" role="alert">
               <span>No results found. Try a different search term or filter.</span>
             </div>
+          ) : view === 'tree' ? (
+            loading && results.count < results.total ? (
+              // A paged (list) response is still on screen while the full set loads.
+              <div className="flex justify-center py-12">
+                <span className="loading loading-spinner loading-lg text-base-content/40" />
+              </div>
+            ) : (
+              <NamespaceTree results={results.results} />
+            )
           ) : (
             <div className="space-y-2">
               {results.results.map((result, index) => (
                 <Link
-                  key={`${result.result_type}-${getItemId(result)}-${index}`}
-                  to={getItemLink(result)}
+                  key={`${result.result_type}-${getResultId(result)}-${index}`}
+                  to={getResultLink(result)}
                   className={`card bg-base-200 hover:bg-base-300 cursor-pointer${
                     result.deprecated ? ' opacity-50' : ''
                   }`}
                 >
                   <div className="card-body py-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="badge badge-outline">{result.result_type}</span>
-                      <span className="font-mono font-semibold">{getItemId(result)}</span>
+                      <TypeBadge type={result.result_type} />
+                      <span className="font-mono font-semibold">{getResultId(result)}</span>
                       {result.stability ? <StabilityBadge stability={result.stability} /> : null}
                       {result.deprecated ? (
                         <span className="badge badge-sm badge-ghost">deprecated</span>
                       ) : null}
-                      {getTypeSpecificInfo(result).map((info) => (
+                      {getResultMeta(result).map((info) => (
                         <span key={info.label} className="text-xs text-base-content/60">
                           <span className="font-semibold">{info.label}:</span> {info.value}
                         </span>
@@ -361,7 +367,7 @@ function Search() {
             </div>
           )}
 
-          {totalPages > 1 ? (
+          {view === 'list' && totalPages > 1 ? (
             <div className="flex justify-center mt-4">
               <Pagination
                 total={results.total}

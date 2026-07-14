@@ -36,6 +36,7 @@ pub struct SearchParams {
     /// Filter by stability level.
     pub stability: Option<Stability>,
     /// Maximum number of results (default: 50).
+    // The maximum must match weaver_search::MAX_SEARCH_LIMIT (enforced there).
     #[serde(default = "default_search_limit")]
     #[param(maximum = 1000)]
     pub limit: usize,

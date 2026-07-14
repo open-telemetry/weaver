@@ -329,6 +329,34 @@ export async function search(
   });
 }
 
+// The server caps `limit` at 1000 per request (see src/serve/types.rs).
+const maxSearchLimit = 1000;
+
+/**
+ * Fetch every result matching the query/filters by paging through the search
+ * endpoint. Used by the namespace tree view, which needs the full result set.
+ */
+export async function searchAll(
+  query: string | null = null,
+  type: TypeFilter = 'all',
+  stability: StabilityFilter = null,
+  options?: { signal?: AbortSignal }
+): Promise<SearchResponse> {
+  const first = await search(query, type, stability, maxSearchLimit, 0, options);
+  const results = [...first.results];
+  let prevPageFirst = JSON.stringify(first.results[0] ?? null);
+  while (results.length < first.total) {
+    const page = await search(query, type, stability, maxSearchLimit, results.length, options);
+    if (page.results.length === 0) break;
+    // Defensive: a server that ignored `offset` would return the same page forever.
+    const pageFirst = JSON.stringify(page.results[0]);
+    if (pageFirst === prevPageFirst) break;
+    prevPageFirst = pageFirst;
+    results.push(...page.results);
+  }
+  return { ...first, count: results.length, results };
+}
+
 export async function getSchema(name: string): Promise<SchemaResponse> {
   return fetchJSON<SchemaResponse>(`${BASE_URL}/schema/${encodeURIComponent(name)}`);
 }
