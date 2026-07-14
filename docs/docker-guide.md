@@ -2,7 +2,7 @@
 
 ![Docker Image Version](https://img.shields.io/docker/v/otel/weaver?sort=semver&label=Latest%20docker%20image%20version)
 
-Weaver provides a [docker image](https://hub.docker.com/r/otel/weaver) for development purposes.  However, as most docker
+Weaver provides a [docker image](https://hub.docker.com/r/otel/weaver) for development purposes. However, as most docker
 containers being used for Development, some care must be taken in setting up the development environment. This guide
 showcases how to safely leverage the image to leverage the local filesystem without requiring root access.
 
@@ -33,7 +33,7 @@ This has four key components:
 
 ## Advanced Usage - Interactive Shell
 
-Weaver comes with an interactive component which can be leveraged with docker.  Simply run the container with an interactive terminal attached:
+Weaver comes with an interactive component which can be leveraged with docker. Simply run the container with an interactive terminal attached:
 
 > **DEPRECATED**: The `registry search` command is deprecated and will be removed in a future version. It is not compatible with V2 schema.
 
@@ -73,3 +73,29 @@ docker run --rm \
 ```
 
 Notice in both cases, the docker image is mounting local directories as readonly.
+
+## Advanced Usage - Custom/Corporate Root CA
+
+Remote registry downloads (`https://...` archive, file, and git sources) are validated against
+the container's own OS-native certificate store, not your host machine's. If your network sits
+behind a TLS-inspecting proxy or otherwise requires a custom root CA, that CA must be made
+available _inside_ the container — mounting it and pointing `SSL_CERT_FILE` at it works without
+any changes to the image:
+
+```sh
+docker run --rm \
+        -v /path/to/combined-ca-bundle.crt:/tmp/combined-ca.crt:ro \
+        -e SSL_CERT_FILE=/tmp/combined-ca.crt \
+        otel/weaver:latest registry check \
+        --registry=https://example.com/registry.tar.gz
+```
+
+`combined-ca-bundle.crt` must contain the container's default public CAs _plus_ your custom CA
+appended, since setting `SSL_CERT_FILE` replaces the default trust store rather than adding to it.
+You can extract the image's default bundle as a starting point:
+
+```sh
+docker run --rm --entrypoint cat otel/weaver:latest /etc/ssl/certs/ca-certificates.crt \
+  > combined-ca-bundle.crt
+cat /path/to/your-corp-root-ca.crt >> combined-ca-bundle.crt
+```
