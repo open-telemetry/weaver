@@ -22,7 +22,7 @@ use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_macros::weaver_command;
 use weaver_semconv_gen::{
-    invalid_snippet_markers, MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator,
+    validate_markers, MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator,
 };
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -34,21 +34,6 @@ enum UpdateMarkdownError {
     /// The update-markdown command ran into a fatal error.
     #[error("weaver registry update-markdown failed.")]
     MarkdownUpdateFailed,
-}
-
-#[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
-enum UpdateMarkdownWarning {
-    /// A markdown file contains a snippet-looking marker that could not be parsed.
-    #[error("Suspicious markdown snippet marker in {path}:{line}: {marker}")]
-    #[diagnostic(severity(Warning))]
-    InvalidSnippetMarker {
-        /// Markdown file path.
-        path: String,
-        /// One-based line number.
-        line: usize,
-        /// The marker line.
-        marker: String,
-    },
 }
 
 /// Update Jinja-marker sections inside Markdown files from a resolved registry.
@@ -199,15 +184,7 @@ pub(crate) fn command(
         log_info(format!("{}: ${}", operation, entry.path().display()));
         let path = entry.path().display().to_string();
         if let Ok(contents) = fs::read_to_string(entry.path()) {
-            for marker in invalid_snippet_markers(&contents) {
-                marker_warnings.extend_from_vec(vec![DiagnosticMessage::new(
-                    UpdateMarkdownWarning::InvalidSnippetMarker {
-                        path: path.clone(),
-                        line: marker.line,
-                        marker: marker.marker,
-                    },
-                )]);
-            }
+            marker_warnings.extend(validate_markers(&path, &contents));
         }
         if let Err(error) =
             generator.update_markdown(&path, dry_run, attribute_registry_base_url.as_deref())

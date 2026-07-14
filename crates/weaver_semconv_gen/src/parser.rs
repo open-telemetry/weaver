@@ -258,9 +258,8 @@ fn parse_semconv_trailer(input: &str) -> IResult<&str, ()> {
     }
 }
 
-/// Returns true if the line is an HTML comment that looks like a snippet marker,
-/// but does not parse as a supported marker.
-pub fn is_invalid_snippet_marker(line: &str) -> bool {
+/// Returns true if the line is an HTML comment that looks like a snippet marker.
+pub fn looks_like_snippet_marker(line: &str) -> bool {
     let Ok((rest, snippet)) = parse_html_comment(line) else {
         return false;
     };
@@ -269,16 +268,18 @@ pub fn is_invalid_snippet_marker(line: &str) -> bool {
     }
 
     let snippet = snippet.trim();
-    let looks_like_snippet = snippet.starts_with(SEMCONV_HEADER)
+    snippet.starts_with(SEMCONV_HEADER)
         || snippet.starts_with(SEMCONV_TRAILER)
         || snippet.starts_with(WEAVER_HEADER)
-        || snippet.starts_with(WEAVER_TRAILER);
+        || snippet.starts_with(WEAVER_TRAILER)
+}
 
-    looks_like_snippet
-        && !is_markdown_snippet_directive(line)
-        && !is_semconv_trailer(line)
-        && !is_weaver_directive(line)
-        && !is_weaver_trailer(line)
+/// Returns true if the line is a supported markdown snippet marker.
+pub fn is_valid_snippet_marker(line: &str) -> bool {
+    is_markdown_snippet_directive(line)
+        || is_semconv_trailer(line)
+        || is_weaver_directive(line)
+        || is_weaver_trailer(line)
 }
 
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
@@ -462,9 +463,10 @@ fn parse_refinement_lookup(input: &str) -> IResult<&str, RefinementLookup> {
 mod tests {
 
     use crate::parser::{
-        is_invalid_snippet_marker, is_markdown_snippet_directive, is_semconv_trailer,
-        is_weaver_trailer, parse_id_lookup_v2, parse_weaver_snippet_directive, IdLookupV2,
-        MarkdownGenParameters, RefinementLookup, RegistryLookup,
+        is_markdown_snippet_directive, is_semconv_trailer, is_valid_snippet_marker,
+        is_weaver_trailer, looks_like_snippet_marker, parse_id_lookup_v2,
+        parse_weaver_snippet_directive, IdLookupV2, MarkdownGenParameters, RefinementLookup,
+        RegistryLookup,
     };
     use crate::Error;
 
@@ -566,15 +568,18 @@ mod tests {
 
     #[test]
     fn recognizes_invalid_snippet_markers() {
-        assert!(is_invalid_snippet_marker("<!-- semconvmetric.foo -->"));
-        assert!(is_invalid_snippet_marker(
+        assert!(looks_like_snippet_marker("<!-- semconvmetric.foo -->"));
+        assert!(!is_valid_snippet_marker("<!-- semconvmetric.foo -->"));
+        assert!(looks_like_snippet_marker(
             "<!-- semconv metric.foo(bad) -->"
         ));
-        assert!(is_invalid_snippet_marker("<!-- endsemconvded -->"));
-        assert!(!is_invalid_snippet_marker("<!-- semconv metric.foo-->"));
-        assert!(!is_invalid_snippet_marker("<!-- endsemconv-->"));
-        assert!(!is_invalid_snippet_marker("<!-- other semconv stuff -->"));
-        assert!(!is_invalid_snippet_marker("hello"));
+        assert!(!is_valid_snippet_marker("<!-- semconv metric.foo(bad) -->"));
+        assert!(looks_like_snippet_marker("<!-- endsemconvded -->"));
+        assert!(!is_valid_snippet_marker("<!-- endsemconvded -->"));
+        assert!(is_valid_snippet_marker("<!-- semconv metric.foo-->"));
+        assert!(is_valid_snippet_marker("<!-- endsemconv-->"));
+        assert!(!looks_like_snippet_marker("<!-- other semconv stuff -->"));
+        assert!(!looks_like_snippet_marker("hello"));
     }
 
     #[test]

@@ -21,28 +21,25 @@ pub use v2::SnippetGenerator as SnipperGeneratorV2;
 
 use crate::parser::{GenerateMarkdownArgs, WeaverGenerateMarkdownArgs};
 
-/// A suspicious markdown snippet marker found in a markdown document.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InvalidSnippetMarker {
-    /// One-based line number.
-    pub line: usize,
-    /// The marker line.
-    pub marker: String,
-}
-
-/// Returns snippet-looking HTML comments that do not parse as supported markers.
+/// Returns warnings for snippet-looking HTML comments that do not parse as supported markers.
 #[must_use]
-pub fn invalid_snippet_markers(contents: &str) -> Vec<InvalidSnippetMarker> {
-    contents
+pub fn validate_markers(path: &str, contents: &str) -> DiagnosticMessages {
+    let marker_warnings = contents
         .lines()
         .enumerate()
         .filter_map(|(index, line)| {
-            parser::is_invalid_snippet_marker(line).then(|| InvalidSnippetMarker {
-                line: index + 1,
-                marker: line.to_owned(),
-            })
+            if parser::looks_like_snippet_marker(line) && !parser::is_valid_snippet_marker(line) {
+                Some(DiagnosticMessage::new(Error::InvalidSnippetMarker {
+                    path: path.to_owned(),
+                    line: index + 1,
+                    marker: line.to_owned(),
+                }))
+            } else {
+                None
+            }
         })
-        .collect()
+        .collect();
+    DiagnosticMessages::new(marker_warnings)
 }
 
 /// Errors emitted by this crate.
@@ -88,6 +85,18 @@ pub enum Error {
     InvalidSnippetHeader {
         /// Markdown snippet identifier <!-- semconv {header} -->
         header: String,
+    },
+
+    /// Thrown when a snippet-looking marker is not supported.
+    #[error("Suspicious markdown snippet marker in {path}:{line}: {marker}")]
+    #[diagnostic(severity(Warning))]
+    InvalidSnippetMarker {
+        /// Markdown file path.
+        path: String,
+        /// One-based line number.
+        line: usize,
+        /// The invalid marker line.
+        marker: String,
     },
 
     /// Thrown when a snippet lookup id is not valid.
