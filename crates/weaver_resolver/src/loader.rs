@@ -206,13 +206,10 @@ pub(crate) fn load_semconv_repository_with_cache(
         for (name, main_url) in main_dependencies.iter() {
             if let Some(selected_url) = chosen_versions.get(name) {
                 if selected_url != main_url {
-                    warnings.push(Error::ConversionError {
-                        message: format!(
-                            "Selected version {} for dependency '{}' is different than requested in main ({}). The listed set of dependencies in main should be updated.",
-                            selected_url.version(),
-                            name,
-                            main_url.version()
-                        ),
+                    warnings.push(Error::DependencyVersionUpgradedWarning {
+                        dependency: name.clone(),
+                        requested_version: main_url.version().to_owned(),
+                        selected_version: selected_url.version().to_owned(),
                     });
                 }
             }
@@ -694,11 +691,12 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Duplicate dependency") &&
-                    error_msg.contains("example.com/c") &&
-                    error_msg.contains("1.0.0") &&
-                    error_msg.contains("2.0.0"),
-                    "Expected duplicate dependency error mentioning both versions, got: {error_msg}"
+                    (error_msg.contains("Incompatible dependency versions")
+                        || error_msg.contains("Duplicate dependency"))
+                        && error_msg.contains("example.com/c")
+                        && error_msg.contains("1.0.0")
+                        && error_msg.contains("2.0.0"),
+                    "Expected incompatible dependency error mentioning both versions, got: {error_msg}"
                 );
             }
             _ => {

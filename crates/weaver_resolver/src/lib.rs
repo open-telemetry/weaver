@@ -244,7 +244,7 @@ impl WeaverResolver {
 }
 
 /// Abstraction for querying chosen dependency versions and resolved schemas from cache during resolution.
-pub trait SchemaCacheLookup {
+pub(crate) trait SchemaCacheLookup {
     /// Returns the highest chosen SchemaUrl across the current graph for a given registry name.
     fn chosen_version(&self, registry_name: &str) -> Option<&SchemaUrl>;
 

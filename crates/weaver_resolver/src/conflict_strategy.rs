@@ -41,7 +41,7 @@ impl DependencyVersionConflictStrategy for UseLatestMajorVersion {
                 Ok(url2.clone())
             }
         } else {
-            Err(Error::DuplicateDependency {
+            Err(Error::IncompatibleDependencyVersions {
                 name: url1.name().to_owned(),
                 version1: url1.version().to_owned(),
                 version2: url2.version().to_owned(),
@@ -72,7 +72,7 @@ mod tests {
 
         assert!(matches!(
             strategy.resolve_conflict(&u1, &u3),
-            Err(Error::DuplicateDependency { .. })
+            Err(Error::IncompatibleDependencyVersions { .. })
         ));
     }
 

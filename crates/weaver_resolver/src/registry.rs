@@ -405,9 +405,13 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
                 }
             }
         }
+        let path = group
+            .provenance()
+            .map(|p| p.path.clone())
+            .unwrap_or_default();
         let provenance = Some(Provenance {
             schema_url: prov_url.clone(),
-            path: "".to_owned(),
+            path,
         });
         ureg.groups.push(UnresolvedGroup {
             group,

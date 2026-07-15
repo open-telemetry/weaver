@@ -92,8 +92,7 @@ impl AttributeCatalog {
     ///    pre-resolved `WeaverResolvedSchema` of `chosen_url` (`c/1.2.0`).
     /// 3. We look up `attr.name` inside `chosen_url`. If found, we replace `attr_with_source` on-the-fly with
     ///    the upgraded definition (`c.attr1` from `v1.2.0`) and update its provenance to `chosen_url`.
-    /// 4. If not found in `chosen_url` (e.g., attribute was deprecated/removed in a minor bump), we retain
-    ///    the existing definition or defer to SemVer resolution rules.
+    /// 4. If not found in `chosen_url`, fail with an `AttributeNotFoundInUpgradedSchema` error.
     pub(crate) fn upgrade_attribute_with_source<C: crate::SchemaCacheLookup>(
         mut attr_with_source: AttributeWithSource,
         cache_lookup: &C,
@@ -102,19 +101,23 @@ impl AttributeCatalog {
             let reg_name = schema_url.name();
             if let Some(chosen_url) = cache_lookup.chosen_version(reg_name) {
                 if chosen_url != schema_url {
-                    if let Ok(winning_url) =
-                        UseLatestMajorVersion.resolve_conflict(schema_url, chosen_url)
-                    {
-                        if winning_url == *chosen_url {
-                            if let Some(upgraded_schema) = cache_lookup.lookup_schema(chosen_url) {
-                                if let Some(upgraded_attr) = upgraded_schema
-                                    .lookup_attribute(&attr_with_source.attribute.name)?
-                                {
-                                    attr_with_source = upgraded_attr;
-                                    attr_with_source.source = AttributeSource::Dependency {
-                                        schema_url: chosen_url.clone(),
-                                    };
-                                }
+                    let winning_url =
+                        UseLatestMajorVersion.resolve_conflict(schema_url, chosen_url)?;
+                    if winning_url == *chosen_url {
+                        if let Some(upgraded_schema) = cache_lookup.lookup_schema(chosen_url) {
+                            if let Some(upgraded_attr) = upgraded_schema
+                                .lookup_attribute(&attr_with_source.attribute.name)?
+                            {
+                                attr_with_source = upgraded_attr;
+                                attr_with_source.source = AttributeSource::Dependency {
+                                    schema_url: chosen_url.clone(),
+                                };
+                            } else {
+                                return Err(Error::AttributeNotFoundInUpgradedSchema {
+                                    attribute_name: attr_with_source.attribute.name.clone(),
+                                    original_url: schema_url.to_string(),
+                                    upgraded_url: chosen_url.to_string(),
+                                });
                             }
                         }
                     }
@@ -129,7 +132,7 @@ impl AttributeCatalog {
     ///
     /// Note: This may "upgrade" an attribute reference to use a different version
     /// when dealing with transitive dependencies and version conflicts.
-    pub fn attribute_ref_with_provenance<C: crate::SchemaCacheLookup>(
+    pub(crate) fn attribute_ref_with_provenance<C: crate::SchemaCacheLookup>(
         &mut self,
         attr: attribute::Attribute,
         source: AttributeSource,
@@ -168,6 +171,12 @@ impl AttributeCatalog {
 }
 
 /// Resolves conflicts between two attributes based on provenance.
+///
+/// Note: When an attribute imported from a dependency is referenced in a local group,
+/// we prefer the `Dependency` source over `Local` so that its original `SchemaUrl`
+/// provenance is preserved for downstream conflict resolution in diamond dependencies.
+/// This is because, when seeing the same definition in local and dependency it's a sign the "local"
+/// is an imported definition.
 fn resolve_conflict(
     key: &str,
     m: AttributeWithSource,
@@ -175,6 +184,7 @@ fn resolve_conflict(
 ) -> Result<AttributeWithSource, Error> {
     match (&m.source, &existing.source) {
         (AttributeSource::Local { .. }, AttributeSource::Local { .. }) => Ok(existing),
+        // Prefer Dependency over Local to preserve original SchemaUrl provenance:
         (AttributeSource::Local { .. }, AttributeSource::Dependency { .. }) => Ok(existing),
         (AttributeSource::Dependency { .. }, AttributeSource::Local { .. }) => Ok(m),
         (
