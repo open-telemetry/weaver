@@ -1,4 +1,4 @@
-/** Icons for the search results view toggle (list / namespace tree). */
+/** Icons for the search page toolbar (view toggle, deprecated visibility toggle). */
 
 export function ListViewIcon() {
   return (
@@ -27,6 +27,43 @@ export function TreeViewIcon() {
       <rect x="11.75" y="8" width="5.5" height="4" rx="1" />
       <rect x="11.75" y="13.5" width="5.5" height="4" rx="1" />
       <path d="M5.5 6.5v9h6.25M5.5 10h6.25" />
+    </svg>
+  )
+}
+
+export function EyeIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6S1.5 10 1.5 10Z" />
+      <circle cx="10" cy="10" r="2.25" />
+    </svg>
+  )
+}
+
+export function EyeSlashIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6S1.5 10 1.5 10Z" />
+      <circle cx="10" cy="10" r="2.25" />
+      <path d="M3 3l14 14" />
     </svg>
   )
 }

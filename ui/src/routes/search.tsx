@@ -19,7 +19,7 @@ import { NamespaceTree, NamespaceTreeToolbar } from '../components/NamespaceTree
 import { Pagination } from '../components/Pagination'
 import { StabilityBadge } from '../components/StabilityBadge'
 import { TypeBadge } from '../components/TypeBadge'
-import { ListViewIcon, TreeViewIcon } from '../components/ViewModeIcons'
+import { EyeIcon, EyeSlashIcon, ListViewIcon, TreeViewIcon } from '../components/ViewModeIcons'
 import { search, searchAll } from '../lib/api'
 import type { SearchResponse, StabilityFilter, TypeFilter } from '../lib/api'
 import { buildNamespaceTree, collectFolderPaths, defaultExpansion } from '../lib/namespaceTree'
@@ -45,6 +45,7 @@ interface SearchState {
   query: string
   searchType: TypeFilter
   stabilityFilter: StabilityFilter
+  hideDeprecated: boolean
   currentPage: number
   view: ViewMode
 }
@@ -72,6 +73,11 @@ const parseStabilityFilter = (value: string | null): StabilityFilter =>
     : null
 
 const parseViewMode = (value: string | null): ViewMode => (value === 'tree' ? 'tree' : 'list')
+
+// Deprecated items are hidden by default, so the URL only carries a param
+// when the user opts in to showing them - same "only serialize non-default
+// state" convention as the rest of this file's filters.
+const parseHideDeprecated = (value: string | null): boolean => value !== 'show'
 
 // A bare digit string (e.g. "1") is valid JSON, and TanStack Router's default
 // search codec re-encodes any JSON-parseable string value through
@@ -105,6 +111,7 @@ function Search() {
   const [query, setQuery] = useState('')
   const [searchType, setSearchType] = useState<TypeFilter>('all')
   const [stabilityFilter, setStabilityFilter] = useState<StabilityFilter>(null)
+  const [hideDeprecated, setHideDeprecated] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [view, setView] = useState<ViewMode>('list')
   const [treeExpansion, setTreeExpansionState] = useState<TreeExpansion>(noTreeExpansion)
@@ -151,6 +158,7 @@ function Search() {
       if (state.query) params.set('q', state.query)
       if (state.searchType !== 'all') params.set('type', state.searchType)
       if (state.stabilityFilter) params.set('stability', state.stabilityFilter)
+      if (!state.hideDeprecated) params.set('deprecated', 'show')
       if (state.view === 'tree') params.set('view', 'tree')
       if (state.view === 'list' && state.currentPage > 1) {
         params.set('page', state.currentPage.toString())
@@ -185,6 +193,7 @@ function Search() {
       const nextQuery = overrides.query ?? query
       const nextType = overrides.searchType ?? searchType
       const nextStability = overrides.stabilityFilter ?? stabilityFilter
+      const nextHideDeprecated = overrides.hideDeprecated ?? hideDeprecated
       const nextPage = overrides.currentPage ?? currentPage
       const nextView = overrides.view ?? view
       const nextOffset = (nextPage - 1) * itemsPerPage
@@ -203,18 +212,25 @@ function Search() {
         // The tree view needs the complete result set; the list view pages.
         const response =
           nextView === 'tree'
-            ? await searchAll(normalizedQuery, nextType, nextStability, {
+            ? await searchAll(normalizedQuery, nextType, nextStability, nextHideDeprecated, {
                 signal: controller.signal,
               })
-            : await search(normalizedQuery, nextType, nextStability, itemsPerPage, nextOffset, {
-                signal: controller.signal,
-              })
+            : await search(
+                normalizedQuery,
+                nextType,
+                nextStability,
+                nextHideDeprecated,
+                itemsPerPage,
+                nextOffset,
+                { signal: controller.signal }
+              )
         if (requestVersion !== requestVersionRef.current) return
         setResults(response)
         updateURL({
           query: nextQuery,
           searchType: nextType,
           stabilityFilter: nextStability,
+          hideDeprecated: nextHideDeprecated,
           currentPage: nextPage,
           view: nextView,
         })
@@ -228,7 +244,7 @@ function Search() {
         setLoading(false)
       }
     },
-    [currentPage, query, searchType, stabilityFilter, updateURL, view]
+    [currentPage, query, searchType, stabilityFilter, hideDeprecated, updateURL, view]
   )
 
   useEffect(() => {
@@ -237,6 +253,7 @@ function Search() {
       const initialQuery = params.get('q') ?? ''
       const initialType = parseTypeFilter(params.get('type'))
       const initialStability = parseStabilityFilter(params.get('stability'))
+      const initialHideDeprecated = parseHideDeprecated(params.get('deprecated'))
       const initialView = parseViewMode(params.get('view'))
       const parsedPage = Number.parseInt(params.get('page') ?? '1', 10)
       const initialPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage
@@ -244,6 +261,7 @@ function Search() {
       setQuery(initialQuery)
       setSearchType(initialType)
       setStabilityFilter(initialStability)
+      setHideDeprecated(initialHideDeprecated)
       setCurrentPage(initialPage)
       setView(initialView)
       setTreeExpansion({
@@ -257,6 +275,7 @@ function Search() {
         query: initialQuery,
         searchType: initialType,
         stabilityFilter: initialStability,
+        hideDeprecated: initialHideDeprecated,
         currentPage: initialPage,
         view: initialView,
       })
@@ -305,6 +324,7 @@ function Search() {
     query,
     searchType,
     stabilityFilter,
+    hideDeprecated,
     currentPage,
     view,
   })
@@ -387,6 +407,14 @@ function Search() {
     void performSearch({ stabilityFilter: nextStability, currentPage: 1 })
   }
 
+  const handleHideDeprecatedChange = (nextHideDeprecated: boolean) => {
+    if (nextHideDeprecated === hideDeprecated) return
+    setHideDeprecated(nextHideDeprecated)
+    setCurrentPage(1)
+    setTreeExpansion(noTreeExpansion)
+    void performSearch({ hideDeprecated: nextHideDeprecated, currentPage: 1 })
+  }
+
   const handleViewChange = (nextView: ViewMode) => {
     if (nextView === view) return
     setView(nextView)
@@ -438,10 +466,32 @@ function Search() {
             <option value="release_candidate">Release Candidate</option>
             <option value="deprecated">Deprecated</option>
           </select>
+          <div className="join" role="group" aria-label="Deprecated items visibility">
+            <button
+              type="button"
+              className={`join-item btn btn-square${!hideDeprecated ? ' btn-primary' : ''}`}
+              aria-pressed={!hideDeprecated}
+              aria-label="Show deprecated items"
+              title="Show deprecated items"
+              onClick={() => handleHideDeprecatedChange(false)}
+            >
+              <EyeIcon />
+            </button>
+            <button
+              type="button"
+              className={`join-item btn btn-square${hideDeprecated ? ' btn-primary' : ''}`}
+              aria-pressed={hideDeprecated}
+              aria-label="Hide deprecated items"
+              title="Hide deprecated items"
+              onClick={() => handleHideDeprecatedChange(true)}
+            >
+              <EyeSlashIcon />
+            </button>
+          </div>
           <div className="join" role="group" aria-label="Result view">
             <button
               type="button"
-              className={`join-item btn${view === 'list' ? ' btn-active' : ''}`}
+              className={`join-item btn${view === 'list' ? ' btn-primary' : ''}`}
               aria-pressed={view === 'list'}
               onClick={() => handleViewChange('list')}
             >
@@ -450,7 +500,7 @@ function Search() {
             </button>
             <button
               type="button"
-              className={`join-item btn${view === 'tree' ? ' btn-active' : ''}`}
+              className={`join-item btn${view === 'tree' ? ' btn-primary' : ''}`}
               aria-pressed={view === 'tree'}
               onClick={() => handleViewChange('tree')}
             >

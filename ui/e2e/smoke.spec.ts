@@ -41,6 +41,30 @@ test('searching and clicking a result opens a detail page', async ({ page }) => 
   ).toBeVisible()
 })
 
+test('deprecated items are hidden by default and revealed by the eye toggle', async ({
+  page,
+}) => {
+  await page.goto('/search')
+  await expect(page.locator('a.card').first()).toBeVisible()
+
+  const deprecatedCard = page.locator('a[href="/attribute/render.attr.deprecated_renamed"]')
+  await expect(deprecatedCard).toHaveCount(0)
+
+  const showButton = page.getByRole('button', { name: 'Show deprecated items' })
+  const hideButton = page.getByRole('button', { name: 'Hide deprecated items' })
+  await expect(hideButton).toHaveAttribute('aria-pressed', 'true')
+
+  await showButton.click()
+  await expect(deprecatedCard).toBeVisible()
+  await expect(hideButton).toHaveAttribute('aria-pressed', 'false')
+  await expect(page).toHaveURL(/deprecated=show/)
+
+  await hideButton.click()
+  await expect(deprecatedCard).toHaveCount(0)
+  await expect(hideButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(page).not.toHaveURL(/deprecated=show/)
+})
+
 test('stats page shows counts and links into filtered search', async ({ page }) => {
   await page.goto('/stats')
 

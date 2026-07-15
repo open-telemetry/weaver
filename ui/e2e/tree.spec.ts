@@ -61,7 +61,9 @@ test('folders and items under a namespace sort together alphabetically', async (
   // than rendering as a folders-then-items grouping.
   await page.goto('/search?view=tree')
   const renderFolder = page.getByRole('button', { name: /^render\s/ })
+  await expect(renderFolder).toBeVisible()
   const renderChildren = renderFolder.locator('xpath=..').locator(':scope > ul > li')
+  await expect(renderChildren.first()).toBeVisible()
   const labels = await renderChildren.locator(':scope > button, :scope > a').allTextContents()
   const container = labels.findIndex((label) => label.startsWith('container'))
   const coordinator = labels.findIndex((label) => label.includes('coordinator'))

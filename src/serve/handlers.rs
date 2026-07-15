@@ -277,6 +277,7 @@ pub async fn search_registry(
         query,
         params.search_type,
         params.stability,
+        params.hide_deprecated,
         params.limit,
         params.offset,
     );

@@ -378,6 +378,7 @@ impl WeaverMcpService {
             params.query.as_deref(),
             search_type,
             stability,
+            false, // hide_deprecated: not exposed via the MCP search tool
             limit,
             0, // offset
         );

@@ -155,6 +155,7 @@ impl SearchContext {
     /// * `query` - Optional search query string (None = browse mode).
     /// * `search_type` - Filter by item type.
     /// * `stability` - Optional stability filter.
+    /// * `hide_deprecated` - When true, excludes deprecated items regardless of stability.
     /// * `limit` - Maximum number of results.
     /// * `offset` - Pagination offset.
     ///
@@ -167,6 +168,7 @@ impl SearchContext {
         query: Option<&str>,
         search_type: SearchType,
         stability: Option<Stability>,
+        hide_deprecated: bool,
         limit: usize,
         offset: usize,
     ) -> (Vec<SearchResult>, usize) {
@@ -182,6 +184,12 @@ impl SearchContext {
         // Filter by stability if provided
         if let Some(stability_filter) = stability {
             items.retain(|item| item.stability() == &stability_filter);
+        }
+
+        // `deprecated` is independent of `stability` - a deprecated item can carry any
+        // stability level - so this is a separate retain rather than folded into the above.
+        if hide_deprecated {
+            items.retain(|item| !item.is_deprecated());
         }
 
         // Branch based on whether we have a search query
@@ -830,7 +838,7 @@ mod tests {
         let registry = make_test_registry();
         let ctx = SearchContext::from_registry(&registry);
 
-        let (results, total) = ctx.search(Some("http"), SearchType::All, None, 10, 0);
+        let (results, total) = ctx.search(Some("http"), SearchType::All, None, false, 10, 0);
 
         // Should find http.request.method, http.response.status_code,
         // http.server.request.duration, http.client
@@ -844,7 +852,7 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // None query = browse mode
-        let (results, total) = ctx.search(None, SearchType::All, None, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::All, None, false, 100, 0);
 
         // Should return all items: 5 attributes + 1 metric + 1 span + 1 event + 1 entity = 9
         assert_eq!(total, 9);
@@ -857,25 +865,25 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Filter by Attribute only
-        let (results, total) = ctx.search(None, SearchType::Attribute, None, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::Attribute, None, false, 100, 0);
         assert_eq!(total, 5); // 5 attributes (3 regular + 1 template + 1 development)
         assert_eq!(results.len(), 5);
 
         // Filter by Metric only
-        let (results, total) = ctx.search(None, SearchType::Metric, None, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::Metric, None, false, 100, 0);
         assert_eq!(total, 1);
         assert_eq!(results.len(), 1);
 
         // Filter by Span only
-        let (_, total) = ctx.search(None, SearchType::Span, None, 100, 0);
+        let (_, total) = ctx.search(None, SearchType::Span, None, false, 100, 0);
         assert_eq!(total, 1);
 
         // Filter by Event only
-        let (_, total) = ctx.search(None, SearchType::Event, None, 100, 0);
+        let (_, total) = ctx.search(None, SearchType::Event, None, false, 100, 0);
         assert_eq!(total, 1);
 
         // Filter by Entity only
-        let (_, total) = ctx.search(None, SearchType::Entity, None, 100, 0);
+        let (_, total) = ctx.search(None, SearchType::Entity, None, false, 100, 0);
         assert_eq!(total, 1);
     }
 
@@ -885,17 +893,17 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Get first 2 items
-        let (results1, total1) = ctx.search(None, SearchType::All, None, 2, 0);
+        let (results1, total1) = ctx.search(None, SearchType::All, None, false, 2, 0);
         assert_eq!(total1, 9);
         assert_eq!(results1.len(), 2);
 
         // Get next 2 items with offset
-        let (results2, total2) = ctx.search(None, SearchType::All, None, 2, 2);
+        let (results2, total2) = ctx.search(None, SearchType::All, None, false, 2, 2);
         assert_eq!(total2, 9);
         assert_eq!(results2.len(), 2);
 
         // Get remaining items
-        let (results3, _) = ctx.search(None, SearchType::All, None, 100, 4);
+        let (results3, _) = ctx.search(None, SearchType::All, None, false, 100, 4);
         assert_eq!(results3.len(), 5);
     }
 
@@ -905,7 +913,7 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Request limit > MAX_SEARCH_LIMIT should be capped
-        let (results, _) = ctx.search(None, SearchType::All, None, MAX_SEARCH_LIMIT + 1, 0);
+        let (results, _) = ctx.search(None, SearchType::All, None, false, MAX_SEARCH_LIMIT + 1, 0);
 
         // We only have 9 items, so we get 9 (not testing the cap directly,
         // but ensuring it doesn't crash with large limit)
@@ -918,12 +926,12 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Collect all matches in one call, then re-fetch them one page at a time.
-        let (all_results, total) = ctx.search(Some("http"), SearchType::All, None, 100, 0);
+        let (all_results, total) = ctx.search(Some("http"), SearchType::All, None, false, 100, 0);
         assert_eq!(all_results.len(), total);
         assert!(total >= 4);
 
-        let (page1, _) = ctx.search(Some("http"), SearchType::All, None, 2, 0);
-        let (page2, _) = ctx.search(Some("http"), SearchType::All, None, 2, 2);
+        let (page1, _) = ctx.search(Some("http"), SearchType::All, None, false, 2, 0);
+        let (page2, _) = ctx.search(Some("http"), SearchType::All, None, false, 2, 2);
         assert_eq!(page1.len(), 2);
 
         // Pages must continue the ranked list, not repeat the top results.
@@ -936,7 +944,8 @@ mod tests {
         }
 
         // Offset past the end returns an empty page but the same total.
-        let (past_end, past_end_total) = ctx.search(Some("http"), SearchType::All, None, 10, total);
+        let (past_end, past_end_total) =
+            ctx.search(Some("http"), SearchType::All, None, false, 10, total);
         assert!(past_end.is_empty());
         assert_eq!(past_end_total, total);
     }
@@ -946,7 +955,8 @@ mod tests {
         let registry = make_test_registry();
         let ctx = SearchContext::from_registry(&registry);
 
-        let (results, total) = ctx.search(Some("zzzznonexistent"), SearchType::All, None, 10, 0);
+        let (results, total) =
+            ctx.search(Some("zzzznonexistent"), SearchType::All, None, false, 10, 0);
 
         assert_eq!(total, 0);
         assert!(results.is_empty());
@@ -1016,8 +1026,14 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Filter by Stable only
-        let (results, total) =
-            ctx.search(None, SearchType::Attribute, Some(Stability::Stable), 100, 0);
+        let (results, total) = ctx.search(
+            None,
+            SearchType::Attribute,
+            Some(Stability::Stable),
+            false,
+            100,
+            0,
+        );
 
         // Should return only stable attributes (4: http.request.method, http.response.status_code, db.system, test.template)
         assert_eq!(total, 4);
@@ -1034,6 +1050,7 @@ mod tests {
             None,
             SearchType::Attribute,
             Some(Stability::Development),
+            false,
             100,
             0,
         );
@@ -1054,6 +1071,64 @@ mod tests {
         let dev_item = SearchableItem::Attribute(Arc::new(dev_attr));
 
         assert_eq!(dev_item.stability(), &Stability::Development);
+    }
+
+    // =========================================================================
+    // Deprecated Filtering Tests
+    // =========================================================================
+
+    fn make_registry_with_attributes(attributes: Vec<Attribute>) -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            schema_url: "https://example.com/schemas/1.2.3".try_into().unwrap(),
+            registry: Registry {
+                attributes,
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn test_search_hide_deprecated() {
+        let registry = make_registry_with_attributes(vec![
+            make_attribute("service.name", "Service name", "", false),
+            make_attribute("service.namespace", "Deprecated namespace", "", true),
+        ]);
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (results, total) = ctx.search(None, SearchType::All, None, false, 100, 0);
+        assert_eq!(total, 2);
+        assert_eq!(results.len(), 2);
+
+        let (results, total) = ctx.search(None, SearchType::All, None, true, 100, 0);
+        assert_eq!(total, 1);
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_search_hide_deprecated_independent_of_stability() {
+        // `make_attribute` always sets stability: Stable regardless of the
+        // deprecated flag - a deprecated item can carry any stability level,
+        // so `hide_deprecated` must filter independently of the stability
+        // filter rather than only affecting items with `stability: deprecated`.
+        let registry = make_registry_with_attributes(vec![make_attribute(
+            "service.name",
+            "Deprecated but stable",
+            "",
+            true,
+        )]);
+        let ctx = SearchContext::from_registry(&registry);
+
+        let (_, total) = ctx.search(None, SearchType::All, Some(Stability::Stable), true, 100, 0);
+        assert_eq!(total, 0);
     }
 
     // =========================================================================

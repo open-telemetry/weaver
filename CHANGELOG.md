@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Add a tree view to the `serve` UI's search page, grouping results by namespace with expand/collapse controls. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @jerbly)
+- Add a tree view to the `serve` UI's search page, grouping results by namespace with expand/collapse controls, and a "Hide deprecated" toggle (on by default) for both the list and tree views. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @jerbly)
 - Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
 - Add a stats dashboard with charts to the `serve` UI. ([#1570](https://github.com/open-telemetry/weaver/pull/1570) by @jerbly)
 - Add `semconv_grouped_entities` JQ helper. ([#1560](https://github.com/open-telemetry/weaver/pull/1560) by @lmolkova)
