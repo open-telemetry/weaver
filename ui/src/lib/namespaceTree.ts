@@ -136,3 +136,10 @@ export function collectFolderPaths(node: TreeNode, maxDepth: number = Infinity):
   walk(node);
   return paths;
 }
+
+/** Small result sets (e.g. a filtered search) open fully expanded by default. */
+export const AUTO_EXPAND_MAX_ITEMS = 50;
+
+export function defaultExpansion(tree: TreeNode): ReadonlySet<string> {
+  return tree.itemCount <= AUTO_EXPAND_MAX_ITEMS ? new Set(collectFolderPaths(tree)) : new Set();
+}

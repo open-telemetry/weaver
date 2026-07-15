@@ -1,53 +1,29 @@
 import { Link } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
-import type { SearchResult } from '../lib/api'
-import {
-  buildNamespaceTree,
-  collectFolderPaths,
-  maxFolderDepth,
-  type TreeItem,
-  type TreeNode,
-} from '../lib/namespaceTree'
+import { useMemo } from 'react'
+import { maxFolderDepth, type TreeItem, type TreeNode } from '../lib/namespaceTree'
 import { getResultLink, getResultMeta } from '../lib/searchResults'
 import { InlineMarkdown } from './InlineMarkdown'
 import { StabilityDot } from './StabilityBadge'
 import { TypeBadge } from './TypeBadge'
 
-// Small result sets (e.g. a filtered search) open fully expanded.
-const autoExpandMaxItems = 50
 const maxLevelButtons = 5
 
-interface NamespaceTreeProps {
-  results: SearchResult[]
+interface NamespaceTreeToolbarProps {
+  tree: TreeNode
+  onExpandAll: () => void
+  onCollapseAll: () => void
+  onExpandToLevel: (level: number) => void
 }
 
-export function NamespaceTree({ results }: NamespaceTreeProps) {
-  const tree = useMemo(() => buildNamespaceTree(results), [results])
+// Split out from NamespaceTree so the caller can pin this above a
+// scrollable area that holds just the tree content.
+export function NamespaceTreeToolbar({
+  tree,
+  onExpandAll,
+  onCollapseAll,
+  onExpandToLevel,
+}: NamespaceTreeToolbarProps) {
   const deepestLevel = useMemo(() => maxFolderDepth(tree), [tree])
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => defaultExpansion(tree))
-  const [prevTree, setPrevTree] = useState(tree)
-
-  // Reset expansion whenever a new result set arrives (adjust-state-on-prop-change).
-  if (prevTree !== tree) {
-    setPrevTree(tree)
-    setExpanded(defaultExpansion(tree))
-  }
-
-  const handleToggle = (path: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(path)) {
-        next.delete(path)
-      } else {
-        next.add(path)
-      }
-      return next
-    })
-  }
-
-  const expandToLevel = (level: number) => {
-    setExpanded(new Set(collectFolderPaths(tree, level)))
-  }
 
   const levels = Array.from(
     { length: Math.min(deepestLevel, maxLevelButtons) },
@@ -55,60 +31,56 @@ export function NamespaceTree({ results }: NamespaceTreeProps) {
   )
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-3 flex-wrap">
-        {levels.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-base-content/60">
-              Expand to level
-            </span>
-            <div className="join">
-              {levels.map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  className="join-item btn btn-xs"
-                  onClick={() => expandToLevel(level)}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
+    <div className="flex items-center gap-3 flex-wrap">
+      {levels.length > 0 ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-base-content/60">
+            Expand to level
+          </span>
+          <div className="join">
+            {levels.map((level) => (
+              <button
+                key={level}
+                type="button"
+                className="join-item btn btn-xs"
+                onClick={() => onExpandToLevel(level)}
+              >
+                {level}
+              </button>
+            ))}
           </div>
-        ) : null}
-        <div className="join">
-          <button
-            type="button"
-            className="join-item btn btn-xs"
-            onClick={() => setExpanded(new Set(collectFolderPaths(tree)))}
-          >
-            Expand all
-          </button>
-          <button
-            type="button"
-            className="join-item btn btn-xs"
-            onClick={() => setExpanded(new Set())}
-          >
-            Collapse all
-          </button>
         </div>
-        <span className="ml-auto text-xs text-base-content/50">
-          {tree.itemCount} {tree.itemCount === 1 ? 'name' : 'names'} in {tree.children.length}{' '}
-          root {tree.children.length === 1 ? 'namespace' : 'namespaces'}
-        </span>
+      ) : null}
+      <div className="join">
+        <button type="button" className="join-item btn btn-xs" onClick={onExpandAll}>
+          Expand all
+        </button>
+        <button type="button" className="join-item btn btn-xs" onClick={onCollapseAll}>
+          Collapse all
+        </button>
       </div>
-
-      <div className="card bg-base-200">
-        <div className="card-body p-3">
-          <TreeChildren node={tree} expanded={expanded} onToggle={handleToggle} />
-        </div>
-      </div>
+      <span className="ml-auto text-xs text-base-content/50">
+        {tree.itemCount} {tree.itemCount === 1 ? 'name' : 'names'} in {tree.children.length} root{' '}
+        {tree.children.length === 1 ? 'namespace' : 'namespaces'}
+      </span>
     </div>
   )
 }
 
-function defaultExpansion(tree: TreeNode): ReadonlySet<string> {
-  return tree.itemCount <= autoExpandMaxItems ? new Set(collectFolderPaths(tree)) : new Set()
+interface NamespaceTreeProps {
+  tree: TreeNode
+  expanded: ReadonlySet<string>
+  onToggle: (path: string) => void
+}
+
+export function NamespaceTree({ tree, expanded, onToggle }: NamespaceTreeProps) {
+  return (
+    <div className="card bg-base-200">
+      <div className="card-body p-3">
+        <TreeChildren node={tree} expanded={expanded} onToggle={onToggle} />
+      </div>
+    </div>
+  )
 }
 
 interface TreeChildrenProps {
@@ -160,7 +132,6 @@ function FolderRow({ node, expanded, onToggle }: FolderRowProps) {
         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-base-300"
       >
         <ChevronIcon expanded={isExpanded} />
-        <FolderIcon open={isExpanded} />
         <span className="font-mono text-sm font-medium">{node.segment}</span>
         <span className="badge badge-ghost badge-xs font-normal text-base-content/60">
           {node.itemCount}
@@ -228,28 +199,3 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   )
 }
 
-function FolderIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-      className="h-4 w-4 shrink-0 text-warning"
-    >
-      <path
-        fillRule="evenodd"
-        d="M4.75 3A1.75 1.75 0 0 0 3 4.75v2.752l.104-.002h13.792c.035 0 .07 0 .104.002V6.75A1.75 1.75 0 0 0 15.25 5h-3.836a.25.25 0 0 1-.177-.073L9.823 3.513A1.75 1.75 0 0 0 8.586 3H4.75ZM3.104 9a1.75 1.75 0 0 0-1.673 2.265l1.385 4.5A1.75 1.75 0 0 0 4.488 17h11.023a1.75 1.75 0 0 0 1.673-1.235l1.384-4.5A1.75 1.75 0 0 0 16.896 9H3.104Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  ) : (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-      className="h-4 w-4 shrink-0 text-warning"
-    >
-      <path d="M3.75 3A1.75 1.75 0 0 0 2 4.75v3.26a3.235 3.235 0 0 1 1.75-.51h12.5c.644 0 1.245.188 1.75.51V6.75A1.75 1.75 0 0 0 16.25 5h-4.836a.25.25 0 0 1-.177-.073L9.823 3.513A1.75 1.75 0 0 0 8.586 3H3.75ZM3.75 9A1.75 1.75 0 0 0 2 10.75v4.5c0 .966.784 1.75 1.75 1.75h12.5A1.75 1.75 0 0 0 18 15.25v-4.5A1.75 1.75 0 0 0 16.25 9H3.75Z" />
-    </svg>
-  )
-}

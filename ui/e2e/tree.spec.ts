@@ -45,3 +45,72 @@ test('the view toggle round-trips through the URL', async ({ page }) => {
   await expect(page).not.toHaveURL(/view=tree/)
   await expect(page.getByRole('button', { name: 'Expand all' })).toBeHidden()
 })
+
+test('collapsed tree state survives navigating to a leaf and back', async ({ page }) => {
+  await page.goto('/search?view=tree')
+  const leaf = page.locator('a[href="/attribute/render.attr.string_single_example"]')
+  await expect(leaf).toBeVisible()
+
+  // Collapse to level 1 (a deliberate, non-default state) - a bulk action, so
+  // it's a compact `base` param rather than every folder path enumerated.
+  await page.getByRole('button', { name: '1', exact: true }).click()
+  const attrFolder = page.getByRole('button', { name: /^attr\s/ })
+  await expect(attrFolder).toBeVisible()
+  await expect(leaf).toBeHidden()
+  await expect(page).toHaveURL(/base=lvl1/)
+
+  // A single per-folder toggle on top of that base is a small override.
+  await attrFolder.click()
+  await expect(leaf).toBeVisible()
+  await expect(page).toHaveURL(/open=/)
+  await leaf.click()
+  await expect(page).toHaveURL(/\/attribute\/render\.attr\.string_single_example/)
+
+  await page.goBack()
+  await expect(page).toHaveURL(/view=tree/)
+  // The manually-expanded `attr` folder survived, but its still-collapsed
+  // sibling folders did not spuriously re-expand.
+  await expect(leaf).toBeVisible()
+})
+
+test('scroll position survives navigating to a leaf and back', async ({ page }) => {
+  // Only the results panel scrolls (the filters above stay put); a modest
+  // viewport keeps it short enough for the (small) fixture tree to overflow.
+  await page.setViewportSize({ width: 800, height: 500 })
+  await page.goto('/search?view=tree')
+  const leaf = page.locator('a[href="/attribute/render.attr.string_single_example"]')
+  await expect(leaf).toBeVisible()
+
+  const panel = page.locator('[data-scroll-restoration-id="search-results"]')
+  // Wait for the actual 'scroll' event (not just the scrollTop change,
+  // which happens synchronously) - the router's own listener only captures
+  // the position once that event fires, and navigating away too soon would
+  // race it, same as the click-auto-scroll gotcha below.
+  await panel.evaluate(
+    (el) =>
+      new Promise<void>((resolve) => {
+        el.addEventListener('scroll', () => resolve(), { once: true })
+        el.scrollTo({ top: 60 })
+      })
+  )
+  const scrolledTo = await panel.evaluate((el) => el.scrollTop)
+
+  // Playwright's `.click()` always scrolls its target into view first to
+  // compute real screen coordinates - even with `force: true` - which would
+  // overwrite the position just set up above (the leaf is now off-screen).
+  // A native in-page click leaves scroll untouched.
+  await page.evaluate(() => {
+    const link = document.querySelector<HTMLElement>(
+      'a[href="/attribute/render.attr.string_single_example"]'
+    )
+    link?.click()
+  })
+  await expect(page).toHaveURL(/\/attribute\/render\.attr\.string_single_example/)
+
+  await page.goBack()
+  await expect(page).toHaveURL(/view=tree/)
+  // The route fetches its data after mount (no route loader), so this also
+  // guards against restoring too early - before the tree has re-rendered to
+  // its full height - and silently landing back at the top.
+  await expect.poll(() => panel.evaluate((el) => el.scrollTop)).toBe(scrolledTo)
+})
