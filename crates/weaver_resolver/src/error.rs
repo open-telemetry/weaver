@@ -215,17 +215,38 @@ pub enum Error {
         attribute_ref: u32,
     },
 
-    /// We discovered duplicate dependencies with different versions.
-    #[error(
-        "Duplicate dependency '{name}' found with different versions: {version1} and {version2}"
-    )]
-    DuplicateDependency {
+    /// We discovered duplicate dependencies with incompatible versions.
+    #[error("Incompatible dependency versions for '{name}': {version1} and {version2}")]
+    IncompatibleDependencyVersions {
         /// The name of the dependency.
         name: String,
         /// The first version found.
         version1: String,
         /// The second version found.
         version2: String,
+    },
+
+    /// Attribute was removed or missing in an upgraded dependency version.
+    #[error("Attribute '{attribute_name}' defined in '{original_url}' was not found in upgraded dependency schema '{upgraded_url}'.")]
+    AttributeNotFoundInUpgradedSchema {
+        /// Name of the attribute.
+        attribute_name: String,
+        /// Original dependency schema URL.
+        original_url: String,
+        /// Chosen upgraded dependency schema URL.
+        upgraded_url: String,
+    },
+
+    /// Emitted when a dependency version resolved across the workspace differs from what was declared in main.
+    #[error("Selected version {selected_version} for dependency '{dependency}' differs from requested in main ({requested_version}).")]
+    #[diagnostic(severity(Warning))]
+    DependencyVersionUpgradedWarning {
+        /// Dependency name.
+        dependency: String,
+        /// Declared version.
+        requested_version: String,
+        /// Selected version across the graph.
+        selected_version: String,
     },
 
     /// We found multiple matches for a reference in dependencies with different SchemaURLs.

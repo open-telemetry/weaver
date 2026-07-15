@@ -13,11 +13,13 @@ use weaver_semconv::attribute::{AttributeRole, BasicRequirementLevelSpec, Requir
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
+    conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion},
     dependency_resolution::is_excluded,
     Error,
 };
@@ -106,22 +108,32 @@ impl ResolvedDependency {
     }
 }
 
+/// A group with its source provenance.
+pub struct GroupWithProvenance {
+    /// The group definition.
+    pub group: Group,
+    /// The schema URL of the registry it came from.
+    pub schema_url: SchemaUrl,
+}
+
 /// Allows importing dependencies
 pub(crate) trait ImportableDependency {
     /// Imports groups from the given dependency using the flags provided.
-    fn import_groups(
+    fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error>;
+        cache_lookup: &C,
+    ) -> Result<Vec<GroupWithProvenance>, Error>;
 }
 
 impl ImportableDependency for V1Schema {
-    fn import_groups(
+    fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+        cache_lookup: &C,
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         let explicit_imports: Vec<&ImportsWithProvenance> = imports
             .iter()
             .filter(|i| i.provenance.path != "--include-unreferenced")
@@ -182,48 +194,160 @@ impl ImportableDependency for V1Schema {
                 .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
         )?;
 
-        let matches_explicitly = move |g: &Group| match g.r#type {
-            GroupType::AttributeGroup => explicit_attribute_groups_matcher.is_match(&g.id),
-            GroupType::Span => explicit_spans_matcher.is_match(&g.id),
-            GroupType::Event => g
-                .name
-                .as_ref()
-                .is_some_and(|name| explicit_events_matcher.is_match(name.as_str())),
-            GroupType::Metric => g
-                .metric_name
-                .as_ref()
-                .is_some_and(|metric_name| explicit_metrics_matcher.is_match(metric_name.as_str())),
-            GroupType::MetricGroup => false,
-            GroupType::Entity => g
-                .name
-                .as_ref()
-                .is_some_and(|name| explicit_entities_matcher.is_match(name.as_str())),
-            GroupType::Scope => false,
-            GroupType::Undefined => false,
+        let matches_explicitly = move |g: &Group| {
+            if g.is_v2 {
+                match g.r#type {
+                    GroupType::AttributeGroup => {
+                        explicit_attribute_groups_matcher.is_match(&g.id)
+                            || g.id
+                                .strip_prefix("registry.")
+                                .is_some_and(|s| explicit_attribute_groups_matcher.is_match(s))
+                            || g.id
+                                .strip_prefix("attribute_group.")
+                                .is_some_and(|s| explicit_attribute_groups_matcher.is_match(s))
+                    }
+                    GroupType::Span => {
+                        explicit_spans_matcher.is_match(&g.id)
+                            || g.name
+                                .as_ref()
+                                .is_some_and(|name| explicit_spans_matcher.is_match(name.as_str()))
+                            || g.id
+                                .strip_prefix("span.")
+                                .is_some_and(|s| explicit_spans_matcher.is_match(s))
+                    }
+                    GroupType::Event => {
+                        explicit_events_matcher.is_match(&g.id)
+                            || g.name
+                                .as_ref()
+                                .is_some_and(|name| explicit_events_matcher.is_match(name.as_str()))
+                            || g.id
+                                .strip_prefix("event.")
+                                .is_some_and(|s| explicit_events_matcher.is_match(s))
+                    }
+                    GroupType::Metric | GroupType::MetricGroup => {
+                        explicit_metrics_matcher.is_match(&g.id)
+                            || g.metric_name.as_ref().is_some_and(|metric_name| {
+                                explicit_metrics_matcher.is_match(metric_name.as_str())
+                            })
+                            || g.id
+                                .strip_prefix("metric.")
+                                .is_some_and(|s| explicit_metrics_matcher.is_match(s))
+                    }
+                    GroupType::Entity => {
+                        explicit_entities_matcher.is_match(&g.id)
+                            || g.name.as_ref().is_some_and(|name| {
+                                explicit_entities_matcher.is_match(name.as_str())
+                            })
+                            || g.id
+                                .strip_prefix("entity.")
+                                .is_some_and(|s| explicit_entities_matcher.is_match(s))
+                    }
+                    GroupType::Scope => false,
+                    GroupType::Undefined => false,
+                }
+            } else {
+                match g.r#type {
+                    GroupType::AttributeGroup => explicit_attribute_groups_matcher.is_match(&g.id),
+                    GroupType::Span => explicit_spans_matcher.is_match(&g.id),
+                    GroupType::Event => g
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| explicit_events_matcher.is_match(name.as_str())),
+                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
+                        explicit_metrics_matcher.is_match(metric_name.as_str())
+                    }),
+                    GroupType::MetricGroup => false,
+                    GroupType::Entity => g
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| explicit_entities_matcher.is_match(name.as_str())),
+                    GroupType::Scope => false,
+                    GroupType::Undefined => false,
+                }
+            }
         };
 
-        let matches_by_any = move |g: &Group| match g.r#type {
-            GroupType::AttributeGroup => all_attribute_groups_matcher.is_match(&g.id),
-            GroupType::Span => all_spans_matcher.is_match(&g.id),
-            GroupType::Event => g
-                .name
-                .as_ref()
-                .is_some_and(|name| all_events_matcher.is_match(name.as_str())),
-            GroupType::Metric => g
-                .metric_name
-                .as_ref()
-                .is_some_and(|metric_name| all_metrics_matcher.is_match(metric_name.as_str())),
-            GroupType::MetricGroup => false,
-            GroupType::Entity => g
-                .name
-                .as_ref()
-                .is_some_and(|name| all_entities_matcher.is_match(name.as_str())),
-            GroupType::Scope => false,
-            GroupType::Undefined => false,
+        let matches_by_any = move |g: &Group| {
+            if g.is_v2 {
+                match g.r#type {
+                    GroupType::AttributeGroup => {
+                        all_attribute_groups_matcher.is_match(&g.id)
+                            || g.id
+                                .strip_prefix("registry.")
+                                .is_some_and(|s| all_attribute_groups_matcher.is_match(s))
+                            || g.id
+                                .strip_prefix("attribute_group.")
+                                .is_some_and(|s| all_attribute_groups_matcher.is_match(s))
+                    }
+                    GroupType::Span => {
+                        all_spans_matcher.is_match(&g.id)
+                            || g.name
+                                .as_ref()
+                                .is_some_and(|name| all_spans_matcher.is_match(name.as_str()))
+                            || g.id
+                                .strip_prefix("span.")
+                                .is_some_and(|s| all_spans_matcher.is_match(s))
+                    }
+                    GroupType::Event => {
+                        all_events_matcher.is_match(&g.id)
+                            || g.name
+                                .as_ref()
+                                .is_some_and(|name| all_events_matcher.is_match(name.as_str()))
+                            || g.id
+                                .strip_prefix("event.")
+                                .is_some_and(|s| all_events_matcher.is_match(s))
+                    }
+                    GroupType::Metric | GroupType::MetricGroup => {
+                        all_metrics_matcher.is_match(&g.id)
+                            || g.metric_name.as_ref().is_some_and(|metric_name| {
+                                all_metrics_matcher.is_match(metric_name.as_str())
+                            })
+                            || g.id
+                                .strip_prefix("metric.")
+                                .is_some_and(|s| all_metrics_matcher.is_match(s))
+                    }
+                    GroupType::Entity => {
+                        all_entities_matcher.is_match(&g.id)
+                            || g.name
+                                .as_ref()
+                                .is_some_and(|name| all_entities_matcher.is_match(name.as_str()))
+                            || g.id
+                                .strip_prefix("entity.")
+                                .is_some_and(|s| all_entities_matcher.is_match(s))
+                    }
+                    GroupType::Scope => false,
+                    GroupType::Undefined => false,
+                }
+            } else {
+                match g.r#type {
+                    GroupType::AttributeGroup => all_attribute_groups_matcher.is_match(&g.id),
+                    GroupType::Span => all_spans_matcher.is_match(&g.id),
+                    GroupType::Event => g
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| all_events_matcher.is_match(name.as_str())),
+                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
+                        all_metrics_matcher.is_match(metric_name.as_str())
+                    }),
+                    GroupType::MetricGroup => false,
+                    GroupType::Entity => g
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| all_entities_matcher.is_match(name.as_str())),
+                    GroupType::Scope => false,
+                    GroupType::Undefined => false,
+                }
+            }
         };
 
         let mut exclusion_errors: Vec<Error> = vec![];
-        let mut result: Vec<Group> = vec![];
+        let mut result: Vec<GroupWithProvenance> = vec![];
+        let my_schema_url =
+            SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| Error::InvalidUrl {
+                url: self.schema_url.to_string(),
+                error: e,
+            })?;
+
         for g in self.registry.groups.iter() {
             let matched_explicitly = matches_explicitly(g);
             let matched_by_any = matches_by_any(g);
@@ -250,15 +374,96 @@ impl ImportableDependency for V1Schema {
                 .iter()
                 .filter_map(|ar| self.catalog().attribute(ar))
             {
-                attributes.push(attribute_catalog.attribute_ref(a.clone()));
+                let source = find_attribute_source(self, &a.name, &my_schema_url);
+                let ar = attribute_catalog.attribute_ref_with_provenance(
+                    a.clone(),
+                    source,
+                    cache_lookup,
+                )?;
+                attributes.push(ar);
             }
             g.attributes = attributes;
-            result.push(g);
+            let mut g_url = my_schema_url.clone();
+            if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
+                if chosen_url != &g_url {
+                    if let Ok(winning_url) =
+                        UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
+                    {
+                        g_url = winning_url;
+                    }
+                }
+            }
+            result.push(GroupWithProvenance {
+                group: g,
+                schema_url: g_url,
+            });
         }
         if !exclusion_errors.is_empty() {
             return Err(Error::CompoundError(exclusion_errors));
         }
         Ok(result)
+    }
+}
+
+/// Finds the attribute source for a V1 attribute.
+fn find_attribute_source(
+    schema: &V1Schema,
+    attr_name: &str,
+    my_schema_url: &SchemaUrl,
+) -> AttributeSource {
+    if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
+        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            schema.registry.groups.iter().find(|g| {
+                if let Some(prov) = g.provenance() {
+                    prov.schema_url.name() == schema_name
+                } else {
+                    false
+                }
+            })
+        } else {
+            schema
+                .registry
+                .groups
+                .iter()
+                .find(|g| g.id == *source_group_id)
+        };
+        if let Some(group) = group {
+            if let Some(prov) = group.provenance() {
+                AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                }
+            } else {
+                AttributeSource::Dependency {
+                    schema_url: my_schema_url.clone(),
+                }
+            }
+        } else {
+            AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            }
+        }
+    } else {
+        // Fallback: search in all groups to find where this attribute came from
+        schema
+            .registry
+            .groups
+            .iter()
+            .find(|group| {
+                group.attributes.iter().any(|ar| {
+                    schema
+                        .catalog()
+                        .attribute(ar)
+                        .is_some_and(|attr| attr.name == attr_name)
+                })
+            })
+            .and_then(|group| {
+                group.provenance().map(|prov| AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                })
+            })
+            .unwrap_or_else(|| AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            })
     }
 }
 
@@ -320,11 +525,12 @@ fn convert_v2_attribute(
     }
 }
 impl ImportableDependency for V2Schema {
-    fn import_groups(
+    fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+        cache_lookup: &C,
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
         let mut exclusion_errors: Vec<Error> = vec![];
 
@@ -337,6 +543,25 @@ impl ImportableDependency for V2Schema {
             };
             weaver_semconv::provenance::Provenance::new(url, &prov.path)
         };
+
+        // Helper to get attribute source based on provenance.
+        let get_attribute_source =
+            |attr: &weaver_resolved_schema::v2::attribute::Attribute| -> AttributeSource {
+                if let Some(dep_ref) = &attr.provenance.source {
+                    AttributeSource::Dependency {
+                        schema_url: self
+                            .dependencies
+                            .iter()
+                            .nth(dep_ref.0 as usize)
+                            .cloned()
+                            .unwrap_or_else(|| self.schema_url.clone()),
+                    }
+                } else {
+                    AttributeSource::Dependency {
+                        schema_url: self.schema_url.clone(),
+                    }
+                }
+            };
 
         let explicit_imports: Vec<&ImportsWithProvenance> = imports
             .iter()
@@ -428,12 +653,12 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                    cache_lookup,
+                )?);
             }
             result.push(Group {
                 id: m.id().to_owned(),
@@ -494,12 +719,12 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                    cache_lookup,
+                )?);
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -561,16 +786,16 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(
                         attr,
                         ar.requirement_level.clone(),
                         Some(AttributeRole::Identifying),
                     ),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                    cache_lookup,
+                )?);
             }
             for ar in e.description.iter() {
                 // TODO - this should be non-panic errors.
@@ -580,16 +805,16 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(
                         attr,
                         ar.requirement_level.clone(),
                         Some(AttributeRole::Descriptive),
                     ),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                    cache_lookup,
+                )?);
             }
             result.push(Group {
                 id: e.id().to_owned(),
@@ -650,12 +875,12 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.base.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                    cache_lookup,
+                )?);
             }
             result.push(Group {
                 id: s.id().to_owned(),
@@ -716,12 +941,12 @@ impl ImportableDependency for V2Schema {
                         attribute_ref: ar.0,
                     },
                 )?;
+                let source = get_attribute_source(attr);
                 attributes.push(attribute_catalog.attribute_ref_with_provenance(
                     convert_v2_attribute(attr, RequirementLevel::default(), None),
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    },
-                ));
+                    source,
+                    cache_lookup,
+                )?);
             }
             result.push(Group {
                 id: ag.id().to_owned(),
@@ -753,32 +978,53 @@ impl ImportableDependency for V2Schema {
         if !exclusion_errors.is_empty() {
             return Err(Error::CompoundError(exclusion_errors));
         }
-        Ok(result)
+        let mut g_url = self.schema_url.clone();
+        if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
+            if chosen_url != &g_url {
+                if let Ok(winning_url) = UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
+                {
+                    g_url = winning_url;
+                }
+            }
+        }
+        Ok(result
+            .into_iter()
+            .map(|group| GroupWithProvenance {
+                group,
+                schema_url: g_url.clone(),
+            })
+            .collect())
     }
 }
 
 impl ImportableDependency for ResolvedDependency {
-    fn import_groups(
+    fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+        cache_lookup: &C,
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         match self {
-            ResolvedDependency::V1(schema) => schema.import_groups(imports, attribute_catalog),
-            ResolvedDependency::V2(schema) => schema.import_groups(imports, attribute_catalog),
+            ResolvedDependency::V1(schema) => {
+                schema.import_groups(imports, attribute_catalog, cache_lookup)
+            }
+            ResolvedDependency::V2(schema) => {
+                schema.import_groups(imports, attribute_catalog, cache_lookup)
+            }
         }
     }
 }
 
 // Allows importing across all dependencies.
 impl ImportableDependency for Vec<ResolvedDependency> {
-    fn import_groups(
+    fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
         imports: &[ImportsWithProvenance],
         attribute_catalog: &mut AttributeCatalog,
-    ) -> Result<Vec<Group>, Error> {
+        cache_lookup: &C,
+    ) -> Result<Vec<GroupWithProvenance>, Error> {
         self.iter()
-            .map(|d| d.import_groups(imports, attribute_catalog))
+            .map(|d| d.import_groups(imports, attribute_catalog, cache_lookup))
             .try_fold(vec![], |mut result, next| {
                 result.extend(next?);
                 Ok(result)
@@ -1278,7 +1524,7 @@ mod tests {
         }];
 
         // By default V1 example schema has an AttributeGroup and a Span.
-        let result = d.import_groups(&imports, &mut catalog)?;
+        let result = d.import_groups(&imports, &mut catalog, &())?;
         assert_eq!(
             result.len(),
             2,
@@ -1317,7 +1563,7 @@ mod tests {
             },
         }];
 
-        let result = d.import_groups(&imports, &mut catalog)?;
+        let result = d.import_groups(&imports, &mut catalog, &())?;
         assert_eq!(
             result.len(),
             5,
@@ -1359,7 +1605,7 @@ mod tests {
             },
         }];
 
-        let result = deps.import_groups(&imports, &mut catalog)?;
+        let result = deps.import_groups(&imports, &mut catalog, &())?;
         // V1 schema has AttributeGroup, which returns false unless include_all.
         // V2 schema has metric, event, entity, span, and attribute_group that match.
         assert_eq!(result.len(), 5);
@@ -1408,7 +1654,7 @@ mod tests {
             },
         ];
 
-        let result = d.import_groups(&imports, &mut catalog)?;
+        let result = d.import_groups(&imports, &mut catalog, &())?;
         assert_eq!(
             result.len(),
             2,

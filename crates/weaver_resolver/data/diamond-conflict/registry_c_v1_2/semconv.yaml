@@ -1,0 +1,14 @@
+file_format: definition/2
+attributes:
+  - key: conflict_attr
+    type: string
+    brief: Attribute from C v1.2
+    stability: stable
+
+attribute_groups:
+  - id: test.group
+    visibility: public
+    brief: Test group in C v1.2
+    stability: stable
+    attributes:
+      - ref: conflict_attr
