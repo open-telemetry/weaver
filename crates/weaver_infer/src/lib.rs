@@ -245,11 +245,12 @@ impl AccumulatedSamples {
                     },
                     attributes,
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: inferred_common_fields(),
                 }
             })
             .collect::<Vec<_>>();
-        spans.sort_by(|left, right| left.r#type.to_string().cmp(&right.r#type.to_string()));
+        spans.sort_by_key(|left| left.r#type.to_string());
 
         let mut metrics = self
             .metrics
@@ -272,11 +273,12 @@ impl AccumulatedSamples {
                     unit: metric.unit.clone(),
                     attributes,
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: inferred_common_fields(),
                 }
             })
             .collect::<Vec<_>>();
-        metrics.sort_by(|left, right| left.name.to_string().cmp(&right.name.to_string()));
+        metrics.sort_by_key(|left| left.name.to_string());
 
         let mut merged_events: HashMap<String, Vec<String>> = self
             .events
@@ -311,11 +313,12 @@ impl AccumulatedSamples {
                         .map(|attribute_name| attribute_or_group_ref(&attribute_name))
                         .collect(),
                     entity_associations: vec![],
+                    requirement_level: None,
                     common: inferred_common_fields(),
                 }
             })
             .collect::<Vec<_>>();
-        events.sort_by(|left, right| left.name.to_string().cmp(&right.name.to_string()));
+        events.sort_by_key(|left| left.name.to_string());
 
         let mut attributes = attribute_defs.into_values().collect::<Vec<_>>();
         attributes.sort_by(|left, right| left.key.cmp(&right.key));
