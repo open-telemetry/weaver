@@ -2,10 +2,9 @@
 
 //! Core inference logic for `weaver registry infer`.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use log::info;
-use serde::Serialize;
 use serde_json::Value;
 use weaver_live_check::sample_attribute::SampleAttribute;
 use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
@@ -15,8 +14,16 @@ use weaver_live_check::Sample;
 use weaver_semconv::attribute::{
     AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
 };
-use weaver_semconv::group::{GroupSpec, GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::{
+    attribute::{AttributeDef, AttributeOrGroupRef, AttributeRef},
+    event::Event,
+    metric::Metric,
+    signal_id::SignalId,
+    span::{Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanName},
+    CommonFields, SemConvSpecV2,
+};
 
 const MAX_EXAMPLES: usize = 5;
 
@@ -205,110 +212,123 @@ impl AccumulatedSamples {
         )
     }
 
-    /// Converts accumulated samples to a semconv-compatible registry file.
+    /// Converts accumulated samples to a v2 semconv-compatible registry file.
     #[must_use]
-    pub fn to_semconv_spec(&self) -> InferredRegistry {
-        let mut groups = Vec::new();
+    pub fn to_semconv_spec(&self) -> SemConvSpecV2 {
+        let mut attribute_defs = HashMap::new();
+        collect_attribute_defs(self.resources.values(), &mut attribute_defs);
 
-        // Resource group
-        // Note: OTLP supports EntityRef (currently in Development status) which allows
-        // grouping resource attributes by entity type (e.g., "service", "host").
-        // We don't support entities yet, so all resource attributes are accumulated
-        // into a single resource group.
-        if !self.resources.is_empty() {
-            let mut attributes: Vec<AttributeSpec> = self.resources.values().cloned().collect();
-            attributes.sort_by_key(|a| a.id());
+        let mut spans = self
+            .spans
+            .values()
+            .map(|span| {
+                collect_attribute_defs(span.attributes.values(), &mut attribute_defs);
 
-            groups.push(GroupSpec {
-                id: "resource".to_owned(),
-                r#type: GroupType::Entity,
-                brief: String::new(),
-                stability: Some(Stability::Development),
-                attributes,
-                ..Default::default()
-            });
-        }
+                for event in span.events.values() {
+                    collect_attribute_defs(event.attributes.values(), &mut attribute_defs);
+                }
 
-        // Span groups
-        for span in self.spans.values() {
-            let mut attributes: Vec<AttributeSpec> = span.attributes.values().cloned().collect();
-            attributes.sort_by_key(|a| a.id());
-
-            groups.push(GroupSpec {
-                id: format!("span.{}", sanitize_id(&span.name)),
-                r#type: GroupType::Span,
-                brief: String::new(),
-                stability: Some(Stability::Development),
-                span_kind: Some(span.kind.clone()),
-                attributes,
-                ..Default::default()
-            });
-
-            // Span events as separate event groups
-            for event in span.events.values() {
-                let mut event_attributes: Vec<AttributeSpec> =
-                    event.attributes.values().cloned().collect();
-                event_attributes.sort_by_key(|a| a.id());
-
-                groups.push(GroupSpec {
-                    id: format!("span_event.{}", sanitize_id(&event.name)),
-                    r#type: GroupType::Event,
-                    brief: String::new(),
-                    stability: Some(Stability::Development),
-                    name: Some(event.name.clone()),
-                    attributes: event_attributes,
-                    ..Default::default()
+                let mut attributes = span
+                    .attributes
+                    .keys()
+                    .map(|name| span_attribute_ref(name))
+                    .collect::<Vec<_>>();
+                attributes.sort_by(|left, right| {
+                    span_attribute_ref_name(left).cmp(span_attribute_ref_name(right))
                 });
+
+                Span {
+                    r#type: SignalId::from(span.name.clone()),
+                    kind: span.kind.clone(),
+                    name: SpanName {
+                        note: span.name.clone(),
+                    },
+                    attributes,
+                    entity_associations: vec![],
+                    common: inferred_common_fields(),
+                }
+            })
+            .collect::<Vec<_>>();
+        spans.sort_by(|left, right| left.r#type.to_string().cmp(&right.r#type.to_string()));
+
+        let mut metrics = self
+            .metrics
+            .values()
+            .map(|metric| {
+                collect_attribute_defs(metric.attributes.values(), &mut attribute_defs);
+
+                let mut attributes = metric
+                    .attributes
+                    .keys()
+                    .map(|name| attribute_or_group_ref(name))
+                    .collect::<Vec<_>>();
+                attributes.sort_by(|left, right| {
+                    attribute_or_group_ref_name(left).cmp(attribute_or_group_ref_name(right))
+                });
+
+                Metric {
+                    name: SignalId::from(metric.name.clone()),
+                    instrument: metric.instrument.clone(),
+                    unit: metric.unit.clone(),
+                    attributes,
+                    entity_associations: vec![],
+                    common: inferred_common_fields(),
+                }
+            })
+            .collect::<Vec<_>>();
+        metrics.sort_by(|left, right| left.name.to_string().cmp(&right.name.to_string()));
+
+        let mut merged_events: HashMap<String, Vec<String>> = self
+            .events
+            .values()
+            .map(|event| {
+                collect_attribute_defs(event.attributes.values(), &mut attribute_defs);
+                (
+                    event.name.clone(),
+                    event.attributes.keys().cloned().collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+
+        for span in self.spans.values() {
+            for event in span.events.values() {
+                collect_attribute_defs(event.attributes.values(), &mut attribute_defs);
+                let merged_attributes = merged_events.entry(event.name.clone()).or_default();
+                merged_attributes.extend(event.attributes.keys().cloned());
             }
         }
 
-        // Metric groups
-        for metric in self.metrics.values() {
-            let mut attributes: Vec<AttributeSpec> = metric.attributes.values().cloned().collect();
-            attributes.sort_by_key(|a| a.id());
+        let mut events = merged_events
+            .into_iter()
+            .map(|(name, mut attribute_names)| {
+                attribute_names.sort();
+                attribute_names.dedup();
 
-            groups.push(GroupSpec {
-                id: format!("metric.{}", sanitize_id(&metric.name)),
-                r#type: GroupType::Metric,
-                brief: String::new(),
-                stability: Some(Stability::Development),
-                metric_name: Some(metric.name.clone()),
-                instrument: Some(metric.instrument.clone()),
-                unit: Some(metric.unit.clone()),
-                attributes,
-                ..Default::default()
-            });
-        }
+                Event {
+                    name: SignalId::from(name),
+                    attributes: attribute_names
+                        .into_iter()
+                        .map(|attribute_name| attribute_or_group_ref(&attribute_name))
+                        .collect(),
+                    entity_associations: vec![],
+                    common: inferred_common_fields(),
+                }
+            })
+            .collect::<Vec<_>>();
+        events.sort_by(|left, right| left.name.to_string().cmp(&right.name.to_string()));
 
-        // Event groups (from logs)
-        for event in self.events.values() {
-            let mut attributes: Vec<AttributeSpec> = event.attributes.values().cloned().collect();
-            attributes.sort_by_key(|a| a.id());
+        let mut attributes = attribute_defs.into_values().collect::<Vec<_>>();
+        attributes.sort_by(|left, right| left.key.cmp(&right.key));
 
-            groups.push(GroupSpec {
-                id: format!("event.{}", sanitize_id(&event.name)),
-                r#type: GroupType::Event,
-                brief: String::new(),
-                stability: Some(Stability::Development),
-                name: Some(event.name.clone()),
-                attributes,
-                ..Default::default()
-            });
-        }
-
-        InferredRegistry { groups }
+        SemConvSpecV2::new(
+            attributes,
+            // TODO: Add entities once entityRefs are included in the OTLP messages.
+            vec![],
+            events,
+            metrics,
+            spans,
+        )
     }
-}
-
-/// Wrapper for serializing a list of `GroupSpec` as a semconv registry file.
-///
-/// Note: We use this wrapper instead of `SemConvSpecV1` directly because
-/// `SemConvSpecV1.groups` is `pub(crate)` in `weaver_semconv`.
-/// This wrapper produces the same YAML structure as a valid semconv file.
-#[derive(Serialize)]
-pub struct InferredRegistry {
-    /// Inferred semantic convention groups.
-    pub groups: Vec<GroupSpec>,
 }
 
 /// Create a new `AttributeSpec` from a `SampleAttribute`.
@@ -459,6 +479,7 @@ fn add_to_existing_examples(examples: Examples, value: &Value) -> Examples {
     }
 }
 
+#[cfg(test)]
 fn sanitize_id(name: &str) -> String {
     use convert_case::{Case, Casing};
     // Split by dots first (namespace separator), then apply snake_case to each segment
@@ -470,6 +491,89 @@ fn sanitize_id(name: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(".")
+}
+
+fn inferred_common_fields() -> CommonFields {
+    CommonFields {
+        brief: String::new(),
+        note: String::new(),
+        stability: Stability::Development,
+        deprecated: None,
+        annotations: BTreeMap::new(),
+    }
+}
+
+fn attribute_ref(name: &str) -> AttributeRef {
+    AttributeRef {
+        r#ref: name.to_owned(),
+        brief: None,
+        examples: None,
+        requirement_level: None,
+        note: None,
+        stability: None,
+        deprecated: None,
+        annotations: BTreeMap::new(),
+    }
+}
+
+fn span_attribute_ref(name: &str) -> SpanAttributeOrGroupRef {
+    SpanAttributeOrGroupRef::Attribute(SpanAttributeRef {
+        base: attribute_ref(name),
+        sampling_relevant: None,
+    })
+}
+
+fn attribute_or_group_ref(name: &str) -> AttributeOrGroupRef {
+    AttributeOrGroupRef::Attribute(attribute_ref(name))
+}
+
+fn collect_attribute_defs<'a>(
+    attributes: impl Iterator<Item = &'a AttributeSpec>,
+    attribute_defs: &mut HashMap<String, AttributeDef>,
+) {
+    for attribute in attributes {
+        if let AttributeSpec::Id {
+            id,
+            r#type,
+            brief,
+            examples,
+            note,
+            stability,
+            deprecated,
+            annotations,
+            ..
+        } = attribute
+        {
+            let _ = attribute_defs
+                .entry(id.clone())
+                .or_insert_with(|| AttributeDef {
+                    key: id.clone(),
+                    r#type: r#type.clone(),
+                    examples: examples.clone(),
+                    common: CommonFields {
+                        brief: brief.clone().unwrap_or_default(),
+                        note: note.clone(),
+                        stability: stability.clone().unwrap_or(Stability::Development),
+                        deprecated: deprecated.clone(),
+                        annotations: annotations.clone().unwrap_or_default(),
+                    },
+                });
+        }
+    }
+}
+
+fn span_attribute_ref_name(attribute: &SpanAttributeOrGroupRef) -> &str {
+    match attribute {
+        SpanAttributeOrGroupRef::Attribute(attribute) => &attribute.base.r#ref,
+        SpanAttributeOrGroupRef::Group(group) => &group.ref_group,
+    }
+}
+
+fn attribute_or_group_ref_name(attribute: &AttributeOrGroupRef) -> &str {
+    match attribute {
+        AttributeOrGroupRef::Attribute(attribute) => &attribute.r#ref,
+        AttributeOrGroupRef::Group(group) => &group.ref_group,
+    }
 }
 
 #[cfg(test)]
@@ -484,6 +588,16 @@ mod tests {
     use weaver_live_check::sample_span::SampleSpanEvent;
     use weaver_live_check::sample_span::SampleSpanLink;
     use weaver_semconv::group::SpanKindSpec;
+    use weaver_semconv::semconv::Versioned;
+
+    fn assert_v2_file_format(registry: &SemConvSpecV2) {
+        let value =
+            serde_json::to_value(Versioned::V2(registry.clone())).expect("Failed to serialize");
+        assert_eq!(
+            value.get("file_format").and_then(|v| v.as_str()),
+            Some("definition/2")
+        );
+    }
 
     // ============================================
     // Tests for add_example()
@@ -1173,11 +1287,16 @@ mod tests {
         let acc = AccumulatedSamples::new();
         let registry = acc.to_semconv_spec();
 
-        assert!(registry.groups.is_empty());
+        assert_v2_file_format(&registry);
+        assert!(registry.attributes().is_empty());
+        assert!(registry.entities().is_empty());
+        assert!(registry.spans().is_empty());
+        assert!(registry.metrics().is_empty());
+        assert!(registry.events().is_empty());
     }
 
     #[test]
-    fn test_to_semconv_spec_with_resources() {
+    fn test_to_semconv_spec_with_resources_keeps_attributes_without_entities() {
         let mut acc = AccumulatedSamples::new();
 
         accumulate_attribute(
@@ -1192,12 +1311,9 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.groups.len(), 1);
-        let group = &registry.groups[0];
-        assert_eq!(group.id, "resource");
-        assert_eq!(group.r#type, GroupType::Entity);
-        assert_eq!(group.stability, Some(Stability::Development));
-        assert_eq!(group.attributes.len(), 1);
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "service.name");
+        assert!(registry.entities().is_empty());
     }
 
     #[test]
@@ -1222,12 +1338,19 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.groups.len(), 1);
-        let group = &registry.groups[0];
-        assert_eq!(group.id, "span.http_get");
-        assert_eq!(group.r#type, GroupType::Span);
-        assert_eq!(group.span_kind, Some(SpanKindSpec::Client));
-        assert_eq!(group.attributes.len(), 1);
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "http.url");
+        assert_eq!(registry.spans().len(), 1);
+        assert_eq!(registry.spans()[0].r#type.to_string(), "HTTP GET");
+        assert_eq!(registry.spans()[0].kind, SpanKindSpec::Client);
+        assert_eq!(registry.spans()[0].name.note, "HTTP GET");
+        assert_eq!(registry.spans()[0].attributes.len(), 1);
+        match &registry.spans()[0].attributes[0] {
+            SpanAttributeOrGroupRef::Attribute(attribute) => {
+                assert_eq!(attribute.base.r#ref, "http.url");
+            }
+            SpanAttributeOrGroupRef::Group(_) => panic!("expected attribute ref"),
+        }
     }
 
     #[test]
@@ -1247,13 +1370,12 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.groups.len(), 1);
-        let group = &registry.groups[0];
-        assert_eq!(group.id, "metric.http.server.duration");
-        assert_eq!(group.r#type, GroupType::Metric);
-        assert_eq!(group.metric_name, Some("http.server.duration".to_owned()));
-        assert_eq!(group.instrument, Some(InstrumentSpec::Histogram));
-        assert_eq!(group.unit, Some("ms".to_owned()));
+        assert!(registry.attributes().is_empty());
+        assert_eq!(registry.metrics().len(), 1);
+        let metric = &registry.metrics()[0];
+        assert_eq!(metric.name.to_string(), "http.server.duration");
+        assert_eq!(metric.instrument, InstrumentSpec::Histogram);
+        assert_eq!(metric.unit, "ms");
     }
 
     #[test]
@@ -1273,8 +1395,7 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        let group = &registry.groups[0];
-        assert_eq!(group.unit, Some(String::new()));
+        assert_eq!(registry.metrics()[0].unit, String::new());
     }
 
     #[test]
@@ -1293,11 +1414,10 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.groups.len(), 1);
-        let group = &registry.groups[0];
-        assert_eq!(group.id, "event.user.signup");
-        assert_eq!(group.r#type, GroupType::Event);
-        assert_eq!(group.name, Some("user.signup".to_owned()));
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "user.email");
+        assert_eq!(registry.events().len(), 1);
+        assert_eq!(registry.events()[0].name.to_string(), "user.signup");
     }
 
     #[test]
@@ -1334,19 +1454,14 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        assert_eq!(registry.groups.len(), 2);
-        let span_event_group = registry
-            .groups
-            .iter()
-            .find(|group| group.id == "span_event.exception")
-            .expect("span event group should exist");
-
-        assert_eq!(span_event_group.r#type, GroupType::Event);
-        assert_eq!(span_event_group.name, Some("exception".to_owned()));
-        let attr_ids: Vec<_> = span_event_group
+        assert_eq!(registry.spans().len(), 1);
+        assert_eq!(registry.events().len(), 1);
+        let span_event = &registry.events()[0];
+        assert_eq!(span_event.name.to_string(), "exception");
+        let attr_ids: Vec<_> = span_event
             .attributes
             .iter()
-            .map(|attribute| attribute.id())
+            .map(attribute_or_group_ref_name)
             .collect();
         assert_eq!(attr_ids, vec!["a.attr", "z.attr"]);
     }
@@ -1386,8 +1501,89 @@ mod tests {
 
         let registry = acc.to_semconv_spec();
 
-        let group = &registry.groups[0];
-        let attr_ids: Vec<_> = group.attributes.iter().map(|a| a.id()).collect();
+        let attr_ids: Vec<_> = registry
+            .attributes()
+            .iter()
+            .map(|attribute| attribute.key.as_str())
+            .collect();
         assert_eq!(attr_ids, vec!["a.attr", "m.attr", "z.attr"]);
+    }
+
+    #[test]
+    fn test_to_semconv_spec_deduplicates_attributes_across_signals() {
+        let mut acc = AccumulatedSamples::new();
+
+        accumulate_attribute(
+            &mut acc.resources,
+            SampleAttribute {
+                name: "shared.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("resource")),
+                live_check_result: None,
+            },
+        );
+        acc.add_event(
+            "shared.event".to_owned(),
+            vec![SampleAttribute {
+                name: "shared.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("event")),
+                live_check_result: None,
+            }],
+        );
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.attributes().len(), 1);
+        assert_eq!(registry.attributes()[0].key, "shared.attr");
+        assert!(registry.entities().is_empty());
+        assert_eq!(
+            attribute_or_group_ref_name(&registry.events()[0].attributes[0]),
+            "shared.attr"
+        );
+    }
+
+    #[test]
+    fn test_to_semconv_spec_merges_log_and_span_events_with_same_name() {
+        let mut acc = AccumulatedSamples::new();
+
+        acc.add_event(
+            "exception".to_owned(),
+            vec![SampleAttribute {
+                name: "log.attr".to_owned(),
+                r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                value: Some(json!("log")),
+                live_check_result: None,
+            }],
+        );
+        acc.add_span(SampleSpan {
+            name: "HandleCheckout".to_owned(),
+            kind: SpanKindSpec::Server,
+            status: None,
+            attributes: vec![],
+            span_events: vec![SampleSpanEvent {
+                name: "exception".to_owned(),
+                attributes: vec![SampleAttribute {
+                    name: "span.attr".to_owned(),
+                    r#type: Some(PrimitiveOrArrayTypeSpec::String),
+                    value: Some(json!("span")),
+                    live_check_result: None,
+                }],
+                live_check_result: None,
+            }],
+            span_links: vec![],
+            live_check_result: None,
+            resource: None,
+        });
+
+        let registry = acc.to_semconv_spec();
+
+        assert_eq!(registry.events().len(), 1);
+        let attr_ids: Vec<_> = registry.events()[0]
+            .attributes
+            .iter()
+            .map(attribute_or_group_ref_name)
+            .collect();
+        assert_eq!(attr_ids, vec!["log.attr", "span.attr"]);
     }
 }
