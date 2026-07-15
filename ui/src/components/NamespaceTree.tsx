@@ -89,10 +89,21 @@ interface TreeChildrenProps {
   onToggle: (path: string) => void
 }
 
+type TreeEntry =
+  | { kind: 'folder'; segment: string; sortKey: string; node: TreeNode }
+  | { kind: 'item'; segment: string; sortKey: string; item: TreeItem }
+
 function TreeChildren({ node, expanded, onToggle }: TreeChildrenProps) {
-  // Items whose full name IS this namespace describe the folder itself and lead.
-  const selfItems = node.items.filter((item) => item.id === node.path)
-  const childItems = node.items.filter((item) => item.id !== node.path)
+  // Folders and items are siblings in the same namespace, so they're sorted
+  // together into one alphabetical list rather than grouped by kind.
+  const entries: TreeEntry[] = [
+    ...node.children.map(
+      (child): TreeEntry => ({ kind: 'folder', segment: child.segment, sortKey: child.path, node: child })
+    ),
+    ...node.items.map(
+      (item): TreeEntry => ({ kind: 'item', segment: item.segment, sortKey: item.id, item })
+    ),
+  ].sort((a, b) => a.segment.localeCompare(b.segment) || a.sortKey.localeCompare(b.sortKey))
 
   return (
     <ul
@@ -100,15 +111,16 @@ function TreeChildren({ node, expanded, onToggle }: TreeChildrenProps) {
         node.depth === 0 ? 'space-y-px' : 'ml-2.5 space-y-px border-l border-base-300 pl-3'
       }
     >
-      {selfItems.map((item) => (
-        <LeafRow key={`${item.result.result_type}:${item.id}`} item={item} />
-      ))}
-      {node.children.map((child) => (
-        <FolderRow key={child.path} node={child} expanded={expanded} onToggle={onToggle} />
-      ))}
-      {childItems.map((item) => (
-        <LeafRow key={`${item.result.result_type}:${item.id}`} item={item} />
-      ))}
+      {entries.map((entry) =>
+        entry.kind === 'folder' ? (
+          <FolderRow key={entry.node.path} node={entry.node} expanded={expanded} onToggle={onToggle} />
+        ) : (
+          <LeafRow
+            key={`${entry.item.result.result_type}:${entry.item.id}`}
+            item={entry.item}
+          />
+        )
+      )}
     </ul>
   )
 }
@@ -156,8 +168,8 @@ function LeafRow({ item }: { item: TreeItem }) {
       >
         {/* Spacer keeps leaves aligned with folder labels (chevron width). */}
         <span className="w-3.5 shrink-0" aria-hidden="true" />
-        <TypeBadge type={result.result_type} size="xs" />
         <span className="whitespace-nowrap font-mono text-sm font-semibold">{item.segment}</span>
+        <TypeBadge type={result.result_type} size="xs" />
         {result.stability ? <StabilityDot stability={result.stability} /> : null}
         {result.deprecated ? (
           <span className="badge badge-ghost badge-xs">deprecated</span>

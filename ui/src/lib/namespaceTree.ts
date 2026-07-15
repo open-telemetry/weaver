@@ -77,43 +77,23 @@ export function buildNamespaceTree(
     node.items.push({ result, id, segment: parts[parts.length - 1] });
   }
 
-  relocateFolderItems(root);
   return finalize(root);
-}
-
-/**
- * When a complete name is also a namespace (e.g. entity `host` alongside
- * `host.*` attributes), move the item inside its namespace folder so it is
- * presented with the things it describes.
- */
-function relocateFolderItems(node: BuildNode): void {
-  node.items = node.items.filter((item) => {
-    const folder = node.children.get(item.segment);
-    if (folder && folder.path === item.id) {
-      folder.items.push(item);
-      return false;
-    }
-    return true;
-  });
-  for (const child of node.children.values()) {
-    relocateFolderItems(child);
-  }
 }
 
 function finalize(node: BuildNode): TreeNode {
   const children = Array.from(node.children.values())
     .map(finalize)
     .sort((a, b) => a.segment.localeCompare(b.segment));
-  const items = [...node.items].sort((a, b) => {
-    // An item whose full name IS this namespace comes first — it describes the folder.
-    const aSelf = a.id === node.path ? 0 : 1;
-    const bSelf = b.id === node.path ? 0 : 1;
-    if (aSelf !== bSelf) return aSelf - bSelf;
-    return (
+  // A namespace can coincide with the full name of an unrelated item (e.g.
+  // event `app.crash` alongside a `app.crash.*` namespace formed by
+  // attribute `app.crash.id`) - that's a naming coincidence, not ownership,
+  // so items are never nested inside a same-named folder; they just sort
+  // alongside it like anything else.
+  const items = [...node.items].sort(
+    (a, b) =>
       a.segment.localeCompare(b.segment) ||
       a.result.result_type.localeCompare(b.result.result_type)
-    );
-  });
+  );
   const itemCount = items.length + children.reduce((sum, child) => sum + child.itemCount, 0);
   return { segment: node.segment, path: node.path, depth: node.depth, children, items, itemCount };
 }

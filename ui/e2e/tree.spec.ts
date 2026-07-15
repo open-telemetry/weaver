@@ -37,6 +37,41 @@ test('tree view expand and collapse controls work', async ({ page }) => {
   await expect(leaf).toBeVisible()
 })
 
+test('an item whose name coincides with a namespace stays a sibling of that folder', async ({
+  page,
+}) => {
+  // `render.attr` is both an event name and the folder holding the
+  // `render.attr.*` attributes - a naming coincidence, not ownership, so
+  // this event must stay a sibling of the folder rather than being nested
+  // inside it. Collapsing the folder should not hide it.
+  await page.goto('/search?view=tree')
+  const event = page.locator('a[href="/event/render.attr"]')
+  await expect(event).toBeVisible()
+
+  const attrFolder = page.getByRole('button', { name: /^attr\s/ })
+  await attrFolder.click()
+  await expect(attrFolder).toHaveAttribute('aria-expanded', 'false')
+  await expect(event).toBeVisible()
+})
+
+test('folders and items under a namespace sort together alphabetically', async ({ page }) => {
+  // `render.coordinator` (an event) sorts alphabetically between the
+  // `render.container` and `render.entity` namespace folders - folders and
+  // items are siblings and must interleave in one alphabetical list rather
+  // than rendering as a folders-then-items grouping.
+  await page.goto('/search?view=tree')
+  const renderFolder = page.getByRole('button', { name: /^render\s/ })
+  const renderChildren = renderFolder.locator('xpath=..').locator(':scope > ul > li')
+  const labels = await renderChildren.locator(':scope > button, :scope > a').allTextContents()
+  const container = labels.findIndex((label) => label.startsWith('container'))
+  const coordinator = labels.findIndex((label) => label.includes('coordinator'))
+  const entity = labels.findIndex((label) => label.startsWith('entity'))
+
+  expect(container).toBeGreaterThanOrEqual(0)
+  expect(coordinator).toBeGreaterThan(container)
+  expect(entity).toBeGreaterThan(coordinator)
+})
+
 test('the view toggle round-trips through the URL', async ({ page }) => {
   await page.goto('/search?view=tree')
   await expect(page.getByRole('button', { name: 'Expand all' })).toBeVisible()
