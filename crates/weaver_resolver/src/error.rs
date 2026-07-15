@@ -216,9 +216,7 @@ pub enum Error {
     },
 
     /// We discovered duplicate dependencies with incompatible versions.
-    #[error(
-        "Incompatible dependency versions for '{name}': {version1} and {version2}"
-    )]
+    #[error("Incompatible dependency versions for '{name}': {version1} and {version2}")]
     IncompatibleDependencyVersions {
         /// The name of the dependency.
         name: String,
@@ -250,7 +248,6 @@ pub enum Error {
         /// Selected version across the graph.
         selected_version: String,
     },
-
 
     /// We found multiple matches for a reference in dependencies with different SchemaURLs.
     #[error("Ambiguous reference '{ref}' found in multiple dependencies with different SchemaURLs: {schema_url1} and {schema_url2}")]
