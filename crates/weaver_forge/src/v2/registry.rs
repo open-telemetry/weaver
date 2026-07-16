@@ -1,6 +1,6 @@
 //! Version two of registry specification.
 
-use crate::v2::provenance::Provenance;
+use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
@@ -10,7 +10,7 @@ use crate::{
     error::Error,
     v2::{
         attribute::Attribute,
-        attribute_group::AttributeGroup, AttributeGroupAttribute,
+        attribute_group::AttributeGroup,
         entity::{Entity, EntityAttribute, EntityRefinement},
         event::{Event, EventAttribute, EventRefinement},
         metric::{Metric, MetricAttribute, MetricRefinement},
