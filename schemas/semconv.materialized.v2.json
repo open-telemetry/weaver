@@ -105,7 +105,7 @@
           "description": "List of attributes.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Attribute"
+            "$ref": "#/$defs/AttributeGroupAttribute"
           }
         },
         "brief": {
@@ -146,6 +146,77 @@
         "attributes",
         "brief",
         "stability"
+      ]
+    },
+    "AttributeGroupAttribute": {
+      "description": "An attribute belonging to a public attribute group, carrying the\ngroup-specific requirement level.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "description": "Sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "description": "String that uniquely identifies the attribute.",
+          "type": "string"
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the attribute.",
+          "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the attribute within this group. One of\n\"required\", \"conditionally_required\", \"recommended\" or \"opt_in\".\nWhen set to \"conditionally_required\", the string provided as\n`condition` MUST specify the conditions under which the attribute\nis required.",
+          "$ref": "#/$defs/RequirementLevel"
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "Either a string literal denoting the type as a primitive or an\narray type, a template type or an enum definition.",
+          "$ref": "#/$defs/AttributeType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "brief",
+        "stability",
+        "requirement_level"
       ]
     },
     "AttributeType": {
