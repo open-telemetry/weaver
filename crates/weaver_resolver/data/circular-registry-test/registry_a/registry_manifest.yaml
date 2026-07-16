@@ -1,7 +1,6 @@
 name: registry_a
 description: Test registry A for circular dependency testing.
-semconv_version: 0.1.0
-schema_base_url: https://example.com/registry_a/schemas/
+schema_url: https://example.com/registry_a/schemas/0.1.0
 dependencies:
   - schema_url: https://example.com/registry_b/schemas/1.0.0
     registry_path: data/circular-registry-test/registry_b
