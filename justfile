@@ -4,7 +4,7 @@ install:
     rustup update 1.93.0
     cargo install cargo-machete@0.9.2 --locked
     cargo install cargo-depgraph@1.6.0 --locked
-    cargo install cargo-edit@0.13.11 --locked
+    cargo install cargo-edit@0.13.13 --locked
     cargo install cargo-check-external-types@0.5.0 --locked
     cargo install git-cliff@2.13.1 --locked
     cargo install cargo-tarpaulin@0.37.0 --locked
