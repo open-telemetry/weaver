@@ -1,11 +1,16 @@
-groups:
+file_format: definition/2
+attributes:
+  - key: registry_b.name
+    type: string
+    brief: Name from registry B.
+    stability: stable
+    examples: ["B"]
+
+attribute_groups:
   - id: registry_b.example
-    type: attribute_group
+    visibility: public
     brief: Example attributes from registry B.
+    stability: stable
     attributes:
-      - id: registry_b.name
-        type: string
-        brief: Name from registry B.
-        stability: stable
+      - ref: registry_b.name
         requirement_level: required
-        examples: "B"

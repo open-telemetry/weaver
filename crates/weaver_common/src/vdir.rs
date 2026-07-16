@@ -86,6 +86,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 use ureq::config::{Config, RedirectAuthHeaders};
+use ureq::tls::{RootCerts, TlsConfig};
 use ureq::Agent;
 use url::Url;
 
@@ -119,6 +120,11 @@ static HTTP_AGENT: Lazy<Agent> = Lazy::new(|| {
     Config::builder()
         .max_redirects(10)
         .redirect_auth_headers(RedirectAuthHeaders::SameHost)
+        .tls_config(
+            TlsConfig::builder()
+                .root_certs(RootCerts::PlatformVerifier)
+                .build(),
+        )
         .build()
         .into()
 });

@@ -4,6 +4,6 @@
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
     "serde_core::ser::Serialize",
-    "weaver_semconv::group::GroupSpec",
+    "weaver_semconv::v2::SemConvSpecV2",
     "weaver_live_check::Sample",
 ]

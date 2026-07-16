@@ -10,12 +10,12 @@ attributes:
     stability: stable
 spans:
 - type: local-span
-  requirement_level: recommended
   name:
     note: span
   brief: a local span
   note: a local span note
   kind: client
+  requirement_level: recommended
   stability: stable
   attributes:
   - ref: local.attr

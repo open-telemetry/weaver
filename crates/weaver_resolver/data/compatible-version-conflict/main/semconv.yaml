@@ -1,0 +1,6 @@
+file_format: definition/2
+imports:
+  metrics:
+    - c.metric.1
+  spans:
+    - c.span.2
