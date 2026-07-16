@@ -10,7 +10,7 @@ use nom::multi::many0_count;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, multispace0, multispace1},
+    character::complete::{alpha1, alphanumeric1, multispace0},
     combinator::{opt, recognize, value},
     multi::separated_list0,
     sequence::pair,
@@ -159,7 +159,7 @@ fn parse_html_comment(input: &str) -> IResult<&str, &str> {
 fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdownArgs> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag(SEMCONV_HEADER)(input)?;
-    let (input, _) = multispace1(input)?;
+    let (input, _) = multispace0(input)?;
     let (input, id) = parse_id(input)?;
     let (input, opt_args) = opt(parse_markdown_gen_parameters).parse(input)?;
     let (input, _) = multispace0(input)?;
@@ -176,7 +176,7 @@ fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdow
 fn parse_weaver_snippet_args(input: &str) -> IResult<&str, WeaverGenerateMarkdownArgs> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag(WEAVER_HEADER)(input)?;
-    let (input, _) = multispace1(input)?;
+    let (input, _) = multispace0(input)?;
     // TODO - parse JQ expression and optional template to use.
     let (input, template) = opt(parse_weaver_template_directive).parse(input)?;
     let (input, _) = multispace0(input)?;
@@ -568,8 +568,7 @@ mod tests {
 
     #[test]
     fn recognizes_invalid_snippet_markers() {
-        assert!(looks_like_snippet_marker("<!-- semconvmetric.foo -->"));
-        assert!(!is_valid_snippet_marker("<!-- semconvmetric.foo -->"));
+        assert!(is_valid_snippet_marker("<!-- semconvmetric.foo -->"));
         assert!(looks_like_snippet_marker(
             "<!-- semconv metric.foo(bad) -->"
         ));

@@ -10,7 +10,7 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use miette::Diagnostic;
 use serde_yaml::Value;
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
@@ -21,9 +21,7 @@ use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_macros::weaver_command;
-use weaver_semconv_gen::{
-    validate_markers, MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator,
-};
+use weaver_semconv_gen::{MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum UpdateMarkdownError {
@@ -183,11 +181,13 @@ pub(crate) fn command(
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
         let path = entry.path().display().to_string();
-        if let Ok(contents) = fs::read_to_string(entry.path()) {
-            marker_warnings.extend(validate_markers(&path, &contents));
-        }
-        if let Err(error) =
-            generator.update_markdown(&path, dry_run, attribute_registry_base_url.as_deref())
+        if let Err(error) = generator
+            .update_markdown_with_diagnostics(
+                &path,
+                dry_run,
+                attribute_registry_base_url.as_deref(),
+            )
+            .capture_non_fatal_errors(&mut marker_warnings)
         {
             has_error = true;
             log_error(error);
@@ -348,7 +348,7 @@ groups:
         let mut markdown =
             std::fs::read_to_string("tests/markdown_update_dryrun/current_output/test.md")
                 .expect("failed to read test markdown");
-        markdown.push_str("\n<!-- semconvmetric.test -->\n");
+        markdown.push_str("\n<!-- semconv metric.test(bad) -->\n");
         std::fs::write(&markdown_path, markdown).expect("failed to write test markdown");
 
         let cli = Cli {
