@@ -1,0 +1,11 @@
+file_format: definition/2
+event_refinements:
+  # Refines `server.error` from the dependency: `server.port` gets a refined
+  # brief; `server.address` is not mentioned and must be inherited with its
+  # `required` requirement level.
+  - id: refined.error
+    ref: server.error
+    brief: Refined server error event
+    attributes:
+      - ref: server.port
+        brief: Refined server port

@@ -248,11 +248,6 @@ pub fn convert_v1_to_v2(
 
     let v2_catalog = Catalog::from_attributes(attributes.into_iter().collect());
 
-    // Create a lookup so we can check inheritance.
-    let mut group_type_lookup = HashMap::new();
-    for g in r.groups.iter() {
-        let _ = group_type_lookup.insert(g.id.clone(), g.r#type.clone());
-    }
     // Pull signals from the registry and create a new span-focused registry.
     let mut spans = Vec::new();
     let mut span_refinements = Vec::new();
@@ -269,9 +264,7 @@ pub fn convert_v1_to_v2(
                 let is_refinement = g
                     .lineage
                     .as_ref()
-                    .and_then(|l| l.extends_group.as_ref())
-                    .and_then(|parent| group_type_lookup.get(parent))
-                    .map(|t| *t == GroupType::Span)
+                    .map(|l| l.extends_group_type == Some(GroupType::Span))
                     .unwrap_or(false);
                 // Pull all the attribute references.
                 let mut span_attributes = Vec::new();
@@ -360,9 +353,7 @@ pub fn convert_v1_to_v2(
                 let is_refinement = g
                     .lineage
                     .as_ref()
-                    .and_then(|l| l.extends_group.as_ref())
-                    .and_then(|parent| group_type_lookup.get(parent))
-                    .map(|t| *t == GroupType::Event)
+                    .map(|l| l.extends_group_type == Some(GroupType::Event))
                     .unwrap_or(false);
                 let mut event_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -419,9 +410,7 @@ pub fn convert_v1_to_v2(
                 let is_refinement = g
                     .lineage
                     .as_ref()
-                    .and_then(|l| l.extends_group.as_ref())
-                    .and_then(|parent| group_type_lookup.get(parent))
-                    .map(|t| *t == GroupType::Metric)
+                    .map(|l| l.extends_group_type == Some(GroupType::Metric))
                     .unwrap_or(false);
                 let mut metric_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -746,7 +735,7 @@ mod tests {
         let v1_catalog = builder.build();
         let mut refinement_span_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
-        refinement_span_lineage.extends("span.my-span");
+        refinement_span_lineage.extends("span.my-span", GroupType::Span);
         refinement_span_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
         let v1_registry = crate::registry::Registry {
@@ -869,7 +858,7 @@ mod tests {
             };
         let mut refinement_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
-        refinement_lineage.extends("span.my-span");
+        refinement_lineage.extends("span.my-span", GroupType::Span);
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![
@@ -964,7 +953,7 @@ mod tests {
         let v1_catalog = builder.build();
         let mut refinement_metric_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
-        refinement_metric_lineage.extends("metric.http");
+        refinement_metric_lineage.extends("metric.http", GroupType::Metric);
         refinement_metric_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
         let v1_registry = crate::registry::Registry {

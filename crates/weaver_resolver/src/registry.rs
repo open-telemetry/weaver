@@ -605,7 +605,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     unresolved_group.group.lineage.as_mut(),
                 );
                 if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
-                    lineage.extends(extends);
+                    lineage.extends(extends, parent_summary.r#type.clone());
                 }
 
                 // Inherit fields for v2 groups.

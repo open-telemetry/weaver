@@ -9,7 +9,7 @@ use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
-use weaver_semconv::attribute::{AttributeRole, BasicRequirementLevelSpec, RequirementLevel};
+use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
@@ -1071,164 +1071,155 @@ impl GroupRefinementLookup for V1Schema {
     }
 }
 
+/// Converts a v2 catalog attribute into an unresolved attribute spec with
+/// the given requirement level and sampling relevance taken from the
+/// signal's attribute reference.
+///
+/// TODO: this drops the attribute role (identifying vs descriptive). For
+/// entity refinements over a v2 dependency that loses the identity/description
+/// split — all inherited attributes collapse into `description` because the
+/// v1→v2 conversion routes to `identity` only when the role is `Identifying`.
+/// Thread the role through here and set it in the entity branch when we fix
+/// entity refinement inheritance (see the ignored
+/// `test_v2_dependency_entity_refinement_inherits_attributes`).
+fn attr_spec(
+    a: &weaver_resolved_schema::v2::attribute::Attribute,
+    requirement_level: RequirementLevel,
+    sampling_relevant: Option<bool>,
+) -> UnresolvedAttribute {
+    UnresolvedAttribute {
+        spec: weaver_semconv::attribute::AttributeSpec::Id {
+            id: a.key.clone(),
+            r#type: a.r#type.clone(),
+            brief: Some(a.common.brief.clone()),
+            examples: a.examples.clone(),
+            tag: None,
+            requirement_level,
+            sampling_relevant,
+            note: a.common.note.clone(),
+            stability: Some(a.common.stability.clone()),
+            deprecated: a.common.deprecated.clone(),
+            annotations: Some(a.common.annotations.clone()),
+            role: None,
+        },
+    }
+}
+
+/// Builds a dependency group summary with the fields every v2 signal shares;
+/// callers set the signal-specific fields (metric name, span kind, ...).
+fn signal_summary(
+    r#type: GroupType,
+    common: &weaver_semconv::v2::CommonFields,
+    requirement_level: Option<SignalRequirementLevel>,
+    attributes: Vec<UnresolvedAttribute>,
+) -> GroupSummary {
+    GroupSummary {
+        r#type,
+        brief: common.brief.clone(),
+        note: common.note.clone(),
+        stability: Some(common.stability.clone()),
+        deprecated: common.deprecated.clone(),
+        metric_name: None,
+        instrument: None,
+        unit: None,
+        requirement_level,
+        span_kind: None,
+        span_name: None,
+        attributes,
+        annotations: Some(common.annotations.clone()),
+        source: GroupSource::Dependency,
+    }
+}
+
 impl GroupRefinementLookup for V2Schema {
     fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
-        let lookup_group = self
-            .registry
-            .metrics
-            .iter()
-            .find(|m| m.id() == id)
-            .map(|m| Group {
-                id: m.id().to_owned(),
-                r#type: GroupType::Metric,
-                brief: m.common.brief.clone(),
-                note: m.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(m.common.stability.clone()),
-                deprecated: m.common.deprecated.clone(),
-                attributes: vec![],
-                span_kind: None,
-                events: vec![],
-                metric_name: Some(m.name.to_string()),
-                instrument: Some(m.instrument.clone()),
-                unit: Some(m.unit.clone()),
-                requirement_level: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-                annotations: Some(m.common.annotations.clone()),
-                entity_associations: m.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-                span_name: None,
-            })
-            .or_else(|| {
-                self.registry
-                    .events
-                    .iter()
-                    .find(|e| e.id() == id)
-                    .map(|e| Group {
-                        id: e.id().to_owned(),
-                        r#type: GroupType::Event,
-                        brief: e.common.brief.clone(),
-                        note: e.common.note.clone(),
-                        prefix: "".to_owned(),
-                        extends: None,
-                        stability: Some(e.common.stability.clone()),
-                        deprecated: e.common.deprecated.clone(),
-                        attributes: vec![],
-                        span_kind: None,
-                        events: vec![],
-                        metric_name: None,
-                        instrument: None,
-                        unit: None,
-                        requirement_level: None,
-                        name: Some(e.name.to_string()),
-                        lineage: None,
-                        display_name: None,
-                        body: None,
-                        annotations: Some(e.common.annotations.clone()),
-                        entity_associations: e.entity_associations.clone(),
-                        visibility: None,
-                        is_v2: true,
-                        span_name: None,
-                    })
-            })
-            .or_else(|| {
-                self.registry
-                    .entities
-                    .iter()
-                    .find(|e| e.id() == id)
-                    .map(|e| Group {
-                        id: e.id().to_owned(),
-                        r#type: GroupType::Entity,
-                        brief: e.common.brief.clone(),
-                        note: e.common.note.clone(),
-                        prefix: "".to_owned(),
-                        extends: None,
-                        stability: Some(e.common.stability.clone()),
-                        deprecated: e.common.deprecated.clone(),
-                        attributes: vec![],
-                        span_kind: None,
-                        events: vec![],
-                        metric_name: None,
-                        instrument: None,
-                        unit: None,
-                        requirement_level: None,
-                        name: Some(e.r#type.to_string()),
-                        lineage: None,
-                        display_name: None,
-                        body: None,
-                        annotations: Some(e.common.annotations.clone()),
-                        entity_associations: vec![],
-                        visibility: None,
-                        is_v2: true,
-                        span_name: None,
-                    })
-            })
-            .or_else(|| {
-                self.registry
-                    .spans
-                    .iter()
-                    .find(|s| s.id() == id)
-                    .map(|s| Group {
-                        id: s.id().to_owned(),
-                        r#type: GroupType::Span,
-                        brief: s.common.brief.clone(),
-                        note: s.common.note.clone(),
-                        prefix: "".to_owned(),
-                        extends: None,
-                        stability: Some(s.common.stability.clone()),
-                        deprecated: s.common.deprecated.clone(),
-                        attributes: vec![],
-                        span_kind: Some(s.kind.clone()),
-                        events: vec![],
-                        metric_name: None,
-                        instrument: None,
-                        unit: None,
-                        requirement_level: None,
-                        name: Some(s.r#type.to_string()),
-                        lineage: None,
-                        display_name: None,
-                        body: None,
-                        annotations: Some(s.common.annotations.clone()),
-                        entity_associations: s.entity_associations.clone(),
-                        visibility: None,
-                        is_v2: true,
-                        span_name: Some(s.name.clone()),
-                    })
-            });
+        // groups that come from v2 published signals don't have `span|metrics|etc.` prefix
+        // groups that come from v1 have it
+        // strip it when looking up v1 groups
+        fn find<'a, S: Signal>(signals: &'a [S], id: &str, prefix: &str) -> Option<&'a S> {
+            let by_id = |n: &str| signals.iter().find(|s| s.id() == n);
+            id.strip_prefix(prefix)
+                .and_then(by_id)
+                .or_else(|| by_id(id))
+        }
 
-        // Now fill out all the attributes we need for `extends` and refinements.
-        lookup_group.map(|g| {
-            let mut summary = GroupSummary::from_without_attributes(&g, GroupSource::Dependency);
-            summary.attributes = g
-                .attributes
+        if let Some(e) = find(&self.registry.entities, id, "entity.") {
+            let attributes = e
+                .identity
                 .iter()
-                .filter_map(|ar| self.attribute_catalog.get(ar.0 as usize))
-                .map(|a| UnresolvedAttribute {
-                    spec: weaver_semconv::attribute::AttributeSpec::Id {
-                        id: a.key.clone(),
-                        r#type: a.r#type.clone(),
-                        brief: Some(a.common.brief.clone()),
-                        examples: a.examples.clone(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Recommended,
-                        ),
-                        sampling_relevant: None,
-                        note: a.common.note.clone(),
-                        stability: Some(a.common.stability.clone()),
-                        deprecated: a.common.deprecated.clone(),
-                        annotations: Some(a.common.annotations.clone()),
-                        role: None,
-                    },
+                .chain(e.description.iter())
+                .filter_map(|ar| {
+                    self.attribute_catalog
+                        .get(ar.base.0 as usize)
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None))
                 })
                 .collect();
-            summary
-        })
+            return Some(signal_summary(
+                GroupType::Entity,
+                &e.common,
+                e.requirement_level.clone(),
+                attributes,
+            ));
+        }
+        if let Some(m) = find(&self.registry.metrics, id, "metric.") {
+            let attributes = m
+                .attributes
+                .iter()
+                .filter_map(|ar| {
+                    self.attribute_catalog
+                        .get(ar.base.0 as usize)
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None))
+                })
+                .collect();
+            let mut summary = signal_summary(
+                GroupType::Metric,
+                &m.common,
+                m.requirement_level.clone(),
+                attributes,
+            );
+            summary.metric_name = Some(m.name.to_string());
+            summary.instrument = Some(m.instrument.clone());
+            summary.unit = Some(m.unit.clone());
+            return Some(summary);
+        }
+        if let Some(e) = find(&self.registry.events, id, "event.") {
+            let attributes = e
+                .attributes
+                .iter()
+                .filter_map(|ar| {
+                    self.attribute_catalog
+                        .get(ar.base.0 as usize)
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None))
+                })
+                .collect();
+            return Some(signal_summary(
+                GroupType::Event,
+                &e.common,
+                e.requirement_level.clone(),
+                attributes,
+            ));
+        }
+        if let Some(s) = find(&self.registry.spans, id, "span.") {
+            let attributes = s
+                .attributes
+                .iter()
+                .filter_map(|ar| {
+                    self.attribute_catalog
+                        .get(ar.base.0 as usize)
+                        .map(|a| attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant))
+                })
+                .collect();
+            let mut summary = signal_summary(
+                GroupType::Span,
+                &s.common,
+                s.requirement_level.clone(),
+                attributes,
+            );
+            summary.span_kind = Some(s.kind.clone());
+            summary.span_name = Some(s.name.clone());
+            return Some(summary);
+        }
+        None
     }
 }
 

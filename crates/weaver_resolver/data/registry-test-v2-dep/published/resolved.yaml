@@ -21,12 +21,45 @@ attribute_catalog:
   - example.com
   brief: Server address.
   stability: stable
+- key: host.id
+  type: string
+  examples:
+  - fdbf79e8af94cb7f9e8df36789187052
+  brief: Unique host ID.
+  stability: stable
+- key: host.name
+  type: string
+  examples:
+  - opentelemetry-test
+  brief: Name of the host.
+  stability: stable
+- key: host.arch
+  type: string
+  examples:
+  - amd64
+  brief: Host architecture.
+  stability: stable
 registry:
   attributes:
   - 2
   - 0
+  - 3
+  - 4
+  - 5
   attribute_groups: []
-  spans: []
+  spans:
+  - type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 1
+      requirement_level: required
+      sampling_relevant: true
+    - base: 0
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
   metrics:
   - name: server.request.duration
     instrument: histogram
@@ -38,10 +71,42 @@ registry:
       requirement_level: recommended
     brief: Duration of server requests.
     stability: stable
-  events: []
-  entities: []
+  events:
+  - name: server.error
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: A server error event.
+    stability: stable
+  entities:
+  - type: host
+    identity:
+    - base: 3
+      requirement_level: required
+    - base: 5
+      requirement_level: recommended
+    description:
+    - base: 4
+      requirement_level: recommended
+    brief: A host.
+    stability: stable
 refinements:
-  spans: []
+  spans:
+  - id: server.request
+    type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 1
+      requirement_level: required
+      sampling_relevant: true
+    - base: 0
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
   metrics:
   - id: server.request.duration
     name: server.request.duration
@@ -54,4 +119,13 @@ refinements:
       requirement_level: recommended
     brief: Duration of server requests.
     stability: stable
-  events: []
+  events:
+  - id: server.error
+    name: server.error
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: A server error event.
+    stability: stable
