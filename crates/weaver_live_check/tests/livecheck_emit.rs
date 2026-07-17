@@ -10,6 +10,8 @@ use std::thread::sleep;
 use std::time::Duration;
 use weaver_test_support::reserve_test_port;
 
+const RESPONSE_PADDING_SIZE: usize = 2 * 1024 * 1024;
+
 /// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
 struct ChildGuard(Option<Child>);
 
@@ -59,13 +61,22 @@ fn wait_for_health(port: u16) {
     }
 }
 
-/// POST /stop and return the response body.
-fn stop_and_collect_report(port: u16) -> String {
+/// POST /stop over HTTP/2 and return the response body.
+async fn stop_and_collect_report(port: u16) -> String {
     let url = format!("http://127.0.0.1:{port}/stop");
-    let response = ureq::post(&url).send("").expect("POST /stop failed");
+    let response = reqwest::Client::builder()
+        .http2_prior_knowledge()
+        .build()
+        .expect("Failed to build HTTP/2 client")
+        .post(url)
+        .send()
+        .await
+        .expect("POST /stop failed");
+    // Leave the response body unread long enough to expose premature process shutdown.
+    tokio::time::sleep(Duration::from_millis(500)).await;
     response
-        .into_body()
-        .read_to_string()
+        .text()
+        .await
         .expect("Failed to read /stop response body")
 }
 
@@ -242,7 +253,8 @@ async fn test_livecheck_emit_roundtrip() {
             json!({
                 "attribute_key": "db.system",
                 "attribute_value": "postgresql",
-                "expected": "postgres"
+                "expected": "postgres",
+                "padding": "x".repeat(RESPONSE_PADDING_SIZE)
             }),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
@@ -336,7 +348,11 @@ async fn test_livecheck_emit_roundtrip() {
     sleep(Duration::from_millis(500));
 
     // 6. Collect report via POST /stop
-    let report_body = stop_and_collect_report(admin_port);
+    let report_body = stop_and_collect_report(admin_port).await;
+    assert!(
+        report_body.len() > RESPONSE_PADDING_SIZE,
+        "Expected a report large enough to exercise asynchronous response delivery"
+    );
 
     // 7. Wait for weaver to exit
     //    Exit code may be non-zero if there are violations — we check that separately below.
