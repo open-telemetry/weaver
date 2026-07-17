@@ -442,6 +442,7 @@ pub(crate) fn command(
                     .take()
                 {
                     let _ = sender.send((content_type, body));
+                    report.wait_for_server_shutdown();
                 }
             }
         } else {

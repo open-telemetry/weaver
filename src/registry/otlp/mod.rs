@@ -29,7 +29,7 @@ use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
@@ -39,6 +39,8 @@ use tonic::codegen::tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+
+const ADMIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Channel for sending the formatted report back to the /stop HTTP handler.
 ///
@@ -50,6 +52,22 @@ pub struct AdminReportSender {
     pub sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
     /// Set to `true` to have `/stop` wait and return the report as its response body.
     pub expect_report: Arc<AtomicBool>,
+    server_shutdown: Arc<(Mutex<bool>, Condvar)>,
+}
+
+impl AdminReportSender {
+    /// Wait until the admin server has finished its graceful shutdown or times out.
+    pub fn wait_for_server_shutdown(&self) {
+        let (shutdown_lock, shutdown_complete) = &*self.server_shutdown;
+        let is_shutdown = shutdown_lock
+            .lock()
+            .expect("Admin server shutdown lock poisoned");
+        let _ = shutdown_complete
+            .wait_timeout_while(is_shutdown, ADMIN_REQUEST_TIMEOUT, |is_shutdown| {
+                !*is_shutdown
+            })
+            .expect("Admin server shutdown lock poisoned");
+    }
 }
 
 /// Expose the OTLP gRPC services.
@@ -223,6 +241,7 @@ pub fn listen_otlp_requests(
     let report_sender = AdminReportSender {
         sender: Arc::new(Mutex::new(None)),
         expect_report: Arc::new(AtomicBool::new(false)),
+        server_shutdown: Arc::new((Mutex::new(false), Condvar::new())),
     };
     let logs_service = LogsServiceImpl {
         tx: tx.clone(),
@@ -378,7 +397,7 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
             .send(OtlpRequest::Stop(StopSignal::AdminStop))
             .await;
 
-        let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+        let response = match tokio::time::timeout(ADMIN_REQUEST_TIMEOUT, rx).await {
             Ok(Ok((content_type, body))) => {
                 (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
             }
@@ -455,6 +474,7 @@ async fn spawn_http_admin_handler(
                 expect_report: report_sender.expect_report.clone(),
                 shutdown_tx: Arc::new(Mutex::new(Some(shutdown_tx))),
             };
+            let server_shutdown = report_sender.server_shutdown.clone();
 
             let app = Router::new()
                 .route("/health", get(health_handler))
@@ -467,6 +487,11 @@ async fn spawn_http_admin_handler(
                         let _ = shutdown_rx.await;
                     })
                     .await;
+                let (shutdown_lock, shutdown_complete) = &*server_shutdown;
+                *shutdown_lock
+                    .lock()
+                    .expect("Admin server shutdown lock poisoned") = true;
+                shutdown_complete.notify_all();
             });
         }
         Err(e) => {
