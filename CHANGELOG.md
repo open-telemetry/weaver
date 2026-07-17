@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Reject v2 entity refinements that change the base entity's identity. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @lmolkova)
+- Reject v2 entity refinements that change the base entity's identity. ([#1589](https://github.com/open-telemetry/weaver/pull/1589) by @lmolkova)
 - Represent v2 entity refinements in the resolved and materialized schema, allow to refine identity attributes. ([#1588](https://github.com/open-telemetry/weaver/pull/1588) by @lmolkova)
 - Support signal refinements over a published dependency. ([#1587](https://github.com/open-telemetry/weaver/pull/1587) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Preserve per-attribute `requirement_level` on attribute refs of public attribute groups in the v2 resolved and materialized schemas. Each entry in an attribute group's `attributes` is now an object (`{ base, requirement_level }`) instead of a bare `attribute_catalog` index. ([#1584](https://github.com/open-telemetry/weaver/pull/1584) by @lmolkova)

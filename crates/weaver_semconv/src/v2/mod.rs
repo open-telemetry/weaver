@@ -209,23 +209,35 @@ impl SemConvSpecV2 {
             );
         }
 
-        let mut check_identity_overlap =
+        let check_identity_overlap =
             |identity: &[AttributeRef], description: &[AttributeRef], group_id: &SignalId| {
+                let mut overlaps = vec![];
                 for attr in description {
                     if identity.iter().any(|i| i.r#ref == attr.r#ref) {
-                        fatal_errors.push(Error::AttributeInIdentityAndDescription {
+                        overlaps.push(Error::AttributeInIdentityAndDescription {
                             path_or_url: provenance.to_owned(),
                             group_id: group_id.to_string(),
                             attribute_id: attr.r#ref.clone(),
                         });
                     }
                 }
+                overlaps
             };
         for e in &self.entities {
-            check_identity_overlap(&e.identity, &e.description, &e.r#type);
+            fatal_errors.extend(check_identity_overlap(
+                &e.identity,
+                &e.description,
+                &e.r#type,
+            ));
+            if e.identity.is_empty() {
+                fatal_errors.push(Error::EntityMissingIdentity {
+                    path_or_url: provenance.to_owned(),
+                    group_id: e.r#type.to_string(),
+                });
+            }
         }
         for r in &self.entity_refinements {
-            check_identity_overlap(&r.identity, &r.description, &r.id);
+            fatal_errors.extend(check_identity_overlap(&r.identity, &r.description, &r.id));
         }
 
         if !fatal_errors.is_empty() {
@@ -436,6 +448,36 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e, Error::AttributeInIdentityAndDescription { .. })),
             "did not expect AttributeInIdentityAndDescription, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_v2_entity_missing_identity_fails() {
+        let errors = validate_yaml(
+            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity: []\n    description:\n      - ref: some.attr\n",
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                Error::CompoundError(inner) if inner.iter().any(|e| matches!(
+                    e,
+                    Error::EntityMissingIdentity { group_id, .. } if group_id == "my_entity"
+                ))
+            )),
+            "expected EntityMissingIdentity for `my_entity`, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_v2_entity_with_identity_ok() {
+        let errors = validate_yaml(
+            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n",
+        );
+        assert!(
+            !errors
+                .iter()
+                .any(|e| matches!(e, Error::EntityMissingIdentity { .. })),
+            "did not expect EntityMissingIdentity, got: {errors:?}"
         );
     }
 

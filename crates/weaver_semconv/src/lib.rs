@@ -256,6 +256,18 @@ pub enum Error {
         attribute_id: String,
     },
 
+    /// An entity does not declare any `identity` attributes.
+    #[error("The entity `{group_id}` does not declare any `identity` attributes.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(help(
+        "List at least one attribute under `identity`; these are the attributes that uniquely identify the entity."
+    ))]
+    EntityMissingIdentity {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The id of the entity.
+        group_id: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
