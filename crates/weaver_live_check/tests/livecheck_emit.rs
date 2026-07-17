@@ -66,12 +66,15 @@ async fn stop_and_collect_report(port: u16) -> String {
     let url = format!("http://127.0.0.1:{port}/stop");
     let response = reqwest::Client::builder()
         .http2_prior_knowledge()
+        .timeout(Duration::from_secs(65))
         .build()
         .expect("Failed to build HTTP/2 client")
         .post(url)
         .send()
         .await
-        .expect("POST /stop failed");
+        .expect("POST /stop failed")
+        .error_for_status()
+        .expect("POST /stop returned an error status");
     // Leave the response body unread long enough to expose premature process shutdown.
     tokio::time::sleep(Duration::from_millis(500)).await;
     response
