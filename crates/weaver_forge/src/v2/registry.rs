@@ -3,7 +3,10 @@
 use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
+use weaver_resolved_schema::{
+    attribute::AttributeRef,
+    v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
+};
 use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
@@ -358,34 +361,33 @@ impl ForgeResolvedRegistry {
         }
         event_refinements.sort_by(|l, r| l.id.cmp(&r.id));
 
-        let convert_entity_attrs =
-            |attrs: &[weaver_resolved_schema::v2::entity::EntityAttributeRef],
-             group_id: &str,
-             errors: &mut Vec<Error>|
-             -> Vec<EntityAttribute> {
-                attrs
-                    .iter()
-                    .filter_map(|ar| {
-                        let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
-                            base: Attribute {
-                                key: a.key.clone(),
-                                r#type: a.r#type.clone(),
-                                examples: a.examples.clone(),
-                                common: a.common.clone(),
-                                provenance: resolve_provenance(&a.provenance),
-                            },
-                            requirement_level: ar.requirement_level.clone(),
+        let convert_entity_attrs = |attrs: &[EntityAttributeRef],
+                                    group_id: &str,
+                                    errors: &mut Vec<Error>|
+         -> Vec<EntityAttribute> {
+            attrs
+                .iter()
+                .filter_map(|ar| {
+                    let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                    });
+                    if attr.is_none() {
+                        errors.push(Error::AttributeNotFound {
+                            group_id: group_id.to_owned(),
+                            attr_ref: AttributeRef(ar.base.0),
                         });
-                        if attr.is_none() {
-                            errors.push(Error::AttributeNotFound {
-                                group_id: group_id.to_owned(),
-                                attr_ref: AttributeRef(ar.base.0),
-                            });
-                        }
-                        attr
-                    })
-                    .collect()
-            };
+                    }
+                    attr
+                })
+                .collect()
+        };
 
         let mut entities = Vec::new();
         for e in schema.registry.entities {
@@ -566,7 +568,7 @@ mod tests {
                 }],
                 entities: vec![v2::entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
-                    identity: vec![v2::entity::EntityAttributeRef {
+                    identity: vec![EntityAttributeRef {
                         base: attribute::AttributeRef(0),
                         requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
                             weaver_semconv::attribute::BasicRequirementLevelSpec::Required,

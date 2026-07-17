@@ -6,6 +6,7 @@ use globset::GlobSet;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
+use weaver_resolved_schema::v2::entity::Entity;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
@@ -1127,10 +1128,7 @@ fn signal_summary(
 /// Builds a group summary for an entity, with identity attributes tagged
 /// with the identifying role and description attributes with the
 /// descriptive role, so refinements inherit them correctly.
-fn entity_group_summary(
-    schema: &V2Schema,
-    e: &weaver_resolved_schema::v2::entity::Entity,
-) -> GroupSummary {
+fn entity_group_summary(schema: &V2Schema, e: &Entity) -> GroupSummary {
     let attributes = e
         .identity
         .iter()

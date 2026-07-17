@@ -313,13 +313,14 @@ pub fn convert_v1_to_v2(
                         span,
                     });
                 } else {
-                    // unwrap should be safe because we verified this is a refinement earlier.
-                    let span_type = g
-                        .lineage
-                        .as_ref()
-                        .and_then(|l| l.extends_group.as_ref())
-                        .map(|id| fix_span_group_id(id))
-                        .expect("Refinement extraction issue - this is a logic bug");
+                    let Some(extends_group) =
+                        g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
+                    else {
+                        return Err(crate::error::Error::RefinementBaseNotFound {
+                            group_id: g.id.clone(),
+                        });
+                    };
+                    let span_type = fix_span_group_id(extends_group);
                     span_refinements.push(SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: Span {
@@ -498,11 +499,14 @@ pub fn convert_v1_to_v2(
                     }
                 }
                 let entity_type = if is_refinement {
-                    g.lineage
-                        .as_ref()
-                        .and_then(|l| l.extends_group.as_ref())
-                        .map(|id| fix_group_id("entity.", id))
-                        .expect("Refinement extraction issue - this is a logic bug")
+                    let Some(extends_group) =
+                        g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
+                    else {
+                        return Err(crate::error::Error::RefinementBaseNotFound {
+                            group_id: g.id.clone(),
+                        });
+                    };
+                    fix_group_id("entity.", extends_group)
                 } else {
                     fix_group_id("entity.", &g.id)
                 };
