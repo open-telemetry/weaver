@@ -6491,6 +6491,7 @@ version = "0.24.2"
 dependencies = [
  "schemars",
  "serde",
+ "serde_json",
  "utoipa",
  "weaver_forge",
  "weaver_semconv",

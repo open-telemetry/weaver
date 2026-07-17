@@ -298,6 +298,25 @@ events:
       renamed_to: render.event.thing
       note: Replaced by `render.event.thing`.
 
+  - name: render.attr
+    requirement_level: recommended
+    brief: An event whose full name coincides with the `render.attr` attribute namespace.
+    note: |
+      Regression fixture for the tree view nesting this event inside the
+      `render.attr` folder as if it were the folder's self-describing item -
+      a namespace collision is just a naming coincidence, not ownership, so
+      the event must stay a sibling of the folder.
+    stability: stable
+
+  - name: render.coordinator
+    requirement_level: recommended
+    brief: An event alphabetically between the `render.container` and `render.entity` namespace folders.
+    note: |
+      Regression fixture for tree view ordering - folders and items are
+      siblings in the same namespace and must sort together into one
+      alphabetical list, not as a folders-then-items grouping.
+    stability: stable
+
 entities:
   - type: render.entity.host
     requirement_level: recommended

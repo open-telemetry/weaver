@@ -17,3 +17,6 @@ weaver_semconv = { path = "../weaver_semconv", features = ["openapi"] }
 serde.workspace = true
 utoipa.workspace = true
 schemars.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
