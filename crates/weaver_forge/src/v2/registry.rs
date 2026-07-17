@@ -10,7 +10,7 @@ use crate::{
     error::Error,
     v2::{
         attribute::Attribute,
-        attribute_group::AttributeGroup,
+        attribute_group::{AttributeGroup, AttributeGroupAttribute},
         entity::{Entity, EntityAttribute},
         event::{Event, EventAttribute, EventRefinement},
         metric::{Metric, MetricAttribute, MetricRefinement},
@@ -422,17 +422,20 @@ impl ForgeResolvedRegistry {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    let attr = attribute_lookup(ar).map(|a| Attribute {
-                        key: a.key.clone(),
-                        r#type: a.r#type.clone(),
-                        examples: a.examples.clone(),
-                        common: a.common.clone(),
-                        provenance: resolve_provenance(&a.provenance),
+                    let attr = attribute_lookup(&ar.base).map(|a| AttributeGroupAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("attribute_group.{}", &ag.id),
-                            attr_ref: AttributeRef(ar.0),
+                            attr_ref: AttributeRef(ar.base.0),
                         });
                     }
                     attr
@@ -567,7 +570,17 @@ mod tests {
                     common: CommonFields::default(),
                     provenance: Default::default(),
                 }],
-                attribute_groups: vec![],
+                attribute_groups: vec![v2::attribute_group::AttributeGroup {
+                    id: SignalId::from("my-group".to_owned()),
+                    attributes: vec![v2::attribute_group::AttributeGroupAttributeRef {
+                        base: attribute::AttributeRef(0),
+                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
             },
             refinements: v2::refinements::Refinements {
                 spans: vec![span::SpanRefinement {
@@ -636,6 +649,18 @@ mod tests {
         assert_eq!(forge_registry.registry.metrics.len(), 1);
         assert_eq!(forge_registry.registry.events.len(), 1);
         assert_eq!(forge_registry.registry.entities.len(), 1);
+        assert_eq!(forge_registry.registry.attribute_groups.len(), 1);
+
+        let group = &forge_registry.registry.attribute_groups[0];
+        assert_eq!(group.id, "my-group".to_owned().into());
+        assert_eq!(group.attributes.len(), 1);
+        assert_eq!(group.attributes[0].base.key, "test.attr");
+        assert_eq!(
+            group.attributes[0].requirement_level,
+            weaver_semconv::attribute::RequirementLevel::Basic(
+                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+            )
+        );
         assert_eq!(forge_registry.refinements.spans.len(), 1);
         assert_eq!(forge_registry.refinements.metrics.len(), 1);
         assert_eq!(forge_registry.refinements.events.len(), 1);

@@ -17,6 +17,7 @@ use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGI
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
 
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
 
 /// Maximum allowed depth for registry dependency chains.
@@ -177,17 +178,47 @@ pub(crate) fn load_semconv_repository_with_cache(
     auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // This method simply sets up the resolution state and delegates to the actual work.
-    let mut visited_registries = std::collections::HashMap::new();
+    let mut visited_registries = std::collections::HashSet::new();
+    let mut chosen_versions = std::collections::HashMap::new();
     let mut dependency_chain = Vec::new();
-    load_semconv_repository_recursive(
+
+    let mut main_dependencies = std::collections::HashMap::new();
+    if let Some(manifest) = registry_repo.manifest() {
+        for dep in manifest.dependencies().iter() {
+            let _ =
+                main_dependencies.insert(dep.schema_url.name().to_owned(), dep.schema_url.clone());
+        }
+    }
+
+    let mut result = load_semconv_repository_recursive(
         cache,
         registry_repo,
         follow_symlinks,
         MAX_DEPENDENCY_DEPTH,
         &mut visited_registries,
+        &mut chosen_versions,
         &mut dependency_chain,
         auth,
-    )
+    );
+
+    if let WResult::Ok(_) | WResult::OkWithNFEs(_, _) = result {
+        let mut warnings = vec![];
+        for (name, main_url) in main_dependencies.iter() {
+            if let Some(selected_url) = chosen_versions.get(name) {
+                if selected_url != main_url {
+                    warnings.push(Error::DependencyVersionUpgradedWarning {
+                        dependency: name.clone(),
+                        requested_version: main_url.version().to_owned(),
+                        selected_version: selected_url.version().to_owned(),
+                    });
+                }
+            }
+        }
+        if !warnings.is_empty() {
+            result = result.extend_non_fatal_errors(warnings);
+        }
+    }
+    result
 }
 
 pub(crate) fn find_pre_resolved(
@@ -204,7 +235,8 @@ fn load_semconv_repository_recursive(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     max_dependency_depth: u32,
-    visited_registries: &mut std::collections::HashMap<String, SchemaUrl>,
+    visited_registries: &mut std::collections::HashSet<String>,
+    chosen_versions: &mut std::collections::HashMap<String, SchemaUrl>,
     dependency_chain: &mut Vec<String>,
     auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
@@ -228,19 +260,21 @@ fn load_semconv_repository_recursive(
     }
 
     // Check for conflict across the graph
-    if let Some(prev_schema_url) = visited_registries.get(&registry_name) {
+    if let Some(prev_schema_url) = chosen_versions.get(&registry_name) {
         if prev_schema_url != &schema_url {
-            // TODO: Address version conflicts.
-            // For now, fail fast on any duplicate name with different version.
-            return WResult::FatalErr(Error::DuplicateDependency {
-                name: registry_name,
-                version1: prev_schema_url.version().to_owned(),
-                version2: schema_url.version().to_owned(),
-            });
+            match UseLatestMajorVersion.resolve_conflict(prev_schema_url, &schema_url) {
+                Ok(chosen) => {
+                    let _ = chosen_versions.insert(registry_name.clone(), chosen);
+                }
+                Err(e) => return WResult::FatalErr(e),
+            }
         }
     } else {
-        let _ = visited_registries.insert(registry_name.clone(), schema_url.clone());
+        let _ = chosen_versions.insert(registry_name.clone(), schema_url.clone());
     }
+
+    // Also mark as visited for loading purposes.
+    let _ = visited_registries.insert(registry_name.clone());
 
     // Add current registry to dependency chain
     dependency_chain.push(registry_name.clone());
@@ -261,6 +295,27 @@ fn load_semconv_repository_recursive(
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = registry_repo.resolved_registry_uri() {
             let res = load_resolved_repository(&resolved_url, auth);
+
+            // Register dependencies of the resolved schema for conflict resolution.
+            if let WResult::Ok(LoadedSemconvRegistry::ResolvedV2(ref schema))
+            | WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2(ref schema), _) = res
+            {
+                for dep in schema.dependencies.iter() {
+                    let dep_name = dep.name().to_owned();
+                    if let Some(prev_schema_url) = chosen_versions.get(&dep_name) {
+                        if prev_schema_url != dep {
+                            match UseLatestMajorVersion.resolve_conflict(prev_schema_url, dep) {
+                                Ok(chosen) => {
+                                    let _ = chosen_versions.insert(dep_name, chosen);
+                                }
+                                Err(e) => return WResult::FatalErr(e),
+                            }
+                        }
+                    } else {
+                        let _ = chosen_versions.insert(dep_name, dep.clone());
+                    }
+                }
+            }
             let _ = dependency_chain.pop();
             res
         } else {
@@ -275,14 +330,13 @@ fn load_semconv_repository_recursive(
 
                 if let Some(prev_schema_url) = seen_dependencies.get(&dep_name) {
                     if prev_schema_url != &d.schema_url {
-                        // TODO: Address version conflicts.
-                        // For now, fail fast on any duplicate name with different version.
-                        let _ = dependency_chain.pop();
-                        return WResult::FatalErr(Error::DuplicateDependency {
-                            name: dep_name,
-                            version1: prev_schema_url.version().to_owned(),
-                            version2: d.schema_url.version().to_owned(),
-                        });
+                        if let Err(e) =
+                            check_version_compatibility(&dep_name, prev_schema_url, &d.schema_url)
+                        {
+                            // Clean up the state of dependency_chain before erroring.
+                            let _ = dependency_chain.pop();
+                            return WResult::FatalErr(e);
+                        }
                     }
                 } else {
                     let _ = seen_dependencies.insert(dep_name, d.schema_url.clone());
@@ -299,6 +353,7 @@ fn load_semconv_repository_recursive(
                             follow_symlinks,
                             max_dependency_depth - 1,
                             visited_registries,
+                            chosen_versions,
                             dependency_chain,
                             auth,
                         ) {
@@ -482,9 +537,18 @@ fn load_definition_repository(
     )
 }
 
+/// Checks version compatibility between two schema URLs.
+fn check_version_compatibility(
+    _registry_name: &str,
+    prev_schema_url: &SchemaUrl,
+    schema_url: &SchemaUrl,
+) -> Result<(), Error> {
+    let _ = UseLatestMajorVersion.resolve_conflict(prev_schema_url, schema_url)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use weaver_semconv::schema_url::SchemaUrl;
 
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,
@@ -550,8 +614,8 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
-        let mut visited_registries: std::collections::HashMap<String, SchemaUrl> =
-            std::collections::HashMap::new();
+        let mut visited_registries = std::collections::HashSet::new();
+        let mut chosen_versions = std::collections::HashMap::new();
         let mut dependency_chain = Vec::new();
         let result = load_semconv_repository_recursive(
             None,
@@ -559,6 +623,7 @@ mod tests {
             true,
             1,
             &mut visited_registries,
+            &mut chosen_versions,
             &mut dependency_chain,
             &weaver_common::http_auth::HttpAuthResolver::empty(),
         );
@@ -626,11 +691,12 @@ mod tests {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
                 assert!(
-                    error_msg.contains("Duplicate dependency") &&
-                    error_msg.contains("example.com/c") &&
-                    error_msg.contains("1.0.0") &&
-                    error_msg.contains("2.0.0"),
-                    "Expected duplicate dependency error mentioning both versions, got: {error_msg}"
+                    (error_msg.contains("Incompatible dependency versions")
+                        || error_msg.contains("Duplicate dependency"))
+                        && error_msg.contains("example.com/c")
+                        && error_msg.contains("1.0.0")
+                        && error_msg.contains("2.0.0"),
+                    "Expected incompatible dependency error mentioning both versions, got: {error_msg}"
                 );
             }
             _ => {
@@ -642,7 +708,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compatible_version_conflict_todo() -> Result<(), Error> {
+    fn test_compatible_version_conflict() -> Result<(), Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/compatible-version-conflict/main".to_owned(),
         };
@@ -653,21 +719,39 @@ mod tests {
             &weaver_common::http_auth::HttpAuthResolver::empty(),
         );
 
-        match result {
+        let loaded = match result {
+            WResult::Ok(l) | WResult::OkWithNFEs(l, _) => l,
             WResult::FatalErr(fatal) => {
-                let error_msg = fatal.to_string();
-                assert!(
-                    error_msg.contains("Duplicate dependency")
-                        && error_msg.contains("example.com/c"),
-                    "Expected duplicate dependency error, got: {error_msg}"
-                );
+                panic!("Expected success, but got fatal error: {fatal}");
             }
-            _ => {
-                panic!(
-                    "Expected fatal error due to duplicate dependency (for now), but got success"
-                );
+        };
+
+        // Resolve the registry
+        let mut resolver = crate::WeaverResolver::new(crate::WeaverResolverConfig::default());
+        let resolved_result = resolver.resolve_loaded(loaded);
+        let resolved_schema = match resolved_result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => {
+                std::sync::Arc::unwrap_or_clone(s).into_v1().unwrap()
             }
-        }
+            WResult::FatalErr(fatal) => {
+                panic!("Failed to resolve registry: {fatal}");
+            }
+        };
+
+        // Verify that attributes in the catalog use the V1.2 definitions.
+        // c.attr1 should be from V1.2 (updated)
+        let (attr1, _) = resolved_schema
+            .catalog
+            .root_attribute("c.attr1")
+            .expect("c.attr1 not found in catalog");
+        assert_eq!(attr1.brief, "Attribute 1 from C v1.2 (updated)");
+
+        // c.attr2 should be from V1.2 (new)
+        let (attr2, _) = resolved_schema
+            .catalog
+            .root_attribute("c.attr2")
+            .expect("c.attr2 not found in catalog");
+        assert_eq!(attr2.brief, "Attribute 2 from C v1.2 (new)");
 
         Ok(())
     }

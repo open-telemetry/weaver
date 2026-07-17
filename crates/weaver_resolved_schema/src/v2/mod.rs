@@ -248,11 +248,6 @@ pub fn convert_v1_to_v2(
 
     let v2_catalog = Catalog::from_attributes(attributes.into_iter().collect());
 
-    // Create a lookup so we can check inheritance.
-    let mut group_type_lookup = HashMap::new();
-    for g in r.groups.iter() {
-        let _ = group_type_lookup.insert(g.id.clone(), g.r#type.clone());
-    }
     // Pull signals from the registry and create a new span-focused registry.
     let mut spans = Vec::new();
     let mut span_refinements = Vec::new();
@@ -269,9 +264,7 @@ pub fn convert_v1_to_v2(
                 let is_refinement = g
                     .lineage
                     .as_ref()
-                    .and_then(|l| l.extends_group.as_ref())
-                    .and_then(|parent| group_type_lookup.get(parent))
-                    .map(|t| *t == GroupType::Span)
+                    .map(|l| l.extends_group_type == Some(GroupType::Span))
                     .unwrap_or(false);
                 // Pull all the attribute references.
                 let mut span_attributes = Vec::new();
@@ -360,9 +353,7 @@ pub fn convert_v1_to_v2(
                 let is_refinement = g
                     .lineage
                     .as_ref()
-                    .and_then(|l| l.extends_group.as_ref())
-                    .and_then(|parent| group_type_lookup.get(parent))
-                    .map(|t| *t == GroupType::Event)
+                    .map(|l| l.extends_group_type == Some(GroupType::Event))
                     .unwrap_or(false);
                 let mut event_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -419,9 +410,7 @@ pub fn convert_v1_to_v2(
                 let is_refinement = g
                     .lineage
                     .as_ref()
-                    .and_then(|l| l.extends_group.as_ref())
-                    .and_then(|parent| group_type_lookup.get(parent))
-                    .map(|t| *t == GroupType::Metric)
+                    .map(|l| l.extends_group_type == Some(GroupType::Metric))
                     .unwrap_or(false);
                 let mut metric_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -529,7 +518,10 @@ pub fn convert_v1_to_v2(
                     // TODO - we need to check lineage and remove parent groups.
                     for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                         if let Some(a) = v2_catalog.convert_ref(attr) {
-                            attributes.push(a);
+                            attributes.push(attribute_group::AttributeGroupAttributeRef {
+                                base: a,
+                                requirement_level: attr.requirement_level.clone(),
+                            });
                         } else {
                             // TODO logic error!
                         }
@@ -743,7 +735,7 @@ mod tests {
         let v1_catalog = builder.build();
         let mut refinement_span_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
-        refinement_span_lineage.extends("span.my-span");
+        refinement_span_lineage.extends("span.my-span", GroupType::Span);
         refinement_span_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
         let v1_registry = crate::registry::Registry {
@@ -866,7 +858,7 @@ mod tests {
             };
         let mut refinement_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
-        refinement_lineage.extends("span.my-span");
+        refinement_lineage.extends("span.my-span", GroupType::Span);
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
             groups: vec![
@@ -961,7 +953,7 @@ mod tests {
         let v1_catalog = builder.build();
         let mut refinement_metric_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
-        refinement_metric_lineage.extends("metric.http");
+        refinement_metric_lineage.extends("metric.http", GroupType::Metric);
         refinement_metric_lineage
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
         let v1_registry = crate::registry::Registry {
@@ -1188,6 +1180,79 @@ mod tests {
             assert_eq!(entity.provenance.source, Some(provenance::DependencyRef(0)));
             assert_eq!(entity.provenance.path, "/path/to/source.yaml");
         }
+    }
+
+    #[test]
+    fn test_convert_public_attribute_group_carries_requirement_level() {
+        use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        // The catalog attribute carries the requirement level that was
+        // resolved from the attribute ref refinement in the public group.
+        let ref0 = builder.add(
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let v1_catalog = builder.build();
+        let v1_registry = crate::registry::Registry {
+            registry_url: "my.schema.url".to_owned(),
+            groups: vec![Group {
+                id: "test.group".to_owned(),
+                r#type: GroupType::AttributeGroup,
+                brief: "a public group".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![ref0],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: Some(AttributeGroupVisibilitySpec::Public),
+                is_v2: true,
+                span_name: None,
+            }],
+        };
+        let (_, v2_registry, _, _) = convert_v1_to_v2(v1_catalog, v1_registry, BTreeSet::new())
+            .expect("Failed to convert v1 to v2");
+        // The public attribute group is emitted...
+        assert_eq!(v2_registry.attribute_groups.len(), 1);
+        let group = &v2_registry.attribute_groups[0];
+        assert_eq!(group.id, "test.group".to_owned().into());
+        // ...and its attribute ref carries the group-specific requirement level.
+        assert_eq!(group.attributes.len(), 1);
+        assert_eq!(
+            group.attributes[0].requirement_level,
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+        );
     }
 
     #[test]

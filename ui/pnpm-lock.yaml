@@ -22,10 +22,10 @@ importers:
         version: 1.166.13(@tanstack/react-router@1.169.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.169.2)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       dompurify:
         specifier: ^3.4.2
-        version: 3.4.11
+        version: 3.4.12
       marked:
         specifier: ^18.0.3
-        version: 18.0.5
+        version: 18.0.6
       react:
         specifier: ^19.2.0
         version: 19.2.7
@@ -50,10 +50,10 @@ importers:
         version: 1.60.0
       '@tailwindcss/vite':
         specifier: 4.3.2
-        version: 4.3.2(vite@8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0))
+        version: 4.3.2(vite@8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))
       '@types/node':
-        specifier: 25.9.4
-        version: 25.9.4
+        specifier: 25.9.5
+        version: 25.9.5
       '@types/react':
         specifier: 19.2.17
         version: 19.2.17
@@ -65,10 +65,10 @@ importers:
         version: 5.18.0
       '@vitejs/plugin-react':
         specifier: 6.0.3
-        version: 6.0.3(vite@8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0))
+        version: 6.0.3(vite@8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))
       daisyui:
-        specifier: 5.6.13
-        version: 5.6.13
+        specifier: 5.6.18
+        version: 5.6.18
       eslint:
         specifier: 10.6.0
         version: 10.6.0(jiti@2.7.0)
@@ -92,7 +92,7 @@ importers:
         version: 8.63.0(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3)
       vite:
         specifier: 8.1.4
-        version: 8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0)
+        version: 8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0)
 
 packages:
 
@@ -716,8 +716,8 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
-  '@types/node@25.9.4':
-    resolution: {integrity: sha512-dszCsrKb5U7ZsVZBWiHFklTloVl0mSEnWH/iZXfZUlI4rzCUnsvGmgqfuVRHL54ugE7/wRuxEIXRa2iMZ+BG6g==}
+  '@types/node@25.9.5':
+    resolution: {integrity: sha512-OScDchr2fwuUmWdf4kZ9h7PcJiYDVInhJizG/biAq3cAvqwYktuy/TYGGdZNMtNTFUP7rnb0NU4TUdm82kt4Rg==}
 
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
@@ -986,8 +986,8 @@ packages:
     resolution: {integrity: sha512-ndfJ/JxxMd3nw31uyKoY2naivF+r29V+Lc0svZxe1JvvIRmi8hUsrMvdOwgS1o6uBHmiz91geQ0ylPP0aj1VUA==}
     engines: {node: '>=12'}
 
-  daisyui@5.6.13:
-    resolution: {integrity: sha512-0UHyNG3TzF7pDIbPcWyLKQfgtGhJcIq2x26jwsDKp7ZhL0GwaqIMZ12+TWfp8p+mE4NNc29SJk63hEXTz3MQkg==}
+  daisyui@5.6.18:
+    resolution: {integrity: sha512-6y9rboRQl8fosnusy/5pg11yp+H0LtK3YdtfS4Vf2QVnaYOKasNdYm6hDxeiT6bwZPdl4WRPzVIlIApdo2ssBg==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -1027,8 +1027,8 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  dompurify@3.4.11:
-    resolution: {integrity: sha512-zhlUV12GsaRzMsf9q5M254YhA4+VuF0fG+QFqu6aYpoGlKtz+w8//jBcGVYBgQkR5GHjUomejY84AV+/uPbWdw==}
+  dompurify@3.4.12:
+    resolution: {integrity: sha512-zQvGet8Z2sWbQhCmfFz/T5QWH2oBmjnqK3qvOjaqaNLrLEF912WamU+ohnTp0TCep/MFVHpdJuCZEdFOdTnEFg==}
 
   drange@1.1.1:
     resolution: {integrity: sha512-pYxfDYpued//QpnLIm4Avk7rsNtAtQkUES2cwAYSvD/wd2pKD71gN2Ebj3e7klzXwjocvE8c5vx/1fxwpqmSxA==}
@@ -1482,8 +1482,8 @@ packages:
     engines: {node: '>= 18'}
     hasBin: true
 
-  marked@18.0.5:
-    resolution: {integrity: sha512-S6GcvALHg6K4ohtu4E7x0a1AqhAjp6cV8KhLSyN9qVapnzJkusVBxZRcIU9AeYsbe6P1hKDusSbEOzGyyuce6w==}
+  marked@18.0.6:
+    resolution: {integrity: sha512-MrV5puXBfuiy6wl6DLaq3BtIJQAJToAd5zt/ZKhRfGRAuFPALE7/4Y7jnxRQoEgK/pBgurGqLyAuRgZ2xOjr6w==}
     engines: {node: '>= 20'}
     hasBin: true
 
@@ -2798,12 +2798,12 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.2
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.2
 
-  '@tailwindcss/vite@4.3.2(vite@8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0))':
+  '@tailwindcss/vite@4.3.2(vite@8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))':
     dependencies:
       '@tailwindcss/node': 4.3.2
       '@tailwindcss/oxide': 4.3.2
       tailwindcss: 4.3.2
-      vite: 8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0)
+      vite: 8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0)
 
   '@tanstack/history@1.161.6': {}
 
@@ -2898,7 +2898,7 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
-  '@types/node@25.9.4':
+  '@types/node@25.9.5':
     dependencies:
       undici-types: 7.24.6
 
@@ -3020,10 +3020,10 @@ snapshots:
       '@typescript-eslint/types': 8.63.0
       eslint-visitor-keys: 5.0.1
 
-  '@vitejs/plugin-react@6.0.3(vite@8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0))':
+  '@vitejs/plugin-react@6.0.3(vite@8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0)
+      vite: 8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0)
 
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
@@ -3188,7 +3188,7 @@ snapshots:
 
   d3-timer@3.0.1: {}
 
-  daisyui@5.6.13: {}
+  daisyui@5.6.18: {}
 
   debug@4.4.3:
     dependencies:
@@ -3216,7 +3216,7 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  dompurify@3.4.11:
+  dompurify@3.4.12:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -3626,7 +3626,7 @@ snapshots:
 
   marked@14.0.0: {}
 
-  marked@18.0.5: {}
+  marked@18.0.6: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -3646,7 +3646,7 @@ snapshots:
 
   monaco-editor@0.55.1:
     dependencies:
-      dompurify: 3.4.11
+      dompurify: 3.4.12
       marked: 14.0.0
 
   ms@2.1.3: {}
@@ -3969,7 +3969,7 @@ snapshots:
       classnames: 2.5.1
       css.escape: 1.5.1
       deep-extend: 0.6.0
-      dompurify: 3.4.11
+      dompurify: 3.4.12
       ieee754: 1.2.1
       immutable: 3.8.3
       js-file-download: 0.4.12
@@ -4121,7 +4121,7 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite@8.1.4(@types/node@25.9.4)(jiti@2.7.0)(yaml@2.9.0):
+  vite@8.1.4(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.5
@@ -4129,7 +4129,7 @@ snapshots:
       rolldown: 1.1.5
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 25.9.4
+      '@types/node': 25.9.5
       fsevents: 2.3.3
       jiti: 2.7.0
       yaml: 2.9.0

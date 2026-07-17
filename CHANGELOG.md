@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Add a tree view to the `serve` UI's search page, grouping results by namespace with expand/collapse controls, and a "Hide deprecated" toggle (on by default) for both the list and tree views. ([#1595](https://github.com/open-telemetry/weaver/pull/1595) by @jerbly)
+- Support signal refinements over a published dependency. ([#1587](https://github.com/open-telemetry/weaver/pull/1587) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 Preserve per-attribute `requirement_level` on attribute refs of public attribute groups in the v2 resolved and materialized schemas. Each entry in an attribute group's `attributes` is now an object (`{ base, requirement_level }`) instead of a bare `attribute_catalog` index. ([#1584](https://github.com/open-telemetry/weaver/pull/1584) by @lmolkova)
 - Use the OS-native certificate store (via ureq's `platform-verifier` feature) to validate TLS connections for remote registry downloads, instead of a fixed bundled root CA list. ([#1583](https://github.com/open-telemetry/weaver/pull/1583) by @jerbly)
 - Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
 - Add a stats dashboard with charts to the `serve` UI. ([#1570](https://github.com/open-telemetry/weaver/pull/1570) by @jerbly)

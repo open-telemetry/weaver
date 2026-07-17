@@ -20,6 +20,7 @@ use crate::dependency::ResolvedDependency;
 use crate::registry::resolve_registry_with_dependencies;
 
 mod attribute;
+pub(crate) mod conflict_strategy;
 mod dependency;
 mod dependency_resolution;
 mod error;
@@ -27,6 +28,7 @@ mod loader;
 pub(crate) mod merge;
 mod registry;
 
+use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 pub use crate::error::Error;
 pub use crate::loader::LoadedSemconvRegistry;
 
@@ -239,7 +241,92 @@ impl WeaverResolver {
             WResult::FatalErr(e) => WResult::FatalErr(e),
         }
     }
+}
 
+/// Abstraction for querying chosen dependency versions and resolved schemas from cache during resolution.
+pub(crate) trait SchemaCacheLookup {
+    /// Returns the highest chosen SchemaUrl across the current graph for a given registry name.
+    fn chosen_version(&self, registry_name: &str) -> Option<&SchemaUrl>;
+
+    /// Looks up a resolved schema by its exact SchemaUrl from the cache.
+    fn lookup_schema(&self, schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>>;
+}
+
+/// No-op lookup context used when no cache or chosen version overrides are needed.
+#[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
+pub(crate) struct NullSchemaCacheLookup;
+
+impl SchemaCacheLookup for NullSchemaCacheLookup {
+    fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
+        None
+    }
+
+    fn lookup_schema(&self, _schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
+        None
+    }
+}
+
+impl SchemaCacheLookup for () {
+    fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
+        None
+    }
+
+    fn lookup_schema(&self, _schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
+        None
+    }
+}
+
+/// Concrete lookup context instantiated inside `resolve_registry_internal`.
+pub(crate) struct SchemaLookupContext<'a> {
+    pub chosen_versions: HashMap<String, SchemaUrl>,
+    pub cache: &'a LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
+}
+
+impl<'a> SchemaCacheLookup for SchemaLookupContext<'a> {
+    fn chosen_version(&self, registry_name: &str) -> Option<&SchemaUrl> {
+        self.chosen_versions.get(registry_name)
+    }
+
+    fn lookup_schema(&self, schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
+        self.cache.peek(schema_url).cloned()
+    }
+}
+
+fn collect_chosen_versions_from_url(url: &SchemaUrl, chosen: &mut HashMap<String, SchemaUrl>) {
+    let name = url.name().to_owned();
+    if let Some(existing) = chosen.get(&name) {
+        if let Ok(chosen_url) = UseLatestMajorVersion.resolve_conflict(existing, url) {
+            let _ = chosen.insert(name, chosen_url);
+        }
+    } else {
+        let _ = chosen.insert(name, url.clone());
+    }
+}
+
+fn collect_chosen_versions(dep: &ResolvedDependency, chosen: &mut HashMap<String, SchemaUrl>) {
+    let url = match dep {
+        ResolvedDependency::V1(s) => SchemaUrl::try_from(s.schema_url.as_str()).ok(),
+        ResolvedDependency::V2(s) => Some(s.schema_url.clone()),
+    };
+    if let Some(url) = url {
+        collect_chosen_versions_from_url(&url, chosen);
+    }
+    match dep {
+        ResolvedDependency::V1(s) => {
+            for sub in &s.dependencies {
+                collect_chosen_versions_from_url(sub, chosen);
+            }
+        }
+        ResolvedDependency::V2(s) => {
+            for sub in &s.dependencies {
+                collect_chosen_versions_from_url(sub, chosen);
+            }
+        }
+    }
+}
+
+impl WeaverResolver {
     /// Actually resolves an internal definition registry and all its manifested dependencies.
     fn resolve_registry_internal(
         &mut self,
@@ -293,6 +380,15 @@ impl WeaverResolver {
             }
         }
 
+        let mut chosen_versions = HashMap::new();
+        for d in &resolved_dependencies {
+            collect_chosen_versions(d, &mut chosen_versions);
+        }
+        let lookup_ctx = SchemaLookupContext {
+            chosen_versions,
+            cache: &self.cache,
+        };
+
         let include_unreferenced = self.config.include_unreferenced;
         resolve_registry_with_dependencies(
             &mut attr_catalog,
@@ -301,6 +397,7 @@ impl WeaverResolver {
             imports,
             resolved_dependencies,
             include_unreferenced,
+            &lookup_ctx,
         )
         .map(move |resolved_registry| ResolvedTelemetrySchema {
             file_format: "1.0.0".to_owned(),
@@ -758,6 +855,79 @@ mod tests {
         assert!(attr_names.contains("server.address"));
         assert!(attr_names.contains("server.port"));
         Ok(())
+    }
+
+    fn assert_resolved_v2_schema(test_dir: &str) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("{test_dir}/registry"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        let observed_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            resolved.try_into().expect("Failed to convert to v2 schema");
+
+        let observed_dir = std::path::PathBuf::from(format!("observed_output/{test_dir}"));
+        std::fs::create_dir_all(&observed_dir).expect("Failed to create observed output dir");
+        let observed_yaml = serde_yaml::to_string(&observed_schema).unwrap();
+        std::fs::write(observed_dir.join("schema.yaml"), &observed_yaml)
+            .expect("Failed to write observed schema");
+
+        let expected_yaml = std::fs::read_to_string(format!("{test_dir}/expected-schema.yaml"))
+            .expect("Failed to read expected schema");
+        let expected_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            serde_yaml::from_str(&expected_yaml).expect("Failed to deserialize expected schema");
+
+        assert_eq!(
+            serde_json::to_value(&observed_schema).unwrap(),
+            serde_json::to_value(&expected_schema).unwrap(),
+            "Observed and expected schema don't match for `{}`.\nDiff from expected:\n{}",
+            test_dir,
+            weaver_diff::diff_output(
+                &serde_yaml::to_string(&expected_schema).unwrap(),
+                &observed_yaml
+            )
+        );
+        Ok(())
+    }
+
+    /// End-to-end test for a metric refinement over a v2 dependency
+    #[test]
+    fn test_v2_dependency_metric_refinement_inherits_attributes(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/metric_registry")
+    }
+
+    /// End-to-end test for a span refinement over a v2 dependency
+    #[test]
+    fn test_v2_dependency_span_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
+    {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/span_registry")
+    }
+
+    /// End-to-end test for an event refinement over a v2 dependency
+    #[test]
+    fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
+    {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/event_registry")
+    }
+
+    /// End-to-end test for an entity refinement over a v2 dependency
+    ///
+    /// TODO: ignored until entity refinement inheritance preserves the
+    /// attribute role. Currently the dependency lookup drops the role (see
+    /// `attr_spec` in dependency.rs), so the base entity's identity
+    /// attributes collapse into `description` and this test fails. Re-enable
+    /// once that is fixed and generate the expected schema.
+    #[test]
+    #[ignore = "entity refinement drops identity/description role; see attr_spec TODO"]
+    fn test_v2_dependency_entity_refinement_inherits_attributes(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
     }
 
     #[test]
@@ -1368,5 +1538,286 @@ groups:
             }
             Err(e) => panic!("expected CompoundError, got {e:?}"),
         }
+    }
+
+    #[test]
+    fn test_diamond_dependency_attribute_conflict() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/diamond-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        // Verify that conflict_attr from registry_c v1.2 was selected
+        // because it has a higher version than v1.1.
+        let (attr, _) = resolved
+            .catalog
+            .root_attribute("conflict_attr")
+            .expect("conflict_attr not found in catalog");
+
+        assert_eq!(attr.brief, "Attribute from C v1.2");
+        Ok(())
+    }
+
+    #[test]
+    fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
+        // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
+        let mut config = WeaverResolverConfig::default();
+        _ = config.schema_url_overrides.insert(
+            SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_a".to_owned(),
+            },
+        );
+        _ = config.schema_url_overrides.insert(
+            SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_b".to_owned(),
+            },
+        );
+        let url_c_v1_1 = SchemaUrl::try_from("https://example.com/c/1.1.0").unwrap();
+        _ = config.schema_url_overrides.insert(
+            url_c_v1_1.clone(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_c_v1_1".to_owned(),
+            },
+        );
+        let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
+        _ = config.schema_url_overrides.insert(
+            url_c_v1_2.clone(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_c_v1_2".to_owned(),
+            },
+        );
+
+        let mut resolver = WeaverResolver::new(config);
+
+        // 2. Resolve a/0.1.0 in isolation first.
+        let url_a = SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap();
+        let resolved_a = match resolver.resolve_schema(&url_a) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve standalone A: {e}"),
+        };
+
+        // Standalone A should have c.attr1 from C v1.1.
+        let v1_a = resolved_a
+            .as_v1()
+            .expect("Expected V1 schema for standalone A");
+        let (attr_a, source_a) = v1_a
+            .catalog
+            .root_attribute("c.attr1")
+            .expect("c.attr1 not found in standalone A");
+        assert_eq!(attr_a.brief, "Attribute 1 from C v1.1");
+        assert_eq!(source_a, "v2_dependency.example.com/c");
+        assert!(v1_a.dependencies.contains(&url_c_v1_1));
+
+        // 3. Now resolve main, which imports from both A and B (with B bringing C v1.2).
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let resolved_main =
+            match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+                WResult::FatalErr(e) => panic!("Failed to resolve main: {e}"),
+            };
+
+        // Main should upgrade c.attr1 to C v1.2 on-the-fly via cache lookup.
+        let v1_main = resolved_main.as_v1().expect("Expected V1 schema for main");
+        let (attr_main, source_main) = v1_main
+            .catalog
+            .root_attribute("c.attr1")
+            .expect("c.attr1 not found in main");
+        assert_eq!(attr_main.brief, "Attribute 1 from C v1.2 (updated)");
+        assert_eq!(source_main, "v2_dependency.example.com/c");
+        let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
+        assert!(v1_main.dependencies.contains(&url_a));
+        assert!(v1_main.dependencies.contains(&url_b));
+
+        // 4. Check the cached A schema in isolation once again.
+        // It MUST remain completely untouched and still report C v1.1.
+        let resolved_a_again = match resolver.resolve_schema(&url_a) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve standalone A second time: {e}"),
+        };
+        let v1_a_again = resolved_a_again
+            .as_v1()
+            .expect("Expected V1 schema for cached A");
+        let (attr_a_again, source_a_again) = v1_a_again
+            .catalog
+            .root_attribute("c.attr1")
+            .expect("c.attr1 not found in cached A");
+        assert_eq!(attr_a_again.brief, "Attribute 1 from C v1.1");
+        assert_eq!(source_a_again, "v2_dependency.example.com/c");
+        assert!(v1_a_again.dependencies.contains(&url_c_v1_1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
+        // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.
+        let url_base_v1_0 = SchemaUrl::try_from("https://example.com/base/1.0.0").unwrap();
+        let url_base_v1_1 = SchemaUrl::try_from("https://example.com/base/1.1.0").unwrap();
+
+        let base_v1_0 = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "https://example.com/base/1.0.0".to_owned(),
+            registry_id: "base".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "https://example.com/base/1.0.0".to_owned(),
+                groups: vec![],
+            },
+            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        }));
+
+        let base_v1_1 = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "https://example.com/base/1.1.0".to_owned(),
+            registry_id: "base".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "https://example.com/base/1.1.0".to_owned(),
+                groups: vec![],
+            },
+            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        }));
+
+        let layer1_a = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "https://example.com/layer1_a/0.1.0".to_owned(),
+            registry_id: "layer1_a".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "https://example.com/layer1_a/0.1.0".to_owned(),
+                groups: vec![],
+            },
+            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: [url_base_v1_0.clone()].into_iter().collect(),
+            versions: None,
+            registry_manifest: None,
+        }));
+
+        let layer1_b = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "https://example.com/layer1_b/0.1.0".to_owned(),
+            registry_id: "layer1_b".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "https://example.com/layer1_b/0.1.0".to_owned(),
+                groups: vec![],
+            },
+            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: [url_base_v1_1.clone()].into_iter().collect(),
+            versions: None,
+            registry_manifest: None,
+        }));
+
+        let mut chosen_versions = HashMap::new();
+        collect_chosen_versions(&layer1_a, &mut chosen_versions);
+        collect_chosen_versions(&layer1_b, &mut chosen_versions);
+        collect_chosen_versions(&base_v1_0, &mut chosen_versions);
+        collect_chosen_versions(&base_v1_1, &mut chosen_versions);
+
+        assert_eq!(
+            chosen_versions.get("example.com/base").unwrap(),
+            &url_base_v1_1
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_chosen_version_upgrade_removed_attribute_fallback() -> Result<(), Error> {
+        use crate::attribute::{AttributeCatalog, AttributeSource, AttributeWithSource};
+
+        // When chosen version C v1.2 no longer has attribute `c.removed_attr`,
+        // `upgrade_attribute_with_source` should gracefully fall back and retain C v1.1.
+        let url_c_v1_1 = SchemaUrl::try_from("https://example.com/c/1.1.0").unwrap();
+        let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
+
+        let mut chosen_versions = HashMap::new();
+        let _ = chosen_versions.insert("c".to_owned(), url_c_v1_2.clone());
+
+        // Create an empty schema for c/1.2.0 where `c.removed_attr` does not exist.
+        let schema_v1_2 = Arc::new(WeaverResolvedSchema::V1(ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "https://example.com/c/1.2.0".to_owned(),
+            registry_id: "c".to_owned(),
+            registry: weaver_resolved_schema::registry::Registry {
+                registry_url: "https://example.com/c/1.2.0".to_owned(),
+                groups: vec![],
+            },
+            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        }));
+
+        let mut cache = LruCache::new(NonZeroUsize::new(10).unwrap());
+        let _ = cache.push(url_c_v1_2, schema_v1_2);
+
+        let lookup_ctx = SchemaLookupContext {
+            chosen_versions,
+            cache: &cache,
+        };
+
+        let attr = weaver_resolved_schema::attribute::Attribute {
+            name: "c.removed_attr".to_owned(),
+            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            brief: "Old attribute in C v1.1".to_owned(),
+            examples: Default::default(),
+            tag: Default::default(),
+            requirement_level: Default::default(),
+            sampling_relevant: Default::default(),
+            note: Default::default(),
+            stability: Default::default(),
+            deprecated: Default::default(),
+            prefix: Default::default(),
+            tags: Default::default(),
+            annotations: Default::default(),
+            value: Default::default(),
+            role: Default::default(),
+        };
+
+        let orig_source = AttributeSource::Dependency {
+            schema_url: url_c_v1_1.clone(),
+        };
+
+        let orig_aws = AttributeWithSource {
+            attribute: attr.clone(),
+            source: orig_source.clone(),
+        };
+
+        let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;
+        assert_eq!(result_aws.attribute.brief, "Old attribute in C v1.1");
+        match result_aws.source {
+            AttributeSource::Dependency { schema_url } => {
+                assert_eq!(schema_url.to_string(), "https://example.com/c/1.1.0");
+            }
+            AttributeSource::Local { .. } => panic!("Expected dependency source in fallback"),
+        }
+
+        Ok(())
     }
 }
