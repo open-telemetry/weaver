@@ -48,6 +48,8 @@ pub struct RegistryUpdateMarkdownArgs {
     registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
+    /// A bare `--dry-run` means `true`; use the `=` form (e.g.
+    /// `--dry-run=false`) to override a `.weaver.toml` value from the CLI.
     #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     #[config(default = "false")]
     pub dry_run: Option<bool>,
@@ -454,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_registry_update_markdown_parse_bare_dry_run() {
-        let cli = Cli::parse_from([
+        let cli = Cli::try_parse_from([
             "weaver",
             "registry",
             "update-markdown",
@@ -463,7 +465,8 @@ mod tests {
             "--target=markdown",
             "--dry-run",
             "./data/update_markdown/markdown",
-        ]);
+        ])
+        .expect("expected bare --dry-run to parse");
 
         let Commands::Registry(registry_cmd) = cli.command.expect("command should be set") else {
             panic!("expected registry command");
@@ -481,7 +484,7 @@ mod tests {
 
     #[test]
     fn test_registry_update_markdown_parse_dry_run_equals_false() {
-        let cli = Cli::parse_from([
+        let cli = Cli::try_parse_from([
             "weaver",
             "registry",
             "update-markdown",
@@ -490,7 +493,8 @@ mod tests {
             "--target=markdown",
             "--dry-run=false",
             "./data/update_markdown/markdown",
-        ]);
+        ])
+        .expect("expected --dry-run=false to parse");
 
         let Commands::Registry(registry_cmd) = cli.command.expect("command should be set") else {
             panic!("expected registry command");
