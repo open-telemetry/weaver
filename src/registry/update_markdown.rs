@@ -48,8 +48,8 @@ pub struct RegistryUpdateMarkdownArgs {
     registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
-    /// A bare `--dry-run` means `true`; use the `=` form (e.g.
-    /// `--dry-run=false`) to override a `.weaver.toml` value from the CLI.
+    /// A bare `--dry-run` means `true`; when passing an explicit value, the
+    /// `=` form is required (e.g. `--dry-run=false`).
     #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     #[config(default = "false")]
     pub dry_run: Option<bool>,
