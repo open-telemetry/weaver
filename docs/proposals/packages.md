@@ -1,19 +1,24 @@
-# Packages
+# Packages/Instrumentations
 
-This document is a design proposal to add the ability to define packages of signals in semconv.
+This document is a design proposal to add the ability to define packages of signals in semconv which represent what is to be implemented as part of an instrumentation.
 
 ## Use cases
 
-One of the common questions which have come up is how we can defined requirement levels
-of metrics, events etc and the answer to this is packages can provide this functionality.
+1. how we can define requirement levels of metrics, events etc when this requirement changes based on the instrumentation.
+2. how can we generate documentation representing what an instrumentation is to provide
+3. how can we introduce standardisation to instrumentation scopes
 
-### Defining Packages
+## Defining Instrumentations
 
-The objective of packages is to define a collection of signals which is to be implemented.
-Based on this a package can be defined following the below example for `http.server`:
+The objective is to define a collection of signals which is to be implemented.
+Based on this there is 2 approaches which we could offer, with an example of both below for `http.server`:
 
-```
-package:
+### Top level
+
+This would explicitly add the signals to the instrumentation with the requirement defined at the instrumentation level
+
+```yaml
+instrumentation:
   - name: http.server
     brief: Defines a http server package
     attributes:
@@ -31,76 +36,77 @@ package:
         requirement_level: recommended
 ```
 
-For the registry, these packages would follow the other signals where in which the references are resolved
-and also the signals would benefit from containing a list of all the usages of a signal.
+This change means moving requirement off signal and on to the instrumentation but makes it difficult to manage refinements.
 
-This would look like the below:
 
-```
-span:
+### Adding instrumentation to refinement
+
+This option would overcome the pain points of the previous ie moving the requirement level and provide better support for refinements.
+
+This would be that refinements are now required to contain 1 or more instrumentations listed which acts as the links. 
+
+This defininition would look like:
+
+```yaml
+instrumentation:
   - name: http.server
-    brief:
-    note:
-    attributes
-      - ref: http.route
-    packages:
-      - ref: http.server
+    brief: Defines a http server package
+    attributes:
+      - ref: server.address
+        brief: The ip address or dns name which the http request is sent to.
+spans:
+  - ref: http.server
+    requirement_level: required
+    instrumentations:
+      - http.server
+metrics:
+  - ref: http.server.request.duration
+    requirement_level: required
+    instrumentations:
+      - http.server
+  - ref: http.server.request.body.size
+    requirement_level: recommended
+    instrumentations:
+      - http.server
+  - ref: http.server.response.body.size
+    requirement_level: recommended
+    instrumentations:
+      - http.server
 ```
+
+To be discussed is if the base definitions can optionally contain instrumentations or should the refinement be required.
+
+## Exporting registry  
+
+For the registry, these definitions would follow the other signals where in which the references are resolved.
+
+The only change would be the addition of the instrumentation field on the refinement which is a string as opposed to an array.
+This change is possible as each instrumentation in the instrumentations field on the definition would become it's own refinement.
 
 ## Functionality
 
-### Overriding attribute definitions
+### Defining Instrumentation Attributes
 
-When an attribute is specified on a package, the definition from the package will
-override the definition which comes from the signal definition.
+Both options provide the ability for attributes to be defined at the instrumentation level as supported by spec.
+To make these attributes consistent for tooling and documentation they should be added to the attributes array on the signal,
+with additional fields to indicate where they should be set.
 
-The will eliminate the need to be overriding the definition of each and 
-every signal with updated notes/briefs etc but just doing it once.
+An example of how this refinement would look when exported:
 
-This is useful for metrics which can not be extended while mantaining the id and 
-hence it creates reusable metrics.
-
-### Specifying requirment levels
-
-By creating a group of signals, it now becomes possible to specify the 
-requirment to implement the different signals alongside that reference.
-
-## Not supported
-
-### Extending signals
-Adding attributes to signals is not a supported use case as the attributes should already be defined on the signal.
-This definition could be an explicit reference or an implicit via a bundle but it should be there.
-
-## Future
-
-### Promoting Bundles
-
-With the ability to define the packages we could specify bundles which should be promoted from contextual to a standard bundle.
-
-An example of this would be if we had a db span which had a contextual bundle for vector databases.
-A package for vector databases can be defined which promotes the vector database bundle to be a standard bundle.
-
-This in action would look like the following:
-
-```
-package:
-  - name: database.client
-    brief: Defines a http server package
-    bundles:
-      - database.vector
+```yaml
+span:
+  - name: messaging.client
+    instrumentation: rabbitmq.client
     attributes:
       - ref: server.address
-        brief: The ip address or dns name which the db request is sent to.
-    spans:
-      - ref: db.client
-        requirement_level: required
+        brief: The ip address or dns name which the http request is sent to.
+        capture_scope:
+          type: signal
+      - ref: messaging.system
+        brief: The messaging system in use
+        capture_scope:
+          type: instrumentation
 ```
 
-and then once resolution is completed the vector attributes 
-would appear just like the base attributes without any context.
-
-This way we can have multiple packages using common definitions and extended via bundles,
-without needing to be redefining the definition.
-
-### Implementations
-In the future these packages would form the basis of describing implementations and useful for implementation documentation etc.
+This approach enables tools like live-check to check if attribute is present in the intended scope and if not,
+check if it is at a lower level. For instance a scope attribute is allowed to instead be on the signal but should not be a resource attribute.
