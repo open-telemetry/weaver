@@ -6,6 +6,7 @@ use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
+    sample_instrumentation_scope::SampleInstrumentationScope,
     sample_log::SampleLog,
     sample_metric::{DataPoints, SampleInstrument, SampleMetric},
     sample_span::{Status, StatusCode},
@@ -14,11 +15,39 @@ use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 
 use super::grpc_stubs::proto::trace::v1::status::StatusCode as OtlpStatusCode;
 use super::grpc_stubs::proto::{
-    common::v1::{AnyValue, KeyValue},
+    common::v1::{AnyValue, InstrumentationScope, KeyValue},
     logs::v1::LogRecord,
     metrics::v1::{metric::Data, HistogramDataPoint, Metric, NumberDataPoint},
     trace::v1::span::SpanKind,
 };
+
+/// Converts OTLP instrumentation scope metadata and its containing schema URL.
+///
+/// A missing scope with an empty schema URL carries no ownership metadata and
+/// remains absent. A non-empty schema URL is preserved even when the OTLP scope
+/// message itself is missing.
+pub fn otlp_instrumentation_scope_to_sample(
+    scope: Option<&InstrumentationScope>,
+    schema_url: &str,
+) -> Option<SampleInstrumentationScope> {
+    if scope.is_none() && schema_url.is_empty() {
+        return None;
+    }
+
+    Some(SampleInstrumentationScope {
+        name: scope.map_or_else(String::new, |scope| scope.name.clone()),
+        version: scope.map_or_else(String::new, |scope| scope.version.clone()),
+        schema_url: schema_url.to_owned(),
+        attributes: scope.map_or_else(Vec::new, |scope| {
+            scope
+                .attributes
+                .iter()
+                .map(sample_attribute_from_key_value)
+                .collect()
+        }),
+        dropped_attributes_count: scope.map_or(0, |scope| scope.dropped_attributes_count),
+    })
+}
 
 fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
     if let Some(value) = value {
@@ -99,6 +128,7 @@ pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {
         instrument: otlp_data_to_instrument(&otlp_metric.data),
         unit: otlp_metric.unit,
         data_points: otlp_data_to_data_points(&otlp_metric.data),
+        instrumentation_scope: None,
         live_check_result: None,
         resource: None,
     }
@@ -356,6 +386,7 @@ pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
                 Some(span_id)
             }
         },
+        instrumentation_scope: None,
         live_check_result: None,
         resource: None,
     }

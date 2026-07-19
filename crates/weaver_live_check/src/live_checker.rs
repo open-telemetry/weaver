@@ -190,10 +190,12 @@ mod tests {
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
         sample_attribute::SampleAttribute,
+        sample_instrumentation_scope::SampleInstrumentationScope,
         sample_metric::{
             DataPoints, SampleExemplar, SampleExponentialHistogramDataPoint, SampleInstrument,
             SampleMetric, SampleNumberDataPoint,
         },
+        sample_span::SampleSpan,
         LiveCheckRunner, LiveCheckStatistics, Sample,
     };
 
@@ -1951,6 +1953,7 @@ mod tests {
                     exemplars: vec![],
                 },
             ])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -2028,6 +2031,7 @@ mod tests {
                     live_check_result: None,
                 }],
             }])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -2078,6 +2082,7 @@ mod tests {
                 instrument: SampleInstrument::Unsupported("Summary".to_owned()),
                 unit: "By".to_owned(),
                 data_points: None,
+                instrumentation_scope: None,
                 live_check_result: None,
                 resource: None,
             }),
@@ -2086,6 +2091,7 @@ mod tests {
                 instrument: SampleInstrument::Unsupported("Unspecified".to_owned()),
                 unit: "By".to_owned(),
                 data_points: None,
+                instrumentation_scope: None,
                 live_check_result: None,
                 resource: None,
             }),
@@ -2418,6 +2424,7 @@ mod tests {
             attributes: vec![],
             trace_id: None,
             span_id: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: Some(resource),
         })
@@ -2572,6 +2579,7 @@ mod tests {
             attributes: vec![],
             trace_id: None,
             span_id: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -2610,6 +2618,95 @@ mod tests {
                 .iter()
                 .any(|a| a.id == "entity_conditionally_required_attribute_not_present"),
             "conditionally required entity attribute finding expected even without resource"
+        );
+    }
+
+    #[test]
+    fn test_custom_rego_can_inspect_span_instrumentation_scope() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let policy_path = temp_dir.path().join("scope.rego");
+        let rego_content = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": message,
+            }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.sample.span.instrumentation_scope.name == "framework"
+                input.sample.span.instrumentation_scope.version == "1.2.3"
+                input.sample.span.instrumentation_scope.schema_url == "https://opentelemetry.io/schemas/1.32.0"
+                input.sample.span.instrumentation_scope.attributes[0].name == "scope.environment"
+                input.sample.span.instrumentation_scope.dropped_attributes_count == 2
+                advice_type := "instrumentation_scope_seen"
+                advice_level := "information"
+                advice_context := {"scope_name": "framework"}
+                message := "Instrumentation scope is policy-visible"
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
+
+        let registry = make_registry(false);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some(temp_dir.path().to_path_buf()),
+            &None,
+            &None,
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut sample = Sample::Span(SampleSpan {
+            name: "operation".to_owned(),
+            kind: SpanKindSpec::Internal,
+            status: None,
+            attributes: vec![],
+            span_events: vec![],
+            span_links: vec![],
+            instrumentation_scope: Some(SampleInstrumentationScope {
+                name: "framework".to_owned(),
+                version: "1.2.3".to_owned(),
+                schema_url: "https://opentelemetry.io/schemas/1.32.0".to_owned(),
+                attributes: vec![SampleAttribute {
+                    name: "scope.environment".to_owned(),
+                    value: Some(json!("test")),
+                    r#type: None,
+                    live_check_result: None,
+                }],
+                dropped_attributes_count: 2,
+            }),
+            live_check_result: None,
+            resource: None,
+        });
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        sample
+            .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+            .expect("live check should not error");
+
+        let advice = match &sample {
+            Sample::Span(span) => {
+                &span
+                    .live_check_result
+                    .as_ref()
+                    .expect("span should contain a live check result")
+                    .all_advice
+            }
+            _ => unreachable!("test constructs a span"),
+        };
+        assert!(
+            advice
+                .iter()
+                .any(|finding| finding.id == "instrumentation_scope_seen"),
+            "expected custom policy to inspect instrumentation scope: {advice:?}"
         );
     }
 
@@ -3101,6 +3198,7 @@ mod tests {
                     exemplars: vec![],
                     live_check_result: None,
                 }])),
+                instrumentation_scope: None,
                 live_check_result: None,
                 resource: Some(resource),
             })

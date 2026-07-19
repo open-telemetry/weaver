@@ -207,6 +207,7 @@ async fn test_livecheck_emit_roundtrip() {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -230,6 +231,7 @@ async fn test_livecheck_emit_roundtrip() {
             instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
             unit: "s".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -310,6 +312,7 @@ async fn test_livecheck_emit_roundtrip() {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
         };
@@ -345,6 +348,7 @@ async fn test_livecheck_emit_roundtrip() {
             attributes: vec![],
             trace_id: None,
             span_id: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
         };

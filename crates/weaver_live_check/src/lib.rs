@@ -44,6 +44,8 @@ pub mod live_checker;
 pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// An intermediary format for instrumentation scope metadata.
+pub mod sample_instrumentation_scope;
 /// The intermediary format for logs
 pub mod sample_log;
 /// The intermediary format for metrics
