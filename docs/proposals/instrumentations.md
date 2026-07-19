@@ -45,7 +45,7 @@ This option would overcome the pain points of the previous ie moving the require
 
 This would be that refinements are now required to contain 1 or more instrumentations listed which acts as the links. 
 
-This defininition would look like:
+This definition would look like:
 
 ```yaml
 instrumentation:
