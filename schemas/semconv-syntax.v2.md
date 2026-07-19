@@ -308,6 +308,11 @@ spans:
 > It's NOT RECOMMENDED to use `ref_groups` on other attribute groups
 > due to readability concerns.
 
+> [!NOTE]
+> When a refinement declares the same attribute through more than one source,
+> priority is (highest first): inline `- ref:`, then `ref_group`, then the
+> attribute inherited from the refined (parent) signal.
+
 ### `spans` definition
 
 The spans section contains a list of span definitions. A span definition consists of the following properties:
