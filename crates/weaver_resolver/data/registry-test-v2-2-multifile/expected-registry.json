@@ -2,23 +2,12 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.data.registry-test-v2-2-multifile.registry.http",
-      "type": "attribute_group",
-      "brief": "<synthetic v2>",
-      "lineage": {
-        "provenance": {
-          "registry_id": "default",
-          "path": "data/registry-test-v2-2-multifile/registry/http.yaml"
-        }
-      }
-    },
-    {
       "id": "metric.http.server.request.duration",
       "type": "metric",
       "brief": "Duration of HTTP server requests.",
       "stability": "stable",
       "attributes": [
-        2,
+        1,
         3
       ],
       "metric_name": "http.server.request.duration",
@@ -26,7 +15,7 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-2-multifile/registry/http.yaml"
         },
         "attributes": {
@@ -66,7 +55,7 @@
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-2-multifile/registry/network.yaml"
         }
       }
@@ -76,11 +65,11 @@
       "type": "attribute_group",
       "brief": "<synthetic v2>",
       "attributes": [
-        1
+        2
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-v2-2-multifile/registry/server.yaml"
         }
       }

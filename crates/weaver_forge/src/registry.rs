@@ -5,6 +5,7 @@
 //! evaluation.
 
 use crate::error::Error;
+use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -15,7 +16,9 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::aggregation::AggregationSpec;
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -106,6 +109,13 @@ pub struct ResolvedGroup {
     /// For more details: [Metrics SDK - Aggregation](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#aggregation).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aggregation: Option<AggregationSpec>,
+    /// The requirement level of the signal (metric, span, event, entity).
+    /// This is a v2-only concept carried through the v1 intermediate
+    /// representation; it is omitted from v1 serialization and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<SignalRequirementLevel>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -120,9 +130,12 @@ pub struct ResolvedGroup {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
     /// The associated entities of this group.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -176,6 +189,7 @@ impl ResolvedGroup {
             instrument: group.instrument.clone(),
             unit: group.unit.clone(),
             aggregation: group.aggregation.clone(),
+            requirement_level: group.requirement_level.clone(),
             name: group.name.clone(),
             lineage,
             display_name: group.display_name.clone(),
@@ -238,6 +252,7 @@ impl ResolvedRegistry {
                     instrument: group.instrument.clone(),
                     unit: group.unit.clone(),
                     aggregation: group.aggregation.clone(),
+                    requirement_level: group.requirement_level.clone(),
                     name: group.name.clone(),
                     lineage,
                     display_name: group.display_name.clone(),
@@ -246,6 +261,7 @@ impl ResolvedRegistry {
                     annotations: group.annotations.clone(),
                 }
             })
+            .sorted_by(|a, b| a.id.cmp(&b.id))
             .collect();
 
         if !errors.is_empty() {
@@ -264,6 +280,9 @@ mod tests {
     use crate::ResolvedRegistry;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
+    use weaver_resolved_schema::catalog::Catalog;
+    use weaver_resolved_schema::registry::{Group, Registry};
+    use weaver_semconv::group::GroupType;
 
     #[test]
     fn test_json_schema_gen() {
@@ -272,5 +291,110 @@ mod tests {
 
         // Ensure the schema can be serialized to a string
         assert!(to_string_pretty(&schema).is_ok());
+    }
+
+    #[test]
+    fn test_groups_sorted_deterministically() {
+        // Create a registry with groups in non-alphabetical order
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            groups: vec![
+                Group {
+                    id: "zebra.group".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Zebra group".to_owned(),
+                    note: String::new(),
+                    prefix: String::new(),
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                    annotations: None,
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+                Group {
+                    id: "apple.group".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Apple group".to_owned(),
+                    note: String::new(),
+                    prefix: String::new(),
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                    annotations: None,
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+                Group {
+                    id: "middle.group".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Middle group".to_owned(),
+                    note: String::new(),
+                    prefix: String::new(),
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                    annotations: None,
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+            ],
+        };
+
+        let catalog = Catalog::default();
+
+        // Convert to resolved registry
+        let resolved = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect("Failed to create resolved registry");
+
+        // Verify groups are sorted alphabetically by id
+        assert_eq!(resolved.groups.len(), 3);
+        assert_eq!(resolved.groups[0].id, "apple.group");
+        assert_eq!(resolved.groups[1].id, "middle.group");
+        assert_eq!(resolved.groups[2].id, "zebra.group");
+
+        // Verify the sorting is stable across multiple conversions
+        let resolved2 = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect("Failed to create resolved registry");
+        assert_eq!(resolved.groups, resolved2.groups);
     }
 }

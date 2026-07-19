@@ -14,10 +14,13 @@ use crate::aggregation::AggregationSpec;
 use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
+use crate::entity_association::EntityAssociation;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::provenance::Provenance;
 use crate::semconv::Imports;
+use crate::signal_requirement_level::SignalRequirementLevel;
 use crate::stability::Stability;
+use crate::v2::attribute_group::AttributeGroupVisibilitySpec;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 
@@ -122,9 +125,51 @@ pub struct GroupSpec {
     pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
+    ///
+    /// The list is an implicit `one_of`: telemetry must satisfy at least one of the entries.
+    /// Each entry may be a bare entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
+
+    /// Attribute groups to include - this parameter must not be provided
+    /// in yaml, it's only used to convert v2 schema into v1
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub include_groups: Vec<String>,
+
+    /// Visibility of the attribute group.
+    /// This parameter must not be provided in yaml, it's only used to convert v2 schema into v1
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
+
+    /// True if the group was defined using the v2 syntax.
+    /// This is used during resolution to apply v2-specific inheritance rules.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub is_v2: bool,
+
+    /// The v2 span name specification, carried through the v1 intermediate
+    /// representation so it survives resolution.
+    /// This parameter must not be provided in yaml, it's only used to
+    /// convert v2 schema into v1 and back.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_name: Option<crate::v2::span::SpanName>,
+
+    /// Requirement level of the signal (metric, span, event, entity).
+    /// This is a v2-only concept carried through the v1 intermediate
+    /// representation so it survives resolution; it must not be provided in
+    /// v1 yaml and is omitted from the v1 json schema and serialization.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<SignalRequirementLevel>,
 }
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
@@ -436,10 +481,49 @@ impl GroupSpec {
                     error: format!("Group with entity_associations cannot have type: {t:?}"),
                 }),
             }
+            // Reject empty `one_of`/`all_of` combinators and empty entity references.
+            for assoc in &self.entity_associations {
+                if let Err(error) = validate_entity_association(assoc) {
+                    errors.push(Error::InvalidGroup {
+                        path_or_url: path_or_url.to_owned(),
+                        group_id: self.id.clone(),
+                        error,
+                    });
+                }
+            }
         }
 
         WResult::with_non_fatal_errors((), errors)
     }
+}
+
+/// Recursively validates an entity association expression: combinators must be non-empty and
+/// entity references must be non-blank.
+fn validate_entity_association(assoc: &EntityAssociation) -> Result<(), String> {
+    match assoc {
+        EntityAssociation::Ref(name) => {
+            if name.trim().is_empty() {
+                return Err("entity_associations contains an empty entity reference".to_owned());
+            }
+        }
+        EntityAssociation::OneOf { one_of: children } => {
+            if children.is_empty() {
+                return Err("entity_associations contains an empty `one_of` group".to_owned());
+            }
+            for child in children {
+                validate_entity_association(child)?;
+            }
+        }
+        EntityAssociation::AllOf { all_of: children } => {
+            if children.is_empty() {
+                return Err("entity_associations contains an empty `all_of` group".to_owned());
+            }
+            for child in children {
+                validate_entity_association(child)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_duplicate_attribute_ref(
@@ -590,8 +674,24 @@ impl Default for GroupType {
     }
 }
 
+impl Display for GroupType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GroupType::AttributeGroup => write!(f, "attribute_group"),
+            GroupType::Span => write!(f, "span"),
+            GroupType::Event => write!(f, "event"),
+            GroupType::Metric => write!(f, "metric"),
+            GroupType::MetricGroup => write!(f, "metric_group"),
+            GroupType::Entity => write!(f, "entity"),
+            GroupType::Scope => write!(f, "scope"),
+            GroupType::Undefined => write!(f, "undefined"),
+        }
+    }
+}
+
 /// The span kind.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum SpanKindSpec {
     /// An internal span.
@@ -608,6 +708,7 @@ pub enum SpanKindSpec {
 
 /// The type of the metric.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum InstrumentSpec {
     /// An up-down counter metric.
@@ -676,6 +777,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -702,11 +804,15 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             name: None,
             display_name: None,
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
         assert!(group
             .validate("<test>")
@@ -842,6 +948,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -868,11 +975,15 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             name: None,
             display_name: None,
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
         assert!(group
             .validate("<test>")
@@ -1145,6 +1256,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -1155,6 +1267,7 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             display_name: None,
             attributes: vec![],
             body: Some(AnyValueSpec::String {
@@ -1171,6 +1284,9 @@ mod tests {
             }),
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
         assert!(group
             .validate("<test>")
@@ -1363,6 +1479,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             span_kind: None,
@@ -1371,6 +1488,7 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             display_name: None,
             attributes: vec![],
             body: Some(AnyValueSpec::String {
@@ -1387,6 +1505,9 @@ mod tests {
             }),
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
         assert!(group
             .validate("<test>")
@@ -1503,6 +1624,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: None,
             deprecated: None,
             attributes: vec![AttributeSpec::Id {
@@ -1527,11 +1649,15 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             name: None,
             display_name: None,
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
         assert!(group
             .validate("<test>")
@@ -1690,6 +1816,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
@@ -1699,11 +1826,15 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             name: None,
             display_name: None,
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1844,6 +1975,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
@@ -1853,11 +1985,15 @@ mod tests {
             instrument: None,
             unit: None,
             aggregation: None,
+            requirement_level: None,
             name: None,
             display_name: None,
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
 
         // Check group with duplicate attributes.
@@ -1890,6 +2026,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            include_groups: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![AttributeSpec::Id {
@@ -1914,16 +2051,50 @@ mod tests {
             instrument: Some(Gauge),
             unit: Some("{thing}".to_owned()),
             aggregation: None,
+            requirement_level: None,
             name: None,
             display_name: None,
             body: None,
             annotations: None,
-            entity_associations: vec!["test".to_owned()],
+            entity_associations: vec![EntityAssociation::Ref("test".to_owned())],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
         };
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
             .is_ok());
+
+        // A nested one_of/all_of expression is valid.
+        group.entity_associations = vec![EntityAssociation::AllOf {
+            all_of: vec![
+                EntityAssociation::Ref("tenant".to_owned()),
+                EntityAssociation::OneOf {
+                    one_of: vec![
+                        EntityAssociation::Ref("host".to_owned()),
+                        EntityAssociation::Ref("container".to_owned()),
+                    ],
+                },
+            ],
+        }];
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // An empty combinator is rejected.
+        group.entity_associations = vec![EntityAssociation::OneOf { one_of: vec![] }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroup {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "entity_associations contains an empty `one_of` group".to_owned(),
+            }),
+            result
+        );
+        group.entity_associations = vec![EntityAssociation::Ref("test".to_owned())];
 
         // Span should allow associations.
         group.r#type = GroupType::Span;

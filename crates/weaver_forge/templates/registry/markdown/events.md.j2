@@ -1,0 +1,37 @@
+> import "_macros.j2" as macros <
+# Events: `{{ ctx.root_namespace }}`
+
+This document describes the `{{ ctx.root_namespace }}` events.
+
+> for event in ctx.events | sort(attribute="id") <
+## `{{ event.id }}`
+
+{{ event.brief | default("") | trim }}
+
+> if event.note <
+{{ event.note | trim }}
+
+> endif <
+| Property | Value |
+|----------|-------|
+> if event.name <
+| Event Name | `{{ event.name }}` |
+> endif <
+> if event.stability <
+| Stability | {{ event.stability | capitalize }} |
+> endif <
+> if event.deprecated <
+| Deprecated | {{ event.deprecated.note }} |
+> endif <
+
+> if event.attributes <
+### Attributes
+
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+> for attr in event.attributes | attribute_sort <
+| `{{ attr.name }}` | {{ macros.attribute_type(attr) }} | {{ macros.requirement_level(attr.requirement_level) }} | {{ macros.brief_inline(attr.brief) }} |
+> endfor <
+
+> endif <
+> endfor <

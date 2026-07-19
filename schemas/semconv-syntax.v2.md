@@ -1,4 +1,4 @@
-# Semantic Convention YAML Language v2
+# Semantic Convention Definition Language v2
 
 **Status**: [Alpha][DocumentStatus]
 
@@ -7,18 +7,22 @@
 
 <!-- toc -->
 
-- [Semantic Convention YAML Language v2](#semantic-convention-yaml-language-v2)
+- [Semantic Convention Definition Language v2](#semantic-convention-definition-language-v2)
   - [Syntax](#syntax)
     - [`attributes` definition](#attributes-definition)
       - [Attribute Types](#attribute-types)
         - [Enums](#enums)
         - [Template type](#template-type)
     - [Attribute reference](#attribute-reference)
+      - [Attribute group reference](#attribute-group-reference)
     - [`spans` definition](#spans-definition)
       - [Span name](#span-name)
     - [`entities` definition](#entities-definition)
     - [`events` definition](#events-definition)
     - [`metrics` definition](#metrics-definition)
+    - [`attribute_group` definition](#attribute_group-definition)
+      - [Internal Attribute Groups](#internal-attribute-groups)
+      - [Public Attribute Groups](#public-attribute-groups)
     - [`imports` definition](#imports-definition)
     - [Stability levels](#stability-levels)
     - [Deprecated structure](#deprecated-structure)
@@ -27,6 +31,7 @@
       - [Uncategorized](#uncategorized)
     - [Annotations](#annotations)
       - [Code Generation Annotations](#code-generation-annotations)
+      - [Dependency Resolution Annotations](#dependency-resolution-annotations)
 
 <!-- tocstop -->
 
@@ -34,33 +39,36 @@ A JSON schema description of the syntax is available as [semconv.schema.v2.json]
 you can use it in your IDE to autocomplete and validate YAML.
 If you use VSCode, check out [YAML Language Support](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) extension.
 
-This file provides human-readable documentation, but JSON schema should be considered as the source of truth.
+This file provides human-readable documentation, but the JSON schema should be considered the source of truth.
 
 > [!NOTE]
-> This documents talks about syntax, refer to the [How to write conventions](https://github.com/open-telemetry/semantic-conventions/tree/main/docs/how-to-write-conventions#defining-attributes) if you're looking for guidance on how to design conventions.
+> This document talks about syntax; refer to the [How to write conventions](https://github.com/open-telemetry/semantic-conventions/tree/main/docs/how-to-write-conventions#defining-attributes) if you're looking for guidance on how to design conventions.
 
 ## Syntax
 
-A semantic convention file starts with `version: "2"` and may contain one or more of the following groups:
+A semantic convention file starts with `file_format: definition/2` and may contain one or more of the following groups:
 
 - `attributes`: Contains definitions of semantic attributes which may be applicable to all OpenTelemetry signals.
 - `entities`: Contains definitions of entities.
+- `entity_refinements`: Contains definitions of entity refinements.
 - `events`: Contains definitions of events.
+- `event_refinements`: Contains definitions of event refinements.
 - `metrics`: Contains definitions of metric instruments.
+- `metric_refinements`: Contains definitions of metric instrument refinements.
 - `spans`: Contains definitions of spans.
+- `span_refinements`: Contains definitions of span refinements.
 - `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `registry_manifest.yaml`).
 
 ### `attributes` definition
 
-Attributes section contains a list of attribute definitions.
+The attributes section contains a list of attribute definitions.
 
-Attributes capture important details about different kinds of telemetry items. Attributes are fully qualified with the `key` and
-their semantical meaning remains the same whenever they are used.
+Attributes capture important details about different kinds of telemetry items. Attributes are fully qualified with the `key`, and their semantic meaning remains the same whenever they are used.
 
 Here's a simplified example of `server.address` and `server.port` attribute definitions:
 
 ```yaml
-version: "2"
+file_format: definition/2
 attributes:
   - key: server.address
     stability: development
@@ -77,11 +85,11 @@ attributes:
 Attributes can only be defined inside the `attributes` group. Attribute definitions consist of the following properties:
 
 - `key` - Required. String that uniquely identifies the attribute.
-- `type` - Required. Defines [attribute type](#attribute-types)
-- `brief` - Required. string. A short description of what this attribute represents
-- `note` - Optional. string. A more elaborate description of the attribute.
-- `stability` - Required. Specifies the [stability](#stability-levels) of the attribute
-- `deprecated` - Optional, when present marks the attribute as deprecated. See [deprecated](#deprecated-structure) for the details.
+- `type` - Required. Defines the [attribute type](#attribute-types).
+- `brief` - Required. String. A short description of what this attribute represents.
+- `note` - Optional. String. A more elaborate description of the attribute.
+- `stability` - Required. Specifies the [stability](#stability-levels) of the attribute.
+- `deprecated` - Optional. When present, marks the attribute as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about
   the attribute. See [annotations](#annotations) for details.
 - `examples` - Optional. List of example values for the attribute.
@@ -107,7 +115,7 @@ In addition to the proto-level attribute type definitions, semantic conventions 
 
 ##### Enums
 
-Enums are semantic convention concepts and do not have analogs in the OpenTelemetry specification or OTLP. Enums are used to define a known set of attribute values. Semantic convention enums are open by definition. See [semantic conventions stability](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/versioning-and-stability.md#semantic-conventions-stability) for the details.
+Enums are semantic convention concepts and do not have analogues in the OpenTelemetry specification or OTLP. Enums are used to define a known set of attribute values. Semantic convention enums are open by definition. See [semantic conventions stability](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/versioning-and-stability.md#semantic-conventions-stability) for details.
 
 Here's an example of an enum attribute definition:
 
@@ -136,11 +144,11 @@ Here's an example of an enum attribute definition:
           value: "PUT"
           brief: 'PUT method.'
           stability: stable
-        # ...           
+        # ...
     brief: 'HTTP request method.'
 ```
 
-and another example of int enum attribute
+and another example of an int enum attribute:
 
 ```yaml
   - key: rpc.grpc.status_code
@@ -158,21 +166,22 @@ and another example of int enum attribute
           brief: UNKNOWN
           stability: development
           value: 2
-        #... 
+        #...
     stability: development
     brief: "The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request."
 ```
 
 Enum members have the following properties:
 
-- `id` - Required. Identifies enum member within this enum.
+- `id` - Required. Identifies the enum member within this enum.
+- `value` - Required. String, int, or boolean value of the enum entry.
 - `brief` - Optional. A short description of what this enum member represents.
 - `note` - Optional. A more elaborate description of the member.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the enum member.
-- `deprecated` - Optional. When present marks the member as deprecated. See [deprecated](#deprecated-structure) for the details.
+- `deprecated` - Optional. When present, marks the member as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Annotations are key-value pairs that provide additional information about the attribute. See [annotations](#annotations) for details.
 
-Enum attributes can only be of type `int` and `string`, the type is deduced from the value.
+Enum attributes can be of type `int`, `string`, or `boolean`, the type is deduced from the value.
 
 ##### Template type
 
@@ -180,7 +189,7 @@ A template type represents a set of attributes with a common key prefix. The syn
 
 `type: template[<actual_attribute_type>]`
 
-The `<actual_attribute_type>` is one of the primitives, array, or `any`, but not an enum, and specifies the type of the actual attribute to be recorded on telemetry item.
+The `<actual_attribute_type>` is one of the primitives, an array, or `any`, but not an enum, and it specifies the type of the actual attribute to be recorded on the telemetry item.
 
 The following is an example for defining a template type attribute:
 
@@ -204,17 +213,17 @@ attributes:
   examples: [["application/json"], ["1.2.3.4", "1.2.3.5"]]
 ```
 
-In this example the definition will be resolved into a set attributes `http.request.header.<key>` where `<key>` will be replaced by the actual HTTP header name, and the value of the attributes is of type `string[]` that carries the HTTP header value.
+In this example, the definition will be resolved into a set of attributes `http.request.header.<key>` where `<key>` will be replaced by the actual HTTP header name, and the value of the attributes is of type `string[]` that carries the HTTP header value.
 
 ### Attribute reference
 
-When defining a specific signal such as span, metric, event, or entity, you also specify a list of attributes this signal should contain.
+When defining a specific signal such as a span, metric, event, or entity, you also specify a list of attributes this signal should contain.
 Attributes cannot be defined on the signals themselves.
 
-So signal definitions contain references to attribute definitions and may refine original attribute definition - for example, to make original definition
+So signal definitions contain references to attribute definitions and may refine the original attribute definition - for example, to make the original definition
 more specific and provide details on how and when to capture it in the scope of that signal or domain.
 
-Attributes are referenced by their key. Here's an example of how to reference attributes when defining spans:
+Attributes are referenced by their key. Here's an example of how to reference and refine attributes when defining spans:
 
 ```yaml
 spans:
@@ -226,7 +235,7 @@ spans:
         sampling_relevant: true
 ```
 
-When referencing spans, you can refine the following properties for the scope of signal being defined:
+You can refine the following properties of the attribute (for the scope of the signal being defined):
 
 - `brief`
 - `note`
@@ -235,15 +244,73 @@ When referencing spans, you can refine the following properties for the scope of
 - `stability` can be changed from stable to unstable, but not the other way around
 - `deprecated` can be changed from not-deprecated to deprecated, but not the other way around
 
-The following properties can be defined on the attribute reference only:
+The following properties can be defined on the attribute references only:
 
-- `requirement_level` - Optional - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for the details.
+- `requirement_level` - Optional - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
 - `sampling_relevant` - Optional - available on spans only - a boolean flag indicating if the attribute is (especially) relevant for sampling and
   thus should be set at span start. It defaults to `false`.
 
+#### Attribute group reference
+
+It's also possible to reference an [attribute group](#attribute_group-definition) to share refinements across multiple conventions.
+
+For example, `server.address` and `server.port` could be refined in the group `attributes.http.client.authority`:
+
+```yaml
+  - id: attributes.http.client.authority
+    visibility: internal
+    attributes:
+      - ref: server.address
+        requirement_level: required
+        note: |
+          In HTTP/1.1, when the [request target](https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target)
+          is passed in its [absolute-form](https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.2),
+          the `server.address` SHOULD match the host component of the request target.
+      - ref: server.port
+        requirement_level: required
+        note: |
+          In the case of HTTP/1.1, when the [request target](https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target)
+          is passed in its [absolute-form](https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.2),
+          the `server.port` SHOULD match the port component of the request target.
+```
+
+And then this group could be included in all HTTP client conventions via the `ref_group` qualifier:
+
+```yaml
+metrics:
+  - name: http.client.request.duration
+    ...
+    attributes:
+      - ref_group: attributes.http.client.authority
+      ...
+```
+
+The `ref_group` identifies the attribute group by its `id` and does not have any properties.
+
+Attribute refinements can be applied along with group references:
+
+```yaml
+spans:
+  - type: http.client
+    ...
+    attributes:
+      - ref_group: attributes.http.client.authority
+      - ref: server.address
+        sampling_relevant: true
+```
+
+> [!IMPORTANT]
+> Collisions between attribute groups are not allowed: semantic
+> conventions cannot be resolved if two groups included on the
+> same signal (or group) reference the same attribute key.
+
+> [!NOTE]
+> It's NOT RECOMMENDED to use `ref_groups` on other attribute groups
+> due to readability concerns.
+
 ### `spans` definition
 
-Spans section contains a list of span definitions. A span definition consists of the following properties:
+The spans section contains a list of span definitions. A span definition consists of the following properties:
 
 - `type` - Required. Uniquely identifies span type such as `http.client`
 - `kind` - Required. The kind of span. Must be one of:
@@ -255,10 +322,11 @@ Spans section contains a list of span definitions. A span definition consists of
 - `brief` - Required. A short description of the operation this span represents
 - `note` - Optional. A more elaborate description of the operation
 - `stability` - Required. Specifies the [stability](#stability-levels) of the span definition
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `name` - Required. Specification of how the [span name](#span-name) should be formatted.
 - `deprecated` - Optional. When present, marks the span as deprecated. See [deprecated](#deprecated-structure) for details
 - `attributes` - Optional. List of [attribute references](#attribute-reference) applicable to this span.
-- `entity_associations` - Optional. List of entity types that can be associated with this span type
+- `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this span type can be associated with.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the span. See [annotations](#annotations) for details
 
 Example:
@@ -278,10 +346,27 @@ spans:
       - ref: url.full
         requirement_level: required
         sampling_relevant: true
-      # ...        
+      # ...
     entity_associations:
-      - ref: service.instance
+      - service.instance
 ```
+
+### `span_refinements` definition
+
+The span refinements section contains a list of span refinement definitions. A span refinement allows adding or modifying attributes of an existing span definition.
+
+A span refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the span refinement.
+- `ref` - Required. The type of the span being refined.
+- `name` - Optional. Overrides the [span name](#span-name) specification from the referenced base span. If set, the entire `name` structure from the refinement replaces the base span's `name`; otherwise, the base span's `name` is inherited.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
 
 #### Span name
 
@@ -291,7 +376,7 @@ The span name structure may be evolved in the future to formally define the nami
 
 ### `entities` definition
 
-Entities section contains a list of entity definitions. An entity is a collection of attributes that describe an object that telemetry can be associated with, such as a service instance, K8s pod, or CI/CD pipeline.
+The entities section contains a list of entity definitions. An entity is a collection of attributes that describe an object that telemetry can be associated with, such as a service instance, K8s pod, or CI/CD pipeline.
 
 An entity definition consists of the following properties:
 
@@ -299,6 +384,7 @@ An entity definition consists of the following properties:
 - `brief` - Required. A short description of what this entity represents.
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
@@ -313,17 +399,67 @@ entities:
     stability: stable
     identity:
       - ref: service.name
-        requirement_level: required
       - ref: service.namespace
       - ref: service.instance.id
     description:
       - ref: service.version
-        role: descriptive
+        requirement_level: required
+```
+
+### `entity_refinements` definition
+
+The entity refinements section contains a list of entity refinement definitions. An entity refinement allows adding or modifying attributes of an existing entity definition.
+
+An entity refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the entity refinement.
+- `ref` - Required. The name of the entity being refined.
+- `description` - Optional. The additional attributes to describe the Entity.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
+
+### Entity associations
+
+The `entity_associations` field on spans, metrics, and events (and their refinements) declares which [entities](#entities-definition) a signal is expected to be associated with. Each list element is an *entity association expression*, which is one of:
+
+- An **entity reference** — the `type` of an entity, written as a bare string.
+- **`one_of`** — a map with a list of expressions; satisfied when *at least one* of them is satisfied.
+- **`all_of`** — a map with a list of expressions; satisfied when *every* one of them is satisfied.
+
+`one_of` and `all_of` may be nested arbitrarily, so complex requirements can be expressed.
+
+A bare list of entity references (the historical syntax) is interpreted as an implicit `one_of` — the telemetry must be associated with at least one of the listed entities. These two forms are therefore equivalent:
+
+```yaml
+# Implicit one_of
+entity_associations:
+  - host
+  - container
+
+# Explicit one_of
+entity_associations:
+  - one_of:
+      - host
+      - container
+```
+
+A nested example — the signal must be associated with the `tenant` entity **and** with at least one of `host` or `container`:
+
+```yaml
+entity_associations:
+  - all_of:
+      - tenant
+      - one_of:
+          - host
+          - container
 ```
 
 ### `events` definition
 
-Events section contains a list of event definitions. An event represents a discrete occurrence at a point in time, such as a request completion, system startup, or error condition.
+The events section contains a list of event definitions. An event represents a discrete occurrence at a point in time, such as a request completion, system startup, or error condition.
 
 An event definition consists of the following properties:
 
@@ -331,8 +467,9 @@ An event definition consists of the following properties:
 - `brief` - Required. A short description of what this event represents.
 - `note` - Optional. A more elaborate description of the event.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the event definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that can be set on this event type.
-- `entity_associations` - Optional. List of entities that this event can be associated with.
+- `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this event can be associated with.
 - `deprecated` - Optional. When present, marks the event as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the event. See [annotations](#annotations) for details.
 
@@ -351,12 +488,28 @@ events:
       - ref: exception.stacktrace
         requirement_level: recommended
     entity_associations:
-      - ref: service.instance
+      - service.instance
 ```
+
+### `event_refinements` definition
+
+The event refinements section contains a list of event refinement definitions. An event refinement allows adding or modifying attributes of an existing event definition.
+
+An event refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the event refinement.
+- `ref` - Required. The name of the event being refined.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
 
 ### `metrics` definition
 
-Metrics section contains a list of metric definitions. A metric represents a measurement of a value over time, such as request duration, CPU usage, or error count.
+The metrics section contains a list of metric definitions. A metric represents a measurement of a value over time, such as request duration, CPU usage, or error count.
 
 A metric definition consists of the following properties:
 
@@ -370,8 +523,9 @@ A metric definition consists of the following properties:
   - `gauge` - A value that can arbitrarily go up and down, used for temperature or current memory usage
   - `histogram` - Distribution of recorded values, used for latencies or request sizes
 - `stability` - Required. Specifies the [stability](#stability-levels) of the metric definition.
+- `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
 - `attributes` - Optional. List of [attribute references](#attribute-reference) that can be set on this metric.
-- `entity_associations` - Optional. List of entity types that this metric can be associated with.
+- `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this metric can be associated with.
 - `deprecated` - Optional. When present, marks the metric as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the metric. See [annotations](#annotations) for details.
 
@@ -391,12 +545,87 @@ metrics:
         requirement_level: required
       # ...
     entity_associations:
-      - ref: service.instance
+      - service.instance
+```
+
+### `metric_refinements` definition
+
+The metric refinements section contains a list of metric refinement definitions. A metric refinement allows adding or modifying attributes of an existing metric definition.
+
+A metric refinement definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the metric refinement.
+- `ref` - Required. The name of the metric being refined.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with.
+- `brief` - Optional. Refines the brief description of the signal.
+- `note` - Optional. Refines the more elaborate description of the signal.
+- `stability` - Optional. Refines the stability of the signal.
+- `deprecated` - Optional. Specifies if the signal is deprecated.
+- `annotations` - Optional. Additional annotations for the signal.
+
+### `attribute_group` definition
+
+The attribute groups section contains a list of attribute group definitions. Attribute groups allow you to define reusable collections of attributes that can be referenced by multiple signals (spans, events, metrics, etc.). This promotes consistency and reduces duplication across semantic conventions.
+
+An attribute group can have two visibility levels:
+
+#### Internal Attribute Groups
+
+Internal attribute groups are used for organizational purposes within a semantic convention file and are not exposed in the final documentation or resolved schema.
+
+An internal attribute group definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the attribute group.
+- `visibility` - Required. Must be set to `"internal"`.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to this group.
+
+Example:
+
+```yaml
+attribute_groups:
+  - id: attributes.http.common
+    visibility: internal
+    attributes:
+      - ref: http.request.method
+      - ref: http.response.status_code
+```
+
+#### Public Attribute Groups
+
+Public attribute groups are included in generated documentation and resolved schema. A group of attributes is meaningful and
+describes some complex object (such as exception, thread, CloudEvent, etc.) - these attributes may be included in
+different signals as a group.
+
+A public attribute group definition consists of the following properties:
+
+- `id` - Required. Uniquely identifies the attribute group.
+- `visibility` - Required. Must be set to `"public"`.
+- `brief` - Required. A short description of what this attribute group represents.
+- `note` - Optional. A more elaborate description of the attribute group.
+- `stability` - Required. Specifies the [stability](#stability-levels) of the attribute group definition.
+- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to this group.
+- `deprecated` - Optional. When present, marks the attribute group as deprecated. See [deprecated](#deprecated-structure) for details.
+- `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the attribute group. See [annotations](#annotations) for details.
+
+Example:
+
+```yaml
+attribute_groups:
+  - id: exception
+    visibility: public
+    brief: Attributes representing exception information
+    note: These attributes capture details about exceptions that occur during operation execution.
+    stability: stable
+    attributes:
+      - ref: exception.type
+      - ref: exception.message
+      - ref: exception.stacktrace
 ```
 
 ### `imports` definition
 
-Imports section allows referencing semantic conventions defined in other registries - for example when defining conventions within your company,
+The imports section allows referencing semantic conventions defined in other registries - for example, when defining conventions within your company,
 you may want to import OpenTelemetry semantic conventions.
 
 An imports definition consists of optional lists of group name wildcards for different signal types:
@@ -404,6 +633,8 @@ An imports definition consists of optional lists of group name wildcards for dif
 - `entities` - Optional. List of entity type wildcards.
 - `events` - Optional. List of event name wildcards.
 - `metrics` - Optional. List of metric name wildcards.
+- `spans` - Optional. List of span name wildcards.
+- `attribute_groups` - Optional. List of attribute group id wildcards.
 
 Each wildcard can match one or more groups from the imported registry. For example:
 
@@ -414,19 +645,41 @@ imports:
     - service       # Import service instance entity
   metrics:
     - http.server.*  # Import all HTTP server metrics
+  spans:
+    - http.client   # Import HTTP client spans
+  attribute_groups:
+    - client.*      # Import all client attribute groups
 ```
 
 ### Stability levels
 
-The following stability levels are supported: `stable`, `development`, `alpha`, `beta`, `release_candidate`. See [OpenTelemetry stability definitions](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/document-status.md) for the details.
+The following stability levels are supported: `stable`, `development`, `alpha`, `beta`, `release_candidate`. See [OpenTelemetry stability definitions](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/document-status.md) for details.
+
+### Signal requirement levels
+
+The `requirement_level` on a signal (metric, span, event, or entity) is guidance for instrumentation authors about whether the signal should be emitted by default. It is distinct from the per-attribute requirement level and supports two values:
+
+- `recommended` - Instrumentations should implement and emit the signal by default. This is the default when `requirement_level` is omitted.
+- `opt_in` - The signal is disabled by default; instrumentations MAY implement it and let users opt in.
 
 ### Deprecated structure
 
 The `deprecated` field indicates that a component (attribute, metric, event, etc.) should no longer be used. It supports several deprecation reasons:
 
+All deprecation reasons have the following required properties:
+
+- `reason` - Required. The type of deprecation. Must be one of: `renamed`, `obsoleted`, `uncategorized`, or `unspecified`.
+- `note` - Required. Provides context about the deprecation.
+
+Additional properties depending on the reason:
+
 #### Rename
 
-Used when a component has been renamed, for example:
+Used when a component has been renamed. Requires an additional property:
+
+- `renamed_to` - Required. The new name of the telemetry object.
+
+Example:
 
 ```yaml
 attributes:
@@ -439,9 +692,9 @@ attributes:
       renamed_to: db.operation.name
 ```
 
-Renames should be used for trivial renames when semantics of the attribute, metric, entity, or another component remained unchanged.
+Renames should be used for trivial renames when the semantics of the attribute, metric, entity, or another component remain unchanged.
 
-Rename reason MUST NOT be used when anything substantial about the attribute or signal has changed which includes unit or instrument type for metrics or value format for attributes.
+The rename reason MUST NOT be used when anything substantial about the attribute or signal has changed, which includes the unit or instrument type for metrics or the value format for attributes.
 
 #### Obsolete
 
@@ -475,7 +728,7 @@ attributes:
         Replaced by `server.address` and `server.port`.
 ```
 
-Deprecated structure may be extended in the future to support other reasons.
+The deprecated structure may be extended in the future to support other reasons.
 
 ### Annotations
 
@@ -518,5 +771,43 @@ attributes:
       code_generation:
         exclude: true  # Skip this attribute during code generation
 ```
+
+#### Dependency Resolution Annotations
+
+The `dependency_resolution` annotation hides an attribute, group, or signal from
+registries that consume this one as a dependency. The owning registry still
+sees the item normally - resolution, codegen, and docs are unaffected — but any
+dependent registry that references the item (via `ref`, `extends`,
+`include_groups`, `imports`, or a v2 refinement) fails to resolve.
+
+This is intended for migrations where definitions move out of a parent registry
+into a new one. Marking the old definitions excluded prevents conflicts in
+downstream registries, without forcing an immediate breaking removal from the parent.
+
+```yaml
+attributes:
+  - key: gen_ai.system
+    type: string
+    stability: stable
+    brief: The Generative AI product as identified by the client or server instrumentation.
+    examples: ['openai']
+    annotations:
+      dependency_resolution:
+        exclude: true  # Hide this attribute from dependent registries
+
+metrics:
+  - name: gen_ai.client.token.usage
+    brief: Measures number of input and output tokens used.
+    instrument: histogram
+    unit: "{token}"
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true  # Hide this metric from dependent registries
+```
+
+To prevent excluded items from leaking transitively into the resolved output,
+resolution also fails if a non-excluded item within the *same* registry uses
+an excluded one by reference (via `ref`, `extends`, or in refinements).
 
 [DocumentStatus]: https://opentelemetry.io/docs/specs/otel/document-status

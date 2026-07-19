@@ -30,20 +30,6 @@ Stability: development
 ### Attributes
 
 
-#### Attribute `exception.stacktrace`
-
-A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
-
-
-
-- Requirement Level: Recommended
-  
-- Type: string
-- Examples: Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)
-  
-- Stability: Stable
-  
-  
 #### Attribute `exception.escaped`
 
 SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
@@ -74,6 +60,36 @@ clear whether the exception will escape.
 - Stability: Stable
   
   
+#### Attribute `exception.message`
+
+The exception message.
+
+
+- Requirement Level: Conditionally Required - Required if `exception.type` is not set, recommended otherwise.
+  
+- Type: string
+- Examples: [
+    "Division by zero",
+    "Can't convert 'int' object to str implicitly",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `exception.stacktrace`
+
+A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)
+  
+- Stability: Stable
+  
+  
 #### Attribute `exception.type`
 
 The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
@@ -86,22 +102,6 @@ The type of the exception (its fully-qualified class name, if applicable). The d
 - Examples: [
     "java.net.ConnectException",
     "OSError",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `exception.message`
-
-The exception message.
-
-
-- Requirement Level: Conditionally Required - Required if `exception.type` is not set, recommended otherwise.
-  
-- Type: string
-- Examples: [
-    "Division by zero",
-    "Can't convert 'int' object to str implicitly",
 ]
   
 - Stability: Stable

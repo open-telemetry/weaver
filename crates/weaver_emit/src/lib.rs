@@ -13,8 +13,14 @@ use serde::Serialize;
 use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+
+use crate::logs::{emit_logs_for_registry, emit_logs_for_registry_v2};
+use crate::metrics::emit_metrics_for_registry_v2;
+use crate::spans::emit_trace_for_registry_v2;
 
 pub mod attributes;
+pub mod logs;
 pub mod metrics;
 pub mod spans;
 
@@ -42,6 +48,12 @@ pub enum Error {
     /// Metric provider error.
     #[error("Metric provider error. Check your Otel configuration. {error}")]
     MetricProviderError {
+        /// The error that occurred.
+        error: String,
+    },
+    /// Log provider error.
+    #[error("Log provider error. Check your Otel configuration. {error}")]
+    LogProviderError {
         /// The error that occurred.
         error: String,
     },
@@ -117,6 +129,38 @@ fn init_stdout_meter_provider() -> SdkMeterProvider {
         .build()
 }
 
+/// Initialise a grpc OTLP exporter for logs, sends to by default http://localhost:4317
+/// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
+fn init_logger_provider(
+    endpoint: &String,
+) -> Result<opentelemetry_sdk::logs::SdkLoggerProvider, ExporterBuildError> {
+    let resource = Resource::builder()
+        .with_service_name(WEAVER_SERVICE_NAME)
+        .build();
+
+    let exporter = opentelemetry_otlp::LogExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .build()?;
+
+    Ok(opentelemetry_sdk::logs::SdkLoggerProvider::builder()
+        .with_resource(resource)
+        .with_batch_exporter(exporter)
+        .build())
+}
+
+/// Initialise a stdout exporter for debug
+fn init_stdout_logger_provider() -> opentelemetry_sdk::logs::SdkLoggerProvider {
+    let resource = Resource::builder()
+        .with_service_name(WEAVER_SERVICE_NAME)
+        .build();
+
+    opentelemetry_sdk::logs::SdkLoggerProvider::builder()
+        .with_resource(resource)
+        .with_simple_exporter(opentelemetry_stdout::LogExporter::default())
+        .build()
+}
+
 /// The configuration for the tracer provider.
 #[derive(Debug)]
 pub enum ExporterConfig {
@@ -129,9 +173,18 @@ pub enum ExporterConfig {
     },
 }
 
+/// Enum for the registry: ResolvedRegistry or ForgeResolvedRegistry
+#[derive(Debug)]
+pub enum RegistryVersion<'a> {
+    /// v1 ResolvedRegistry
+    V1(&'a ResolvedRegistry),
+    /// v2 ForgeResolvedRegistry
+    V2(&'a ForgeResolvedRegistry),
+}
+
 /// Emit the signals from the registry to the configured exporter.
 pub fn emit(
-    registry: &ResolvedRegistry,
+    registry: RegistryVersion<'_>,
     registry_path: &str,
     exporter_config: &ExporterConfig,
 ) -> Result<(), Error> {
@@ -148,9 +201,12 @@ pub fn emit(
                 })?
             }
         };
-        let _ = global::set_tracer_provider(tracer_provider.clone());
+        global::set_tracer_provider(tracer_provider.clone());
 
-        emit_trace_for_registry(registry, registry_path);
+        match registry {
+            RegistryVersion::V1(reg) => emit_trace_for_registry(reg, registry_path),
+            RegistryVersion::V2(reg) => emit_trace_for_registry_v2(reg, registry_path),
+        }
 
         tracer_provider
             .force_flush()
@@ -169,11 +225,35 @@ pub fn emit(
         };
         global::set_meter_provider(meter_provider.clone());
 
-        emit_metrics_for_registry(registry);
+        match registry {
+            RegistryVersion::V1(reg) => emit_metrics_for_registry(reg),
+            RegistryVersion::V2(reg) => emit_metrics_for_registry_v2(reg),
+        }
 
         meter_provider
             .shutdown()
             .map_err(|e| Error::MetricProviderError {
+                error: e.to_string(),
+            })?;
+
+        // Emit logs
+        let logger_provider = match exporter_config {
+            ExporterConfig::Stdout => init_stdout_logger_provider(),
+            ExporterConfig::Otlp { endpoint } => {
+                init_logger_provider(endpoint).map_err(|e| Error::LogProviderError {
+                    error: e.to_string(),
+                })?
+            }
+        };
+
+        match registry {
+            RegistryVersion::V1(reg) => emit_logs_for_registry(reg, &logger_provider),
+            RegistryVersion::V2(reg) => emit_logs_for_registry_v2(reg, &logger_provider),
+        }
+
+        logger_provider
+            .shutdown()
+            .map_err(|e| Error::LogProviderError {
                 error: e.to_string(),
             })?;
         Ok(())
@@ -185,6 +265,7 @@ mod tests {
     use super::*;
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
@@ -233,6 +314,7 @@ mod tests {
                     metric_name: None,
                     instrument: None,
                     unit: None,
+                    requirement_level: None,
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -256,6 +338,7 @@ mod tests {
                     metric_name: Some("test.updowncounter".to_owned()),
                     instrument: Some(InstrumentSpec::UpDownCounter),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -278,6 +361,7 @@ mod tests {
                     metric_name: Some("test.counter".to_owned()),
                     instrument: Some(InstrumentSpec::Counter),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -300,6 +384,7 @@ mod tests {
                     metric_name: Some("test.gauge".to_owned()),
                     instrument: Some(InstrumentSpec::Gauge),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -322,6 +407,7 @@ mod tests {
                     metric_name: Some("test.histogram".to_owned()),
                     instrument: Some(InstrumentSpec::Histogram),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -345,6 +431,7 @@ mod tests {
                     instrument: Some(InstrumentSpec::UpDownCounter),
                     unit: Some("1".to_owned()),
                     name: None,
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     lineage: None,
                     display_name: None,
                     body: None,
@@ -366,6 +453,7 @@ mod tests {
                     metric_name: Some("test.counter.double".to_owned()),
                     instrument: Some(InstrumentSpec::Counter),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -388,6 +476,7 @@ mod tests {
                     metric_name: Some("test.gauge.double".to_owned()),
                     instrument: Some(InstrumentSpec::Gauge),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
@@ -410,16 +499,64 @@ mod tests {
                     metric_name: Some("test.histogram.double".to_owned()),
                     instrument: Some(InstrumentSpec::Histogram),
                     unit: Some("1".to_owned()),
+                    requirement_level: Some(SignalRequirementLevel::Recommended),
                     name: None,
                     lineage: None,
                     display_name: None,
                     body: None,
                     annotations: None,
                 },
+                ResolvedGroup {
+                    id: "event.session.start".to_owned(),
+                    r#type: GroupType::Event,
+                    brief: "This event represents a session start".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    attributes: vec![Attribute {
+                        name: "session.id".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                        ])),
+                        brief: "A unique session identifier".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                        role: Default::default(),
+                    }],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    name: Some("session.start".to_owned()),
+                    lineage: None,
+                    display_name: Some("Session Start Event".to_owned()),
+                    body: None,
+                    annotations: None,
+                },
             ],
         };
 
-        let result = emit(&registry, "TEST", &ExporterConfig::Stdout);
+        let result = emit(
+            RegistryVersion::V1(&registry),
+            "TEST",
+            &ExporterConfig::Stdout,
+        );
         assert!(result.is_ok());
     }
 
@@ -430,7 +567,7 @@ mod tests {
             groups: vec![],
         };
         let result = emit(
-            &registry,
+            RegistryVersion::V1(&registry),
             "TEST_OTLP_INVALID",
             &ExporterConfig::Otlp {
                 endpoint: "http:/invalid-endpoint:4317".to_owned(),
@@ -441,5 +578,189 @@ mod tests {
         // Check the error converts to a diagnostic message
         let diagnostic_messages = DiagnosticMessages::from(result.unwrap_err());
         assert_eq!(diagnostic_messages.len(), 1);
+    }
+
+    #[test]
+    fn test_emit_stdout_v2() {
+        use std::collections::BTreeMap;
+        use weaver_forge::v2::{
+            attribute::Attribute as V2Attribute,
+            event::{Event, EventAttribute},
+            metric::Metric,
+            registry::{ForgeResolvedRegistry, Refinements, Registry},
+            span::{Span, SpanAttribute},
+        };
+        use weaver_semconv::{
+            attribute::{
+                AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
+                RequirementLevel,
+            },
+            group::{InstrumentSpec, SpanKindSpec},
+            stability::Stability,
+            v2::{signal_id::SignalId, span::SpanName, CommonFields},
+        };
+
+        let registry = ForgeResolvedRegistry {
+            schema_url: "https://example.com/schemas/1.2.3".try_into().unwrap(),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                spans: vec![Span {
+                    requirement_level: None,
+                    r#type: SignalId::from("test.comprehensive.internal".to_owned()),
+                    kind: SpanKindSpec::Internal,
+                    name: SpanName {
+                        note: "test span".to_owned(),
+                    },
+                    attributes: vec![SpanAttribute {
+                        base: V2Attribute {
+                            key: "test.string".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: Some(Examples::Strings(vec![
+                                "value1".to_owned(),
+                                "value2".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "Test attribute".to_owned(),
+                                note: String::new(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                            provenance: Default::default(),
+                        },
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
+                        ),
+                        sampling_relevant: None,
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "Test span".to_owned(),
+                        note: String::new(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                metrics: vec![
+                    Metric {
+                        name: SignalId::from("test.updowncounter".to_owned()),
+                        instrument: InstrumentSpec::UpDownCounter,
+                        unit: "1".to_owned(),
+                        requirement_level: Some(SignalRequirementLevel::OptIn),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.updowncounter".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Metric {
+                        name: SignalId::from("test.counter".to_owned()),
+                        instrument: InstrumentSpec::Counter,
+                        unit: "1".to_owned(),
+                        requirement_level: Some(SignalRequirementLevel::Recommended),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.counter".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Metric {
+                        name: SignalId::from("test.gauge".to_owned()),
+                        instrument: InstrumentSpec::Gauge,
+                        unit: "1".to_owned(),
+                        requirement_level: Some(SignalRequirementLevel::OptIn),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.gauge".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Metric {
+                        name: SignalId::from("test.histogram".to_owned()),
+                        instrument: InstrumentSpec::Histogram,
+                        unit: "1".to_owned(),
+                        requirement_level: Some(SignalRequirementLevel::OptIn),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        common: CommonFields {
+                            brief: "test.histogram".to_owned(),
+                            note: String::new(),
+                            stability: Stability::Development,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                ],
+                events: vec![Event {
+                    requirement_level: None,
+                    name: SignalId::from("session.start".to_owned()),
+                    attributes: vec![EventAttribute {
+                        base: V2Attribute {
+                            key: "session.id".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            examples: Some(Examples::Strings(vec![
+                                "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
+                            ])),
+                            common: CommonFields {
+                                brief: "A unique session identifier".to_owned(),
+                                note: String::new(),
+                                stability: Stability::Stable,
+                                deprecated: None,
+                                annotations: BTreeMap::new(),
+                            },
+                            provenance: Default::default(),
+                        },
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
+                        ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "This event represents a session start".to_owned(),
+                        note: String::new(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        };
+
+        let result = emit(
+            RegistryVersion::V2(&registry),
+            "TEST_V2",
+            &ExporterConfig::Stdout,
+        );
+        assert!(result.is_ok());
     }
 }

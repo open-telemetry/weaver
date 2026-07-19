@@ -92,6 +92,8 @@ templates:
       <param_2>: <any_simple_type>
       # ...
     file_name: <relative_file_path>  # optional
+    auto_escape: none|html|json      # optional, default: none
+    when: <jq_expression>            # optional; JQ expression that must evaluate to a boolean
   - ...
 ```
 
@@ -162,6 +164,74 @@ templates:
 > [!IMPORTANT]
 > **Backward compatibility note**: The field `pattern` has been renamed to `template` in the
 > `templates` section. The `pattern` field is still supported for backward compatibility.
+
+## Auto-Escape
+
+By default, auto-escaping is disabled (`none`) for all templates regardless of file extension.
+This means `{{ value }}` outputs the raw value with no transformation. To opt in to
+auto-escaping, set `auto_escape` per template:
+
+- `none` (default) — no escaping; values are output as-is.
+- `html` — escapes `<`, `>`, `&`, `"`, `'`, `/` for safe embedding in HTML/XML.
+- `json` — serializes values as JSON strings (suitable for embedding in JSON or YAML).
+
+```yaml
+templates:
+  - template: "page.html.j2"
+    filter: .
+    application_mode: single
+    auto_escape: html
+
+  - template: "data.json.j2"
+    filter: .
+    application_mode: single
+    auto_escape: json
+```
+
+Within a template, `{% autoescape false %}...{% endautoescape %}` blocks can selectively
+disable escaping for specific sections. For explicit one-off JSON serialization without
+setting the mode, use the `|tojson` filter (e.g. `{{ value|tojson }}`).
+
+## Conditionally Applying a Template (`when`)
+
+An optional `when` clause gates whether a template is applied at all. It is a JQ
+expression (the same language as `filter`) evaluated against the resolved registry,
+with the template `params` exposed as JQ variables under `$params`. The expression must
+evaluate to a **single boolean**: `true` applies the template, `false` skips it. Any other
+output — a non-boolean value, or an empty stream — is a hard error. In particular, a
+stream expression like `.groups[] | select(...)` that matches nothing produces an empty
+result and is **rejected**, rather than being silently treated as truthy; wrap such
+expressions in `any(...)` / `all(...)` or an explicit comparison to yield a boolean. When
+`when` is omitted, the template is always applied.
+
+```yaml
+# `gen_readme` acts as a feature flag with a default of `false`.
+params:
+  gen_readme: false
+
+templates:
+  # Always generated.
+  - template: attributes.md.j2
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  # Generated only when the `gen_readme` parameter is true, e.g. by passing
+  # `--param gen_readme=true` on the command line.
+  - template: registry_readme.md.j2
+    filter: "."
+    application_mode: single
+    file_name: README.md
+    when: $params.gen_readme == true
+```
+
+`when` can also test the registry content itself (not just parameters), since it sees the
+same context as `filter` — for example, `when: '(.groups | length) > 0'` to only apply a
+template when the registry has groups, or `when: '.groups | any(.type == "metric")'` to
+apply it only when a matching group exists. A malformed `when` expression is a hard error.
+
+> [!NOTE]
+> The `when` clause is a gate on the whole template entry: it is evaluated once, before
+> `filter` is applied, and is not evaluated per item when `application_mode` is `each`.
 
 # Configuration File Loading Order and Overriding Rules
 

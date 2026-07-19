@@ -1,0 +1,345 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! HTTP request handlers for the serve command.
+
+use std::sync::Arc;
+
+use axum::{
+    extract::{Path, Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
+use schemars::schema_for;
+use serde_json::json;
+use weaver_forge::run_filter_raw;
+
+use crate::serve::types::FilterParams;
+
+use super::server::AppState;
+use super::types::{SearchParams, SearchResponse};
+
+/// Health check.
+#[utoipa::path(
+    get,
+    path = "/health",
+    responses(
+        (status = 200, description = "Service is healthy")
+    ),
+    tag = "health"
+)]
+pub async fn health() -> StatusCode {
+    StatusCode::OK
+}
+
+/// Get a schema by name.
+#[utoipa::path(
+    get,
+    path = "/api/v1/schema/{name}",
+    params(
+        ("name" = String, Path, description = "Schema name (MaterializedRegistryV2, SemconvDefinitionV2, or LiveCheckSample)")
+    ),
+    responses(
+        (status = 200, description = "Requested schema", content_type = "application/json"),
+        (status = 404, description = "Schema not found")
+    ),
+    tag = "schemas"
+)]
+pub async fn get_schema(Path(name): Path<String>) -> impl IntoResponse {
+    let name = name.trim_start_matches('/');
+
+    let schema = match name {
+        "MaterializedRegistryV2" => schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry),
+        "SemconvDefinitionV2" => schema_for!(weaver_semconv::v2::SemConvSpecV2),
+        "LiveCheckSample" => schema_for!(weaver_live_check::Sample),
+        _ => {
+            return (
+                StatusCode::NOT_FOUND,
+                [(axum::http::header::CONTENT_TYPE, "application/json")],
+                json!({"error": format!("Schema '{}' not found. Available schemas: MaterializedRegistryV2, SemconvDefinitionV2, LiveCheckSample", name)}).to_string(),
+            ).into_response();
+        }
+    };
+
+    match serde_json::to_string_pretty(&schema) {
+        Ok(schema_json) => (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "application/json")],
+            schema_json,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(axum::http::header::CONTENT_TYPE, "application/json")],
+            json!({"error": format!("Failed to serialize schema: {}", e)}).to_string(),
+        )
+            .into_response(),
+    }
+}
+
+/// Get statistics for the registry.
+///
+/// Returns the full `weaver registry stats` output: counts, and type/stability/
+/// instrument/unit/span-kind breakdowns plus deprecation and documentation coverage.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/stats",
+    responses(
+        (status = 200, description = "Registry stats", content_type = "application/json")
+    ),
+    tag = "registry"
+)]
+pub async fn get_registry_stats(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    // The stats are static for the life of the process, so they are serialized
+    // once at startup and served verbatim here.
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        state.stats_json.clone(),
+    )
+}
+
+/// Get an attribute by key.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/attribute/{key}",
+    params(
+        ("key" = String, Path, description = "Attribute key")
+    ),
+    responses(
+        (status = 200, description = "Attribute details", body = weaver_forge::v2::attribute::Attribute),
+        (status = 404, description = "Attribute not found")
+    ),
+    tag = "registry"
+)]
+pub async fn get_registry_attribute(
+    State(state): State<Arc<AppState>>,
+    Path(key): Path<String>,
+) -> impl IntoResponse {
+    // Remove leading slash if present (from wildcard match)
+    let key = key.trim_start_matches('/');
+
+    // O(1) lookup via SearchContext, checking both regular and template attributes
+    match state
+        .search_ctx
+        .get_attribute(key)
+        .or_else(|| state.search_ctx.get_template(key))
+    {
+        Some(attr) => Json(attr.as_ref()).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Attribute not found", "key": key})),
+        )
+            .into_response(),
+    }
+}
+
+/// Get a metric by name.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/metric/{name}",
+    params(
+        ("name" = String, Path, description = "Metric name")
+    ),
+    responses(
+        (status = 200, description = "Metric details", body = weaver_forge::v2::metric::Metric),
+        (status = 404, description = "Metric not found")
+    ),
+    tag = "registry"
+)]
+pub async fn get_registry_metric(
+    State(state): State<Arc<AppState>>,
+    Path(name): Path<String>,
+) -> impl IntoResponse {
+    let name = name.trim_start_matches('/');
+
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_metric(name) {
+        Some(metric) => Json(metric.as_ref()).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Metric not found", "name": name})),
+        )
+            .into_response(),
+    }
+}
+
+/// Get a span by type.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/span/{type}",
+    params(
+        ("type" = String, Path, description = "Span type")
+    ),
+    responses(
+        (status = 200, description = "Span details", body = weaver_forge::v2::span::Span),
+        (status = 404, description = "Span not found")
+    ),
+    tag = "registry"
+)]
+pub async fn get_registry_span(
+    State(state): State<Arc<AppState>>,
+    Path(span_type): Path<String>,
+) -> impl IntoResponse {
+    let span_type = span_type.trim_start_matches('/');
+
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_span(span_type) {
+        Some(span) => Json(span.as_ref()).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Span not found", "type": span_type})),
+        )
+            .into_response(),
+    }
+}
+
+/// Get an event by name.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/event/{name}",
+    params(
+        ("name" = String, Path, description = "Event name")
+    ),
+    responses(
+        (status = 200, description = "Event details", body = weaver_forge::v2::event::Event),
+        (status = 404, description = "Event not found")
+    ),
+    tag = "registry"
+)]
+pub async fn get_registry_event(
+    State(state): State<Arc<AppState>>,
+    Path(name): Path<String>,
+) -> impl IntoResponse {
+    let name = name.trim_start_matches('/');
+
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_event(name) {
+        Some(event) => Json(event.as_ref()).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Event not found", "name": name})),
+        )
+            .into_response(),
+    }
+}
+
+/// Get an entity by type.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/entity/{type}",
+    params(
+        ("type" = String, Path, description = "Entity type")
+    ),
+    responses(
+        (status = 200, description = "Entity details", body = weaver_forge::v2::entity::Entity),
+        (status = 404, description = "Entity not found")
+    ),
+    tag = "registry"
+)]
+pub async fn get_registry_entity(
+    State(state): State<Arc<AppState>>,
+    Path(entity_type): Path<String>,
+) -> impl IntoResponse {
+    let entity_type = entity_type.trim_start_matches('/');
+
+    // O(1) lookup via SearchContext
+    match state.search_ctx.get_entity(entity_type) {
+        Some(entity) => Json(entity.as_ref()).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Entity not found", "type": entity_type})),
+        )
+            .into_response(),
+    }
+}
+
+/// Search registry across all attributes and signals.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/search",
+    params(
+        SearchParams
+    ),
+    responses(
+        (status = 200, description = "Registry search results", body = SearchResponse)
+    ),
+    tag = "registry"
+)]
+pub async fn search_registry(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<SearchParams>,
+) -> impl IntoResponse {
+    // Convert Option<String> to Option<&str> for search
+    let query = params.q.as_deref();
+
+    let (results, total) = state.search_ctx.search(
+        query,
+        params.search_type,
+        params.stability,
+        params.hide_deprecated,
+        params.limit,
+        params.offset,
+    );
+
+    let response = SearchResponse {
+        query: params.q,
+        total,
+        count: results.len(),
+        offset: params.offset,
+        results,
+    };
+
+    Json(response).into_response()
+}
+
+/// Runs a JQ filter against a registry.
+#[utoipa::path(
+    get,
+    path = "/api/v1/registry/filter",
+    params(
+        FilterParams
+    ),
+    responses(
+        (status = 200, description = "Registry filter results", body = serde_json::Value)
+    ),
+    tag = "registry"
+)]
+pub async fn filter_registry(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<FilterParams>,
+) -> impl IntoResponse {
+    // TODO - Should filter be required?
+    let filter = params.filter.as_deref().unwrap_or(".");
+    match run_filter_raw(&state.registry, filter) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => {
+            fn extract_details(
+                err: &weaver_forge::error::Error,
+            ) -> Vec<weaver_forge::error::FilterErrorDetail> {
+                let mut res = Vec::new();
+                match err {
+                    weaver_forge::error::Error::FilterError { details, .. } => {
+                        res.extend(details.clone());
+                    }
+                    weaver_forge::error::Error::CompoundError(errs) => {
+                        for sub in errs {
+                            res.extend(extract_details(sub));
+                        }
+                    }
+                    _ => {}
+                }
+                res
+            }
+
+            let mut result = json!({"error": format!("{e}")});
+            let details = extract_details(&e);
+
+            if !details.is_empty() {
+                result["details"] = serde_json::to_value(details).unwrap_or_default();
+            }
+
+            (StatusCode::BAD_REQUEST, Json(result)).into_response()
+        }
+    }
+}

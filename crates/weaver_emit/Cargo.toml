@@ -14,17 +14,16 @@ weaver_semconv = { path = "../weaver_semconv" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_forge = { path = "../weaver_forge" }
 opentelemetry.workspace = true
-opentelemetry_sdk = { version = "0.30.0", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.30.0", features = ["grpc-tonic"] }
-opentelemetry-stdout = { version = "0.30.0", features = ["trace"] }
-tokio = { version = "1.46.1", features = ["full"] }
-ordered-float.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+opentelemetry-stdout.workspace = true
+tokio.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 miette.workspace = true
 
 [dev-dependencies]
-futures-util = { version = "0.3", default-features = false }
+futures-util = { version = "0.3.32", default-features = false }
 
 [lints]
 workspace = true

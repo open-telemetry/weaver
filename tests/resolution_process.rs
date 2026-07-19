@@ -5,11 +5,8 @@
 use miette::Diagnostic;
 
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_resolver::attribute::AttributeCatalog;
-use weaver_resolver::registry::resolve_semconv_registry;
-use weaver_resolver::SchemaResolver;
-use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
+use weaver_semconv::{registry_repo::RegistryRepo, schema_url::SchemaUrl};
 
 /// The URL of the official semantic convention registry.
 const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
@@ -34,35 +31,31 @@ fn test_cli_interface() {
     let registry_path = VirtualDirectoryPath::GitRepo {
         url: SEMCONV_REGISTRY_URL.to_owned(),
         sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
-        refspec: None,
+        refspec: Some(String::from("main")),
     };
-    let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
-        panic!("Failed to create the registry repo, error: {e}");
-    });
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, true, false)
+
+    let schema_url: Option<SchemaUrl> = Some(
+        "https://opentelemetry.io/schemas/1.40.0"
+            .try_into()
+            .unwrap(),
+    );
+    let registry_repo = RegistryRepo::try_new(schema_url, &registry_path, &mut vec![])
+        .unwrap_or_else(|e| {
+            panic!("Failed to create the registry repo, error: {e}");
+        });
+    let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+    let resolved = resolver
+        .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| {
-            panic!("Failed to load the semantic convention specs, error: {e}");
-        });
-    let semconv_specs = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
-
-    // Check if the logger has reported any warnings or errors.
-    assert_eq!(log.warn_count(), 0);
-    assert_eq!(log.error_count(), 0);
-
-    // Resolve the official semantic convention registry.
-    let mut attr_catalog = AttributeCatalog::default();
-    let resolved_registry = resolve_semconv_registry(
-        &mut attr_catalog,
-        SEMCONV_REGISTRY_URL,
-        &semconv_specs,
-        false,
-    )
-    .into_result_failing_non_fatal()
-    .unwrap_or_else(|e| {
-        panic!("Failed to resolve the official semantic convention registry, error: {e}");
-    });
+            panic!(
+                "Failed to load and resolve the official semantic convention registry, error: {e}"
+            );
+        })
+        .into_v1()
+        .unwrap();
+    let resolved_registry = &resolved.registry;
 
     // The number of semconv groups is fluctuating, so we can't check for a
     // specific number, but we can check if there are any groups at all.

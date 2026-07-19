@@ -17,26 +17,35 @@ serde.workspace = true
 serde_json.workspace = true
 miette.workspace = true
 thiserror.workspace = true
-rouille.workspace = true
 regex.workspace = true
 once_cell.workspace = true
 schemars.workspace = true
 ureq.workspace = true
 log.workspace = true
+url.workspace = true
 
-tempdir = "0.3.7"
-dirs = "6.0.0"
-gix = { version = "0.70.0", default-features = false, features = [
+tempfile.workspace = true
+dirs.workspace = true
+gix = { version = "0.85.0", default-features = false, features = [
     "comfort",
-    "blocking-http-transport-reqwest",
+    "blocking-http-transport-reqwest-native-tls",
     "max-performance-safe",
     "worktree-mutation",
-    "blocking-http-transport-reqwest-rust-tls",
+    "sha1",
 ] }
-flate2 = "1.1.2"
+flate2 = "1.1.4"
 tar = "0.4.43"
-zip = "4.3.0"
+zip.workspace = true
+
+# Use vendored OpenSSL on non-Windows platforms to avoid system OpenSSL deps
+# This enables the "vendored" feature for the openssl crate when building on
+# non-Windows targets.
+[target.'cfg(not(windows))'.dependencies]
+openssl.workspace = true
 
 [dev-dependencies]
+axum.workspace = true
+tokio.workspace = true
+tower-http = { version = "0.6", features = ["fs"] }
 ureq.workspace = true
 walkdir.workspace = true

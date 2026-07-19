@@ -7,12 +7,21 @@ use std::path::PathBuf;
 use clap::Args;
 
 use log::info;
-use weaver_common::diagnostic::DiagnosticMessages;
+use miette::Diagnostic;
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_forge::{OutputProcessor, OutputTarget};
 
-use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
+
+#[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
+enum Error {
+    #[error("The 'weaver registry resolve' command is deprecated and will be removed in a future version. Please use 'weaver registry generate' or 'weaver registry package' instead.")]
+    Deprecated,
+}
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
@@ -32,12 +41,11 @@ pub struct RegistryResolveArgs {
     output: Option<PathBuf>,
 
     /// Output format for the resolved schema
-    /// If not specified, the resolved schema is printed in YAML format
-    /// Supported formats: yaml, json
+    /// Supported formats: yaml, json, jsonl, mute
     /// Default format: yaml
     /// Example: `--format json`
     #[arg(short, long, default_value = "yaml")]
-    format: Format,
+    format: String,
 
     /// Policy parameters
     #[command(flatten)]
@@ -50,29 +58,46 @@ pub struct RegistryResolveArgs {
 
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
-pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, DiagnosticMessages> {
-    info!("Resolving registry `{}`", args.registry.registry);
+pub(crate) fn command(
+    args: &RegistryResolveArgs,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    // Display deprecation warning
+    if is_future_mode_enabled() {
+        return Err(DiagnosticMessages::from_error(Error::Deprecated));
+    }
 
+    log::warn!("The 'weaver registry resolve' command is deprecated and will be removed in a future version.");
+    log::warn!("Please use 'weaver registry generate' or 'weaver registry package' instead.");
+
+    let mut registry = EffectiveRegistryConfig::default();
+    if let Some(wc) = cfg {
+        registry.layer_config(&wc.registry);
+    }
+    args.registry.apply_to(&mut registry);
+
+    let mut policy = EffectivePolicyConfig::default();
+    if let Some(wc) = cfg {
+        policy.layer_config(&wc.policy);
+    }
+    args.policy.apply_to(&mut policy);
+
+    info!("Resolving registry `{}`", registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
-    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
+    let weaver = WeaverEngine::new(&registry, &policy, auth);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
-    apply_format(&args.format, &registry)
-        .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
-        .and_then(|s| {
-            if let Some(ref path) = args.output {
-                // Write the resolved registry to a file.
-                std::fs::write(path, s)
-                    .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
-            } else {
-                // Print the resolved registry to stdout.
-                println!("{s}");
-                Ok(())
-            }
-        })
-        .unwrap_or_else(|e| {
-            // Capture all the errors
-            panic!("{}", e);
-        });
+    let target = OutputTarget::from_optional_file(args.output.as_ref());
+    let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
+        .map_err(DiagnosticMessages::from)?;
+
+    resolved.check_after_resolution_policy(&mut diag_msgs)?;
+    match &resolved {
+        crate::weaver::Resolved::V1(v) => output.generate(v.template_schema()),
+        crate::weaver::Resolved::V2(v) => output.generate(v.template_schema()),
+    }
+    .map_err(DiagnosticMessages::from)?;
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -87,7 +112,6 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 #[cfg(test)]
 mod tests {
     use crate::cli::{Cli, Commands};
-    use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
     use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
@@ -99,22 +123,22 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
                     lineage: true,
                     output: None,
-                    format: Format::Yaml,
+                    format: "yaml".to_owned(),
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
                 }),
@@ -130,22 +154,21 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
                     lineage: true,
                     output: None,
-                    format: Format::Json,
+                    format: "json".to_owned(),
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: false,
-                        display_policy_coverage: false,
+                        ..Default::default()
                     },
                     diagnostic: Default::default(),
                 }),

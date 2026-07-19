@@ -1,5 +1,5 @@
 {% import "live_check_macros.j2" as macros %}
-{% if ctx.attributes is defined %}
+{% if ctx.samples is defined %}
 {# This is a LiveCheckReport object #}
 {% for sample in ctx.samples %}
 {{ macros.display_sample(sample) }}

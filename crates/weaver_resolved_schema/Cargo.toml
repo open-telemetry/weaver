@@ -12,13 +12,18 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+weaver_common = { path = "../weaver_common" }
 weaver_version = { path = "../weaver_version" }
 weaver_semconv = { path = "../weaver_semconv" }
 
 thiserror.workspace = true
 serde.workspace = true
-ordered-float.workspace = true
 schemars.workspace = true
+log.workspace = true
+utoipa = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
+
+[features]
+openapi = ["utoipa", "weaver_semconv/openapi"]

@@ -310,7 +310,7 @@ pub mod span {
 }
 /// The Status type defines a logical error model that is suitable for different
 /// programming environments, including REST APIs and RPC APIs.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Status {
     /// A developer-facing human readable error message.
     #[prost(string, tag = "2")]

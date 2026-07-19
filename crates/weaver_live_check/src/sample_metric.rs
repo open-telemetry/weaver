@@ -7,13 +7,17 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use weaver_checker::violation::{Advice, AdviceLevel};
-use weaver_forge::registry::ResolvedGroup;
+use weaver_checker::FindingLevel;
+use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef, MISSING_METRIC_ADVICE_TYPE,
+    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
+    Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    SampleRef, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -71,14 +75,15 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -130,14 +135,15 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -204,14 +210,15 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -248,12 +255,17 @@ impl LiveCheckRunner for SampleExemplar {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
-        self.filtered_attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        self.filtered_attributes.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            parent_signal,
+        )?;
         Ok(())
     }
 }
@@ -278,6 +290,9 @@ pub struct SampleMetric {
     pub data_points: Option<DataPoints>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Reference to the parent resource (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
 }
 
 impl LiveCheckRunner for SampleMetric {
@@ -285,34 +300,97 @@ impl LiveCheckRunner for SampleMetric {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<ResolvedGroup>>,
+        _parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the metric in the registry
         let semconv_metric = live_checker.find_metric(&self.name);
         if semconv_metric.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_METRIC_ADVICE_TYPE.to_owned(),
-                value: Value::String(self.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
-                advice_level: AdviceLevel::Violation,
-            });
+            let finding = FindingBuilder::new(FindingId::MissingMetric)
+                .message("Metric does not exist in the registry.")
+                .level(FindingLevel::Violation)
+                .signal(parent_signal)
+                .build_and_emit(
+                    &SampleRef::Metric(self),
+                    live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    parent_signal,
+                );
+
+            let sample_ref = SampleRef::Metric(self);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
         };
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::Metric(self), None, semconv_metric.clone())?;
-            result.add_advice_list(advice_list);
+            let sample_ref = SampleRef::Metric(self);
+            let advice_list = advisor.advise(
+                sample_ref.clone(),
+                parent_signal,
+                None,
+                semconv_metric.clone(),
+                live_checker.otlp_emitter.clone(),
+            )?;
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
         }
+        // Check entity attribute requirements against the resource (empty slice if no resource)
+        let resource_attributes: &[SampleAttribute] = parent_signal
+            .resource()
+            .map(|r| r.attributes.as_slice())
+            .unwrap_or(&[]);
+        let entity_associations: &[EntityAssociation] = match semconv_metric.as_deref() {
+            Some(VersionedSignal::Group(g)) => &g.entity_associations,
+            Some(VersionedSignal::Metric(m)) => &m.entity_associations,
+            _ => &[],
+        };
+        let findings = check_entity_associations(
+            entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        );
+        if !findings.is_empty() {
+            let sample_ref = SampleRef::Metric(self);
+            emit_findings(
+                &findings,
+                &sample_ref,
+                live_checker.otlp_emitter.as_deref(),
+                parent_signal,
+            );
+            result.add_advice_list(
+                findings,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
+        }
+
         // Get advice for the data points
         match &mut self.data_points {
             Some(DataPoints::Number(points)) => {
-                points.run_live_check(live_checker, stats, semconv_metric.clone())?;
+                points.run_live_check(
+                    live_checker,
+                    stats,
+                    semconv_metric.clone(),
+                    parent_signal,
+                )?;
             }
             Some(DataPoints::Histogram(points)) => {
-                points.run_live_check(live_checker, stats, semconv_metric.clone())?;
+                points.run_live_check(
+                    live_checker,
+                    stats,
+                    semconv_metric.clone(),
+                    parent_signal,
+                )?;
             }
             Some(DataPoints::ExponentialHistogram(points)) => {
-                points.run_live_check(live_checker, stats, semconv_metric.clone())?;
+                points.run_live_check(
+                    live_checker,
+                    stats,
+                    semconv_metric.clone(),
+                    parent_signal,
+                )?;
             }
             _ => (),
         }

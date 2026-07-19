@@ -2,11 +2,13 @@
 
 //! This crate provides the weaver_live_check library
 
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
+use finding_modifier::FindingModifier;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_log::SampleLog;
 use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
     SampleNumberDataPoint,
@@ -15,43 +17,225 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
-use weaver_semconv::group::GroupType;
+use weaver_forge::{
+    registry::{ResolvedGroup, ResolvedRegistry},
+    v2::registry::ForgeResolvedRegistry,
+};
+use weaver_semconv::{
+    attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
+};
 
 /// Advisors for live checks
 pub mod advice;
+/// Finding modifier engine (overrides and filters).
+pub mod finding_modifier;
+/// Generated types, constants, and log record builders for live check findings
+pub mod generated;
+pub use generated::attributes::{FindingId, SampleType, SignalType};
 /// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
 /// An ingester that reads samples from standard input.
 pub mod json_stdin_ingester;
 /// Live checker
 pub mod live_checker;
+/// OTLP logger for emitting policy findings as log records
+pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// The intermediary format for logs
+pub mod sample_log;
 /// The intermediary format for metrics
 pub mod sample_metric;
 /// An intermediary format for resources
 pub mod sample_resource;
 /// The intermediary format for spans
 pub mod sample_span;
+/// Statistics tracking for live check reports
+mod stats;
 /// An ingester that reads attribute names from a text file.
 pub mod text_file_ingester;
 /// An ingester that reads attribute names from standard input.
 pub mod text_stdin_ingester;
 
-/// Missing Attribute advice type
-pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
-/// Template Attribute advice type
-pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
-/// Missing Metric advice type
-pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
+// Re-export statistics types from stats module
+pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
+
+/// Attribute key in advice context
+pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
+/// Attribute value key in advice context
+pub const ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: &str = "attribute_value";
+///Attribute type key in advice context
+pub const ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: &str = "attribute_type";
+/// Deprecation reason key in advice context
+pub const DEPRECATION_REASON_ADVICE_CONTEXT_KEY: &str = "deprecation_reason";
+/// Deprecation note key in advice context
+pub const DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: &str = "deprecation_note";
+/// Stability key in advice context
+pub const STABILITY_ADVICE_CONTEXT_KEY: &str = "stability";
+/// Unit key in advice context
+pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
+/// Instrument key in advice context
+pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
+/// Expected value key in advice context
+pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
+/// Event name key in advice context
+pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
+/// Metric name key in advice context
+pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
+/// Entity type key in advice context
+pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
+
+/// Embedded default live check rego policies
+pub const DEFAULT_LIVE_CHECK_REGO: &str =
+    include_str!("../../../defaults/policies/live_check_advice/otel.rego");
+
+/// Default live check rego policy path - used in error messages
+pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
+    "defaults/policies/live_check_advice/otel.rego";
+
+/// Embedded default live check jq preprocessor
+pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
+
+/// Versioned enum for the registry
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum VersionedRegistry {
+    /// v1 ResolvedRegistry
+    V1(Box<ResolvedRegistry>),
+    /// v2 ForgeResolvedRegistry
+    V2(Box<ForgeResolvedRegistry>),
+}
+
+/// Versioned enum for the attribute
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum VersionedAttribute {
+    /// v1 Attribute
+    V1(weaver_resolved_schema::attribute::Attribute),
+    /// v2 Attribute
+    V2(weaver_forge::v2::attribute::Attribute),
+}
+
+impl VersionedAttribute {
+    /// Get the name/key of the attribute
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            VersionedAttribute::V1(attr) => &attr.name,
+            VersionedAttribute::V2(attr) => &attr.key,
+        }
+    }
+
+    /// Get the type of the attribute
+    #[must_use]
+    pub fn r#type(&self) -> &AttributeType {
+        match self {
+            VersionedAttribute::V1(attr) => &attr.r#type,
+            VersionedAttribute::V2(attr) => &attr.r#type,
+        }
+    }
+
+    /// Get the deprecated field of the attribute
+    #[must_use]
+    pub fn deprecated(&self) -> &Option<Deprecated> {
+        match self {
+            VersionedAttribute::V1(attr) => &attr.deprecated,
+            VersionedAttribute::V2(attr) => &attr.common.deprecated,
+        }
+    }
+
+    /// Get the stability field of the attribute
+    #[must_use]
+    pub fn stability(&self) -> Option<&Stability> {
+        match self {
+            VersionedAttribute::V1(attr) => attr.stability.as_ref(),
+            VersionedAttribute::V2(attr) => Some(&attr.common.stability),
+        }
+    }
+}
+
+/// Versioned enum for the signal
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum VersionedSignal {
+    /// v1 ResolvedGroup
+    Group(Box<ResolvedGroup>),
+    /// v2 Signal Metric
+    Metric(weaver_forge::v2::metric::Metric),
+    /// v2 Signal Span
+    Span(weaver_forge::v2::span::Span),
+    /// v2 Signal Event
+    Event(weaver_forge::v2::event::Event),
+}
+
+impl VersionedSignal {
+    /// Get the deprecated field of the signal
+    #[must_use]
+    pub fn deprecated(&self) -> &Option<Deprecated> {
+        match self {
+            VersionedSignal::Group(group) => &group.as_ref().deprecated,
+            VersionedSignal::Metric(metric) => &metric.common.deprecated,
+            VersionedSignal::Span(span) => &span.common.deprecated,
+            VersionedSignal::Event(event) => &event.common.deprecated,
+        }
+    }
+
+    /// Get the stability field of the signal
+    #[must_use]
+    pub fn stability(&self) -> Option<&Stability> {
+        match self {
+            VersionedSignal::Group(group) => group.as_ref().stability.as_ref(),
+            VersionedSignal::Metric(metric) => Some(&metric.common.stability),
+            VersionedSignal::Span(span) => Some(&span.common.stability),
+            VersionedSignal::Event(event) => Some(&event.common.stability),
+        }
+    }
+
+    /// Get the instrument field of the signal, if applicable
+    #[must_use]
+    pub fn instrument(&self) -> Option<&InstrumentSpec> {
+        match self {
+            VersionedSignal::Group(group) => group.as_ref().instrument.as_ref(),
+            VersionedSignal::Metric(metric) => Some(&metric.instrument),
+            VersionedSignal::Span(_) => None,
+            VersionedSignal::Event(_) => None,
+        }
+    }
+
+    /// Get the unit field of the signal, if applicable
+    #[must_use]
+    pub fn unit(&self) -> Option<&String> {
+        match self {
+            VersionedSignal::Group(group) => group.as_ref().unit.as_ref(),
+            VersionedSignal::Metric(metric) => Some(&metric.unit),
+            VersionedSignal::Span(_) => None,
+            VersionedSignal::Event(_) => None,
+        }
+    }
+}
+
+/// Versioned enum for an entity definition
+#[derive(Debug, Clone, PartialEq)]
+pub enum VersionedEntity {
+    /// v1 entity — a ResolvedGroup with GroupType::Entity
+    V1(Box<ResolvedGroup>),
+    /// v2 entity
+    V2(Box<weaver_forge::v2::entity::Entity>),
+}
 
 /// Weaver live check errors
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// Configuration error.
+    #[error("Configuration error. {error}")]
+    ConfigError {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// Generic ingest error.
     #[error("Fatal error during ingest. {error}")]
     IngestError {
@@ -90,8 +274,7 @@ pub trait Ingester {
     fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error>;
 }
 
-/// Represents a sample root entity. A root entity has no contextual
-/// dependency on a parent entity and can therefore be ingested independently.
+/// Live-check Sample root items.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Sample {
@@ -107,6 +290,8 @@ pub enum Sample {
     Resource(SampleResource),
     /// A sample metric
     Metric(SampleMetric),
+    /// A sample log
+    Log(SampleLog),
 }
 
 /// Represents a sample entity with a reference to the inner type.
@@ -134,6 +319,90 @@ pub enum SampleRef<'a> {
     ExponentialHistogramDataPoint(&'a SampleExponentialHistogramDataPoint),
     /// A sample exemplar
     Exemplar(&'a SampleExemplar),
+    /// A sample log
+    Log(&'a SampleLog),
+}
+
+impl SampleRef<'_> {
+    /// Returns the sample name, if available for this sample type.
+    ///
+    /// For attributes this is the attribute key, for spans/metrics/events
+    /// it is the signal name. Sub-signal types (data points, exemplars,
+    /// span links, resources) do not carry a name.
+    #[must_use]
+    pub fn sample_name(&self) -> Option<&str> {
+        match self {
+            SampleRef::Attribute(attr) => Some(&attr.name),
+            SampleRef::Span(span) => Some(&span.name),
+            SampleRef::SpanEvent(event) => Some(&event.name),
+            SampleRef::Metric(metric) => Some(&metric.name),
+            SampleRef::Log(log) => Some(&log.event_name),
+            _ => None,
+        }
+    }
+
+    /// Returns the sample type.
+    #[must_use]
+    pub fn sample_type(&self) -> SampleType {
+        match self {
+            SampleRef::Attribute(_) => SampleType::Attribute,
+            SampleRef::Span(_) => SampleType::Span,
+            SampleRef::SpanEvent(_) => SampleType::SpanEvent,
+            SampleRef::SpanLink(_) => SampleType::SpanLink,
+            SampleRef::Resource(_) => SampleType::Resource,
+            SampleRef::Metric(_) => SampleType::Metric,
+            SampleRef::NumberDataPoint(_) => SampleType::NumberDataPoint,
+            SampleRef::HistogramDataPoint(_) => SampleType::HistogramDataPoint,
+            SampleRef::ExponentialHistogramDataPoint(_) => {
+                SampleType::ExponentialHistogramDataPoint
+            }
+            SampleRef::Exemplar(_) => SampleType::Exemplar,
+            SampleRef::Log(_) => SampleType::Log,
+        }
+    }
+}
+
+impl Sample {
+    /// Returns the signal type or None if sample
+    /// does not capture a whole signal.
+    #[must_use]
+    pub fn signal_type(&self) -> Option<String> {
+        match self {
+            Sample::Attribute(_) => None, // not a signal
+            Sample::Span(_) => Some(SignalType::Span.to_string()),
+            Sample::SpanEvent(_) => None,
+            Sample::SpanLink(_) => None,
+            Sample::Resource(_) => Some(SignalType::Resource.to_string()),
+            Sample::Metric(_) => Some(SignalType::Metric.to_string()),
+            Sample::Log(_) => Some(SignalType::Log.to_string()),
+        }
+    }
+
+    /// Returns a reference to the parent resource, if available.
+    #[must_use]
+    pub fn resource(&self) -> Option<&SampleResource> {
+        match self {
+            Sample::Span(s) => s.resource.as_deref(),
+            Sample::Metric(m) => m.resource.as_deref(),
+            Sample::Log(l) => l.resource.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Returns the signal name as a string or None if sample
+    /// does not capture a whole signal.
+    #[must_use]
+    pub fn signal_name(&self) -> Option<String> {
+        match self {
+            Sample::Attribute(_) => None,                  // not a signal
+            Sample::Span(span) => Some(span.name.clone()), // TODO: update to type once added
+            Sample::SpanEvent(_) => None,
+            Sample::SpanLink(_) => None,
+            Sample::Resource(_) => None,
+            Sample::Metric(metric) => Some(metric.name.clone()),
+            Sample::Log(log) => Some(log.event_name.clone()),
+        }
+    }
 }
 
 // Dispatch the live check to the sample type
@@ -142,23 +411,31 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group)
+                attribute.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Span(span) => span.run_live_check(live_checker, stats, parent_group),
+            Sample::Span(span) => {
+                span.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group)
+                span_event.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group)
+                span_link.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group)
+                resource.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
-            Sample::Metric(metric) => metric.run_live_check(live_checker, stats, parent_group),
+            Sample::Metric(metric) => {
+                metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
+            Sample::Log(log) => {
+                log.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
         }
     }
 }
@@ -167,9 +444,9 @@ impl LiveCheckRunner for Sample {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct LiveCheckResult {
     /// Advice on the entity
-    pub all_advice: Vec<Advice>,
+    pub all_advice: Vec<PolicyFinding>,
     /// The highest advice level
-    pub highest_advice_level: Option<AdviceLevel>,
+    pub highest_advice_level: Option<FindingLevel>,
 }
 
 impl LiveCheckResult {
@@ -182,23 +459,47 @@ impl LiveCheckResult {
         }
     }
 
-    /// Add an advice to the result and update the highest advice level
-    pub fn add_advice(&mut self, advice: Advice) {
-        let advice_level = advice.advice_level.clone();
-        if let Some(previous_highest) = &self.highest_advice_level {
-            if previous_highest < &advice_level {
-                self.highest_advice_level = Some(advice_level);
+    /// Add an advice to the result and update the highest advice level.
+    ///
+    /// When a `FindingModifier` is provided, the finding may be dropped
+    /// (filter exclusion) before being stored.
+    ///
+    /// `sample` is the sample that produced this finding, used by
+    /// `exclude_samples` filters to inspect and match on it.
+    pub fn add_advice(
+        &mut self,
+        advice: PolicyFinding,
+        modifier: Option<&FindingModifier>,
+        sample: &SampleRef<'_>,
+    ) {
+        let advice = if let Some(modifier) = modifier {
+            match modifier.apply(advice, sample) {
+                Some(kept) => kept,
+                None => return, // Excluded by filter
             }
         } else {
-            self.highest_advice_level = Some(advice_level);
-        }
+            advice
+        };
+        let level = advice.level;
+        self.highest_advice_level = Some(
+            self.highest_advice_level
+                .map_or(level, |prev| prev.max(level)),
+        );
         self.all_advice.push(advice);
     }
 
-    /// Add a list of advice to the result and update the highest advice level
-    pub fn add_advice_list(&mut self, advice: Vec<Advice>) {
+    /// Add a list of advice to the result and update the highest advice level.
+    ///
+    /// When a `FindingModifier` is provided, each finding may be dropped
+    /// (filter exclusion) before being stored.
+    pub fn add_advice_list(
+        &mut self,
+        advice: Vec<PolicyFinding>,
+        modifier: Option<&FindingModifier>,
+        sample: &SampleRef<'_>,
+    ) {
         for advice in advice {
-            self.add_advice(advice);
+            self.add_advice(advice, modifier, sample);
         }
     }
 }
@@ -218,190 +519,6 @@ pub struct LiveCheckReport {
     pub statistics: LiveCheckStatistics,
 }
 
-/// The statistics for a live check report
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LiveCheckStatistics {
-    /// The total number of sample entities
-    pub total_entities: usize,
-    /// The total number of sample entities by type
-    pub total_entities_by_type: HashMap<String, usize>,
-    /// The total number of advisories
-    pub total_advisories: usize,
-    /// The number of each advice level
-    pub advice_level_counts: HashMap<AdviceLevel, usize>,
-    /// The number of entities with each highest advice level
-    pub highest_advice_level_counts: HashMap<AdviceLevel, usize>,
-    /// The number of entities with no advice
-    pub no_advice_count: usize,
-    /// The number of entities with each advice type
-    pub advice_type_counts: HashMap<String, usize>,
-    /// The number of each attribute seen from the registry
-    pub seen_registry_attributes: HashMap<String, usize>,
-    /// The number of each non-registry attribute seen
-    pub seen_non_registry_attributes: HashMap<String, usize>,
-    /// The number of each metric seen from the registry
-    pub seen_registry_metrics: HashMap<String, usize>,
-    /// The number of each non-registry metric seen
-    pub seen_non_registry_metrics: HashMap<String, usize>,
-    /// Fraction of the registry covered by the attributes and metrics
-    pub registry_coverage: f32,
-}
-
-impl LiveCheckStatistics {
-    /// Create a new empty LiveCheckStatistics
-    #[must_use]
-    pub fn new(registry: &ResolvedRegistry) -> Self {
-        let mut seen_attributes = HashMap::new();
-        let mut seen_metrics = HashMap::new();
-        for group in &registry.groups {
-            for attribute in &group.attributes {
-                if attribute.deprecated.is_none() {
-                    let _ = seen_attributes.insert(attribute.name.clone(), 0);
-                }
-            }
-            if group.r#type == GroupType::Metric && group.deprecated.is_none() {
-                if let Some(metric_name) = &group.metric_name {
-                    let _ = seen_metrics.insert(metric_name.clone(), 0);
-                }
-            }
-        }
-        LiveCheckStatistics {
-            total_entities: 0,
-            total_entities_by_type: HashMap::new(),
-            total_advisories: 0,
-            advice_level_counts: HashMap::new(),
-            highest_advice_level_counts: HashMap::new(),
-            no_advice_count: 0,
-            advice_type_counts: HashMap::new(),
-            seen_registry_attributes: seen_attributes,
-            seen_non_registry_attributes: HashMap::new(),
-            seen_registry_metrics: seen_metrics,
-            seen_non_registry_metrics: HashMap::new(),
-            registry_coverage: 0.0,
-        }
-    }
-
-    /// Add a live check result to the stats
-    pub fn maybe_add_live_check_result(&mut self, live_check_result: Option<&LiveCheckResult>) {
-        if let Some(result) = live_check_result {
-            for advice in &result.all_advice {
-                // Count of total advisories
-                self.add_advice(advice);
-            }
-            // Count of samples with the highest advice level
-            if let Some(highest_advice_level) = &result.highest_advice_level {
-                self.add_highest_advice_level(highest_advice_level);
-            }
-
-            // Count of samples with no advice
-            if result.all_advice.is_empty() {
-                self.inc_no_advice_count();
-            }
-        } else {
-            // Count of samples with no advice
-            self.inc_no_advice_count();
-        }
-    }
-
-    /// Increment the total number of entities by type
-    pub fn inc_entity_count(&mut self, entity_type: &str) {
-        *self
-            .total_entities_by_type
-            .entry(entity_type.to_owned())
-            .or_insert(0) += 1;
-        self.total_entities += 1;
-    }
-
-    /// Add an advice to the statistics
-    fn add_advice(&mut self, advice: &Advice) {
-        *self
-            .advice_level_counts
-            .entry(advice.advice_level.clone())
-            .or_insert(0) += 1;
-        *self
-            .advice_type_counts
-            .entry(advice.advice_type.clone())
-            .or_insert(0) += 1;
-        self.total_advisories += 1;
-    }
-
-    /// Add a highest advice level to the statistics
-    fn add_highest_advice_level(&mut self, advice: &AdviceLevel) {
-        *self
-            .highest_advice_level_counts
-            .entry(advice.clone())
-            .or_insert(0) += 1;
-    }
-
-    /// Increment the no advice count in the statistics
-    fn inc_no_advice_count(&mut self) {
-        self.no_advice_count += 1;
-    }
-
-    /// Add attribute name to coverage
-    pub fn add_attribute_name_to_coverage(&mut self, seen_attribute_name: String) {
-        if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
-            // This is a registry attribute
-            *count += 1;
-        } else {
-            // This is a non-registry attribute
-            *self
-                .seen_non_registry_attributes
-                .entry(seen_attribute_name)
-                .or_insert(0) += 1;
-        }
-    }
-
-    /// Add metric name to coverage
-    pub fn add_metric_name_to_coverage(&mut self, seen_metric_name: String) {
-        if let Some(count) = self.seen_registry_metrics.get_mut(&seen_metric_name) {
-            // This is a registry metric
-            *count += 1;
-        } else {
-            // This is a non-registry metric
-            *self
-                .seen_non_registry_metrics
-                .entry(seen_metric_name)
-                .or_insert(0) += 1;
-        }
-    }
-
-    /// Are there any violations in the statistics?
-    #[must_use]
-    pub fn has_violations(&self) -> bool {
-        self.highest_advice_level_counts
-            .contains_key(&AdviceLevel::Violation)
-    }
-
-    /// Finalize the statistics
-    pub fn finalize(&mut self) {
-        // Calculate the registry coverage
-        // (non-zero attributes + non-zero metrics) / (total attributes + total metrics)
-        let non_zero_attributes = self
-            .seen_registry_attributes
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_attributes = self.seen_registry_attributes.len();
-
-        let non_zero_metrics = self
-            .seen_registry_metrics
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_metrics = self.seen_registry_metrics.len();
-
-        let total_registry_items = total_registry_attributes + total_registry_metrics;
-
-        if total_registry_items > 0 {
-            self.registry_coverage =
-                ((non_zero_attributes + non_zero_metrics) as f32) / (total_registry_items as f32);
-        } else {
-            self.registry_coverage = 0.0;
-        }
-    }
-}
-
 /// Samples implement this trait to run live checks on themselves
 pub trait LiveCheckRunner {
     /// Run the live check
@@ -409,7 +526,8 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
 
@@ -419,10 +537,11 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone())?;
+            item.run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         }
         Ok(())
     }
@@ -441,13 +560,24 @@ pub trait Advisable {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
 
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group.clone())?;
-            result.add_advice_list(advice_list);
+            let advice_list = advisor.advise(
+                self.as_sample_ref(),
+                parent_signal,
+                None,
+                parent_group.clone(),
+                live_checker.otlp_emitter.clone(),
+            )?;
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &self.as_sample_ref(),
+            );
         }
 
         stats.inc_entity_count(self.entity_type());

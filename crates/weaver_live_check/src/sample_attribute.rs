@@ -7,13 +7,13 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_checker::violation::{Advice, AdviceLevel};
-use weaver_forge::registry::ResolvedGroup;
+use weaver_checker::FindingLevel;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
-    SampleRef, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,
+    LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -154,8 +154,12 @@ impl SampleAttribute {
         if let Some(result) = &mut self.live_check_result {
             for advice in &mut result.all_advice {
                 // If the advice is a template, adjust the name
-                if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
-                    if let Some(template_name) = advice.value.as_str() {
+                if advice.id.parse::<FindingId>() == Ok(FindingId::TemplateAttribute) {
+                    if let Some(template_name) = advice
+                        .context
+                        .as_ref()
+                        .and_then(|c| c["template_name"].as_str())
+                    {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }
@@ -170,7 +174,8 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
@@ -181,33 +186,59 @@ impl LiveCheckRunner for SampleAttribute {
                 live_checker.find_template(&self.name)
             }
         };
-
         if semconv_attribute.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: Value::String(self.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
-                advice_level: AdviceLevel::Violation,
-            });
+            let sample_ref = SampleRef::Attribute(self);
+            let finding = FindingBuilder::new(FindingId::MissingAttribute)
+                .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: self.name.clone() }))
+                .message(format!(
+                    "Attribute '{}' does not exist in the registry.",
+                    self.name
+                ))
+                .level(FindingLevel::Violation)
+                .signal(parent_signal)
+                .build_and_emit(
+                    &sample_ref,
+                    live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    parent_signal,
+                );
+
+            result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type {
-                    result.add_advice(Advice {
-                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: Value::String(attribute.name.clone()),
-                        message: "Is a template".to_owned(),
-                        advice_level: AdviceLevel::Information,
-                    });
+                if let AttributeType::Template(_) = attribute.r#type() {
+                    let sample_ref = SampleRef::Attribute(self);
+                    let finding = FindingBuilder::new(FindingId::TemplateAttribute)
+                        .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))
+                        .message(format!("Attribute '{}' is a template", self.name))
+                        .level(FindingLevel::Information)
+                        .signal(parent_signal)
+                        .build_and_emit(
+                            &sample_ref,
+                            live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                            parent_signal,
+                        );
+
+                    result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
                 }
             }
         }
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.clone(), None)?;
-            result.add_advice_list(advice_list);
+            let sample_ref = SampleRef::Attribute(self);
+            let advice_list = advisor.advise(
+                sample_ref.clone(),
+                parent_signal,
+                semconv_attribute.clone(),
+                parent_group.clone(),
+                live_checker.otlp_emitter.clone(),
+            )?;
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
         }
         self.live_check_result = Some(result);
         self.update_stats(stats);

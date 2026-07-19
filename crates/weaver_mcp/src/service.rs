@@ -1,0 +1,1643 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! MCP service implementation using rmcp SDK.
+//!
+//! This module provides the `WeaverMcpService` which implements all tools
+//! for querying, debugging and validating against the semantic convention registry.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::{ServerCapabilities, ServerInfo};
+use rmcp::{tool, tool_handler, tool_router, ServerHandler};
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde_json::json;
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_live_check::advice::{
+    Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
+};
+use weaver_live_check::live_checker::LiveChecker;
+use weaver_live_check::{
+    DisabledStatistics, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    VersionedRegistry,
+};
+use weaver_search::{SearchContext, SearchType};
+use weaver_semconv::stability::Stability;
+
+use crate::McpConfig;
+
+/// MCP service for the semantic convention registry.
+///
+/// This service exposes tools for querying, debugging and validating against the registry:
+/// - `search` - Search across all registry items
+/// - `get_attribute` - Get a specific attribute by key
+/// - `get_metric` - Get a specific metric by name
+/// - `get_span` - Get a specific span by type
+/// - `get_event` - Get a specific event by name
+/// - `get_entity` - Get a specific entity by type
+/// - `live_check` - Validate telemetry samples against the registry
+/// - `browse_namespace` - Browse attribute namespace hierarchy
+#[derive(Clone)]
+pub struct WeaverMcpService {
+    search_context: Arc<SearchContext>,
+    /// Versioned registry for live check (LiveChecker created per call due to Rc internals)
+    versioned_registry: Arc<VersionedRegistry>,
+    /// Path to custom Rego advice policies directory.
+    advice_policies: Option<PathBuf>,
+    /// Path to the directory or file containing additional rego data (JSON/YAML files) or a glob pattern.
+    advice_data: Option<String>,
+    /// Path to jq preprocessor script for Rego policies.
+    advice_preprocessor: Option<PathBuf>,
+}
+
+impl WeaverMcpService {
+    /// Create a new MCP service with the given registry and configuration.
+    #[must_use]
+    pub fn new(registry: Arc<ForgeResolvedRegistry>, config: McpConfig) -> Self {
+        let search_context = Arc::new(SearchContext::from_registry_with_separator(
+            &registry,
+            config.namespace_separator.clone(),
+        ));
+
+        // Create versioned registry wrapper once for live check
+        let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new((*registry).clone())));
+
+        Self {
+            search_context,
+            versioned_registry,
+            advice_policies: config.advice_policies,
+            advice_data: config.advice_data,
+            advice_preprocessor: config.advice_preprocessor,
+        }
+    }
+
+    /// Create a LiveChecker for a single live_check call.
+    ///
+    /// LiveChecker contains Rc internally and cannot be stored in the async service.
+    /// We create it fresh for each call.
+    fn create_live_checker(&self) -> Result<LiveChecker, String> {
+        let mut live_checker =
+            LiveChecker::new(Arc::clone(&self.versioned_registry), default_advisors());
+
+        // Add RegoAdvisor for policy-based advice
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &self.advice_policies,
+            &self.advice_preprocessor,
+            &self.advice_data,
+        )
+        .map_err(|e| format!("Failed to initialize RegoAdvisor: {e}"))?;
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        Ok(live_checker)
+    }
+}
+
+/// Create the default advisors for live check.
+fn default_advisors() -> Vec<Box<dyn Advisor>> {
+    vec![
+        Box::new(DeprecatedAdvisor),
+        Box::new(StabilityAdvisor),
+        Box::new(TypeAdvisor),
+        Box::new(EnumAdvisor),
+    ]
+}
+
+/// Extract all findings from a `LiveCheckResult` as compact JSON values.
+/// Includes all levels (Violation, Improvement, Information) so the caller can decide relevance.
+fn extract_findings(result: &Option<LiveCheckResult>) -> Vec<serde_json::Value> {
+    let Some(r) = result else { return vec![] };
+    r.all_advice
+        .iter()
+        .map(|f| {
+            json!({
+                "id": f.id,
+                "level": f.level,
+                "message": f.message,
+            })
+        })
+        .collect()
+}
+
+/// Extract actionable findings from all attributes in a slice.
+fn extract_attr_findings(
+    attrs: &[weaver_live_check::sample_attribute::SampleAttribute],
+) -> Vec<serde_json::Value> {
+    let mut out = Vec::new();
+    for a in attrs {
+        let findings = extract_findings(&a.live_check_result);
+        if !findings.is_empty() {
+            out.push(json!({
+                "name": a.name,
+                "findings": findings,
+            }));
+        }
+    }
+    out
+}
+
+/// Collect compact findings from all samples. Returns one entry per sample that has findings.
+fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
+    let mut out = Vec::new();
+    for sample in samples {
+        match sample {
+            Sample::Attribute(a) => {
+                let findings = extract_findings(&a.live_check_result);
+                if !findings.is_empty() {
+                    out.push(json!({"name": a.name, "findings": findings}));
+                }
+            }
+            Sample::Span(s) => {
+                let mut parts = extract_findings(&s.live_check_result);
+                let attr_findings = extract_attr_findings(&s.attributes);
+                if !parts.is_empty() || !attr_findings.is_empty() {
+                    out.push(json!({
+                        "type": "span",
+                        "findings": parts,
+                        "attribute_findings": attr_findings,
+                    }));
+                }
+                // Check nested span events/links attributes
+                for evt in &s.span_events {
+                    parts = extract_attr_findings(&evt.attributes);
+                    if !parts.is_empty() {
+                        out.push(json!({"type": "span_event", "attribute_findings": parts}));
+                    }
+                }
+            }
+            Sample::SpanEvent(e) => {
+                let parts = extract_attr_findings(&e.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "span_event", "attribute_findings": parts}));
+                }
+            }
+            Sample::SpanLink(l) => {
+                let parts = extract_attr_findings(&l.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "span_link", "attribute_findings": parts}));
+                }
+            }
+            Sample::Resource(r) => {
+                let parts = extract_attr_findings(&r.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "resource", "attribute_findings": parts}));
+                }
+            }
+            Sample::Metric(m) => {
+                let findings = extract_findings(&m.live_check_result);
+                if !findings.is_empty() {
+                    out.push(json!({"name": m.name, "type": "metric", "findings": findings}));
+                }
+            }
+            Sample::Log(l) => {
+                let parts = extract_attr_findings(&l.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "log", "attribute_findings": parts}));
+                }
+            }
+        }
+    }
+    out
+}
+
+#[tool_handler]
+impl ServerHandler for WeaverMcpService {
+    fn get_info(&self) -> ServerInfo {
+        let mut server_info = ServerInfo::default();
+        server_info.instructions = Some(
+            "MCP server for OpenTelemetry semantic conventions. Use 'search' to find \
+             conventions, 'get_*' tools to get details, and 'live_check' to validate samples."
+                .into(),
+        );
+        server_info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        server_info
+    }
+}
+
+// =============================================================================
+// Tool Parameter Types
+// =============================================================================
+
+/// Parameters for the search tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SearchParams {
+    /// Search query (keywords, attribute names, etc.). Omit for browse mode.
+    query: Option<String>,
+    /// Filter results by type.
+    #[serde(rename = "type", default)]
+    #[schemars(rename = "type")]
+    search_type: SearchTypeParam,
+    /// Filter by stability level (development = experimental).
+    stability: Option<StabilityParam>,
+    /// Maximum results to return (1-100, default 20).
+    #[serde(default = "default_limit")]
+    limit: usize,
+}
+
+fn default_limit() -> usize {
+    20
+}
+
+/// Filter results by type.
+#[derive(Debug, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchTypeParam {
+    #[default]
+    All,
+    Attribute,
+    Metric,
+    Span,
+    Event,
+    Entity,
+}
+
+impl From<SearchTypeParam> for SearchType {
+    fn from(param: SearchTypeParam) -> Self {
+        match param {
+            SearchTypeParam::All => SearchType::All,
+            SearchTypeParam::Attribute => SearchType::Attribute,
+            SearchTypeParam::Metric => SearchType::Metric,
+            SearchTypeParam::Span => SearchType::Span,
+            SearchTypeParam::Event => SearchType::Event,
+            SearchTypeParam::Entity => SearchType::Entity,
+        }
+    }
+}
+
+/// Filter by stability level.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum StabilityParam {
+    Stable,
+    #[serde(alias = "experimental")]
+    Development,
+}
+
+impl From<StabilityParam> for Stability {
+    fn from(param: StabilityParam) -> Self {
+        match param {
+            StabilityParam::Stable => Stability::Stable,
+            StabilityParam::Development => Stability::Development,
+        }
+    }
+}
+
+/// Parameters for the get attribute tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetAttributeParams {
+    /// Attribute key (e.g., 'http.request.method', 'db.system').
+    key: String,
+}
+
+/// Parameters for the get metric tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetMetricParams {
+    /// Metric name (e.g., 'http.server.request.duration').
+    name: String,
+}
+
+/// Parameters for the get span tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSpanParams {
+    /// Span type (e.g., 'http.client', 'db.query').
+    #[serde(rename = "type")]
+    #[schemars(rename = "type")]
+    span_type: String,
+}
+
+/// Parameters for the get event tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetEventParams {
+    /// Event name (e.g., 'exception', 'session.start').
+    name: String,
+}
+
+/// Parameters for the get entity tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetEntityParams {
+    /// Entity type (e.g., 'service', 'host', 'container').
+    #[serde(rename = "type")]
+    #[schemars(rename = "type")]
+    entity_type: String,
+}
+
+/// Controls the output format for live_check results.
+#[derive(Debug, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LiveCheckOutput {
+    /// Return all samples with full live_check_result details (default).
+    #[default]
+    Full,
+    /// Return only samples with findings, in a compact format:
+    /// `[{name, findings: [{id, level, message}]}]`. Omits clean samples entirely.
+    FindingsOnly,
+}
+
+/// Parameters for the live check tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LiveCheckParams {
+    /// Array of telemetry samples to check (attributes, spans, metrics, logs, or resources).
+    samples: Vec<Sample>,
+    /// Controls the output format. Default: "full" (all samples with full details).
+    /// Use "findings_only" for compact output omitting clean samples.
+    #[serde(default)]
+    output: LiveCheckOutput,
+}
+
+/// Parameters for the browse_namespace tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BrowseNamespaceParams {
+    /// Namespace prefix to browse (e.g., "http", "http.request", "db").
+    /// Omit or pass empty string to list root namespaces.
+    #[serde(default)]
+    prefix: Option<String>,
+}
+
+// =============================================================================
+// Tool Implementations
+// =============================================================================
+
+#[tool_router]
+impl WeaverMcpService {
+    /// Search OpenTelemetry semantic conventions.
+    #[tool(
+        name = "search",
+        description = "Search OpenTelemetry and custom semantic conventions. Supports searching by keywords \
+                       across attributes, metrics, spans, events, and entities. Query terms are AND-matched \
+                       (all must appear). Returns matching definitions with relevance scores. \
+                       Use short queries like 'http.request', 'db system', or 'server duration'."
+    )]
+    fn search(&self, Parameters(params): Parameters<SearchParams>) -> String {
+        let search_type: SearchType = params.search_type.into();
+        let stability = params.stability.map(Stability::from);
+        let limit = params.limit.min(100);
+
+        let (results, total) = self.search_context.search(
+            params.query.as_deref(),
+            search_type,
+            stability,
+            false, // hide_deprecated: not exposed via the MCP search tool
+            limit,
+            0, // offset
+        );
+
+        let result_json = json!({
+            "results": results,
+            "count": results.len(),
+            "total": total,
+        });
+
+        serde_json::to_string_pretty(&result_json).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    /// Get detailed information about a specific attribute.
+    #[tool(
+        name = "get_attribute",
+        description = "Get detailed information about a specific semantic convention attribute \
+                       by its key. Returns type, examples, stability, deprecation info, and \
+                       full documentation."
+    )]
+    fn get_attribute(&self, Parameters(params): Parameters<GetAttributeParams>) -> String {
+        match self.search_context.get_attribute(&params.key) {
+            Some(attr) => serde_json::to_string_pretty(attr.as_ref())
+                .unwrap_or_else(|e| format!("Error: {e}")),
+            None => format!("Attribute '{}' not found in registry", params.key),
+        }
+    }
+
+    /// Get detailed information about a specific metric.
+    #[tool(
+        name = "get_metric",
+        description = "Get detailed information about a specific semantic convention metric \
+                       by its name. Returns instrument type, unit, attributes, stability, \
+                       and full documentation."
+    )]
+    fn get_metric(&self, Parameters(params): Parameters<GetMetricParams>) -> String {
+        match self.search_context.get_metric(&params.name) {
+            Some(m) => {
+                serde_json::to_string_pretty(m.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            None => format!("Metric '{}' not found in registry", params.name),
+        }
+    }
+
+    /// Get detailed information about a specific span.
+    #[tool(
+        name = "get_span",
+        description = "Get detailed information about a specific semantic convention span \
+                       by its type. Returns span kind, attributes, events, stability, \
+                       and full documentation."
+    )]
+    fn get_span(&self, Parameters(params): Parameters<GetSpanParams>) -> String {
+        match self.search_context.get_span(&params.span_type) {
+            Some(s) => {
+                serde_json::to_string_pretty(s.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            None => format!("Span '{}' not found in registry", params.span_type),
+        }
+    }
+
+    /// Get detailed information about a specific event.
+    #[tool(
+        name = "get_event",
+        description = "Get detailed information about a specific semantic convention event \
+                       by its name. Returns attributes, stability, and full documentation."
+    )]
+    fn get_event(&self, Parameters(params): Parameters<GetEventParams>) -> String {
+        match self.search_context.get_event(&params.name) {
+            Some(e) => {
+                serde_json::to_string_pretty(e.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            None => format!("Event '{}' not found in registry", params.name),
+        }
+    }
+
+    /// Get detailed information about a specific entity.
+    #[tool(
+        name = "get_entity",
+        description = "Get detailed information about a specific semantic convention entity \
+                       by its type. Returns attributes, stability, and full documentation."
+    )]
+    fn get_entity(&self, Parameters(params): Parameters<GetEntityParams>) -> String {
+        match self.search_context.get_entity(&params.entity_type) {
+            Some(e) => {
+                serde_json::to_string_pretty(e.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            None => format!("Entity '{}' not found in registry", params.entity_type),
+        }
+    }
+
+    /// Run live-check on telemetry samples.
+    #[tool(
+        name = "live_check",
+        description = "Run live-check on telemetry samples against the semantic conventions \
+                       registry. Control output verbosity with the 'output' parameter: \
+                       'full' (default) returns all samples with complete details; \
+                       'findings_only' returns a compact list of just the findings \
+                       (name, id, level, message) omitting clean samples."
+    )]
+    fn live_check(&self, Parameters(params): Parameters<LiveCheckParams>) -> String {
+        let mut samples = params.samples;
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+
+        // Create a fresh LiveChecker for this call (contains Rc, not Send)
+        let mut live_checker = match self.create_live_checker() {
+            Ok(lc) => lc,
+            Err(e) => return format!("Failed to create live checker: {e}"),
+        };
+
+        // Run live check on each sample (mutates samples in place)
+        for sample in &mut samples {
+            let sample_clone: Sample = sample.clone();
+            if let Err(e) =
+                sample.run_live_check(&mut live_checker, &mut stats, None, &sample_clone)
+            {
+                return format!("Live check failed: {e}");
+            }
+        }
+
+        match params.output {
+            LiveCheckOutput::Full => {
+                serde_json::to_string_pretty(&samples).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            LiveCheckOutput::FindingsOnly => {
+                let findings = collect_compact_findings(&samples);
+                let total = samples.len();
+                let result_json = json!({
+                    "findings": findings,
+                    "total_samples_checked": total,
+                    "samples_with_findings": findings.len(),
+                });
+                serde_json::to_string_pretty(&result_json).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+        }
+    }
+
+    /// Browse the namespace hierarchy of semantic convention attributes.
+    #[tool(
+        name = "browse_namespace",
+        description = "Browse the namespace hierarchy of semantic convention attributes. \
+                       Pass no prefix to see root namespaces (e.g., 'http', 'db', 'cloud'). \
+                       Pass a prefix like 'http.request' to see its sub-namespaces and attributes. \
+                       Returns sub-namespaces, direct attributes, total count, and depth."
+    )]
+    fn browse_namespace(&self, Parameters(params): Parameters<BrowseNamespaceParams>) -> String {
+        let info = self
+            .search_context
+            .browse_namespace(params.prefix.as_deref());
+        serde_json::to_string_pretty(&info).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+    use weaver_forge::v2::attribute::Attribute;
+    use weaver_forge::v2::entity::Entity;
+    use weaver_forge::v2::event::Event;
+    use weaver_forge::v2::metric::Metric;
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
+    use weaver_forge::v2::span::Span;
+    use weaver_search::SearchType;
+    use weaver_semconv::attribute::AttributeType;
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::span::SpanName;
+    use weaver_semconv::v2::CommonFields;
+
+    fn make_test_registry() -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            schema_url: "https://todo/1.0.0".try_into().unwrap(),
+            registry: Registry {
+                attributes: vec![Attribute {
+                    key: "http.request.method".to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(
+                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: CommonFields {
+                        brief: "HTTP request method".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                attribute_groups: vec![],
+                metrics: vec![Metric {
+                    name: "http.server.request.duration".to_owned().into(),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    requirement_level: Some(SignalRequirementLevel::OptIn),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "Duration of HTTP server requests".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                spans: vec![Span {
+                    requirement_level: None,
+                    r#type: "http.client".to_owned().into(),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "HTTP client span".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "HTTP client span".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                events: vec![Event {
+                    requirement_level: None,
+                    name: "exception".to_owned().into(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "An exception event".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                entities: vec![Entity {
+                    requirement_level: None,
+                    r#type: "service".to_owned().into(),
+                    identity: vec![],
+                    description: vec![],
+                    common: CommonFields {
+                        brief: "A service entity".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        }
+    }
+
+    fn create_test_service() -> WeaverMcpService {
+        let registry = Arc::new(make_test_registry());
+        WeaverMcpService::new(registry, McpConfig::default())
+    }
+
+    // =========================================================================
+    // Parameter Conversion Tests
+    // =========================================================================
+
+    #[test]
+    fn test_search_type_param_to_search_type() {
+        assert_eq!(SearchType::from(SearchTypeParam::All), SearchType::All);
+        assert_eq!(
+            SearchType::from(SearchTypeParam::Attribute),
+            SearchType::Attribute
+        );
+        assert_eq!(
+            SearchType::from(SearchTypeParam::Metric),
+            SearchType::Metric
+        );
+        assert_eq!(SearchType::from(SearchTypeParam::Span), SearchType::Span);
+        assert_eq!(SearchType::from(SearchTypeParam::Event), SearchType::Event);
+        assert_eq!(
+            SearchType::from(SearchTypeParam::Entity),
+            SearchType::Entity
+        );
+    }
+
+    #[test]
+    fn test_stability_param_to_stability() {
+        assert_eq!(Stability::from(StabilityParam::Stable), Stability::Stable);
+        assert_eq!(
+            Stability::from(StabilityParam::Development),
+            Stability::Development
+        );
+    }
+
+    #[test]
+    fn test_stability_param_deserialize_experimental_alias() {
+        // "experimental" should deserialize to Development
+        let json = r#""experimental""#;
+        let param: StabilityParam = serde_json::from_str(json).unwrap();
+        assert_eq!(Stability::from(param), Stability::Development);
+    }
+
+    // =========================================================================
+    // MCP-Specific Behavior Tests
+    // =========================================================================
+
+    #[test]
+    fn test_search_params_default_limit() {
+        // Verify the default limit function returns 20
+        assert_eq!(default_limit(), 20);
+    }
+
+    #[test]
+    fn test_search_type_param_default() {
+        // Verify SearchTypeParam defaults to All
+        let default: SearchTypeParam = Default::default();
+        assert!(matches!(default, SearchTypeParam::All));
+    }
+
+    // =========================================================================
+    // Service Method Tests
+    // =========================================================================
+
+    #[test]
+    fn test_service_new_and_get_info() {
+        let service = create_test_service();
+
+        // Test get_info returns valid ServerInfo
+        let info = service.get_info();
+        assert!(info.instructions.is_some());
+        assert!(info
+            .instructions
+            .unwrap()
+            .contains("OpenTelemetry semantic conventions"));
+    }
+
+    #[test]
+    fn test_search_tool_with_query() {
+        let service = create_test_service();
+
+        let params = SearchParams {
+            query: Some("http".to_owned()),
+            search_type: SearchTypeParam::All,
+            stability: None,
+            limit: 20,
+        };
+
+        let result = service.search(Parameters(params));
+
+        // Result should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("results").is_some());
+        assert!(parsed.get("count").is_some());
+        assert!(parsed.get("total").is_some());
+    }
+
+    #[test]
+    fn test_search_tool_browse_mode() {
+        let service = create_test_service();
+
+        let params = SearchParams {
+            query: None,
+            search_type: SearchTypeParam::All,
+            stability: None,
+            limit: 100,
+        };
+
+        let result = service.search(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        // Should return all 5 items (1 attr + 1 metric + 1 span + 1 event + 1 entity)
+        assert_eq!(parsed["total"].as_u64().unwrap(), 5);
+    }
+
+    #[test]
+    fn test_search_tool_limit_clamped_to_100() {
+        let service = create_test_service();
+
+        let params = SearchParams {
+            query: None,
+            search_type: SearchTypeParam::All,
+            stability: None,
+            limit: 200, // MCP should clamp this to 100
+        };
+
+        let result = service.search(Parameters(params));
+
+        // Should still work (we only have 5 items anyway)
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("results").is_some());
+    }
+
+    #[test]
+    fn test_get_attribute_found() {
+        let service = create_test_service();
+
+        let params = GetAttributeParams {
+            key: "http.request.method".to_owned(),
+        };
+
+        let result = service.get_attribute(Parameters(params));
+
+        // Should return valid JSON with the attribute
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["key"], "http.request.method");
+    }
+
+    #[test]
+    fn test_get_attribute_not_found() {
+        let service = create_test_service();
+
+        let params = GetAttributeParams {
+            key: "nonexistent.attr".to_owned(),
+        };
+
+        let result = service.get_attribute(Parameters(params));
+
+        assert!(result.contains("not found"));
+        assert!(result.contains("nonexistent.attr"));
+    }
+
+    #[test]
+    fn test_get_metric_found() {
+        let service = create_test_service();
+
+        let params = GetMetricParams {
+            name: "http.server.request.duration".to_owned(),
+        };
+
+        let result = service.get_metric(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "http.server.request.duration");
+    }
+
+    #[test]
+    fn test_get_metric_not_found() {
+        let service = create_test_service();
+
+        let params = GetMetricParams {
+            name: "nonexistent.metric".to_owned(),
+        };
+
+        let result = service.get_metric(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_span_found() {
+        let service = create_test_service();
+
+        let params = GetSpanParams {
+            span_type: "http.client".to_owned(),
+        };
+
+        let result = service.get_span(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["type"], "http.client");
+    }
+
+    #[test]
+    fn test_get_span_not_found() {
+        let service = create_test_service();
+
+        let params = GetSpanParams {
+            span_type: "nonexistent.span".to_owned(),
+        };
+
+        let result = service.get_span(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_event_found() {
+        let service = create_test_service();
+
+        let params = GetEventParams {
+            name: "exception".to_owned(),
+        };
+
+        let result = service.get_event(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "exception");
+    }
+
+    #[test]
+    fn test_get_event_not_found() {
+        let service = create_test_service();
+
+        let params = GetEventParams {
+            name: "nonexistent.event".to_owned(),
+        };
+
+        let result = service.get_event(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_get_entity_found() {
+        let service = create_test_service();
+
+        let params = GetEntityParams {
+            entity_type: "service".to_owned(),
+        };
+
+        let result = service.get_entity(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["type"], "service");
+    }
+
+    #[test]
+    fn test_get_entity_not_found() {
+        let service = create_test_service();
+
+        let params = GetEntityParams {
+            entity_type: "nonexistent.entity".to_owned(),
+        };
+
+        let result = service.get_entity(Parameters(params));
+
+        assert!(result.contains("not found"));
+    }
+
+    #[test]
+    fn test_live_check_with_valid_sample() {
+        let service = create_test_service();
+
+        // Create a valid attribute sample
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "http.request.method",
+                "value": "GET"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::Full,
+        };
+
+        let result = service.live_check(Parameters(params));
+
+        // Should return valid JSON array
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.is_array());
+    }
+
+    #[test]
+    fn test_live_check_invalid_sample_deserialization() {
+        // Invalid JSON should fail to deserialize as Sample
+        let invalid_json = serde_json::json!({"invalid": "structure"});
+        let result: Result<Sample, _> = serde_json::from_value(invalid_json);
+        assert!(result.is_err());
+
+        // The error message format should be user-friendly
+        if let Err(e) = result {
+            let error_msg = format!("Invalid sample: {e}");
+            assert!(error_msg.starts_with("Invalid sample:"));
+        }
+    }
+
+    #[test]
+    fn test_live_check_empty_samples() {
+        let service = create_test_service();
+
+        let params = LiveCheckParams {
+            samples: vec![],
+            output: LiveCheckOutput::Full,
+        };
+
+        let result = service.live_check(Parameters(params));
+
+        // Should return empty array
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.is_array());
+        assert_eq!(parsed.as_array().unwrap().len(), 0);
+    }
+
+    // =========================================================================
+    // Browse Namespace Tool Tests
+    // =========================================================================
+
+    #[test]
+    fn test_browse_namespace_tool_root() {
+        let service = create_test_service();
+
+        let params = BrowseNamespaceParams { prefix: None };
+        let result = service.browse_namespace(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("sub_namespaces").is_some());
+        assert!(parsed.get("total_attribute_count").is_some());
+        assert!(parsed["sub_namespaces"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("http")));
+    }
+
+    #[test]
+    fn test_browse_namespace_tool_with_prefix() {
+        let service = create_test_service();
+
+        let params = BrowseNamespaceParams {
+            prefix: Some("http".to_owned()),
+        };
+        let result = service.browse_namespace(Parameters(params));
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["prefix"], "http");
+    }
+
+    // =========================================================================
+    // Live Check Output Mode Tests
+    // =========================================================================
+
+    #[test]
+    fn test_live_check_summary_mode_all_clean() {
+        let service = create_test_service();
+
+        // A known good attribute should have no violations
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "http.request.method",
+                "value": "GET"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["total_samples_checked"], 1);
+        // Clean sample should produce no findings
+        assert!(parsed.get("findings").is_some());
+        assert_eq!(parsed["findings"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_live_check_findings_only_with_violations() {
+        let service = create_test_service();
+
+        // An unknown attribute should produce a "missing_attribute" violation
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "nonexistent.bogus.attr",
+                "value": "test"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["total_samples_checked"], 1);
+        assert_eq!(parsed["samples_with_findings"], 1);
+        // Should have compact findings with id/level/message
+        let findings = parsed["findings"].as_array().unwrap();
+        assert!(!findings.is_empty());
+        assert!(findings[0].get("findings").is_some());
+    }
+
+    #[test]
+    fn test_live_check_full_output() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "http.request.method",
+                "value": "GET"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::Full,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        // Full mode returns an array of all samples
+        assert!(parsed.is_array());
+    }
+
+    #[test]
+    fn test_live_check_findings_only_validates_finding_structure() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": {
+                "name": "nonexistent.attr",
+                "value": "test"
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let findings = parsed["findings"].as_array().unwrap();
+        assert!(!findings.is_empty());
+        // Each finding entry should have name and findings array
+        let entry = &findings[0];
+        assert!(entry.get("name").is_some());
+        let inner = entry["findings"].as_array().unwrap();
+        assert!(!inner.is_empty());
+        // Each inner finding should have id, level, message
+        let finding = &inner[0];
+        assert!(finding.get("id").is_some());
+        assert!(finding.get("level").is_some());
+        assert!(finding.get("message").is_some());
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_with_bad_attributes() {
+        let service = create_test_service();
+
+        // Span with unknown attributes exercises extract_attr_findings via the Span path
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span": {
+                "name": "GET /users",
+                "kind": "server",
+                "attributes": [
+                    { "name": "nonexistent.span.attr", "value": "bad" },
+                    { "name": "http.request.method", "value": "GET" }
+                ]
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let findings = parsed["findings"].as_array().unwrap();
+        // Should have findings from the span (at least for the bad attribute)
+        assert!(
+            !findings.is_empty(),
+            "Span with unknown attribute should produce findings"
+        );
+        // Should have attribute_findings in the span entry
+        let span_entry = findings
+            .iter()
+            .find(|f| f.get("type").and_then(|t| t.as_str()) == Some("span"));
+        assert!(
+            span_entry.is_some(),
+            "Should have a span-typed finding entry"
+        );
+        let attr_findings = span_entry.unwrap()["attribute_findings"]
+            .as_array()
+            .unwrap();
+        assert!(!attr_findings.is_empty());
+        assert_eq!(attr_findings[0]["name"], "nonexistent.span.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_mixed_clean_and_bad() {
+        let service = create_test_service();
+
+        let clean: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": "http.request.method", "value": "GET" }
+        }))
+        .unwrap();
+
+        let bad: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": "totally.fake.attr", "value": "x" }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![clean, bad],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["total_samples_checked"], 2);
+        // Only the bad sample should appear in findings
+        let findings = parsed["findings"].as_array().unwrap();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0]["name"], "totally.fake.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_resource_with_bad_attributes() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "resource": {
+                "attributes": [
+                    { "name": "nonexistent.resource.attr", "value": "bad" }
+                ]
+            }
+        }))
+        .unwrap();
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let findings = parsed["findings"].as_array().unwrap();
+        assert!(!findings.is_empty());
+        let entry = &findings[0];
+        assert_eq!(entry["type"], "resource");
+        let attr_findings = entry["attribute_findings"].as_array().unwrap();
+        assert!(!attr_findings.is_empty());
+        assert_eq!(attr_findings[0]["name"], "nonexistent.resource.attr");
+    }
+
+    // collect_compact_findings: one match arm per Sample variant.
+
+    #[test]
+    fn test_live_check_findings_only_metric() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "metric": { "name": "nonexistent.metric", "instrument": "gauge", "unit": "1" }
+        }))
+        .expect("metric sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(
+            !findings.is_empty(),
+            "unknown metric should produce findings"
+        );
+        assert_eq!(findings[0]["type"], "metric");
+        assert_eq!(findings[0]["name"], "nonexistent.metric");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_log() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "log": {
+                "event_name": "my.event",
+                "attributes": [{ "name": "nonexistent.log.attr", "value": "x" }]
+            }
+        }))
+        .expect("log sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "log");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.log.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_event() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span_event": {
+                "name": "my.event",
+                "attributes": [{ "name": "nonexistent.evt.attr", "value": "x" }]
+            }
+        }))
+        .expect("span_event sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "span_event");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.evt.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_link() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span_link": {
+                "attributes": [{ "name": "nonexistent.link.attr", "value": "x" }]
+            }
+        }))
+        .expect("span_link sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "span_link");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.link.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_span_nested_events() {
+        let service = create_test_service();
+
+        // Nested span event: exercises the span_events loop in the Span arm.
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "span": {
+                "name": "GET /users",
+                "kind": "server",
+                "attributes": [],
+                "span_events": [
+                    {
+                        "name": "evt",
+                        "attributes": [{ "name": "nonexistent.nested.attr", "value": "x" }]
+                    }
+                ]
+            }
+        }))
+        .expect("span sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        let evt = findings
+            .iter()
+            .find(|f| f["type"] == "span_event")
+            .expect("nested span_event finding entry");
+        let attr_findings = evt["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.nested.attr");
+    }
+
+    #[test]
+    fn test_live_check_reports_live_checker_init_failure() {
+        // A missing preprocessor makes RegoAdvisor::new fail; live_check should
+        // surface that instead of panicking.
+        let registry = Arc::new(make_test_registry());
+        let config = McpConfig {
+            advice_preprocessor: Some(PathBuf::from("/nonexistent/does-not-exist.jq")),
+            ..McpConfig::default()
+        };
+        let service = WeaverMcpService::new(registry, config);
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": "http.request.method", "value": "GET" }
+        }))
+        .expect("attribute sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::Full,
+        };
+
+        let result = service.live_check(Parameters(params));
+        assert!(
+            result.starts_with("Failed to create live checker"),
+            "expected init failure message, got: {result}"
+        );
+    }
+
+    // Custom advice_policies / advice_data wiring, using fixtures under
+    // tests/fixtures/ (custom.rego: a hardcoded rule + a denylist-driven rule).
+
+    fn fixture_path(rel: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(rel)
+    }
+
+    /// Finding ids reported for a named sample in findings_only output.
+    fn finding_ids_for<'a>(parsed: &'a serde_json::Value, name: &str) -> Vec<&'a str> {
+        parsed["findings"]
+            .as_array()
+            .expect("findings array")
+            .iter()
+            .find(|f| f["name"] == name)
+            .map(|entry| {
+                entry["findings"]
+                    .as_array()
+                    .expect("inner findings array")
+                    .iter()
+                    .filter_map(|f| f["id"].as_str())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn run_findings_only(service: &WeaverMcpService, attr_name: &str) -> serde_json::Value {
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "attribute": { "name": attr_name, "value": "x" }
+        }))
+        .expect("attribute sample should deserialize");
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+        let result = service.live_check(Parameters(params));
+        serde_json::from_str(&result).expect("live_check returns JSON")
+    }
+
+    #[test]
+    fn test_live_check_custom_advice_policies() {
+        // No advice_data: only the hardcoded rule can fire.
+        let registry = Arc::new(make_test_registry());
+        let config = McpConfig {
+            advice_policies: Some(fixture_path("policies")),
+            ..McpConfig::default()
+        };
+        let service = WeaverMcpService::new(registry, config);
+
+        let parsed = run_findings_only(&service, "custom.sentinel");
+        let ids = finding_ids_for(&parsed, "custom.sentinel");
+        assert!(
+            ids.contains(&"custom_sentinel"),
+            "custom policy should fire the sentinel rule, got ids: {ids:?}"
+        );
+    }
+
+    #[test]
+    fn test_live_check_custom_advice_data() {
+        // With the denylist loaded, the data-driven rule fires.
+        let registry = Arc::new(make_test_registry());
+        let config = McpConfig {
+            advice_policies: Some(fixture_path("policies")),
+            advice_data: Some(
+                fixture_path("data/denylist.json")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            ..McpConfig::default()
+        };
+        let service = WeaverMcpService::new(registry, config);
+
+        let parsed = run_findings_only(&service, "custom.blocked");
+        let ids = finding_ids_for(&parsed, "custom.blocked");
+        assert!(
+            ids.contains(&"custom_denylisted"),
+            "denylist data should drive a finding, got ids: {ids:?}"
+        );
+    }
+
+    // Protocol-level tests: a real rmcp client drives the service over an
+    // in-memory transport, exercising JSON-RPC dispatch, tool discovery,
+    // generated schemas, and wire deserialization that method calls bypass.
+
+    use rmcp::model::{CallToolRequestParams, CallToolResult};
+    use rmcp::service::RunningService;
+    use rmcp::{RoleClient, ServiceExt};
+
+    /// Connect a client to the service over an in-memory transport. The server
+    /// task lives until the client is cancelled or dropped.
+    async fn connect_test_client() -> RunningService<RoleClient, ()> {
+        let service = create_test_service();
+        let (server_transport, client_transport) = tokio::io::duplex(4096);
+        let _server_task = tokio::spawn(async move {
+            if let Ok(server) = service.serve(server_transport).await {
+                let _ = server.waiting().await;
+            }
+        });
+        ().serve(client_transport)
+            .await
+            .expect("client should initialize")
+    }
+
+    /// Extract the text payload from a tool call result.
+    fn tool_text(result: &CallToolResult) -> String {
+        result
+            .content
+            .iter()
+            .find_map(|c| c.as_text().map(|t| t.text.clone()))
+            .expect("tool result should contain text content")
+    }
+
+    /// Convert a JSON value into a tool-call arguments object.
+    fn args(value: serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
+        value
+            .as_object()
+            .expect("arguments must be a JSON object")
+            .clone()
+    }
+
+    #[tokio::test]
+    async fn test_protocol_list_tools_exposes_all_eight() {
+        let client = connect_test_client().await;
+        let tools = client.list_all_tools().await.expect("list_tools");
+
+        let names: std::collections::BTreeSet<&str> =
+            tools.iter().map(|t| t.name.as_ref()).collect();
+        for expected in [
+            "search",
+            "get_attribute",
+            "get_metric",
+            "get_span",
+            "get_event",
+            "get_entity",
+            "live_check",
+            "browse_namespace",
+        ] {
+            assert!(names.contains(expected), "missing tool: {expected}");
+        }
+        assert_eq!(tools.len(), 8, "expected exactly 8 tools");
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_get_span_schema_renames_type() {
+        // The advertised schema must expose `type`, not the Rust field
+        // `span_type` (rename) — only observable at the protocol layer.
+        let client = connect_test_client().await;
+        let tools = client.list_all_tools().await.expect("list_tools");
+
+        let span = tools
+            .iter()
+            .find(|t| t.name == "get_span")
+            .expect("get_span tool present");
+        let props = span
+            .input_schema
+            .get("properties")
+            .and_then(|p| p.as_object())
+            .expect("input schema has properties");
+        assert!(props.contains_key("type"), "schema should expose 'type'");
+        assert!(
+            !props.contains_key("span_type"),
+            "schema should not leak the Rust field name"
+        );
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_call_search() {
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("search")
+                    .with_arguments(args(json!({ "query": "http" }))),
+            )
+            .await
+            .expect("call_tool search");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("search returns JSON");
+        assert!(parsed.get("results").is_some());
+        assert!(parsed.get("total").is_some());
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_call_get_span_deserializes_type_argument() {
+        // `{"type": ...}` must deserialize into the renamed `span_type` field.
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("get_span")
+                    .with_arguments(args(json!({ "type": "http.client" }))),
+            )
+            .await
+            .expect("call_tool get_span");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("get_span returns JSON");
+        assert_eq!(parsed["type"], "http.client");
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_call_live_check_findings_only() {
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("live_check").with_arguments(args(json!({
+                    "samples": [{ "attribute": { "name": "nonexistent.attr", "value": "x" } }],
+                    "output": "findings_only"
+                }))),
+            )
+            .await
+            .expect("call_tool live_check");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("live_check returns JSON");
+        assert_eq!(parsed["total_samples_checked"], 1);
+        assert_eq!(parsed["samples_with_findings"], 1);
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_unknown_tool_is_rejected() {
+        let client = connect_test_client().await;
+
+        let result = client
+            .call_tool(CallToolRequestParams::new("does_not_exist"))
+            .await;
+
+        match result {
+            Err(_) => {}
+            Ok(r) => assert_eq!(r.is_error, Some(true), "unknown tool should not succeed"),
+        }
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+}
