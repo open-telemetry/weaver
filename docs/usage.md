@@ -321,7 +321,7 @@ Update markdown files that contain markers indicating the templates used to upda
 
   Possible values: `true`, `false`
 
-* `--dry-run <DRY_RUN>` — Whether or not to run updates in dry-run mode. [default: false]
+* `--dry-run <DRY_RUN>` — Whether or not to run updates in dry-run mode. A bare `--dry-run` means `true`; when passing an explicit value, the `=` form is required (e.g. `--dry-run=false`). [default: false]
 
   Possible values: `true`, `false`
 
