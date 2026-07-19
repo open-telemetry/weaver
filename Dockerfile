@@ -1,13 +1,30 @@
 # The build image
-FROM --platform=$BUILDPLATFORM docker.io/rust:1.88.0 AS weaver-build
+FROM docker.io/rust:1.97.1@sha256:4f9fcd47f7c1126d2c8dd20e594f8ec852492fe429c2c6c11ca56eebfffaf0d9 AS weaver-build
 WORKDIR /build
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
 
-# list out directories to avoid pulling local cargo `target/`
-COPY Cargo.toml /build/Cargo.toml
-COPY Cargo.lock /build/Cargo.lock
+# Install Node.js and musl build dependencies
+# renovate: datasource=node-version depName=node
+ARG NODE_VERSION=24
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x -o /tmp/nodesource-setup.sh && \
+  echo "6e3d580f5bd7ccf2aa1e8df8d35c60d78e873c3ff8beb282c9bebd914904ad72  /tmp/nodesource-setup.sh" | sha256sum -c && \
+  bash /tmp/nodesource-setup.sh && \
+  apt-get install -y nodejs musl-tools musl-dev perl
+
+# Copy UI package files first for better layer caching
+COPY ui/package.json ui/pnpm-lock.yaml /build/ui/
+# Use Corepack to provision the hash-pinned pnpm declared in ui/package.json's
+# "packageManager" field; Corepack verifies the download against that integrity hash.
+RUN corepack enable
+RUN cd /build/ui && pnpm install --frozen-lockfile
+
+# Copy UI source files
+COPY ui /build/ui
+
+# Copy Rust dependencies for better layer caching
+COPY Cargo.toml Cargo.lock build.rs /build/
 COPY .cargo /build/.cargo
+
+# Copy source files
 COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src
@@ -15,11 +32,14 @@ COPY tests /build/tests
 COPY defaults /build/defaults
 COPY cross-arch-build.sh /build/cross-arch-build.sh
 
+# Build the UI
+RUN cd /build/ui && pnpm build
+
 # Build weaver
 RUN ./cross-arch-build.sh
 
 # The runtime image
-FROM docker.io/alpine:3.22.1
+FROM docker.io/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \

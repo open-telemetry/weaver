@@ -1,0 +1,1 @@
+Test the `extends` directive in attribute_group and metric.

@@ -1,0 +1,6 @@
+name: app
+description: This registry contains the semantic conventions for the App.
+schema_url: https://app.com/schemas/0.1.0
+dependencies:
+  - schema_url: https://acme.com/schemas/0.1.0
+    registry_path: data/multi-registry/custom_registry

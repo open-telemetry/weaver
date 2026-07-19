@@ -14,7 +14,9 @@ _Treat your telemetry like a public API_
 [![codecov](https://codecov.io/gh/open-telemetry/weaver/graph/badge.svg?token=tmWKFoMT2G)](https://codecov.io/gh/open-telemetry/weaver)
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Slack](https://img.shields.io/badge/Slack-OpenTelemetry_Weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
+[![Slack](https://img.shields.io/badge/Slack-%23otel--weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12876/badge)](https://www.bestpractices.dev/projects/12876)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/open-telemetry/weaver/badge)](https://securityscorecards.dev/viewer/?uri=github.com/open-telemetry/weaver)
 
 OpenTelemetry Weaver helps teams build observability by design, enabling consistent, type-safe, and automated telemetry through semantic conventions. With Weaver, you can define, validate, and evolve your telemetry schemas, ensuring reliability and clarity across your systems.
 
@@ -51,13 +53,45 @@ cd weaver
 cargo build --release
 ```
 
+### GitHub Actions
+
+| Action | Purpose |
+| --- | --- |
+| [`setup-weaver`](.github/actions/setup-weaver/README.md) | Install weaver in a CI workflow |
+| [`weaver-live-check-start`](.github/actions/weaver-live-check-start/README.md) | Start a weaver live-check session (OTLP receiver for runtime validation) |
+| [`weaver-live-check-stop`](.github/actions/weaver-live-check-stop/README.md) | Stop the session, collect findings, optionally fail on severity threshold |
+
+See [opentelemetry-weaver-examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) for general CI workflow examples. For live-check CI examples, see:
+
+- [opentelemetry-rust-contrib: tower instrumentation](https://github.com/open-telemetry/opentelemetry-rust-contrib/blob/main/.github/workflows/weaver-live-check-tower.yml)
+- [opentelemetry-rust-contrib: actix instrumentation](https://github.com/open-telemetry/opentelemetry-rust-contrib/blob/main/.github/workflows/weaver-live-check-actix.yml)
+- [otel-arrow: df-engine internal observability](https://github.com/open-telemetry/otel-arrow/blob/main/.github/workflows/df-engine-internal-observability.yml)
+
+## Usage
+
+Weaver provides a _set of tools_ for working with **schematized telemetry**.
+
+- **[Registry](./docs/registry.md)**: The schema definition
+  - [**Validation**](./docs/validate.md): Lint syntax, semantics and custom rules
+  - **Resolving**: Consolidate the registry and its dependencies into a single artifact
+  - [**Comparing**](docs/schema-changes.md): Compute the differences between two versions of a registry
+- [**Code generation**](./docs/codegen.md): Produce (non-)code artifacts from the schema using templates
+  - e.g. Go code, Markdown documentation, etc.
+- Working with real telemetry
+  - [**Live-checking**](/crates/weaver_live_check/README.md) of emitted telemetry against a schema
+  - **Emitting** example telemetry based on a schema
+
+Further reading:
+
+- [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
+- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
+
 ## Examples and How-Tos
 
+- [Weaver Examples](https://github.com/open-telemetry/opentelemetry-weaver-examples) - Official OTel project showcasing weaver use cases through runnable examples.
 - [O11y by design](https://github.com/jsuereth/o11y-by-design/) - from the CNCF 2025 presentation
-- [Weaver Example](https://github.com/jerbly/weaver-example) - doc-gen, code-gen, emit, live-check in CI/CD
 - [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md) - A guide on how to define your own
   telemetry schema using semantic conventions.
-
 
 ## Media
 
@@ -68,26 +102,17 @@ cargo build --release
 
 ## Main Commands
 
-| Command                                                                   | Description                                 |
-|---------------------------------------------------------------------------|---------------------------------------------|
-| [weaver registry check](docs/usage.md#registry-check)                     | Validates a semantic convention registry    |
-| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolves a semantic convention registry     |
-| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff between two versions of a semantic convention registry |
-| [weaver registry generate](docs/usage.md#registry-generate)               | Generates artifacts from a semantic convention registry  |
+| Command                                                                   | Description                                                                                               |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [weaver registry check](docs/usage.md#registry-check)                     | Validates a semantic convention registry                                                                  |
+| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolves a semantic convention registry                                                                   |
+| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff between two versions of a semantic convention registry                                    |
+| [weaver registry generate](docs/usage.md#registry-generate)               | Generates artifacts from a semantic convention registry                                                   |
 | [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update markdown files that contain markers indicating the templates used to update the specified sections |
-| [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry |
-| [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver |
-| [weaver completion](docs/usage.md#completion)                             | Generate shell completions |
-
-## Documentation
-
-- [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
-- [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
-- [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate documentation and code based on semantic conventions.
-- [Weaver Checker](crates/weaver_checker/README.md): An integrated policy engine for enforcing policies on semantic conventions.
-- [Weaver Live-check](crates/weaver_live_check/README.md): Live check is a developer tool for assessing sample telemetry and providing advice for improvement.
-- [Schema Changes](docs/schema-changes.md): A document describing the data model used to represent the differences between two versions of a semantic convention registry.
-- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
+| [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry                      |
+| [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver                             |
+| [weaver registry mcp](docs/mcp-server.md)                                 | Run an MCP server for LLM integration                                                                     |
+| [weaver completion](docs/usage.md#completion)                             | Generate shell completions                                                                                |
 
 ## Getting Help
 

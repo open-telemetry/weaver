@@ -1,4 +1,0 @@
-name: test
-description: This registry contains semantic conventions used for test purposes.
-semconv_version: 0.1.0
-schema_base_url: https://test.com/schemas/

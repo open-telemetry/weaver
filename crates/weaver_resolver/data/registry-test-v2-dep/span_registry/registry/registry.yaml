@@ -1,0 +1,12 @@
+file_format: definition/2
+span_refinements:
+  # Refines `server.request` from the dependency: `server.port` gets a
+  # refined brief; `server.address` is not mentioned and must be inherited
+  # with its `required` requirement level and sampling relevance. The span
+  # kind and name specification must also be inherited.
+  - id: refined.request
+    ref: server.request
+    brief: Refined server request span
+    attributes:
+      - ref: server.port
+        brief: Refined server port

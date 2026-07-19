@@ -39,15 +39,21 @@ description and the current status of each crate:
 |--------------------------------------------------------------------|----------------------------------------------------------------------|------------------|
 | [weaver_semconv](/crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Beta             |
 | [weaver_version](/crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha            |
-| [weaver_common](/crates/weaver_common/README.md)             | Logging and error management                                         | Alpha            |
+| [weaver_common](/crates/weaver_common/README.md)                   | Logging and error management                                         | Alpha            |
 | [weaver_forge](/crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha            |
 | [weaver_diff](/crates/weaver_diff/README.md)                       | Diffing tool to compare two versions of a text (used in unit tests)  | Alpha            |
 | [weaver_resolved_schema](/crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress |
 | [weaver_resolver](/crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process + Lineage                        | Work-In-Progress |
-| [weaver_cache](/crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress |
 | [weaver_checker](/crates/weaver_checker/README.md)                 | Policy engine to enforce policies on telemetry data                  | Work-In-Progress |
-|                                                                    |                                                                      |                  |
+| [weaver_emit](/crates/weaver_emit/README.md)                       | Emit OTLP signals generated from registries                          | Work-In-Progress |
+| [weaver_live_check](/crates/weaver_live_check/README.md)           | Developer tool for assessing sample telemetry against conventions    | Work-In-Progress |
+| [weaver_mcp](/crates/weaver_mcp/README.md)                         | MCP server exposing semantic conventions to LLMs                     | Work-In-Progress |
+| [weaver_search](/crates/weaver_search/README.md)                   | Search engine for querying resolved semantic convention registries   | Work-In-Progress |
+| [weaver_otel_schema](/crates/weaver_otel_schema/README.md)         | OpenTelemetry Schema Data Model                                      | Work-In-Progress |
+| [weaver_semconv_gen](/crates/weaver_semconv_gen/README.md)         | Semantic convention markdown updater                                 | Work-In-Progress |
 | xtask                                                              | Set of tasks to validate the project                                 | Done             |
+
+The root `weaver` package contains the main CLI binary that ties all the above crates together.
 
 Note 1: Alpha status means that the crate is in a usable state but may have
 limited functionality and/or may not be fully tested.

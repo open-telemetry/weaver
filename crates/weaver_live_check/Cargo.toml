@@ -14,15 +14,29 @@ weaver_forge = { path = "../weaver_forge" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 weaver_checker = { path = "../weaver_checker" }
+weaver_config = { path = "../weaver_config" }
 
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 miette.workspace = true
 schemars.workspace = true
+log.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+opentelemetry-stdout.workspace = true
+tokio.workspace = true
+strum = { version = "0.27.2", features = ["derive"] }
 
 [dev-dependencies]
-tempfile = "3.20.0"
+weaver_test_support = { path = "../weaver_test_support" }
+assert_cmd.workspace = true
+tempfile.workspace = true
+serde_yaml.workspace = true
+serial_test = "3.4.0"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+ureq.workspace = true
 
 [lints]
 workspace = true

@@ -1,0 +1,16 @@
+file_format: definition/2
+attributes:
+  - key: registry_a.name
+    type: string
+    brief: Name from registry A.
+    stability: stable
+    examples: ["A"]
+
+attribute_groups:
+  - id: registry_a.example
+    visibility: public
+    brief: Example attributes from registry A.
+    stability: stable
+    attributes:
+      - ref: registry_a.name
+        requirement_level: required

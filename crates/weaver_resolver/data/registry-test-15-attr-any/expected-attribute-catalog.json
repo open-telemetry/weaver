@@ -9,9 +9,9 @@
       2.0,
       true
     ],
+    "requirement_level": "recommended",
     "note": "any attribute.\n",
-    "stability": "stable",
-    "requirement_level": "recommended"
+    "stability": "stable"
   },
   {
     "name": "test.template.any",

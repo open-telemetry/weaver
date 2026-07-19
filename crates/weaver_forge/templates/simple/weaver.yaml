@@ -1,0 +1,4 @@
+templates:
+  - template: output.txt.j2
+    filter: .
+    application_mode: single

@@ -1,0 +1,18 @@
+[
+  {
+    "root_namespace": "db",
+    "spans": [
+      {
+        "attributes": null,
+        "brief": "",
+        "kind": "client",
+        "name": {
+          "note": "A database client span."
+        },
+        "root_namespace": "db",
+        "stability": "alpha",
+        "type": "db.client"
+      }
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+schema_url: "http://test/main/1.0.0"
+dependencies:
+  - schema_url: "http://test/dep/1.0.0"
+    registry_path: "data/duplicate-dependency/dep-v1"
+  - schema_url: "http://test/dep/2.0.0"
+    registry_path: "data/duplicate-dependency/dep-v2"

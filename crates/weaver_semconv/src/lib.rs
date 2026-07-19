@@ -4,8 +4,7 @@
 
 use crate::Error::CompoundError;
 use miette::{Diagnostic, NamedSource, SourceSpan};
-use schemars::schema::{InstanceType, Schema};
-use schemars::{JsonSchema, SchemaGenerator};
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::hash::Hasher;
@@ -16,16 +15,19 @@ use weaver_common::error::{format_errors, WeaverError};
 pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
+pub mod entity_association;
 pub mod group;
 pub mod json_schema;
 pub mod manifest;
-pub mod metric;
 pub mod provenance;
 pub mod registry;
 pub mod registry_repo;
+pub mod schema_url;
 pub mod semconv;
+pub mod signal_requirement_level;
 pub mod stability;
 pub mod stats;
+pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -227,6 +229,18 @@ pub enum Error {
         group_id: String,
     },
 
+    /// This warning indicates that a signal group does not set a requirement level.
+    /// It is treated as a non-critical warning unless the `--future` flag is enabled.
+    /// With the `--future` flag, this warning is elevated to an error.
+    #[error("The signal group `{group_id}` does not set `requirement_level`. This will be required in the future.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    MissingRequirementLevelWarning {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the signal.
+        group_id: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
@@ -297,6 +311,35 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates the file format (version) used is not yet stable.
+    #[error("File format `{file_format}` is not yet stable: {provenance}")]
+    #[diagnostic(severity(Warning))]
+    UnstableFileFormat {
+        /// The file_format specified.
+        file_format: String,
+        /// The source using that version.
+        provenance: String,
+    },
+
+    /// This indicates the deprecated 'version' field is being used instead of 'file_format'.
+    #[error("The 'version' field is deprecated and will be removed in a future version. Please use 'file_format: definition/2' instead: {provenance}")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedVersionField {
+        /// The source using the deprecated field.
+        provenance: String,
+    },
+
+    /// This indicates the file format (version) used is not yet stable.
+    #[error("Invalid file format: `{field_key}: {field_value}`. Expected 'file_format: definition/1' or 'file_format: definition/2'.")]
+    #[diagnostic(severity(Error))]
+    InvalidFileFormat {
+        /// The file_format or version field key.
+        field_key: String,
+
+        /// The version specified.
+        field_value: String,
+    },
+
     /// This indicates that deprecated property is invalid
     #[error(
         "The `deprecated` property in `{id}` is invalid. {error}\nProvenance: {path_or_url:?}"
@@ -311,8 +354,54 @@ pub enum Error {
         error: String,
     },
 
+    /// This error is raised when a registry manifest is using a legacy file name.
+    #[diagnostic(severity(Warning))]
+    #[error("The registry manifest at {path:?} is using a legacy file name. Please rename it to `manifest.yaml`.")]
+    LegacyRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+    },
+
+    /// This error is raised when a registry manifest includes deprecated properties.
+    #[error("The syntax used in the registry manifest at {path:?} is deprecated. {error}")]
+    #[diagnostic(severity(Warning))]
+    DeprecatedSyntaxInRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// A publication registry manifest is invalid.
+    #[error("The publication manifest at {path:?} is invalid: {details}")]
+    #[diagnostic(severity(Error))]
+    InvalidPublicationManifest {
+        /// The path to the publication manifest file.
+        path: PathBuf,
+        /// Details about what is wrong.
+        details: String,
+    },
+
+    /// A publication manifest was passed where a definition registry was expected.
+    #[error("Registry `{schema_url}` contains a publication manifest; `weaver registry package` requires a definition registry as input.")]
+    #[diagnostic(severity(Error))]
+    UnexpectedPublicationManifest {
+        /// The schema URL of the publication manifest.
+        schema_url: String,
+    },
+
+    /// A schema_url has an invalid version component.
+    #[error("Registry `{schema_url}` contains an invalid version: {err}.")]
+    #[diagnostic(severity(Error))]
+    InvalidSemVer {
+        /// The schema url with invalid version.
+        schema_url: String,
+        /// The semver parsing error.
+        err: String,
+    },
+
     /// A container for multiple errors.
-    #[error("{:?}", format_errors(.0))]
+    #[error("{}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
 }
 
@@ -335,7 +424,7 @@ pub struct InvalidSemConvSpecError {
 
     /// The span of the error in the semantic convention spec.
     #[label("somewhere in this block")]
-    pub err_span: SourceSpan,
+    pub err_span: Option<SourceSpan>,
 
     /// The error that occurred.
     pub error: String,
@@ -380,29 +469,167 @@ impl From<Error> for DiagnosticMessages {
 #[serde(transparent)]
 pub struct YamlValue(pub serde_yaml::value::Value);
 
+impl PartialOrd for YamlValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for YamlValue {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // TODO - Implement.
+        match (&self.0, &other.0) {
+            (serde_yaml::Value::Null, serde_yaml::Value::Null) => std::cmp::Ordering::Equal,
+            (serde_yaml::Value::Null, serde_yaml::Value::Bool(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Sequence(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Null, serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::Bool(l), serde_yaml::Value::Bool(r)) => l.cmp(r),
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Bool(_), serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Number(l), serde_yaml::Value::Number(r)) => {
+                l.partial_cmp(r).unwrap_or(std::cmp::Ordering::Less)
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Number(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::String(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::String(l), serde_yaml::Value::String(r)) => l.cmp(r),
+            (serde_yaml::Value::String(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::String(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Null) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Sequence(_l), serde_yaml::Value::Sequence(_r)) => {
+                // TODO - actually implement a comparison.
+                // This is good enough for sorting attributes.
+                std::cmp::Ordering::Equal
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Bool(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (serde_yaml::Value::Mapping(_l), serde_yaml::Value::Mapping(_r)) => {
+                // TODO - actually implement a comparison.
+                // This is good enough for sorting attributes.
+                std::cmp::Ordering::Equal
+            }
+            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Tagged(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Null) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Bool(_)) => std::cmp::Ordering::Less,
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Number(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::String(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Sequence(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Mapping(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (serde_yaml::Value::Tagged(_l), serde_yaml::Value::Tagged(_r)) => {
+                // TODO - actually implement a comparison.
+                // This is good enough for sorting attributes.
+                std::cmp::Ordering::Equal
+            }
+        }
+    }
+}
+
 impl JsonSchema for YamlValue {
-    fn schema_name() -> String {
-        "YamlValue".to_owned()
+    fn schema_name() -> Cow<'static, str> {
+        "YamlValue".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        concat!(module_path!(), "::YamlValue").into()
     }
 
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
-        // Create a schema that accepts any type
-        let schema = schemars::schema::SchemaObject {
-            instance_type: Some(
-                vec![
-                    InstanceType::Null,
-                    InstanceType::Boolean,
-                    InstanceType::Object,
-                    InstanceType::Array,
-                    InstanceType::Number,
-                    InstanceType::String,
-                ]
-                .into(),
-            ),
-            ..Default::default()
-        };
+        // Accept any JSON type
+        json_schema!({
+            "type": ["null", "boolean", "object", "array", "number", "string"]
+        })
+    }
+}
 
-        Schema::Object(schema)
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for YamlValue {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::RefOr::T(utoipa::openapi::schema::Schema::Object(
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .description(Some("A YAML value that can be any valid YAML type"))
+                .build(),
+        ))
+    }
+}
+
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for YamlValue {
+    fn name() -> Cow<'static, str> {
+        Cow::Borrowed("YamlValue")
     }
 }
 
@@ -513,71 +740,57 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::json_schema::JsonSchemaValidator;
-    use crate::registry::SemConvRegistry;
-    use std::vec;
+    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
+    use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
     /// Load multiple semantic convention files in the semantic convention registry.
     /// No error should be emitted.
     #[test]
     fn test_valid_semconv_registry() {
-        let validator = JsonSchemaValidator::new();
-        let yaml_files = vec![
-            "data/client.yaml",
-            "data/cloud.yaml",
-            "data/cloudevents.yaml",
-            "data/database.yaml",
-            "data/database-metrics.yaml",
-            "data/event.yaml",
-            "data/exception.yaml",
-            "data/faas.yaml",
-            "data/faas-common.yaml",
-            "data/faas-metrics.yaml",
-            "data/http.yaml",
-            "data/http-common.yaml",
-            "data/http-metrics.yaml",
-            "data/jvm-metrics.yaml",
-            "data/media.yaml",
-            "data/messaging.yaml",
-            "data/network.yaml",
-            "data/rpc.yaml",
-            "data/rpc-metrics.yaml",
-            "data/server.yaml",
-            "data/source.yaml",
-            "data/trace-exception.yaml",
-            "data/url.yaml",
-            "data/user-agent.yaml",
-            "data/vm-metrics-experimental.yaml",
-            "data/tls.yaml",
-        ];
-
-        let mut registry = SemConvRegistry::default();
-        for yaml in yaml_files {
-            let result = registry
-                .add_semconv_spec_from_file("main", yaml, &validator)
-                .into_result_failing_non_fatal();
-            assert!(result.is_ok(), "{:#?}", result.err().unwrap());
-        }
+        let schema_url: SchemaUrl = "https://main/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let result = SemConvRegistry::try_from_path_pattern(schema_url, "data/*.yaml")
+            .into_result_failing_non_fatal();
+        assert!(result.is_ok(), "{:#?}", result.err().unwrap());
     }
 
     #[test]
     fn test_invalid_semconv_registry() {
-        let yaml_files = vec!["data/invalid.yaml"];
-
-        let mut registry = SemConvRegistry::default();
-        let validator = JsonSchemaValidator::new();
+        let yaml_files = vec!["data/invalid/*.yaml"];
+        let schema_url: SchemaUrl = "https://main/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
         for yaml in yaml_files {
-            let result = registry
-                .add_semconv_spec_from_file("main", yaml, &validator)
+            let result = SemConvRegistry::try_from_path_pattern(schema_url.clone(), yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
                 let output = format!("{err}");
                 let diag_msgs: DiagnosticMessages = err.into();
-                assert_eq!(diag_msgs.len(), 1);
+                assert_eq!(diag_msgs.len(), 1, "Unexpected diagnostics: {diag_msgs:#?}");
                 assert!(!output.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn test_yaml_comparison() -> Result<(), Box<dyn Error>> {
+        let boolean = YamlValue(serde_yaml::from_str("false")?);
+        let number = YamlValue(serde_yaml::from_str("5")?);
+        let string = YamlValue(serde_yaml::from_str("\"5\"")?);
+        let sequence = YamlValue(serde_yaml::from_str("- 1.0\n- \"hi\"")?);
+        let mapping = YamlValue(serde_yaml::from_str("x: one\ny: two")?);
+        let mut values = vec![
+            mapping.clone(),
+            sequence.clone(),
+            string.clone(),
+            number.clone(),
+            boolean.clone(),
+        ];
+        values.sort();
+        assert_eq!(values, vec![boolean, number, string, sequence, mapping]);
+        Ok(())
     }
 }

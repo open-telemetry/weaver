@@ -17,9 +17,12 @@ use crate::registry::GroupStats::{
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
+use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use weaver_semconv::YamlValue;
 
 /// A semantic convention registry.
@@ -27,7 +30,6 @@ use weaver_semconv::YamlValue;
 #[serde(deny_unknown_fields)]
 pub struct Registry {
     /// The semantic convention registry url.
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
@@ -53,7 +55,6 @@ pub struct Group {
     /// The type of the group including the specific fields for each type.
     pub r#type: GroupType,
     /// A brief description of the semantic convention.
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
     /// A more elaborate description of the semantic convention.
     /// It defaults to an empty string.
@@ -130,12 +131,46 @@ pub struct Group {
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<HashMap<String, YamlValue>>,
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
+    ///
+    /// The list is an implicit `one_of`: telemetry must satisfy at least one of the entries.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<String>,
+    pub entity_associations: Vec<EntityAssociation>,
+    /// Visibility of the attribute group.
+    /// This is only used for v2 conversion.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
+
+    /// Whether this group is a v2 group.
+    ///
+    /// This does NOT survive serialization, but is used when
+    /// tracking v2 groups during resolution.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub is_v2: bool,
+
+    /// The v2 span name specification, carried through the v1 intermediate
+    /// representation during resolution; it is omitted from v1 serialization
+    /// and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
+
+    /// Requirement level of the signal (metric, span, event, entity).
+    /// This is a v2-only concept carried through the v1 intermediate
+    /// representation during resolution; it is omitted from v1 serialization
+    /// and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<SignalRequirementLevel>,
 }
 
 impl Group {
@@ -145,7 +180,7 @@ impl Group {
     #[must_use]
     pub fn signal_name(&self) -> Option<&str> {
         match self.r#type {
-            GroupType::AttributeGroup => None,
+            GroupType::AttributeGroup => Some(self.id.as_str()),
             // ToDo: Remove this comment way forward is agreed upon
             // https://github.com/open-telemetry/weaver/issues/785
             // For now we allow group.name to be a namespace for spans.
@@ -157,6 +192,22 @@ impl Group {
             GroupType::Scope => None,
             GroupType::Undefined => None,
         }
+    }
+
+    /// Returns true if the group is a v2 group.
+    #[must_use]
+    pub fn is_v2(&self) -> bool {
+        self.is_v2
+    }
+
+    /// Returns true if the group is a v2 refinement.
+    #[must_use]
+    pub fn is_v2_refinement(&self) -> bool {
+        self.is_v2
+            && self
+                .lineage
+                .as_ref()
+                .is_some_and(|l| l.extends_group.is_some())
     }
 }
 
@@ -426,10 +477,9 @@ impl Group {
 
     /// Returns the provenance of the group.
     #[must_use]
-    pub fn provenance(&self) -> Provenance {
-        match &self.lineage {
-            Some(lineage) => lineage.provenance().to_owned(),
-            None => Provenance::undefined(),
-        }
+    pub fn provenance(&self) -> Option<Provenance> {
+        self.lineage
+            .as_ref()
+            .map(|lineage| lineage.provenance().to_owned())
     }
 }

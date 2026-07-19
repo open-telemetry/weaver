@@ -2,12 +2,166 @@
 
 All notable changes to this project will be documented in this file.
 
-# [Next] - Next
+# Unreleased
 
+- Add a tree view to the `serve` UI's search page, grouping results by namespace with expand/collapse controls, and a "Hide deprecated" toggle (on by default) for both the list and tree views. ([#1595](https://github.com/open-telemetry/weaver/pull/1595) by @jerbly)
+- Support signal refinements over a published dependency. ([#1587](https://github.com/open-telemetry/weaver/pull/1587) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 Preserve per-attribute `requirement_level` on attribute refs of public attribute groups in the v2 resolved and materialized schemas. Each entry in an attribute group's `attributes` is now an object (`{ base, requirement_level }`) instead of a bare `attribute_catalog` index. ([#1584](https://github.com/open-telemetry/weaver/pull/1584) by @lmolkova)
+- Use the OS-native certificate store (via ureq's `platform-verifier` feature) to validate TLS connections for remote registry downloads, instead of a fixed bundled root CA list. ([#1583](https://github.com/open-telemetry/weaver/pull/1583) by @jerbly)
+- Fix panic when a registry, policy, or template path uses a commit SHA. ([#1414](https://github.com/open-telemetry/weaver/pull/1414))
+- Add a stats dashboard with charts to the `serve` UI. ([#1570](https://github.com/open-telemetry/weaver/pull/1570) by @jerbly)
+- Add `semconv_grouped_entities` JQ helper. ([#1560](https://github.com/open-telemetry/weaver/pull/1560) by @lmolkova)
+- Add optional `when` clause to template entries in `weaver.yaml` — a JQ expression that gates whether a template is applied. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
+- Add `[template]` section to `.weaver.toml` with `acronyms` and `text_maps`, applied on top of every template's `weaver.yaml`. ([#1561](https://github.com/open-telemetry/weaver/pull/1561) by @lmolkova)
+- Add optional `name` field to `SpanRefinement` in v2 syntax, and fix span name propagation so refinements (and imported spans) inherit the base span's `name` when they don't override it. ([#1403](https://github.com/open-telemetry/weaver/pull/1403) by @lmolkova)
+- Fix `registry update-markdown` so it does not require `registry` subdirectory matching `registry generate` behavior. ([#1544](https://github.com/open-telemetry/weaver/pull/1544) by @lmolkova)
+- Live-check: support loading additional Rego data from glob patterns via `--advice-data`. ([#1539](https://github.com/open-telemetry/weaver/pull/1539) by @lmolkova).
+- Refactor resolution engine so we can support multiple schema urls registered
+  and cached ([#1504](https://github.com/open-telemetry/weaver/pull/1504) by @jsuereth).
+- Change `--include-unreferenced` so that this is the same as creating a
+  a set of `import:` statements in the registry manifest. ([#1442](https://github.com/open-telemetry/weaver/pull/1442) by @jsuereth)
+
+# [0.24.2] - 2026-06-23
+
+- Fix boolean flags (`--v2`, `--skip-policies`, etc.) consuming the following positional argument; bare flags work again and `--flag=false` overrides `.weaver.toml`. ([#1532](https://github.com/open-telemetry/weaver/pull/1532) by @jerbly)
+- Add `--fail-on <violation|improvement|information|none>` to `weaver registry live-check` to choose the severity threshold that produces a non-zero exit code. Defaults to `violation` (preserves the current behavior). ([#1473](https://github.com/open-telemetry/weaver/issues/1473))
+
+# [0.24.1] - 2026-06-21
+
+- Fix stack overflow when generating OpenAPI spec ([#1521](https://github.com/open-telemetry/weaver/pull/1521) by @jerbly)
+
+# [0.24.0] - 2026-06-19
+
+- Add `requirement_level` (`recommended`/`opt_in`) for all v2 signals (metrics, spans, events, entities). ([#1515](https://github.com/open-telemetry/weaver/pull/1515) by @lmolkova)
+- Add `dependency_resolution.exclude` annotation to hide attributes, groups, and signals from registries that depend on this one. ([#1458](https://github.com/open-telemetry/weaver/pull/1458) by @lmolkova)
+- Add `one_of` and `all_of` combinators to `entity_associations`, letting a signal (span, metric, or event) require any-of or all-of a set of entities, nested arbitrarily. A bare list of entity references remains supported and is treated as an implicit `one_of`. See [`semconv-syntax.v2.md`](schemas/semconv-syntax.v2.md#entity-associations). ([#1493](https://github.com/open-telemetry/weaver/pull/1493) by @jerbly)
+- Add `weaver-live-check-start` and `weaver-live-check-stop` composite GitHub Actions for CI integration. ([#1448](https://github.com/open-telemetry/weaver/pull/1448))
+- Rename `resolved_schema_uri` to `resolved_registry_uri` in publication manifest and in `package` command. ([#1425](https://github.com/open-telemetry/weaver/pull/1425))
+- Fix V2 resolver overwriting `SpanName.note` with the span type id during resolution. ([#1401](https://github.com/open-telemetry/weaver/pull/1401))
+- Add `semconv_grouped_events` JQ helper with v1/v2 options parity and coverage. ([#1439](https://github.com/open-telemetry/weaver/pull/1439))
+- New feature ([#1344](https://github.com/open-telemetry/weaver/issues/1344)) - Support authenticated HTTP downloads of remote registries, including GitHub private release assets. Auth is configured per-URL via `[[auth]]` entries in `.weaver.toml` (longest `url_prefix` wins), with tokens sourced from a literal `token`, a `token_env` variable, or a `token_command` helper (e.g. `["gh", "auth", "token"]`). ([#1356](https://github.com/open-telemetry/weaver/pull/1356) by @jerbly)
+- New feature - `.weaver.toml` project configuration now covers all subcommands allowing for simplified configuration management. See the [README.md](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_config/README.md) ([#1410](https://github.com/open-telemetry/weaver/pull/1410) by @jerbly)
+- Fix ([#1297](https://github.com/open-telemetry/weaver/issues/1297)) - Live-check: entity validation now supported. ([#1426](https://github.com/open-telemetry/weaver/pull/1426) by @jerbly)
+- Live-check OTLP log findings are now dog-fooded: the event schema, attributes, and enumerations are defined in a semconv model and code-generated using Weaver's own templates. See [`finding.md`](crates/weaver_live_check/docs/finding.md) for the generated reference documentation and [`dog-fooding.md`](crates/weaver_live_check/docs/dog-fooding.md) for the full dog-fooding guide.
+
+  💥 BREAKING CHANGES 💥 to the log schema:
+  - `attribute_name` → `attribute_key` (in `weaver.finding.context`)
+  - `weaver.finding.sample_type` → `weaver.finding.sample.type`
+  - `weaver.finding.signal_type` → `weaver.finding.signal.type`
+  - `weaver.finding.signal_name` → `weaver.finding.signal.name`
+  - `weaver.finding.resource_attribute.<key>` → `weaver.finding.resource.attribute.<key>`
+
+  ([#1232](https://github.com/open-telemetry/weaver/pull/1232) by @jerbly)
+
+# [0.23.0] - 2026-04-22
+
+- New feature ([#1247](https://github.com/open-telemetry/weaver/issues/1247), [#1248](https://github.com/open-telemetry/weaver/issues/1248)) - `.weaver.toml` project configuration file for `live-check`. Covers all `live-check` CLI flags plus `[[live_check.finding_filters]]` for dropping findings by ID, minimum level, sample name, and signal type. CLI flags take precedence over config values. Use `--config` or auto-discovery from CWD. ([#1256](https://github.com/open-telemetry/weaver/pull/1256) by @jerbly)
+- Fix attribute catalog sorting for attributes with the same key when converting from v1 to v2 catalog. ([#1359](https://github.com/open-telemetry/weaver/pull/1359) by @michaelvanstraten)
+- Fix ([#1323](https://github.com/open-telemetry/weaver/issues/1323)) - Live-check: treat observed `int` as compatible with expected `double` attribute type, avoiding false violations from OTLP serializers (e.g. JS) that emit `int_value` for integral numbers. ([#1331](https://github.com/open-telemetry/weaver/pull/1331) by @jerbly)
+- Fix CLI so it doesn't error out early when loading a resolved schema. ([#1304](https://github.com/open-telemetry/weaver/pull/1304) by @jsuereth)
+- 💥 BREAKING CHANGE 💥 Use `schema_url` to track registries consistently in lineage / provenance ([#1298](https://github.com/open-telemetry/weaver/pull/1298) by @jsuereth)
+- Publish and document missing JSON schemas. Add `head_schema_url`/`baseline_schema_url` to diff v2. ([#1106](https://github.com/open-telemetry/weaver/pull/1106) by @lmolkova)
+- Add `--allow-git-credentials` global flag to enable system credential helpers (e.g. `osxkeychain`, `git-credential-manager`) when cloning private registries. By default, git operations remain isolated for security. ([#1306](https://github.com/open-telemetry/weaver/pull/1306) by @jerbly)
+- MCP: Add `browse_namespace` tool and `findings_only` output mode for `live_check`. Add configurable namespace separator via `--namespace-separator`. ([#1324](https://github.com/open-telemetry/weaver/pull/1324) by @jerbly)
+- chore(deps): update all patch versions. ([#1379](https://github.com/open-telemetry/weaver/pull/1379) by @renovate[bot])
+- Remove vendored openssl dependency. ([#1380](https://github.com/open-telemetry/weaver/pull/1380) by @sapatrjv)
+
+# [0.22.1] - 2026-03-13
+
+- Fix: Update release workflow for pnpm migration (use pnpm lockfile instead of npm lockfile). ([#1289](https://github.com/open-telemetry/weaver/pull/1289) by @jerbly)
+
+# [0.22.0] - 2026-03-14
+
+- Add support for git references in the registry url ([#182](https://github.com/open-telemetry/weaver/issues/182) by @sebasnabas)
+- New feature ([#1153](https://github.com/open-telemetry/weaver/issues/1153)) - Live-check now has a `/health` endpoint that can be used in long-running scenarios to confirm readiness and liveness of the live-check server. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+- New feature ([#1100](https://github.com/open-telemetry/weaver/issues/1100)) - Set `--output=http` to have live-check send its report as the response to `/stop`. ([#1193](https://github.com/open-telemetry/weaver/pull/1193) by @jerbly)
+- Unified output handling across all registry subcommands. Builtin output formats (json, yaml, jsonl) are now available in `registry stats`, `registry diff`, and `registry resolve`. `registry stats` also supports `--templates` for custom text output templates. ([#1200](https://github.com/open-telemetry/weaver/pull/1200) by @jerbly)
+- New feature ([#1152](https://github.com/open-telemetry/weaver/issues/1152)) - Live-check with `--emit-otlp-logs` will now include the attributes from the resource in the emitted log record, this helps to identify the source of the finding in a multi-source environment. ([#1206](https://github.com/open-telemetry/weaver/pull/1206) by @jerbly)
+- New Experimental feature: `weaver registry infer` command that listens for OTLP telemetry and infers a semantic convention registry file from the received data. Supports spans, metrics, events, and resource attributes. Includes configurable gRPC address/port, admin server for graceful shutdown, and inactivity timeout. ([#1138](https://github.com/open-telemetry/weaver/pull/1138) by @ArthurSens)
+- Fix: Include unit in inferred schema even if empty to prevent live-check failures. ([#1284](https://github.com/open-telemetry/weaver/pull/1284) by @ArthurSens)
+- Use `schema_url` in registry manifest, dependencies, and resolved schema instead of `registry_url`. Parse registry name and version
+  from it. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
+- Default to `manifest.yaml` for registry manifest file, deprecate `registry_manifest.yaml` and add warning when it's used. ([#1202](https://github.com/open-telemetry/weaver/pull/1202) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 (Fixes [#760](https://github.com/open-telemetry/weaver/issues/760)) - Auto-escaping is now off by default (`none`) for all templates, regardless of file extension. To opt in, set `auto_escape: html` or `auto_escape: json` per template in `weaver.yaml`. Within a template, `{% autoescape false %}` blocks can selectively disable escaping for sections. Use `|tojson` for explicit JSON/YAML value escaping where needed. ([#1239](https://github.com/open-telemetry/weaver/pull/1239) by @jerbly)
+- 💥 BREAKING CHANGE 💥 Replace `version: "2"` with `file_format: definition/2` for v2 definition schema ([#1154](https://github.com/open-telemetry/weaver/pull/1154) by @lmolkova)
+- Add JSON schema for resolved registry v2 ([#1261](https://github.com/open-telemetry/weaver/pull/1261) by @lmolkova)
+- Add `weaver registry package` command to generate manifest and write resolved schema. ([#1254](https://github.com/open-telemetry/weaver/pull/1254) by @lmolkova)
+- Fix: `weaver registry package` command not producing output due to warnings. ([#1271](https://github.com/open-telemetry/weaver/pull/1271) by @lmolkova)
+- Update JSON Schema v2 to include `file_format` ([#1262](https://github.com/open-telemetry/weaver/pull/1262) by @lmolkova)
+- Add JSON schema for `PolicyFinding`, make `context` field optional. ([#1270](https://github.com/open-telemetry/weaver/pull/1270) by @lmolkova)
+- Deprecate `weaver registry resolve` command, please use `weaver registry generate` or `package` instead ([#1255](https://github.com/open-telemetry/weaver/pull/1255) by @lmolkova)
+- Support `imports` for all signal types and public attribute groups in v2 registry. ([#1267](https://github.com/open-telemetry/weaver/pull/1267) by @jsuereth)
+- Support refinements in v2 syntax: metric names, notes, etc. are now copied from the refined group. ([#1250](https://github.com/open-telemetry/weaver/pull/1250) by @jsuereth)
+- Fix stability/ordering issues in v2 publishing; attributes are now sorted and deduplicated consistently. ([#1282](https://github.com/open-telemetry/weaver/pull/1282) by @jsuereth)
+- Fix resolution for dependencies: both v1 and v2 resolution now returns the correct attribute from the right registry when using dependencies. ([#1280](https://github.com/open-telemetry/weaver/pull/1280) by @lmolkova)
+- JQ helper v2 for spans: fixes and improvements. ([#1251](https://github.com/open-telemetry/weaver/pull/1251) by @lmolkova)
+- Fix 404 on template-type attributes in the `weaver serve` API. ([#1240](https://github.com/open-telemetry/weaver/pull/1240) by @jerbly)
+- New Experimental feature: `weaver serve` UI migrated to React. ([#1147](https://github.com/open-telemetry/weaver/pull/1147) by @nicolastakashi)
+- New feature: out-of-the-box markdown documentation templates for generating signal documentation (metrics, spans, events, attributes, resources) from a semantic conventions registry. ([#1166](https://github.com/open-telemetry/weaver/pull/1166) by @vesari)
+
+# [0.21.2] - 2026-02-03
+
+- New Experimental feature: `weaver serve` command to serve a REST API and web UI. ([#1076](https://github.com/open-telemetry/weaver/pull/1076) by @jerbly)
+- Add support for diff schemas in `registry json-schema`([#1105](https://github.com/open-telemetry/weaver/pull/1105) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 Upgraded JSON schema generation to [2020-12 version of JSON Schema.](https://json-schema.org/draft/2020-12/schema) ([#1125](https://github.com/open-telemetry/weaver/pull/1125) by @jerbly)
+- New Experimental feature: `weaver registry mcp` MCP server for a registry with search, get and live_check tools. ([#1113](https://github.com/open-telemetry/weaver/pull/1113) by @jerbly)
+- Fix ([#1133](https://github.com/open-telemetry/weaver/issues/1133)) - Live-check: correctly handle `--no-stats` in report mode. ([#1142](https://github.com/open-telemetry/weaver/pull/1142) by @jerbly)
+- Feature ([#1132](https://github.com/open-telemetry/weaver/issues/1132)) - Live-check: builtin output rendering for json, jsonl and yaml. ([#1157](https://github.com/open-telemetry/weaver/pull/1157) by @jerbly)
+
+# [0.20.0] - 2025-12-11
+
+- Add support for V2 schema in `weaver diff` ([#1053](https://github.com/open-telemetry/weaver/pull/1053) by @jsuereth)
+- Add support for V2 schema in JQ helpers ([#1058](https://github.com/open-telemetry/weaver/pull/1058) by @lmolkova)
+- Add support for V2 schema in weaver_forge ([#980](https://github.com/open-telemetry/weaver/pull/980) by @jsuereth)
+- Add support for V2 schema in `weaver check` ([#1016](https://github.com/open-telemetry/weaver/pull/1016) by @jsuereth)
+- Add support for V2 schema in `emit` ([#1019](https://github.com/open-telemetry/weaver/pull/1019) by @jerbly)
+- Add support for V2 schema in `live-check` ([#1022](https://github.com/open-telemetry/weaver/pull/1022) by @jerbly)
+- 💥 BREAKING CHANGE 💥 `Violation` and `Advice` have been renamed
+  to `PolicyFinding`. We now use the same structure between all
+  rego policies in weaver. ([#1038](https://github.com/open-telemetry/weaver/pull/1038) by @jsuereth)
+- Add Log support for emit and live-check ([#1042](https://github.com/open-telemetry/weaver/pull/1042) by @jerbly)
+- Add OTLP log emission for policy findings in live-check. Whenever a PolicyFinding is created, a log_record is emitted to your configured OTLP endpoint. ([#1045](https://github.com/open-telemetry/weaver/pull/1045) by @jerbly)
+- Deprecate `weaver registry search` command. This command is not compatible with V2 schema and will be removed in a future version. Users should search the generated documentation instead. ([#1057](https://github.com/open-telemetry/weaver/pull/1057) by @jerbly)
+- Add support for continuous live-check sessions with `--inactivity-timeout=0`, `--output=none` and `--no-stats` ([#1066](https://github.com/open-telemetry/weaver/pull/1066) by @jerbly)
+
+# [0.19.0] - 2025-11-04
+
+- Add support for attribute_group (public and internal) in schema v2 ([#933](https://github.com/open-telemetry/weaver/pull/933) by @lmolkova)
+- Live-check report changes ([#943](https://github.com/open-telemetry/weaver/pull/943) by @lmolkova)
+  - 💥 BREAKING CHANGE 💥 `value` property in `Advice` is renamed to `advice_context`
+  - Advice now contains `signal_type` and `signal_name` properties to simplify post-processing
+  - Message format is changed to include all dynamic details about the advice
+- The target and the `registry` sub-directory are now optional for the
+  `weaver registry generate` command. ([#962](https://github.com/open-telemetry/weaver/pull/962) by @lquerel)
+- Deterministic sorting of output ([#982](https://github.com/open-telemetry/weaver/pull/982) by @kuklyy)
+- Fix panic in `update-markdown` ([#990](https://github.com/open-telemetry/weaver/pull/990) by @jsuereth)
+- Cleanup log output ([#995](https://github.com/open-telemetry/weaver/pull/995) by @lmolkova)
+
+# [0.18.0] - 2025-09-17
+
+- Fail when JQ filters fail ([#894](https://github.com/open-telemetry/weaver/pull/894) by @lmolkova)
+- Update cargo-dist ([#905](https://github.com/open-telemetry/weaver/pull/905) by @jerbly)
+- Update OTLP support to 1.7 ([#907](https://github.com/open-telemetry/weaver/pull/907) by @jerbly)
+- Add debug logs for template config loading ([#934](https://github.com/open-telemetry/weaver/pull/934) by @lmolkova)
+- Always serialize brief and registry_url ([#929](https://github.com/open-telemetry/weaver/pull/929) by @jsuereth)
+- Fail when template doesn't match a file ([#928](https://github.com/open-telemetry/weaver/pull/928) by @lmolkova)
+
+# [0.17.1] - 2025-08-15
+
+- Fix error messages to ignore new version variants ([#880](https://github.com/open-telemetry/weaver/pull/880) by @jsuereth)
+
+# [0.17.0] - 2025-08-08
+
+- Filter based on deprecation, stability, and annotations in signal JQ helpers
+  ([#870](https://github.com/open-telemetry/weaver/pull/870) by @lmolkova)
+- Documentation and Repo cleanup ([#873](https://github.com/open-telemetry/weaver/pull/873) by @lquerel))
 - Support structured deprecation info on enum members.
   ([#823](https://github.com/open-telemetry/weaver/pull/823) by @lmolkova)
 - Don't serialize default values and empty arrays when resolving semantic conventions.
   ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
+- Add support for registry dependency chain, a->b->c. This pattern is useful when making narrow application registries that depend on a corporate registry based on the OpenTelemetry semantic conventions. Max depth is 10.
+  ([#856](https://github.com/open-telemetry/weaver/pull/856) by @jerbly)
+- Improve doc usage section ([#851](https://github.com/open-telemetry/weaver/pull/851) by @tombrk)
 
 # [0.16.1] - 2025-07-04
 
@@ -90,7 +244,6 @@ What's changed
   the semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. While the
   text-based `deprecated` field is still supported for compatibility reasons, future semantic conventions should use the
   new `deprecated` structured format. ([#400](https://github.com/open-telemetry/weaver/pull/400/) by @lquerel).
-
   - The `deprecated` field is now a structured field defining the precise reason for deprecation. The semantic
     conventions must be updated to adopt this new format.
   - The changes related to the `deprecated` field (i.e., string → struct) also have a potential impact on certain

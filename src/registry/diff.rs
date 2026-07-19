@@ -2,31 +2,31 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
-use crate::registry::Error::DiffRender;
-use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_telemetry_schema};
+use crate::registry::{load_config, RegistryArgs};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::{include_dir, Dir};
 use log::info;
-use miette::Diagnostic;
-use serde::Serialize;
 use std::path::PathBuf;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_forge::config::{Params, WeaverConfig};
-use weaver_forge::file_loader::EmbeddedFileLoader;
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
 
-/// Parameters for the `registry diff` sub-command
-#[derive(Debug, Args)]
+/// Compare two versions of a semantic convention registry and report the differences.
+#[weaver_command(section = "diff", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryDiffArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Parameters to specify the baseline semantic convention registry
@@ -35,105 +35,72 @@ pub struct RegistryDiffArgs {
 
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
     /// and markdown.
-    #[arg(long, default_value = "ansi")]
-    diff_format: String,
+    #[arg(long, alias = "diff-format")]
+    #[config(default = "ansi")]
+    format: Option<String>,
 
     /// Path to the directory where the schema changes templates are located.
-    #[arg(long, default_value = "diff_templates")]
-    diff_template: PathBuf,
+    #[arg(long, alias = "diff-template")]
+    #[config(default = "diff_templates")]
+    templates: Option<PathBuf>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the diff report is printed to stdout
     #[arg(short, long)]
+    #[config]
     output: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub(crate) diagnostic: DiagnosticArgs,
 }
 
-/// An error that can occur while generating the diff between two versions of the same
-/// semantic convention registry.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
-#[non_exhaustive]
-pub enum Error {
-    /// Writing to the file failed.
-    #[error("Writing to the file ‘{file}’ failed for the following reason: {error}")]
-    WriteError {
-        /// The path to the output file.
-        file: PathBuf,
-        /// The error that occurred.
-        error: String,
-    },
-}
-
-impl From<Error> for DiagnosticMessages {
-    fn from(error: Error) -> Self {
-        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
-    }
-}
-
 /// Generate a diff between two versions of a semantic convention registry.
-pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
-    let mut output = PathBuf::from("output");
-    let output_directive = if let Some(path_buf) = &args.output {
-        output = path_buf.clone();
-        OutputDirective::File
-    } else {
-        OutputDirective::Stdout
-    };
-
+pub(crate) fn command(
+    args: &RegistryDiffArgs,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     let mut diag_msgs = DiagnosticMessages::empty();
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+
     info!("Weaver Registry Diff");
-    info!("Checking registry `{}`", args.registry.registry);
+    info!("Checking registry `{}`", cmd_config.registry.registry);
 
-    let registry_path = args.registry.registry.clone();
-    let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.registry.follow_symlinks)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-    let baseline_semconv_specs =
-        load_semconv_specs(&baseline_registry_repo, args.registry.follow_symlinks)
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+    let registry_path = cmd_config.registry.registry.clone();
+    let main_registry_repo =
+        RegistryRepo::try_new_with_auth(None, &registry_path, &mut vec![], auth)?;
+    let baseline_registry_repo =
+        RegistryRepo::try_new_with_auth(None, &args.baseline_registry, &mut vec![], auth)?;
 
-    let main_resolved_schema = resolve_telemetry_schema(
-        &main_registry_repo,
-        main_semconv_specs,
-        args.registry.include_unreferenced,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-    let baseline_resolved_schema = resolve_telemetry_schema(
-        &baseline_registry_repo,
-        baseline_semconv_specs,
-        args.registry.include_unreferenced,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-
-    // Generate the diff between the two versions of the registries.
-    let changes = main_resolved_schema.diff(&baseline_resolved_schema);
+    let main_resolved = weaver.load_and_resolve_repo(main_registry_repo, &mut diag_msgs)?;
+    let baseline_resolved = weaver.load_and_resolve_repo(baseline_registry_repo, &mut diag_msgs)?;
+    let diff = main_resolved
+        .diff(&baseline_resolved)
+        .map_err(DiagnosticMessages::from_error)?;
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
-    let loader = EmbeddedFileLoader::try_new(
-        &DEFAULT_DIFF_TEMPLATES,
-        args.diff_template.clone(),
-        &args.diff_format,
-    )
-    .expect("Failed to create the embedded file loader for the diff templates");
-    let config = WeaverConfig::try_from_loader(&loader)
-        .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
-    let engine = TemplateEngine::new(config, loader, Params::default());
+    let format = &cmd_config.config.format;
+    let templates = cmd_config.config.templates;
+    let target = OutputTarget::from_optional_dir(cmd_config.config.output.as_ref());
+    let mut output = OutputProcessor::new(
+        format,
+        "diff",
+        Some(&DEFAULT_DIFF_TEMPLATES),
+        Some(templates),
+        target,
+    )?;
 
-    match engine.generate(&changes, output.as_path(), &output_directive) {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(DiagnosticMessages::from(DiffRender {
-                error: e.to_string(),
-            }));
-        }
+    match diff {
+        crate::weaver::DiffResult::V1(d) => output.generate(d.as_template_context()),
+        crate::weaver::DiffResult::V2(d) => output.generate(&d.as_template_context()),
     }
+    .map_err(DiagnosticMessages::from)?;
 
     Ok(ExitDirectives {
         exit_code: 0,
@@ -150,8 +117,14 @@ mod tests {
     };
     use crate::run_command;
     use std::fs::OpenOptions;
-    use tempdir::TempDir;
+    use weaver_common::http_auth::HttpAuthResolver;
     use weaver_version::schema_changes::SchemaChanges;
+
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryDiffArgs>();
+    }
 
     #[test]
     fn test_registry_diff_exit_code() {
@@ -159,20 +132,21 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Diff(RegistryDiffArgs {
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "tests/diff/registry_head/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
                     baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
                     },
-                    diff_format: "json".to_owned(),
-                    diff_template: Default::default(),
+                    format: Some("json".to_owned()),
+                    templates: None,
                     output: None,
                     diagnostic: Default::default(),
                 }),
@@ -186,29 +160,37 @@ mod tests {
 
     #[test]
     fn test_registry_diff_cmd() {
-        let temp_dir = TempDir::new("output").expect("Failed to create temp file");
+        let temp_dir = tempfile::Builder::new()
+            .prefix("output")
+            .tempdir()
+            .expect("Failed to create temp file");
 
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Diff(RegistryDiffArgs {
                 registry: RegistryArgs {
-                    registry: VirtualDirectoryPath::LocalFolder {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_head/".to_owned(),
-                    },
-                    follow_symlinks: false,
-                    include_unreferenced: false,
+                    }),
+                    ..Default::default()
                 },
                 baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),
                 },
-                diff_format: "json".to_owned(),
-                diff_template: Default::default(),
+                format: Some("json".to_owned()),
+                templates: None,
                 output: Some(temp_dir.path().to_path_buf()),
                 diagnostic: Default::default(),
             }),
         };
 
-        let cmd_result = semconv_registry(&registry_cmd);
-        assert_eq!(cmd_result.command_result.ok().unwrap().exit_code, 0);
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
+        assert_eq!(
+            cmd_result
+                .command_result
+                .expect("Command should complete successfully")
+                .exit_code,
+            0
+        );
 
         // Read the output file and check that it contains the expected JSON.
         let output_file = temp_dir.path().join("diff.json");

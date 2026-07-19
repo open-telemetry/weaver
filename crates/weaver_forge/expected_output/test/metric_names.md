@@ -1,4 +1,6 @@
 
+`http.client.request.duration`
+
 `jvm.class.count`
 
 `jvm.class.loaded`
@@ -14,6 +16,8 @@
 `jvm.gc.duration`
 
 `jvm.memory.committed`
+
+`jvm.memory.deprecated`
 
 `jvm.memory.limit`
 

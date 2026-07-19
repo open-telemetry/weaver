@@ -36,8 +36,7 @@ pub fn run() -> anyhow::Result<()> {
                 // Check that the crate name starts with `weaver_`
                 if !crate_name.starts_with("weaver_") {
                     errors.push(anyhow::anyhow!(
-                        "Crate `{}` does not start with `weaver_`",
-                        crate_name
+                        "Crate `{crate_name}` does not start with `weaver_`"
                     ));
                 }
 
@@ -53,15 +52,16 @@ pub fn run() -> anyhow::Result<()> {
                 let cargo_toml_path = path.join("Cargo.toml");
                 if !cargo_toml_path.exists() {
                     errors.push(anyhow::anyhow!(
-                        "Missing Cargo.toml in the `{}` crate",
-                        crate_name
+                        "Missing Cargo.toml in the `{crate_name}` crate"
                     ));
                 }
-
-                match std::fs::read_to_string(cargo_toml_path.clone()) {
-                    Ok(contents) => {
-                        let toml = contents.parse::<Value>()?;
-
+                let maybe_toml: Result<Value, anyhow::Error> =
+                    std::fs::read_to_string(cargo_toml_path.clone())
+                        .map_err(|e| e.into())
+                        .and_then(|contents| contents.parse::<toml::Table>().map_err(|e| e.into()))
+                        .map(Value::Table);
+                match maybe_toml {
+                    Ok(toml) => {
                         if let Err(e) = check_package(cargo_toml_path.as_path(), &toml) {
                             errors.push(e);
                         }
@@ -96,9 +96,7 @@ fn check_presence_of(path: &Path, file_name: &str, crate_name: &str, errors: &mu
     let readme_path = path.join(file_name);
     if !readme_path.exists() {
         errors.push(anyhow::anyhow!(
-            "Missing {} in the `{}` crate",
-            file_name,
-            crate_name
+            "Missing {file_name} in the `{crate_name}` crate"
         ));
     }
 }

@@ -72,6 +72,21 @@ where
         }
     }
 
+    /// Extends a WResult with additional non-fatal errors.
+    ///
+    /// If the result was `Ok``, this moves to an `OkWithNFEs`.
+    /// If the result was a `FatalError` this method is ignored.
+    pub fn extend_non_fatal_errors(self, non_fatal_errors: Vec<E>) -> Self {
+        match self {
+            WResult::Ok(result) => WResult::OkWithNFEs(result, non_fatal_errors),
+            WResult::OkWithNFEs(result, mut items) => {
+                items.extend(non_fatal_errors);
+                WResult::OkWithNFEs(result, items)
+            }
+            WResult::FatalErr(e) => Self::FatalErr(e),
+        }
+    }
+
     /// Creates a new [`WResult`] with a successful result.
     pub fn with_non_fatal_errors(result: T, non_fatal_errors: Vec<E>) -> Self {
         if non_fatal_errors.is_empty() {
@@ -199,7 +214,7 @@ mod tests {
     use miette::Diagnostic;
     use serde::Serialize;
 
-    #[derive(thiserror::Error, Debug, PartialEq, Serialize, Diagnostic)]
+    #[derive(thiserror::Error, Debug, PartialEq, Serialize, Diagnostic, Clone)]
     enum TestError {
         #[error("Warning")]
         #[diagnostic(severity(Warning))]
@@ -214,6 +229,30 @@ mod tests {
         fn compound(errors: Vec<TestError>) -> Self {
             TestError::CompoundError(errors)
         }
+    }
+
+    #[test]
+    fn test_extend_nfes() -> Result<(), TestError> {
+        let warnings = vec![TestError::Warning];
+        let result: WResult<i32, TestError> =
+            WResult::Ok(42).extend_non_fatal_errors(warnings.clone());
+        match result {
+            WResult::OkWithNFEs(value, nfes) => {
+                assert_eq!(value, 42);
+                assert_eq!(nfes, warnings);
+            }
+            _ => panic!("Failed to add warning to Ok"),
+        }
+        let result2: WResult<i32, TestError> = WResult::OkWithNFEs(42, vec![TestError::Warning])
+            .extend_non_fatal_errors(warnings.clone());
+        match result2 {
+            WResult::OkWithNFEs(value, nfes) => {
+                assert_eq!(value, 42);
+                assert_eq!(nfes, vec![TestError::Warning, TestError::Warning]);
+            }
+            _ => panic!("Failed to add warning to OkWithNFEs"),
+        }
+        Ok(())
     }
 
     #[test]

@@ -24,6 +24,13 @@
     "stability": "stable"
   },
   {
+    "name": "messaging.destination.anonymous",
+    "type": "boolean",
+    "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
@@ -32,6 +39,20 @@
       "MyTopic"
     ],
     "requirement_level": "recommended",
+    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "messaging.destination.name",
+    "type": "string",
+    "brief": "The message destination name",
+    "examples": [
+      "MyQueue",
+      "MyTopic"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+    },
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
     "stability": "stable"
   },
@@ -47,10 +68,16 @@
     "stability": "stable"
   },
   {
-    "name": "messaging.destination.anonymous",
-    "type": "boolean",
-    "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": "recommended",
+    "name": "messaging.destination.template",
+    "type": "string",
+    "brief": "Low cardinality representation of the messaging destination name",
+    "examples": [
+      "/customers/{customerId}"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if available."
+    },
+    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
     "stability": "stable"
   },
   {
@@ -77,6 +104,14 @@
     ],
     "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "messaging.gcp_pubsub.message.ordering_key",
+    "type": "string",
+    "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
+    "examples": "ordering_key",
+    "requirement_level": "recommended",
     "stability": "stable"
   },
   {
@@ -120,6 +155,15 @@
     "stability": "stable"
   },
   {
+    "name": "messaging.message.body.size",
+    "type": "int",
+    "brief": "The size of the message body in bytes.\n",
+    "examples": 1439,
+    "requirement_level": "recommended",
+    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
+    "stability": "stable"
+  },
+  {
     "name": "messaging.message.conversation_id",
     "type": "string",
     "brief": "The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called \"Correlation ID\".\n",
@@ -142,15 +186,6 @@
     "brief": "A value used by the messaging system as an identifier for the message, represented as a string.",
     "examples": "452a7c7c7c7048c2f887f61572b18fc2",
     "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.message.body.size",
-    "type": "int",
-    "brief": "The size of the message body in bytes.\n",
-    "examples": 1439,
-    "requirement_level": "recommended",
-    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
     "stability": "stable"
   },
   {
@@ -316,14 +351,6 @@
     "stability": "stable"
   },
   {
-    "name": "messaging.gcp_pubsub.message.ordering_key",
-    "type": "string",
-    "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
-    "examples": "ordering_key",
-    "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
     "name": "messaging.system",
     "type": {
       "members": [
@@ -391,33 +418,6 @@
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
     "requirement_level": "recommended",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.name",
-    "type": "string",
-    "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
-    },
-    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "messaging.destination.template",
-    "type": "string",
-    "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if available."
-    },
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
     "stability": "stable"
   }
 ]

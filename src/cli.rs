@@ -4,7 +4,9 @@
 
 use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
+use crate::serve::ServeCommand;
 use clap::{Args, Parser, Subcommand};
+use std::path::PathBuf;
 
 /// Command line arguments.
 #[derive(Parser)]
@@ -17,7 +19,7 @@ use clap::{Args, Parser, Subcommand};
     arg_required_else_help = true
 )]
 pub struct Cli {
-    /// Turn debugging information on
+    /// Turn debugging information on. Use twice (--debug --debug) for trace-level logs.
     #[arg(long, action = clap::ArgAction::Count, global = true)]
     pub debug: u8,
 
@@ -30,6 +32,19 @@ pub struct Cli {
     /// Note: `semantic_conventions` main branch should always enable this flag.
     #[arg(long, global = true)]
     pub future: bool,
+
+    /// Allow git credential helpers when cloning registries from private repositories.
+    /// By default, git operations are isolated and cannot access global git config
+    /// or credential helpers. Enable this flag to authenticate with private registries
+    /// using your system's configured git credential helpers (e.g., osxkeychain,
+    /// git-credential-manager).
+    #[arg(long, global = true)]
+    pub allow_git_credentials: bool,
+
+    /// Path to a `.weaver.toml` project config file. When set, skips the
+    /// upward-walk discovery from the current working directory.
+    #[arg(long, global = true)]
+    pub config: Option<PathBuf>,
 
     /// List of supported commands
     #[command(subcommand)]
@@ -46,6 +61,11 @@ pub enum Commands {
     Diagnostic(DiagnosticCommand),
     /// Generate shell completions
     Completion(CompletionCommand),
+    /// Start the API server (Experimental)
+    Serve(ServeCommand),
+    /// Generate markdown help documentation
+    #[command(hide = true)]
+    MarkdownHelp,
 }
 
 #[derive(Args)]
@@ -56,5 +76,5 @@ pub struct CompletionCommand {
 
     /// (Optional) The file to write the completions to. Defaults to STDOUT.
     #[arg(long, hide = true)]
-    pub completion_file: Option<std::path::PathBuf>,
+    pub completion_file: Option<PathBuf>,
 }
