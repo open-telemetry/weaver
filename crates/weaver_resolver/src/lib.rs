@@ -1556,6 +1556,56 @@ spans:
     }
 
     #[test]
+    fn test_v2_excluded_ref_group() {
+        // A public span pulling in an excluded group via `ref_group` leaks it —
+        // the include path must trip the same exclusion check as `extends`.
+        let result = create_registry_from_string(
+            r#"
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: string
+    brief: attr
+    stability: stable
+attribute_groups:
+  - id: attrs.excluded
+    visibility: public
+    brief: Excluded group.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+    attributes:
+      - ref: test.attr
+spans:
+  - type: leaky.span
+    requirement_level: recommended
+    kind: internal
+    name:
+      note: leaky
+    brief: Public span that pulls in an excluded group.
+    stability: stable
+    attributes:
+      - ref_group: attrs.excluded
+"#,
+        );
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an exclusion error"),
+            Err(Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                            if id == "attrs.excluded" && used_in == "span.leaky.span"
+                    )),
+                    "expected ExcludedFromDependencyResolution on span.leaky.span, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
+    }
+
+    #[test]
     fn test_within_registry_internal_group_with_inline_excluded_attr() {
         // An `attribute_group` with `visibility: internal` is dropped before
         // the resolved schema is emitted, so an excluded inline attribute on
