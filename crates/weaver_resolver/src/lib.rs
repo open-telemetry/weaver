@@ -1521,6 +1521,41 @@ span_refinements:
     }
 
     #[test]
+    fn test_v2_unresolved_ref_group() {
+        // A `ref_group` pointing at a group that does not exist reports
+        // `UnresolvedIncludeRef` (not the `extends`-flavored error).
+        let result = create_registry_from_string(
+            r#"
+file_format: definition/2
+spans:
+  - type: base.span
+    requirement_level: recommended
+    kind: client
+    name:
+      note: base span
+    brief: Base span
+    stability: stable
+    attributes:
+      - ref_group: missing.group
+"#,
+        );
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an unresolved include error"),
+            Err(Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        Error::UnresolvedIncludeRef { group_id, include_ref, .. }
+                            if group_id == "span.base.span" && include_ref == "missing.group"
+                    )),
+                    "expected UnresolvedIncludeRef on span.base.span, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
+    }
+
+    #[test]
     fn test_within_registry_internal_group_with_inline_excluded_attr() {
         // An `attribute_group` with `visibility: internal` is dropped before
         // the resolved schema is emitted, so an excluded inline attribute on

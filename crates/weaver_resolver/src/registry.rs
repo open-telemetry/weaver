@@ -539,7 +539,7 @@ fn add_resolved_group_to_index(
 /// finalized this round: either an include isn't resolved yet (retried on a later
 /// iteration), excluded include, or a duplicate id.
 fn collect_included_group_attrs<'a>(
-    group: &mut UnresolvedGroup,
+    group: &UnresolvedGroup,
     group_index: &'a HashMap<String, GroupSummary>,
     errors: &mut Vec<Error>,
 ) -> Option<Vec<(String, &'a [UnresolvedAttribute])>> {
@@ -549,9 +549,9 @@ fn collect_included_group_attrs<'a>(
 
     for include_group in group.include_groups.iter() {
         let Some(summary) = group_index.get(include_group) else {
-            errors.push(Error::UnresolvedExtendsRef {
+            errors.push(Error::UnresolvedIncludeRef {
                 group_id: group.group.id.clone(),
-                extends_ref: include_group.clone(),
+                include_ref: include_group.clone(),
                 provenance: group.provenance.clone().map(Box::new),
             });
             all_resolved = false;
@@ -572,11 +572,6 @@ fn collect_included_group_attrs<'a>(
             }
         }
         included.push((include_group.clone(), summary.attributes.as_slice()));
-
-        // Recorded so V2 mapping can reverse-engineer private groups.
-        if let Some(lineage) = group.group.lineage.as_mut() {
-            lineage.includes_group(include_group);
-        }
     }
 
     all_resolved.then_some(included)
@@ -730,6 +725,13 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 },
                 None => None,
             };
+
+            // Help V2 mapping reverse-engineer private groups
+            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                for include_ref in &unresolved_group.include_groups {
+                    lineage.includes_group(include_ref);
+                }
+            }
 
             // Each source is (label, attributes); the label feeds attribute lineage.
             // Lowest priority first: parent, then included groups. Inline `ref:`
