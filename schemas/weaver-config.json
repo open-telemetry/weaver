@@ -504,7 +504,7 @@
           "default": null
         },
         "dry_run": {
-          "description": "Whether or not to run updates in dry-run mode.\n[default: false]",
+          "description": "Whether or not to run updates in dry-run mode.\nA bare `--dry-run` means `true`; when passing an explicit value, the\n`=` form is required (e.g. `--dry-run=false`).\n[default: false]",
           "type": "boolean",
           "default": false
         },
