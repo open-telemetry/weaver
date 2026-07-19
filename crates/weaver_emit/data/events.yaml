@@ -1,0 +1,128 @@
+# This file defines a set of events to test emission covering various attribute types.
+groups:
+  - id: registry.test.event.attr
+    type: attribute_group
+    brief: >
+      A set of test attributes for event testing.
+    note: >
+      This group contains attributes commonly used in events.
+    attributes:
+      # Basic event attributes
+      - id: event.id
+        type: string
+        brief: "Unique event identifier"
+        requirement_level: required
+        stability: stable
+        examples: ["evt-001", "evt-002"]
+
+      - id: event.category
+        type: string
+        brief: "Event category"
+        requirement_level: recommended
+        stability: stable
+        examples: ["user_action", "system_event"]
+
+      - id: event.priority
+        type: int
+        brief: "Event priority level"
+        stability: stable
+        examples: [1, 2, 3]
+
+      - id: event.metadata
+        type: string[]
+        brief: "Event metadata tags"
+        stability: stable
+        examples:
+          - ["tag1", "tag2"]
+
+  # Define test events
+  - id: test.event.user_login
+    type: event
+    name: user.login
+    stability: stable
+    brief: "User login event"
+    attributes:
+      - ref: event.id
+      - ref: event.category
+        requirement_level: recommended
+      - id: user.id
+        type: string
+        brief: "User identifier"
+        requirement_level: required
+        stability: stable
+        examples: ["user-123"]
+
+  - id: test.event.session_start
+    type: event
+    name: session.start
+    stability: development
+    brief: "Session start event"
+    attributes:
+      - ref: event.id
+      - id: session.id
+        type: string
+        brief: "Session identifier"
+        requirement_level: required
+        stability: stable
+        examples: ["00112233-4455-6677-8899-aabbccddeeff"]
+      - id: session.previous_id
+        type: string
+        brief: "Previous session identifier"
+        requirement_level: recommended
+        stability: stable
+        examples: ["00112233-4455-6677-8899-aabbccddeeff"]
+
+  - id: test.event.error_occurred
+    type: event
+    name: error.occurred
+    stability: stable
+    brief: "Error occurrence event"
+    attributes:
+      - ref: event.id
+      - ref: event.priority
+        requirement_level: required
+      - id: error.type
+        brief: "Error type"
+        requirement_level: required
+        stability: stable
+        type:
+          members:
+            - id: validation
+              value: "validation"
+              brief: "Validation error"
+              stability: stable
+            - id: runtime
+              value: "runtime"
+              brief: "Runtime error"
+              stability: stable
+            - id: network
+              value: "network"
+              brief: "Network error"
+              stability: stable
+      - id: error.message
+        type: string
+        brief: "Error message"
+        requirement_level: recommended
+        stability: stable
+        examples: ["Invalid input provided"]
+
+  - id: test.event.data_processed
+    type: event
+    name: data.processed
+    stability: stable
+    brief: "Data processing completion event"
+    attributes:
+      - ref: event.id
+      - ref: event.metadata
+        requirement_level: recommended
+      - id: data.size
+        type: int
+        brief: "Data size in bytes"
+        requirement_level: recommended
+        stability: stable
+        examples: [1024, 2048]
+      - id: data.format
+        type: string
+        brief: "Data format"
+        stability: stable
+        examples: ["json", "xml"]

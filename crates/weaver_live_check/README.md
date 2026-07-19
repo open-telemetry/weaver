@@ -1,8 +1,14 @@
 # Weaver Live Check
 
-Live check is a developer tool for assessing sample telemetry and providing advice for improvement.
+Live check is a developer tool for assessing sample telemetry and providing findings for improvement.
 
-A Semantic Convention `Registry` is loaded for comparison with samples. `Ingesters` transform various input formats and sources into intermediary representations to be assessed by `Advisors`. The `Advice` produced is transformed via jinja templates to the required output format for downstream consumption.
+> **Dog-fooding**: Live Check uses Weaver's own semantic convention model and template engine to
+> define its `finding` schema, generate Rust types and constants, and generate reference
+> documentation — all from [`model/live_check.yaml`](model/live_check.yaml). An integration test
+> validates the emitted OTLP log records against the model, catching any drift between the
+> generated code and the schema. See [Dog-fooding](docs/dog-fooding.md) for details.
+
+A Semantic Convention `Registry` is loaded for comparison with samples. `Ingesters` transform various input formats and sources into intermediary representations to be assessed by `Advisors`. The `PolicyFinding` produced is transformed via jinja templates to the required output format for downstream consumption.
 
 ```mermaid
 flowchart LR
@@ -79,24 +85,30 @@ Sample entities are assessed by the set of `Advisors` and augmented with `Advice
 
 Beyond the fundamentals, external `Advisors` can be defined in Rego policies. The OpenTelemetry Semantic Conventions rules are included out-of-the-box by default. They provide `Advice` on name-spacing and formatting aligned with the standard. These default policies can be overridden at the command line with your own.
 
-### Advice
+### PolicyFinding
 
-As mentioned, a list of `Advice` is returned in the report for each sample entity. The snippet below shows `Advice` from one `Advisor`, a builtin providing `missing_attribute`. The fields of `Advice` are intended to be used like so:
+As mentioned, a list of `PolicyFinding` is returned in the report for each sample entity. The snippet below shows `PolicyFinding` from one `Advisor`, a builtin providing `missing_attribute`. The fields of `PolicyFinding` are intended to be used like so:
 
-- `advice_level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
-- `advice_type`: _string_ - a simple machine readable string to represent the advice type
-- `message`: _string_ - a verbose string describing the advice
-- `value`: _any_ - a pertinent entity associated with the advice
+- `level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
+- `id`: _string_ - a simple machine readable string to group findings of a particular kind or type.
+- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log` or `resource`
+- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name
+- `context`: _any_ - a map that describes details about the finding in a structured way,
+  for example `{ "attribute_key": "foo.bar", "attribute_value": "bar" }`.
+- `message`: _string_ - verbose string describing the finding. It contains the same details as `context` but
+  is formatted and human-readable.
 
 ```json
 {
   "live_check_result": {
     "all_advice": [
       {
-        "advice_level": "violation",
-        "advice_type": "missing_attribute",
-        "message": "Does not exist in the registry",
-        "value": "hello"
+        "level": "violation",
+        "id": "missing_attribute",
+        "message": "Attribute `hello` does not exist in the registry.",
+        "context": { "attribute_key": "hello" },
+        "signal_name": "http.client.request.duration",
+        "signal_type": "metric"
       }
     ],
     "highest_advice_level": "violation"
@@ -107,8 +119,8 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 }
 ```
 
-> **Note**  
-> The `live_check_result` object augments the sample entity at the pertinent level in the structure. If the structure is `metric`->`[number_data_point]`->`[attribute]`, advice should be give at the `number_data_point` level for, say, required attributes that have not been supplied. Whereas, attribute advice, like `missing_attribute` in the JSON above, is given at the attribute level.
+> **Note**
+> The `live_check_result` object augments the sample entity at the pertinent level in the structure. If the structure is `metric`->`[number_data_point]`->`[attribute]`, finding should be given at the `number_data_point` level for, say, required attributes that have not been supplied. Whereas, an attribute finding, like `missing_attribute` in the JSON above, is given at the attribute level.
 
 ### Custom advisors
 
@@ -120,19 +132,20 @@ package live_check_advice
 import rego.v1
 
 # checks attribute name contains the word "test"
-deny contains make_advice(advice_type, advice_level, value, message) if {
-  input.sample.attribute
-  value := input.sample.attribute.name
-  contains(value, "test")
-  advice_type := "contains_test"
-  advice_level := "violation"
-  message := "Name must not contain 'test'"
+deny contains make_finding(id, level, context, message) if {
+	input.sample.attribute
+	contains(input.sample.attribute.name, "test")
+	id := "contains_test"
+	level := "violation"
+	context := {
+		"attribute_key": input.sample.attribute.name
+	}
+	message := sprintf("Attribute name must not contain 'test', but was '%s'", [input.sample.attribute.name])
 }
 
-make_advice(advice_type, advice_level, value, message) := {
-  "type": "advice",
-  "advice_type": advice_type,
-  "advice_level": advice_level,
+make_finding(id, level, context, message) := {
+  "id": id,
+  "level": level,
   "value": value,
   "message": message,
 }
@@ -148,15 +161,78 @@ make_advice(advice_type, advice_level, value, message) := {
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
+## Project Configuration (`.weaver.toml`)
+
+All `live-check` CLI flags can also be set in a `.weaver.toml` file at the root of your project. Weaver discovers it by walking up from the current working directory, or you can specify a path directly with `--config <path>`. CLI flags always take precedence over config values; config values take precedence over hardcoded defaults.
+
+A JSON Schema can be generated for IDE support (autocomplete, validation):
+
+```sh
+weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.json
+```
+
+### Live-check settings
+
+```toml
+[live_check]
+input_source = "otlp"
+input_format = "json"
+format = "ansi"
+templates = "live_check_templates"
+no_stream = false
+no_stats = false
+fail_on = "violation"  # violation | improvement | information | none
+output = "reports"
+advice_policies = "policies"
+advice_preprocessor = "preprocessor.jq"
+
+[live_check.otlp]
+grpc_address = "0.0.0.0"
+grpc_port = 4317
+admin_port = 4320
+inactivity_timeout = 10
+
+[live_check.emit]
+otlp_logs = false
+otlp_logs_endpoint = "http://localhost:4317"
+otlp_logs_stdout = false
+```
+
+Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+### Finding filters
+
+Filters drop findings entirely. Use `exclude` to drop by ID, `min_level` to drop findings below a threshold, and `exclude_samples` to drop all findings for specific sample names. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type.
+
+```toml
+# Drop deprecated and missing_namespace findings, and anything below improvement
+[[live_check.finding_filters]]
+exclude = ["deprecated", "missing_namespace"]
+min_level = "improvement"
+
+# Additionally drop not_stable findings, but only for spans
+[[live_check.finding_filters]]
+signal_type = "span"
+exclude = ["not_stable"]
+
+# Suppress all findings for these attribute names
+[[live_check.finding_filters]]
+exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
+```
+
+The `exclude_samples` filter matches by sample name: attribute key for attributes, span name for spans, metric name for metrics, event name for logs, and span event name for span events. It can be combined with other filter fields, for example scoping to a specific `signal_type`.
+
 ## Output
 
-The output follows existing Weaver paradigms providing overridable jinja template based processing.
+The output follows existing Weaver paradigms providing overridable jinja template based processing alongside builtin standard formats.
 
-Out-of-the-box the output is streamed (when available) to templates providing `ansi` (default) or `json` output via the `--format` option. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
+By default the output is streamed (when available) to an `ansi` template. Use the `--format` option to pick one of the builtin standard formats: `json`, `jsonl` and `yaml` or a template name. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
+
+Set `--output=http` to have the report sent as the response to the `/stop` endpoint on the admin port.
 
 To provide your own custom templates use the `--templates` option.
 
-As mentioned, the exit-code is set non-zero if any `violation` advice is provided in the output. This can be used in tests and/or CI to fail builds for example.
+As mentioned, the exit-code is set non-zero if any `violation` finding is provided in the output. This can be used in tests and/or CI to fail builds for example.
 
 ### Statistics
 
@@ -213,13 +289,78 @@ These should be self-explanatory, but:
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
+- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
+- `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 
+## OTLP Log Record Emission
+
+In addition to the output formats, live check can emit policy findings as OTLP log records. This enables real-time monitoring and analysis of semantic convention validation results through OpenTelemetry observability backends.
+
+### Enabling OTLP Emission
+
+Use the `--emit-otlp-logs` flag to enable OTLP log record emission:
+
+```sh
+weaver registry live-check --emit-otlp-logs
+```
+
+By default, log records are sent via gRPC to `http://localhost:4317`. You can customize the endpoint:
+
+```sh
+weaver registry live-check --emit-otlp-logs --otlp-logs-endpoint http://my-collector:4317
+```
+
+For debugging, you can emit to stdout instead:
+
+```sh
+weaver registry live-check --emit-otlp-logs --otlp-logs-stdout
+```
+
+### Log Record Structure
+
+> For the full auto-generated reference of finding attributes, enum values, and the event schema,
+> see [docs/finding.md](docs/finding.md).
+
+Each policy finding is emitted as an OTLP log record with the following structure:
+
+**Body**: The finding message (e.g., "Required attribute 'server.address' is not present.")
+
+**Severity**:
+
+- `Error` (17) for `violation` level findings
+- `Warn` (13) for `improvement` level findings
+- `Info` (9) for `information` level findings
+
+**Event Name**: `weaver.live_check.finding`
+
+**Resource Attributes**:
+
+- `service.name`: set by OTEL_SERVICE_NAME or OTEL_RESOURCE_ATTRIBUTES environment variables, defaulting to `weaver`
+
+**Log Attributes**:
+
+- `weaver.finding.id`: Finding type identifier (e.g., "required_attribute_not_present")
+- `weaver.finding.level`: Finding level as string ("violation", "improvement", "information")
+- `weaver.finding.context.<key>`: Key-value pairs provided in the context. Each pair is recorded as a single attribute.
+- `weaver.finding.sample.type`: Sample type (e.g., "attribute", "span", "metric")
+- `weaver.finding.signal.type`: Signal type (e.g., "span", "metric", "log")
+- `weaver.finding.signal.name`: Signal name (e.g., event name or metric name)
+- `weaver.finding.resource.attribute.<key>`: Resource attributes from the original telemetry source that produced the finding
+
+## Continuous Running Sessions
+
+For long-running live-check sessions (for example, in a staging environment), there are a few settings to consider:
+
+- `--inactivity-timeout=0`: If this is set to zero then weaver never times out.
+- `--output=none`: If this is set to none then no template engine is loaded and nothing is rendered out to the console or files.
+- `--no-stats`: If this is set then statistics are not accumulated over the running time of live-check which has the potential to otherwise store a lot of info in memory.
+
 ## Usage examples
 
-Default operation. Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
+Default operation. Receive OTLP requests and output findings as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
 
 ```sh
 weaver registry live-check
@@ -281,3 +422,59 @@ weaver registry emit --skip-policies
 kill -HUP $LIVE_CHECK_PID
 wait $LIVE_CHECK_PID
 ```
+
+## Loading Additional Rego Data
+
+You can load additional JSON/YAML files (e.g. schemas, configuration mapping) into OPA `data` namespace using the `--advice-data` flag,
+or the corresponding `advice_data` property under the `[live-check]` section in the `.weaver.toml` config file:
+
+```toml
+["live-check"]
+advice_data = "schemas/**/*.json"
+```
+
+Files are nested under `data` using their relative path inside the glob pattern base directory. Other file extensions are ignored.
+
+For example, if you run:
+```sh
+weaver registry live-check --advice-data "schemas/**/*.json"
+```
+
+And you have the file `schemas/user.json` with the following content:
+```json
+{
+  "allowed_ids": [
+    "usr_123",
+    "usr_456"
+  ]
+}
+```
+
+It will be parsed and loaded into the OPA engine under the `data.user` path:
+* `data.user.allowed_ids` => `["usr_123", "usr_456"]`
+
+You can then write a Rego rule to check whether the incoming telemetry attribute matches one of the allowed IDs:
+```rego
+package live_check_advice
+
+import rego.v1
+
+deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+    attr := input.sample.attribute
+    attr.name == "user.id"
+    
+    # Check if the incoming attribute value is not in the allowed list
+    not attr.value in data.user.allowed_ids
+    
+    advice_type := "invalid_user_id"
+    advice_level := "violation"
+    advice_context := {
+        "attribute_key": attr.name,
+        "attribute_value": attr.value,
+        "allowed_ids": data.user.allowed_ids
+    }
+    message := sprintf("User ID '%s' is not in the allowed list: %v", [attr.value, data.user.allowed_ids])
+}
+```
+
+

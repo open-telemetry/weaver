@@ -26,9 +26,7 @@ use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::pattern::Pattern;
-use convert_case::Converter;
-use convert_case::{pattern, Boundary};
+use convert_case::{Boundary, Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
@@ -145,6 +143,32 @@ pub enum ApplicationMode {
     Each,
 }
 
+/// Auto-escape mode for a template's output.
+/// `none` (default): no escaping.
+/// `html`: escape `<`, `>`, `&`, `"`, `'`, `/` for HTML/XML.
+/// `json`: serialize values as JSON (suitable for JSON/YAML embedding).
+///
+/// This mirrors `minijinja::AutoEscape` but adds serde support for
+/// deserialization from `weaver.yaml`.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum AutoEscapeMode {
+    #[default]
+    None,
+    Html,
+    Json,
+}
+
+impl From<&AutoEscapeMode> for minijinja::AutoEscape {
+    fn from(mode: &AutoEscapeMode) -> Self {
+        match mode {
+            AutoEscapeMode::None => minijinja::AutoEscape::None,
+            AutoEscapeMode::Html => minijinja::AutoEscape::Html,
+            AutoEscapeMode::Json => minijinja::AutoEscape::Json,
+        }
+    }
+}
+
 /// A template configuration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -175,6 +199,24 @@ pub(crate) struct TemplateConfig {
     /// The default value of this path is the same as the input file path.
     /// This file path can be a Jinja expression referencing the parameters.
     pub(crate) file_name: Option<String>,
+    /// Auto-escape mode for this template's output.
+    /// `none` (default): no escaping.
+    /// `html`: escape `<`, `>`, `&`, `"`, `'`, `/` for HTML/XML.
+    /// `json`: serialize values as JSON (suitable for JSON/YAML embedding).
+    /// Within a template, `{% autoescape false %}` blocks can selectively
+    /// disable escaping for sections.
+    #[serde(default)]
+    pub(crate) auto_escape: AutoEscapeMode,
+    /// An optional JQ expression gating whether this template is applied.
+    /// Like `filter`, it is evaluated against the resolved registry, with the
+    /// template parameters exposed as JQ variables under `$params` (e.g.
+    /// `$params.gen_readme == true`). It must evaluate to a single boolean:
+    /// `true` applies the template, `false` skips it. Any other output — a
+    /// non-boolean value or an empty stream (e.g. `.groups[] | select(...)`
+    /// matching nothing) — is an error, so use `any(...)`/`all(...)` or an
+    /// explicit comparison to produce a boolean. When absent, the template is
+    /// always applied.
+    pub(crate) when: Option<String>,
 }
 
 fn default_filter() -> String {
@@ -373,57 +415,57 @@ impl CaseConvention {
             // For all case converters, we do not consider digits
             // as boundaries.
             Converter::new()
-                .remove_boundary(Boundary::DIGIT_LOWER)
-                .remove_boundary(Boundary::DIGIT_UPPER)
-                .remove_boundary(Boundary::UPPER_DIGIT)
-                .remove_boundary(Boundary::LOWER_DIGIT)
+                .remove_boundary(Boundary::DigitLower)
+                .remove_boundary(Boundary::DigitUpper)
+                .remove_boundary(Boundary::UpperDigit)
+                .remove_boundary(Boundary::LowerDigit)
                 .set_pattern(pattern)
-                .set_delim(delim)
+                .set_delimiter(delim)
         }
 
         let text = text.replace('.', "_");
         match self {
             CaseConvention::LowerCase => LOWER_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::lowercase, " ").add_boundary(Boundary::SPACE)
+                    new_converter(Pattern::Lowercase, " ").add_boundary(Boundary::Space)
                 })
                 .convert(&text),
             CaseConvention::UpperCase => UPPER_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::uppercase, " ").add_boundary(Boundary::SPACE)
+                    new_converter(Pattern::Uppercase, " ").add_boundary(Boundary::Space)
                 })
                 .convert(&text),
             CaseConvention::TitleCase => TITLE_CASE
-                .get_or_init(|| new_converter(pattern::capital, " ").add_boundary(Boundary::SPACE))
+                .get_or_init(|| new_converter(Pattern::Capital, " ").add_boundary(Boundary::Space))
                 .convert(&text),
             CaseConvention::PascalCase => PASCAL_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::capital, "").add_boundary(Boundary::LOWER_UPPER)
+                    new_converter(Pattern::Capital, "").add_boundary(Boundary::LowerUpper)
                 })
                 .convert(&text),
             CaseConvention::CamelCase => CAMEL_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::camel, "").add_boundary(Boundary::LOWER_UPPER)
+                    new_converter(Pattern::Camel, "").add_boundary(Boundary::LowerUpper)
                 })
                 .convert(&text),
             CaseConvention::SnakeCase => SNAKE_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::lowercase, "_").add_boundary(Boundary::UNDERSCORE)
+                    new_converter(Pattern::Lowercase, "_").add_boundary(Boundary::Underscore)
                 })
                 .convert(&text),
             CaseConvention::ScreamingSnakeCase => SCREAMING_SNAKE_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::uppercase, "_").add_boundary(Boundary::UNDERSCORE)
+                    new_converter(Pattern::Uppercase, "_").add_boundary(Boundary::Underscore)
                 })
                 .convert(&text),
             CaseConvention::KebabCase => KEBAB_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::lowercase, "-").add_boundary(Boundary::HYPHEN)
+                    new_converter(Pattern::Lowercase, "-").add_boundary(Boundary::Hyphen)
                 })
                 .convert(&text),
             CaseConvention::ScreamingKebabCase => SCREAMING_KEBAB_CASE
                 .get_or_init(|| {
-                    new_converter(pattern::uppercase, "-").add_boundary(Boundary::HYPHEN)
+                    new_converter(Pattern::Uppercase, "-").add_boundary(Boundary::Hyphen)
                 })
                 .convert(&text),
         }
@@ -485,6 +527,11 @@ impl WeaverConfig {
     pub fn try_from_loader(
         loader: &(impl FileLoader + Send + Sync + 'static),
     ) -> Result<Self, Error> {
+        log::debug!(
+            "Searching for Weaver configuration from {} at {:?}",
+            WEAVER_YAML,
+            loader.root().display()
+        );
         match loader.load_file(WEAVER_YAML)? {
             Some(config) => Self::resolve_from(&[config]),
             None => Ok(WeaverConfig::default()),
@@ -499,6 +546,7 @@ impl WeaverConfig {
     /// configuration content can't be deserialized into a `WeaverConfig` struct.
     fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
         if configs.is_empty() {
+            log::debug!("No configuration file found. Using default config.");
             return Ok(WeaverConfig::default());
         }
 
@@ -507,14 +555,16 @@ impl WeaverConfig {
 
         // Each configuration is loaded and merged into the current configuration.
         for conf in configs {
-            let conf: WeaverConfig =
+            let weaver_config: WeaverConfig =
                 serde_yaml::from_str(&conf.content).map_err(|e| InvalidConfigFile {
                     config_file: conf.path.clone(),
                     error: e.to_string(),
                 })?;
-            config.override_with(conf);
+            log::debug!("Loaded Weaver configuration from {}", conf.path.display());
+            config.override_with(weaver_config);
         }
 
+        log::trace!("Using the following Weaver configuration: {config:#?}");
         Ok(config)
     }
 
@@ -628,6 +678,43 @@ impl WeaverConfig {
         if child.acronyms.is_some() {
             self.acronyms = child.acronyms;
         }
+    }
+
+    /// Merge additional acronyms from a higher-precedence source, such as the
+    /// project-level `.weaver.toml` `[template]` section, into the template
+    /// package's own acronyms (from `weaver.yaml`).
+    ///
+    /// On a case-insensitive collision the toml file wins.
+    pub fn merge_acronyms(&mut self, acronyms: Option<Vec<String>>) {
+        let Some(incoming) = acronyms else {
+            return;
+        };
+        let mut merged = self.acronyms.take().unwrap_or_default();
+        for acronym in incoming {
+            let acronym_lower = acronym.to_lowercase();
+            match merged
+                .iter_mut()
+                .find(|existing| existing.to_lowercase() == acronym_lower)
+            {
+                Some(existing) => *existing = acronym,
+                None => merged.push(acronym),
+            }
+        }
+        self.acronyms = Some(merged);
+    }
+
+    /// Merge additional `text_maps` from a higher-precedence source, such as the
+    /// project-level `.weaver.toml` `[template]` section, into the template
+    /// package's own `text_maps` (from `weaver.yaml`).
+    ///
+    /// On a name conflict the incoming (toml) map replaces the yaml.
+    pub fn merge_text_maps(&mut self, text_maps: Option<HashMap<String, HashMap<String, String>>>) {
+        let Some(incoming) = text_maps else {
+            return;
+        };
+        self.text_maps
+            .get_or_insert_with(HashMap::new)
+            .extend(incoming);
     }
 }
 
@@ -918,6 +1005,116 @@ mod tests {
         let local: WeaverConfig = serde_yaml::from_str("acronyms: []").unwrap();
         parent.override_with(local);
         assert_eq!(parent.acronyms, Some(vec![]));
+    }
+
+    #[test]
+    fn test_merge_acronyms() {
+        // Project acronyms are unioned with the package's, project ones appended.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec!["HTTP".to_owned(), "SDK".to_owned()]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec![
+                "iOS".to_owned(),
+                "API".to_owned(),
+                "URL".to_owned(),
+                "HTTP".to_owned(),
+                "SDK".to_owned(),
+            ])
+        );
+
+        // No project acronyms (None) keeps the package's acronyms untouched.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(None);
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
+        );
+
+        // An empty project list adds nothing, leaving the package list intact.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec![]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
+        );
+
+        // Merging into a config with no package acronyms yields the project list.
+        let mut config = WeaverConfig::default();
+        config.merge_acronyms(Some(vec!["API".to_owned()]));
+        assert_eq!(config.acronyms, Some(vec!["API".to_owned()]));
+
+        // On a case-insensitive collision the project casing wins, in place.
+        let mut config: WeaverConfig = serde_yaml::from_str("acronyms: ['api', 'URL']").unwrap();
+        config.merge_acronyms(Some(vec!["API".to_owned(), "SDK".to_owned()]));
+        assert_eq!(
+            config.acronyms,
+            Some(vec!["API".to_owned(), "URL".to_owned(), "SDK".to_owned()])
+        );
+    }
+
+    #[test]
+    fn test_merge_text_maps() {
+        use std::collections::HashMap;
+
+        fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect()
+        }
+
+        // No incoming (None) leaves the package's text_maps untouched.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+        config.merge_text_maps(None);
+        assert_eq!(
+            config.text_maps,
+            Some([("type_mapping".to_owned(), map(&[("int", "int64")]))].into())
+        );
+
+        // A named map only the project defines is added; the package's other
+        // named maps are kept.
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+        config.merge_text_maps(Some(
+            [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some(
+                [
+                    ("type_mapping".to_owned(), map(&[("int", "int64")])),
+                    ("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")])),
+                ]
+                .into()
+            )
+        );
+
+        // On a name conflict the project's map replaces the package's wholesale
+        // (inner entries are not merged: `str` is dropped).
+        let mut config: WeaverConfig =
+            serde_yaml::from_str("text_maps: {type_mapping: {int: int64, str: string}}").unwrap();
+        config.merge_text_maps(Some(
+            [("type_mapping".to_owned(), map(&[("int", "i64")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some([("type_mapping".to_owned(), map(&[("int", "i64")]))].into())
+        );
+
+        // Merging into a config with no text_maps yields the project's maps.
+        let mut config = WeaverConfig::default();
+        config.merge_text_maps(Some(
+            [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
+        ));
+        assert_eq!(
+            config.text_maps,
+            Some([("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into())
+        );
     }
 
     #[test]

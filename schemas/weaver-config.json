@@ -1,0 +1,679 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WeaverConfigSchema",
+  "description": "Top-level Weaver configuration.",
+  "type": "object",
+  "properties": {
+    "auth": {
+      "type": "array",
+      "items": {
+        "description": "A single entry in the `[[auth]]` array of `.weaver.toml`.\n\n```toml\n[[auth]]\nurl_prefix = \"https://github.com/acme/\"\ntoken_env  = \"ACME_GITHUB_TOKEN\"\n\n[[auth]]\nurl_prefix    = \"https://github.com/\"\ntoken_command = [\"gh\", \"auth\", \"token\"]\n```\n\nExactly one of `token`, `token_env`, or `token_command` must be specified.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Optional diagnostic name; not used for matching.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "url_prefix": {
+            "description": "Match any URL whose string starts with this prefix. Longest prefix wins.",
+            "type": "string"
+          }
+        },
+        "oneOf": [
+          {
+            "description": "Literal token. Discouraged — prefer `TokenEnv` or `TokenCommand` so the\ntoken does not end up committed in `.weaver.toml`.",
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "token"
+            ]
+          },
+          {
+            "description": "Name of an environment variable to read at fetch time.",
+            "type": "object",
+            "properties": {
+              "token_env": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "token_env"
+            ]
+          },
+          {
+            "description": "Argv of a helper command; its first stdout line is the token. The\nstandard answer for short-lived tokens (e.g. `[\"gh\", \"auth\", \"token\"]`).",
+            "type": "object",
+            "properties": {
+              "token_command": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "token_command"
+            ]
+          }
+        ],
+        "required": [
+          "url_prefix"
+        ],
+        "unevaluatedProperties": false
+      }
+    },
+    "check": {
+      "description": "Validate a semantic convention registry against policies and schema rules.",
+      "type": "object"
+    },
+    "diagnostics": {
+      "description": "Diagnostic output configuration.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Format for diagnostic messages: `ansi`, `json`, `gh_workflow_command`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "stdout": {
+          "description": "Send diagnostic output to stdout instead of stderr.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "template": {
+          "description": "Path to the directory where the diagnostic templates are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "diff": {
+      "description": "Compare two versions of a semantic convention registry and report the differences.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Format used to render the schema changes. Predefined formats are: ansi, json,\nand markdown.\n[default: ansi]",
+          "type": "string",
+          "default": "ansi"
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\nIf not specified, the diff report is printed to stdout",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the schema changes templates are located.\n[default: diff_templates]",
+          "type": "string",
+          "default": "diff_templates"
+        }
+      }
+    },
+    "emit": {
+      "description": "Emit a resolved registry as OTLP or to stdout.",
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "description": "Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.\n[default: http://localhost:4317]",
+          "type": "string",
+          "default": "http://localhost:4317"
+        },
+        "stdout": {
+          "description": "Write the telemetry to standard output\n[default: false]",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "generate": {
+      "description": "Generate artifacts from a semantic convention registry using Jinja templates.",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\nDefault is the `output` directory.",
+          "type": "string",
+          "default": "output"
+        },
+        "target": {
+          "description": "Target to generate the artifacts for.",
+          "type": "string",
+          "default": ""
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.\nDefault is the `templates` directory.\n[default: templates]",
+          "type": "string",
+          "default": "templates"
+        }
+      }
+    },
+    "infer": {
+      "description": "Infer a semantic convention registry by observing live OTLP telemetry.",
+      "type": "object",
+      "properties": {
+        "admin_port": {
+          "description": "Port used by the HTTP admin server (endpoints: /stop).\n[default: 8080]",
+          "type": "integer",
+          "format": "uint16",
+          "default": 8080,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "grpc_address": {
+          "description": "Address used by the gRPC OTLP listener.\n[default: 0.0.0.0]",
+          "type": "string",
+          "default": "0.0.0.0"
+        },
+        "grpc_port": {
+          "description": "Port used by the gRPC OTLP listener.\n[default: 4317]",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "inactivity_timeout": {
+          "description": "Seconds of inactivity before auto-stop (0 = never).\n[default: 60]",
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "output": {
+          "description": "Output folder for generated YAML files.\n[default: ./inferred-registry/]",
+          "type": "string",
+          "default": "./inferred-registry/"
+        }
+      }
+    },
+    "live-check": {
+      "description": "Validate live telemetry against a semantic convention registry.",
+      "type": "object",
+      "properties": {
+        "advice_data": {
+          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_policies": {
+          "description": "Advice policies directory. Overrides the built-in default policies.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_preprocessor": {
+          "description": "Advice preprocessor — a jq script run once over the registry data before\nbeing passed to rego policies.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "emit": {
+          "description": "OTLP log emission settings.",
+          "$ref": "#/$defs/LiveCheckEmitConfig"
+        },
+        "fail_on": {
+          "description": "Severity threshold that causes a non-zero exit code. Findings at this\nlevel or higher fail the run. Use `none` to never fail.",
+          "$ref": "#/$defs/FailOnLevel",
+          "default": "violation"
+        },
+        "finding_filters": {
+          "description": "Filters control which findings are dropped. A filter without `signal_type`\napplies globally; a filter with `signal_type` applies only to that signal type.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FindingFilter"
+          }
+        },
+        "format": {
+          "description": "Format used to render the report.\nBuiltin formats: `json`, `yaml`, `jsonl`. Other values are template names\n(e.g. `ansi` selects the ansi templates).",
+          "type": "string",
+          "default": "ansi"
+        },
+        "input_format": {
+          "description": "The format of the input telemetry. `text` | `json`. (Not used for OTLP.)",
+          "type": "string",
+          "default": "json"
+        },
+        "input_source": {
+          "description": "Where to read the input telemetry from. `{file path}` | `stdin` | `otlp`.",
+          "type": "string",
+          "default": "otlp"
+        },
+        "no_stats": {
+          "description": "Disable statistics accumulation. Useful for long-running live-check sessions.",
+          "type": "boolean",
+          "default": false
+        },
+        "no_stream": {
+          "description": "Disable stream mode. When set, the report is built up before being rendered.",
+          "type": "boolean",
+          "default": false
+        },
+        "otlp": {
+          "description": "OTLP listener settings (used when `input_source = \"otlp\"`).",
+          "$ref": "#/$defs/LiveCheckOtlpConfig"
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\n`none` disables all template output rendering.\n`http` sends the report as the response to the `/stop` request on the admin port.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.",
+          "type": "string",
+          "default": "live_check_templates"
+        }
+      }
+    },
+    "mcp": {
+      "description": "Expose a semantic convention registry over the Model Context Protocol (MCP).",
+      "type": "object",
+      "properties": {
+        "advice_data": {
+          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_policies": {
+          "description": "Advice policies directory. Set this to override the default policies.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "advice_preprocessor": {
+          "description": "Advice preprocessor. A jq script to preprocess the registry data before passing to rego.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "namespace_separator": {
+          "description": "Namespace separator used in attribute keys. Defaults to \".\".\nUsed by namespace browsing and search token splitting.\n[default: .]",
+          "type": "string",
+          "default": "."
+        }
+      }
+    },
+    "package": {
+      "description": "Package a resolved registry for publication (produces `resolved.yaml` and `manifest.yaml`).",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Path to the directory where the package will be written.\n[default: output]",
+          "type": "string",
+          "default": "output"
+        },
+        "resolved_registry_uri": {
+          "description": "URI where the resolved registry artifact will eventually be published.\nThis value is embedded in the publication manifest as `resolved_registry_uri`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "policy": {
+      "description": "Policy configuration — which policy files to check against.",
+      "type": "object",
+      "properties": {
+        "display_policy_coverage": {
+          "description": "Display the policy coverage report.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "paths": {
+          "description": "Policy file or directory paths. Directories load all `.rego` files.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        },
+        "skip": {
+          "description": "Skip policy checks entirely.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "registry": {
+      "description": "Registry configuration — where to load the semantic convention registry from.",
+      "type": "object",
+      "properties": {
+        "follow_symlinks": {
+          "description": "Follow symlinks when loading the registry.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "include_unreferenced": {
+          "description": "Include signals and attributes from dependency registries even if\nnot explicitly referenced.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "path": {
+          "description": "Local folder, Git repo URL, or Git archive URL.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "v2": {
+          "description": "Use version 2 of the schema.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "serve": {
+      "description": "Serve a resolved registry over a local HTTP API for browsing and search.",
+      "type": "object",
+      "properties": {
+        "bind": {
+          "description": "Address to bind the server to.\n[default: 127.0.0.1:8080]",
+          "type": "string",
+          "default": "127.0.0.1:8080"
+        },
+        "cors_origins": {
+          "description": "Allowed CORS origins (comma-separated). Use '*' for any origin.\nIf not specified, CORS is disabled (same-origin only).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "stats": {
+      "description": "Compute and display statistics about a semantic convention registry.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Output format for the stats.\nPredefined formats are: text, json, yaml, jsonl, mute.\n[default: text]",
+          "type": "string",
+          "default": "text"
+        },
+        "output": {
+          "description": "Path to the directory where the generated artifacts will be saved.\nIf not specified, the stats are printed to stdout.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the stats templates are located.\n[default: stats_templates]",
+          "type": "string",
+          "default": "stats_templates"
+        }
+      }
+    },
+    "template": {
+      "description": "Project-level template settings shared across all template packages.\n\nA value left unset (`None`) does not override the package configuration;\nthe package's own `weaver.yaml` value is kept.",
+      "type": "object",
+      "properties": {
+        "acronyms": {
+          "description": "List of acronyms treated as unmodifiable words during case conversion.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        },
+        "text_maps": {
+          "description": "Named text mappings used by the `map_text` filter (e.g. a\n`namespace_mapping` from `CICD` to `CI/CD`).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "default": null
+        }
+      }
+    },
+    "update-markdown": {
+      "description": "Update Jinja-marker sections inside Markdown files from a resolved registry.",
+      "type": "object",
+      "properties": {
+        "attribute_registry_base_url": {
+          "description": "Optional path to the attribute registry.\nIf provided, all attributes will be linked here.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "dry_run": {
+          "description": "Whether or not to run updates in dry-run mode.\n[default: false]",
+          "type": "boolean",
+          "default": false
+        },
+        "markdown_dir": {
+          "description": "Path to the directory where the markdown files are located.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "target": {
+          "description": "The target to generate snippets with.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2\n  if a `registry` subdirectory is present.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "templates": {
+          "description": "Path to the directory where the templates are located.\nNote: `registry update-markdown` will look for a specific jinja template:\n  {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2\n  if a `registry` subdirectory is present.\n[default: templates]",
+          "type": "string",
+          "default": "templates"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "FailOnLevel": {
+      "description": "Severity gate controlling when `registry live-check` exits non-zero.\n\nSupported thresholds (highest → lowest severity): `Violation`,\n`Improvement`, `Information`, `None`. A finding whose level is at or above\nthe chosen threshold causes a non-zero exit code. `None` disables the gate.",
+      "oneOf": [
+        {
+          "description": "Fail only on violations (default).",
+          "type": "string",
+          "const": "violation"
+        },
+        {
+          "description": "Fail on improvements or violations.",
+          "type": "string",
+          "const": "improvement"
+        },
+        {
+          "description": "Fail on any finding (information, improvement, or violation).",
+          "type": "string",
+          "const": "information"
+        },
+        {
+          "description": "Never fail based on findings — always exit 0 unless an internal error\noccurs.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "FindingFilter": {
+      "description": "A filter that drops findings by ID exclusion or minimum level.\nOptional `signal_type` scopes the filter to a specific signal type.",
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "description": "Drop findings with these IDs.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude_samples": {
+          "description": "Drop all findings for samples with these names.\nFor attribute samples, this matches the attribute key — e.g.\n`[\"trace.parent_id\", \"trace.span_id\"]` suppresses all findings\n(e.g. `missing_attribute`) for those attribute keys.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_level": {
+          "description": "Drop all findings below this level.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FindingLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signal_type": {
+          "description": "Optional signal type scope. When set, this filter only applies to\nfindings with a matching signal_type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "FindingLevel": {
+      "description": "The level of a finding.",
+      "oneOf": [
+        {
+          "description": "Useful context without action needed.",
+          "type": "string",
+          "const": "information"
+        },
+        {
+          "description": "Suggested change that would improve things.",
+          "type": "string",
+          "const": "improvement"
+        },
+        {
+          "description": "Something that breaks compliance rules.",
+          "type": "string",
+          "const": "violation"
+        }
+      ]
+    },
+    "LiveCheckEmitConfig": {
+      "description": "OTLP log emission settings for live-check.",
+      "type": "object",
+      "properties": {
+        "otlp_logs": {
+          "description": "Enable OTLP log emission for live-check policy findings.",
+          "type": "boolean",
+          "default": false
+        },
+        "otlp_logs_endpoint": {
+          "description": "OTLP endpoint for log emission.",
+          "type": "string",
+          "default": "http://localhost:4317"
+        },
+        "otlp_logs_stdout": {
+          "description": "Use stdout for OTLP log emission (debug mode).",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LiveCheckOtlpConfig": {
+      "description": "OTLP listener settings for live-check.",
+      "type": "object",
+      "properties": {
+        "admin_port": {
+          "description": "Port used by the HTTP admin port (endpoints: `/stop`, `/health`).",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4320,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "grpc_address": {
+          "description": "Address used by the gRPC OTLP listener.",
+          "type": "string",
+          "default": "0.0.0.0"
+        },
+        "grpc_port": {
+          "description": "Port used by the gRPC OTLP listener.",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "inactivity_timeout": {
+          "description": "Max inactivity time in seconds before stopping the listener.",
+          "type": "integer",
+          "format": "uint64",
+          "default": 10,
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

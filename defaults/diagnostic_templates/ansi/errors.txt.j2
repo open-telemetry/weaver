@@ -1,12 +1,12 @@
 
 {{ "Diagnostic report" | ansi_bold | ansi_red }}:
 {% for item in ctx %}
-{%- if item.error.type == "policy_violation" %}
+{%- if item.error.type == "policy_violation" %}{# TODO - support levels. #}
 Violation: {{ item.error.violation.id | ansi_bold | ansi_green }}
-  - Category         : {{ item.error.violation.category | ansi_cyan }}
-  - Type             : {{ item.error.violation.type | ansi_cyan }}
-  - SemConv group    : {{ item.error.violation.group | ansi_cyan }}
-  - SemConv attribute: {{ item.error.violation.attr | ansi_cyan }}
+  - Message   : {{ item.error.violation.message | ansi_cyan }}
+  - Level     : {{ item.error.violation.level | ansi_cyan }}
+  - Context   : {% for key in item.error.violation.context %}
+    - {{ key }} : {{ item.error.violation.context[key] | ansi_cyan }}{% endfor%}
   - Provenance: {{ item.error.provenance | ansi_cyan }}
 {% else %}
 {{ item.diagnostic.ansi_message }}

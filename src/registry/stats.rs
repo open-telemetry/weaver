@@ -2,216 +2,130 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_semconv_specs};
+use crate::registry::{load_config, RegistryArgs};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use include_dir::{include_dir, Dir};
 use log::info;
-use miette::Diagnostic;
+use serde::Serialize;
+use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
-use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::group::GroupType;
-use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
 
-/// Parameters for the `registry stats` sub-command
-#[derive(Debug, Args)]
+/// Embedded default stats templates
+pub(crate) static DEFAULT_STATS_TEMPLATES: Dir<'_> = include_dir!("defaults/stats_templates");
+
+/// Compute and display statistics about a semantic convention registry.
+#[weaver_command(section = "stats", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryStatsArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
+
+    /// Output format for the stats.
+    /// Predefined formats are: text, json, yaml, jsonl, mute.
+    #[arg(long)]
+    #[config(default = "text")]
+    format: Option<String>,
+
+    /// Path to the directory where the stats templates are located.
+    #[arg(long)]
+    #[config(default = "stats_templates")]
+    templates: Option<PathBuf>,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// If not specified, the stats are printed to stdout.
+    #[arg(short, long)]
+    #[config]
+    output: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 }
 
+/// Thin wrapper that adds a `version` field for the template to branch on.
+/// The raw stats are flattened into the same JSON level via `#[serde(flatten)]`.
+#[derive(Serialize)]
+struct StatsContext<T> {
+    version: &'static str,
+    #[serde(flatten)]
+    stats: T,
+}
+
 /// Compute stats on a semantic convention registry.
-pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryStatsArgs,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
+    info!("Weaver Registry Stats");
     info!(
-        "Compute statistics on the registry `{}`",
-        args.registry.registry
+        "Computing stats for registry `{}`",
+        cmd_config.registry.registry
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let registry_path = &args.registry.registry;
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
-    // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
-        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-        .into_result_failing_non_fatal()?;
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-
-    display_semconv_registry_stats(&registry);
-
-    // Resolve the semantic convention registry.
-    let resolved_schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-
-    if !diag_msgs.is_empty() {
+    if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
-    display_schema_stats(&resolved_schema);
+    let format = &cmd_config.config.format;
+    let templates = cmd_config.config.templates;
+    let target = OutputTarget::from_optional_dir(cmd_config.config.output.as_ref());
+    let mut output = OutputProcessor::new(
+        format,
+        "stats",
+        Some(&DEFAULT_STATS_TEMPLATES),
+        Some(templates),
+        target,
+    )?;
+
+    match resolved {
+        crate::weaver::Resolved::V1(v) => {
+            let context = StatsContext {
+                version: "v1",
+                stats: v.resolved_schema().stats(),
+            };
+            output
+                .generate(&context)
+                .map_err(DiagnosticMessages::from)?;
+        }
+        crate::weaver::Resolved::V2(v) => {
+            let context = StatsContext {
+                version: "v2",
+                stats: v.resolved_schema().stats(),
+            };
+            output
+                .generate(&context)
+                .map_err(DiagnosticMessages::from)?;
+        }
+    }
+
     Ok(ExitDirectives {
         exit_code: 0,
         warnings: None,
     })
 }
 
-fn display_semconv_registry_stats(semconv_registry: &SemConvRegistry) {
-    let stats = semconv_registry.stats();
-    println!("Semantic Convention Registry Stats:");
-    println!("  - Total number of files: {}", stats.file_count);
-}
+#[cfg(test)]
+mod tests {
+    use crate::registry::stats::RegistryStatsArgs;
 
-fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
-    let stats = schema.stats();
-    println!("Resolved Telemetry Schema Stats:");
-    let mut total_number_of_attributes = 0;
-    for registry_stats in stats.registry_stats.iter() {
-        println!("Registry");
-        println!("  - {} groups", registry_stats.group_count);
-        for (group_type, group_stats) in registry_stats.group_breakdown.iter() {
-            match group_stats {
-                GroupStats::AttributeGroup { common_stats } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                }
-                GroupStats::Metric {
-                    common_stats,
-                    metric_names,
-                    instrument_breakdown,
-                    unit_breakdown,
-                } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                    println!(
-                        "      - Distinct number of metric names: {}",
-                        metric_names.len()
-                    );
-                    println!("      - Instrument breakdown:");
-                    for (instrument, count) in instrument_breakdown.iter() {
-                        println!("        - {instrument}: {count}");
-                    }
-                    println!("      - Unit breakdown:");
-                    for (unit, count) in unit_breakdown.iter() {
-                        println!("        - {unit}: {count}");
-                    }
-                }
-                GroupStats::MetricGroup { common_stats } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                }
-                GroupStats::Event { common_stats } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                }
-                GroupStats::Entity { common_stats } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                }
-                GroupStats::Scope { common_stats } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                }
-                GroupStats::Span {
-                    common_stats,
-                    span_kind_breakdown,
-                } => {
-                    display_common_group_stats(group_type, common_stats);
-                    total_number_of_attributes += common_stats.total_attribute_count;
-                    println!("      - Span kind breakdown:");
-                    for (span_kind, count) in span_kind_breakdown.iter() {
-                        println!("        - {span_kind:#?}: {count}");
-                    }
-                }
-                GroupStats::Undefined { common_stats } => {
-                    display_common_group_stats(group_type, common_stats);
-                }
-            }
-        }
-    }
-
-    let catalog_stats = &stats.catalog_stats;
-    println!("Shared Catalog (after resolution and deduplication):");
-    if total_number_of_attributes > 0 {
-        println!(
-            "  - Number of deduplicated attributes: {} ({}%)",
-            catalog_stats.attribute_count,
-            catalog_stats.attribute_count * 100 / total_number_of_attributes
-        );
-    }
-    println!("    - Attribute types breakdown:");
-    for (attribute_type, count) in catalog_stats.attribute_type_breakdown.iter() {
-        println!("      - {attribute_type}: {count}");
-    }
-    println!("    - Requirement levels breakdown:");
-    for (requirement_level, count) in catalog_stats.requirement_level_breakdown.iter() {
-        println!("      - {requirement_level}: {count}");
-    }
-    if !catalog_stats.stability_breakdown.is_empty() {
-        println!(
-            "    - Stability breakdown ({}%):",
-            catalog_stats.stability_breakdown.values().sum::<usize>() * 100
-                / catalog_stats.attribute_count
-        );
-        for (stability, count) in catalog_stats.stability_breakdown.iter() {
-            println!("      - {stability}: {count}");
-        }
-    }
-    if catalog_stats.deprecated_count > 0 {
-        println!(
-            "    - Total number of deprecated attributes: {} ({}%)",
-            catalog_stats.deprecated_count,
-            catalog_stats.deprecated_count * 100 / catalog_stats.attribute_count
-        );
-    }
-}
-
-fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroupStats) {
-    println!("    - {} {:#?}s", common_stats.count, group_type);
-    println!(
-        "      - Total number of attributes: {}",
-        common_stats.total_attribute_count
-    );
-    println!(
-        "        - [(attributes card: frequency), ...]: [{}]",
-        common_stats
-            .attribute_card_breakdown
-            .iter()
-            .map(|(card, count)| format!("{}: {}", *card, *count))
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-    if common_stats.count > 0 {
-        println!(
-            "      - Number of group with a prefix: {} ({}%)",
-            common_stats.total_with_prefix,
-            common_stats.total_with_prefix * 100 / common_stats.count
-        );
-        println!(
-            "      - Number of group with a note: {} ({}%)",
-            common_stats.total_with_note,
-            common_stats.total_with_note * 100 / common_stats.count
-        );
-    }
-    if !common_stats.stability_breakdown.is_empty() {
-        println!(
-            "      - Stability breakdown ({}%):",
-            common_stats.stability_breakdown.values().sum::<usize>() * 100 / common_stats.count
-        );
-        for (stability, count) in common_stats.stability_breakdown.iter() {
-            println!("        - {stability}: {count}");
-        }
-    }
-    if common_stats.deprecated_count > 0 {
-        println!(
-            "      - Total number of deprecated groups: {} ({}%)",
-            common_stats.deprecated_count,
-            common_stats.deprecated_count * 100 / common_stats.count
-        );
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryStatsArgs>();
     }
 }

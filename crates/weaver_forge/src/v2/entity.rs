@@ -1,0 +1,59 @@
+//! Event related definitions structs.
+
+use crate::v2::provenance::Provenance;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use weaver_semconv::{
+    attribute::RequirementLevel,
+    signal_requirement_level::SignalRequirementLevel,
+    v2::{signal_id::SignalId, CommonFields},
+};
+
+use crate::v2::attribute::Attribute;
+
+/// The definition of an entity signal.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+pub struct Entity {
+    /// The type of the entity.
+    pub r#type: SignalId,
+
+    /// List of attributes that identify this entity.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub identity: Vec<EntityAttribute>,
+
+    /// List of attributes that describe to this entity.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub description: Vec<EntityAttribute>,
+
+    /// The requirement level of the entity. Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<SignalRequirementLevel>,
+
+    /// Common fields (like brief, note, annotations).
+    #[serde(flatten)]
+    pub common: CommonFields,
+    /// The provenance of the entity.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
+}
+
+/// A special type of reference to attributes that remembers entity-specific information.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+pub struct EntityAttribute {
+    /// Base attribute definitions.
+    #[serde(flatten)]
+    pub base: Attribute,
+    /// Specifies if the attribute is mandatory. Can be "required",
+    /// "conditionally_required", "recommended" or "opt_in". When omitted,
+    /// the attribute is "recommended". When set to
+    /// "conditionally_required", the string provided as `condition`` MUST
+    /// specify the conditions under which the attribute is required.
+    pub requirement_level: RequirementLevel,
+}

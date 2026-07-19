@@ -12,6 +12,6 @@ groups:
     brief: 'Test span'
   - id: test.common
     type: attribute_group
-    brief: 'This tests attribute gorups.'
+    brief: 'This tests attribute groups.'
     note: >
         These conventions have a note.

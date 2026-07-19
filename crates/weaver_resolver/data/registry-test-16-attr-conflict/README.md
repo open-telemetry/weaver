@@ -1,0 +1,1 @@
+Test collisions in attribute groups

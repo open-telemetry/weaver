@@ -25,7 +25,7 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::log_success;
 
-use crate::config::{ApplicationMode, Params, TemplateConfig, WeaverConfig};
+use crate::config::{ApplicationMode, AutoEscapeMode, Params, TemplateConfig, WeaverConfig};
 use crate::debug::error_summary;
 use crate::error::Error::{InvalidConfigFile, InvalidFilePath};
 use crate::extensions::{ansi, case, code, otel, util};
@@ -41,7 +41,11 @@ pub mod file_loader;
 mod filter;
 mod formats;
 pub mod jq;
+pub mod output_processor;
 pub mod registry;
+pub mod v2;
+
+pub use output_processor::{OutputProcessor, OutputTarget};
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
@@ -70,8 +74,8 @@ pub const COMMENT_START: &str = "{#";
 pub const COMMEND_END: &str = "#}";
 
 /// Enumeration defining where the output of program execution should be directed.
-#[derive(Debug, Clone)]
-pub enum OutputDirective {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OutputDirective {
     /// Write the generated content to the standard output.
     Stdout,
     /// Write the generated content to the standard error.
@@ -150,9 +154,23 @@ impl Object for ParamsObject {
     }
 }
 
+/// Runs raw JQ filter on a context object.
+pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_json::Value, Error> {
+    // Create a read-only context for the filter evaluations
+    let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+        error: e.to_string(),
+    })?;
+    // Apply the filter
+    let filter = Filter::new(filter);
+    // TODO - create real filter params
+    let filter_params = BTreeMap::new();
+    let filtered_context = filter.apply(context, &filter_params)?;
+    Ok(filtered_context)
+}
+
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
-pub struct TemplateEngine {
+pub(crate) struct TemplateEngine {
     /// File loader used by the engine.
     file_loader: Arc<dyn FileLoader + Send + Sync + 'static>,
 
@@ -194,11 +212,11 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 
 impl TemplateEngine {
     /// Create a new template engine for the given Weaver config.
-    pub fn new(
+    pub(crate) fn try_new(
         mut config: WeaverConfig,
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         // Compute the params for each template based on:
         // - CLI-level params
         // - Top-level params in the `weaver.yaml` file
@@ -228,11 +246,36 @@ impl TemplateEngine {
             }
         }
 
-        Self {
+        // Validate template files exist
+        let mut errors = Vec::new();
+        if let Some(templates) = config.templates.as_ref() {
+            let all_files = loader.all_files();
+            for template in templates {
+                // Check if any files match the template glob pattern
+                let matcher = template.template.compile_matcher();
+                let has_matches = all_files.iter().any(|file| matcher.is_match(file));
+
+                if !has_matches {
+                    errors.push(InvalidTemplateFile {
+                        template: PathBuf::from(template.template.glob()),
+                        error: format!(
+                            "Template pattern '{}' did not match any files",
+                            template.template.glob()
+                        ),
+                    });
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::CompoundError(errors));
+        }
+
+        Ok(Self {
             file_loader: Arc::new(loader),
             target_config: config,
             snippet_params: params,
-        }
+        })
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -240,10 +283,12 @@ impl TemplateEngine {
     /// # Arguments
     ///
     /// * `context` - The context to use when generating snippets.
+    /// * `filter` - The jq filter expression to use.
     /// * `snippet_id` - The template to use when rendering the snippet.
-    pub fn generate_snippet<T: Serialize>(
+    pub(crate) fn generate_snippet<T: Serialize>(
         &self,
         context: &T,
+        filter: &str,
         snippet_id: String,
     ) -> Result<String, Error> {
         // TODO - find the snippet by id.
@@ -253,7 +298,7 @@ impl TemplateEngine {
             error: e.to_string(),
         })?;
 
-        let mut engine = self.template_engine()?;
+        let mut engine = self.template_engine(&AutoEscapeMode::None)?;
         // Create snippet parameters
         let mut params = self
             .target_config
@@ -261,17 +306,101 @@ impl TemplateEngine {
             .as_ref()
             .cloned()
             .unwrap_or_default();
+
         for (name, value) in self.snippet_params.params.iter() {
             // The result of the insert method is ignored because we don't care about
             // the previous value of the param.
             _ = params.insert(name.clone(), value.clone());
         }
+        // Apply the filter
+        let filter = Filter::new(filter);
+        let filter_params = Self::prepare_jq_context(&params)?;
+        let filtered_context = filter.apply(context, &filter_params)?;
         engine.add_global("params", Value::from_object(ParamsObject::new(params)));
         let template = engine
             .get_template(&snippet_id)
             .map_err(error::jinja_err_convert)?;
-        let result = template.render(context).map_err(error::jinja_err_convert)?;
+        let result = template
+            .render(filtered_context)
+            .map_err(error::jinja_err_convert)?;
         Ok(result)
+    }
+
+    /// Generate artifacts from a serializable context and return the rendered
+    /// output as a String instead of writing to files or stdout.
+    ///
+    /// This is useful when the output needs to be captured (e.g., for HTTP responses).
+    pub(crate) fn generate_to_string<T: Serialize>(&self, context: &T) -> Result<String, Error> {
+        let files = self.file_loader.all_files();
+        let tmpl_matcher = self.target_config.template_matcher()?;
+
+        let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+            error: e.to_string(),
+        })?;
+
+        let mut results = Vec::new();
+        for file_to_process in files {
+            for template in tmpl_matcher.matches(file_to_process.clone()) {
+                let yaml_params = Self::init_params(template.params.clone())?;
+                let params = Self::prepare_jq_context(&yaml_params)?;
+
+                if !self.evaluate_when(template, &context, &params)? {
+                    continue;
+                }
+
+                let filter = Filter::new(template.filter.as_str());
+                let filtered_result = filter.apply(context.clone(), &params)?;
+
+                match template.application_mode {
+                    ApplicationMode::Single => {
+                        let is_empty = filtered_result.is_null()
+                            || (filtered_result.is_array()
+                                && filtered_result.as_array().expect("is_array").is_empty());
+                        if !is_empty {
+                            let (output, _) = self.render_template(
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()?,
+                                &yaml_params,
+                                &file_to_process,
+                                None,
+                                &template.auto_escape,
+                            )?;
+                            results.push(output);
+                        }
+                    }
+                    ApplicationMode::Each => {
+                        if let serde_json::Value::Array(values) = &filtered_result {
+                            for value in values {
+                                let (output, _) = self.render_template(
+                                    NewContext { ctx: value }.try_into()?,
+                                    &yaml_params,
+                                    &file_to_process,
+                                    None,
+                                    &template.auto_escape,
+                                )?;
+                                results.push(output);
+                            }
+                        } else {
+                            let (output, _) = self.render_template(
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()?,
+                                &yaml_params,
+                                &file_to_process,
+                                None,
+                                &template.auto_escape,
+                            )?;
+                            results.push(output);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results.join(""))
     }
 
     /// Generate artifacts from a serializable context and a template directory,
@@ -286,7 +415,7 @@ impl TemplateEngine {
     ///
     /// * `Ok(())` if the artifacts were generated successfully.
     /// * `Err(error)` if an error occurred during the generation of the artifacts.
-    pub fn generate<T: Serialize>(
+    pub(crate) fn generate<T: Serialize>(
         &self,
         context: &T,
         output_dir: &Path,
@@ -327,6 +456,43 @@ impl TemplateEngine {
         handle_errors(errs)
     }
 
+    /// Evaluate a template's optional `when` JQ expression.
+    ///
+    /// The expression is evaluated against the same context as the template's
+    /// `filter` (the resolved registry), with the template parameters exposed as
+    /// JQ variables — namespaced under `$params` (e.g. `$params.gen_readme ==
+    /// true`). The expression must evaluate to a single boolean: `true` applies
+    /// the template, `false` skips it. Any other output — including an empty
+    /// stream (`[]`) or a non-boolean value — is a hard error, so an expression
+    /// like `.groups[] | select(...)` that matches nothing is rejected rather
+    /// than silently treated as truthy. Wrap such expressions in `any(...)` /
+    /// `all(...)` or an explicit comparison to yield a boolean. A template
+    /// without a `when` clause is always applied. A malformed or failing
+    /// expression is also a hard error.
+    fn evaluate_when(
+        &self,
+        template: &TemplateConfig,
+        context: &serde_json::Value,
+        params: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<bool, Error> {
+        let Some(when) = template.when.as_deref() else {
+            return Ok(true);
+        };
+
+        let result = jq::execute_jq(context, when, params)?;
+        match result {
+            serde_json::Value::Bool(true) => Ok(true),
+            serde_json::Value::Bool(false) => {
+                log::debug!("Skipping template: `when` clause `{when}` is not met");
+                Ok(false)
+            }
+            other => Err(Error::WhenClauseNotBoolean {
+                when: when.to_owned(),
+                actual: other.to_string(),
+            }),
+        }
+    }
+
     /// Process a single template file with the given template configuration,
     /// context, output directory, and output directive.
     fn process_template(
@@ -337,8 +503,20 @@ impl TemplateEngine {
         output_dir: &Path,
         output_directive: &OutputDirective,
     ) -> Result<(), Error> {
+        log::debug!(
+            "Processing template file: {template_file:#?}, output directory: {output_dir:#?}"
+        );
+
         let yaml_params = Self::init_params(template.params.clone())?;
         let params = Self::prepare_jq_context(&yaml_params)?;
+
+        // A template with a `when` clause is only applied when the JQ expression
+        // evaluates to `true`. Evaluated before filtering so a skipped template
+        // does no work.
+        if !self.evaluate_when(template, context, &params)? {
+            return Ok(());
+        }
+
         let filter = Filter::new(template.filter.as_str());
         let filtered_result = filter.apply(context.clone(), &params)?;
 
@@ -350,6 +528,7 @@ impl TemplateEngine {
                 template_file,
                 output_dir,
                 output_directive,
+                &template.auto_escape,
             ),
             ApplicationMode::Each => self.process_each_mode(
                 &filtered_result,
@@ -358,6 +537,7 @@ impl TemplateEngine {
                 template_file,
                 output_dir,
                 output_directive,
+                &template.auto_escape,
             ),
         }
     }
@@ -373,6 +553,7 @@ impl TemplateEngine {
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
+        auto_escape: &AutoEscapeMode,
     ) -> Result<(), Error> {
         match ctx {
             serde_json::Value::Array(values) => {
@@ -387,6 +568,7 @@ impl TemplateEngine {
                             template_file,
                             output_directive,
                             output_dir,
+                            auto_escape,
                         )
                         .err()
                     })
@@ -400,6 +582,7 @@ impl TemplateEngine {
                 template_file,
                 output_directive,
                 output_dir,
+                auto_escape,
             ),
         }
     }
@@ -413,6 +596,7 @@ impl TemplateEngine {
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
+        auto_escape: &AutoEscapeMode,
     ) -> Result<(), Error> {
         if ctx.is_null() || (ctx.is_array() && ctx.as_array().expect("is_array").is_empty()) {
             // Skip the template evaluation if the filtered result is null or an empty array
@@ -425,6 +609,7 @@ impl TemplateEngine {
             template_file,
             output_directive,
             output_dir,
+            auto_escape,
         )
     }
 
@@ -482,18 +667,18 @@ impl TemplateEngine {
         }
     }
 
-    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
-    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
-    fn evaluate_template(
+    /// Set up a Jinja engine, render a template, and return the output string
+    /// along with the `TemplateObject` (which may have been mutated by the
+    /// template to override the file name).
+    fn render_template(
         &self,
         ctx: serde_json::Value,
-        file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
         template_path: &Path,
-        output_directive: &OutputDirective,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
-        let mut engine = self.template_engine()?;
+        file_path_config: Option<&String>,
+        auto_escape: &AutoEscapeMode,
+    ) -> Result<(String, TemplateObject), Error> {
+        let mut engine = self.template_engine(auto_escape)?;
 
         // Add the Weaver parameters to the template context
         engine.add_global(
@@ -503,7 +688,7 @@ impl TemplateEngine {
 
         // Pre-determine the file path for the generated file based on the template file path
         // if defined, otherwise use the default file path based on the template file name.
-        let file_path = match file_path {
+        let file_path = match file_path_config {
             Some(file_path) => {
                 engine
                     .render_str(file_path, ctx.clone())
@@ -547,13 +732,29 @@ impl TemplateEngine {
             }
         })?;
 
-        let output = template
-            .render(ctx.clone())
-            .map_err(|e| TemplateEvaluationFailed {
-                template: template_path.to_path_buf(),
-                error_id: e.to_string(),
-                error: error_summary(e),
-            })?;
+        let output = template.render(ctx).map_err(|e| TemplateEvaluationFailed {
+            template: template_path.to_path_buf(),
+            error_id: e.to_string(),
+            error: error_summary(e),
+        })?;
+
+        Ok((output, template_object))
+    }
+
+    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
+    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
+    fn evaluate_template(
+        &self,
+        ctx: serde_json::Value,
+        file_path: Option<&String>,
+        params: &BTreeMap<String, serde_yaml::Value>,
+        template_path: &Path,
+        output_directive: &OutputDirective,
+        output_dir: &Path,
+        auto_escape: &AutoEscapeMode,
+    ) -> Result<(), Error> {
+        let (output, template_object) =
+            self.render_template(ctx, params, template_path, file_path, auto_escape)?;
         match output_directive {
             OutputDirective::Stdout => {
                 println!("{output}");
@@ -571,8 +772,13 @@ impl TemplateEngine {
     }
 
     /// Create a new template engine based on the target configuration.
-    fn template_engine(&self) -> Result<Environment<'_>, Error> {
+    fn template_engine(&self, auto_escape: &AutoEscapeMode) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
+        // Set the auto-escape mode based on the per-template configuration.
+        // Within a template, `{% autoescape false %}` blocks can selectively
+        // disable escaping for sections.
+        let auto_escape_mode = minijinja::AutoEscape::from(auto_escape);
+        env.set_auto_escape_callback(move |_| auto_escape_mode);
         let template_syntax = self.target_config.template_syntax.clone();
 
         let syntax = SyntaxConfig::builder()
@@ -699,46 +905,128 @@ mod tests {
     use globset::Glob;
     use serde::Serialize;
 
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::diff_dir;
-    use weaver_resolver::SchemaResolver;
-    use weaver_semconv::registry::SemConvRegistry;
+    use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
+    use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::schema_url::SchemaUrl;
 
-    use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};
+    use crate::config::{
+        ApplicationMode, AutoEscapeMode, CaseConvention, Params, TemplateConfig, WeaverConfig,
+    };
     use crate::debug::print_dedup_errors;
+    use crate::error::Error;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
-    use crate::{OutputDirective, TemplateEngine};
+    use crate::v2::entity::Entity;
+    use crate::v2::event::Event;
+    use crate::v2::metric::Metric;
+    use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
+    use crate::v2::span::Span;
+    use crate::{run_filter_raw, OutputDirective, TemplateEngine};
+    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+    use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
-    fn prepare_test(
-        target: &str,
-        cli_params: Params,
-    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
-        let registry_id = "default";
-        let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .into_result_failing_non_fatal()
-            .expect("Failed to load registry");
-        prepare_test_with_registry(target, cli_params, registry)
-    }
-
-    fn prepare_test_with_registry(
-        target: &str,
-        cli_params: Params,
-        mut registry: SemConvRegistry,
-    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
+    fn prepare_engine(target: &str, cli_params: Params) -> TemplateEngine {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
-        let engine = TemplateEngine::new(config, loader, cli_params);
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
-            .into_result_failing_non_fatal()
-            .expect("Failed to resolve registry");
+        TemplateEngine::try_new(config, loader, cli_params)
+            .expect("Failed to create template engine")
+    }
 
+    fn prepare_schema(
+        ignore_non_fatal_errors: bool,
+    ) -> weaver_resolved_schema::ResolvedTelemetrySchema {
+        let schema_url: Option<SchemaUrl> = Some(
+            "https://default/1.0.0"
+                .try_into()
+                .expect("Should be valid schema url"),
+        );
+        let path: VirtualDirectoryPath = "data/registry"
+            .try_into()
+            .expect("Invalid virtual directory path string");
+        let repo = RegistryRepo::try_new(schema_url, &path, &mut vec![])
+            .expect("Failed to construct repository");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let schema = if ignore_non_fatal_errors {
+            resolver
+                .load_and_resolve_schema(repo, DefaultSchemaVisitor)
+                .into_result_with_non_fatal()
+                .expect("Failed to load and resolve the registry")
+                .0
+        } else {
+            resolver
+                .load_and_resolve_schema(repo, DefaultSchemaVisitor)
+                .into_result_failing_non_fatal()
+                .expect("Failed to load and resolve the registry")
+        };
+        schema.into_v1().unwrap()
+    }
+
+    fn prepare_test_readonly(
+        target: &str,
+        cli_params: Params,
+        ignore_non_fatal_errors: bool,
+    ) -> (TemplateEngine, ResolvedRegistry) {
+        let schema = prepare_schema(ignore_non_fatal_errors);
+        prepare_test_with_registry_readonly(target, cli_params, schema)
+    }
+
+    fn prepare_test_with_registry_readonly(
+        target: &str,
+        cli_params: Params,
+        schema: weaver_resolved_schema::ResolvedTelemetrySchema,
+    ) -> (TemplateEngine, ResolvedRegistry) {
+        let engine = prepare_engine(target, cli_params);
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
                     panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
+        (engine, template_registry)
+    }
+
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
+    fn prepare_test(
+        target: &str,
+        cli_params: Params,
+        ignore_non_fatal_errors: bool,
+    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
+        let (engine, template_registry) =
+            prepare_test_readonly(target, cli_params, ignore_non_fatal_errors);
+
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+
+        (
+            engine,
+            template_registry,
+            PathBuf::from(format!("observed_output/{target}")),
+            PathBuf::from(format!("expected_output/{target}")),
+        )
+    }
+
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
+    fn prepare_test_with_registry(
+        target: &str,
+        cli_params: Params,
+        schema: weaver_resolved_schema::ResolvedTelemetrySchema,
+    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
+        let (engine, template_registry) =
+            prepare_test_with_registry_readonly(target, cli_params, schema);
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
@@ -747,6 +1035,83 @@ mod tests {
         (
             engine,
             template_registry,
+            PathBuf::from(format!("observed_output/{target}")),
+            PathBuf::from(format!("expected_output/{target}")),
+        )
+    }
+
+    fn prepare_test_v2_readonly(target: &str) -> (TemplateEngine, ForgeResolvedRegistry) {
+        let engine = prepare_engine(target, Params::default());
+
+        let registry = ForgeResolvedRegistry {
+            schema_url: "https://example.com/1.0.0".try_into().unwrap(),
+            registry: V2Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![Metric {
+                    name: SignalId::from("db.client.operation.duration".to_owned()),
+                    instrument: InstrumentSpec::Histogram,
+                    unit: "s".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                spans: vec![Span {
+                    requirement_level: None,
+                    r#type: SignalId::from("db.client".to_owned()),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "A database client span.".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                events: vec![Event {
+                    name: SignalId::from("db.query".to_owned()),
+                    requirement_level: None,
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                entities: vec![Entity {
+                    r#type: SignalId::from("db.client".to_owned()),
+                    identity: vec![],
+                    description: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+            },
+        };
+
+        (engine, registry)
+    }
+
+    // Note: This function is *not* safe to re-use across unit tests for the same target string.
+    // This function manipulates the file system, particularly `observed_output` directory.
+    // This allows you to look at the diff of a test failure and copy the observed output to
+    // expected output if the diff looks good.  We cannot use random temp files, as these would
+    // be cleaned up post test.
+    //
+    // If you are not using expected_output, do not use this function.
+    fn prepare_test_v2(target: &str) -> (TemplateEngine, ForgeResolvedRegistry, PathBuf, PathBuf) {
+        let (engine, registry) = prepare_test_v2_readonly(target);
+
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
+
+        (
+            engine,
+            registry,
             PathBuf::from(format!("observed_output/{target}")),
             PathBuf::from(format!("expected_output/{target}")),
         )
@@ -884,7 +1249,8 @@ mod tests {
             .expect("Failed to create file system loader");
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
-        let mut engine = TemplateEngine::new(config, loader, Params::default());
+        let mut engine = TemplateEngine::try_new(config, loader, Params::default())
+            .expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
@@ -896,16 +1262,29 @@ mod tests {
             application_mode: ApplicationMode::Single,
             params: None,
             file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: None,
         });
         engine.target_config.templates = Some(templates);
 
-        let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .into_result_failing_non_fatal()
-            .expect("Failed to load registry");
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
-            .into_result_failing_non_fatal()
-            .expect("Failed to resolve registry");
+        let path: VirtualDirectoryPath = "data/registry"
+            .try_into()
+            .expect("Invalid virtual directory path string");
+        let schema_url: Option<SchemaUrl> = Some(
+            "https://default/1.0.0"
+                .try_into()
+                .expect("Should be valid schema url"),
+        );
+        let repo = RegistryRepo::try_new(schema_url, &path, &mut vec![])
+            .expect("Failed to construct repository");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let schema = resolver
+            .load_and_resolve_schema(repo, DefaultSchemaVisitor)
+            .into_result_with_non_fatal()
+            .expect("Failed to load and resolve registry")
+            .0
+            .into_v1()
+            .unwrap();
 
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
@@ -928,9 +1307,146 @@ mod tests {
     }
 
     #[test]
+    fn test_evaluate_when() {
+        use std::collections::BTreeMap;
+
+        let (engine, registry) = prepare_test_readonly("test", Params::default(), true);
+        let context = serde_json::to_value(&registry).expect("Failed to serialize registry");
+
+        let template = |when: Option<&str>| TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: when.map(str::to_owned),
+        };
+
+        let no_params = BTreeMap::new();
+
+        // No `when` clause -> always applied.
+        assert!(engine
+            .evaluate_when(&template(None), &context, &no_params)
+            .unwrap());
+
+        // Boolean constant expressions apply/skip the template.
+        assert!(engine
+            .evaluate_when(&template(Some("true")), &context, &no_params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(&template(Some("false")), &context, &no_params)
+            .unwrap());
+
+        // Non-boolean outputs are a hard error rather than being coerced.
+        // `null`, an empty stream (`[]`) such as `.groups[] | select(...)`
+        // matching nothing, and plain values must all be rejected.
+        for expr in [
+            "null",
+            "1",
+            "\"yes\"",
+            ".groups[] | select(.id == \"nope\")",
+        ] {
+            assert!(
+                matches!(
+                    engine.evaluate_when(&template(Some(expr)), &context, &no_params),
+                    Err(Error::WhenClauseNotBoolean { .. })
+                ),
+                "expected `when` expression `{expr}` to be rejected as non-boolean"
+            );
+        }
+
+        // Expression referencing template params exposed under `$params`.
+        let params = TemplateEngine::prepare_jq_context(
+            &TemplateEngine::init_params(Some(BTreeMap::from([(
+                "gen_readme".to_owned(),
+                serde_yaml::Value::Bool(true),
+            )])))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(engine
+            .evaluate_when(&template(Some("$params.gen_readme")), &context, &params)
+            .unwrap());
+        assert!(!engine
+            .evaluate_when(
+                &template(Some("$params.gen_readme | not")),
+                &context,
+                &params
+            )
+            .unwrap());
+
+        // A malformed expression is a hard error.
+        assert!(engine
+            .evaluate_when(
+                &template(Some("this is not valid jq (")),
+                &context,
+                &no_params
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn test_generate_skips_template_when_false() {
+        let (mut engine, registry) = prepare_test_readonly("test", Params::default(), true);
+
+        // A single template gated on a constant-false `when` clause must be
+        // skipped entirely, producing no output file.
+        engine.target_config.templates = Some(vec![TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: Some("converter.md".to_owned()),
+            auto_escape: AutoEscapeMode::None,
+            when: Some("false".to_owned()),
+        }]);
+
+        let output = tempfile::tempdir().expect("Failed to create temp dir");
+        engine
+            .generate(&registry, output.path(), &OutputDirective::File)
+            .expect("Failed to generate registry assets");
+
+        assert!(
+            !output.path().join("converter.md").exists(),
+            "template gated on a false `when` clause must be skipped"
+        );
+    }
+
+    #[test]
+    fn test_generate_to_string_skips_template_when_false() {
+        let (mut engine, registry) = prepare_test_readonly("test", Params::default(), true);
+
+        let template = |when: &str| TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: Some(when.to_owned()),
+        };
+
+        // With a `when` that evaluates to `true`, string generation renders the template.
+        engine.target_config.templates = Some(vec![template("true")]);
+        let rendered = engine
+            .generate_to_string(&registry)
+            .expect("generate_to_string should succeed");
+        assert!(!rendered.is_empty(), "`when: true` should render output");
+
+        // With a `when` that evaluates to `false`, the same template is skipped
+        // and produces nothing.
+        engine.target_config.templates = Some(vec![template("false")]);
+        let skipped = engine
+            .generate_to_string(&registry)
+            .expect("generate_to_string should succeed");
+        assert!(skipped.is_empty(), "`when: false` should skip output");
+    }
+
+    #[test]
     fn test_whitespace_control() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("whitespace_control", Params::default());
+            prepare_test("whitespace_control", Params::default(), true);
 
         engine
             .generate(
@@ -956,7 +1472,8 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_loader(&loader).unwrap();
-        let engine = TemplateEngine::new(config, loader, Params::default());
+        let engine = TemplateEngine::try_new(config, loader, Params::default())
+            .expect("Failed to create template engine");
         let context = Context {
             text: "Hello, World!".to_owned(),
         };
@@ -978,7 +1495,7 @@ mod tests {
     #[test]
     fn test_semconv_jq_functions() {
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("semconv_jq_fn", Params::default());
+            prepare_test("semconv_jq_fn", Params::default(), true);
 
         engine
             .generate(
@@ -986,6 +1503,21 @@ mod tests {
                 observed_output.as_path(),
                 &OutputDirective::File,
             )
+            .inspect_err(|e| {
+                print_dedup_errors(e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_semconv_jq_functions_v2_spans() {
+        let (engine, registry, observed_output, expected_output) =
+            prepare_test_v2("semconv_jq_fn_v2");
+
+        engine
+            .generate(&registry, observed_output.as_path(), &OutputDirective::File)
             .inspect_err(|e| {
                 print_dedup_errors(e.clone());
             })
@@ -1004,7 +1536,7 @@ mod tests {
             ("shared_2", serde_yaml::Value::Bool(true)),
         ]);
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test("template_params", cli_params);
+            prepare_test("template_params", cli_params, true);
 
         engine
             .generate(
@@ -1022,15 +1554,26 @@ mod tests {
 
     #[test]
     fn test_comment_format() {
-        let registry_id = "default";
-        let registry = SemConvRegistry::try_from_path_pattern(
-            registry_id,
-            "data/mini_registry_for_comments/*.yaml",
-        )
-        .into_result_failing_non_fatal()
-        .expect("Failed to load registry");
+        let path: VirtualDirectoryPath = "data/mini_registry_for_comments"
+            .try_into()
+            .expect("Invalid virtual directory path string");
+        let schema_url: SchemaUrl = "https://default/1.0.0"
+            .try_into()
+            .expect("Should be valid schema url");
+        let repo = RegistryRepo::try_new(Some(schema_url), &path, &mut vec![])
+            .expect("Failed to construct repository");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let schema = resolver
+            .load_and_resolve_schema(repo, DefaultSchemaVisitor)
+            .into_result_with_non_fatal()
+            .expect("Failed to load and resolve registry")
+            .0;
         let (engine, template_registry, observed_output, expected_output) =
-            prepare_test_with_registry("comment_format", Params::default(), registry);
+            prepare_test_with_registry(
+                "comment_format",
+                Params::default(),
+                schema.into_v1().unwrap(),
+            );
 
         engine
             .generate(
@@ -1044,5 +1587,317 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_registry_markdown() {
+        let (engine, template_registry, observed_output, expected_output) =
+            prepare_test("registry/markdown", Params::default(), true);
+
+        engine
+            .generate(
+                &template_registry,
+                observed_output.as_path(),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_wrong_config() {
+        let loader = FileSystemFileLoader::try_new("templates".into(), "wrong_config")
+            .expect("Failed to create file system loader");
+        let config = WeaverConfig::try_from_path("templates/wrong_config").unwrap();
+        let result = TemplateEngine::try_new(config, loader, Params::default());
+        assert!(result.is_err());
+        let error = result.err().unwrap();
+
+        let msg = format!("{error}");
+        assert!(
+            msg.contains("Template pattern 'does-not-exist.j2' did not match any files"),
+            "Unexpected error message - {msg}"
+        );
+    }
+
+    #[test]
+    fn test_run_filter_raw() {
+        let expected = serde_json::json!({ "one": 1 });
+        let input = serde_json::json!({
+            "test": expected.clone()
+        });
+        let result = run_filter_raw(&input, ".test").expect("failed to run raw filter `.test`");
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_events_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "events": [
+                    {
+                        "name": "http.request",
+                        "brief": "stable event",
+                        "stability": "stable"
+                    },
+                    {
+                        "name": "db.query",
+                        "brief": "deprecated event",
+                        "stability": "stable",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "name": "other.event",
+                        "brief": "excluded namespace",
+                        "stability": "stable"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_events({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_events for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "http",
+                "events": [
+                    {
+                        "name": "http.request",
+                        "brief": "stable event",
+                        "stability": "stable",
+                        "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_metrics_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "metrics": [
+                    {
+                        "name": "http.server.request.duration",
+                        "brief": "stable metric",
+                        "stability": "stable",
+                        "instrument": "histogram",
+                        "unit": "s"
+                    },
+                    {
+                        "name": "db.client.connection.count",
+                        "brief": "deprecated metric",
+                        "stability": "stable",
+                        "instrument": "updowncounter",
+                        "unit": "{connection}",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "name": "other.metric",
+                        "brief": "excluded namespace",
+                        "stability": "stable",
+                        "instrument": "counter",
+                        "unit": "1"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_metrics({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_metrics for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "http",
+                "metrics": [
+                    {
+                        "name": "http.server.request.duration",
+                        "brief": "stable metric",
+                        "stability": "stable",
+                        "instrument": "histogram",
+                        "unit": "s",
+                        "root_namespace": "http",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_run_filter_raw_semconv_grouped_entities_v2() {
+        let input = serde_json::json!({
+            "registry": {
+                "entities": [
+                    {
+                        "type": "host",
+                        "brief": "stable entity",
+                        "stability": "stable"
+                    },
+                    {
+                        "type": "k8s.pod",
+                        "brief": "deprecated entity",
+                        "stability": "stable",
+                        "deprecated": { "note": "deprecated" }
+                    },
+                    {
+                        "type": "other.entity",
+                        "brief": "excluded namespace",
+                        "stability": "stable"
+                    }
+                ]
+            }
+        });
+
+        let result = run_filter_raw(
+            &input,
+            "semconv_grouped_entities({\"v2\": true, \"exclude_deprecated\": true, \"exclude_root_namespace\": [\"other\"]})",
+        )
+        .expect("failed to run semconv_grouped_entities for v2");
+
+        let expected = serde_json::json!([
+            {
+                "root_namespace": "host",
+                "entities": [
+                    {
+                        "type": "host",
+                        "brief": "stable entity",
+                        "stability": "stable",
+                        "root_namespace": "host",
+                        "attributes": null
+                    }
+                ]
+            }
+        ]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_auto_escape_modes() {
+        use minijinja::{AutoEscape, Environment};
+
+        let value_with_special_chars = "<b>hello</b> & \"world\"";
+        let ctx = minijinja::context! { value => value_with_special_chars };
+
+        // AutoEscapeMode::None — no escaping regardless of template extension
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::None;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template("schema.yaml.j2", "key: {{ value }}")
+                .expect("should add template");
+            let result = env
+                .get_template("schema.yaml.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "key: <b>hello</b> & \"world\"");
+
+            env.add_template("page.html.j2", "<p>{{ value }}</p>")
+                .expect("should add template");
+            let result = env
+                .get_template("page.html.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "<p><b>hello</b> & \"world\"</p>");
+
+            env.add_template("data.json.j2", "{ \"key\": \"{{ value }}\" }")
+                .expect("should add template");
+            let result = env
+                .get_template("data.json.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "{ \"key\": \"<b>hello</b> & \"world\"\" }");
+        }
+
+        // AutoEscapeMode::Html — HTML entity escaping for all templates
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::Html;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template("page.html.j2", "<p>{{ value }}</p>")
+                .expect("should add template");
+            let result = env
+                .get_template("page.html.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(
+                result,
+                "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p>"
+            );
+
+            // HTML escaping applies even to non-HTML template extensions
+            env.add_template("output.txt.j2", "{{ value }}")
+                .expect("should add template");
+            let result = env
+                .get_template("output.txt.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(
+                result,
+                "&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;"
+            );
+        }
+
+        // AutoEscapeMode::Json — JSON serialization for all templates
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::Json;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template("data.json.j2", "{ \"key\": {{ value }} }")
+                .expect("should add template");
+            let result = env
+                .get_template("data.json.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(result, "{ \"key\": \"<b>hello</b> & \\\"world\\\"\" }");
+        }
+
+        // AutoEscapeMode::Html with {% autoescape false %} block override
+        {
+            let mut env = Environment::new();
+            let mode = AutoEscape::Html;
+            env.set_auto_escape_callback(move |_| mode);
+
+            env.add_template(
+                "mixed.html.j2",
+                "<p>{{ value }}</p>{% autoescape false %}<raw>{{ value }}</raw>{% endautoescape %}",
+            )
+            .expect("should add template");
+            let result = env
+                .get_template("mixed.html.j2")
+                .expect("should get template")
+                .render(&ctx)
+                .expect("should render");
+            assert_eq!(
+                result,
+                "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p><raw><b>hello</b> & \"world\"</raw>"
+            );
+        }
     }
 }

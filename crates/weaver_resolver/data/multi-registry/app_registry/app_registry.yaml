@@ -15,3 +15,7 @@ groups:
 imports:
   metrics:
     - example.*
+  spans:
+    - server.request
+  attribute_groups:
+    - server.attributes

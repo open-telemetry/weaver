@@ -2,11 +2,12 @@
 
 //! Data structures and utilities for tracking schema changes between versions.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// The type of schema item.
-#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Copy, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SchemaItemType {
     /// Registry attributes
@@ -22,7 +23,7 @@ pub enum SchemaItemType {
 }
 
 /// A summary of schema changes between two versions of a schema.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SchemaChanges {
     /// Information on the registry manifest for the most recent version of the schema.
@@ -38,7 +39,7 @@ pub struct SchemaChanges {
 }
 
 /// Represents the information of a semantic convention registry manifest.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RegistryManifest {
     /// The version of the registry which will be used to define the semconv package version.
@@ -48,7 +49,7 @@ pub struct RegistryManifest {
 /// Represents the different types of changes that can occur between
 /// two versions of a schema. This covers changes such as adding, removing,
 /// renaming, and deprecating telemetry objects (attributes, metrics, etc.).
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SchemaItemChange {

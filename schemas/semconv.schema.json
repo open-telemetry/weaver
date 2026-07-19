@@ -1,4 +1,5 @@
 {
+	"$id": "https://opentelemetry.io/schemas/v1/semconv.schema.json",
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"type": "object",
 	"description": "YAML schema for semantic convention generator, use for example with VS Code.",
@@ -90,7 +91,7 @@
 							"type": "string",
 							"description": "The new name of the telemetry object."
 						},
-						"note:": {
+						"note": {
 							"type": "string",
 							"description": "A note explaining the reason for the deprecation."
 						}
@@ -108,7 +109,7 @@
 						"reason": {
 							"const": "obsoleted"
 						},
-						"note:": {
+						"note": {
 							"type": "string",
 							"description": "A note explaining the reason for the deprecation."
 						}
@@ -125,7 +126,7 @@
 						"reason": {
 							"const": "uncategorized"
 						},
-						"note:": {
+						"note": {
 							"type": "string",
 							"description": "A note explaining the reason for the deprecation."
 						}
@@ -600,7 +601,7 @@
 							},
 							"annotations": {
 								"$ref": "#/$defs/annotations"
-							}							
+							}
 						}
 					}
 				}
@@ -839,11 +840,43 @@
 			]
 		},
 		"EntityAssociation": {
-			"type": "array",
-			"items": {
-				"type": "string"
-			},
-			"description": "list of entity associations."
+			"description": "An entity association: a bare entity reference, or a `one_of`/`all_of` group of nested associations.",
+			"anyOf": [
+				{
+					"type": "string",
+					"description": "The name of the associated entity."
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": [
+						"one_of"
+					],
+					"properties": {
+						"one_of": {
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/EntityAssociation"
+							}
+						}
+					}
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": [
+						"all_of"
+					],
+					"properties": {
+						"all_of": {
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/EntityAssociation"
+							}
+						}
+					}
+				}
+			]
 		}
 	}
 }

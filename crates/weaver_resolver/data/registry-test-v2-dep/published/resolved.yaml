@@ -1,0 +1,131 @@
+file_format: resolved/2.0
+schema_url: https://server.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Different brief
+  note: Different note
+  stability: stable
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Server address.
+  stability: stable
+- key: host.id
+  type: string
+  examples:
+  - fdbf79e8af94cb7f9e8df36789187052
+  brief: Unique host ID.
+  stability: stable
+- key: host.name
+  type: string
+  examples:
+  - opentelemetry-test
+  brief: Name of the host.
+  stability: stable
+- key: host.arch
+  type: string
+  examples:
+  - amd64
+  brief: Host architecture.
+  stability: stable
+registry:
+  attributes:
+  - 2
+  - 0
+  - 3
+  - 4
+  - 5
+  attribute_groups: []
+  spans:
+  - type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 1
+      requirement_level: required
+      sampling_relevant: true
+    - base: 0
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
+  metrics:
+  - name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Duration of server requests.
+    stability: stable
+  events:
+  - name: server.error
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: A server error event.
+    stability: stable
+  entities:
+  - type: host
+    identity:
+    - base: 3
+      requirement_level: required
+    - base: 5
+      requirement_level: recommended
+    description:
+    - base: 4
+      requirement_level: recommended
+    brief: A host.
+    stability: stable
+refinements:
+  spans:
+  - id: server.request
+    type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 1
+      requirement_level: required
+      sampling_relevant: true
+    - base: 0
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
+  metrics:
+  - id: server.request.duration
+    name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Duration of server requests.
+    stability: stable
+  events:
+  - id: server.error
+    name: server.error
+    attributes:
+    - base: 1
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: A server error event.
+    stability: stable

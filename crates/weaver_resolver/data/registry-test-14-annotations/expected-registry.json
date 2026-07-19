@@ -6,20 +6,20 @@
       "type": "attribute_group",
       "brief": "Attributes",
       "attributes": [
-        0,
-        1
+        1,
+        2
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-14-annotations/registry/group-with-annotations.yaml"
         }
       },
       "annotations": {
-        "privacy_sensitivity": "PII",
         "code_generation": {
           "exclude": true
-        }
+        },
+        "privacy_sensitivity": "PII"
       }
     },
     {
@@ -27,11 +27,11 @@
       "type": "attribute_group",
       "brief": "Attributes",
       "attributes": [
-        2
+        0
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-14-annotations/registry/group-with-annotations.yaml"
         },
         "attributes": {

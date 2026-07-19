@@ -6,14 +6,43 @@
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::{Args, ValueEnum};
 use log::info;
-use miette::Diagnostic;
-use schemars::schema_for;
-use serde::Serialize;
-use serde_json::to_string_pretty;
-use std::{io::Write, path::PathBuf};
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use schemars::{schema_for, JsonSchema};
+use serde::Deserialize;
+use std::path::PathBuf;
+use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::{
+    AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, TemplateConfig,
+    WeaverConfig,
+};
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_semconv::semconv::SemConvSpec;
+use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_semconv::semconv::SemConvSpecV1;
+
+/// Top-level Weaver configuration.
+#[derive(JsonSchema, Deserialize, Default)]
+#[serde(default)]
+#[allow(dead_code)]
+struct WeaverConfigSchema {
+    pub registry: RegistryConfig,
+    pub policy: PolicyConfig,
+    pub diagnostics: DiagnosticsConfig,
+    pub template: TemplateConfig,
+    pub auth: Vec<AuthEntry>,
+    pub check: super::check::CheckConfig,
+    pub diff: super::diff::DiffConfig,
+    pub emit: super::emit::EmitConfig,
+    pub generate: super::generate::GenerateConfig,
+    pub infer: super::infer::InferConfig,
+    #[serde(rename = "live-check")]
+    pub live_check: LiveCheckConfig,
+    pub mcp: super::mcp::McpConfig,
+    pub package: super::package::PackageConfig,
+    pub serve: crate::serve::ServeConfig,
+    pub stats: super::stats::StatsConfig,
+    #[serde(rename = "update-markdown")]
+    pub update_markdown: super::update_markdown::UpdateMarkdownConfig,
+}
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
@@ -32,27 +61,6 @@ pub struct RegistryJsonSchemaArgs {
     pub diagnostic: DiagnosticArgs,
 }
 
-/// An error that can occur while generating a JSON Schema.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
-#[non_exhaustive]
-pub enum Error {
-    /// The serialization of the JSON schema failed.
-    #[error("The serialization of the JSON schema failed. Error: {error}")]
-    SerializationError {
-        /// The error that occurred.
-        error: String,
-    },
-
-    /// Writing to the file failed.
-    #[error("Writing to the file ‘{file}’ failed for the following reason: {error}")]
-    WriteError {
-        /// The path to the output file.
-        file: PathBuf,
-        /// The error that occurred.
-        error: String,
-    },
-}
-
 /// The type of JSON schema to generate.
 #[derive(Debug, Clone, ValueEnum)]
 pub enum JsonSchemaType {
@@ -60,41 +68,64 @@ pub enum JsonSchemaType {
     ResolvedRegistry,
     /// The JSON schema of a semantic convention group.
     SemconvGroup,
-}
-
-impl From<Error> for DiagnosticMessages {
-    fn from(error: Error) -> Self {
-        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
-    }
+    /// The JSON schema of the V2 definition.
+    SemconvDefinitionV2,
+    /// The JSON schema of the V2 resolved registry.
+    ResolvedRegistryV2,
+    /// The JSON schema we send to Rego / Jinja.
+    MaterializedRegistryV2,
+    /// The JSON schema of the diff
+    Diff,
+    /// The JSON schema of the diff V2
+    DiffV2,
+    /// The JSON schema of the publication manifest produced by `weaver registry package`.
+    PublicationManifestV2,
+    /// Definition manifest describing unpublished registry.
+    DefinitionManifestV2,
+    /// The JSON schema of a policy finding returned by Rego policies.
+    PolicyFinding,
+    /// The JSON schema of the `.weaver.toml` configuration file.
+    WeaverConfig,
 }
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
 /// file or print it to stdout.
-pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryJsonSchemaArgs,
+    _cfg: Option<&WeaverConfig>,
+    _auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
-        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
+        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpecV1),
+        JsonSchemaType::SemconvDefinitionV2 => weaver_semconv::v2::SemConvSpecV2::output_schema(),
+        JsonSchemaType::ResolvedRegistryV2 => {
+            schema_for!(weaver_resolved_schema::v2::ResolvedTelemetrySchema)
+        }
+        JsonSchemaType::MaterializedRegistryV2 => {
+            schema_for!(weaver_forge::v2::registry::ForgeResolvedRegistry)
+        }
+        JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
+        JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
+        JsonSchemaType::DefinitionManifestV2 => {
+            schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
+        }
+        JsonSchemaType::PublicationManifestV2 => {
+            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
+        }
+        JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
+        JsonSchemaType::WeaverConfig => schema_for!(WeaverConfigSchema),
     };
 
-    let json_schema_str =
-        to_string_pretty(&json_schema).map_err(|e| Error::SerializationError {
-            error: e.to_string(),
-        })?;
-
-    if let Some(output) = &args.output {
-        info!("Writing JSON schema to `{}`", output.display());
-        std::fs::write(output, json_schema_str).map_err(|e| Error::WriteError {
-            file: output.clone(),
-            error: e.to_string(),
-        })?;
-    } else {
-        std::io::stdout()
-            .write_all(json_schema_str.as_bytes())
-            .map_err(|e| Error::WriteError {
-                file: PathBuf::from("stdout"),
-                error: e.to_string(),
-            })?;
+    if let Some(p) = &args.output {
+        info!("Writing JSON schema to `{}`", p.display());
     }
+    let target = OutputTarget::from_optional_file(args.output.as_ref());
+    let mut output = OutputProcessor::new("json", "json_schema", None, None, target)
+        .map_err(DiagnosticMessages::from)?;
+    output
+        .generate(&json_schema)
+        .map_err(DiagnosticMessages::from)?;
 
     Ok(ExitDirectives {
         exit_code: 0,
@@ -109,47 +140,50 @@ mod tests {
     use crate::registry::json_schema::{JsonSchemaType, RegistryJsonSchemaArgs};
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use clap::ValueEnum;
     use std::fs;
     use tempfile::NamedTempFile;
 
     #[test]
     fn test_registry_json_schema() {
-        // Create a temporary file for the output
-        let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
-        let output_path = temp_file.path().to_path_buf();
+        for json_schema_type in JsonSchemaType::value_variants() {
+            // Create a temporary file for the output
+            let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+            let output_path = temp_file.path().to_path_buf();
 
-        let cli = Cli {
-            debug: 0,
-            quiet: false,
-            future: false,
-            command: Some(Commands::Registry(RegistryCommand {
-                command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
-                    json_schema: JsonSchemaType::ResolvedRegistry,
-                    output: Some(output_path.clone()),
-                    diagnostic: Default::default(),
-                }),
-            })),
-        };
+            let cli = Cli {
+                debug: 0,
+                quiet: false,
+                future: false,
+                allow_git_credentials: false,
+                config: None,
+                command: Some(Commands::Registry(RegistryCommand {
+                    command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
+                        json_schema: json_schema_type.clone(),
+                        output: Some(output_path.clone()),
+                        diagnostic: Default::default(),
+                    }),
+                })),
+            };
 
-        let exit_directive = run_command(&cli);
-        // The command should succeed.
-        assert_eq!(exit_directive.exit_code, 0);
+            let exit_directive = run_command(&cli);
+            // The command should succeed.
+            assert_eq!(exit_directive.exit_code, 0);
 
-        // Read the content of the temp file
-        let json_content = fs::read_to_string(output_path).expect("Failed to read temporary file");
+            // Read the content of the temp file
+            let json_content =
+                fs::read_to_string(output_path).expect("Failed to read temporary file");
 
-        // Parse and validate the JSON content
-        let value =
-            serde_json::from_str::<serde_json::Value>(&json_content).expect("Failed to parse JSON");
+            // Parse and validate the JSON content
+            let value = serde_json::from_str::<serde_json::Value>(&json_content)
+                .expect("Failed to parse JSON");
 
-        let definitions = value
-            .as_object()
-            .expect("Expected a JSON object")
-            .get("definitions");
+            let defs = value
+                .as_object()
+                .expect("Expected a JSON object")
+                .get("$defs");
 
-        assert!(
-            definitions.is_some(),
-            "Expected a 'definitions' key in the JSON schema"
-        );
+            assert!(defs.is_some(), "Expected a '$defs' key in the JSON schema");
+        }
     }
 }

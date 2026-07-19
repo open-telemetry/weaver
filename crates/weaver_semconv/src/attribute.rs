@@ -8,12 +8,12 @@ use crate::any_value::AnyValueSpec;
 use crate::deprecated::Deprecated;
 use crate::stability::Stability;
 use crate::{Error, YamlValue};
-use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
+use weaver_common::ordered_float::OrderedF64;
 use weaver_common::result::WResult;
 use AttributeType::{Enum, PrimitiveOrArray, Template};
 
@@ -207,7 +207,10 @@ impl AttributeSpec {
 }
 
 /// The different types of attributes (specification).
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum AttributeType {
@@ -241,7 +244,9 @@ impl Display for AttributeType {
 }
 
 /// The different roles for attributes in groups.
-#[derive(Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributeRole {
     /// The attribute is considered identifying for the signal it is associated with.
@@ -259,7 +264,10 @@ impl AttributeRole {
 }
 
 /// Primitive or array types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum PrimitiveOrArrayTypeSpec {
     /// A boolean attribute.
@@ -312,13 +320,21 @@ impl PrimitiveOrArrayTypeSpec {
         match (self, other) {
             (PrimitiveOrArrayTypeSpec::Any, _) => true,
             (_, PrimitiveOrArrayTypeSpec::Any) => true,
+            // An observed int is compatible with an expected double, because
+            // OTLP serializers (notably JS) emit int_value for integral numbers
+            // even when the semantic convention declares the attribute as double.
+            (PrimitiveOrArrayTypeSpec::Int, PrimitiveOrArrayTypeSpec::Double) => true,
+            (PrimitiveOrArrayTypeSpec::Ints, PrimitiveOrArrayTypeSpec::Doubles) => true,
             _ => self == other,
         }
     }
 }
 
 /// Template types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateTypeSpec {
     /// A boolean attribute.
@@ -368,8 +384,12 @@ impl Display for TemplateTypeSpec {
 }
 
 /// Possible enum entries.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
+#[serde(from = "EnumEntriesSpecDeserialize")]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
     pub id: String,
@@ -398,6 +418,53 @@ pub struct EnumEntriesSpec {
     pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
+/// Deserialization helper for [`EnumEntriesSpec`] that allows `value` to be
+/// omitted and defaulted from `id`. The fields mirror [`EnumEntriesSpec`]
+/// (including doc comments) so the generated JSON schema retains field
+/// descriptions when `#[serde(from = "...")]` redirects schema derivation here.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct EnumEntriesSpecDeserialize {
+    /// String that uniquely identifies the enum entry.
+    id: String,
+    /// String, int, or boolean; value of the enum entry.
+    /// If omitted, defaults to the value of `id`.
+    value: Option<ValueSpec>,
+    /// Brief description of the enum entry value.
+    /// It defaults to the value of id.
+    brief: Option<String>,
+    /// Longer description.
+    /// It defaults to an empty string.
+    note: Option<String>,
+    /// Stability of this enum value.
+    stability: Option<Stability>,
+    /// Deprecation note.
+    #[serde(
+        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+        default
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deprecated: Option<Deprecated>,
+    /// Annotations for the member.
+    annotations: Option<BTreeMap<String, YamlValue>>,
+}
+
+impl From<EnumEntriesSpecDeserialize> for EnumEntriesSpec {
+    fn from(entry: EnumEntriesSpecDeserialize) -> Self {
+        Self {
+            value: entry
+                .value
+                .unwrap_or_else(|| ValueSpec::String(entry.id.clone())),
+            id: entry.id,
+            brief: entry.brief,
+            note: entry.note,
+            stability: entry.stability,
+            deprecated: entry.deprecated,
+            annotations: entry.annotations,
+        }
+    }
+}
+
 /// Implements a human readable display for EnumEntries.
 impl Display for EnumEntriesSpec {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -406,14 +473,18 @@ impl Display for EnumEntriesSpec {
 }
 
 /// The different types of values.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum ValueSpec {
     /// A integer value.
     Int(i64),
     /// A double value.
-    Double(OrderedFloat<f64>),
+    #[cfg_attr(feature = "openapi", schema(value_type = f64))]
+    Double(OrderedF64),
     /// A string value.
     String(String),
     /// A boolean value.
@@ -445,7 +516,7 @@ impl From<i64> for ValueSpec {
 impl From<f64> for ValueSpec {
     /// Converts a f64 into a ValueSpec.
     fn from(value: f64) -> Self {
-        ValueSpec::Double(OrderedFloat(value))
+        ValueSpec::Double(OrderedF64(value))
     }
 }
 
@@ -466,7 +537,10 @@ impl From<&str> for ValueSpec {
 }
 
 /// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum Examples {
@@ -475,7 +549,8 @@ pub enum Examples {
     /// A integer example.
     Int(i64),
     /// A double example.
-    Double(OrderedFloat<f64>),
+    #[cfg_attr(feature = "openapi", schema(value_type = f64))]
+    Double(OrderedF64),
     /// A string example.
     String(String),
     /// A any example.
@@ -483,7 +558,8 @@ pub enum Examples {
     /// A array of integers example.
     Ints(Vec<i64>),
     /// A array of doubles example.
-    Doubles(Vec<OrderedFloat<f64>>),
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<f64>))]
+    Doubles(Vec<OrderedF64>),
     /// A array of bools example.
     Bools(Vec<bool>),
     /// A array of strings example.
@@ -493,7 +569,8 @@ pub enum Examples {
     /// List of arrays of integers example.
     ListOfInts(Vec<Vec<i64>>),
     /// List of arrays of doubles example.
-    ListOfDoubles(Vec<Vec<OrderedFloat<f64>>>),
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<Vec<f64>>))]
+    ListOfDoubles(Vec<Vec<OrderedF64>>),
     /// List of arrays of bools example.
     ListOfBools(Vec<Vec<bool>>),
     /// List of arrays of strings example.
@@ -651,7 +728,10 @@ impl Examples {
 }
 
 /// The different requirement level specifications.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum RequirementLevel {
@@ -700,7 +780,10 @@ impl Default for RequirementLevel {
 }
 
 /// The different types of basic requirement levels.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum BasicRequirementLevelSpec {
     /// A required requirement level.
@@ -726,13 +809,13 @@ impl Examples {
     /// Creates an example from a f64.
     #[must_use]
     pub fn from_f64(value: f64) -> Self {
-        Examples::Double(OrderedFloat(value))
+        Examples::Double(OrderedF64(value))
     }
 
     /// Creates an example from several f64.
     #[must_use]
     pub fn from_f64s(values: Vec<f64>) -> Self {
-        Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
+        Examples::Doubles(values.into_iter().map(OrderedF64).collect())
     }
 }
 
@@ -743,7 +826,7 @@ mod tests {
     #[test]
     fn test_value_spec_display() {
         assert_eq!(format!("{}", ValueSpec::Int(42)), "42");
-        assert_eq!(format!("{}", ValueSpec::Double(OrderedFloat(42.0))), "42");
+        assert_eq!(format!("{}", ValueSpec::Double(OrderedF64(42.0))), "42");
         assert_eq!(format!("{}", ValueSpec::String("42".to_owned())), "42");
     }
 
@@ -954,17 +1037,14 @@ mod tests {
 
     #[test]
     fn test_examples_from_f64() {
-        assert_eq!(
-            Examples::from_f64(42.0),
-            Examples::Double(OrderedFloat(42.0))
-        );
+        assert_eq!(Examples::from_f64(42.0), Examples::Double(OrderedF64(42.0)));
     }
 
     #[test]
     fn test_examples_from_f64s() {
         assert_eq!(
             Examples::from_f64s(vec![42.0, 43.0]),
-            Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)])
+            Examples::Doubles(vec![OrderedF64(42.0), OrderedF64(43.0)])
         );
     }
 
@@ -1033,7 +1113,7 @@ mod tests {
     fn test_examples_double() {
         let yaml = "---\n3.15";
         let ex: Examples = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(ex, Examples::Double(OrderedFloat(3.15)));
+        assert_eq!(ex, Examples::Double(OrderedF64(3.15)));
     }
 
     #[test]
@@ -1066,7 +1146,7 @@ mod tests {
         let ex: Examples = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(
             ex,
-            Examples::Doubles(vec![OrderedFloat(3.15), OrderedFloat(2.71)])
+            Examples::Doubles(vec![OrderedF64(3.15), OrderedF64(2.71)])
         );
     }
 
@@ -1085,7 +1165,7 @@ mod tests {
             ex,
             Examples::Anys(vec![
                 ValueSpec::Int(1),
-                ValueSpec::Double(OrderedFloat(2.0)),
+                ValueSpec::Double(OrderedF64(2.0)),
                 ValueSpec::String("text".to_owned()),
                 ValueSpec::Bool(true),
             ])
@@ -1106,8 +1186,8 @@ mod tests {
         assert_eq!(
             ex,
             Examples::ListOfDoubles(vec![
-                vec![OrderedFloat(3.15), OrderedFloat(2.71)],
-                vec![OrderedFloat(1.41), OrderedFloat(1.61)]
+                vec![OrderedF64(3.15), OrderedF64(2.71)],
+                vec![OrderedF64(1.41), OrderedF64(1.61)]
             ])
         );
     }
@@ -1149,8 +1229,8 @@ mod tests {
         assert_eq!(
             ex,
             Examples::ListOfDoubles(vec![
-                vec![OrderedFloat(3.15), OrderedFloat(2.71)],
-                vec![OrderedFloat(1.41), OrderedFloat(1.61)]
+                vec![OrderedF64(3.15), OrderedF64(2.71)],
+                vec![OrderedF64(1.41), OrderedF64(1.61)]
             ])
         );
     }
@@ -1314,7 +1394,7 @@ mod tests {
             .is_err());
 
         // === Test double-like examples ===
-        let examples = Examples::Double(OrderedFloat(42.0));
+        let examples = Examples::Double(OrderedF64(42.0));
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
             .into_result_failing_non_fatal()
@@ -1324,7 +1404,7 @@ mod tests {
             .into_result_failing_non_fatal()
             .is_err());
 
-        let examples = Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)]);
+        let examples = Examples::Doubles(vec![OrderedF64(42.0), OrderedF64(43.0)]);
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
             .into_result_failing_non_fatal()
@@ -1335,8 +1415,8 @@ mod tests {
             .is_err());
 
         let examples = Examples::ListOfDoubles(vec![
-            vec![OrderedFloat(42.0), OrderedFloat(43.0)],
-            vec![OrderedFloat(44.0), OrderedFloat(45.0)],
+            vec![OrderedF64(42.0), OrderedF64(43.0)],
+            vec![OrderedF64(44.0), OrderedF64(45.0)],
         ]);
         assert!(examples
             .validate(&attr_doubles, "grp", "attr", "url")
@@ -1362,6 +1442,14 @@ mod tests {
         assert!(PrimitiveOrArrayTypeSpec::Int.is_compatible(&PrimitiveOrArrayTypeSpec::Any));
         assert!(PrimitiveOrArrayTypeSpec::Any.is_compatible(&PrimitiveOrArrayTypeSpec::Double));
         assert!(PrimitiveOrArrayTypeSpec::Any.is_compatible(&PrimitiveOrArrayTypeSpec::Any));
+
+        // Int is compatible with Double (OTLP serializers emit int_value for integral doubles)
+        assert!(PrimitiveOrArrayTypeSpec::Int.is_compatible(&PrimitiveOrArrayTypeSpec::Double));
+        assert!(PrimitiveOrArrayTypeSpec::Ints.is_compatible(&PrimitiveOrArrayTypeSpec::Doubles));
+
+        // But Double is NOT compatible with Int (a true double cannot satisfy an int requirement)
+        assert!(!PrimitiveOrArrayTypeSpec::Double.is_compatible(&PrimitiveOrArrayTypeSpec::Int));
+        assert!(!PrimitiveOrArrayTypeSpec::Doubles.is_compatible(&PrimitiveOrArrayTypeSpec::Ints));
     }
 }
 

@@ -17,6 +17,7 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
         acronym(target_config.acronyms.clone().unwrap_or_default()),
     );
     env.add_filter("flatten", flatten);
+    env.add_filter("numsort", numsort);
     env.add_filter("split_id", split_id);
     env.add_filter("regex_replace", regex_replace);
     env.add_filter("toyaml", to_yaml);
@@ -50,6 +51,37 @@ fn flatten(value: Value) -> Result<Value, minijinja::Error> {
         }
     }
     Ok(Value::from(result))
+}
+
+/// Sort a map's entries by numeric key value, returning `[(key, value), ...]`.
+/// Keys are parsed as integers; non-numeric keys are sorted after numeric ones.
+fn numsort(value: Value) -> Result<Value, minijinja::Error> {
+    fn parse_num(v: &Value) -> Option<i64> {
+        v.as_i64()
+            .or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok()))
+    }
+
+    let mut pairs: Vec<(Value, Value)> = Vec::new();
+    for key in value.try_iter()? {
+        let val = value.get_item(&key)?;
+        pairs.push((key, val));
+    }
+    pairs.sort_by(|a, b| {
+        let a_num = parse_num(&a.0);
+        let b_num = parse_num(&b.0);
+        match (a_num, b_num) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.0.to_string().cmp(&b.0.to_string()),
+        }
+    });
+    Ok(Value::from(
+        pairs
+            .into_iter()
+            .map(|(k, v)| Value::from(vec![k, v]))
+            .collect::<Vec<_>>(),
+    ))
 }
 
 // Helper function to take an "id" and split it by '.' into namespaces.
@@ -240,5 +272,60 @@ mod tests {
             .unwrap()
             .replace("\r\n", "\n");
         assert_eq!(normalized_actual, normalized_expected);
+    }
+
+    #[test]
+    fn test_numsort_numeric_string_keys() {
+        let mut env = Environment::new();
+        let config = crate::config::WeaverConfig::default();
+        add_filters(&mut env, &config);
+
+        // BTreeMap<usize, usize> serializes with string keys in JSON.
+        // numsort should order them numerically, not lexicographically.
+        let ctx: serde_json::Value = serde_json::json!({
+            "m": {"1": 10, "10": 20, "2": 30, "20": 40, "3": 50}
+        });
+        assert_eq!(
+            env.render_str(
+                "{% for k, v in m | numsort %}{{ k }}:{{ v }}{% if not loop.last %},{% endif %}{% endfor %}",
+                &ctx,
+            )
+            .unwrap(),
+            "1:10,2:30,3:50,10:20,20:40"
+        );
+    }
+
+    #[test]
+    fn test_numsort_mixed_keys() {
+        let mut env = Environment::new();
+        let config = crate::config::WeaverConfig::default();
+        add_filters(&mut env, &config);
+
+        // Non-numeric keys should sort after numeric keys, alphabetically.
+        let ctx: serde_json::Value = serde_json::json!({
+            "m": {"3": "c", "alpha": "a", "1": "b", "beta": "d"}
+        });
+        assert_eq!(
+            env.render_str(
+                "{% for k, v in m | numsort %}{{ k }}:{{ v }}{% if not loop.last %},{% endif %}{% endfor %}",
+                &ctx,
+            )
+            .unwrap(),
+            "1:b,3:c,alpha:a,beta:d"
+        );
+    }
+
+    #[test]
+    fn test_numsort_empty_map() {
+        let mut env = Environment::new();
+        let config = crate::config::WeaverConfig::default();
+        add_filters(&mut env, &config);
+
+        let ctx: serde_json::Value = serde_json::json!({"m": {}});
+        assert_eq!(
+            env.render_str("{% for k, v in m | numsort %}{{ k }}{% endfor %}", &ctx,)
+                .unwrap(),
+            ""
+        );
     }
 }

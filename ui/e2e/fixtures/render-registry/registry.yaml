@@ -1,0 +1,355 @@
+# yaml-language-server: $schema=../../../../schemas/semconv.schema.v2.json
+file_format: definition/2
+
+attributes:
+  # Single example -> bare scalar (the shape that broke exception.stacktrace).
+  - key: render.attr.string_single_example
+    type: string
+    brief: A string attribute whose single example serializes as a bare scalar.
+    note: This mirrors `exception.stacktrace`, which has one string example.
+    stability: stable
+    examples: "a single scalar string example"
+
+  - key: render.attr.string_multi_example
+    type: string
+    brief: A string attribute with several examples (serializes as an array).
+    stability: development
+    examples: ["first", "second", "third"]
+
+  - key: render.attr.int_single_example
+    type: int
+    brief: An int attribute whose single example serializes as a bare scalar.
+    stability: alpha
+    examples: 42
+
+  - key: render.attr.int_multi_example
+    type: int
+    brief: An int attribute with several examples.
+    stability: beta
+    examples: [1, 2, 3]
+
+  - key: render.attr.double_example
+    type: double
+    brief: A double attribute with a single scalar example.
+    stability: release_candidate
+    examples: 3.14159
+
+  - key: render.attr.boolean_example
+    type: boolean
+    brief: A boolean attribute with a single scalar example.
+    stability: stable
+    examples: true
+
+  - key: render.attr.string_array
+    type: string[]
+    brief: A string array attribute whose example is itself a list of strings.
+    stability: stable
+    examples: [["GET", "POST"], ["PUT"]]
+
+  - key: render.attr.enum_type
+    type:
+      members:
+        - id: get
+          value: "GET"
+          brief: The `GET` method with a [link](https://example.com).
+          stability: stable
+        - id: post
+          value: "POST"
+          brief: The POST method.
+          stability: stable
+        - id: put_method
+          value: "PUT"
+          brief: A third method.
+          stability: development
+    brief: An enum-typed attribute.
+    stability: development
+
+  - key: render.attr.template_type
+    type: template[string]
+    brief: A template-typed attribute.
+    stability: stable
+
+  - key: render.attr.markdown
+    type: string
+    brief: A brief with `inline code`, a [link](https://example.com) and **bold**.
+    note: |
+      A note with multiple markdown features:
+
+      - a bulleted list item
+      - a second item with `code`
+
+      A [link](https://example.com) and a fenced block:
+
+      ```
+      code block
+      ```
+    stability: stable
+
+  - key: render.attr.stability_deprecated
+    type: string
+    brief: An attribute whose stability level is `deprecated`.
+    stability: deprecated
+    examples: "value"
+
+  - key: render.attr.deprecated_renamed
+    type: string
+    brief: A deprecated attribute that was renamed (renders a link to the successor).
+    stability: stable
+    examples: "old value"
+    deprecated:
+      reason: renamed
+      renamed_to: render.attr.string_single_example
+      note: Replaced by `render.attr.string_single_example`.
+
+  - key: render.attr.deprecated_obsoleted
+    type: string
+    brief: A deprecated attribute that was obsoleted (no successor link).
+    stability: stable
+    examples: "gone"
+    deprecated:
+      reason: obsoleted
+      note: This attribute no longer exists and has no replacement.
+
+  - key: render.host.name
+    type: string
+    brief: The name of the host.
+    stability: stable
+    examples: ["host-1"]
+
+  - key: render.host.id
+    type: string
+    brief: The unique id of the host.
+    stability: stable
+    examples: ["h-123"]
+
+  - key: render.container.id
+    type: string
+    brief: The unique id of the container.
+    stability: stable
+    examples: ["c-abc"]
+
+  - key: render.container.name
+    type: string
+    brief: The name of the container.
+    stability: development
+    examples: ["web"]
+
+  - key: render.tenant.id
+    type: string
+    brief: The unique id of the tenant.
+    stability: stable
+    examples: ["t-42"]
+
+metrics:
+  - name: render.metric.counter
+    requirement_level: recommended
+    brief: A counter that exercises every requirement level.
+    note: This metric carries attributes at each requirement level.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    entity_associations:
+      - render.entity.host
+    attributes:
+      - ref: render.attr.string_single_example
+        requirement_level: required
+      - ref: render.attr.int_single_example
+        requirement_level: recommended
+      - ref: render.attr.boolean_example
+        requirement_level: opt_in
+      - ref: render.attr.double_example
+        requirement_level:
+          conditionally_required: When the double dimension is available.
+      - ref: render.attr.enum_type
+
+  - name: render.metric.histogram
+    requirement_level: recommended
+    brief: A histogram instrument.
+    instrument: histogram
+    unit: "s"
+    stability: stable
+    attributes:
+      - ref: render.attr.double_example
+        requirement_level: recommended
+
+  - name: render.metric.gauge
+    requirement_level: recommended
+    brief: A gauge instrument.
+    instrument: gauge
+    unit: "By"
+    stability: development
+
+  - name: render.metric.updowncounter
+    requirement_level: recommended
+    brief: An up-down counter instrument.
+    instrument: updowncounter
+    unit: "1"
+    stability: stable
+
+  - name: render.metric.nested_association
+    requirement_level: recommended
+    brief: A metric with a nested one_of / all_of entity association.
+    instrument: counter
+    unit: "1"
+    stability: stable
+    entity_associations:
+      - all_of:
+          - render.entity.tenant
+          - one_of:
+              - render.entity.host
+              - render.entity.container
+
+  - name: render.metric.deprecated
+    requirement_level: recommended
+    brief: A deprecated metric.
+    instrument: counter
+    unit: "1"
+    stability: stable
+    deprecated:
+      reason: renamed
+      renamed_to: render.metric.counter
+      note: Replaced by `render.metric.counter`.
+
+spans:
+  - type: render.span.client
+    requirement_level: recommended
+    brief: A client span with a sampling-relevant attribute.
+    note: Exercises the sampling badge and requirement badges.
+    kind: client
+    name:
+      note: The client span name.
+    stability: stable
+    entity_associations:
+      - render.entity.host
+    attributes:
+      - ref: render.attr.string_single_example
+        requirement_level: required
+        sampling_relevant: true
+      - ref: render.attr.int_single_example
+        requirement_level: recommended
+      - ref: render.attr.enum_type
+        requirement_level:
+          conditionally_required: When an enum dimension applies.
+
+  - type: render.span.server
+    requirement_level: recommended
+    brief: A server span.
+    kind: server
+    name:
+      note: The server span name.
+    stability: stable
+
+  - type: render.span.internal
+    requirement_level: recommended
+    brief: An internal span.
+    kind: internal
+    name:
+      note: The internal span name.
+    stability: development
+
+  - type: render.span.producer
+    requirement_level: recommended
+    brief: A producer span.
+    kind: producer
+    name:
+      note: The producer span name.
+    stability: stable
+
+  - type: render.span.consumer
+    requirement_level: recommended
+    brief: A consumer span.
+    kind: consumer
+    name:
+      note: The consumer span name.
+    stability: stable
+
+  - type: render.span.deprecated
+    requirement_level: recommended
+    brief: A deprecated span.
+    kind: internal
+    name:
+      note: The deprecated span name.
+    stability: stable
+    deprecated:
+      reason: obsoleted
+      note: This span no longer exists.
+
+events:
+  - name: render.event.thing
+    requirement_level: recommended
+    brief: An event with attributes and an entity association.
+    note: Exercises the event attribute table and entity associations.
+    stability: stable
+    entity_associations:
+      - render.entity.host
+      - render.entity.tenant
+    attributes:
+      - ref: render.attr.string_single_example
+        requirement_level: required
+      - ref: render.attr.boolean_example
+        requirement_level: opt_in
+
+  - name: render.event.deprecated
+    requirement_level: recommended
+    brief: A deprecated event.
+    stability: stable
+    deprecated:
+      reason: renamed
+      renamed_to: render.event.thing
+      note: Replaced by `render.event.thing`.
+
+  - name: render.attr
+    requirement_level: recommended
+    brief: An event whose full name coincides with the `render.attr` attribute namespace.
+    note: |
+      Regression fixture for the tree view nesting this event inside the
+      `render.attr` folder as if it were the folder's self-describing item -
+      a namespace collision is just a naming coincidence, not ownership, so
+      the event must stay a sibling of the folder.
+    stability: stable
+
+  - name: render.coordinator
+    requirement_level: recommended
+    brief: An event alphabetically between the `render.container` and `render.entity` namespace folders.
+    note: |
+      Regression fixture for tree view ordering - folders and items are
+      siblings in the same namespace and must sort together into one
+      alphabetical list, not as a folders-then-items grouping.
+    stability: stable
+
+entities:
+  - type: render.entity.host
+    requirement_level: recommended
+    brief: A host entity with identity and description attributes.
+    note: Exercises both the identity and description attribute tables.
+    stability: stable
+    identity:
+      - ref: render.host.id
+    description:
+      - ref: render.host.name
+
+  - type: render.entity.container
+    requirement_level: recommended
+    brief: A container entity.
+    stability: stable
+    identity:
+      - ref: render.container.id
+    description:
+      - ref: render.container.name
+
+  - type: render.entity.tenant
+    requirement_level: recommended
+    brief: A tenant entity with only identity attributes.
+    stability: stable
+    identity:
+      - ref: render.tenant.id
+
+  - type: render.entity.deprecated
+    requirement_level: recommended
+    brief: A deprecated entity.
+    stability: stable
+    identity:
+      - ref: render.tenant.id
+    deprecated:
+      reason: obsoleted
+      note: This entity no longer exists.

@@ -1,0 +1,9 @@
+#:schema schemas/weaver-config.json
+
+[[live-check.finding_filters]]
+exclude = [
+    "entity_required_attribute_not_present",
+    "entity_recommended_attribute_not_present",
+    "entity_opt_in_attribute_not_present",
+    "entity_conditionally_required_attribute_not_present",
+]

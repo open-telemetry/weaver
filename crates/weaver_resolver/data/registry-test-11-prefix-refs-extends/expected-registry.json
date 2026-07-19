@@ -8,11 +8,11 @@
       "prefix": "client",
       "attributes": [
         0,
-        6
+        2
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/client.yaml"
         },
         "attributes": {
@@ -37,13 +37,13 @@
       "brief": "Attributes describing geo.",
       "prefix": "geo",
       "attributes": [
-        1,
-        2,
-        3
+        3,
+        5,
+        7
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/geo.yaml"
         }
       }
@@ -54,14 +54,14 @@
       "brief": "Attributes for test.",
       "prefix": "usage",
       "attributes": [
-        0,
+        1,
         2,
-        4,
+        6,
         7
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/usage.yaml"
         },
         "attributes": {
@@ -118,17 +118,18 @@
       "brief": "Attributes for test.",
       "prefix": "usage2",
       "attributes": [
-        0,
+        1,
         2,
         4,
-        5,
+        6,
         7
       ],
       "lineage": {
         "provenance": {
-          "registry_id": "default",
+          "schema_url": "https://default/0.1.0",
           "path": "data/registry-test-11-prefix-refs-extends/registry/usage2.yaml"
         },
+        "extends_group": "usage",
         "attributes": {
           "client.geo.lat": {
             "source_group": "registry.client",

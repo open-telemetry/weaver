@@ -1,0 +1,5 @@
+file_format: manifest/2.0
+schema_url: https://test.com/schemas/0.1.0
+description: Test resolved schema dependency conflict.
+stability: development
+resolved_schema_uri: schema-next.yaml

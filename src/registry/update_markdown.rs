@@ -3,39 +3,59 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::generate::generate_params_shared;
-use crate::registry::RegistryArgs;
+use crate::registry::generate::{generate_params_shared, resolve_templates_root};
+use crate::registry::{load_config, RegistryArgs};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use miette::Diagnostic;
 use serde_yaml::Value;
 use std::path::PathBuf;
-use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessage, DiagnosticMessages};
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
+use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
 use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::TemplateEngine;
-use weaver_semconv::registry_repo::RegistryRepo;
-use weaver_semconv_gen::{update_markdown, SnippetGenerator};
+use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_macros::weaver_command;
+use weaver_semconv_gen::{MarkdownSnippetGenerator, SnipperGeneratorV2, SnippetGenerator};
 
-/// Parameters for the `registry update-markdown` sub-command
-#[derive(Debug, Args)]
+#[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
+enum UpdateMarkdownError {
+    /// The update-markdown command found differences in dry-run.
+    #[error("The update-markdown command found differences in dry-run.")]
+    MarkdownNotUpToDate,
+
+    /// The update-markdown command ran into a fatal error.
+    #[error("weaver registry update-markdown failed.")]
+    MarkdownUpdateFailed,
+}
+
+/// Update Jinja-marker sections inside Markdown files from a resolved registry.
+#[weaver_command(section = "update-markdown", no_policy)]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryUpdateMarkdownArgs {
     /// Path to the directory where the markdown files are located.
-    pub markdown_dir: String,
+    #[config_only]
+    pub markdown_dir: Option<String>,
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
-    #[arg(long, default_value = "false")]
-    pub dry_run: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
+    pub dry_run: Option<bool>,
 
     /// Optional path to the attribute registry.
     /// If provided, all attributes will be linked here.
     #[arg(long)]
+    #[config]
     pub attribute_registry_base_url: Option<String>,
 
     /// Parameters key=value, defined in the command line, to pass to the templates.
@@ -48,26 +68,32 @@ pub struct RegistryUpdateMarkdownArgs {
     pub params: Option<PathBuf>,
 
     /// Path to the directory where the templates are located.
-    /// Default is the `templates` directory.
     /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   {templates}/{target}/snippet.md.j2.
-    #[arg(short = 't', long, default_value = "templates")]
-    pub templates: VirtualDirectoryPath,
+    ///   {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2
+    ///   if a `registry` subdirectory is present.
+    #[arg(short = 't', long)]
+    #[config(default = "templates")]
+    pub templates: Option<String>,
 
-    /// If provided, the target to generate snippets with.
+    /// The target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   {templates}/{target}/snippet.md.j2.
+    ///   {templates}/{target}/snippet.md.j2, or {templates}/registry/{target}/snippet.md.j2
+    ///   if a `registry` subdirectory is present.
     #[arg(long)]
-    pub target: String,
+    #[config]
+    pub target: Option<String>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 }
 
 /// Update markdown files.
 pub(crate) fn command(
     args: &RegistryUpdateMarkdownArgs,
+    cfg: Option<&ProjectWeaverConfig>,
+    auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
         let path = entry.path();
@@ -75,33 +101,66 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
 
+    let cmd_config = load_config(args, cfg);
+    let config = cmd_config.config;
+
+    let markdown_dir = config.markdown_dir.ok_or_else(|| {
+        DiagnosticMessages::from(super::Error::Config {
+            error: "markdown_dir is required (set via CLI argument or [update_markdown] config)"
+                .to_owned(),
+        })
+    })?;
+    let dry_run = config.dry_run;
+    let attribute_registry_base_url = config.attribute_registry_base_url;
+    let templates_path = config
+        .templates
+        .parse::<VirtualDirectoryPath>()
+        .map_err(|e| {
+            DiagnosticMessages::from(super::Error::Config {
+                error: format!("invalid templates path: {e}"),
+            })
+        })?;
+    let target = config.target.ok_or_else(|| {
+        DiagnosticMessages::from(super::Error::Config {
+            error: "target is required (set via --target or [update_markdown] config)".to_owned(),
+        })
+    })?;
+
     let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params_shared(&args.param, &args.params)?;
 
-    // Construct a generator if we were given a `--target` argument.
-    let generator = {
-        let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
+    // Construct a generator with the resolved target and templates.
+    let templates_dir =
+        VirtualDirectory::try_new_with_auth(&templates_path, auth).map_err(|e| {
             Error::InvalidVirtualDirectory {
-                path: args.templates.to_string(),
+                path: templates_path.to_string(),
                 error: e.to_string(),
             }
         })?;
+    let output = {
         let loader =
-            FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
-        let config = WeaverConfig::try_from_loader(&loader)?;
-        TemplateEngine::new(config, loader, params)
+            FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &target)?;
+        let mut config = WeaverConfig::try_from_loader(&loader)?;
+        crate::registry::apply_template_config(&mut config, cfg);
+        OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
-
-    let registry_path = &args.registry.registry;
-
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(
-        &registry_repo,
-        generator,
-        &mut diag_msgs,
-        args.registry.follow_symlinks,
-        args.registry.include_unreferenced,
-    )?;
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
+    let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
+        crate::weaver::Resolved::V2(resolved_v2) => {
+            // TODO - extract both resolved and template in one go.
+            let template_schema = resolved_v2.template_schema().clone();
+            Box::new(SnipperGeneratorV2::new(
+                resolved_v2.into_resolved_schema(),
+                template_schema,
+                output,
+            ))
+        }
+        crate::weaver::Resolved::V1(resolved_v1) => Box::new(SnippetGenerator::new(
+            resolved_v1.into_resolved_schema(),
+            output,
+        )),
+    };
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
         // If we are in future mode and there are diagnostics, return them
@@ -110,13 +169,9 @@ pub(crate) fn command(
     }
 
     log_success("Registry resolved successfully");
-    let operation = if args.dry_run {
-        "Validating"
-    } else {
-        "Updating"
-    };
+    let operation = if dry_run { "Validating" } else { "Updating" };
     let mut has_error = false;
-    for entry in walkdir::WalkDir::new(args.markdown_dir.clone())
+    for entry in walkdir::WalkDir::new(&markdown_dir)
         .into_iter()
         .filter_map(|e| match e {
             Ok(v) if is_markdown(&v) => Some(v),
@@ -124,18 +179,22 @@ pub(crate) fn command(
         })
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) = update_markdown(
+        if let Err(error) = generator.update_markdown(
             &entry.path().display().to_string(),
-            &generator,
-            args.dry_run,
-            args.attribute_registry_base_url.as_deref(),
+            dry_run,
+            attribute_registry_base_url.as_deref(),
         ) {
             has_error = true;
             log_error(error);
         }
     }
     if has_error {
-        panic!("weaver registry update-markdown failed.");
+        let error = if dry_run {
+            UpdateMarkdownError::MarkdownNotUpToDate
+        } else {
+            UpdateMarkdownError::MarkdownUpdateFailed
+        };
+        return Err(error.into());
     }
 
     if !diag_msgs.is_empty() {
@@ -148,13 +207,28 @@ pub(crate) fn command(
     })
 }
 
+/// Converts from our local error to a diagnostic message response.
+impl From<UpdateMarkdownError> for DiagnosticMessages {
+    fn from(error: UpdateMarkdownError) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use std::io::Write;
     use weaver_common::vdir::VirtualDirectoryPath;
+    use zip::write::FileOptions;
+
+    #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryUpdateMarkdownArgs>();
+    }
 
     #[test]
     fn test_registry_update_markdown() {
@@ -162,23 +236,22 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
-                    markdown_dir: "data/update_markdown/markdown".to_owned(),
+                    markdown_dir: Some("data/update_markdown/markdown".to_owned()),
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "data/update_markdown/registry".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
-                    dry_run: true,
+                    dry_run: Some(true),
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "data/update_markdown/templates".to_owned(),
-                    },
+                    templates: Some("data/update_markdown/templates".to_owned()),
                     diagnostic: Default::default(),
-                    target: "markdown".to_owned(),
+                    target: Some("markdown".to_owned()),
                     param: None,
                     params: None,
                 }),
@@ -188,5 +261,193 @@ mod tests {
         let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_update_markdown_templates_without_registry_subdir() {
+        // Build a templates directory that has NO `registry` subdirectory and holds
+        // the target template directly at `{templates}/{target}/snippet.md.j2`.
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let target_dir = temp_dir.path().join("markdown");
+        std::fs::create_dir_all(&target_dir).expect("failed to create target dir");
+        let _ = std::fs::copy(
+            "data/update_markdown/templates/registry/markdown/snippet.md.j2",
+            target_dir.join("snippet.md.j2"),
+        )
+        .expect("failed to copy snippet template");
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: Some("data/update_markdown/markdown".to_owned()),
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: "data/update_markdown/registry".to_owned(),
+                        }),
+                        ..Default::default()
+                    },
+                    dry_run: Some(true),
+                    attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
+                    templates: Some(
+                        temp_dir
+                            .path()
+                            .to_str()
+                            .expect("temp dir path is valid UTF-8")
+                            .to_owned(),
+                    ),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli);
+        // The command should succeed.
+        assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_update_markdown_dryrun() {
+        let markdown_dir = "tests/markdown_update_dryrun/current_output";
+        let template_dir = "tests/markdown_update_dryrun/templates";
+        let schema_dir = "tests/markdown_update_dryrun/model";
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: Some(markdown_dir.to_owned()),
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        }),
+                        ..Default::default()
+                    },
+                    dry_run: Some(true),
+                    attribute_registry_base_url: None,
+                    templates: Some(template_dir.to_owned()),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive = run_command(&cli);
+        // The command should not fail
+        assert_ne!(exit_directive.exit_code, 0);
+    }
+
+    // Helper that will construct a zip file from a directory.
+    // This means we can test zip-file extraction and lifetimes but don't need to check in
+    // a binary zip file into git, which is hard to inspect the contents of.
+    fn create_zip_from_dir(src_dir: &str, zip_path: &std::path::Path) {
+        let file = std::fs::File::create(zip_path).expect("failed to create zip file");
+        let mut zip = zip::ZipWriter::new(file);
+
+        for entry in walkdir::WalkDir::new(src_dir) {
+            let entry = entry.expect("failed to read directory entry");
+            let path = entry.path();
+            if path.is_file() {
+                let relative_path = path.strip_prefix(src_dir).expect("failed to strip prefix");
+                let zip_path_in_archive = format!("templates/{}", relative_path.to_str().unwrap());
+                zip.start_file(zip_path_in_archive, FileOptions::<()>::default())
+                    .expect("failed to add file to zip");
+                let content = std::fs::read(path).expect("failed to read file");
+                zip.write_all(&content)
+                    .expect("failed to write to zip file");
+            }
+        }
+        let _ = zip.finish().expect("failed to finish zip file");
+    }
+
+    #[test]
+    fn test_registry_update_markdown_zip_templates() {
+        let schema_dir = "tests/markdown_update_dryrun/model";
+
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let markdown_dir = temp_dir.path().to_path_buf();
+        let zip_path = temp_dir.path().join("templates.zip");
+
+        // Create a zip file for templates from test_data/test_template_package
+        create_zip_from_dir("test_data/test_template_package", &zip_path);
+
+        // Copy test.md to temp_dir so WalkDir finds it.
+        let _ = std::fs::copy(
+            "tests/markdown_update_dryrun/current_output/test.md",
+            markdown_dir.join("test.md"),
+        )
+        .expect("failed to copy test file");
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: Some(markdown_dir.to_str().unwrap().to_owned()),
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        }),
+                        ..Default::default()
+                    },
+                    dry_run: Some(false), // Generate files first
+                    attribute_registry_base_url: None,
+                    templates: Some(zip_path.to_str().unwrap().to_owned()),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive = run_command(&cli);
+        assert_eq!(exit_directive.exit_code, 0, "First run (generation) failed");
+
+        // Second run: verify no differences
+        let cli_verify = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: Some(markdown_dir.to_str().unwrap().to_owned()),
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: schema_dir.to_owned(),
+                        }),
+                        ..Default::default()
+                    },
+                    dry_run: Some(true), // Verify
+                    attribute_registry_base_url: None,
+                    templates: Some(zip_path.to_str().unwrap().to_owned()),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+        let exit_directive_verify = run_command(&cli_verify);
+        assert_eq!(
+            exit_directive_verify.exit_code, 0,
+            "Second run (verification) failed"
+        );
     }
 }
