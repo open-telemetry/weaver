@@ -23,7 +23,7 @@ For instance `az` has become `azure`.
 
 #### Implicit linking
 
-This is where the full namespace of the attribute is used to detemine which namespace it belongs to.
+This is where the full namespace of the attribute is used to determine which namespace it belongs to.
 An example of this is the `gen_ai.openai.request.service_tier` attribute could be
 automatically associated with the `gen_ai` namespace,
 if the namespace definition existed.
@@ -34,7 +34,7 @@ if the namespace definition existed.
 
 #### Fallback linking
 
-If neither of the 2 previous methods are satisifed,
+If neither of the 2 previous methods are satisfied,
 a namespace is created by weaver which corresponds to the first path segment.
 This namespace will use the default values for a namespace.
 
@@ -74,17 +74,17 @@ The namespace opt-in option would look something like:
 version: "2"
 namespaces:
   - name: gen_ai
-    revison-history:
+    revision-history:
       enabled: true
       brief:
       note:
 ```
 
-## Unresolved schema Defintition (input)
+## Unresolved schema Definition (input)
 
-At it's core the namespace definition does not differ much at all to the defintion of any other signal.
+At it's core the namespace definition does not differ much at all to the definition of any other signal.
 
-As such the defintition would be something like:
+As such the definition would be something like:
 
 ```
 version: "2"
@@ -98,7 +98,7 @@ namespaces:
       brief:
       note:
       target: 1.b.y
-    revison-history:
+    revision-history:
       enabled: true
       brief:
       note:
@@ -111,7 +111,7 @@ namespaces:
       brief:
       note:
       target: 1.c.z
-    revison-history:
+    revision-history:
       enabled: true
       brief:
       note:
@@ -140,7 +140,7 @@ definition:
       enabled: true
       brief:
       note:
-    revison-history:
+    revision-history:
       enabled: true
       brief:
       note:
@@ -169,7 +169,7 @@ namespace:
     history:
       - version: x.y.z
         .......
-  revison-history:
+  revision-history:
     enabled: true
     brief:
     note:
