@@ -110,3 +110,10 @@ span:
 
 This approach enables tools like live-check to check if attribute is present in the intended scope and if not,
 check if it is at a lower level. For instance a scope attribute is allowed to instead be on the signal but should not be a resource attribute.
+
+## Extensions
+
+### Import instrumentations
+
+When importing a registry to a new project/registry it should be possible to specify the instrumentation to be imported.
+This enables a user if instrumenting a rabbitmq client to get everything which is part of that instrumentation without needing to explicitly list all signals.
