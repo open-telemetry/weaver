@@ -616,11 +616,37 @@ impl VirtualDirectory {
     ) -> Result<Self, Error> {
         let vdir_path_repr = vdir_path.to_string();
         let vdir = match vdir_path {
-            LocalFolder { path } => Ok(Self {
-                vdir_path: vdir_path_repr,
-                path: path.into(),
-                tmp_dir: Arc::new(None),
-            }),
+            LocalFolder { path } => {
+                let local_path = Path::new(path);
+                if local_path.exists() {
+                    Ok(Self {
+                        vdir_path: vdir_path_repr,
+                        path: path.into(),
+                        tmp_dir: Arc::new(None),
+                    })
+                } else {
+                    let error = if local_path.is_relative() {
+                        let joinable = local_path.strip_prefix(".").unwrap_or(local_path);
+                        let resolved = std::env::current_dir()
+                            .map(|cwd| cwd.join(joinable).display().to_string())
+                            .unwrap_or_else(|_| path.clone());
+                        format!(
+                            "local path does not exist (resolved to `{resolved}` against the \
+                             current working directory). Relative paths — including \
+                             `registry_path` entries in a registry manifest — resolve against \
+                             the current working directory, not the location of the file that \
+                             declares them; run weaver from the directory the path is relative \
+                             to, or use an absolute path"
+                        )
+                    } else {
+                        "local path does not exist".to_owned()
+                    };
+                    Err(Error::InvalidVirtualDirectory {
+                        path: vdir_path_repr,
+                        error,
+                    })
+                }
+            }
             GitRepo {
                 url,
                 sub_folder,
@@ -1150,6 +1176,38 @@ mod tests {
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
     use crate::Error::GitError;
     use std::path::Path;
+
+    #[test]
+    fn test_local_folder_not_found_reports_cwd_resolution() {
+        // Relative path: the error must name the CWD-resolved absolute path and
+        // explain that relative paths (e.g. manifest `registry_path` entries)
+        // resolve against the current working directory.
+        let vdir_path = VirtualDirectoryPath::LocalFolder {
+            path: "./does/not/exist".to_owned(),
+        };
+        let error = VirtualDirectory::try_new(&vdir_path)
+            .expect_err("nonexistent local folder must be rejected")
+            .to_string();
+        let expected_resolved = std::env::current_dir()
+            .unwrap()
+            .join("does/not/exist")
+            .display()
+            .to_string();
+        assert!(error.contains("./does/not/exist"), "{error}");
+        assert!(error.contains(&expected_resolved), "{error}");
+        assert!(error.contains("current working directory"), "{error}");
+        assert!(error.contains("registry_path"), "{error}");
+
+        // Absolute path: no CWD hint, just the missing path.
+        let vdir_path = VirtualDirectoryPath::LocalFolder {
+            path: "/definitely/does/not/exist".to_owned(),
+        };
+        let error = VirtualDirectory::try_new(&vdir_path)
+            .expect_err("nonexistent local folder must be rejected")
+            .to_string();
+        assert!(error.contains("/definitely/does/not/exist"), "{error}");
+        assert!(!error.contains("current working directory"), "{error}");
+    }
 
     #[test]
     fn test_virtual_directory_path() {
