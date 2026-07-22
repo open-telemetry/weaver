@@ -241,6 +241,33 @@ pub enum Error {
         group_id: String,
     },
 
+    /// An attribute is listed under both `identity` and `description` of the
+    /// same entity or entity refinement.
+    #[error("The attribute `{attribute_id}` is listed under both `identity` and `description` of `{group_id}`.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(help(
+        "List the attribute only once: under `identity` if it identifies the entity, under `description` otherwise."
+    ))]
+    AttributeInIdentityAndDescription {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The id of the entity or entity refinement.
+        group_id: String,
+        /// The attribute listed in both lists.
+        attribute_id: String,
+    },
+
+    /// An entity does not declare any `identity` attributes.
+    #[error("The entity `{group_id}` does not declare any `identity` attributes.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(help(
+        "List at least one attribute under `identity`; these are the attributes that uniquely identify the entity."
+    ))]
+    EntityMissingIdentity {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The id of the entity.
+        group_id: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {

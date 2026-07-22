@@ -1,0 +1,47 @@
+file_format: resolved/2.0
+schema_url: https://entity-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: host.arch
+  type: string
+  examples:
+  - amd64
+  brief: Host architecture.
+  stability: stable
+- key: host.id
+  type: string
+  examples:
+  - fdbf79e8af94cb7f9e8df36789187052
+  brief: Refined host ID
+  stability: stable
+- key: host.name
+  type: string
+  examples:
+  - opentelemetry-test
+  brief: Refined host name
+  stability: stable
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - id: refined.host
+    type: host
+    identity:
+    - base: 0
+      requirement_level: recommended
+    - base: 1
+      requirement_level: required
+    description:
+    - base: 2
+      requirement_level: recommended
+    brief: Refined host entity
+    stability: stable
+dependencies:
+- https://server.example.com/schemas/1.0.0

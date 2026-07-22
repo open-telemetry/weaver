@@ -15,9 +15,10 @@ use crate::{
     semconv::{Imports, SemConvSpecV1},
     stability::Stability,
     v2::{
-        attribute::AttributeDef, attribute_group::AttributeGroup, entity::Entity,
-        entity::EntityRefinement, event::Event, event::EventRefinement, metric::Metric,
-        metric::MetricRefinement, span::Span, span::SpanRefinement,
+        attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
+        entity::Entity, entity::EntityRefinement, event::Event, event::EventRefinement,
+        metric::Metric, metric::MetricRefinement, signal_id::SignalId, span::Span,
+        span::SpanRefinement,
     },
     Error, YamlValue,
 };
@@ -173,11 +174,15 @@ impl SemConvSpecV2 {
 
     /// Validates invariants on the v2 model.
     ///
-    /// Currently this checks that every signal (metric, span, event, entity)
-    /// declares a `requirement_level`. A missing requirement level is a
-    /// non-fatal warning that is elevated to an error under `--future`.
+    /// This checks that every signal (metric, span, event, entity) declares a
+    /// `requirement_level`. A missing requirement level is a non-fatal warning
+    /// that is elevated to an error under `--future`.
+    ///
+    /// It also rejects entities and entity refinements that list the same
+    /// attribute under both `identity` and `description`.
     pub(crate) fn validate(self, provenance: &str) -> WResult<Self, Error> {
         let mut errors: Vec<Error> = vec![];
+        let mut fatal_errors: Vec<Error> = vec![];
 
         let mut check = |missing: bool, group_id: String| {
             if missing {
@@ -204,6 +209,40 @@ impl SemConvSpecV2 {
             );
         }
 
+        let check_identity_overlap =
+            |identity: &[AttributeRef], description: &[AttributeRef], group_id: &SignalId| {
+                let mut overlaps = vec![];
+                for attr in description {
+                    if identity.iter().any(|i| i.r#ref == attr.r#ref) {
+                        overlaps.push(Error::AttributeInIdentityAndDescription {
+                            path_or_url: provenance.to_owned(),
+                            group_id: group_id.to_string(),
+                            attribute_id: attr.r#ref.clone(),
+                        });
+                    }
+                }
+                overlaps
+            };
+        for e in &self.entities {
+            fatal_errors.extend(check_identity_overlap(
+                &e.identity,
+                &e.description,
+                &e.r#type,
+            ));
+            if e.identity.is_empty() {
+                fatal_errors.push(Error::EntityMissingIdentity {
+                    path_or_url: provenance.to_owned(),
+                    group_id: e.r#type.to_string(),
+                });
+            }
+        }
+        for r in &self.entity_refinements {
+            fatal_errors.extend(check_identity_overlap(&r.identity, &r.description, &r.id));
+        }
+
+        if !fatal_errors.is_empty() {
+            return WResult::FatalErr(Error::CompoundError(fatal_errors));
+        }
         WResult::with_non_fatal_errors(self, errors)
     }
 
@@ -404,6 +443,76 @@ mod tests {
         let diag = DiagnosticMessage::new(warn);
         assert!(!diag.is_warning(), "expected error severity under --future");
         disable_future_mode();
+    }
+
+    #[test]
+    fn test_v2_attribute_in_identity_and_description_fails() {
+        for (group_id, yaml) in [
+            (
+                "my_entity",
+                "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n    description:\n      - ref: some.attr\n",
+            ),
+            (
+                "my_refinement",
+                "entity_refinements:\n  - id: my_refinement\n    ref: my_entity\n    identity:\n      - ref: some.attr\n    description:\n      - ref: some.attr\n",
+            ),
+        ] {
+            let errors = validate_yaml(yaml);
+            assert!(
+                errors.iter().any(|e| matches!(
+                    e,
+                    Error::CompoundError(inner) if inner.iter().any(|e| matches!(
+                        e,
+                        Error::AttributeInIdentityAndDescription { group_id: g, attribute_id, .. }
+                            if g == group_id && attribute_id == "some.attr"
+                    ))
+                )),
+                "expected AttributeInIdentityAndDescription for `{group_id}`, got: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_v2_attribute_in_identity_or_description_only_ok() {
+        let errors = validate_yaml(
+            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n    description:\n      - ref: other.attr\n",
+        );
+        assert!(
+            !errors
+                .iter()
+                .any(|e| matches!(e, Error::AttributeInIdentityAndDescription { .. })),
+            "did not expect AttributeInIdentityAndDescription, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_v2_entity_missing_identity_fails() {
+        let errors = validate_yaml(
+            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity: []\n    description:\n      - ref: some.attr\n",
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                Error::CompoundError(inner) if inner.iter().any(|e| matches!(
+                    e,
+                    Error::EntityMissingIdentity { group_id, .. } if group_id == "my_entity"
+                ))
+            )),
+            "expected EntityMissingIdentity for `my_entity`, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_v2_entity_with_identity_ok() {
+        let errors = validate_yaml(
+            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n",
+        );
+        assert!(
+            !errors
+                .iter()
+                .any(|e| matches!(e, Error::EntityMissingIdentity { .. })),
+            "did not expect EntityMissingIdentity, got: {errors:?}"
+        );
     }
 
     fn parse_and_translate(v2: &str, v1: &str) {

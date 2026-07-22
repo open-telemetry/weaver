@@ -1,0 +1,10 @@
+file_format: definition/2
+entity_refinements:
+  # Invalid: `host.id` is an identity attribute of the `host` entity in the
+  # dependency and must be refined under `identity`, not `description`.
+  - id: demoted.host
+    ref: host
+    brief: Refined host entity
+    description:
+      - ref: host.id
+        brief: Demoted identity attribute

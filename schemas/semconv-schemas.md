@@ -246,6 +246,7 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
   - **spans**: Span refinements — `id` plus all span properties
   - **metrics**: Metric refinements — `id` plus all metric properties
   - **events**: Event refinements — `id` plus all event properties
+  - **entities**: Entity refinements — `id` plus all entity properties
 
 ## Other schemas
 

@@ -2,6 +2,14 @@
   {
     "name": "test.attr",
     "type": "int",
+    "brief": "Refined identity attribute",
+    "requirement_level": "recommended",
+    "stability": "stable",
+    "role": "identifying"
+  },
+  {
+    "name": "test.attr",
+    "type": "int",
     "brief": "Test attribute",
     "requirement_level": "recommended",
     "stability": "stable"
@@ -17,6 +25,14 @@
   {
     "name": "test.attr2",
     "type": "string",
+    "brief": "Refined description attribute",
+    "requirement_level": "recommended",
+    "stability": "stable",
+    "role": "descriptive"
+  },
+  {
+    "name": "test.attr2",
+    "type": "string",
     "brief": "Test attribute 2",
     "requirement_level": "recommended",
     "stability": "stable"
@@ -25,6 +41,14 @@
     "name": "test.attr2",
     "type": "string",
     "brief": "Test attribute 2",
+    "requirement_level": "recommended",
+    "stability": "stable",
+    "role": "descriptive"
+  },
+  {
+    "name": "test.attr3",
+    "type": "string",
+    "brief": "Added description attribute",
     "requirement_level": "recommended",
     "stability": "stable",
     "role": "descriptive"

@@ -61,7 +61,7 @@ fn scope_matches(
         .filter
         .signal_type
         .as_ref()
-        .map_or(true, |s| finding.signal_type.as_deref() == Some(s.as_str()));
+        .is_none_or(|s| finding.signal_type.as_deref() == Some(s.as_str()));
     if !signal_type_ok {
         return false;
     }
