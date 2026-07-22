@@ -311,7 +311,8 @@ spans:
 > [!NOTE]
 > When a refinement declares the same attribute through more than one source,
 > priority is (highest first): inline `- ref:`, then `ref_group`, then the
-> attribute inherited from the refined (parent) signal.
+> attribute inherited from the refined (parent) signal. The order of these declarations
+> in the YAML file does not affect this precedence.
 
 ### `spans` definition
 
