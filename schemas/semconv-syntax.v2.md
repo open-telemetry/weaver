@@ -308,6 +308,12 @@ spans:
 > It's NOT RECOMMENDED to use `ref_groups` on other attribute groups
 > due to readability concerns.
 
+> [!NOTE]
+> When a refinement declares the same attribute through more than one source,
+> priority is (highest first): inline `- ref:`, then `ref_group`, then the
+> attribute inherited from the refined (parent) signal. The order of these declarations
+> in the YAML file does not affect this precedence.
+
 ### `spans` definition
 
 The spans section contains a list of span definitions. A span definition consists of the following properties:
@@ -385,7 +391,7 @@ An entity definition consists of the following properties:
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
 - `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
-- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity. The same attribute must **not** appear under both `identity` and `description`.
+- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the entity. See [annotations](#annotations) for details.
@@ -414,8 +420,7 @@ An entity refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the entity refinement.
 - `ref` - Required. The name of the entity being refined.
-- `identity` - Optional. List of [attribute references](#attribute-reference) refining identity attributes of the entity. Attributes listed here have the identifying role, so an identity attribute of the base entity can be refined (`brief`, `note`, `examples`, etc.) while keeping its role. A refinement must **not change the identity** of the base entity: it may only list attribute keys the base entity already declares under `identity`.
-- `description` - Optional. The additional attributes to describe the Entity. Attributes listed here have the descriptive role. As with entity definitions, the same attribute must **not** appear under both `identity` and `description`.
+- `description` - Optional. The additional attributes to describe the Entity.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -667,10 +672,10 @@ The `requirement_level` on a signal (metric, span, event, or entity) is guidance
 
 The `deprecated` field indicates that a component (attribute, metric, event, etc.) should no longer be used. It supports several deprecation reasons:
 
-All deprecation reasons have the following properties:
+All deprecation reasons have the following required properties:
 
 - `reason` - Required. The type of deprecation. Must be one of: `renamed`, `obsoleted`, `uncategorized`, or `unspecified`.
-- `note` - Provides context about the deprecation. Required for every reason except `renamed`.
+- `note` - Required. Provides context about the deprecation.
 
 Additional properties depending on the reason:
 
@@ -679,8 +684,6 @@ Additional properties depending on the reason:
 Used when a component has been renamed. Requires an additional property:
 
 - `renamed_to` - Required. The new name of the telemetry object.
-
-When `note` is omitted, it defaults to ``Replaced by `<renamed_to>`.`` in the resolved schema.
 
 Example:
 
