@@ -3,6 +3,7 @@
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::http_auth::HttpAuthResolver;
@@ -178,7 +179,7 @@ pub(crate) fn load_semconv_repository_with_cache(
     auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // This method simply sets up the resolution state and delegates to the actual work.
-    let mut visited_registries = std::collections::HashSet::new();
+    let mut visited_registries = HashSet::new();
     let mut chosen_versions = std::collections::HashMap::new();
     let mut dependency_chain = Vec::new();
 
@@ -235,7 +236,7 @@ fn load_semconv_repository_recursive(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     max_dependency_depth: u32,
-    visited_registries: &mut std::collections::HashSet<String>,
+    visited_registries: &mut HashSet<String>,
     chosen_versions: &mut std::collections::HashMap<String, SchemaUrl>,
     dependency_chain: &mut Vec<String>,
     auth: &HttpAuthResolver,
@@ -397,9 +398,14 @@ fn load_resolved_repository(
     auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // TODO - should we handle V1 and V2?
-    match from_vdir(path, auth) {
-        Ok(resolved) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(resolved)),
-        Err(err) => WResult::FatalErr(err),
+    let raw: serde_yaml::Value = match from_vdir(path, auth) {
+        Ok(v) => v,
+        Err(err) => return WResult::FatalErr(err),
+    };
+    let path_buf = std::path::PathBuf::from(path.to_string());
+    match V2Schema::from_yaml_value(raw, &path_buf) {
+        Ok(schema) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(schema)),
+        Err(err) => WResult::FatalErr(err.into()),
     }
 }
 
@@ -549,6 +555,7 @@ fn check_version_compatibility(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
 
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,
@@ -614,7 +621,7 @@ mod tests {
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
 
         // Try with depth limit of 1 - should fail at acme->otel transition
-        let mut visited_registries = std::collections::HashSet::new();
+        let mut visited_registries = HashSet::new();
         let mut chosen_versions = std::collections::HashMap::new();
         let mut dependency_chain = Vec::new();
         let result = load_semconv_repository_recursive(
@@ -642,6 +649,254 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_resolved_schema_minor_version_ahead_succeeds() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-resolved-minor-ahead/published".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(
+            registry_repo,
+            false,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
+        match result {
+            WResult::Ok(LoadedSemconvRegistry::ResolvedV2(_)) => {}
+            WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2(_), _) => {}
+            _ => panic!("Expected ResolvedV2 success"),
+        }
+        Ok(())
+    }
+
+    /// Collects the path of every mapping node in `value`, as a list of steps
+    /// that [`insert_at`] can replay.
+    fn mapping_paths(value: &serde_yaml::Value, path: Vec<Step>, out: &mut Vec<Vec<Step>>) {
+        match value {
+            serde_yaml::Value::Mapping(map) => {
+                out.push(path.clone());
+                for (key, val) in map {
+                    if let Some(key) = key.as_str() {
+                        let mut sub = path.clone();
+                        sub.push(Step::Key(key.to_owned()));
+                        mapping_paths(val, sub, out);
+                    }
+                }
+            }
+            serde_yaml::Value::Sequence(seq) => {
+                for (i, val) in seq.iter().enumerate() {
+                    let mut sub = path.clone();
+                    sub.push(Step::Index(i));
+                    mapping_paths(val, sub, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    enum Step {
+        Key(String),
+        Index(usize),
+    }
+
+    fn render_path(path: &[Step]) -> String {
+        if path.is_empty() {
+            return "<root>".to_owned();
+        }
+        path.iter()
+            .map(|step| match step {
+                Step::Key(k) => format!(".{k}"),
+                Step::Index(i) => format!("[{i}]"),
+            })
+            .collect()
+    }
+
+    /// Inserts `key: value` into the mapping at `path`.
+    fn insert_at(root: &mut serde_yaml::Value, path: &[Step], key: &str) {
+        let mut node = root;
+        for step in path {
+            node = match (step, node) {
+                (Step::Key(k), serde_yaml::Value::Mapping(map)) => map
+                    .get_mut(serde_yaml::Value::String(k.clone()))
+                    .expect("path was collected from this tree"),
+                (Step::Index(i), serde_yaml::Value::Sequence(seq)) => {
+                    seq.get_mut(*i).expect("path was collected from this tree")
+                }
+                _ => panic!("path does not match tree shape"),
+            };
+        }
+        let serde_yaml::Value::Mapping(map) = node else {
+            panic!("path does not point at a mapping");
+        };
+        let _ = map.insert(
+            serde_yaml::Value::String(key.to_owned()),
+            serde_yaml::Value::String("injected".to_owned()),
+        );
+    }
+
+    /// Forward compatibility must hold at *every* level of a resolved schema, not
+    /// just the levels a fixture happens to seed with a `future_*` key. This walks
+    /// the minor-ahead fixture and injects an unknown key into each mapping node in
+    /// turn, asserting the schema still parses.
+    ///
+    /// A failure here means some type on the resolved-schema path carries
+    /// `#[serde(deny_unknown_fields)]`. Use `#[schemars(deny_unknown_fields)]`
+    /// instead: it keeps the published JSON schema strict while leaving the
+    /// deserializer tolerant of fields added by a newer minor version.
+    #[test]
+    fn resolved_schema_tolerates_an_unknown_field_at_every_level() {
+        let path = std::path::Path::new(
+            "data/registry-test-resolved-minor-ahead/published/resolved_schema.yaml",
+        );
+        let raw: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(path).expect("fixture should be readable"),
+        )
+        .expect("fixture should parse as YAML");
+
+        let mut paths = Vec::new();
+        mapping_paths(&raw, Vec::new(), &mut paths);
+        assert!(
+            paths.len() > 20,
+            "fixture got thin ({} mapping nodes) — it should exercise every signal kind",
+            paths.len()
+        );
+
+        for node in &paths {
+            let mut mutated = raw.clone();
+            insert_at(&mut mutated, node, "injected_unknown_field");
+            if let Err(err) = crate::loader::V2Schema::from_yaml_value(mutated, path) {
+                panic!(
+                    "unknown field at `{}` was rejected: {err}\n\
+                     The type at this path denies unknown fields, which breaks forward \
+                     compatibility with newer minor versions. Replace \
+                     `#[serde(deny_unknown_fields)]` with `#[schemars(deny_unknown_fields)]`.",
+                    render_path(node)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_resolved_schema_major_version_mismatch_fails() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-resolved-major-mismatch/published".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(
+            registry_repo,
+            false,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
+        match result {
+            WResult::FatalErr(err) => {
+                let msg = err.to_string();
+                assert!(
+                    msg.contains("Incompatible file_format"),
+                    "Expected major version error, got: {msg}"
+                );
+            }
+            _ => panic!("Expected fatal error for major version mismatch"),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolved_schema_unknown_field_in_current_version_fails() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-resolved-unknown-field/published".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(
+            registry_repo,
+            false,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
+        // The fixture seeds typos at every recursable level. Only entries with
+        // non-default-equivalent values are reported — the walker suppresses
+        // null/""/[]/{} as a false-positive guard for `skip_serializing_if`
+        // fields, so the many `not: ""` entries in the fixture are intentionally
+        // *not* in this list.
+        let expected = [
+            "not",
+            "attribute_catalog[0].not",
+            "attribute_catalog[1].deprecated.not",
+            // Typo on an enum-typed attribute member entry.
+            "attribute_catalog[2].type.members[0].not",
+            // Typos on `Renamed` and `Uncategorized` deprecation variants.
+            "attribute_catalog[3].deprecated.not",
+            "attribute_catalog[4].deprecated.does_not_exist",
+            "registry.attribute_groups[0].attributes[1].not",
+            "registry.spans[0].name.does_not_exist",
+            "registry.spans[0].not",
+            // Typos on attribute-ref entries inside each signal kind.
+            "registry.spans[0].attributes[0].not",
+            "registry.metrics[0].attributes[0].not",
+            "registry.events[0].attributes[0].not",
+            // Typo on the complex single-key-map variant of RequirementLevel.
+            "registry.events[0].attributes[0].requirement_level.not",
+            "registry.entities[0].identity[0].not",
+            // Typo on an event refinement entry.
+            "refinements.events[0].not",
+        ];
+        match result {
+            WResult::FatalErr(Error::FailToResolveDefinition(
+                weaver_semconv::Error::UnexpectedFields {
+                    fields,
+                    file_format,
+                    ..
+                },
+            )) => {
+                assert_eq!(file_format.to_string(), "resolved/2.0");
+                let actual: HashSet<&str> = fields.iter().map(String::as_str).collect();
+                let expected_set: HashSet<&str> = expected.iter().copied().collect();
+                let missing: Vec<&&str> = expected_set.difference(&actual).collect();
+                let extra: Vec<&&str> = actual.difference(&expected_set).collect();
+                assert!(
+                    missing.is_empty() && extra.is_empty(),
+                    "Unexpected-field set mismatch.\n  missing: {missing:?}\n  extra:   {extra:?}\n  actual:  {fields:?}"
+                );
+            }
+            WResult::FatalErr(other) => {
+                panic!("Expected FailToResolveDefinition(UnexpectedFields), got fatal: {other}")
+            }
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected fatal error for unknown fields in current minor, got Ok")
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_manifest_unknown_field_in_current_version_fails() {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-manifest-unknown-field/published".to_owned(),
+        };
+        let err = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect_err("expected manifest unknown-field rejection");
+        // The fixture seeds an unknown both at the top of the manifest and inside
+        // a dependency entry, so the walker must recurse into `dependencies[i]`
+        // and surface the nested typo too — not just the top-level one.
+        let expected = ["not", "dependencies[0].not"];
+        match err {
+            weaver_semconv::Error::UnexpectedFields {
+                fields,
+                file_format,
+                ..
+            } => {
+                assert_eq!(file_format.to_string(), "manifest/2.0");
+                let actual: HashSet<&str> = fields.iter().map(String::as_str).collect();
+                let expected_set: HashSet<&str> = expected.iter().copied().collect();
+                let missing: Vec<&&str> = expected_set.difference(&actual).collect();
+                let extra: Vec<&&str> = actual.difference(&expected_set).collect();
+                assert!(
+                    missing.is_empty() && extra.is_empty(),
+                    "Unexpected-field set mismatch.\n  missing: {missing:?}\n  extra:   {extra:?}\n  actual:  {fields:?}"
+                );
+            }
+            other => panic!("expected UnexpectedFields, got: {other:?}"),
+        }
     }
 
     #[test]

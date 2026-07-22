@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Tolerate unknown fields in resolved schema and publication manifest on newer-minor `file_format` with a warning; same/older minor and any major mismatch remain fatal. ([#1365](https://github.com/open-telemetry/weaver/pull/1365) by @lmolkova)
 - Live-check: (Fixes: [#1613](https://github.com/open-telemetry/weaver/issues/1613)) add `sample_names` to `[[live-check.finding_filters]]` to scope a filter to matching sample names, with glob wildcard support (also added to `exclude_samples`). ([#1619](https://github.com/open-telemetry/weaver/pull/1619) by @jerbly)
 - Add a tree view to the `serve` UI's search page, grouping results by namespace with expand/collapse controls, and a "Hide deprecated" toggle (on by default) for both the list and tree views. ([#1595](https://github.com/open-telemetry/weaver/pull/1595) by @jerbly)
 - Support signal refinements over a published dependency. ([#1587](https://github.com/open-telemetry/weaver/pull/1587) by @lmolkova)

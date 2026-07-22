@@ -6465,6 +6465,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror 2.0.19",
  "utoipa",
  "weaver_common",

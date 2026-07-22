@@ -9,7 +9,7 @@ use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_resolved_schema::{ResolvedTelemetrySchema, V1_RESOLVED_FILE_FORMAT};
 use weaver_semconv::group::ImportsWithProvenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -400,7 +400,7 @@ impl WeaverResolver {
             &lookup_ctx,
         )
         .map(move |resolved_registry| ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
+            file_format: V1_RESOLVED_FILE_FORMAT.clone(),
             schema_url: schema_url.as_str().to_owned(),
             registry_id: schema_url.name().to_owned(),
             registry: resolved_registry,
@@ -879,8 +879,11 @@ mod tests {
 
         let expected_yaml = std::fs::read_to_string(format!("{test_dir}/expected-schema.yaml"))
             .expect("Failed to read expected schema");
-        let expected_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-            serde_yaml::from_str(&expected_yaml).expect("Failed to deserialize expected schema");
+        let expected_schema = weaver_resolved_schema::v2::ResolvedTelemetrySchema::from_yaml_value(
+            serde_yaml::from_str(&expected_yaml).expect("Failed to parse expected schema"),
+            std::path::Path::new(&format!("{test_dir}/expected-schema.yaml")),
+        )
+        .expect("Failed to deserialize expected schema");
 
         assert_eq!(
             serde_json::to_value(&observed_schema).unwrap(),
@@ -1667,7 +1670,7 @@ groups:
         let url_base_v1_1 = SchemaUrl::try_from("https://example.com/base/1.1.0").unwrap();
 
         let base_v1_0 = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
+            file_format: "resolved/1.0".parse().unwrap(),
             schema_url: "https://example.com/base/1.0.0".to_owned(),
             registry_id: "base".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
@@ -1683,7 +1686,7 @@ groups:
         }));
 
         let base_v1_1 = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
+            file_format: "resolved/1.0".parse().unwrap(),
             schema_url: "https://example.com/base/1.1.0".to_owned(),
             registry_id: "base".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
@@ -1699,7 +1702,7 @@ groups:
         }));
 
         let layer1_a = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
+            file_format: "resolved/1.0".parse().unwrap(),
             schema_url: "https://example.com/layer1_a/0.1.0".to_owned(),
             registry_id: "layer1_a".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
@@ -1715,7 +1718,7 @@ groups:
         }));
 
         let layer1_b = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
+            file_format: "resolved/1.0".parse().unwrap(),
             schema_url: "https://example.com/layer1_b/0.1.0".to_owned(),
             registry_id: "layer1_b".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
@@ -1757,7 +1760,7 @@ groups:
 
         // Create an empty schema for c/1.2.0 where `c.removed_attr` does not exist.
         let schema_v1_2 = Arc::new(WeaverResolvedSchema::V1(ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
+            file_format: "resolved/1.0".parse().unwrap(),
             schema_url: "https://example.com/c/1.2.0".to_owned(),
             registry_id: "c".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {

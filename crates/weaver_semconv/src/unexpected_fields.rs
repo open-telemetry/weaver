@@ -1,0 +1,509 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Detect fields the typed schema didn't recognize by comparing the user's raw
+//! YAML against the typed form after a deserialize/serialize round-trip.
+//!
+//! # How it works
+//!
+//! The caller parses the same YAML document twice:
+//! 1. As `serde_yaml::Value` — keeps every key the user wrote, including typos.
+//! 2. Into the typed schema structs, then re-serializes back to
+//!    `serde_yaml::Value`.
+//!
+//! Because the schema types do not set `#[serde(deny_unknown_fields)]`, serde
+//! silently drops keys it doesn't recognize during step (2). The re-serialized
+//! form therefore contains only known fields, and walking the two trees in
+//! parallel surfaces any key present in (1) but missing from (2) — i.e. a key
+//! the typed schema didn't recognize.
+//!
+//! Tolerating unknown keys at deserialize time is what makes newer-minor
+//! schemas forward-compatible; this diff is how we report them as errors on
+//! known/past-minor schemas, where unknowns indicate a typo or a misdeclared
+//! file_format.
+//!
+//! # False-positive guard
+//!
+//! Many fields use `#[serde(skip_serializing_if = "...")]` to omit defaults from
+//! the re-serialized form. A user who writes those defaults explicitly (e.g.
+//! `note: ""`) would otherwise look like they wrote an unknown key, since the key
+//! is on the raw side but not the normalized side. A default-equivalent guard
+//! suppresses those — null, empty string, empty seq, empty map are all treated as
+//! "would have been skipped anyway".
+
+use crate::Error;
+use serde::Serialize;
+use weaver_common::file_format::FileFormat;
+
+/// Validates `found` against `file_format` (the expected version), then — if the
+/// file's minor is known to this build — diffs `raw` against the re-serialized `typed`
+/// form and returns [`Error::UnexpectedFields`] if any key in `raw` was dropped by the
+/// typed schema. Newer-minor files short-circuit (forward compat — unknowns are tolerated).
+///
+/// `typed` is the deserialized struct; this helper round-trips it to a YAML tree
+/// internally. The round-trip cannot fail in practice — `typed` was just produced
+/// by a successful deserialize, and `serde_yaml::Value` is the most permissive
+/// shape we can serialize into.
+///
+/// `deprecated_keys` lists key names the schema still accepts on input but no
+/// longer writes on output (e.g. a field renamed with a deprecation warning).
+/// They would otherwise look like unknowns after the round-trip.
+pub fn check<T: Serialize>(
+    raw: &serde_yaml::Value,
+    typed: &T,
+    file_format: &FileFormat,
+    found: &FileFormat,
+    path: &std::path::Path,
+    deprecated_keys: &[&str],
+) -> Result<(), Error> {
+    file_format.validate(found, path)?;
+    if !file_format.is_known_minor(found) {
+        return Ok(());
+    }
+    let normalized = serde_yaml::to_value(typed)
+        .expect("re-serializing a deserialized typed struct to serde_yaml::Value cannot fail");
+    let unexpected = collect_paths(raw, &normalized, deprecated_keys);
+    if unexpected.is_empty() {
+        return Ok(());
+    }
+    Err(Error::UnexpectedFields {
+        path_or_url: path.display().to_string(),
+        file_format: file_format.clone(),
+        fields: unexpected,
+    })
+}
+
+/// Returns dotted paths (e.g. `groups[2].attributes[0].typo`) of every key
+/// present in `raw` but missing or non-default in `normalized`. See module
+/// docs for the algorithm. Most callers should use [`check`]; this lower-level
+/// entry point is exposed for diagnostic use. `deprecated_keys` names keys that
+/// are accepted on input but not re-serialized; they are never reported.
+#[must_use]
+pub fn collect_paths(
+    raw: &serde_yaml::Value,
+    normalized: &serde_yaml::Value,
+    deprecated_keys: &[&str],
+) -> Vec<String> {
+    let mut out = Vec::new();
+    diff("", raw, normalized, deprecated_keys, &mut out);
+    out
+}
+
+fn diff(
+    path: &str,
+    raw: &serde_yaml::Value,
+    normalized: &serde_yaml::Value,
+    deprecated_keys: &[&str],
+    out: &mut Vec<String>,
+) {
+    match (raw, normalized) {
+        // Walk only `raw_map`'s keys: a key in `norm_map` but not `raw_map`
+        // means a default the user didn't write, which is not a typo.
+        (serde_yaml::Value::Mapping(raw_map), serde_yaml::Value::Mapping(norm_map)) => {
+            for (key, raw_val) in raw_map {
+                // Schema only uses string keys; skip exotic YAML key types.
+                let Some(key_str) = key.as_str() else {
+                    continue;
+                };
+                let sub_path = if path.is_empty() {
+                    key_str.to_owned()
+                } else {
+                    format!("{path}.{key_str}")
+                };
+                match norm_map.get(key) {
+                    // Key survived the round-trip; recurse, unknowns may hide deeper.
+                    Some(norm_val) => diff(&sub_path, raw_val, norm_val, deprecated_keys, out),
+                    // Key was dropped by serde and the value isn't a default
+                    // that would have been stripped by `skip_serializing_if`.
+                    None if !is_default_equivalent(raw_val)
+                        && !deprecated_keys.contains(&key_str) =>
+                    {
+                        out.push(sub_path);
+                    }
+                    None => {}
+                }
+            }
+        }
+        // Pair each raw element with its normalized counterpart, then recurse. An
+        // unmatched raw element was dropped by the round-trip — report it unless it is
+        // a default the serializer would have skipped.
+        (serde_yaml::Value::Sequence(raw_seq), serde_yaml::Value::Sequence(norm_seq)) => {
+            for (i, (raw_val, matched)) in raw_seq
+                .iter()
+                .zip(align_sequence(raw_seq, norm_seq))
+                .enumerate()
+            {
+                match matched {
+                    Some(j) => diff(
+                        &format!("{path}[{i}]"),
+                        raw_val,
+                        &norm_seq[j],
+                        deprecated_keys,
+                        out,
+                    ),
+                    None if !is_default_equivalent(raw_val) => out.push(format!("{path}[{i}]")),
+                    None => {}
+                }
+            }
+        }
+        // Leaves and shape mismatches: nothing to recurse into.
+        _ => {}
+    }
+}
+
+/// Matches each raw element to its counterpart in the normalized (round-tripped) tree,
+/// returning the normalized index for each raw element or `None` if it has no match.
+///
+/// An order-preserving collection (`Vec`) keeps the two aligned by position. A reordering
+/// collection (`BTreeSet`/`HashSet`) serializes in a different order, so those are matched
+/// by content instead.
+fn align_sequence(
+    raw_seq: &[serde_yaml::Value],
+    norm_seq: &[serde_yaml::Value],
+) -> Vec<Option<usize>> {
+    // Fast path: already aligned position-for-position.
+    if raw_seq.len() == norm_seq.len()
+        && raw_seq
+            .iter()
+            .zip(norm_seq)
+            .all(|(raw, norm)| same_element(raw, norm))
+    {
+        return (0..raw_seq.len()).map(Some).collect();
+    }
+    let mut used = vec![false; norm_seq.len()];
+    raw_seq
+        .iter()
+        .map(|raw_val| {
+            let matched = norm_seq
+                .iter()
+                .enumerate()
+                .find(|(j, norm_val)| !used[*j] && same_element(raw_val, norm_val))
+                .map(|(j, _)| j);
+            if let Some(j) = matched {
+                used[j] = true;
+            }
+            matched
+        })
+        .collect()
+}
+
+/// Whether `raw` and `norm` are the same logical element.
+///
+/// A round-trip can add keys (synthesized defaults) or drop them (unknowns, skipped
+/// defaults), so only keys present on both sides are compared. Matching on shared content
+/// keeps an unknown key from pairing an element with the wrong counterpart.
+fn same_element(raw: &serde_yaml::Value, norm: &serde_yaml::Value) -> bool {
+    match (raw, norm) {
+        (serde_yaml::Value::Mapping(raw_map), serde_yaml::Value::Mapping(norm_map)) => raw_map
+            .iter()
+            .all(|(k, rv)| norm_map.get(k).map_or(true, |nv| same_element(rv, nv))),
+        (serde_yaml::Value::Sequence(_), serde_yaml::Value::Sequence(_)) => true,
+        _ => raw == norm,
+    }
+}
+
+fn is_default_equivalent(value: &serde_yaml::Value) -> bool {
+    match value {
+        serde_yaml::Value::Null => true,
+        serde_yaml::Value::Sequence(seq) => seq.is_empty(),
+        serde_yaml::Value::Mapping(map) => map.is_empty(),
+        serde_yaml::Value::String(s) => s.is_empty(),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn yaml(s: &str) -> serde_yaml::Value {
+        serde_yaml::from_str(s).expect("test yaml should parse")
+    }
+
+    fn fmt() -> FileFormat {
+        FileFormat::new("resolved", 2, 3)
+    }
+
+    // ---- collect_paths ----
+
+    #[test]
+    fn collect_paths_returns_empty_when_trees_match() {
+        let raw = yaml("name: foo\nvalue: 1");
+        let normalized = yaml("name: foo\nvalue: 1");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_reports_extra_top_level_key() {
+        let raw = yaml("name: foo\ntyp0: extra");
+        let normalized = yaml("name: foo");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["typ0".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_reports_nested_key_with_dotted_path() {
+        let raw = yaml("outer:\n  inner: ok\n  oops: bad");
+        let normalized = yaml("outer:\n  inner: ok");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["outer.oops".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_reports_key_inside_sequence_element_with_index() {
+        let raw = yaml("items:\n  - id: a\n    extra: x\n  - id: b");
+        let normalized = yaml("items:\n  - id: a\n  - id: b");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["items[0].extra".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_suppresses_default_equivalents() {
+        // Keys whose values would have been stripped by `skip_serializing_if`
+        // are not reported even when absent from `normalized`.
+        let raw = yaml("a: ~\nb: ''\nc: []\nd: {}");
+        let normalized = yaml("{}");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_ignores_value_only_diffs() {
+        // Same keys, different scalar values — keys present in both, nothing to report.
+        let raw = yaml("name: foo");
+        let normalized = yaml("name: bar");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_reports_dropped_trailing_sequence_elements() {
+        // Simulates a (de)serializer that drops trailing elements: raw has 3
+        // elements, normalized has 1. Trailing raw elements with non-default
+        // values are reported by index; default-equivalent trailing elements
+        // are suppressed by the same guard used for map values.
+        let raw = yaml("items:\n  - id: a\n  - id: b\n  - {}\n  - id: d");
+        let normalized = yaml("items:\n  - id: a");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["items[1]".to_owned(), "items[3]".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_reports_multiple_unexpected_in_order() {
+        let raw = yaml("a: 1\nb: 2\nc: 3");
+        let normalized = yaml("b: 2");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["a".to_owned(), "c".to_owned()]
+        );
+    }
+
+    // ---- reordering collections (BTreeSet/HashSet of structs) ----
+    // `normalized` is in the collection's sorted order; `raw` is in the user's order.
+
+    #[test]
+    fn collect_paths_ignores_reordered_scalar_set() {
+        // Scalar sets carry no keys, so reordering has nothing to misreport.
+        let raw = yaml("deps: [c, a, b]");
+        let normalized = yaml("deps: [a, b, c]");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_realigns_reordered_struct_set_clean() {
+        // Reordered but no unknowns: matching yields no false positives.
+        let raw = yaml("deps:\n  - {id: b, note: hi}\n  - {id: a}");
+        let normalized = yaml("deps:\n  - {id: a}\n  - {id: b, note: hi}");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_reports_typo_in_reordered_struct_set() {
+        let raw = yaml("deps:\n  - {id: a, notE: hi}\n  - {id: b}");
+        let normalized = yaml("deps:\n  - {id: a}\n  - {id: b}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["deps[0].notE".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_unknown_key_does_not_misreport_sibling_field() {
+        // An unknown key (`aaa`) on the reordered element must not flag a sibling's
+        // valid field (`note`).
+        let raw = yaml("deps:\n  - {id: b, aaa: x}\n  - {id: a, note: hi}");
+        let normalized = yaml("deps:\n  - {id: a, note: hi}\n  - {id: b}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["deps[0].aaa".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_matches_across_a_synthesized_default_field() {
+        // A round-trip may add a known field (`note`); matching on shared keys still
+        // pairs the element with its raw form.
+        let raw = yaml("deps:\n  - {id: b, oops: 1}\n  - {id: a}");
+        let normalized = yaml("deps:\n  - {id: a, note: synthesized}\n  - {id: b}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["deps[0].oops".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_vec_typo_keeps_positional_index() {
+        // A `Vec` keeps order (fast path); the typo is reported at its true index.
+        let raw = yaml("items:\n  - {id: a}\n  - {id: a, oops: 1}");
+        let normalized = yaml("items:\n  - {id: a}\n  - {id: a}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["items[1].oops".to_owned()]
+        );
+    }
+
+    // ---- check ----
+
+    fn path() -> std::path::PathBuf {
+        std::path::PathBuf::from("/tmp/t.yaml")
+    }
+
+    fn parsed(s: &str) -> FileFormat {
+        s.parse().expect("test file_format should parse")
+    }
+
+    #[test]
+    fn check_returns_ok_when_no_unexpected_on_known_minor() {
+        let raw = yaml("a: 1");
+        let normalized = yaml("a: 1");
+        check(
+            &raw,
+            &normalized,
+            &fmt(),
+            &parsed("resolved/2.3"),
+            &path(),
+            &[],
+        )
+        .expect("no diff = Ok");
+    }
+
+    #[test]
+    fn check_flags_unexpected_on_current_minor() {
+        let raw = yaml("a: 1\ntyp0: bad");
+        let normalized = yaml("a: 1");
+        match check(
+            &raw,
+            &normalized,
+            &fmt(),
+            &parsed("resolved/2.3"),
+            &path(),
+            &[],
+        ) {
+            Err(Error::UnexpectedFields { fields, .. }) => {
+                assert_eq!(fields, vec!["typ0".to_owned()]);
+            }
+            other => panic!("expected UnexpectedFields, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn check_flags_unexpected_on_older_minor() {
+        // Older minors are still "known" to this binary, so unknowns there are
+        // typos, not forward-compat tolerance.
+        let raw = yaml("a: 1\ntyp0: bad");
+        let normalized = yaml("a: 1");
+        match check(
+            &raw,
+            &normalized,
+            &fmt(),
+            &parsed("resolved/2.0"),
+            &path(),
+            &[],
+        ) {
+            Err(Error::UnexpectedFields { fields, .. }) => {
+                assert_eq!(fields, vec!["typ0".to_owned()]);
+            }
+            other => panic!("expected UnexpectedFields, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn check_short_circuits_on_newer_minor() {
+        // Forward-compat: newer minor may carry fields this binary doesn't know.
+        let raw = yaml("a: 1\nfuture_field: x");
+        let normalized = yaml("a: 1");
+        check(
+            &raw,
+            &normalized,
+            &fmt(),
+            &parsed("resolved/2.99"),
+            &path(),
+            &[],
+        )
+        .expect("newer minor tolerates unknowns");
+    }
+
+    #[test]
+    fn check_rejects_different_prefix() {
+        let raw = yaml("a: 1\ntyp0: bad");
+        let normalized = yaml("a: 1");
+        let err = check(
+            &raw,
+            &normalized,
+            &fmt(),
+            &parsed("manifest/2.3"),
+            &path(),
+            &[],
+        )
+        .expect_err("different prefix should be rejected");
+        assert!(matches!(
+            err,
+            Error::VirtualDirectoryError(weaver_common::Error::UnrecognizedFileFormat { .. })
+        ));
+    }
+
+    #[test]
+    fn check_rejects_incompatible_major() {
+        let raw = yaml("a: 1\ntyp0: bad");
+        let normalized = yaml("a: 1");
+        let err = check(
+            &raw,
+            &normalized,
+            &fmt(),
+            &parsed("resolved/3.0"),
+            &path(),
+            &[],
+        )
+        .expect_err("incompatible major should be rejected");
+        assert!(matches!(
+            err,
+            Error::VirtualDirectoryError(
+                weaver_common::Error::IncompatibleFileFormatMajorVersion { .. }
+            )
+        ));
+    }
+
+    #[test]
+    fn check_propagates_path_and_file_format_in_error() {
+        let raw = yaml("name: ok\ntyp0: bad\nnested:\n  deeper: bad");
+        let normalized = yaml("name: ok\nnested: {}");
+        let p = std::path::PathBuf::from("/some/where.yaml");
+        match check(&raw, &normalized, &fmt(), &parsed("resolved/2.3"), &p, &[]) {
+            Err(Error::UnexpectedFields {
+                path_or_url,
+                file_format,
+                fields,
+            }) => {
+                assert_eq!(path_or_url, "/some/where.yaml");
+                assert_eq!(file_format, fmt());
+                assert_eq!(fields, vec!["typ0".to_owned(), "nested.deeper".to_owned()]);
+            }
+            other => panic!("expected UnexpectedFields, got: {other:?}"),
+        }
+    }
+}

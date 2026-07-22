@@ -388,7 +388,6 @@ impl Display for TemplateTypeSpec {
     Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
 )]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
 #[serde(from = "EnumEntriesSpecDeserialize")]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
@@ -423,7 +422,7 @@ pub struct EnumEntriesSpec {
 /// (including doc comments) so the generated JSON schema retains field
 /// descriptions when `#[serde(from = "...")]` redirects schema derivation here.
 #[derive(Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 struct EnumEntriesSpecDeserialize {
     /// String that uniquely identifies the enum entry.
     id: String,
