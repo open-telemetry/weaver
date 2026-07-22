@@ -115,7 +115,7 @@ where
             match action.as_deref() {
                 Some("renamed") => {
                     let renamed_to =
-                        new_name.ok_or_else(|| de::Error::missing_field("rename_to"))?;
+                        new_name.ok_or_else(|| de::Error::missing_field("renamed_to"))?;
                     Ok(Deprecated::Renamed { renamed_to, note })
                 }
                 Some("obsoleted") => Ok(Deprecated::Obsoleted {

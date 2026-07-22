@@ -360,11 +360,10 @@ mod tests {
         );
 
         // Nothing to infer from for the other reasons, so the note stays required.
-        for reason in ["obsoleted", "uncategorized"] {
-            let err = serde_yaml::from_str::<SemConvSpecV2>(&spec(&format!(
-                "      reason: {reason}\n"
-            )))
-            .expect_err("`{reason}` must require a note");
+        for reason in ["obsoleted", "uncategorized", "unspecified"] {
+            let err =
+                serde_yaml::from_str::<SemConvSpecV2>(&spec(&format!("      reason: {reason}\n")))
+                    .unwrap_err();
             assert!(
                 err.to_string().contains("note"),
                 "expected a missing `note` error for `{reason}`, got: {err}"
