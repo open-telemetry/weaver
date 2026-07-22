@@ -6393,6 +6393,7 @@ name = "weaver_live_check"
 version = "0.24.2"
 dependencies = [
  "assert_cmd",
+ "globset",
  "log",
  "miette",
  "opentelemetry",
