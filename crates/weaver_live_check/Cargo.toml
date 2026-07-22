@@ -28,6 +28,7 @@ opentelemetry-otlp.workspace = true
 opentelemetry-stdout.workspace = true
 tokio.workspace = true
 strum = { version = "0.27.2", features = ["derive"] }
+globset.workspace = true
 
 [dev-dependencies]
 weaver_test_support = { path = "../weaver_test_support" }
