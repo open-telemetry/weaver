@@ -658,12 +658,12 @@ fn diff_signals_by_hash<T: Signal>(
                 match deprecated {
                     Deprecated::Renamed {
                         renamed_to: rename_to,
-                        note,
+                        ..
                     } => {
                         changes.push(SchemaItemChange::Renamed {
                             old_name: signal_id.to_owned(),
                             new_name: rename_to.clone(),
-                            note: note.clone(),
+                            note: deprecated.note(),
                         });
                     }
                     Deprecated::Obsoleted { note } => {
@@ -1375,7 +1375,7 @@ mod tests {
                 stability: Stability::Stable,
                 deprecated: Some(Deprecated::Renamed {
                     renamed_to: "test.key.new".to_owned(),
-                    note: "hated it".to_owned(),
+                    note: Some("hated it".to_owned()),
                 }),
                 annotations: Default::default(),
             },

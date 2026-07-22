@@ -393,8 +393,11 @@
           "type": "object",
           "properties": {
             "note": {
-              "description": "The note to provide more context about the deprecation.",
-              "type": "string"
+              "description": "The note to provide more context about the deprecation.\nWhen not provided, it is inferred from `renamed_to`.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "reason": {
               "type": "string",
@@ -407,8 +410,7 @@
           },
           "required": [
             "reason",
-            "renamed_to",
-            "note"
+            "renamed_to"
           ]
         },
         {

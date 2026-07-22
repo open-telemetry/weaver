@@ -392,14 +392,14 @@ impl ResolvedTelemetrySchema {
                     match deprecated {
                         Deprecated::Renamed {
                             renamed_to: rename_to,
-                            note,
+                            ..
                         } => {
                             changes.add_change(
                                 SchemaItemType::RegistryAttributes,
                                 SchemaItemChange::Renamed {
                                     old_name: baseline_attr.name.clone(),
                                     new_name: rename_to.clone(),
-                                    note: note.clone(),
+                                    note: deprecated.note(),
                                 },
                             );
                         }
@@ -473,14 +473,14 @@ impl ResolvedTelemetrySchema {
                     match deprecated {
                         Deprecated::Renamed {
                             renamed_to: rename_to,
-                            note,
+                            ..
                         } => {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Renamed {
                                     old_name: (*signal_name).to_owned(),
                                     new_name: rename_to.clone(),
-                                    note: note.clone(),
+                                    note: deprecated.note(),
                                 },
                             );
                         }
@@ -669,11 +669,11 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     renamed_to: "attr2_bis".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     renamed_to: "attr3_bis".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -715,11 +715,11 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -753,11 +753,11 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -817,7 +817,7 @@ mod tests {
             [],
             Some(Deprecated::Renamed {
                 renamed_to: "system.cpu.time".to_owned(),
-                note: "Replaced by `system.cpu.utilization`".to_owned(),
+                note: Some("Replaced by `system.cpu.utilization`".to_owned()),
             }),
         );
         latest_schema.add_metric_group("metrics.system.cpu.time", "system.cpu.time", [], None);
