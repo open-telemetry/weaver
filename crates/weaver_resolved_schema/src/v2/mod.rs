@@ -84,6 +84,12 @@ struct ResolvedTelemetrySchemaRaw {
     dependencies: BTreeSet<SchemaUrl>,
 }
 
+/// Keep [`ResolvedTelemetrySchemaRaw`] in sync with [`ResolvedTelemetrySchema`] — same
+/// fields AND same serde attributes. Two tests guard against drift: this `From` impl
+/// fails to compile if a field is added to one struct but not the other, and
+/// `mirror_serializes_identically_to_public_schema` fails if their serde attributes diverge.
+/// When adding a new field here, add it to mirror_serializes_identically_to_public_schema 
+/// with non-default values
 impl From<ResolvedTelemetrySchemaRaw> for ResolvedTelemetrySchema {
     fn from(raw: ResolvedTelemetrySchemaRaw) -> Self {
         Self {
@@ -1593,6 +1599,62 @@ mod tests {
             },
             dependencies: BTreeSet::new(),
         }
+    }
+
+    /// A valid schema with the top-level non-required field (`dependencies`) populated.
+    ///
+    /// Only ResolvedTelemetrySchema's own top-level fields can drift from the mirror:
+    /// every nested type (Attribute, Registry, Deprecated, ...) is the same Rust type in
+    /// both structs and serializes identically, so nested fields need not be populated
+    /// here. When you add a non-required field directly to ResolvedTelemetrySchema, set
+    /// it here too so the two structs keep serializing identically, i.e. the shape check
+    /// validates against is the same shape weaver reads and writes.
+    fn populated_schema_yaml() -> serde_yaml::Value {
+        yaml(
+            r#"
+file_format: resolved/2.0
+schema_url: http://test/schemas/1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+dependencies:
+- http://dependency/url/1.0.0
+"#,
+        )
+    }
+
+    /// `ResolvedTelemetrySchemaRaw` is a hand-maintained deserialize mirror of
+    /// `ResolvedTelemetrySchema`. A missing *field* is caught at compile time by the
+    /// exhaustive `From<ResolvedTelemetrySchemaRaw>` impl, but a diverging serde
+    /// attribute (`default`, `skip_serializing_if`, `rename`, ...) is not — and
+    /// `unexpected_fields::check` diffs the raw YAML against the *mirror's*
+    /// serialization, so such drift breaks typo detection. This guards
+    /// the invariant that both types serialize identically.
+    #[test]
+    fn mirror_serializes_identically_to_public_schema() {
+        let value = populated_schema_yaml();
+        let public = ResolvedTelemetrySchema::from_yaml_value(
+            value.clone(),
+            std::path::Path::new("test.yaml"),
+        )
+        .expect("populated schema should load");
+        let mirror: ResolvedTelemetrySchemaRaw =
+            serde_yaml::from_value(value).expect("populated schema should deserialize into mirror");
+        assert_eq!(
+            serde_yaml::to_value(&public).expect("serialize public"),
+            serde_yaml::to_value(&mirror).expect("serialize mirror"),
+            "ResolvedTelemetrySchemaRaw drifted from ResolvedTelemetrySchema: their \
+             fields and serde attributes must stay identical"
+        );
     }
 
     fn yaml(s: &str) -> serde_yaml::Value {
