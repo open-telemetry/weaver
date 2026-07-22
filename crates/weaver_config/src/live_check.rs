@@ -198,7 +198,8 @@ impl Default for LiveCheckEmitConfig {
 }
 
 /// A filter that drops findings by ID exclusion or minimum level.
-/// Optional `signal_type` scopes the filter to a specific signal type.
+/// Optional `signal_type` and `sample_names` scope the filter to a specific
+/// signal type and/or set of sample names.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct FindingFilter {
     /// Drop findings with these IDs.
@@ -208,12 +209,18 @@ pub struct FindingFilter {
     /// Optional signal type scope. When set, this filter only applies to
     /// findings with a matching signal_type.
     pub signal_type: Option<String>,
-    /// Drop all findings for samples with these names.
+    /// Drop all findings for samples with these names (supports glob
+    /// wildcards, e.g. `"trace.*"`).
     /// For attribute samples, this matches the attribute key — e.g.
     /// `["trace.parent_id", "trace.span_id"]` suppresses all findings
     /// (e.g. `missing_attribute`) for those attribute keys.
     #[serde(default)]
     pub exclude_samples: Vec<String>,
+    /// Optional sample name scope (supports glob wildcards, e.g. `"http.*"`).
+    /// When set, this filter only applies to samples whose name matches one
+    /// of these patterns, in addition to any `signal_type` scope.
+    #[serde(default)]
+    pub sample_names: Vec<String>,
 }
 
 #[cfg(test)]
@@ -394,6 +401,50 @@ min_level = "violation"
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let lc = live_check(&config);
         assert!(lc.finding_filters[0].exclude_samples.is_empty());
+    }
+
+    #[test]
+    fn test_parse_sample_names() {
+        let toml = r#"
+[["live-check".finding_filters]]
+exclude = ["illegal_namespace"]
+sample_names = ["server.address", "server.port", "http.*"]
+
+[["live-check".finding_filters]]
+signal_type = "span"
+sample_names = ["custom.internal_id"]
+exclude = ["not_stable"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert_eq!(lc.finding_filters.len(), 2);
+
+        let f0 = &lc.finding_filters[0];
+        assert!(f0.signal_type.is_none());
+        assert_eq!(
+            f0.exclude.as_deref(),
+            Some(&["illegal_namespace".to_owned()][..])
+        );
+        assert_eq!(
+            f0.sample_names,
+            vec!["server.address", "server.port", "http.*"]
+        );
+
+        let f1 = &lc.finding_filters[1];
+        assert_eq!(f1.signal_type.as_deref(), Some("span"));
+        assert_eq!(f1.exclude.as_deref(), Some(&["not_stable".to_owned()][..]));
+        assert_eq!(f1.sample_names, vec!["custom.internal_id"]);
+    }
+
+    #[test]
+    fn test_parse_sample_names_defaults_to_empty() {
+        let toml = r#"
+[["live-check".finding_filters]]
+min_level = "violation"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert!(lc.finding_filters[0].sample_names.is_empty());
     }
 
     #[test]
