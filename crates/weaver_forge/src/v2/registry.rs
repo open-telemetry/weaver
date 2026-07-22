@@ -1,17 +1,20 @@
 //! Version two of registry specification.
 
-use crate::v2::provenance::Provenance;
+use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_resolved_schema::{attribute::AttributeRef, v2::catalog::AttributeCatalog};
+use weaver_resolved_schema::{
+    attribute::AttributeRef,
+    v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
+};
 use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
     error::Error,
     v2::{
         attribute::Attribute,
-        attribute_group::{AttributeGroup, AttributeGroupAttribute},
-        entity::{Entity, EntityAttribute},
+        attribute_group::AttributeGroup,
+        entity::{Entity, EntityAttribute, EntityRefinement},
         event::{Event, EventAttribute, EventRefinement},
         metric::{Metric, MetricAttribute, MetricRefinement},
         span::{Span, SpanAttribute, SpanRefinement},
@@ -66,6 +69,8 @@ pub struct Refinements {
     pub spans: Vec<SpanRefinement>,
     /// The event refinements defined.
     pub events: Vec<EventRefinement>,
+    /// The entity refinements defined.
+    pub entities: Vec<EntityRefinement>,
 }
 
 /// Conversion from Resolved schema to the "template schema".
@@ -356,55 +361,39 @@ impl ForgeResolvedRegistry {
         }
         event_refinements.sort_by(|l, r| l.id.cmp(&r.id));
 
+        let convert_entity_attrs = |attrs: &[EntityAttributeRef],
+                                    group_id: &str,
+                                    errors: &mut Vec<Error>|
+         -> Vec<EntityAttribute> {
+            attrs
+                .iter()
+                .filter_map(|ar| {
+                    let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
+                        base: Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
+                        },
+                        requirement_level: ar.requirement_level.clone(),
+                    });
+                    if attr.is_none() {
+                        errors.push(Error::AttributeNotFound {
+                            group_id: group_id.to_owned(),
+                            attr_ref: AttributeRef(ar.base.0),
+                        });
+                    }
+                    attr
+                })
+                .collect()
+        };
+
         let mut entities = Vec::new();
         for e in schema.registry.entities {
-            let identity = e
-                .identity
-                .iter()
-                .filter_map(|ar| {
-                    let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
-                        base: Attribute {
-                            key: a.key.clone(),
-                            r#type: a.r#type.clone(),
-                            examples: a.examples.clone(),
-                            common: a.common.clone(),
-                            provenance: resolve_provenance(&a.provenance),
-                        },
-                        requirement_level: ar.requirement_level.clone(),
-                    });
-                    if attr.is_none() {
-                        errors.push(Error::AttributeNotFound {
-                            group_id: format!("entity.{}", &e.r#type),
-                            attr_ref: AttributeRef(ar.base.0),
-                        });
-                    }
-                    attr
-                })
-                .collect();
-
-            let description = e
-                .description
-                .iter()
-                .filter_map(|ar| {
-                    let attr = attribute_lookup(&ar.base).map(|a| EntityAttribute {
-                        base: Attribute {
-                            key: a.key.clone(),
-                            r#type: a.r#type.clone(),
-                            examples: a.examples.clone(),
-                            common: a.common.clone(),
-                            provenance: resolve_provenance(&a.provenance),
-                        },
-                        requirement_level: ar.requirement_level.clone(),
-                    });
-                    if attr.is_none() {
-                        errors.push(Error::AttributeNotFound {
-                            group_id: format!("entity.{}", &e.r#type),
-                            attr_ref: AttributeRef(ar.base.0),
-                        });
-                    }
-                    attr
-                })
-                .collect();
+            let group_id = format!("entity.{}", &e.r#type);
+            let identity = convert_entity_attrs(&e.identity, &group_id, &mut errors);
+            let description = convert_entity_attrs(&e.description, &group_id, &mut errors);
             entities.push(Entity {
                 r#type: e.r#type,
                 identity,
@@ -415,6 +404,25 @@ impl ForgeResolvedRegistry {
             });
         }
         entities.sort_by(|l, r| l.r#type.cmp(&r.r#type));
+
+        let mut entity_refinements = Vec::new();
+        for e in schema.refinements.entities {
+            let group_id = format!("entity.{}", &e.id);
+            let identity = convert_entity_attrs(&e.entity.identity, &group_id, &mut errors);
+            let description = convert_entity_attrs(&e.entity.description, &group_id, &mut errors);
+            entity_refinements.push(EntityRefinement {
+                id: e.id,
+                entity: Entity {
+                    r#type: e.entity.r#type,
+                    identity,
+                    description,
+                    requirement_level: e.entity.requirement_level,
+                    common: e.entity.common,
+                    provenance: resolve_provenance(&e.entity.provenance),
+                },
+            });
+        }
+        entity_refinements.sort_by(|l, r| l.id.cmp(&r.id));
 
         let mut attribute_groups = Vec::new();
         for ag in schema.registry.attribute_groups {
@@ -470,6 +478,7 @@ impl ForgeResolvedRegistry {
                 metrics: metric_refinements,
                 spans: span_refinements,
                 events: event_refinements,
+                entities: entity_refinements,
             },
         })
     }
@@ -559,7 +568,7 @@ mod tests {
                 }],
                 entities: vec![v2::entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
-                    identity: vec![v2::entity::EntityAttributeRef {
+                    identity: vec![EntityAttributeRef {
                         base: attribute::AttributeRef(0),
                         requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
                             weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
@@ -638,6 +647,7 @@ mod tests {
                         provenance: Default::default(),
                     },
                 }],
+                entities: vec![],
             },
         };
 
@@ -739,6 +749,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
         };
 

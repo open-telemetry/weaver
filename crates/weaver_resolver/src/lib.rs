@@ -917,17 +917,34 @@ mod tests {
     }
 
     /// End-to-end test for an entity refinement over a v2 dependency
-    ///
-    /// TODO: ignored until entity refinement inheritance preserves the
-    /// attribute role. Currently the dependency lookup drops the role (see
-    /// `attr_spec` in dependency.rs), so the base entity's identity
-    /// attributes collapse into `description` and this test fails. Re-enable
-    /// once that is fixed and generate the expected schema.
     #[test]
-    #[ignore = "entity refinement drops identity/description role; see attr_spec TODO"]
-    fn test_v2_dependency_entity_refinement_inherits_attributes(
-    ) -> Result<(), weaver_semconv::Error> {
+    fn test_v2_dependency_entity_refinement_preserves_roles() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
+    }
+
+    /// Can't demote an identity attribute of a base entity.
+    #[test]
+    fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/entity_demote_registry/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected resolution to fail with an identity demotion error")
+            }
+            WResult::FatalErr(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("Entity refinement `demoted.host` changes the identity of")
+                        && msg.contains("referencing `host.id` under `Descriptive`"),
+                    "Expected identity demotion error, got: {msg}"
+                );
+            }
+        }
+        Ok(())
     }
 
     #[test]

@@ -377,7 +377,7 @@
           ]
         },
         "description": {
-          "description": "List of attributes that describe to this entity.",
+          "description": "List of attributes that describe this entity.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EntityAttribute"
@@ -535,6 +535,85 @@
         "brief",
         "stability",
         "requirement_level"
+      ]
+    },
+    "EntityRefinement": {
+      "description": "A refinement of an entity signal.\n\nDescribes an entity optimized for a specific environment,\nfor example, a host entity might be refined for a specific OS\nand describe how base entity attributes are obtained in that OS.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "description": "List of attributes that describe this entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityAttribute"
+          }
+        },
+        "id": {
+          "description": "The identity of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "identity": {
+          "description": "List of attributes that identify this entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityAttribute"
+          }
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the entity.",
+          "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "The type of the entity.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "brief",
+        "stability"
       ]
     },
     "EnumEntriesSpec": {
@@ -1287,6 +1366,13 @@
       "description": "The set of all refinements for a semantic convention registry.\n\nA refinement is a specialization of a signal for a particular purpose,\ne.g. creating a MySQL specific instance of a database span for the purpose\nof codegeneration for MySQL.",
       "type": "object",
       "properties": {
+        "entities": {
+          "description": "The entity refinements defined.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityRefinement"
+          }
+        },
         "events": {
           "description": "The event refinements defined.",
           "type": "array",
@@ -1313,7 +1399,8 @@
       "required": [
         "metrics",
         "spans",
-        "events"
+        "events",
+        "entities"
       ]
     },
     "Registry": {

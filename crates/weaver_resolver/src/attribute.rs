@@ -819,6 +819,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         };
@@ -839,6 +840,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         };
@@ -928,6 +930,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         };
@@ -994,6 +997,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         }
