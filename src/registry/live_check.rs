@@ -302,7 +302,7 @@ pub(crate) fn command(
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
 
-    live_checker.finding_modifier = FindingModifier::from_filters(&config.finding_filters);
+    live_checker.finding_modifier = FindingModifier::from_filters(&config.finding_filters)?;
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,

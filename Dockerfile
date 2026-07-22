@@ -1,5 +1,5 @@
 # The build image
-FROM docker.io/rust:1.97.1@sha256:4f9fcd47f7c1126d2c8dd20e594f8ec852492fe429c2c6c11ca56eebfffaf0d9 AS weaver-build
+FROM docker.io/rust:1.97.1@sha256:1bcff4befb740599103a2c7cb51058e14479b2e35e3a34a3f0dc4ede09927488 AS weaver-build
 WORKDIR /build
 
 # Install Node.js and musl build dependencies
