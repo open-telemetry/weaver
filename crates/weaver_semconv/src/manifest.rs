@@ -289,9 +289,9 @@ impl RegistryManifest {
         }
 
         // Read once as text so we can deserialize twice — directly into the typed
-        // `RawManifestFields` (which leverages serde_yaml's type coercions, e.g.
-        // numeric `1.1` → `"1.1"` for a `String` field) AND into a `Value` tree
-        // for the unknown-field walker.
+        // `RawManifestFields` (which leverages serde_yaml's type coercions, e.g. a
+        // YAML numeric `semconv_version: 1.1` coerced to the `String` `"1.1"`) AND
+        // into a `Value` tree for the unknown-field walker.
         let yaml_str = std::fs::read_to_string(path).map_err(|e| InvalidRegistryManifest {
             path: manifest_path_buf.clone(),
             error: e.to_string(),
