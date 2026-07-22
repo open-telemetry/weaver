@@ -123,26 +123,77 @@ fn diff(
                 }
             }
         }
-        // Pairwise diff. Lengths normally match; if raw is longer, report the
-        // extras so dropped elements don't slip through.
+        // Pair each raw element with its normalized counterpart, then recurse. An
+        // unmatched raw element was dropped by the round-trip — report it unless it is
+        // a default the serializer would have skipped.
         (serde_yaml::Value::Sequence(raw_seq), serde_yaml::Value::Sequence(norm_seq)) => {
-            for (i, (raw_val, norm_val)) in raw_seq.iter().zip(norm_seq.iter()).enumerate() {
-                diff(
-                    &format!("{path}[{i}]"),
-                    raw_val,
-                    norm_val,
-                    deprecated_keys,
-                    out,
-                );
-            }
-            for (i, raw_val) in raw_seq.iter().enumerate().skip(norm_seq.len()) {
-                if !is_default_equivalent(raw_val) {
-                    out.push(format!("{path}[{i}]"));
+            for (i, (raw_val, matched)) in raw_seq
+                .iter()
+                .zip(align_sequence(raw_seq, norm_seq))
+                .enumerate()
+            {
+                match matched {
+                    Some(j) => {
+                        diff(&format!("{path}[{i}]"), raw_val, &norm_seq[j], deprecated_keys, out)
+                    }
+                    None if !is_default_equivalent(raw_val) => out.push(format!("{path}[{i}]")),
+                    None => {}
                 }
             }
         }
         // Leaves and shape mismatches: nothing to recurse into.
         _ => {}
+    }
+}
+
+/// Matches each raw element to its counterpart in the normalized (round-tripped) tree,
+/// returning the normalized index for each raw element or `None` if it has no match.
+///
+/// An order-preserving collection (`Vec`) keeps the two aligned by position. A reordering
+/// collection (`BTreeSet`/`HashSet`) serializes in a different order, so those are matched
+/// by content instead.
+fn align_sequence(
+    raw_seq: &[serde_yaml::Value],
+    norm_seq: &[serde_yaml::Value],
+) -> Vec<Option<usize>> {
+    // Fast path: already aligned position-for-position.
+    if raw_seq.len() == norm_seq.len()
+        && raw_seq
+            .iter()
+            .zip(norm_seq)
+            .all(|(raw, norm)| same_element(raw, norm))
+    {
+        return (0..raw_seq.len()).map(Some).collect();
+    }
+    let mut used = vec![false; norm_seq.len()];
+    raw_seq
+        .iter()
+        .map(|raw_val| {
+            let matched = norm_seq
+                .iter()
+                .enumerate()
+                .find(|(j, norm_val)| !used[*j] && same_element(raw_val, norm_val))
+                .map(|(j, _)| j);
+            if let Some(j) = matched {
+                used[j] = true;
+            }
+            matched
+        })
+        .collect()
+}
+
+/// Whether `raw` and `norm` are the same logical element.
+///
+/// A round-trip can add keys (synthesized defaults) or drop them (unknowns, skipped
+/// defaults), so only keys present on both sides are compared. Matching on shared content
+/// keeps an unknown key from pairing an element with the wrong counterpart.
+fn same_element(raw: &serde_yaml::Value, norm: &serde_yaml::Value) -> bool {
+    match (raw, norm) {
+        (serde_yaml::Value::Mapping(raw_map), serde_yaml::Value::Mapping(norm_map)) => raw_map
+            .iter()
+            .all(|(k, rv)| norm_map.get(k).map_or(true, |nv| same_element(rv, nv))),
+        (serde_yaml::Value::Sequence(_), serde_yaml::Value::Sequence(_)) => true,
+        _ => raw == norm,
     }
 }
 
@@ -245,6 +296,70 @@ mod tests {
         assert_eq!(
             collect_paths(&raw, &normalized, &[]),
             vec!["a".to_owned(), "c".to_owned()]
+        );
+    }
+
+    // ---- reordering collections (BTreeSet/HashSet of structs) ----
+    // `normalized` is in the collection's sorted order; `raw` is in the user's order.
+
+    #[test]
+    fn collect_paths_ignores_reordered_scalar_set() {
+        // Scalar sets carry no keys, so reordering has nothing to misreport.
+        let raw = yaml("deps: [c, a, b]");
+        let normalized = yaml("deps: [a, b, c]");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_realigns_reordered_struct_set_clean() {
+        // Reordered but no unknowns: matching yields no false positives.
+        let raw = yaml("deps:\n  - {id: b, note: hi}\n  - {id: a}");
+        let normalized = yaml("deps:\n  - {id: a}\n  - {id: b, note: hi}");
+        assert!(collect_paths(&raw, &normalized, &[]).is_empty());
+    }
+
+    #[test]
+    fn collect_paths_reports_typo_in_reordered_struct_set() {
+        let raw = yaml("deps:\n  - {id: a, notE: hi}\n  - {id: b}");
+        let normalized = yaml("deps:\n  - {id: a}\n  - {id: b}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["deps[0].notE".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_unknown_key_does_not_misreport_sibling_field() {
+        // An unknown key (`aaa`) on the reordered element must not flag a sibling's
+        // valid field (`note`).
+        let raw = yaml("deps:\n  - {id: b, aaa: x}\n  - {id: a, note: hi}");
+        let normalized = yaml("deps:\n  - {id: a, note: hi}\n  - {id: b}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["deps[0].aaa".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_matches_across_a_synthesized_default_field() {
+        // A round-trip may add a known field (`note`); matching on shared keys still
+        // pairs the element with its raw form.
+        let raw = yaml("deps:\n  - {id: b, oops: 1}\n  - {id: a}");
+        let normalized = yaml("deps:\n  - {id: a, note: synthesized}\n  - {id: b}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["deps[0].oops".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collect_paths_vec_typo_keeps_positional_index() {
+        // A `Vec` keeps order (fast path); the typo is reported at its true index.
+        let raw = yaml("items:\n  - {id: a}\n  - {id: a, oops: 1}");
+        let normalized = yaml("items:\n  - {id: a}\n  - {id: a}");
+        assert_eq!(
+            collect_paths(&raw, &normalized, &[]),
+            vec!["items[1].oops".to_owned()]
         );
     }
 
