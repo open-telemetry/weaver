@@ -393,8 +393,11 @@
           "type": "object",
           "properties": {
             "note": {
-              "description": "The note to provide more context about the deprecation.",
-              "type": "string"
+              "description": "The note to provide more context about the deprecation.\nWhen not provided, it is inferred from `renamed_to`.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "reason": {
               "type": "string",
@@ -407,8 +410,7 @@
           },
           "required": [
             "reason",
-            "renamed_to",
-            "note"
+            "renamed_to"
           ]
         },
         {
@@ -610,7 +612,7 @@
           ]
         },
         "description": {
-          "description": "The additional attributes to describe the Entity.",
+          "description": "Refinements or additional attributes to describe the Entity.\n\nAttributes listed here have the descriptive role.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/AttributeRef"
@@ -619,6 +621,13 @@
         "id": {
           "description": "The ID of the refinement.",
           "$ref": "#/$defs/SignalId"
+        },
+        "identity": {
+          "description": "Refinements of the base entity's identity attributes.\n\nA refinement must not change *which* attributes identify the entity: it\nmay only refine attributes the base entity already lists under\n`identity`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeRef"
+          }
         },
         "note": {
           "description": "Refines the more elaborate description of the signal.",

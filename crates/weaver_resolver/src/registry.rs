@@ -671,6 +671,7 @@ fn inherit_v2_refinement_fields(
 ///
 /// Returns true if all the `extends` references have been resolved.
 fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
+    let mut fatal_errors: Vec<Error> = vec![];
     loop {
         let mut errors = vec![];
         let mut resolved_group_count = 0;
@@ -720,7 +721,34 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     dependencies,
                     &mut errors,
                 )? {
-                    Some(parent_attrs) => Some((parent_ref, parent_attrs)),
+                    Some(parent_attrs) => {
+                        if unresolved_group.is_v2
+                            && unresolved_group.group.r#type == GroupType::Entity
+                        {
+                            let parent_type = group_index
+                                .get(&parent_ref)
+                                .map(|s| s.r#type.clone())
+                                .or_else(|| {
+                                    lookup_group_with_dependencies(
+                                        dependencies,
+                                        &group_index,
+                                        &parent_ref,
+                                        &unresolved_group.group.id,
+                                    )
+                                    .ok()
+                                    .flatten()
+                                    .map(|s| s.r#type.clone())
+                                });
+                            if parent_type == Some(GroupType::Entity) {
+                                fatal_errors.extend(entity_identity_refinement_errors(
+                                    unresolved_group,
+                                    &parent_ref,
+                                    &parent_attrs,
+                                ));
+                            }
+                        }
+                        Some((parent_ref, parent_attrs))
+                    }
                     None => continue,
                 },
                 None => None,
@@ -770,10 +798,57 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         // It means that we have an issue with the semantic convention
         // specifications.
         if resolved_group_count == 0 {
-            return Err(Error::CompoundError(errors));
+            fatal_errors.extend(errors);
+            return Err(Error::CompoundError(fatal_errors));
         }
     }
-    Ok(())
+    if fatal_errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::CompoundError(fatal_errors))
+    }
+}
+
+/// Errors when an entity refinement alters the identity of the base entity
+/// (demoting, promoting, or adding an identity attribute).
+fn entity_identity_refinement_errors(
+    group: &UnresolvedGroup,
+    extends: &str,
+    parent_attrs: &[UnresolvedAttribute],
+) -> Vec<Error> {
+    use weaver_semconv::attribute::AttributeRole;
+
+    let role_of = |spec: &AttributeSpec| match spec {
+        AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role.clone(),
+    };
+
+    group
+        .attributes
+        .iter()
+        .filter_map(|attr| {
+            let AttributeSpec::Ref { r#ref, role, .. } = &attr.spec else {
+                return None;
+            };
+            let refined_role = role.as_ref()?;
+            let changes_identity = match parent_attrs.iter().find(|p| p.spec.id() == *r#ref) {
+                // Attribute declared by the base entity: its identity role
+                // must not change.
+                Some(base) => {
+                    role_of(&base.spec).is_some_and(|base_role| base_role != *refined_role)
+                }
+                // Attribute introduced by the refinement: allowed only under
+                // `description`, never as a new identity attribute.
+                None => *refined_role == AttributeRole::Identifying,
+            };
+            changes_identity.then(|| Error::EntityRefinementChangedIdentity {
+                refinement_id: group.group.id.clone(),
+                r#ref: extends.to_owned(),
+                attribute_id: r#ref.clone(),
+                role: refined_role.clone(),
+                provenance: group.provenance.clone().map(Box::new),
+            })
+        })
+        .collect()
 }
 
 fn resolve_inheritance_attrs_unified(

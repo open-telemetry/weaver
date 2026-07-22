@@ -9,14 +9,15 @@
 
 use schemars::JsonSchema;
 use serde::de::{MapAccess, Visitor};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::ser::SerializeMap;
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
 /// The different ways to deprecate an attribute, a metric, ...
-#[derive(
-    Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
-)]
+// Note: `Serialize` is implemented manually so that the `note` always shows up,
+// including when it was inferred. See `Deprecated::note`.
+#[derive(Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "reason")]
@@ -27,7 +28,8 @@ pub enum Deprecated {
         /// The new name of the telemetry object.
         renamed_to: String,
         /// The note to provide more context about the deprecation.
-        note: String,
+        /// When not provided, it is inferred from `renamed_to`.
+        note: Option<String>,
     },
     /// The telemetry object containing the deprecated field has been obsoleted
     /// because it no longer exists and has no valid replacement.
@@ -113,8 +115,7 @@ where
             match action.as_deref() {
                 Some("renamed") => {
                     let renamed_to =
-                        new_name.ok_or_else(|| de::Error::missing_field("rename_to"))?;
-                    let note = note.unwrap_or_else(|| format!("Replaced by `{renamed_to}`."));
+                        new_name.ok_or_else(|| de::Error::missing_field("renamed_to"))?;
                     Ok(Deprecated::Renamed { renamed_to, note })
                 }
                 Some("obsoleted") => Ok(Deprecated::Obsoleted {
@@ -176,16 +177,62 @@ where
     deserializer.deserialize_option(OptionDeprecatedVisitor)
 }
 
+impl Deprecated {
+    /// The note providing more context about the deprecation.
+    ///
+    /// Definitions don't have to provide one for a `renamed` deprecation - it is
+    /// then derived from `renamed_to`.
+    #[must_use]
+    pub fn note(&self) -> String {
+        match self {
+            Deprecated::Renamed {
+                renamed_to,
+                note: None,
+            } => format!("Replaced by `{renamed_to}`."),
+            Deprecated::Renamed {
+                note: Some(note), ..
+            }
+            | Deprecated::Obsoleted { note }
+            | Deprecated::Uncategorized { note }
+            | Deprecated::Unspecified { note } => note.clone(),
+        }
+    }
+
+    /// The deprecation reason, as it appears in the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &'static str {
+        match self {
+            Deprecated::Renamed { .. } => "renamed",
+            Deprecated::Obsoleted { .. } => "obsoleted",
+            Deprecated::Uncategorized { .. } => "uncategorized",
+            Deprecated::Unspecified { .. } => "unspecified",
+        }
+    }
+}
+
+/// Always serializes the `note`, even when the definition left it out and it had
+/// to be inferred, so that every consumer (templates, resolved schemas, ...) can
+/// rely on it being there.
+impl Serialize for Deprecated {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let renamed_to = match self {
+            Deprecated::Renamed { renamed_to, .. } => Some(renamed_to),
+            _ => None,
+        };
+        let mut map = serializer.serialize_map(Some(2 + usize::from(renamed_to.is_some())))?;
+        map.serialize_entry("reason", self.reason())?;
+        if let Some(renamed_to) = renamed_to {
+            map.serialize_entry("renamed_to", renamed_to)?;
+        }
+        map.serialize_entry("note", &self.note())?;
+        map.end()
+    }
+}
+
 /// Implements a human-readable display for the `Deprecated` enum.
 impl Display for Deprecated {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            Deprecated::Renamed { note, .. }
-            | Deprecated::Obsoleted { note }
-            | Deprecated::Uncategorized { note }
-            | Deprecated::Unspecified { note } => note,
-        };
-        write!(f, "{text}")
+        write!(f, "{}", self.note())
     }
 }
 
@@ -235,7 +282,20 @@ mod tests {
             items[2].deprecated,
             Some(Deprecated::Renamed {
                 renamed_to: "foo.unique_id".to_owned(),
-                note: "Replaced by `foo.unique_id`.".to_owned()
+                note: None
+            })
+        );
+        assert_eq!(
+            items[2].deprecated.clone().unwrap().to_string(),
+            "Replaced by `foo.unique_id`."
+        );
+        // The inferred note is serialized like any other one.
+        assert_eq!(
+            serde_json::to_value(items[2].deprecated.as_ref().unwrap()).unwrap(),
+            serde_json::json!({
+                "reason": "renamed",
+                "renamed_to": "foo.unique_id",
+                "note": "Replaced by `foo.unique_id`.",
             })
         );
         assert_eq!(
@@ -248,7 +308,7 @@ mod tests {
             items[4].deprecated,
             Some(Deprecated::Renamed {
                 renamed_to: "foo.unique_id".to_owned(),
-                note: "Replaced by a new attribute `foo.unique_id`.".to_owned()
+                note: Some("Replaced by a new attribute `foo.unique_id`.".to_owned())
             })
         );
     }

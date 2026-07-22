@@ -35,5 +35,6 @@ refinements:
       requirement_level: recommended
     brief: Refined server error event
     stability: stable
+  entities: []
 dependencies:
 - https://server.example.com/schemas/1.0.0

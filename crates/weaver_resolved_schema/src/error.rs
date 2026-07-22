@@ -5,7 +5,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl};
+use crate::error::Error::{
+    AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl, RefinementBaseNotFound,
+};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -22,6 +24,13 @@ pub enum Error {
     /// Event name does not exist on an event group in V1 schema.
     #[error("Event name not found on group: {group_id}.  This is not supported in V2 schema!")]
     EventNameNotFound {
+        /// Group id.
+        group_id: String,
+    },
+
+    /// A refinement group does not reference the base group it extends.
+    #[error("Refinement group {group_id} does not reference a base group to extend. This is not supported in V2 schema!")]
+    RefinementBaseNotFound {
         /// Group id.
         group_id: String,
     },
@@ -63,6 +72,7 @@ impl Error {
                     CompoundError(errors) => errors,
                     e @ AttributeNotFound { .. } => vec![e],
                     e @ EventNameNotFound { .. } => vec![e],
+                    e @ RefinementBaseNotFound { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                 })
                 .collect(),
