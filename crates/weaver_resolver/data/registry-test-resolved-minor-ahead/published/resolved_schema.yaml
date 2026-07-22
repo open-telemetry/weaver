@@ -55,7 +55,12 @@ registry:
     brief: Server attribute group.
     stability: stable
     note: ""
-    attributes: [0, 1]
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    - base: 1
+      requirement_level: recommended
+      future_attr_group_ref_field: "unknown on an attribute-group attribute ref"
     future_group_map:
       flag: true
       extra_data: [1, 2, 3]
@@ -71,6 +76,9 @@ registry:
     - base: 0
       requirement_level: required
       future_ref_in_span: "future span attribute ref string"
+    # Present so `Provenance` is instantiated somewhere in this fixture — the
+    # injection test can only cover types the fixture actually builds.
+    provenance: {}
     future_span_array: [a, b, c]
   metrics:
   - name: server.request.duration

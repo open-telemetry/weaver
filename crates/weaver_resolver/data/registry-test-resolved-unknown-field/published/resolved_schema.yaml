@@ -78,7 +78,13 @@ registry:
     stability: stable
     # misspelled 'note'
     not: ""
-    attributes: [0, 1]
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    # Typo on an attribute-group attribute-ref entry.
+    - base: 1
+      requirement_level: recommended
+      not: "non-default attribute group attribute ref typo"
   spans:
   - type: server.request
     kind: server

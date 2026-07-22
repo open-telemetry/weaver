@@ -42,7 +42,7 @@ pub struct AttributeGroup {
 /// group-specific requirement level refinement.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct AttributeGroupAttributeRef {
     /// Reference, by index, to the attribute catalog.
     pub base: AttributeRef,

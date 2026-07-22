@@ -124,6 +124,7 @@ impl ResolvedTelemetrySchema {
             &V2_RESOLVED_FILE_FORMAT,
             &raw_schema.file_format,
             path,
+            &[],
         )?;
         Ok(raw_schema.into())
     }
@@ -732,6 +733,7 @@ fn diff_signals_by_hash<T: Signal>(
 mod tests {
 
     use crate::v2::attribute::{Attribute as AttributeV2, AttributeRef};
+    use crate::v2::attribute_group::AttributeGroupAttributeRef;
     use crate::v2::entity::EntityAttributeRef;
     use crate::v2::event::{Event, EventAttributeRef};
     use crate::v2::span::SpanAttributeRef;
@@ -2035,6 +2037,13 @@ refinements:
     fn entity_attribute_ref_tolerates_unknown_fields() {
         let yaml = "base: 0\nrequirement_level: required\nfuture_field: value";
         let _ = serde_yaml::from_str::<EntityAttributeRef>(yaml)
+            .expect("should tolerate unknown fields");
+    }
+
+    #[test]
+    fn attribute_group_attribute_ref_tolerates_unknown_fields() {
+        let yaml = "base: 0\nrequirement_level: required\nfuture_field: value";
+        let _ = serde_yaml::from_str::<AttributeGroupAttributeRef>(yaml)
             .expect("should tolerate unknown fields");
     }
 }

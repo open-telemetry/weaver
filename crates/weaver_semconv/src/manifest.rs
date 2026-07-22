@@ -26,6 +26,10 @@ use weaver_common::vdir::VirtualDirectoryPath;
 /// The publication manifest file format supported by this build.
 pub const PUBLICATION_MANIFEST_FILE_FORMAT: FileFormat = FileFormat::new("manifest", 2, 0);
 
+/// Keys the publication manifest still accepts but no longer serializes;
+/// used by unknown-field check.
+const DEPRECATED_MANIFEST_KEYS: &[&str] = &["resolved_schema_uri", "name"];
+
 /// Represents the definition manifest for a semantic convention registry.
 ///
 /// This is used when developing a registry before it is published.
@@ -213,6 +217,7 @@ impl RawManifestFields {
                 &PUBLICATION_MANIFEST_FILE_FORMAT,
                 &manifest.file_format,
                 path,
+                DEPRECATED_MANIFEST_KEYS,
             )?;
             Ok(RegistryManifest::Publication(manifest))
         } else {
@@ -368,7 +373,7 @@ impl RegistryManifest {
 /// This is produced by `weaver registry package` and describes the contents of
 /// a self-contained registry artifact, including the URI of the resolved
 /// registry artifact (`resolved.yaml`).
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct PublicationRegistryManifest {
     /// File-format version of the form `prefix/MAJOR.MINOR`. Always `manifest/2.0`
     /// for this schema. A different prefix or a different major version (in either
@@ -394,7 +399,6 @@ pub struct PublicationRegistryManifest {
     pub stability: Stability,
 
     /// URI pointing to the resolved registry artifact included in this package.
-    #[serde(alias = "resolved_schema_uri")]
     pub resolved_registry_uri: String,
 
     #[serde(skip)]
@@ -818,6 +822,50 @@ resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
         );
     }
 
+    #[test]
+    fn test_manifest_minor_version_ahead_succeeds() {
+        // A manifest with file_format "manifest/2.99" should parse successfully,
+        // treating unknown fields as forward-compatible additions.
+        let result = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+file_format: "manifest/2.99"
+resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+future_field: "this field does not exist in 2.0"
+"#,
+            &mut vec![],
+        );
+        assert!(
+            result.is_ok(),
+            "Expected Ok for manifest/2.99 with unknown field, got: {result:?}"
+        );
+        let manifest = result.unwrap();
+        assert!(
+            matches!(manifest, RegistryManifest::Publication(_)),
+            "expected Publication variant, got {manifest:?}"
+        );
+    }
+
+    #[test]
+    fn test_manifest_major_version_mismatch_fails() {
+        // A manifest with file_format "manifest/3.0" should fail with a major-version error.
+        let result = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+file_format: "manifest/99.0"
+resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+"#,
+            &mut vec![],
+        );
+        assert!(result.is_err(), "Expected Err for manifest/99.0, got Ok");
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("Incompatible file_format"),
+            "Expected major version error message, got: {msg}"
+        );
+    }
+
     /// A publication YAML using the deprecated `resolved_schema_uri` field name
     /// must still deserialize correctly into the renamed `resolved_registry_uri`
     /// field, and surface a deprecation warning via `nfes`.
@@ -870,50 +918,6 @@ resolved_schema_uri: "https://example.com/resolved/old.yaml"
         assert_eq!(
             pubm.resolved_registry_uri,
             "https://example.com/resolved/new.yaml"
-        );
-    }
-
-    #[test]
-    fn test_manifest_minor_version_ahead_succeeds() {
-        // A manifest with file_format "manifest/2.99" should parse successfully,
-        // treating unknown fields as forward-compatible additions.
-        let result = manifest_from_yaml(
-            r#"
-schema_url: "https://example.com/schemas/1.0.0"
-file_format: "manifest/2.99"
-resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
-future_field: "this field does not exist in 2.0"
-"#,
-            &mut vec![],
-        );
-        assert!(
-            result.is_ok(),
-            "Expected Ok for manifest/2.99 with unknown field, got: {result:?}"
-        );
-        let manifest = result.unwrap();
-        assert!(
-            matches!(manifest, RegistryManifest::Publication(_)),
-            "expected Publication variant, got {manifest:?}"
-        );
-    }
-
-    #[test]
-    fn test_manifest_major_version_mismatch_fails() {
-        // A manifest with file_format "manifest/99.0" should fail with a major-version error.
-        let result = manifest_from_yaml(
-            r#"
-schema_url: "https://example.com/schemas/1.0.0"
-file_format: "manifest/99.0"
-resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
-"#,
-            &mut vec![],
-        );
-        assert!(result.is_err(), "Expected Err for manifest/99.0, got Ok");
-        let err = result.unwrap_err();
-        let msg = err.to_string();
-        assert!(
-            msg.contains("Incompatible file_format"),
-            "Expected major version error message, got: {msg}"
         );
     }
 
