@@ -20,7 +20,7 @@ pub struct FindingModifier {
 /// Check whether a scope matches a finding's signal_type.
 /// A `None` scope matches all findings (global).
 fn scope_matches(scope: Option<&String>, signal_type: Option<&String>) -> bool {
-    scope.map_or(true, |s| signal_type == Some(s))
+    scope.is_none_or(|s| signal_type == Some(s))
 }
 
 /// Check whether a finding should be excluded by a given filter.
