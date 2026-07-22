@@ -84,7 +84,7 @@ struct ResolvedTelemetrySchemaRaw {
     dependencies: BTreeSet<SchemaUrl>,
 }
 
-/// Keep [`ResolvedTelemetrySchemaRaw`] in sync with [`ResolvedTelemetrySchema`] — same
+/// Keep `ResolvedTelemetrySchemaRaw` in sync with [`ResolvedTelemetrySchema`] — same
 /// fields AND same serde attributes. Two tests guard against drift: this `From` impl
 /// fails to compile if a field is added to one struct but not the other, and
 /// `mirror_serializes_identically_to_public_schema` fails if their serde attributes diverge.
