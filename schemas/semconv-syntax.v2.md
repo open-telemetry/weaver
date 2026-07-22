@@ -666,10 +666,10 @@ The `requirement_level` on a signal (metric, span, event, or entity) is guidance
 
 The `deprecated` field indicates that a component (attribute, metric, event, etc.) should no longer be used. It supports several deprecation reasons:
 
-All deprecation reasons have the following required properties:
+All deprecation reasons have the following properties:
 
 - `reason` - Required. The type of deprecation. Must be one of: `renamed`, `obsoleted`, `uncategorized`, or `unspecified`.
-- `note` - Required. Provides context about the deprecation.
+- `note` - Provides context about the deprecation. Required for every reason except `renamed`.
 
 Additional properties depending on the reason:
 
@@ -678,6 +678,8 @@ Additional properties depending on the reason:
 Used when a component has been renamed. Requires an additional property:
 
 - `renamed_to` - Required. The new name of the telemetry object.
+
+When `note` is omitted, it defaults to ``Replaced by `<renamed_to>`.`` in the resolved schema.
 
 Example:
 

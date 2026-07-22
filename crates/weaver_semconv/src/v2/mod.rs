@@ -338,6 +338,41 @@ mod tests {
     }
 
     #[test]
+    fn test_v2_deprecated_note_is_optional_for_renamed_only() {
+        let spec = |deprecated: &str| {
+            format!(
+                "attributes:\n  - key: my.attr\n    type: string\n    brief: b\n    stability: development\n    deprecated:\n{deprecated}"
+            )
+        };
+
+        let parsed = serde_yaml::from_str::<SemConvSpecV2>(&spec(
+            "      reason: renamed\n      renamed_to: my.new_attr\n",
+        ))
+        .expect("`renamed` must parse without a note");
+        assert_eq!(
+            parsed.attributes[0]
+                .common
+                .deprecated
+                .as_ref()
+                .expect("attribute is deprecated")
+                .note(),
+            "Replaced by `my.new_attr`."
+        );
+
+        // Nothing to infer from for the other reasons, so the note stays required.
+        for reason in ["obsoleted", "uncategorized"] {
+            let err = serde_yaml::from_str::<SemConvSpecV2>(&spec(&format!(
+                "      reason: {reason}\n"
+            )))
+            .expect_err("`{reason}` must require a note");
+            assert!(
+                err.to_string().contains("note"),
+                "expected a missing `note` error for `{reason}`, got: {err}"
+            );
+        }
+    }
+
+    #[test]
     fn test_v2_requirement_level_set_no_warning() {
         for level in ["recommended", "opt_in"] {
             let yaml = format!(
