@@ -133,9 +133,13 @@ fn diff(
                 .enumerate()
             {
                 match matched {
-                    Some(j) => {
-                        diff(&format!("{path}[{i}]"), raw_val, &norm_seq[j], deprecated_keys, out)
-                    }
+                    Some(j) => diff(
+                        &format!("{path}[{i}]"),
+                        raw_val,
+                        &norm_seq[j],
+                        deprecated_keys,
+                        out,
+                    ),
                     None if !is_default_equivalent(raw_val) => out.push(format!("{path}[{i}]")),
                     None => {}
                 }

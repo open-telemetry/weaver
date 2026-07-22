@@ -88,7 +88,7 @@ struct ResolvedTelemetrySchemaRaw {
 /// fields AND same serde attributes. Two tests guard against drift: this `From` impl
 /// fails to compile if a field is added to one struct but not the other, and
 /// `mirror_serializes_identically_to_public_schema` fails if their serde attributes diverge.
-/// When adding a new field here, add it to mirror_serializes_identically_to_public_schema 
+/// When adding a new field here, add it to mirror_serializes_identically_to_public_schema
 /// with non-default values
 impl From<ResolvedTelemetrySchemaRaw> for ResolvedTelemetrySchema {
     fn from(raw: ResolvedTelemetrySchemaRaw) -> Self {
@@ -116,13 +116,14 @@ impl ResolvedTelemetrySchema {
         raw: serde_yaml::Value,
         path: &std::path::Path,
     ) -> Result<Self, weaver_semconv::Error> {
-        let raw_schema: ResolvedTelemetrySchemaRaw =
-            serde_yaml::from_value(raw.clone()).map_err(|e| {
-                weaver_semconv::Error::DeserializationError {
-                    path_or_url: path.display().to_string(),
-                    error: format!("Unable to read resolved schema: {e}"),
-                }
-            })?;
+        // Deserialize by reference so `raw` stays available for the unknown-field
+        // check below without cloning the whole tree.
+        let raw_schema = ResolvedTelemetrySchemaRaw::deserialize(&raw).map_err(|e| {
+            weaver_semconv::Error::DeserializationError {
+                path_or_url: path.display().to_string(),
+                error: format!("Unable to read resolved schema: {e}"),
+            }
+        })?;
 
         weaver_semconv::unexpected_fields::check(
             &raw,
