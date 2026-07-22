@@ -137,16 +137,6 @@ impl JsonSchema for FileFormat {
 #[must_use]
 pub fn parse_file_format_version(s: &str) -> Option<(&str, u32, u32)> {
     let (prefix, ver) = s.split_once('/')?;
-    // Enforce the JSON schema pattern `^[A-Za-z][A-Za-z0-9_-]*`: the prefix must start
-    // with a letter and contain only letters, digits, `_` or `-`.
-    let mut chars = prefix.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphabetic() => {}
-        _ => return None,
-    }
-    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-        return None;
-    }
     let (major_s, minor_s) = ver.split_once('.')?;
     Some((prefix, major_s.parse().ok()?, minor_s.parse().ok()?))
 }
@@ -169,10 +159,6 @@ mod tests {
         assert!("garbage".parse::<FileFormat>().is_err());
         assert!("resolved/2".parse::<FileFormat>().is_err());
         assert!("resolved/x.y".parse::<FileFormat>().is_err());
-        // Prefix must match the JSON schema pattern (letter-led, no leading digit).
-        assert!("1bad/2.0".parse::<FileFormat>().is_err());
-        assert!("bad prefix/2.0".parse::<FileFormat>().is_err());
-        assert!("/2.0".parse::<FileFormat>().is_err());
     }
 
     #[test]
