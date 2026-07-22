@@ -202,7 +202,7 @@ Every key is optional: omit anything you want to leave at its default (or set on
 
 ### Finding filters
 
-Filters drop findings entirely. Use `exclude` to drop by ID, `min_level` to drop findings below a threshold, and `exclude_samples` to drop all findings for specific sample names. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type.
+Filters drop findings entirely. Use `exclude` to drop by ID, `min_level` to drop findings below a threshold, and `exclude_samples` to drop all findings for specific sample names. A filter without `signal_type` applies globally; one with `signal_type` applies only to that signal type. `sample_names` further scopes a filter — like `signal_type`, but by sample name. Both `exclude_samples` and `sample_names` support glob wildcards (e.g. `"http.*"`).
 
 ```toml
 # Drop deprecated and missing_namespace findings, and anything below improvement
@@ -215,12 +215,18 @@ min_level = "improvement"
 signal_type = "span"
 exclude = ["not_stable"]
 
-# Suppress all findings for these attribute names
+# Suppress all findings for these attribute names (wildcards supported)
 [[live_check.finding_filters]]
 exclude_samples = ["trace.parent_id", "trace.span_id", "trace.trace_id"]
+
+# Drop illegal_namespace only for these specific attributes — the same
+# advice on any other attribute still surfaces as a finding
+[[live_check.finding_filters]]
+exclude = ["illegal_namespace"]
+sample_names = ["server.address", "server.port", "client.address", "client.port"]
 ```
 
-The `exclude_samples` filter matches by sample name: attribute key for attributes, span name for spans, metric name for metrics, event name for logs, and span event name for span events. It can be combined with other filter fields, for example scoping to a specific `signal_type`.
+The `exclude_samples` and `sample_names` fields match by sample name: attribute key for attributes, span name for spans, metric name for metrics, event name for logs, and span event name for span events. They can be combined with other filter fields, for example scoping to a specific `signal_type`.
 
 ## Output
 
@@ -436,24 +442,25 @@ advice_data = "schemas/**/*.json"
 Files are nested under `data` using their relative path inside the glob pattern base directory. Other file extensions are ignored.
 
 For example, if you run:
+
 ```sh
 weaver registry live-check --advice-data "schemas/**/*.json"
 ```
 
 And you have the file `schemas/user.json` with the following content:
+
 ```json
 {
-  "allowed_ids": [
-    "usr_123",
-    "usr_456"
-  ]
+  "allowed_ids": ["usr_123", "usr_456"]
 }
 ```
 
 It will be parsed and loaded into the OPA engine under the `data.user` path:
-* `data.user.allowed_ids` => `["usr_123", "usr_456"]`
+
+- `data.user.allowed_ids` => `["usr_123", "usr_456"]`
 
 You can then write a Rego rule to check whether the incoming telemetry attribute matches one of the allowed IDs:
+
 ```rego
 package live_check_advice
 
@@ -462,10 +469,10 @@ import rego.v1
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
     attr := input.sample.attribute
     attr.name == "user.id"
-    
+
     # Check if the incoming attribute value is not in the allowed list
     not attr.value in data.user.allowed_ids
-    
+
     advice_type := "invalid_user_id"
     advice_level := "violation"
     advice_context := {
@@ -476,5 +483,3 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
     message := sprintf("User ID '%s' is not in the allowed list: %v", [attr.value, data.user.allowed_ids])
 }
 ```
-
-
