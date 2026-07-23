@@ -37,5 +37,6 @@ refinements:
     brief: Refined server request duration
     stability: stable
   events: []
+  entities: []
 dependencies:
 - https://server.example.com/schemas/1.0.0

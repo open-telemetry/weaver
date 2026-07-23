@@ -256,6 +256,7 @@ pub fn convert_v1_to_v2(
     let mut events = Vec::new();
     let mut event_refinements = Vec::new();
     let mut entities = Vec::new();
+    let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
     for g in r.groups.iter() {
         match g.r#type {
@@ -312,13 +313,14 @@ pub fn convert_v1_to_v2(
                         span,
                     });
                 } else {
-                    // unwrap should be safe because we verified this is a refinement earlier.
-                    let span_type = g
-                        .lineage
-                        .as_ref()
-                        .and_then(|l| l.extends_group.as_ref())
-                        .map(|id| fix_span_group_id(id))
-                        .expect("Refinement extraction issue - this is a logic bug");
+                    let Some(extends_group) =
+                        g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
+                    else {
+                        return Err(crate::error::Error::RefinementBaseNotFound {
+                            group_id: g.id.clone(),
+                        });
+                    };
+                    let span_type = fix_span_group_id(extends_group);
                     span_refinements.push(SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: Span {
@@ -468,6 +470,12 @@ pub fn convert_v1_to_v2(
                 }
             }
             GroupType::Entity => {
+                // Check if we refine another entity.
+                let is_refinement = g
+                    .lineage
+                    .as_ref()
+                    .map(|l| l.extends_group_type == Some(GroupType::Entity))
+                    .unwrap_or(false);
                 let mut id_attrs = Vec::new();
                 let mut desc_attrs = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -490,8 +498,20 @@ pub fn convert_v1_to_v2(
                         // TODO logic error!
                     }
                 }
-                entities.push(Entity {
-                    r#type: fix_group_id("entity.", &g.id),
+                let entity_type = if is_refinement {
+                    let Some(extends_group) =
+                        g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
+                    else {
+                        return Err(crate::error::Error::RefinementBaseNotFound {
+                            group_id: g.id.clone(),
+                        });
+                    };
+                    fix_group_id("entity.", extends_group)
+                } else {
+                    fix_group_id("entity.", &g.id)
+                };
+                let entity = Entity {
+                    r#type: entity_type,
                     identity: id_attrs,
                     description: desc_attrs,
                     requirement_level: g.requirement_level.clone(),
@@ -506,7 +526,19 @@ pub fn convert_v1_to_v2(
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
                     provenance: get_provenance(g),
-                });
+                };
+                if is_refinement {
+                    entity_refinements.push(entity::EntityRefinement {
+                        id: fix_group_id("entity.", &g.id),
+                        entity,
+                    });
+                } else {
+                    entities.push(entity.clone());
+                    entity_refinements.push(entity::EntityRefinement {
+                        id: entity.r#type.clone(),
+                        entity,
+                    });
+                }
             }
             GroupType::AttributeGroup => {
                 if g.visibility
@@ -585,6 +617,7 @@ pub fn convert_v1_to_v2(
         spans: span_refinements,
         metrics: metric_refinements,
         events: event_refinements,
+        entities: entity_refinements,
     };
     Ok((v2_catalog.into(), v2_registry, v2_refinements, dependencies))
 }
@@ -625,12 +658,12 @@ fn diff_signals_by_hash<T: Signal>(
                 match deprecated {
                     Deprecated::Renamed {
                         renamed_to: rename_to,
-                        note,
+                        ..
                     } => {
                         changes.push(SchemaItemChange::Renamed {
                             old_name: signal_id.to_owned(),
                             new_name: rename_to.clone(),
-                            note: note.clone(),
+                            note: deprecated.note(),
                         });
                     }
                     Deprecated::Obsoleted { note } => {
@@ -1342,7 +1375,7 @@ mod tests {
                 stability: Stability::Stable,
                 deprecated: Some(Deprecated::Renamed {
                     renamed_to: "test.key.new".to_owned(),
-                    note: "hated it".to_owned(),
+                    note: Some("hated it".to_owned()),
                 }),
                 annotations: Default::default(),
             },
@@ -1524,6 +1557,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: BTreeSet::new(),
         }

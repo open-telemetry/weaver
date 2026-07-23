@@ -258,8 +258,11 @@
           "type": "object",
           "properties": {
             "note": {
-              "description": "The note to provide more context about the deprecation.",
-              "type": "string"
+              "description": "The note to provide more context about the deprecation.\nWhen not provided, it is inferred from `renamed_to`.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "reason": {
               "type": "string",
@@ -272,8 +275,7 @@
           },
           "required": [
             "reason",
-            "renamed_to",
-            "note"
+            "renamed_to"
           ]
         },
         {
@@ -466,6 +468,86 @@
       "required": [
         "base",
         "requirement_level"
+      ]
+    },
+    "EntityRefinement": {
+      "description": "A refinement of an entity signal.\n\nDescribes an entity optimized for a specific environment,\nfor example, a host entity might be refined for a specific OS\nand describe how base entity attributes are obtained in that OS.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the attribute or signal.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "A brief description of the attribute or signal.",
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deprecated"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "description": "The attributes that make the description of the Entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityAttributeRef"
+          }
+        },
+        "id": {
+          "description": "The identity of the refinement.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "identity": {
+          "description": "The attributes that make the identity of the Entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityAttributeRef"
+          }
+        },
+        "note": {
+          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "type": "string"
+        },
+        "provenance": {
+          "description": "The provenance of the Entity.",
+          "$ref": "#/$defs/Provenance"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalRequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stability": {
+          "description": "Specifies the stability of the attribute or signal.",
+          "$ref": "#/$defs/Stability"
+        },
+        "type": {
+          "description": "The type of the Entity.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "identity",
+        "brief",
+        "stability"
       ]
     },
     "EnumEntriesSpec": {
@@ -1107,22 +1189,30 @@
       "description": "Semantic convention refinements.\n\nRefinements are a specialization of a signal that can be used to optimise documentation,\nor code generation. A refinement will *always* match the conventions defined by the\nsignal it refines. Refinements cannot be inferred from signals over the wire (e.g. OTLP).\nThis is because any identifying feature of a refinement is used purely for codegen but has\nno storage location in OTLP.\n\nNote: Refinements will always include a \"base\" refinement for every signal definition.\n      For example, if a Metric signal named `my_metric` is defined, there will be\n      a metric refinement named `my_metric` as well.\n      This allows code generation to *only* interact with refinements, if desired, to\n      provide optimised methods for generating telemetry signals.",
       "type": "object",
       "properties": {
+        "entities": {
+          "description": "A list of entity refinements.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EntityRefinement"
+          }
+        },
         "events": {
-          "description": "A  list of event refinements.",
+          "description": "A list of event refinements.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/EventRefinement"
           }
         },
         "metrics": {
-          "description": "A  list of metric refinements.",
+          "description": "A list of metric refinements.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/MetricRefinement"
           }
         },
         "spans": {
-          "description": "A  list of span refinements.",
+          "description": "A list of span refinements.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/SpanRefinement"

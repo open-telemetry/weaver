@@ -917,17 +917,34 @@ mod tests {
     }
 
     /// End-to-end test for an entity refinement over a v2 dependency
-    ///
-    /// TODO: ignored until entity refinement inheritance preserves the
-    /// attribute role. Currently the dependency lookup drops the role (see
-    /// `attr_spec` in dependency.rs), so the base entity's identity
-    /// attributes collapse into `description` and this test fails. Re-enable
-    /// once that is fixed and generate the expected schema.
     #[test]
-    #[ignore = "entity refinement drops identity/description role; see attr_spec TODO"]
-    fn test_v2_dependency_entity_refinement_inherits_attributes(
-    ) -> Result<(), weaver_semconv::Error> {
+    fn test_v2_dependency_entity_refinement_preserves_roles() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
+    }
+
+    /// Can't demote an identity attribute of a base entity.
+    #[test]
+    fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/entity_demote_registry/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected resolution to fail with an identity demotion error")
+            }
+            WResult::FatalErr(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("Entity refinement `demoted.host` changes the identity of")
+                        && msg.contains("referencing `host.id` under `Descriptive`"),
+                    "Expected identity demotion error, got: {msg}"
+                );
+            }
+        }
+        Ok(())
     }
 
     #[test]
@@ -1429,6 +1446,180 @@ groups:
             resolve_at("data/registry-test-dep-exclusion/within_registry_v2_leak_ref"),
             &[("metric.parent.base", "child.refined")],
         );
+    }
+
+    #[test]
+    fn test_v2_refinement_attribute_precedence() {
+        // Precedence for an attribute a refinement inherits from its parent,
+        // re-declares via `ref_group`, and overrides inline must be:
+        // inline `ref:` > `ref_group` > parent.
+        //   - test.a: parent + ref_group -> ref_group wins.
+        //   - test.b: parent + ref_group + inline -> inline wins.
+        let registry_spec = r#"
+file_format: definition/2
+attributes:
+  - key: test.a
+    type: string
+    brief: Base a
+    stability: stable
+  - key: test.b
+    type: string
+    brief: Base b
+    stability: stable
+attribute_groups:
+  - id: parent.group
+    visibility: public
+    brief: Parent group
+    stability: stable
+    attributes:
+      - ref: test.a
+        brief: parent a
+      - ref: test.b
+        brief: parent b
+  - id: override.group
+    visibility: public
+    brief: Override group
+    stability: stable
+    attributes:
+      - ref: test.a
+        brief: override a
+      - ref: test.b
+        brief: override b
+spans:
+  - type: base.span
+    requirement_level: recommended
+    kind: client
+    name:
+      note: base span
+    brief: Base span
+    stability: stable
+    attributes:
+      - ref_group: parent.group
+span_refinements:
+  - id: span.refined
+    ref: base.span
+    brief: Refined span
+    attributes:
+      - ref_group: override.group
+      - ref: test.b
+        brief: inline b
+"#;
+        let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
+            .expect("Failed to load semconv spec");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.resolve_loaded(loaded) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => {
+                Arc::unwrap_or_clone(r).into_v1().unwrap()
+            }
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let refined = resolved
+            .group("span.refined")
+            .expect("span.refined not found");
+        let mut briefs = HashMap::new();
+        for attr_ref in &refined.attributes {
+            let attr = resolved
+                .catalog
+                .attribute(attr_ref)
+                .expect("Failed to resolve attribute ref");
+            _ = briefs.insert(attr.name.clone(), attr.brief.clone());
+        }
+        assert_eq!(
+            briefs.get("test.a").map(String::as_str),
+            Some("override a"),
+            "ref_group must override the parent-inherited attribute"
+        );
+        assert_eq!(
+            briefs.get("test.b").map(String::as_str),
+            Some("inline b"),
+            "inline `ref:` must override both ref_group and parent"
+        );
+    }
+
+    #[test]
+    fn test_v2_unresolved_ref_group() {
+        // A `ref_group` pointing at a group that does not exist reports
+        // `UnresolvedIncludeRef` (not the `extends`-flavored error).
+        let result = create_registry_from_string(
+            r#"
+file_format: definition/2
+spans:
+  - type: base.span
+    requirement_level: recommended
+    kind: client
+    name:
+      note: base span
+    brief: Base span
+    stability: stable
+    attributes:
+      - ref_group: missing.group
+"#,
+        );
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an unresolved include error"),
+            Err(Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        Error::UnresolvedIncludeRef { group_id, include_ref, .. }
+                            if group_id == "span.base.span" && include_ref == "missing.group"
+                    )),
+                    "expected UnresolvedIncludeRef on span.base.span, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
+    }
+
+    #[test]
+    fn test_v2_excluded_ref_group() {
+        // A public span pulling in an excluded group via `ref_group` leaks it —
+        // the include path must trip the same exclusion check as `extends`.
+        let result = create_registry_from_string(
+            r#"
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: string
+    brief: attr
+    stability: stable
+attribute_groups:
+  - id: attrs.excluded
+    visibility: public
+    brief: Excluded group.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+    attributes:
+      - ref: test.attr
+spans:
+  - type: leaky.span
+    requirement_level: recommended
+    kind: internal
+    name:
+      note: leaky
+    brief: Public span that pulls in an excluded group.
+    stability: stable
+    attributes:
+      - ref_group: attrs.excluded
+"#,
+        );
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an exclusion error"),
+            Err(Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                            if id == "attrs.excluded" && used_in == "span.leaky.span"
+                    )),
+                    "expected ExcludedFromDependencyResolution on span.leaky.span, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
     }
 
     #[test]

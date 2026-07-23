@@ -82,6 +82,14 @@ pub struct LiveCheckConfig {
     #[serde(default)]
     pub finding_filters: Vec<FindingFilter>,
 
+    /// Rules that override the level of matching findings instead of dropping
+    /// them (e.g. promote `undefined_enum_variant` from `information` to
+    /// `violation`). Scoped the same way as `finding_filters` (optional
+    /// `signal_type` and `sample_names`). Applied before `finding_filters`,
+    /// so a subsequent `min_level` filter sees the overridden level.
+    #[serde(default)]
+    pub finding_level_overrides: Vec<FindingLevelOverride>,
+
     /// Where to read the input telemetry from. `{file path}` | `stdin` | `otlp`.
     pub input_source: String,
 
@@ -133,6 +141,7 @@ impl Default for LiveCheckConfig {
     fn default() -> Self {
         Self {
             finding_filters: Vec::new(),
+            finding_level_overrides: Vec::new(),
             input_source: "otlp".to_owned(),
             input_format: "json".to_owned(),
             format: "ansi".to_owned(),
@@ -198,7 +207,8 @@ impl Default for LiveCheckEmitConfig {
 }
 
 /// A filter that drops findings by ID exclusion or minimum level.
-/// Optional `signal_type` scopes the filter to a specific signal type.
+/// Optional `signal_type` and `sample_names` scope the filter to a specific
+/// signal type and/or set of sample names.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct FindingFilter {
     /// Drop findings with these IDs.
@@ -208,12 +218,38 @@ pub struct FindingFilter {
     /// Optional signal type scope. When set, this filter only applies to
     /// findings with a matching signal_type.
     pub signal_type: Option<String>,
-    /// Drop all findings for samples with these names.
+    /// Drop all findings for samples with these names (supports glob
+    /// wildcards, e.g. `"trace.*"`).
     /// For attribute samples, this matches the attribute key — e.g.
     /// `["trace.parent_id", "trace.span_id"]` suppresses all findings
     /// (e.g. `missing_attribute`) for those attribute keys.
     #[serde(default)]
     pub exclude_samples: Vec<String>,
+    /// Optional sample name scope (supports glob wildcards, e.g. `"http.*"`).
+    /// When set, this filter only applies to samples whose name matches one
+    /// of these patterns, in addition to any `signal_type` scope.
+    #[serde(default)]
+    pub sample_names: Vec<String>,
+}
+
+/// A rule that overrides the level of matching findings instead of dropping
+/// them. Optional `signal_type` and `sample_names` scope the rule the same
+/// way as `FindingFilter`.
+#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
+pub struct FindingLevelOverride {
+    /// Override the level of findings with these IDs. When unset, applies to
+    /// any finding ID within scope.
+    pub ids: Option<Vec<String>>,
+    /// The level to set on matching findings.
+    pub level: FindingLevel,
+    /// Optional signal type scope. When set, this rule only applies to
+    /// findings with a matching signal_type.
+    pub signal_type: Option<String>,
+    /// Optional sample name scope (supports glob wildcards, e.g. `"http.*"`).
+    /// When set, this rule only applies to samples whose name matches one of
+    /// these patterns, in addition to any `signal_type` scope.
+    #[serde(default)]
+    pub sample_names: Vec<String>,
 }
 
 #[cfg(test)]
@@ -394,6 +430,89 @@ min_level = "violation"
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let lc = live_check(&config);
         assert!(lc.finding_filters[0].exclude_samples.is_empty());
+    }
+
+    #[test]
+    fn test_parse_sample_names() {
+        let toml = r#"
+[["live-check".finding_filters]]
+exclude = ["illegal_namespace"]
+sample_names = ["server.address", "server.port", "http.*"]
+
+[["live-check".finding_filters]]
+signal_type = "span"
+sample_names = ["custom.internal_id"]
+exclude = ["not_stable"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert_eq!(lc.finding_filters.len(), 2);
+
+        let f0 = &lc.finding_filters[0];
+        assert!(f0.signal_type.is_none());
+        assert_eq!(
+            f0.exclude.as_deref(),
+            Some(&["illegal_namespace".to_owned()][..])
+        );
+        assert_eq!(
+            f0.sample_names,
+            vec!["server.address", "server.port", "http.*"]
+        );
+
+        let f1 = &lc.finding_filters[1];
+        assert_eq!(f1.signal_type.as_deref(), Some("span"));
+        assert_eq!(f1.exclude.as_deref(), Some(&["not_stable".to_owned()][..]));
+        assert_eq!(f1.sample_names, vec!["custom.internal_id"]);
+    }
+
+    #[test]
+    fn test_parse_sample_names_defaults_to_empty() {
+        let toml = r#"
+[["live-check".finding_filters]]
+min_level = "violation"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert!(lc.finding_filters[0].sample_names.is_empty());
+    }
+
+    #[test]
+    fn test_parse_finding_level_overrides() {
+        let toml = r#"
+[["live-check".finding_level_overrides]]
+ids = ["undefined_enum_variant"]
+level = "violation"
+
+[["live-check".finding_level_overrides]]
+signal_type = "span"
+sample_names = ["custom.*"]
+ids = ["undefined_enum_variant"]
+level = "improvement"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert_eq!(lc.finding_level_overrides.len(), 2);
+
+        let o0 = &lc.finding_level_overrides[0];
+        assert!(o0.signal_type.is_none());
+        assert!(o0.sample_names.is_empty());
+        assert_eq!(
+            o0.ids.as_deref(),
+            Some(&["undefined_enum_variant".to_owned()][..])
+        );
+        assert_eq!(o0.level, FindingLevel::Violation);
+
+        let o1 = &lc.finding_level_overrides[1];
+        assert_eq!(o1.signal_type.as_deref(), Some("span"));
+        assert_eq!(o1.sample_names, vec!["custom.*"]);
+        assert_eq!(o1.level, FindingLevel::Improvement);
+    }
+
+    #[test]
+    fn test_parse_finding_level_overrides_defaults_to_empty() {
+        let config: WeaverConfig = toml::from_str("").expect("Failed to parse empty TOML");
+        let lc = live_check(&config);
+        assert!(lc.finding_level_overrides.is_empty());
     }
 
     #[test]

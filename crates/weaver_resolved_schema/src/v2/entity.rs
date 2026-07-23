@@ -54,6 +54,22 @@ pub struct EntityAttributeRef {
     pub requirement_level: RequirementLevel,
 }
 
+/// A refinement of an entity signal.
+///
+/// Describes an entity optimized for a specific environment,
+/// for example, a host entity might be refined for a specific OS
+/// and describe how base entity attributes are obtained in that OS.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EntityRefinement {
+    /// The identity of the refinement.
+    pub id: SignalId,
+
+    /// The definition of the entity refinement.
+    #[serde(flatten)]
+    pub entity: Entity,
+}
+
 impl Signal for Entity {
     fn id(&self) -> &str {
         &self.r#type

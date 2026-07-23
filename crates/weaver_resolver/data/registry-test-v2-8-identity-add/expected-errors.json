@@ -1,0 +1,1 @@
+{"CompoundError":[{"EntityRefinementChangedIdentity":{"refinement_id":"entity.adding.entity","ref":"entity.base.entity","attribute_id":"test.attr2","role":"identifying","provenance":{"schema_url":"https://default/0.1.0","path":"data/registry-test-v2-8-identity-add/registry/v2-identity-add.yaml"}}}]}

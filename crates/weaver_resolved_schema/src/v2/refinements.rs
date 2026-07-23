@@ -1,7 +1,8 @@
 //! A semantic convention refinements.
 
 use crate::v2::{
-    event::EventRefinement, metric::MetricRefinement, span::SpanRefinement, stats::RefinementStats,
+    entity::EntityRefinement, event::EventRefinement, metric::MetricRefinement,
+    span::SpanRefinement, stats::RefinementStats,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,14 +24,18 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Refinements {
-    /// A  list of span refinements.
+    /// A list of span refinements.
     pub spans: Vec<SpanRefinement>,
 
-    /// A  list of metric refinements.
+    /// A list of metric refinements.
     pub metrics: Vec<MetricRefinement>,
 
-    /// A  list of event refinements.
+    /// A list of event refinements.
     pub events: Vec<EventRefinement>,
+
+    /// A list of entity refinements.
+    #[serde(default)]
+    pub entities: Vec<EntityRefinement>,
 }
 
 impl Refinements {

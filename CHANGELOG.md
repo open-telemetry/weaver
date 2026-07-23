@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Live-check: (Fixes: [#1614](https://github.com/open-telemetry/weaver/issues/1614)) add `[[live-check.finding_level_overrides]]` to rewrite a finding's level instead of dropping it (e.g. treat `undefined_enum_variant` as a violation), scoped by the same `signal_type`/`sample_names` rules as `finding_filters`. ([#1625](https://github.com/open-telemetry/weaver/pull/1625) by @jerbly)
+- Change v2 refinement attribute precedence so `ref_group` details win over inherited attributes. ([#1604](https://github.com/open-telemetry/weaver/pull/1604) by @lmolkova)
+- Make `deprecated.note` optional for `{reason: renamed}` - inferred from `renamed_to`. ([#1622](https://github.com/open-telemetry/weaver/pull/1622) by @lmolkova)
+- Add v2 entity refinements to the resolved and materialized schema, allow to refine attributes without changing entity identity. ([#1588](https://github.com/open-telemetry/weaver/pull/1588) by @lmolkova)
+- Live-check: (Fixes: [#1613](https://github.com/open-telemetry/weaver/issues/1613)) add `sample_names` to `[[live-check.finding_filters]]` to scope a filter to matching sample names, with glob wildcard support (also added to `exclude_samples`). ([#1619](https://github.com/open-telemetry/weaver/pull/1619) by @jerbly)
 - Add a tree view to the `serve` UI's search page, grouping results by namespace with expand/collapse controls, and a "Hide deprecated" toggle (on by default) for both the list and tree views. ([#1595](https://github.com/open-telemetry/weaver/pull/1595) by @jerbly)
 - Support signal refinements over a published dependency. ([#1587](https://github.com/open-telemetry/weaver/pull/1587) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Preserve per-attribute `requirement_level` on attribute refs of public attribute groups in the v2 resolved and materialized schemas. Each entry in an attribute group's `attributes` is now an object (`{ base, requirement_level }`) instead of a bare `attribute_catalog` index. ([#1584](https://github.com/open-telemetry/weaver/pull/1584) by @lmolkova)
