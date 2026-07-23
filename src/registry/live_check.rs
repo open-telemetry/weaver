@@ -37,7 +37,7 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_config::WeaverCommand;
 
 use super::otlp::otlp_ingester::OtlpIngester;
-use super::otlp::AdminReportSender;
+use super::otlp::{AdminController, AdminDrainGuard};
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -314,7 +314,11 @@ pub(crate) fn command(
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
-    let mut admin_report_sender: Option<AdminReportSender> = None;
+    let mut admin_controller: Option<AdminController> = None;
+    // Write-only: kept alive only so its `Drop` impl (signal + drain the
+    // OTLP receiver's background thread) fires no matter how this function
+    // returns, including through the several `?` early-returns below.
+    let mut _admin_thread: Option<AdminDrainGuard> = None;
     let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
@@ -331,13 +335,12 @@ pub(crate) fn command(
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout: config.otlp.inactivity_timeout,
             };
-            let (iter, sender) = otlp.ingest_otlp()?;
+            let (iter, controller, handle) = otlp.ingest_otlp()?;
             if is_http_output {
-                sender
-                    .expect_report
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                controller.enable_http_report();
             }
-            admin_report_sender = Some(sender);
+            _admin_thread = Some(AdminDrainGuard::new(controller.clone(), handle));
+            admin_controller = Some(controller);
             iter
         }
     };
@@ -423,12 +426,9 @@ pub(crate) fn command(
     }
 
     if is_http_output {
-        let admin_waiting = admin_report_sender.as_ref().is_some_and(|s| {
-            s.sender
-                .lock()
-                .expect("Failed to acquire lock on admin report sender")
-                .is_some()
-        });
+        let admin_waiting = admin_controller
+            .as_ref()
+            .is_some_and(AdminController::has_report_waiter);
 
         if admin_waiting {
             // Format report and send through admin channel
@@ -463,15 +463,8 @@ pub(crate) fn command(
                     .generate_to_string(&report)
                     .map_err(DiagnosticMessages::from)?
             };
-            if let Some(report) = admin_report_sender.take() {
-                if let Some(sender) = report
-                    .sender
-                    .lock()
-                    .expect("Failed to acquire lock on admin report sender")
-                    .take()
-                {
-                    let _ = sender.send((content_type, body));
-                }
+            if let Some(controller) = admin_controller.take() {
+                let _ = controller.deliver_report(content_type, body);
             }
         } else {
             // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
@@ -483,6 +476,13 @@ pub(crate) fn command(
         // Stats only (streaming mode finished)
         output.generate(&stats).map_err(DiagnosticMessages::from)?;
     }
+
+    // `_admin_thread`'s Drop impl waits for the OTLP receiver's background
+    // thread to fully drain (gRPC + HTTP admin servers) once it goes out of
+    // scope at the end of this function — on every return path, not just
+    // this one — so process::exit in main() can't cut off an in-flight
+    // request (e.g. the /stop response above). Bounded so a stuck drain can
+    // never hang the process.
 
     // Shutdown OTLP emitter to flush any pending log records
     if let Some(emitter) = live_checker.otlp_emitter {

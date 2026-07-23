@@ -17,7 +17,7 @@ use super::{
         otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
         span_kind_from_otlp_kind, status_from_otlp_status,
     },
-    listen_otlp_requests, AdminReportSender, OtlpRequest,
+    listen_otlp_requests, AdminController, AdminDrainGuard, OtlpRequest,
 };
 
 /// An ingester for OTLP data
@@ -224,14 +224,25 @@ impl Iterator for OtlpIterator {
 }
 
 impl OtlpIngester {
-    /// Ingest OTLP data and return both the sample iterator and the admin report sender.
+    /// Ingest OTLP data and return the sample iterator, the admin controller,
+    /// and the OTLP receiver's background-thread join handle.
     ///
-    /// The `AdminReportSender` can be used to send a formatted report back through
-    /// the `/stop` HTTP endpoint when `--output http` is used.
+    /// The `AdminController` can be used to send a formatted report back through
+    /// the `/stop` HTTP endpoint when `--output http` is used. The join handle
+    /// only resolves once the gRPC server, HTTP admin server, and background
+    /// tasks have gracefully shut down — callers should join it before
+    /// exiting the process to avoid cutting off an in-flight request.
     pub fn ingest_otlp(
         &self,
-    ) -> Result<(Box<dyn Iterator<Item = Sample>>, AdminReportSender), Error> {
-        let (otlp_requests, report_sender) = listen_otlp_requests(
+    ) -> Result<
+        (
+            Box<dyn Iterator<Item = Sample>>,
+            AdminController,
+            std::thread::JoinHandle<()>,
+        ),
+        Error,
+    > {
+        let (otlp_requests, controller, handle) = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
@@ -262,14 +273,81 @@ impl OtlpIngester {
 
         Ok((
             Box::new(OtlpIterator::new(Box::new(otlp_requests))),
-            report_sender,
+            controller,
+            handle,
         ))
+    }
+}
+
+/// Wraps the OTLP sample iterator so that, consumed through the generic
+/// [`Ingester::ingest`] trait method, the admin thread still gets signalled
+/// to shut down and drained once iteration ends.
+///
+/// The generic trait has no way to expose the `AdminController`/`JoinHandle`
+/// that [`OtlpIngester::ingest_otlp`] returns, so without this, dropping
+/// them here would silently detach the background thread — reintroducing
+/// the stop-race this module's shutdown coordination exists to prevent.
+/// `_guard`'s own `Drop` impl does the actual signal-and-wait; it's never
+/// read otherwise, only dropped alongside `inner`.
+struct DrainOnDrop {
+    inner: Box<dyn Iterator<Item = Sample>>,
+    _guard: AdminDrainGuard,
+}
+
+impl Iterator for DrainOnDrop {
+    type Item = Sample;
+
+    fn next(&mut self) -> Option<Sample> {
+        self.inner.next()
     }
 }
 
 impl Ingester for OtlpIngester {
     fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
-        let (iterator, _report_sender) = self.ingest_otlp()?;
-        Ok(iterator)
+        let (iterator, controller, handle) = self.ingest_otlp()?;
+        Ok(Box::new(DrainOnDrop {
+            inner: iterator,
+            _guard: AdminDrainGuard::new(controller, handle),
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_test_support::reserve_test_port;
+
+    #[test]
+    fn generic_ingest_drains_admin_thread_on_early_drop() {
+        let grpc_port = reserve_test_port();
+        let admin_port = reserve_test_port();
+        let ingester = OtlpIngester {
+            otlp_grpc_address: "127.0.0.1".to_owned(),
+            otlp_grpc_port: grpc_port,
+            admin_port,
+            // Disabled: nothing internal should ever request shutdown here.
+            inactivity_timeout: 0,
+        };
+
+        // Go through the generic `Ingester::ingest()` trait method — the
+        // entry point that has no direct access to the AdminController or
+        // JoinHandle `ingest_otlp` returns.
+        let iterator = ingester.ingest().expect("Failed to start OTLP ingester");
+
+        // Give the server a little time to finish binding the port.
+        std::thread::sleep(Duration::from_millis(200));
+
+        // Drop the iterator without ever consuming a sample or sending any
+        // stop signal (no /stop, no CTRL+C, no inactivity) — simulating a
+        // caller that simply stops reading. The admin thread must still be
+        // signalled and drained: the admin port should no longer be
+        // accepting connections.
+        drop(iterator);
+
+        assert!(
+            std::net::TcpStream::connect(("127.0.0.1", admin_port)).is_err(),
+            "Admin port is still accepting connections after the generic ingest() \
+             iterator was dropped early — the background thread was not drained"
+        );
     }
 }

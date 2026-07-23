@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- OTLP receiver: (Fixes: [#1626](https://github.com/open-telemetry/weaver/issues/1626)) fix `live-check --output http` sometimes exiting before the `/stop` response was fully delivered, and unify graceful shutdown of the gRPC and HTTP admin servers across all stop signals (CTRL+C, SIGHUP, `/stop`, inactivity) so none of them can cut an in-flight request short. (by @jerbly)
 - Live-check: (Fixes: [#1614](https://github.com/open-telemetry/weaver/issues/1614)) add `[[live-check.finding_level_overrides]]` to rewrite a finding's level instead of dropping it (e.g. treat `undefined_enum_variant` as a violation), scoped by the same `signal_type`/`sample_names` rules as `finding_filters`. ([#1625](https://github.com/open-telemetry/weaver/pull/1625) by @jerbly)
 - Change v2 refinement attribute precedence so `ref_group` details win over inherited attributes. ([#1604](https://github.com/open-telemetry/weaver/pull/1604) by @lmolkova)
 - Make `deprecated.note` optional for `{reason: renamed}` - inferred from `renamed_to`. ([#1622](https://github.com/open-telemetry/weaver/pull/1622) by @lmolkova)

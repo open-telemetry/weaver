@@ -4,25 +4,36 @@
 //! instance that uses the live_check model as its registry. Validates that the emitted
 //! OTLP log records conform to the model (zero violations).
 
-use std::process::{Child, Command as StdCommand};
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
+use tokio::process::{Child, Command as TokioCommand};
 use weaver_test_support::reserve_test_port;
+
+/// Response padding larger than one HTTP/2 flow-control window (64 KiB by
+/// default), so the server can't send the full response until the client
+/// reads it.
+const RESPONSE_PADDING_SIZE: usize = 2 * 1024 * 1024;
 
 /// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
 struct ChildGuard(Option<Child>);
 
 impl Drop for ChildGuard {
     fn drop(&mut self) {
-        if let Some(ref mut child) = self.0 {
-            let _ = child.kill();
-            let _ = child.wait();
+        if let Some(mut child) = self.0.take() {
+            // Drop can't await `Child::wait`; tokio's orphan reaper collects
+            // it in the background once it's dead.
+            let _ = child.start_kill();
         }
     }
 }
 
 impl ChildGuard {
+    /// Borrow the child without disabling the kill-on-drop behavior.
+    fn child_mut(&mut self) -> &mut Child {
+        self.0.as_mut().expect("child already taken")
+    }
+
     /// Take ownership of the child, disabling the kill-on-drop behavior.
     fn take(&mut self) -> Child {
         self.0.take().expect("child already taken")
@@ -59,13 +70,37 @@ fn wait_for_health(port: u16) {
     }
 }
 
-/// POST /stop and return the response body.
-fn stop_and_collect_report(port: u16) -> String {
+/// POST /stop over HTTP/2 and return the response body.
+///
+/// Doesn't read the body right away: since it's bigger than one flow-control
+/// window, weaver can't finish sending it until we do, so a correctly
+/// behaving process must still be alive at this point. Assert that directly
+/// instead of just reading the body and getting an opaque error on failure.
+async fn stop_and_collect_report(port: u16, child: &mut Child) -> String {
     let url = format!("http://127.0.0.1:{port}/stop");
-    let response = ureq::post(&url).send("").expect("POST /stop failed");
+    let response = reqwest::Client::builder()
+        .http2_prior_knowledge()
+        .timeout(Duration::from_secs(65))
+        .build()
+        .expect("Failed to build HTTP/2 client")
+        .post(url)
+        .send()
+        .await
+        .expect("POST /stop failed")
+        .error_for_status()
+        .expect("POST /stop returned an error status");
+
+    if let Ok(status) = tokio::time::timeout(Duration::from_millis(300), child.wait()).await {
+        panic!(
+            "weaver exited ({status:?}) before the /stop response was read, but the \
+             response is larger than one HTTP/2 flow-control window and couldn't \
+             have finished sending"
+        );
+    }
+
     response
-        .into_body()
-        .read_to_string()
+        .text()
+        .await
         .expect("Failed to read /stop response body")
 }
 
@@ -136,7 +171,7 @@ async fn test_livecheck_emit_roundtrip() {
     let weaver_bin = assert_cmd::cargo::cargo_bin("weaver");
 
     let mut guard = ChildGuard(Some(
-        StdCommand::new(weaver_bin)
+        TokioCommand::new(weaver_bin)
             .args([
                 "registry",
                 "live-check",
@@ -242,7 +277,8 @@ async fn test_livecheck_emit_roundtrip() {
             json!({
                 "attribute_key": "db.system",
                 "attribute_value": "postgresql",
-                "expected": "postgres"
+                "expected": "postgres",
+                "padding": "x".repeat(RESPONSE_PADDING_SIZE)
             }),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
@@ -336,7 +372,12 @@ async fn test_livecheck_emit_roundtrip() {
     sleep(Duration::from_millis(500));
 
     // 6. Collect report via POST /stop
-    let report_body = stop_and_collect_report(admin_port);
+    let report_body = stop_and_collect_report(admin_port, guard.child_mut()).await;
+    assert!(
+        report_body.len() > RESPONSE_PADDING_SIZE,
+        "Expected a report large enough to exercise asynchronous response delivery, got {} bytes",
+        report_body.len()
+    );
 
     // 7. Wait for weaver to exit
     //    Exit code may be non-zero if there are violations — we check that separately below.
@@ -344,6 +385,7 @@ async fn test_livecheck_emit_roundtrip() {
     let _status = guard
         .take()
         .wait()
+        .await
         .expect("Failed to wait for weaver live-check to exit");
 
     // 8. Validate the report

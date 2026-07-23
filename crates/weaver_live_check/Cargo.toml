@@ -38,6 +38,11 @@ serde_yaml.workspace = true
 serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
+# HTTP/2-only client used to regression-test the /stop shutdown race: a
+# large response consumed with a delayed body read reliably reproduces a
+# connection reset if the server process exits before Axum finishes
+# flushing the response.
+reqwest = { version = "0.13.4", default-features = false, features = ["http2"] }
 
 [lints]
 workspace = true

@@ -19,7 +19,7 @@ use super::otlp::conversion::{
     span_kind_from_otlp_kind, status_from_otlp_status,
 };
 use super::otlp::grpc_stubs::proto::resource::v1::Resource;
-use super::otlp::{listen_otlp_requests, OtlpRequest};
+use super::otlp::{listen_otlp_requests, wait_for_admin_shutdown, OtlpRequest};
 use crate::registry::load_config;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -182,7 +182,7 @@ pub(crate) fn command(
     info!("Starting OTLP gRPC server on {grpc_address}:{grpc_port}");
 
     // Start the OTLP gRPC server and get an iterator of requests
-    let (requests, _report_sender) = listen_otlp_requests(
+    let (requests, _controller, admin_thread) = listen_otlp_requests(
         &grpc_address,
         grpc_port,
         admin_port,
@@ -201,6 +201,10 @@ pub(crate) fn command(
             break;
         }
     }
+
+    // Wait for the gRPC + HTTP admin servers to fully drain before this
+    // process exits, bounded so a stuck drain can never hang the process.
+    wait_for_admin_shutdown(admin_thread);
 
     let (resources, spans, metrics, events) = accumulator.stats();
     info!(
