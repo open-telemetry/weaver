@@ -248,6 +248,13 @@
             "$ref": "#/$defs/FindingFilter"
           }
         },
+        "finding_level_overrides": {
+          "description": "Rules that override the level of matching findings instead of dropping\nthem (e.g. promote `undefined_enum_variant` from `information` to\n`violation`). Scoped the same way as `finding_filters` (optional\n`signal_type` and `sample_names`). Applied before `finding_filters`,\nso a subsequent `min_level` filter sees the overridden level.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FindingLevelOverride"
+          }
+        },
         "format": {
           "description": "Format used to render the report.\nBuiltin formats: `json`, `yaml`, `jsonl`. Other values are template names\n(e.g. `ansi` selects the ansi templates).",
           "type": "string",
@@ -626,6 +633,44 @@
           "type": "string",
           "const": "violation"
         }
+      ]
+    },
+    "FindingLevelOverride": {
+      "description": "A rule that overrides the level of matching findings instead of dropping\nthem. Optional `signal_type` and `sample_names` scope the rule the same\nway as `FindingFilter`.",
+      "type": "object",
+      "properties": {
+        "ids": {
+          "description": "Override the level of findings with these IDs. When unset, applies to\nany finding ID within scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "level": {
+          "description": "The level to set on matching findings.",
+          "$ref": "#/$defs/FindingLevel"
+        },
+        "sample_names": {
+          "description": "Optional sample name scope (supports glob wildcards, e.g. `\"http.*\"`).\nWhen set, this rule only applies to samples whose name matches one of\nthese patterns, in addition to any `signal_type` scope.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "signal_type": {
+          "description": "Optional signal type scope. When set, this rule only applies to\nfindings with a matching signal_type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "level"
       ]
     },
     "LiveCheckEmitConfig": {

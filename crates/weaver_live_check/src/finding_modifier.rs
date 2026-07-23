@@ -8,14 +8,17 @@
 use crate::{Error, SampleRef};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use weaver_checker::PolicyFinding;
-use weaver_config::{FindingFilter, LiveCheckConfig};
+use weaver_config::{FindingFilter, FindingLevelOverride, LiveCheckConfig};
 
-/// Engine that applies finding filters.
+/// Engine that applies finding filters and level overrides.
 ///
-/// Used inline during `add_advice()` to drop findings before they are stored,
-/// avoiding collect-then-filter overhead.
+/// Used inline during `add_advice()` to modify or drop findings before they
+/// are stored, avoiding collect-then-filter overhead.
 #[derive(Debug)]
 pub struct FindingModifier {
+    /// Applied first: may change a finding's level (but never drops it).
+    level_overrides: Vec<CompiledLevelOverride>,
+    /// Applied second, to the (possibly relevelled) finding: may drop it.
     filters: Vec<CompiledFilter>,
 }
 
@@ -28,6 +31,15 @@ struct CompiledFilter {
     sample_names_matcher: Option<GlobSet>,
     /// Compiled `filter.exclude_samples` (exclusion condition), if non-empty.
     exclude_samples_matcher: Option<GlobSet>,
+}
+
+/// A `FindingLevelOverride` with its glob patterns precompiled once at
+/// construction time.
+#[derive(Debug)]
+struct CompiledLevelOverride {
+    rule: FindingLevelOverride,
+    /// Compiled `rule.sample_names` (scope), if non-empty.
+    sample_names_matcher: Option<GlobSet>,
 }
 
 /// Compile a list of glob patterns into a `GlobSet`. Returns `Ok(None)` when
@@ -49,28 +61,34 @@ fn compile_globset(patterns: &[String]) -> Result<Option<GlobSet>, Error> {
     Ok(Some(set))
 }
 
-/// Check whether a compiled filter's scope (`signal_type` and `sample_names`)
-/// matches a finding. Both scopes are optional and combine as AND; an unset
-/// scope matches everything.
+/// Check whether a `signal_type`/`sample_names` scope (shared by
+/// `FindingFilter` and `FindingLevelOverride`) matches a finding. Both scopes
+/// are optional and combine as AND; an unset scope matches everything.
 fn scope_matches(
-    compiled: &CompiledFilter,
+    signal_type: Option<&String>,
+    sample_names_matcher: Option<&GlobSet>,
     finding: &PolicyFinding,
     sample: &SampleRef<'_>,
 ) -> bool {
-    let signal_type_ok = compiled
-        .filter
-        .signal_type
-        .as_ref()
-        .is_none_or(|s| finding.signal_type.as_deref() == Some(s.as_str()));
+    let signal_type_ok =
+        signal_type.is_none_or(|s| finding.signal_type.as_deref() == Some(s.as_str()));
     if !signal_type_ok {
         return false;
     }
-    match &compiled.sample_names_matcher {
+    match sample_names_matcher {
         None => true,
         Some(matcher) => sample
             .sample_name()
             .is_some_and(|name| matcher.is_match(name)),
     }
+}
+
+/// Check whether a finding's ID is matched by a level override rule. An
+/// unset `ids` list matches any finding ID within scope.
+fn is_matched_by(finding: &PolicyFinding, rule: &FindingLevelOverride) -> bool {
+    rule.ids
+        .as_ref()
+        .is_none_or(|ids| ids.iter().any(|id| id == &finding.id))
 }
 
 /// Check whether a finding should be excluded by a given filter.
@@ -103,13 +121,17 @@ fn is_excluded_by(
 }
 
 impl FindingModifier {
-    /// Create a new `FindingModifier` from finding filters.
+    /// Create a new `FindingModifier` from finding filters and level
+    /// overrides.
     ///
-    /// Returns `Ok(None)` if the filter list is empty. Returns `Err` if any
-    /// filter's `sample_names` or `exclude_samples` contains an invalid glob
-    /// pattern.
-    pub fn from_filters(filters: &[FindingFilter]) -> Result<Option<Self>, Error> {
-        if filters.is_empty() {
+    /// Returns `Ok(None)` if both lists are empty. Returns `Err` if any
+    /// filter's or rule's `sample_names`/`exclude_samples` contains an
+    /// invalid glob pattern.
+    pub fn from_rules(
+        filters: &[FindingFilter],
+        level_overrides: &[FindingLevelOverride],
+    ) -> Result<Option<Self>, Error> {
+        if filters.is_empty() && level_overrides.is_empty() {
             return Ok(None);
         }
         let filters = filters
@@ -122,35 +144,70 @@ impl FindingModifier {
                 })
             })
             .collect::<Result<Vec<_>, Error>>()?;
-        Ok(Some(Self { filters }))
+        let level_overrides = level_overrides
+            .iter()
+            .map(|rule| {
+                Ok(CompiledLevelOverride {
+                    sample_names_matcher: compile_globset(&rule.sample_names)?,
+                    rule: rule.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
+        Ok(Some(Self {
+            level_overrides,
+            filters,
+        }))
     }
 
     /// Create a new `FindingModifier` from a `LiveCheckConfig`.
     ///
-    /// Returns `Ok(None)` if the config has no filters.
+    /// Returns `Ok(None)` if the config has no filters or level overrides.
     pub fn from_config(config: &LiveCheckConfig) -> Result<Option<Self>, Error> {
-        Self::from_filters(&config.finding_filters)
+        Self::from_rules(&config.finding_filters, &config.finding_level_overrides)
     }
 
-    /// Apply filters to a finding.
+    /// Apply level overrides then filters to a finding.
     ///
     /// Returns `None` if the finding should be excluded, or `Some(finding)`
-    /// otherwise.
+    /// (possibly with an overridden `level`) otherwise.
     ///
     /// `sample` is the sample that produced this finding. It is used by
-    /// `sample_names` to scope a filter to matching samples, and by
+    /// `sample_names` to scope a rule to matching samples, and by
     /// `exclude_samples` to suppress findings by sample name (e.g. attribute
     /// key for attribute samples). Both support glob wildcards (e.g.
     /// `"http.*"`).
     ///
-    /// A global filter (no `signal_type` or `sample_names`) applies to all
-    /// findings; a scoped filter applies only when its `signal_type` and/or
+    /// A global filter/rule (no `signal_type` or `sample_names`) applies to
+    /// all findings; a scoped one applies only when its `signal_type` and/or
     /// `sample_names` match the finding's signal type and sample name.
+    ///
+    /// Level overrides are applied first (first match wins), so a
+    /// `min_level` filter evaluated afterwards sees the overridden level —
+    /// e.g. promoting `undefined_enum_variant` to `violation` makes it
+    /// subject to any `min_level = "violation"` gating, rather than being
+    /// dropped at its original `information` level beforehand.
     #[must_use]
     pub fn apply(&self, finding: PolicyFinding, sample: &SampleRef<'_>) -> Option<PolicyFinding> {
+        let mut finding = finding;
+        for compiled in &self.level_overrides {
+            if scope_matches(
+                compiled.rule.signal_type.as_ref(),
+                compiled.sample_names_matcher.as_ref(),
+                &finding,
+                sample,
+            ) && is_matched_by(&finding, &compiled.rule)
+            {
+                finding.level = compiled.rule.level;
+                break;
+            }
+        }
         for compiled in &self.filters {
-            if scope_matches(compiled, &finding, sample)
-                && is_excluded_by(&finding, compiled, sample)
+            if scope_matches(
+                compiled.filter.signal_type.as_ref(),
+                compiled.sample_names_matcher.as_ref(),
+                &finding,
+                sample,
+            ) && is_excluded_by(&finding, compiled, sample)
             {
                 return None;
             }
@@ -199,6 +256,20 @@ mod tests {
             min_level,
             signal_type,
             exclude_samples,
+            sample_names,
+        }
+    }
+
+    fn make_level_override(
+        ids: Option<Vec<String>>,
+        level: FindingLevel,
+        signal_type: Option<String>,
+        sample_names: Vec<String>,
+    ) -> FindingLevelOverride {
+        FindingLevelOverride {
+            ids,
+            level,
+            signal_type,
             sample_names,
         }
     }
@@ -499,6 +570,157 @@ mod tests {
     fn test_invalid_exclude_samples_pattern_errors() {
         let config = LiveCheckConfig {
             finding_filters: vec![make_filter(None, None, None, vec!["[".to_owned()], vec![])],
+            ..Default::default()
+        };
+        let err = FindingModifier::from_config(&config).expect_err("invalid glob pattern");
+        assert!(matches!(err, Error::ConfigError { .. }));
+    }
+
+    #[test]
+    fn test_level_override_promotes_by_id() {
+        // undefined_enum_variant: information -> violation, globally.
+        let config = LiveCheckConfig {
+            finding_level_overrides: vec![make_level_override(
+                Some(vec!["undefined_enum_variant".to_owned()]),
+                FindingLevel::Violation,
+                None,
+                vec![],
+            )],
+            ..Default::default()
+        };
+        let modifier = FindingModifier::from_config(&config)
+            .expect("valid config")
+            .expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
+
+        let finding = make_finding("undefined_enum_variant", FindingLevel::Information, None);
+        let result = modifier.apply(finding, &sample).expect("not dropped");
+        assert_eq!(result.level, FindingLevel::Violation);
+
+        // A different id is untouched.
+        let finding = make_finding("deprecated", FindingLevel::Information, None);
+        let result = modifier.apply(finding, &sample).expect("not dropped");
+        assert_eq!(result.level, FindingLevel::Information);
+    }
+
+    #[test]
+    fn test_level_override_scoped_by_signal_type_and_sample_names() {
+        let config = LiveCheckConfig {
+            finding_level_overrides: vec![make_level_override(
+                Some(vec!["undefined_enum_variant".to_owned()]),
+                FindingLevel::Violation,
+                Some("span".to_owned()),
+                vec!["http.*".to_owned()],
+            )],
+            ..Default::default()
+        };
+        let modifier = FindingModifier::from_config(&config)
+            .expect("valid config")
+            .expect("modifier");
+
+        // Matching signal_type + sample_names — promoted.
+        let attr = make_attribute("http.method");
+        let sample = SampleRef::Attribute(&attr);
+        let finding = make_finding(
+            "undefined_enum_variant",
+            FindingLevel::Information,
+            Some("span"),
+        );
+        let result = modifier.apply(finding, &sample).expect("not dropped");
+        assert_eq!(result.level, FindingLevel::Violation);
+
+        // Matching signal_type but non-matching sample name — untouched.
+        let attr = make_attribute("server.address");
+        let sample = SampleRef::Attribute(&attr);
+        let finding = make_finding(
+            "undefined_enum_variant",
+            FindingLevel::Information,
+            Some("span"),
+        );
+        let result = modifier.apply(finding, &sample).expect("not dropped");
+        assert_eq!(result.level, FindingLevel::Information);
+
+        // Non-matching signal_type — untouched even though sample name matches.
+        let attr = make_attribute("http.method");
+        let sample = SampleRef::Attribute(&attr);
+        let finding = make_finding(
+            "undefined_enum_variant",
+            FindingLevel::Information,
+            Some("metric"),
+        );
+        let result = modifier.apply(finding, &sample).expect("not dropped");
+        assert_eq!(result.level, FindingLevel::Information);
+    }
+
+    #[test]
+    fn test_level_override_never_drops() {
+        let config = LiveCheckConfig {
+            finding_level_overrides: vec![make_level_override(
+                None,
+                FindingLevel::Violation,
+                None,
+                vec![],
+            )],
+            ..Default::default()
+        };
+        let modifier = FindingModifier::from_config(&config)
+            .expect("valid config")
+            .expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
+
+        let finding = make_finding("anything", FindingLevel::Information, None);
+        let result = modifier.apply(finding, &sample).expect("never dropped");
+        assert_eq!(result.level, FindingLevel::Violation);
+    }
+
+    #[test]
+    fn test_level_override_runs_before_min_level_filter() {
+        // A finding below the min_level floor gets promoted first, then
+        // survives the floor instead of being dropped at its original level.
+        let config = LiveCheckConfig {
+            finding_level_overrides: vec![make_level_override(
+                Some(vec!["undefined_enum_variant".to_owned()]),
+                FindingLevel::Violation,
+                None,
+                vec![],
+            )],
+            finding_filters: vec![make_filter(
+                None,
+                Some(FindingLevel::Violation),
+                None,
+                vec![],
+                vec![],
+            )],
+            ..Default::default()
+        };
+        let modifier = FindingModifier::from_config(&config)
+            .expect("valid config")
+            .expect("modifier");
+        let attr = make_attribute("some.attr");
+        let sample = SampleRef::Attribute(&attr);
+
+        let finding = make_finding("undefined_enum_variant", FindingLevel::Information, None);
+        let result = modifier
+            .apply(finding, &sample)
+            .expect("rescued by override");
+        assert_eq!(result.level, FindingLevel::Violation);
+
+        // An unrelated finding at Information is still dropped by the floor.
+        let finding = make_finding("deprecated", FindingLevel::Information, None);
+        assert!(modifier.apply(finding, &sample).is_none());
+    }
+
+    #[test]
+    fn test_invalid_level_override_sample_names_pattern_errors() {
+        let config = LiveCheckConfig {
+            finding_level_overrides: vec![make_level_override(
+                None,
+                FindingLevel::Violation,
+                None,
+                vec!["[".to_owned()],
+            )],
             ..Default::default()
         };
         let err = FindingModifier::from_config(&config).expect_err("invalid glob pattern");
