@@ -23,7 +23,8 @@ pub use effective::{
     DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE, DEFAULT_REGISTRY,
 };
 pub use live_check::{
-    FailOnLevel, FindingFilter, LiveCheckConfig, LiveCheckEmitConfig, LiveCheckOtlpConfig,
+    FailOnLevel, FindingFilter, FindingLevelOverride, LiveCheckConfig, LiveCheckEmitConfig,
+    LiveCheckOtlpConfig,
 };
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};

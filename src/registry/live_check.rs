@@ -81,7 +81,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters"
+    extra_config_only = "finding_filters,finding_level_overrides"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -302,7 +302,8 @@ pub(crate) fn command(
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
 
-    live_checker.finding_modifier = FindingModifier::from_filters(&config.finding_filters)?;
+    live_checker.finding_modifier =
+        FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
