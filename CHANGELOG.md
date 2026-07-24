@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+# [0.25.0] - 2026-07-24
+
+- Use semantic conventions v2 for `weaver registry infer`. ([#1334](https://github.com/open-telemetry/weaver/pull/1334) by @ArthurSens)
+- Expand dependency conflict resolution to allow different versions of a dependency when their major versions are compatible. Llatest version in the major series wins. ([#1573](https://github.com/open-telemetry/weaver/pull/1573) by @jsuereth)
+- Add `--fail-on <violation|improvement|information|none>` to `weaver registry live-check` to choose the severity threshold that produces a non-zero exit code. ([#1517](https://github.com/open-telemetry/weaver/pull/1517) by @cijothomas)
+- Fix ([#733](https://github.com/open-telemetry/weaver/issues/733)) - default an enum member's `value` to its `id` when no explicit `value` is provided. ([#1444](https://github.com/open-telemetry/weaver/pull/1444) by @nanookclaw)
+- Regenerate the `weaver-config.json` JSON schema so it matches the current configuration. ([#1606](https://github.com/open-telemetry/weaver/pull/1606) by @jerbly)
 - Live-check: (Fixes: [#1626](https://github.com/open-telemetry/weaver/issues/1626)) fix a shutdown race where `live-check --output http` could exit before the `/stop` response was fully delivered, resetting the connection on large reports. The live-check command now waits for the admin HTTP server's graceful shutdown to finish before exiting. ([#1632](https://github.com/open-telemetry/weaver/pull/1632) by @jerbly)
 - Live-check: (Fixes: [#1614](https://github.com/open-telemetry/weaver/issues/1614)) add `[[live-check.finding_level_overrides]]` to rewrite a finding's level instead of dropping it (e.g. treat `undefined_enum_variant` as a violation), scoped by the same `signal_type`/`sample_names` rules as `finding_filters`. ([#1625](https://github.com/open-telemetry/weaver/pull/1625) by @jerbly)
 - Change v2 refinement attribute precedence so `ref_group` details win over inherited attributes. ([#1604](https://github.com/open-telemetry/weaver/pull/1604) by @lmolkova)
