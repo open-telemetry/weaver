@@ -73,6 +73,9 @@ toml = "0.9.8"
 zip = "5.1.1"
 assert_cmd = "2.2.1"
 semver = { version = "1.0.27", features = ["serde"] }
+# HTTP/2-only, no TLS backend: used solely to reproduce/regress a
+# `/stop` shutdown race specific to HTTP/2 flow control.
+reqwest = { version = "0.12", default-features = false, features = ["http2"] }
 glob = "0.3.3"
 lru = "0.16.0"
 
