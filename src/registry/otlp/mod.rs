@@ -24,6 +24,7 @@ use grpc_stubs::proto::collector::trace::v1::trace_service_server::{
 use grpc_stubs::proto::collector::trace::v1::{
     ExportTraceServiceRequest, ExportTraceServiceResponse,
 };
+use log::warn;
 use miette::Diagnostic;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
@@ -40,16 +41,114 @@ use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
-/// Channel for sending the formatted report back to the /stop HTTP handler.
-///
-/// When `expect_report` is set to `true`, the `/stop` handler will wait for
-/// the report to be sent through the oneshot channel before responding.
-/// When `false`, `/stop` returns 200 immediately (the default).
+/// How long `/stop` waits for the report, and how long the admin server's
+/// graceful shutdown gets to finish delivering it (see
+/// [`ShutdownCoordinator::wait_for_admin_shutdown`]).
+const ADMIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// A poisoned lock means another thread already panicked mid-update, so
+/// panicking here too is safer than continuing with inconsistent state.
+const LOCK_POISONED_MSG: &str = "shutdown coordinator lock poisoned";
+
+/// Coordinates delivering the live-check report to a waiting `/stop`
+/// request and confirming the admin server has finished writing it before
+/// the process exits. All locking lives here; call sites only use these
+/// methods.
 #[derive(Clone)]
-pub struct AdminReportSender {
-    pub sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
-    /// Set to `true` to have `/stop` wait and return the report as its response body.
-    pub expect_report: Arc<AtomicBool>,
+pub struct ShutdownCoordinator {
+    /// `true` when `--output http` is set: `/stop` waits for and returns
+    /// the report instead of responding immediately.
+    expect_report: Arc<AtomicBool>,
+    report_slot: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
+    /// Tells axum's `with_graceful_shutdown` to start draining.
+    admin_shutdown_trigger_slot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+    /// Fires once that graceful shutdown has fully finished.
+    admin_done_tx_slot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+    admin_done_rx_slot: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
+}
+
+impl ShutdownCoordinator {
+    /// Returns the coordinator plus the shutdown-trigger receiver, which
+    /// the admin server wires into axum's `with_graceful_shutdown`.
+    fn new() -> (Self, oneshot::Receiver<()>) {
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let (admin_done_tx, admin_done_rx) = oneshot::channel();
+        let coordinator = Self {
+            expect_report: Arc::new(AtomicBool::new(false)),
+            report_slot: Arc::new(Mutex::new(None)),
+            admin_shutdown_trigger_slot: Arc::new(Mutex::new(Some(shutdown_tx))),
+            admin_done_tx_slot: Arc::new(Mutex::new(Some(admin_done_tx))),
+            admin_done_rx_slot: Arc::new(Mutex::new(Some(admin_done_rx))),
+        };
+        (coordinator, shutdown_rx)
+    }
+
+    /// Set when `--output http` is in effect.
+    pub fn set_expect_report(&self, expect: bool) {
+        self.expect_report.store(expect, Ordering::Relaxed);
+    }
+
+    pub fn expects_report(&self) -> bool {
+        self.expect_report.load(Ordering::Relaxed)
+    }
+
+    /// Registers a slot for the report and returns the receiver to await.
+    fn begin_report_wait(&self) -> oneshot::Receiver<(String, String)> {
+        let (tx, rx) = oneshot::channel();
+        *self.report_slot.lock().expect(LOCK_POISONED_MSG) = Some(tx);
+        rx
+    }
+
+    /// True while an HTTP client is registered and waiting for a report.
+    pub fn is_report_pending(&self) -> bool {
+        self.report_slot.lock().expect(LOCK_POISONED_MSG).is_some()
+    }
+
+    /// Hands the report to a waiting `/stop` request, if any.
+    pub fn deliver_report(&self, content_type: String, body: String) {
+        let sender = self.report_slot.lock().expect(LOCK_POISONED_MSG).take();
+        if let Some(sender) = sender {
+            let _ = sender.send((content_type, body));
+        }
+    }
+
+    /// Starts the admin server's graceful shutdown.
+    fn trigger_admin_shutdown(&self) {
+        let tx = self
+            .admin_shutdown_trigger_slot
+            .lock()
+            .expect(LOCK_POISONED_MSG)
+            .take();
+        if let Some(tx) = tx {
+            let _ = tx.send(());
+        }
+    }
+
+    /// Called once the admin server's graceful shutdown has finished.
+    fn signal_admin_shutdown_complete(&self) {
+        let tx = self
+            .admin_done_tx_slot
+            .lock()
+            .expect(LOCK_POISONED_MSG)
+            .take();
+        if let Some(tx) = tx {
+            let _ = tx.send(());
+        }
+    }
+
+    /// Blocks until the admin server confirms its graceful shutdown has
+    /// finished, so the process doesn't exit mid-write. No-op if already
+    /// consumed.
+    pub fn wait_for_admin_shutdown(&self) {
+        let rx = self
+            .admin_done_rx_slot
+            .lock()
+            .expect(LOCK_POISONED_MSG)
+            .take();
+        if let Some(rx) = rx {
+            let _ = rx.blocking_recv();
+        }
+    }
 }
 
 /// Expose the OTLP gRPC services.
@@ -185,11 +284,10 @@ impl Display for StopSignal {
 }
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
-/// and return an iterator of received OTLP requests and an admin report sender.
+/// and return an iterator of received OTLP requests and a shutdown coordinator.
 ///
-/// The `AdminReportSender` allows the caller to send a formatted report back
-/// through the `/stop` HTTP endpoint. When `/stop` is called, the HTTP handler
-/// stores a oneshot sender in the slot and waits for the report.
+/// The `ShutdownCoordinator` sends the report back through `/stop`, and lets
+/// the caller wait for the admin server to finish delivering it before exiting.
 ///
 /// This function guarantees that the OTLP server is started and ready when the
 /// result is Ok(iterator).
@@ -198,7 +296,7 @@ pub fn listen_otlp_requests(
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
-) -> Result<(impl Iterator<Item = OtlpRequest>, AdminReportSender), Error> {
+) -> Result<(impl Iterator<Item = OtlpRequest>, ShutdownCoordinator), Error> {
     let addr: SocketAddr =
         format!("{grpc_addr}:{grpc_port}")
             .parse()
@@ -219,11 +317,7 @@ pub fn listen_otlp_requests(
     let stop_tx = tx.clone();
     // Create a watch channel for the last activity timestamp
     let (activity_tx, activity_rx) = watch::channel(Instant::now());
-    // Create the admin report sender for /stop response back-channel
-    let report_sender = AdminReportSender {
-        sender: Arc::new(Mutex::new(None)),
-        expect_report: Arc::new(AtomicBool::new(false)),
-    };
+    let (coordinator, admin_shutdown_rx) = ShutdownCoordinator::new();
     let logs_service = LogsServiceImpl {
         tx: tx.clone(),
         activity_tx: activity_tx.clone(),
@@ -241,7 +335,7 @@ pub fn listen_otlp_requests(
 
     // Start an OS thread and run a single threaded Tokio runtime inside.
     // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
-    let report_sender_clone = report_sender.clone();
+    let coordinator_clone = coordinator.clone();
     let _ = std::thread::spawn(move || {
         // Start a current threaded Tokio runtime
         tokio::runtime::Builder::new_current_thread()
@@ -256,7 +350,8 @@ pub fn listen_otlp_requests(
                 spawn_http_admin_handler(
                     stop_tx.clone(),
                     admin_port,
-                    report_sender_clone,
+                    coordinator_clone,
+                    admin_shutdown_rx,
                     &mut tasks,
                 )
                 .await;
@@ -303,7 +398,7 @@ pub fn listen_otlp_requests(
         error: format!("OTLP server dropped before signaling readiness (error: {e})"),
     })?;
 
-    Ok((SyncReceiver { receiver: rx }, report_sender))
+    Ok((SyncReceiver { receiver: rx }, coordinator))
 }
 
 /// Spawn tasks to handle CTRL+C and SIGHUP signals.
@@ -345,11 +440,7 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut Jo
 #[derive(Clone)]
 struct AdminState {
     stop_tx: mpsc::Sender<OtlpRequest>,
-    report_sender: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
-    /// When true, `/stop` waits for a report to be sent back through `report_sender`.
-    /// When false, `/stop` returns 200 immediately.
-    expect_report: Arc<AtomicBool>,
-    shutdown_tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+    coordinator: ShutdownCoordinator,
 }
 
 /// GET /health — returns a simple JSON status.
@@ -361,24 +452,15 @@ async fn health_handler() -> impl IntoResponse {
 /// the report and returns it as the response body; otherwise returns 200
 /// immediately.
 async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
-    let wait_for_report = state.expect_report.load(Ordering::Relaxed);
-
-    if wait_for_report {
-        let (tx, rx) = oneshot::channel::<(String, String)>();
-        {
-            let mut slot = state
-                .report_sender
-                .lock()
-                .expect("Report sender lock poisoned");
-            *slot = Some(tx);
-        }
+    if state.coordinator.expects_report() {
+        let rx = state.coordinator.begin_report_wait();
 
         let _ = state
             .stop_tx
             .send(OtlpRequest::Stop(StopSignal::AdminStop))
             .await;
 
-        let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+        let response = match tokio::time::timeout(ADMIN_REQUEST_TIMEOUT, rx).await {
             Ok(Ok((content_type, body))) => {
                 (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
             }
@@ -400,15 +482,7 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
             }
         };
 
-        // Signal the server to shut down after the response is built
-        if let Some(shutdown_tx) = state
-            .shutdown_tx
-            .lock()
-            .expect("Shutdown lock poisoned")
-            .take()
-        {
-            let _ = shutdown_tx.send(());
-        }
+        state.coordinator.trigger_admin_shutdown();
 
         response
     } else {
@@ -417,15 +491,7 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
             .send(OtlpRequest::Stop(StopSignal::AdminStop))
             .await;
 
-        // Signal the server to shut down
-        if let Some(shutdown_tx) = state
-            .shutdown_tx
-            .lock()
-            .expect("Shutdown lock poisoned")
-            .take()
-        {
-            let _ = shutdown_tx.send(());
-        }
+        state.coordinator.trigger_admin_shutdown();
 
         StatusCode::OK.into_response()
     }
@@ -439,7 +505,8 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
 async fn spawn_http_admin_handler(
     stop_tx: mpsc::Sender<OtlpRequest>,
     port: u16,
-    report_sender: AdminReportSender,
+    coordinator: ShutdownCoordinator,
+    admin_shutdown_rx: oneshot::Receiver<()>,
     tasks: &mut JoinSet<()>,
 ) {
     let addr: SocketAddr = format!("0.0.0.0:{port}")
@@ -448,12 +515,9 @@ async fn spawn_http_admin_handler(
 
     match TcpListener::bind(addr).await {
         Ok(listener) => {
-            let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
             let state = AdminState {
                 stop_tx,
-                report_sender: report_sender.sender.clone(),
-                expect_report: report_sender.expect_report.clone(),
-                shutdown_tx: Arc::new(Mutex::new(Some(shutdown_tx))),
+                coordinator: coordinator.clone(),
             };
 
             let app = Router::new()
@@ -462,11 +526,27 @@ async fn spawn_http_admin_handler(
                 .with_state(state);
 
             let _ = tasks.spawn(async move {
-                let _ = axum::serve(listener, app)
-                    .with_graceful_shutdown(async {
-                        let _ = shutdown_rx.await;
-                    })
-                    .await;
+                // Bounded so a stalled client can't hang the CLI forever.
+                let result = tokio::time::timeout(ADMIN_REQUEST_TIMEOUT, async {
+                    axum::serve(listener, app)
+                        .with_graceful_shutdown(async {
+                            let _ = admin_shutdown_rx.await;
+                        })
+                        .await
+                })
+                .await;
+
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => warn!("Admin HTTP server error: {e}"),
+                    Err(_) => warn!(
+                        "Admin HTTP server graceful shutdown did not complete within \
+                         {ADMIN_REQUEST_TIMEOUT:?}; a client may not have finished reading \
+                         a response"
+                    ),
+                }
+
+                coordinator.signal_admin_shutdown_complete();
             });
         }
         Err(e) => {
@@ -717,7 +797,7 @@ mod tests {
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
 
         // Enable report-via-HTTP mode (simulates --output http)
-        report_sender.expect_report.store(true, Ordering::Relaxed);
+        report_sender.set_expect_report(true);
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));
@@ -734,10 +814,7 @@ mod tests {
         // Wait for the Stop signal and then send the report
         match receiver.next() {
             Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {
-                // Send a report back through the channel
-                if let Some(sender) = report_sender.sender.lock().unwrap().take() {
-                    let _ = sender.send(("text/plain".into(), "test report".into()));
-                }
+                report_sender.deliver_report("text/plain".into(), "test report".into());
             }
             other => {
                 panic!("Expected OtlpRequest::Stop, got {other:?}");
@@ -811,5 +888,54 @@ mod tests {
         // Second health check — server should still be running
         let response2 = ureq::get(&url).call().expect("GET /health (2nd) failed");
         assert_eq!(response2.status(), 200);
+    }
+
+    #[test]
+    fn test_deliver_report_noop_without_pending_request() {
+        let (coordinator, _admin_shutdown_rx) = ShutdownCoordinator::new();
+        assert!(!coordinator.is_report_pending());
+        // Should not panic even though nothing is waiting.
+        coordinator.deliver_report("text/plain".into(), "unused".into());
+    }
+
+    #[test]
+    fn test_report_pending_state_transitions() {
+        let (coordinator, _admin_shutdown_rx) = ShutdownCoordinator::new();
+        assert!(!coordinator.is_report_pending());
+
+        let report_rx = coordinator.begin_report_wait();
+        assert!(coordinator.is_report_pending());
+
+        coordinator.deliver_report("text/plain".into(), "hello".into());
+        assert!(!coordinator.is_report_pending());
+
+        let (content_type, body) = report_rx.blocking_recv().expect("report was not delivered");
+        assert_eq!(content_type, "text/plain");
+        assert_eq!(body, "hello");
+    }
+
+    #[test]
+    fn test_wait_for_admin_shutdown_blocks_until_signaled() {
+        let (coordinator, _admin_shutdown_rx) = ShutdownCoordinator::new();
+        let coordinator_clone = coordinator.clone();
+
+        let (signaled_tx, signaled_rx) = std::sync::mpsc::channel::<()>();
+        let handle = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(200));
+            signaled_tx.send(()).expect("main thread went away");
+            coordinator_clone.signal_admin_shutdown_complete();
+        });
+
+        // Proves the wait below actually blocks rather than trivially returning.
+        assert!(signaled_rx.try_recv().is_err());
+
+        coordinator.wait_for_admin_shutdown();
+
+        assert!(
+            signaled_rx.try_recv().is_ok(),
+            "wait_for_admin_shutdown returned before signal_admin_shutdown_complete ran"
+        );
+
+        handle.join().expect("background thread panicked");
     }
 }

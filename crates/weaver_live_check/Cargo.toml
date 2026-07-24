@@ -38,6 +38,7 @@ serde_yaml.workspace = true
 serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
+reqwest.workspace = true
 
 [lints]
 workspace = true

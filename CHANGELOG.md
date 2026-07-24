@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Live-check: (Fixes: [#1626](https://github.com/open-telemetry/weaver/issues/1626)) fix a shutdown race where `live-check --output http` could exit before the `/stop` response was fully delivered, resetting the connection on large reports. The live-check command now waits for the admin HTTP server's graceful shutdown to finish before exiting. ([#1632](https://github.com/open-telemetry/weaver/pull/1632) by @jerbly)
 - Live-check: (Fixes: [#1614](https://github.com/open-telemetry/weaver/issues/1614)) add `[[live-check.finding_level_overrides]]` to rewrite a finding's level instead of dropping it (e.g. treat `undefined_enum_variant` as a violation), scoped by the same `signal_type`/`sample_names` rules as `finding_filters`. ([#1625](https://github.com/open-telemetry/weaver/pull/1625) by @jerbly)
 - Change v2 refinement attribute precedence so `ref_group` details win over inherited attributes. ([#1604](https://github.com/open-telemetry/weaver/pull/1604) by @lmolkova)
 - Make `deprecated.note` optional for `{reason: renamed}` - inferred from `renamed_to`. ([#1622](https://github.com/open-telemetry/weaver/pull/1622) by @lmolkova)

@@ -59,14 +59,48 @@ fn wait_for_health(port: u16) {
     }
 }
 
-/// POST /stop and return the response body.
-fn stop_and_collect_report(port: u16) -> String {
-    let url = format!("http://127.0.0.1:{port}/stop");
-    let response = ureq::post(&url).send("").expect("POST /stop failed");
+/// Larger than a typical HTTP/2 flow-control window, so the admin server
+/// can't finish writing the `/stop` response until the client reads it.
+/// Kept under tonic's 4 MiB gRPC message limit (travels as a flattened
+/// `weaver.finding.context.padding` attribute — see Finding 4).
+const RESPONSE_PADDING_SIZE: usize = 2 * 1024 * 1024;
+
+/// Delay between receiving `/stop`'s headers and reading its body. There's
+/// no deterministic signal for "the kernel send buffer is full", so this
+/// pairs a real oversized body with a bounded sleep to reliably reproduce
+/// the shutdown race this test guards against.
+const DELAYED_READ: Duration = Duration::from_millis(300);
+
+/// POST /stop over HTTP/2, delay before reading the body, assert the
+/// child is still alive, then return the body.
+async fn stop_and_collect_report(admin_port: u16, child: &mut Child) -> String {
+    let client = reqwest::Client::builder()
+        .http2_prior_knowledge()
+        .build()
+        .expect("Failed to build HTTP/2 client");
+    let url = format!("http://127.0.0.1:{admin_port}/stop");
+    let response = client
+        .post(&url)
+        .send()
+        .await
+        .expect("POST /stop failed")
+        .error_for_status()
+        .expect("POST /stop returned an error status");
+
+    tokio::time::sleep(DELAYED_READ).await;
+
+    assert!(
+        child
+            .try_wait()
+            .expect("failed to check child process status")
+            .is_none(),
+        "weaver exited before the /stop response was fully read"
+    );
+
     response
-        .into_body()
-        .read_to_string()
-        .expect("Failed to read /stop response body")
+        .text()
+        .await
+        .expect("failed to read /stop response body")
 }
 
 fn make_finding(
@@ -229,6 +263,7 @@ async fn test_livecheck_emit_roundtrip() {
     }
 
     // --- Finding 4: Complex nested context ---
+    // Carries a large padding value to reproduce the shutdown race below.
     {
         let attr = make_attribute("db.system");
         let parent = Sample::Attribute(attr.clone());
@@ -242,7 +277,8 @@ async fn test_livecheck_emit_roundtrip() {
             json!({
                 "attribute_key": "db.system",
                 "attribute_value": "postgresql",
-                "expected": "postgres"
+                "expected": "postgres",
+                "padding": "x".repeat(RESPONSE_PADDING_SIZE),
             }),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
@@ -335,8 +371,10 @@ async fn test_livecheck_emit_roundtrip() {
     // Brief delay for weaver to finish processing the received log records.
     sleep(Duration::from_millis(500));
 
-    // 6. Collect report via POST /stop
-    let report_body = stop_and_collect_report(admin_port);
+    // 6. Collect report via POST /stop — delays reading the (large) body
+    //    to reproduce the shutdown race; see `stop_and_collect_report`.
+    let report_body =
+        stop_and_collect_report(admin_port, guard.0.as_mut().expect("child already taken")).await;
 
     // 7. Wait for weaver to exit
     //    Exit code may be non-zero if there are violations — we check that separately below.

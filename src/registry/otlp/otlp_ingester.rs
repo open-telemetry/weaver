@@ -17,7 +17,7 @@ use super::{
         otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
         span_kind_from_otlp_kind, status_from_otlp_status,
     },
-    listen_otlp_requests, AdminReportSender, OtlpRequest,
+    listen_otlp_requests, OtlpRequest, ShutdownCoordinator,
 };
 
 /// An ingester for OTLP data
@@ -224,14 +224,15 @@ impl Iterator for OtlpIterator {
 }
 
 impl OtlpIngester {
-    /// Ingest OTLP data and return both the sample iterator and the admin report sender.
+    /// Ingest OTLP data and return both the sample iterator and the shutdown coordinator.
     ///
-    /// The `AdminReportSender` can be used to send a formatted report back through
-    /// the `/stop` HTTP endpoint when `--output http` is used.
+    /// The `ShutdownCoordinator` can be used to send a formatted report back through
+    /// the `/stop` HTTP endpoint when `--output http` is used, and to wait for the
+    /// admin server to finish delivering that response before exiting.
     pub fn ingest_otlp(
         &self,
-    ) -> Result<(Box<dyn Iterator<Item = Sample>>, AdminReportSender), Error> {
-        let (otlp_requests, report_sender) = listen_otlp_requests(
+    ) -> Result<(Box<dyn Iterator<Item = Sample>>, ShutdownCoordinator), Error> {
+        let (otlp_requests, coordinator) = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
@@ -262,14 +263,14 @@ impl OtlpIngester {
 
         Ok((
             Box::new(OtlpIterator::new(Box::new(otlp_requests))),
-            report_sender,
+            coordinator,
         ))
     }
 }
 
 impl Ingester for OtlpIngester {
     fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
-        let (iterator, _report_sender) = self.ingest_otlp()?;
+        let (iterator, _coordinator) = self.ingest_otlp()?;
         Ok(iterator)
     }
 }
