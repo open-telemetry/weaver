@@ -46,9 +46,12 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 /// [`ShutdownCoordinator::wait_for_admin_shutdown`]).
 const ADMIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// A poisoned lock means another thread already panicked mid-update, so
-/// panicking here too is safer than continuing with inconsistent state.
-const LOCK_POISONED_MSG: &str = "shutdown coordinator lock poisoned";
+/// A poisoned lock means one of the threads responsible for reporting
+/// status on shutdown has crashed. We kill the process here too, because
+/// we're not sure whether our memory is still safe to use.
+const LOCK_POISONED_MSG: &str = "one of the threads responsible for reporting status on \
+     shutdown has crashed; killing the process because we're not sure whether our memory is \
+     still safe to use";
 
 /// Coordinates delivering the live-check report to a waiting `/stop`
 /// request and confirming the admin server has finished writing it before
@@ -59,12 +62,16 @@ pub struct ShutdownCoordinator {
     /// `true` when `--output http` is set: `/stop` waits for and returns
     /// the report instead of responding immediately.
     expect_report: Arc<AtomicBool>,
+    /// `None` when no `/stop` request is currently waiting; `.take()` in
+    /// `deliver_report` ensures a report is only ever delivered once.
     report_slot: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
     /// Tells axum's `with_graceful_shutdown` to start draining.
     admin_shutdown_trigger_slot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-    /// Fires once that graceful shutdown has fully finished.
-    admin_done_tx_slot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-    admin_done_rx_slot: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
+    /// Both halves of the admin-done signal, produced together in `new`
+    /// and held behind one lock. Kept as independent `Option`s rather than
+    /// `Option<(Sender, Receiver)>` because each half is consumed
+    /// independently — by a different thread, at a different time.
+    admin_done: Arc<Mutex<(Option<oneshot::Sender<()>>, Option<oneshot::Receiver<()>>)>>,
 }
 
 impl ShutdownCoordinator {
@@ -77,19 +84,19 @@ impl ShutdownCoordinator {
             expect_report: Arc::new(AtomicBool::new(false)),
             report_slot: Arc::new(Mutex::new(None)),
             admin_shutdown_trigger_slot: Arc::new(Mutex::new(Some(shutdown_tx))),
-            admin_done_tx_slot: Arc::new(Mutex::new(Some(admin_done_tx))),
-            admin_done_rx_slot: Arc::new(Mutex::new(Some(admin_done_rx))),
+            admin_done: Arc::new(Mutex::new((Some(admin_done_tx), Some(admin_done_rx)))),
         };
         (coordinator, shutdown_rx)
     }
 
-    /// Set when `--output http` is in effect.
+    /// Set when `--output http` is in effect. Pairs with the `Acquire` load
+    /// in `expects_report` so `/stop` can never observe a stale `false`.
     pub fn set_expect_report(&self, expect: bool) {
-        self.expect_report.store(expect, Ordering::Relaxed);
+        self.expect_report.store(expect, Ordering::Release);
     }
 
     pub fn expects_report(&self) -> bool {
-        self.expect_report.load(Ordering::Relaxed)
+        self.expect_report.load(Ordering::Acquire)
     }
 
     /// Registers a slot for the report and returns the receiver to await.
@@ -126,11 +133,7 @@ impl ShutdownCoordinator {
 
     /// Called once the admin server's graceful shutdown has finished.
     fn signal_admin_shutdown_complete(&self) {
-        let tx = self
-            .admin_done_tx_slot
-            .lock()
-            .expect(LOCK_POISONED_MSG)
-            .take();
+        let tx = self.admin_done.lock().expect(LOCK_POISONED_MSG).0.take();
         if let Some(tx) = tx {
             let _ = tx.send(());
         }
@@ -140,11 +143,7 @@ impl ShutdownCoordinator {
     /// finished, so the process doesn't exit mid-write. No-op if already
     /// consumed.
     pub fn wait_for_admin_shutdown(&self) {
-        let rx = self
-            .admin_done_rx_slot
-            .lock()
-            .expect(LOCK_POISONED_MSG)
-            .take();
+        let rx = self.admin_done.lock().expect(LOCK_POISONED_MSG).1.take();
         if let Some(rx) = rx {
             let _ = rx.blocking_recv();
         }
