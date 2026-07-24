@@ -523,7 +523,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
   Possible values: `true`, `false`
 
 * `--fail-on <FAIL_ON>` — Findings at this level or higher cause a non-zero exit code. Levels (highest→lowest): violation, improvement, information. Use `none` to never fail. [default: violation]
-* `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to send as the /stop response
+* `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to serve it from GET /live-check/report on the admin port
 * `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
 * `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener
 * `--emit-otlp-logs <EMIT_OTLP_LOGS>` — Enable OTLP log emission for live check policy findings
@@ -535,7 +535,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
-* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop)
+* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /health, /stop, /live-check/report)
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
 * `--advice-data <ADVICE_DATA>` — Glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)

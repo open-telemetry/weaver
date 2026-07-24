@@ -285,7 +285,7 @@
           "$ref": "#/$defs/LiveCheckOtlpConfig"
         },
         "output": {
-          "description": "Path to the directory where the generated artifacts will be saved.\n`none` disables all template output rendering.\n`http` sends the report as the response to the `/stop` request on the admin port.",
+          "description": "Path to the directory where the generated artifacts will be saved.\n`none` disables all template output rendering.\n`http` serves the report from `GET /live-check/report` on the admin port.",
           "type": [
             "string",
             "null"
@@ -699,7 +699,7 @@
       "type": "object",
       "properties": {
         "admin_port": {
-          "description": "Port used by the HTTP admin port (endpoints: `/stop`, `/health`).",
+          "description": "Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/live-check/report`).",
           "type": "integer",
           "format": "uint16",
           "default": 4320,

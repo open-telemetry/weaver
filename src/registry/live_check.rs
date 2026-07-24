@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
+use tokio::sync::oneshot;
 
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -139,7 +140,7 @@ pub struct RegistryLiveCheckArgs {
     fail_on: Option<FailOnLevel>,
 
     /// Path to save generated artifacts. Use "none" to suppress output,
-    /// "http" to send as the /stop response.
+    /// "http" to serve it from GET /live-check/report on the admin port.
     #[arg(short, long)]
     #[config]
     output: Option<PathBuf>,
@@ -169,7 +170,7 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "emit.otlp_logs_stdout")]
     otlp_logs_stdout: Option<bool>,
 
-    /// Port used by the HTTP admin port (endpoints: /stop).
+    /// Port used by the HTTP admin port (endpoints: /health, /stop, /live-check/report).
     #[clap(long)]
     #[config(path = "otlp.admin_port")]
     admin_port: Option<u16>,
@@ -315,9 +316,9 @@ pub(crate) fn command(
 
     // Prepare the ingester
     let mut admin_controller: Option<AdminController> = None;
-    // Write-only: kept alive only so its `Drop` impl (signal + drain the
-    // OTLP receiver's background thread) fires no matter how this function
-    // returns, including through the several `?` early-returns below.
+    let mut shutdown_requested: Option<oneshot::Receiver<()>> = None;
+    // Write-only: kept alive so its Drop impl drains the OTLP thread no
+    // matter how this function returns.
     let mut _admin_thread: Option<AdminDrainGuard> = None;
     let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
@@ -335,12 +336,13 @@ pub(crate) fn command(
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout: config.otlp.inactivity_timeout,
             };
-            let (iter, controller, handle) = otlp.ingest_otlp()?;
+            let (iter, admin) = otlp.ingest_otlp()?;
             if is_http_output {
-                controller.enable_http_report();
+                admin.controller.enable_http_report();
             }
-            _admin_thread = Some(AdminDrainGuard::new(controller.clone(), handle));
-            admin_controller = Some(controller);
+            admin_controller = Some(admin.controller.clone());
+            shutdown_requested = Some(admin.shutdown_requested);
+            _admin_thread = Some(AdminDrainGuard::new(admin.controller, admin.handle));
             iter
         }
     };
@@ -426,49 +428,40 @@ pub(crate) fn command(
     }
 
     if is_http_output {
-        let admin_waiting = admin_controller
-            .as_ref()
-            .is_some_and(AdminController::has_report_waiter);
-
-        if admin_waiting {
-            // Format report and send through admin channel
-            let content_type = output.content_type().to_owned();
-            let body = if output.is_line_oriented() {
-                // For line-oriented formats (jsonl), build the body line by line
-                let mut lines = Vec::new();
-                for sample in &samples {
+        // Always publish: GET /live-check/report can be called any time after this.
+        let content_type = output.content_type().to_owned();
+        let body = if output.is_line_oriented() {
+            // For line-oriented formats (jsonl), build the body line by line
+            let mut lines = Vec::new();
+            for sample in &samples {
+                lines.push(
+                    output
+                        .generate_to_string(sample)
+                        .map_err(DiagnosticMessages::from)?,
+                );
+            }
+            match &stats {
+                LiveCheckStatistics::Cumulative(_) => {
                     lines.push(
                         output
-                            .generate_to_string(sample)
+                            .generate_to_string(&stats)
                             .map_err(DiagnosticMessages::from)?,
                     );
                 }
-                match &stats {
-                    LiveCheckStatistics::Cumulative(_) => {
-                        lines.push(
-                            output
-                                .generate_to_string(&stats)
-                                .map_err(DiagnosticMessages::from)?,
-                        );
-                    }
-                    LiveCheckStatistics::Disabled(_) => {}
-                }
-                lines.join("\n")
-            } else {
-                let report = LiveCheckReport {
-                    statistics: stats,
-                    samples,
-                };
-                output
-                    .generate_to_string(&report)
-                    .map_err(DiagnosticMessages::from)?
-            };
-            if let Some(controller) = admin_controller.take() {
-                let _ = controller.deliver_report(content_type, body);
+                LiveCheckStatistics::Disabled(_) => {}
             }
+            lines.join("\n")
         } else {
-            // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
-            generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
+            let report = LiveCheckReport {
+                statistics: stats,
+                samples,
+            };
+            output
+                .generate_to_string(&report)
+                .map_err(DiagnosticMessages::from)?
+        };
+        if let Some(controller) = admin_controller.take() {
+            controller.publish_report(content_type, body);
         }
     } else if report_mode {
         generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
@@ -477,12 +470,15 @@ pub(crate) fn command(
         output.generate(&stats).map_err(DiagnosticMessages::from)?;
     }
 
-    // `_admin_thread`'s Drop impl waits for the OTLP receiver's background
-    // thread to fully drain (gRPC + HTTP admin servers) once it goes out of
-    // scope at the end of this function — on every return path, not just
-    // this one — so process::exit in main() can't cut off an in-flight
-    // request (e.g. the /stop response above). Bounded so a stuck drain can
-    // never hang the process.
+    // Block until termination is requested. A no-op for terminal stop paths
+    // (already requested); unbounded for /live-check/report, so the client
+    // decides how long to keep the process around.
+    if let Some(rx) = shutdown_requested {
+        let _ = rx.blocking_recv();
+    }
+
+    // `_admin_thread` drains the OTLP background thread on drop, here and
+    // on every early-return path above.
 
     // Shutdown OTLP emitter to flush any pending log records
     if let Some(emitter) = live_checker.otlp_emitter {

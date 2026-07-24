@@ -29,11 +29,6 @@ impl Drop for ChildGuard {
 }
 
 impl ChildGuard {
-    /// Borrow the child without disabling the kill-on-drop behavior.
-    fn child_mut(&mut self) -> &mut Child {
-        self.0.as_mut().expect("child already taken")
-    }
-
     /// Take ownership of the child, disabling the kill-on-drop behavior.
     fn take(&mut self) -> Child {
         self.0.take().expect("child already taken")
@@ -70,38 +65,34 @@ fn wait_for_health(port: u16) {
     }
 }
 
-/// POST /stop over HTTP/2 and return the response body.
-///
-/// Doesn't read the body right away: since it's bigger than one flow-control
-/// window, weaver can't finish sending it until we do, so a correctly
-/// behaving process must still be alive at this point. Assert that directly
-/// instead of just reading the body and getting an opaque error on failure.
-async fn stop_and_collect_report(port: u16, child: &mut Child) -> String {
-    let url = format!("http://127.0.0.1:{port}/stop");
-    let response = reqwest::Client::builder()
-        .http2_prior_knowledge()
+/// GET /live-check/report and return the response body.
+async fn get_report(port: u16) -> String {
+    let url = format!("http://127.0.0.1:{port}/live-check/report");
+    reqwest::Client::builder()
         .timeout(Duration::from_secs(65))
         .build()
-        .expect("Failed to build HTTP/2 client")
+        .expect("Failed to build HTTP client")
+        .get(url)
+        .send()
+        .await
+        .expect("GET /live-check/report failed")
+        .error_for_status()
+        .expect("GET /live-check/report returned an error status")
+        .text()
+        .await
+        .expect("Failed to read /live-check/report response body")
+}
+
+/// POST /stop; asserts a 200 response.
+async fn stop(port: u16) {
+    let url = format!("http://127.0.0.1:{port}/stop");
+    let _ = reqwest::Client::new()
         .post(url)
         .send()
         .await
         .expect("POST /stop failed")
         .error_for_status()
         .expect("POST /stop returned an error status");
-
-    if let Ok(status) = tokio::time::timeout(Duration::from_millis(300), child.wait()).await {
-        panic!(
-            "weaver exited ({status:?}) before the /stop response was read, but the \
-             response is larger than one HTTP/2 flow-control window and couldn't \
-             have finished sending"
-        );
-    }
-
-    response
-        .text()
-        .await
-        .expect("Failed to read /stop response body")
 }
 
 fn make_finding(
@@ -371,24 +362,35 @@ async fn test_livecheck_emit_roundtrip() {
     // Brief delay for weaver to finish processing the received log records.
     sleep(Duration::from_millis(500));
 
-    // 6. Collect report via POST /stop
-    let report_body = stop_and_collect_report(admin_port, guard.child_mut()).await;
+    // 6. Retrieve the report — decoupled from shutdown, so before /stop.
+    let report_body = get_report(admin_port).await;
     assert!(
         report_body.len() > RESPONSE_PADDING_SIZE,
         "Expected a report large enough to exercise asynchronous response delivery, got {} bytes",
         report_body.len()
     );
 
-    // 7. Wait for weaver to exit
-    //    Exit code may be non-zero if there are violations — we check that separately below.
-    //    Take the child out of the guard so it won't be killed again on drop.
+    // 7. Retrieval must not have shut anything down.
+    let health_url = format!("http://127.0.0.1:{admin_port}/health");
+    let _ = reqwest::get(&health_url)
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .expect("weaver should still be running after GET /live-check/report");
+    assert_eq!(
+        get_report(admin_port).await,
+        report_body,
+        "a second GET /live-check/report should serve the same cached report"
+    );
+
+    // 8. Now stop it and wait for the process to exit.
+    stop(admin_port).await;
     let _status = guard
         .take()
         .wait()
         .await
         .expect("Failed to wait for weaver live-check to exit");
 
-    // 8. Validate the report
+    // 9. Validate the report
     let report: serde_json::Value =
         serde_json::from_str(&report_body).expect("Failed to parse live-check report as JSON");
 

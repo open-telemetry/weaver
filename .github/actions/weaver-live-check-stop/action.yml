@@ -29,8 +29,9 @@ inputs:
     default: ''
   stop-timeout:
     description: >-
-      Seconds to wait for weaver to flush and exit cleanly after `/stop`.
-      Must be a positive integer.
+      Seconds to wait for weaver to exit cleanly after being told to stop
+      (the report is fetched separately beforehand, so this is purely
+      process shutdown time). Must be a positive integer.
     required: false
     default: '30'
   upload-report:
@@ -117,14 +118,19 @@ runs:
 
         REPORT="$STATE_DIR/live_check.json"
 
-        # Tell weaver to stop accepting and return the in-memory report.
-        # `--output=http` (set by the start action) makes the body of the
-        # admin /stop response the JSON report itself.
-        echo "Stopping weaver listener (admin :${ADMIN_PORT})..."
-        if ! curl -fsS -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" -o "$REPORT"; then
-          echo "::warning::admin POST /stop failed; falling back to graceful kill"
+        # Retrieve the report first, decoupled from termination: GET
+        # /live-check/report (enabled by `--output=http`, set by the start
+        # action) blocks server-side until the report is finalized and
+        # returns it — no timeout to guess here, unlike stopping the
+        # listener, which is a separate, quick action below.
+        echo "Fetching live-check report (admin :${ADMIN_PORT})..."
+        if ! curl -fsS "http://127.0.0.1:${ADMIN_PORT}/live-check/report" -o "$REPORT"; then
+          echo "::warning::admin GET /live-check/report failed; falling back to graceful kill"
           kill "$WEAVER_PID" 2>/dev/null || true
         fi
+
+        echo "Stopping weaver listener (admin :${ADMIN_PORT})..."
+        curl -fsS -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" || true
 
         # Wait for weaver to exit (best-effort; the process was spawned in
         # a different shell so we can't `wait` on it directly).

@@ -36,8 +36,9 @@ inputs:
     default: '4317'
   admin-port:
     description: >-
-      Port for weaver admin endpoints (`/health`, `/stop`). Must be a
-      positive integer and distinct from `otlp-grpc-port`.
+      Port for weaver admin endpoints (`/health`, `/stop`,
+      `/live-check/report`). Must be a positive integer and distinct from
+      `otlp-grpc-port`.
     required: false
     default: '4320'
   inactivity-timeout:
@@ -144,9 +145,9 @@ runs:
         echo "  startup-timeout:    ${INPUT_STARTUP_TIMEOUT}s"
         echo "  state dir:          $STATE_DIR"
 
-        # `--output=http` keeps the report in-memory and returns it as the
-        # body of the admin `POST /stop` response. No on-disk JSON file to
-        # locate; the stop action reads the body directly.
+        # `--output=http` keeps the report in-memory and serves it from
+        # `GET /live-check/report`. No on-disk JSON file to locate; the
+        # stop action fetches the body directly.
         CONFIG_ARG=()
         if [ -n "$INPUT_CONFIG" ]; then
           if [ ! -f "$INPUT_CONFIG" ]; then

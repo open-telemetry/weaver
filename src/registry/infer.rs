@@ -182,7 +182,7 @@ pub(crate) fn command(
     info!("Starting OTLP gRPC server on {grpc_address}:{grpc_port}");
 
     // Start the OTLP gRPC server and get an iterator of requests
-    let (requests, _controller, admin_thread) = listen_otlp_requests(
+    let (requests, admin) = listen_otlp_requests(
         &grpc_address,
         grpc_port,
         admin_port,
@@ -204,7 +204,7 @@ pub(crate) fn command(
 
     // Wait for the gRPC + HTTP admin servers to fully drain before this
     // process exits, bounded so a stuck drain can never hang the process.
-    wait_for_admin_shutdown(admin_thread);
+    wait_for_admin_shutdown(admin.handle);
 
     let (resources, spans, metrics, events) = accumulator.stats();
     info!(

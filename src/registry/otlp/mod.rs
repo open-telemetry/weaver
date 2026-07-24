@@ -29,7 +29,7 @@ use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
@@ -42,61 +42,41 @@ use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::log_warn;
 
-/// Upper bound on how long the admin server waits for a report during
-/// `/stop`, and on how long the OTLP receiver's background thread is given
-/// to gracefully drain the gRPC and HTTP admin servers before shutdown is
-/// considered complete.
+/// Upper bound on how long the background thread has to drain the gRPC and
+/// HTTP admin servers before shutdown is considered complete.
 pub(crate) const ADMIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Extra time given to the background thread's drain beyond
-/// `ADMIN_REQUEST_TIMEOUT`, so it can never abort the HTTP admin task while
-/// `/stop` is still writing out its response (a delivered report, or its
-/// own timeout-triggered 504) after its own `ADMIN_REQUEST_TIMEOUT`-bounded
-/// wait for the report resolves.
-///
-/// Both clocks start at essentially the same moment (when shutdown begins),
-/// so without this margin they'd expire together, leaving no time for
-/// `/stop` to actually flush a response — reproducing the same stop-race
-/// this whole module exists to prevent, just triggered by a slow report
-/// instead of a missing thread-join.
-pub(crate) const SHUTDOWN_DRAIN_GRACE: Duration = Duration::from_secs(30);
+/// State of the live-check report, published by `command()` and observed by
+/// any number of `GET /live-check/report` callers.
+#[derive(Clone)]
+enum ReportState {
+    NotRequested,
+    Pending,
+    Ready(Arc<(String, String)>), // (content_type, body)
+}
 
-/// Coordinates the `/stop` report handshake and graceful shutdown across the
-/// gRPC server, the HTTP admin server, and the background signal/inactivity
-/// tasks that all run on the OTLP receiver's background thread.
-///
-/// This is the single owner of the cross-thread synchronization state for
-/// that thread: no method here holds a lock across an `.await` or a blocking
-/// wait, and `begin_shutdown` is idempotent so every stop path (CTRL+C,
-/// SIGHUP, `/stop`, inactivity) can call it safely.
+/// Coordinates `/live-check/report` and shutdown across the gRPC server,
+/// HTTP admin server, and background tasks. No lock here is ever held
+/// across an `.await`; `begin_shutdown` is idempotent.
 #[derive(Clone)]
 pub struct AdminController {
-    /// Slot for the oneshot sender the `/stop` handler registers while it
-    /// waits for a report. `None` when no HTTP client is currently blocked
-    /// on `/stop`. Single-consumer by construction: a live-check process
-    /// only ever services one `/stop` call before it exits.
-    report_tx: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
-    /// When true, `/stop` waits for [`Self::deliver_report`] and returns the
-    /// report as its response body. When false (the default), `/stop`
-    /// returns 200 immediately.
+    report: watch::Sender<ReportState>,
+    /// When true, `/live-check/report` is enabled (`--output http`).
     expect_report: Arc<AtomicBool>,
-    /// Cancelled once any stop signal fires. Every long-lived task on the
-    /// background thread races against this token so the thread is
-    /// guaranteed to terminate within a bounded time.
+    /// Cancelled once any stop signal fires.
     shutdown: CancellationToken,
 }
 
 impl AdminController {
     fn new() -> Self {
         Self {
-            report_tx: Arc::new(Mutex::new(None)),
+            report: watch::Sender::new(ReportState::NotRequested),
             expect_report: Arc::new(AtomicBool::new(false)),
             shutdown: CancellationToken::new(),
         }
     }
 
-    /// Enable report-via-HTTP mode (`--output http`): `/stop` will wait for
-    /// [`Self::deliver_report`] instead of returning `200` immediately.
+    /// Enable `GET /live-check/report` (`--output http`).
     pub fn enable_http_report(&self) {
         self.expect_report.store(true, Ordering::Relaxed);
     }
@@ -105,41 +85,33 @@ impl AdminController {
         self.expect_report.load(Ordering::Relaxed)
     }
 
-    /// Register interest in the next report. Called once by the `/stop`
-    /// handler; the returned receiver resolves when [`Self::deliver_report`]
-    /// is called.
-    fn register_report_waiter(&self) -> oneshot::Receiver<(String, String)> {
-        let (tx, rx) = oneshot::channel();
-        *self.report_tx.lock().expect("Report sender lock poisoned") = Some(tx);
-        rx
+    fn report_receiver(&self) -> watch::Receiver<ReportState> {
+        self.report.subscribe()
     }
 
-    /// Returns `true` if `/stop` has registered a waiter and is currently
-    /// blocked on [`Self::deliver_report`]. Used to decide whether it's
-    /// worth formatting a report at all.
-    pub fn has_report_waiter(&self) -> bool {
-        self.report_tx
-            .lock()
-            .expect("Report sender lock poisoned")
-            .is_some()
+    /// Atomically transitions `NotRequested -> Pending`; `true` only for the
+    /// caller that made the transition, so finalization triggers once.
+    fn try_request_finalize(&self) -> bool {
+        self.report.send_if_modified(|state| {
+            if matches!(state, ReportState::NotRequested) {
+                *state = ReportState::Pending;
+                true
+            } else {
+                false
+            }
+        })
     }
 
-    /// Deliver the formatted report to a waiting `/stop` handler, if any.
-    /// Returns `true` if a waiter was registered and the report was handed
-    /// off successfully.
-    pub fn deliver_report(&self, content_type: String, body: String) -> bool {
-        let waiter = self
-            .report_tx
-            .lock()
-            .expect("Report sender lock poisoned")
-            .take();
-        waiter.is_some_and(|tx| tx.send((content_type, body)).is_ok())
+    /// Publish the finalized report. Called unconditionally by `command()`
+    /// once built, whether or not anyone ever requested it.
+    pub fn publish_report(&self, content_type: String, body: String) {
+        let _ = self.report.send_if_modified(|state| {
+            *state = ReportState::Ready(Arc::new((content_type, body)));
+            true
+        });
     }
 
-    /// Begin graceful shutdown: the gRPC and HTTP admin listeners stop
-    /// accepting new connections, and background signal/inactivity tasks
-    /// exit. Idempotent — safe to call from multiple stop paths; only the
-    /// first call has an effect.
+    /// Begin graceful shutdown. Idempotent — only the first call has an effect.
     pub fn begin_shutdown(&self) {
         self.shutdown.cancel();
     }
@@ -150,15 +122,9 @@ impl AdminController {
     }
 }
 
-/// Signals shutdown and drains the OTLP receiver's background thread when
-/// dropped.
-///
-/// Shared by every place that owns a `JoinHandle` returned from
-/// [`listen_otlp_requests`] (directly, or via [`otlp_ingester::OtlpIngester::ingest_otlp`])
-/// and needs to guarantee it's drained no matter how its own scope ends —
-/// an early return can happen before any stop signal was ever sent, so
-/// `Drop` requests shutdown itself first (`begin_shutdown` is idempotent,
-/// so this is a no-op on the normal path where one already fired).
+/// Signals shutdown and drains the background thread on drop — guarantees
+/// cleanup no matter how the owning scope exits, even before any stop
+/// signal was sent.
 pub(crate) struct AdminDrainGuard {
     controller: AdminController,
     handle: Option<std::thread::JoinHandle<()>>,
@@ -301,6 +267,8 @@ pub enum StopSignal {
     AdminStop,
     /// Inactivity timeout
     Inactivity,
+    /// HTTP GET to /live-check/report
+    ReportRequested,
 }
 
 impl Display for StopSignal {
@@ -310,39 +278,30 @@ impl Display for StopSignal {
             StopSignal::Sighup => f.write_str("SIGHUP"),
             StopSignal::AdminStop => f.write_str("ADMIN_STOP"),
             StopSignal::Inactivity => f.write_str("INACTIVITY"),
+            StopSignal::ReportRequested => f.write_str("REPORT_REQUESTED"),
         }
     }
 }
 
-/// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
-/// and return an iterator of received OTLP requests, an admin controller, and
-/// the background thread's join handle.
-///
-/// The `AdminController` allows the caller to send a formatted report back
-/// through the `/stop` HTTP endpoint. When `/stop` is called, the HTTP handler
-/// registers a oneshot waiter and waits for the report.
-///
-/// The returned `JoinHandle` only resolves once the gRPC server, the HTTP
-/// admin server, and all background tasks have gracefully shut down (bounded
-/// by `ADMIN_REQUEST_TIMEOUT`). Callers that want to guarantee no in-flight
-/// request is cut short by process exit should join it after handling the
-/// stop signal.
-///
-/// This function guarantees that the OTLP server is started and ready when the
-/// result is Ok(iterator).
+/// Bundles the admin controller, background-thread handle, and a
+/// shutdown-requested signal for coordinating shutdown.
+pub struct OtlpAdmin {
+    pub controller: AdminController,
+    pub handle: std::thread::JoinHandle<()>,
+    /// Resolves once shutdown is requested via any path. Unbounded — it's
+    /// up to the client when that happens.
+    pub shutdown_requested: oneshot::Receiver<()>,
+}
+
+/// Start an OTLP receiver and return an iterator of requests alongside an
+/// [`OtlpAdmin`] for shutdown coordination. The server is ready when this
+/// returns `Ok`.
 pub fn listen_otlp_requests(
     grpc_addr: &str,
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
-) -> Result<
-    (
-        impl Iterator<Item = OtlpRequest>,
-        AdminController,
-        std::thread::JoinHandle<()>,
-    ),
-    Error,
-> {
+) -> Result<(impl Iterator<Item = OtlpRequest>, OtlpAdmin), Error> {
     let addr: SocketAddr =
         format!("{grpc_addr}:{grpc_port}")
             .parse()
@@ -361,9 +320,7 @@ pub fn listen_otlp_requests(
 
     let (tx, rx) = mpsc::channel(100);
     let stop_tx = tx.clone();
-    // Create a watch channel for the last activity timestamp
     let (activity_tx, activity_rx) = watch::channel(Instant::now());
-    // Create the admin controller for /stop response and shutdown coordination
     let controller = AdminController::new();
     let logs_service = LogsServiceImpl {
         tx: tx.clone(),
@@ -379,12 +336,11 @@ pub fn listen_otlp_requests(
     };
 
     let (ready_tx, ready_rx) = oneshot::channel();
+    let (shutdown_requested_tx, shutdown_requested_rx) = oneshot::channel();
 
-    // Start an OS thread and run a single threaded Tokio runtime inside.
-    // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
+    // Background OS thread running a single-threaded Tokio runtime.
     let controller_clone = controller.clone();
     let handle = std::thread::spawn(move || {
-        // Start a current threaded Tokio runtime
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -392,10 +348,14 @@ pub fn listen_otlp_requests(
             .block_on(async {
                 let mut tasks = JoinSet::new();
 
-                // Spawn tasks to handle different stop signals. Every one of
-                // them, plus the gRPC and HTTP admin servers below, races
-                // against the same shutdown token so that whichever signal
-                // fires first drains the whole receiver.
+                // Signal shutdown_requested_rx once shutdown is requested (see OtlpAdmin).
+                let shutdown_token_for_signal = controller_clone.shutdown_token();
+                let _ = tasks.spawn(async move {
+                    shutdown_token_for_signal.cancelled().await;
+                    let _ = shutdown_requested_tx.send(());
+                });
+
+                // Every stop path races against the same shutdown token.
                 spawn_stop_signal_handlers(
                     stop_tx.clone(),
                     controller_clone.shutdown_token(),
@@ -414,7 +374,7 @@ pub fn listen_otlp_requests(
                         stop_tx.clone(),
                         activity_rx,
                         inactivity_timeout,
-                        controller_clone.shutdown_token(),
+                        controller_clone.clone(),
                         &mut tasks,
                     );
                 }
@@ -423,8 +383,7 @@ pub fn listen_otlp_requests(
                     .expect("Failed to convert std listener to tokio listener");
                 let inbound = TcpListenerStream::new(tokio_listener);
 
-                // Serve the OTLP services, gracefully draining in-flight
-                // calls once shutdown is signalled instead of running forever.
+                // Drains in-flight calls on shutdown instead of running forever.
                 let server_future = Server::builder()
                     .add_service(LogsServiceServer::new(logs_service))
                     .add_service(MetricsServiceServer::new(metrics_service))
@@ -438,15 +397,9 @@ pub fn listen_otlp_requests(
                     .send(())
                     .expect("Failed to signal that the server is ready");
 
-                // `server_future` only resolves once a stop signal cancels
-                // the shutdown token (or the listener hits a fatal error) —
-                // a session otherwise runs indefinitely serving traffic, so
-                // this must NOT be time-bounded from process startup (that
-                // would force-close every long-running session regardless
-                // of activity). Wait for shutdown to actually begin, then
-                // bound how long the graceful drain — gRPC in-flight calls
-                // first, then the background tasks below — may take,
-                // measured from that moment rather than from startup.
+                // Bound the drain from when shutdown actually begins, not from
+                // startup — otherwise long-running sessions would get
+                // force-closed early.
                 let shutdown_token = controller_clone.shutdown_token();
                 tokio::pin!(server_future);
                 let (grpc_result, drain_deadline) = tokio::select! {
@@ -455,13 +408,7 @@ pub fn listen_otlp_requests(
                         (tokio::time::timeout_at(deadline, &mut server_future).await, deadline)
                     }
                     result = &mut server_future => {
-                        // The gRPC listener ended on its own (a fatal
-                        // transport error) without any stop signal ever
-                        // being requested. Treat that as shutdown too, so
-                        // the HTTP admin server and other tasks start
-                        // draining right away instead of waiting on some
-                        // other trigger (inactivity, a signal) — or, worst
-                        // case, the drain timeout below — to notice.
+                        // Listener died on its own; treat that as shutdown too.
                         shutdown_token.cancel();
                         (Ok(result), tokio::time::Instant::now() + ADMIN_REQUEST_TIMEOUT)
                     }
@@ -484,20 +431,9 @@ pub fn listen_otlp_requests(
                     }
                 }
 
-                // Bound how long we wait for background tasks (signal
-                // handlers, inactivity monitor, HTTP admin server) to notice
-                // cancellation and finish. If this elapses, drop the
-                // JoinSet anyway: Tokio aborts any still-running tasks on
-                // drop, so this thread — and the JoinHandle we return to the
-                // caller — is always guaranteed to complete.
-                //
-                // `SHUTDOWN_DRAIN_GRACE` on top of `drain_deadline` (rather
-                // than reusing it as-is) gives the HTTP admin task — and
-                // `/stop` in particular — room to actually flush its
-                // response after its own ADMIN_REQUEST_TIMEOUT-bounded wait
-                // for the report resolves, instead of racing to finish in
-                // the same window.
-                if tokio::time::timeout_at(drain_deadline + SHUTDOWN_DRAIN_GRACE, tasks.join_all())
+                // Bound how long we wait for tasks to finish; dropping the
+                // JoinSet aborts any stragglers, so this always completes.
+                if tokio::time::timeout_at(drain_deadline, tasks.join_all())
                     .await
                     .is_err()
                 {
@@ -514,7 +450,14 @@ pub fn listen_otlp_requests(
         error: format!("OTLP server dropped before signaling readiness (error: {e})"),
     })?;
 
-    Ok((SyncReceiver { receiver: rx }, controller, handle))
+    Ok((
+        SyncReceiver { receiver: rx },
+        OtlpAdmin {
+            controller,
+            handle,
+            shutdown_requested: shutdown_requested_rx,
+        },
+    ))
 }
 
 /// Outcome of [`join_with_timeout`].
@@ -522,9 +465,7 @@ pub fn listen_otlp_requests(
 enum JoinOutcome {
     /// The thread finished normally within the timeout.
     Joined,
-    /// The thread panicked. `handle.join()`'s `Err` payload is logged where
-    /// this is produced, not carried further, since callers only need to
-    /// know shutdown didn't finish cleanly.
+    /// The thread panicked (message already logged).
     Panicked,
     /// The timeout elapsed before the thread finished.
     TimedOut,
@@ -556,28 +497,13 @@ fn join_with_timeout(handle: std::thread::JoinHandle<()>, timeout: Duration) -> 
     }
 }
 
-/// Wait for the OTLP receiver's background thread (as returned by
-/// [`listen_otlp_requests`]) to finish shutting down.
-///
-/// Callers should call this after handling the stop signal and before
-/// exiting the process, so `std::process::exit` can't cut off an in-flight
-/// gRPC call or HTTP response (e.g. a `/stop` report) that's still being
-/// flushed.
-///
-/// The thread is internally bounded to finish within `ADMIN_REQUEST_TIMEOUT`
-/// plus `SHUTDOWN_DRAIN_GRACE` (its worst case: the gRPC drain step taking
-/// its full budget, then the task-join step taking its own full grace on
-/// top of that), so waiting a little longer than that here is a generous
-/// backstop against an unanticipated hang; if it doesn't report back in
-/// time we log a warning and move on rather than block process exit
-/// forever.
+/// Wait for the background thread from [`listen_otlp_requests`] to finish,
+/// bounded so `process::exit` can't cut off an in-flight request but also
+/// can't hang forever waiting for this.
 pub fn wait_for_admin_shutdown(handle: std::thread::JoinHandle<()>) {
     const SHUTDOWN_WATCHDOG_GRACE: Duration = Duration::from_secs(5);
 
-    match join_with_timeout(
-        handle,
-        ADMIN_REQUEST_TIMEOUT + SHUTDOWN_DRAIN_GRACE + SHUTDOWN_WATCHDOG_GRACE,
-    ) {
+    match join_with_timeout(handle, ADMIN_REQUEST_TIMEOUT + SHUTDOWN_WATCHDOG_GRACE) {
         // Joined cleanly, or already logged its own diagnostic (panic).
         JoinOutcome::Joined | JoinOutcome::Panicked => {}
         JoinOutcome::TimedOut => {
@@ -589,16 +515,8 @@ pub fn wait_for_admin_shutdown(handle: std::thread::JoinHandle<()>) {
     }
 }
 
-/// Spawn tasks to handle CTRL+C and SIGHUP signals.
-///
-/// Each task races the signal against `shutdown` so that if some other stop
-/// path (e.g. `/stop` or inactivity) triggers shutdown first, this task
-/// still exits promptly instead of waiting forever for a signal that will
-/// never come.
-///
-/// Note: All the tasks created in this function are recorded into a
-/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
-/// ignore as we don't need to abort these tasks.
+/// Spawn tasks to handle CTRL+C and SIGHUP, each racing the signal against
+/// `shutdown` so it exits promptly if some other path stops first.
 fn spawn_stop_signal_handlers(
     stop_tx: mpsc::Sender<OtlpRequest>,
     shutdown: CancellationToken,
@@ -656,61 +574,49 @@ async fn health_handler() -> impl IntoResponse {
     Json(serde_json::json!({"status": "ready"}))
 }
 
-/// POST /stop — sends a stop signal. If `--output=http` was set, waits for
-/// the report and returns it as the response body; otherwise returns 200
-/// immediately.
+/// POST /stop — terminates the process. Carries no report; see
+/// `GET /live-check/report` to retrieve one first.
 async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
-    // Begin shutdown immediately: this stops the gRPC/HTTP listeners from
-    // accepting new connections, but hyper's graceful shutdown still drains
-    // this in-flight request/response before the admin server task exits —
-    // so it's safe to do this before we even know whether a report needs to
-    // be produced.
     state.controller.begin_shutdown();
-
-    if state.controller.wants_report() {
-        let rx = state.controller.register_report_waiter();
-
-        let _ = state
-            .stop_tx
-            .send(OtlpRequest::Stop(StopSignal::AdminStop))
-            .await;
-
-        match tokio::time::timeout(ADMIN_REQUEST_TIMEOUT, rx).await {
-            Ok(Ok((content_type, body))) => {
-                (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
-            }
-            Ok(Err(_)) => {
-                // Channel dropped — report generation failed
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": "Report generation failed"})),
-                )
-                    .into_response()
-            }
-            Err(_) => {
-                // Timeout
-                (
-                    StatusCode::GATEWAY_TIMEOUT,
-                    Json(serde_json::json!({"error": "Timed out waiting for report"})),
-                )
-                    .into_response()
-            }
-        }
-    } else {
-        let _ = state
-            .stop_tx
-            .send(OtlpRequest::Stop(StopSignal::AdminStop))
-            .await;
-
-        StatusCode::OK.into_response()
-    }
+    let _ = state
+        .stop_tx
+        .send(OtlpRequest::Stop(StopSignal::AdminStop))
+        .await;
+    StatusCode::OK.into_response()
 }
 
-/// Spawn a minimal HTTP server that handles admin endpoints (/health, /stop).
-///
-/// Note: All the tasks created in this function are recorded into a
-/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
-/// ignore as we don't need to abort these tasks.
+/// GET /live-check/report — ends ingestion if needed and returns the
+/// finalized report. Idempotent; requires `--output http`.
+async fn report_handler(State(state): State<AdminState>) -> impl IntoResponse {
+    if !state.controller.wants_report() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    let mut rx = state.controller.report_receiver();
+    if state.controller.try_request_finalize() {
+        let _ = state
+            .stop_tx
+            .send(OtlpRequest::Stop(StopSignal::ReportRequested))
+            .await;
+    }
+
+    // No timeout: the client decides how long to wait for finalization.
+    let report = rx
+        .wait_for(|s| matches!(s, ReportState::Ready(_)))
+        .await
+        .expect("report sender dropped");
+    let ReportState::Ready(report) = &*report else {
+        unreachable!("wait_for only resolves once state is Ready")
+    };
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, report.0.clone())],
+        report.1.clone(),
+    )
+        .into_response()
+}
+
+/// Spawn the HTTP admin server (/health, /stop, /live-check/report).
 async fn spawn_http_admin_handler(
     stop_tx: mpsc::Sender<OtlpRequest>,
     port: u16,
@@ -732,6 +638,7 @@ async fn spawn_http_admin_handler(
             let app = Router::new()
                 .route("/health", get(health_handler))
                 .route("/stop", post(stop_handler))
+                .route("/live-check/report", get(report_handler))
                 .with_state(state);
 
             let _ = tasks.spawn(async move {
@@ -751,22 +658,17 @@ async fn spawn_http_admin_handler(
     }
 }
 
-/// Spawn a task that monitors for inactivity and triggers shutdown if timeout is reached.
-///
-/// Races the inactivity `sleep` against `shutdown` so that if some other
-/// stop path triggers shutdown first, this task exits promptly instead of
-/// sleeping out the rest of its timeout.
-///
-/// Note: All the tasks created in this function are recorded into a
-/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
-/// ignore as we don't need to abort these tasks.
+/// Monitors for inactivity and triggers shutdown. With `--output http`,
+/// finalizes the report but leaves the shutdown token uncancelled, so the
+/// process waits for an explicit stop instead of exiting before retrieval.
 fn spawn_inactivity_monitor(
     stop_tx: mpsc::Sender<OtlpRequest>,
     activity_rx: watch::Receiver<Instant>,
     timeout: Duration,
-    shutdown: CancellationToken,
+    controller: AdminController,
     tasks: &mut JoinSet<()>,
 ) {
+    let shutdown = controller.shutdown_token();
     let _ = tasks.spawn(async move {
         loop {
             tokio::select! {
@@ -774,10 +676,11 @@ fn spawn_inactivity_monitor(
                 _ = shutdown.cancelled() => break,
             }
 
-            // Check if we've exceeded the inactivity timeout
             let last_activity = *activity_rx.borrow();
             if last_activity.elapsed() >= timeout {
-                shutdown.cancel();
+                if !controller.wants_report() {
+                    shutdown.cancel();
+                }
                 let _ = stop_tx
                     .send(OtlpRequest::Stop(StopSignal::Inactivity))
                     .await
@@ -785,7 +688,7 @@ fn spawn_inactivity_monitor(
                 break;
             }
 
-            // Check if we should stop monitoring (channel closed)
+            // Sender dropped — stop monitoring.
             if activity_rx.has_changed().is_err() {
                 break;
             }
@@ -899,7 +802,7 @@ mod tests {
         let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(1);
 
-        let (mut receiver, _report_sender, handle) =
+        let (mut receiver, admin) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
         let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
         let expected_metrics_count = 3;
@@ -985,17 +888,11 @@ mod tests {
             "The number of traces received is incorrect"
         );
 
-        // Inactivity is one of the four stop paths that must cascade into a
-        // full graceful shutdown of the gRPC + HTTP admin servers (gRPC has
-        // no other shutdown trigger of its own). The background thread must
-        // therefore become joinable within a bounded time.
-        assert_joins_within(handle, Duration::from_secs(5), "an inactivity stop");
+        assert_joins_within(admin.handle, Duration::from_secs(5), "an inactivity stop");
     }
 
-    /// Assert `handle` joins cleanly within `timeout`, using the same
-    /// watchdog primitive `wait_for_admin_shutdown` uses in production
-    /// (with a much shorter timeout here, so a regression fails the test
-    /// fast).
+    /// Assert `handle` joins cleanly within `timeout` (a short one here, so
+    /// a regression fails the test fast).
     fn assert_joins_within(handle: thread::JoinHandle<()>, timeout: Duration, context: &str) {
         match join_with_timeout(handle, timeout) {
             JoinOutcome::Joined => {}
@@ -1011,38 +908,37 @@ mod tests {
     }
 
     #[test]
-    fn test_http_stop_endpoint_with_report() {
+    fn test_report_endpoint() {
         let grpc_port = reserve_test_port();
         let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(5);
 
-        let (mut receiver, report_sender, handle) =
+        let (mut receiver, admin) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
 
         // Enable report-via-HTTP mode (simulates --output http)
-        report_sender.enable_http_report();
+        admin.controller.enable_http_report();
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));
 
-        // The HTTP handler now waits for a report before responding, so the
-        // POST must be on a separate thread.
+        // Blocks until finalized, so it needs its own thread.
         let response_handle = thread::spawn(move || {
-            let url = format!("http://127.0.0.1:{admin_port}/stop");
-            ureq::post(&url)
-                .send("")
-                .expect("HTTP POST to /stop failed")
+            let url = format!("http://127.0.0.1:{admin_port}/live-check/report");
+            ureq::get(&url)
+                .call()
+                .expect("GET /live-check/report failed")
         });
 
-        // Wait for the Stop signal and then send the report
+        // Decoupled from shutdown: sends ReportRequested, not AdminStop.
         match receiver.next() {
-            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {
-                let delivered =
-                    report_sender.deliver_report("text/plain".into(), "test report".into());
-                assert!(delivered, "Expected a report waiter to be registered");
+            Some(OtlpRequest::Stop(StopSignal::ReportRequested)) => {
+                admin
+                    .controller
+                    .publish_report("text/plain".into(), "test report".into());
             }
             other => {
-                panic!("Expected OtlpRequest::Stop, got {other:?}");
+                panic!("Expected OtlpRequest::Stop(ReportRequested), got {other:?}");
             }
         }
 
@@ -1050,27 +946,48 @@ mod tests {
         assert_eq!(
             response.status(),
             200,
-            "Stop endpoint returned non-200 status"
+            "Report endpoint returned non-200 status"
         );
         let body = response.into_body().read_to_string().unwrap();
         assert_eq!(body, "test report");
 
-        // The whole point of this coordination: the background thread must
-        // only finish (and thus only let the process exit) once the report
-        // response above has been fully handled.
-        assert_joins_within(handle, Duration::from_secs(5), "/stop with a report");
+        // Idempotent: a second call serves the cached report.
+        let url = format!("http://127.0.0.1:{admin_port}/live-check/report");
+        let second = ureq::get(&url)
+            .call()
+            .expect("second GET /live-check/report failed");
+        let second_body = second.into_body().read_to_string().unwrap();
+        assert_eq!(second_body, "test report");
+
+        // Retrieval must not shut anything down on its own.
+        let health_url = format!("http://127.0.0.1:{admin_port}/health");
+        assert!(
+            ureq::get(&health_url).call().is_ok(),
+            "admin server should still be reachable after /live-check/report"
+        );
+
+        // Now actually stop it.
+        let stop_url = format!("http://127.0.0.1:{admin_port}/stop");
+        let stop_response = ureq::post(&stop_url)
+            .send("")
+            .expect("HTTP POST to /stop failed");
+        assert_eq!(stop_response.status(), 200);
+
+        assert_joins_within(
+            admin.handle,
+            Duration::from_secs(5),
+            "/stop after /live-check/report",
+        );
     }
 
     #[test]
-    fn test_http_stop_endpoint_immediate() {
+    fn test_stop_endpoint() {
         let grpc_port = reserve_test_port();
         let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(5);
 
-        let (mut receiver, _report_sender, handle) =
+        let (mut receiver, admin) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
-
-        // expect_report defaults to false — /stop should return 200 immediately
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));
@@ -1095,7 +1012,44 @@ mod tests {
             }
         }
 
-        assert_joins_within(handle, Duration::from_secs(5), "an immediate /stop");
+        assert_joins_within(admin.handle, Duration::from_secs(5), "/stop");
+    }
+
+    #[test]
+    fn test_inactivity_with_report_mode_waits_for_stop() {
+        let grpc_port = reserve_test_port();
+        let admin_port = reserve_test_port();
+        let inactivity_timeout = Duration::from_secs(1);
+
+        let (mut receiver, admin) =
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+        admin.controller.enable_http_report();
+
+        // Ends ingestion but must not cancel shutdown in report mode.
+        match receiver.next() {
+            Some(OtlpRequest::Stop(StopSignal::Inactivity)) => {}
+            other => {
+                panic!("Expected OtlpRequest::Stop(Inactivity), got {other:?}");
+            }
+        }
+
+        thread::sleep(Duration::from_millis(200));
+        let health_url = format!("http://127.0.0.1:{admin_port}/health");
+        assert!(
+            ureq::get(&health_url).call().is_ok(),
+            "admin server should still be running after inactivity in report mode"
+        );
+
+        let stop_url = format!("http://127.0.0.1:{admin_port}/stop");
+        let _ = ureq::post(&stop_url)
+            .send("")
+            .expect("HTTP POST to /stop failed");
+
+        assert_joins_within(
+            admin.handle,
+            Duration::from_secs(5),
+            "inactivity in report mode, then /stop",
+        );
     }
 
     #[test]
@@ -1104,7 +1058,7 @@ mod tests {
         let admin_port = reserve_test_port();
         let inactivity_timeout = Duration::from_secs(5);
 
-        let (_receiver, _report_sender, _handle) =
+        let (_receiver, _admin) =
             listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
 
         // Give the server a little time to finish binding the port.

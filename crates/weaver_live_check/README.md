@@ -70,14 +70,26 @@ Some `Ingesters`, like `stdin` and `otlp`, can stream the input data so you rece
 
 OTLP live-check is particularly useful in CI/CD pipelines to evaluate the quality of instrumentation observed from all unit tests, integration tests and so on.
 
-This `Ingester` starts an OTLP listener and streams each received OTLP message to the `Advisors`. The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop endpoint, and a maximum duration of no OTLP message reception. See the usage examples later in this document.
+This `Ingester` starts an OTLP listener and streams each received OTLP message to the `Advisors`. The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP `/stop` endpoint, and a maximum duration of no OTLP message reception. See the usage examples later in this document.
 
 Options for OTLP ingest:
 
 - `--otlp-grpc-address`: Address used by the gRPC OTLP listener
 - `--otlp-grpc-port`: Port used by the gRPC OTLP listener
-- `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
+- `--admin-port`: Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/live-check/report` — see [Admin Endpoints](#admin-endpoints))
 - `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
+
+### Admin Endpoints
+
+When ingesting from OTLP, weaver runs a small HTTP admin server on `--admin-port` alongside the OTLP listener. Retrieving the report and terminating the process are deliberately independent: retrieve first (as many times as you like, whenever you're ready), then stop whenever you're done — one is never blocked or cut short by the other.
+
+| Method | Path                 | Description |
+| ------ | -------------------- | ------------ |
+| `GET`  | `/health`            | Returns `200` once the listener is ready to accept OTLP traffic. |
+| `GET`  | `/live-check/report` | Only available with `--output http`. Ends ingestion (if not already ended) and returns the finalized report. Blocks until the report is ready — no timeout, since retrieval and termination are decoupled. Idempotent: safe to call any number of times; every call after the first serves the same cached report immediately. Does **not** stop the process. Returns `404` if `--output http` was not set. |
+| `POST` | `/stop`              | Terminates the process. Carries no report body — retrieve one via `/live-check/report` first if you need it. Equivalent to CTRL+C or SIGHUP. |
+
+With `--output http`, `--inactivity-timeout` finalizes the report on inactivity but — like `/live-check/report` — does not terminate the process; the listener waits for an explicit `/stop` (or CTRL+C/SIGHUP) so a client always has a chance to retrieve the report. Without `--output http`, inactivity terminates the process as normal.
 
 ## Advisors
 
@@ -256,7 +268,7 @@ The output follows existing Weaver paradigms providing overridable jinja templat
 
 By default the output is streamed (when available) to an `ansi` template. Use the `--format` option to pick one of the builtin standard formats: `json`, `jsonl` and `yaml` or a template name. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
 
-Set `--output=http` to have the report sent as the response to the `/stop` endpoint on the admin port.
+Set `--output=http` to have the report served from `GET /live-check/report` on the admin port instead of written to a file or stdout — see [Admin Endpoints](#admin-endpoints).
 
 To provide your own custom templates use the `--templates` option.
 
