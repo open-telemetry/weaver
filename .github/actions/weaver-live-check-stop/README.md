@@ -19,6 +19,7 @@ Linux runners only in v1.
 | `fail-on` | no | `violation` | Lowest finding level that should fail the job: `violation` \| `improvement` \| `information` \| `none`. Start with `none` when first adopting; tighten once existing findings are addressed. |
 | `state-dir` | no | `$WEAVER_LIVE_CHECK_STATE_DIR` | State directory produced by `weaver-live-check-start`. |
 | `stop-timeout` | no | `30` | Seconds to wait for weaver to exit cleanly after being told to stop (the report is fetched separately beforehand). |
+| `report-timeout` | no | `120` | Seconds to wait for `GET /live-check/report` to respond. weaver puts no timeout on this call itself, so this is the client-side backstop against a stuck report. |
 | `upload-report` | no | `true` | When `true`, upload the captured live-check JSON report as a workflow artifact so the full per-sample, per-advisory detail is downloadable from the run page. |
 | `report-artifact-name` | no | `weaver-live-check-report` | Artifact name. Override when running multiple live-check instances in the same job. |
 
@@ -34,7 +35,7 @@ Linux runners only in v1.
 
 ## Behavior
 
-- Validates `fail-on`, `stop-timeout`, and `upload-report` inputs.
+- Validates `fail-on`, `stop-timeout`, `report-timeout`, and `upload-report` inputs.
 - GETs weaver's admin `/live-check/report`, capturing the report body to
   `state-dir/live_check.json`, then POSTs to `/stop` to terminate it.
 - Waits for the weaver process to exit cleanly (up to `stop-timeout`);

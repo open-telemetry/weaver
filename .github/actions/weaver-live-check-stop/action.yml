@@ -34,6 +34,14 @@ inputs:
       process shutdown time). Must be a positive integer.
     required: false
     default: '30'
+  report-timeout:
+    description: >-
+      Seconds to wait for `GET /live-check/report` to respond. weaver
+      itself puts no timeout on this call, so this is the client-side
+      backstop that keeps a stuck report from hanging the job. Must be a
+      positive integer.
+    required: false
+    default: '120'
   upload-report:
     description: >-
       When `true` (default), upload the captured live-check JSON report as
@@ -75,6 +83,7 @@ runs:
       env:
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_STOP_TIMEOUT: ${{ inputs.stop-timeout }}
+        INPUT_REPORT_TIMEOUT: ${{ inputs.report-timeout }}
         INPUT_UPLOAD_REPORT: ${{ inputs.upload-report }}
       run: |
         set -euo pipefail
@@ -87,6 +96,10 @@ runs:
         esac
         if ! [[ "$INPUT_STOP_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
           echo "::error::input stop-timeout must be a positive integer, got '$INPUT_STOP_TIMEOUT'" >&2
+          exit 1
+        fi
+        if ! [[ "$INPUT_REPORT_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error::input report-timeout must be a positive integer, got '$INPUT_REPORT_TIMEOUT'" >&2
           exit 1
         fi
         case "$INPUT_UPLOAD_REPORT" in
@@ -104,6 +117,7 @@ runs:
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_STATE_DIR: ${{ inputs.state-dir }}
         INPUT_STOP_TIMEOUT: ${{ inputs.stop-timeout }}
+        INPUT_REPORT_TIMEOUT: ${{ inputs.report-timeout }}
       run: |
         set -euo pipefail
 
@@ -121,16 +135,16 @@ runs:
         # Retrieve the report first, decoupled from termination: GET
         # /live-check/report (enabled by `--output=http`, set by the start
         # action) blocks server-side until the report is finalized and
-        # returns it — no timeout to guess here, unlike stopping the
-        # listener, which is a separate, quick action below.
+        # returns it. weaver itself puts no timeout on this, so
+        # `report-timeout` is this action's own client-side backstop.
         echo "Fetching live-check report (admin :${ADMIN_PORT})..."
-        if ! curl -fsS "http://127.0.0.1:${ADMIN_PORT}/live-check/report" -o "$REPORT"; then
-          echo "::warning::admin GET /live-check/report failed; falling back to graceful kill"
+        if ! curl -fsS --max-time "$INPUT_REPORT_TIMEOUT" "http://127.0.0.1:${ADMIN_PORT}/live-check/report" -o "$REPORT"; then
+          echo "::warning::admin GET /live-check/report failed or timed out after ${INPUT_REPORT_TIMEOUT}s; falling back to graceful kill"
           kill "$WEAVER_PID" 2>/dev/null || true
         fi
 
         echo "Stopping weaver listener (admin :${ADMIN_PORT})..."
-        curl -fsS -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" || true
+        curl -fsS --max-time 10 -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" || true
 
         # Wait for weaver to exit (best-effort; the process was spawned in
         # a different shell so we can't `wait` on it directly).

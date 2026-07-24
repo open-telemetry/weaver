@@ -10,6 +10,7 @@ use axum::http::{header, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use bytes::Bytes;
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -30,6 +31,7 @@ use std::fmt::{Display, Formatter};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
@@ -52,7 +54,9 @@ pub(crate) const ADMIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 enum ReportState {
     NotRequested,
     Pending,
-    Ready(Arc<(String, String)>), // (content_type, body)
+    Ready(Arc<(String, Bytes)>), // (content_type, body)
+    /// The OTLP receiver shut down before the report was finalized.
+    Failed,
 }
 
 /// Coordinates `/live-check/report` and shutdown across the gRPC server,
@@ -106,8 +110,24 @@ impl AdminController {
     /// once built, whether or not anyone ever requested it.
     pub fn publish_report(&self, content_type: String, body: String) {
         let _ = self.report.send_if_modified(|state| {
-            *state = ReportState::Ready(Arc::new((content_type, body)));
+            *state = ReportState::Ready(Arc::new((content_type, Bytes::from(body))));
             true
+        });
+    }
+
+    /// Mark the report as unavailable — called when the OTLP receiver is
+    /// shutting down without ever having published one, so any caller
+    /// blocked in `GET /live-check/report` gets an immediate error instead
+    /// of hanging until the shutdown drain forcibly aborts its connection.
+    /// No-op once a report has already been published.
+    fn mark_failed(&self) {
+        let _ = self.report.send_if_modified(|state| {
+            if matches!(state, ReportState::Ready(_)) {
+                false
+            } else {
+                *state = ReportState::Failed;
+                true
+            }
         });
     }
 
@@ -127,11 +147,11 @@ impl AdminController {
 /// signal was sent.
 pub(crate) struct AdminDrainGuard {
     controller: AdminController,
-    handle: Option<std::thread::JoinHandle<()>>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl AdminDrainGuard {
-    pub(crate) fn new(controller: AdminController, handle: std::thread::JoinHandle<()>) -> Self {
+    pub(crate) fn new(controller: AdminController, handle: JoinHandle<()>) -> Self {
         Self {
             controller,
             handle: Some(handle),
@@ -142,6 +162,10 @@ impl AdminDrainGuard {
 impl Drop for AdminDrainGuard {
     fn drop(&mut self) {
         if let Some(handle) = self.handle.take() {
+            // Unblocks any in-flight `GET /live-check/report` immediately
+            // instead of leaving it to hang until the drain below forces
+            // the connection closed.
+            self.controller.mark_failed();
             self.controller.begin_shutdown();
             wait_for_admin_shutdown(handle);
         }
@@ -287,7 +311,7 @@ impl Display for StopSignal {
 /// shutdown-requested signal for coordinating shutdown.
 pub struct OtlpAdmin {
     pub controller: AdminController,
-    pub handle: std::thread::JoinHandle<()>,
+    pub handle: JoinHandle<()>,
     /// Resolves once shutdown is requested via any path. Unbounded — it's
     /// up to the client when that happens.
     pub shutdown_requested: oneshot::Receiver<()>,
@@ -340,7 +364,7 @@ pub fn listen_otlp_requests(
 
     // Background OS thread running a single-threaded Tokio runtime.
     let controller_clone = controller.clone();
-    let handle = std::thread::spawn(move || {
+    let handle = thread::spawn(move || {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -475,9 +499,9 @@ enum JoinOutcome {
 ///
 /// A plain blocking `JoinHandle::join` would have no way to give up, so this
 /// runs it on its own thread and races that against `timeout` instead.
-fn join_with_timeout(handle: std::thread::JoinHandle<()>, timeout: Duration) -> JoinOutcome {
+fn join_with_timeout(handle: JoinHandle<()>, timeout: Duration) -> JoinOutcome {
     let (done_tx, done_rx) = std::sync::mpsc::channel();
-    let _ = std::thread::spawn(move || {
+    let _ = thread::spawn(move || {
         let _ = done_tx.send(handle.join());
     });
     match done_rx.recv_timeout(timeout) {
@@ -500,7 +524,7 @@ fn join_with_timeout(handle: std::thread::JoinHandle<()>, timeout: Duration) -> 
 /// Wait for the background thread from [`listen_otlp_requests`] to finish,
 /// bounded so `process::exit` can't cut off an in-flight request but also
 /// can't hang forever waiting for this.
-pub fn wait_for_admin_shutdown(handle: std::thread::JoinHandle<()>) {
+pub fn wait_for_admin_shutdown(handle: JoinHandle<()>) {
     const SHUTDOWN_WATCHDOG_GRACE: Duration = Duration::from_secs(5);
 
     match join_with_timeout(handle, ADMIN_REQUEST_TIMEOUT + SHUTDOWN_WATCHDOG_GRACE) {
@@ -601,19 +625,28 @@ async fn report_handler(State(state): State<AdminState>) -> impl IntoResponse {
     }
 
     // No timeout: the client decides how long to wait for finalization.
+    // `Failed` also resolves this so a shutdown that happens before the
+    // report is ever built (e.g. a rendering error) doesn't hang the caller.
     let report = rx
-        .wait_for(|s| matches!(s, ReportState::Ready(_)))
+        .wait_for(|s| !matches!(s, ReportState::NotRequested | ReportState::Pending))
         .await
         .expect("report sender dropped");
-    let ReportState::Ready(report) = &*report else {
-        unreachable!("wait_for only resolves once state is Ready")
-    };
-    (
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, report.0.clone())],
-        report.1.clone(),
-    )
-        .into_response()
+    match &*report {
+        ReportState::Ready(report) => (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, report.0.clone())],
+            report.1.clone(),
+        )
+            .into_response(),
+        ReportState::Failed => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "The OTLP receiver shut down before the report was finalized"})),
+        )
+            .into_response(),
+        ReportState::NotRequested | ReportState::Pending => {
+            unreachable!("wait_for only resolves once state is Ready or Failed")
+        }
+    }
 }
 
 /// Spawn the HTTP admin server (/health, /stop, /live-check/report).
@@ -648,6 +681,13 @@ async fn spawn_http_admin_handler(
             });
         }
         Err(e) => {
+            // Nothing else can ever cancel shutdown for this session (no
+            // admin server means `/stop` is unreachable, and `--output
+            // http` keeps the inactivity monitor from cancelling on its
+            // own) — without this, callers that wait on shutdown (e.g.
+            // `command()`'s `shutdown_requested.blocking_recv()`) would
+            // hang forever.
+            controller.begin_shutdown();
             stop_tx
                 .send(OtlpRequest::Error(Error::HttpAdminError {
                     error: format!("Failed to bind HTTP admin port {port}: {e}"),
@@ -793,7 +833,6 @@ mod tests {
     use crate::registry::otlp::grpc_stubs::proto::collector::logs::v1::logs_service_client::LogsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
-    use std::thread;
     use weaver_test_support::reserve_test_port;
 
     #[test]
@@ -893,7 +932,7 @@ mod tests {
 
     /// Assert `handle` joins cleanly within `timeout` (a short one here, so
     /// a regression fails the test fast).
-    fn assert_joins_within(handle: thread::JoinHandle<()>, timeout: Duration, context: &str) {
+    fn assert_joins_within(handle: JoinHandle<()>, timeout: Duration, context: &str) {
         match join_with_timeout(handle, timeout) {
             JoinOutcome::Joined => {}
             JoinOutcome::Panicked => panic!(
@@ -956,7 +995,10 @@ mod tests {
         let second = ureq::get(&url)
             .call()
             .expect("second GET /live-check/report failed");
-        let second_body = second.into_body().read_to_string().unwrap();
+        let second_body = second
+            .into_body()
+            .read_to_string()
+            .expect("Failed to read second /live-check/report response body");
         assert_eq!(second_body, "test report");
 
         // Retrieval must not shut anything down on its own.
@@ -1022,7 +1064,8 @@ mod tests {
         let inactivity_timeout = Duration::from_secs(1);
 
         let (mut receiver, admin) =
-            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout)
+                .expect("Failed to start OTLP receiver");
         admin.controller.enable_http_report();
 
         // Ends ingestion but must not cancel shutdown in report mode.
