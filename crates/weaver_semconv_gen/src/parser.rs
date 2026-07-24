@@ -258,6 +258,30 @@ fn parse_semconv_trailer(input: &str) -> IResult<&str, ()> {
     }
 }
 
+/// Returns true if the line is an HTML comment that looks like a snippet marker.
+pub fn looks_like_snippet_marker(line: &str) -> bool {
+    let Ok((rest, snippet)) = parse_html_comment(line) else {
+        return false;
+    };
+    if !rest.trim().is_empty() {
+        return false;
+    }
+
+    let snippet = snippet.trim();
+    snippet.starts_with(SEMCONV_HEADER)
+        || snippet.starts_with(SEMCONV_TRAILER)
+        || snippet.starts_with(WEAVER_HEADER)
+        || snippet.starts_with(WEAVER_TRAILER)
+}
+
+/// Returns true if the line is a supported markdown snippet marker.
+pub fn is_valid_snippet_marker(line: &str) -> bool {
+    is_markdown_snippet_directive(line)
+        || is_semconv_trailer(line)
+        || is_weaver_directive(line)
+        || is_weaver_trailer(line)
+}
+
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
 pub fn is_semconv_trailer(line: &str) -> bool {
     matches!(parse_semconv_trailer(line), Ok((rest, _)) if rest.trim().is_empty())
@@ -446,7 +470,8 @@ fn parse_refinement_lookup(input: &str) -> IResult<&str, RefinementLookup> {
 mod tests {
 
     use crate::parser::{
-        is_markdown_snippet_directive, is_semconv_trailer, is_weaver_trailer, parse_id_lookup_v2,
+        is_markdown_snippet_directive, is_semconv_trailer, is_valid_snippet_marker,
+        is_weaver_trailer, looks_like_snippet_marker, parse_id_lookup_v2,
         parse_weaver_snippet_directive, IdLookupV2, MarkdownGenParameters, RefinementLookup,
         RegistryLookup,
     };
@@ -546,6 +571,21 @@ mod tests {
     fn parse_weaver_trailer() {
         assert!(is_weaver_trailer("<!-- endweaver -->"));
         assert!(!is_weaver_trailer("<!-- endweaverded -->"));
+    }
+
+    #[test]
+    fn recognizes_invalid_snippet_markers() {
+        assert!(is_valid_snippet_marker("<!-- semconvmetric.foo -->"));
+        assert!(looks_like_snippet_marker(
+            "<!-- semconv metric.foo(bad) -->"
+        ));
+        assert!(!is_valid_snippet_marker("<!-- semconv metric.foo(bad) -->"));
+        assert!(looks_like_snippet_marker("<!-- endsemconvded -->"));
+        assert!(!is_valid_snippet_marker("<!-- endsemconvded -->"));
+        assert!(is_valid_snippet_marker("<!-- semconv metric.foo-->"));
+        assert!(is_valid_snippet_marker("<!-- endsemconv-->"));
+        assert!(!looks_like_snippet_marker("<!-- other semconv stuff -->"));
+        assert!(!looks_like_snippet_marker("hello"));
     }
 
     #[test]

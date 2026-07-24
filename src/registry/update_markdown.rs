@@ -173,6 +173,7 @@ pub(crate) fn command(
     log_success("Registry resolved successfully");
     let operation = if dry_run { "Validating" } else { "Updating" };
     let mut has_error = false;
+    let mut marker_warnings = DiagnosticMessages::empty();
     for entry in walkdir::WalkDir::new(&markdown_dir)
         .into_iter()
         .filter_map(|e| match e {
@@ -181,11 +182,15 @@ pub(crate) fn command(
         })
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) = generator.update_markdown(
-            &entry.path().display().to_string(),
-            dry_run,
-            attribute_registry_base_url.as_deref(),
-        ) {
+        let path = entry.path().display().to_string();
+        if let Err(error) = generator
+            .update_markdown_with_diagnostics(
+                &path,
+                dry_run,
+                attribute_registry_base_url.as_deref(),
+            )
+            .capture_non_fatal_errors(&mut marker_warnings)
+        {
             has_error = true;
             log_error(error);
         }
@@ -205,7 +210,7 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        warnings: None,
+        warnings: (!marker_warnings.is_empty()).then_some(marker_warnings),
     })
 }
 
@@ -314,6 +319,82 @@ mod tests {
         let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_update_markdown_warns_on_invalid_snippet_marker() {
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let markdown_dir = temp_dir.path().join("markdown");
+        let registry_dir = temp_dir.path().join("registry");
+        std::fs::create_dir_all(&markdown_dir).expect("failed to create markdown dir");
+        std::fs::create_dir_all(&registry_dir).expect("failed to create registry dir");
+        std::fs::write(
+            registry_dir.join("test.yaml"),
+            r#"
+groups:
+  - id: trace.test
+    type: span
+    span_kind: client
+    brief: Test span
+    stability: stable
+    attributes:
+      - id: my.name
+        brief: Test attribute.
+        type: string
+        stability: stable
+        examples: ["test"]
+"#,
+        )
+        .expect("failed to write test registry");
+
+        let markdown_path = markdown_dir.join("test.md");
+        let mut markdown =
+            std::fs::read_to_string("tests/markdown_update_dryrun/current_output/test.md")
+                .expect("failed to read test markdown");
+        markdown.push_str("\n<!-- semconv metric.test(bad) -->\n");
+        std::fs::write(&markdown_path, markdown).expect("failed to write test markdown");
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: Some(
+                        markdown_dir
+                            .to_str()
+                            .expect("markdown dir path is valid UTF-8")
+                            .to_owned(),
+                    ),
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: registry_dir
+                                .to_str()
+                                .expect("registry dir path is valid UTF-8")
+                                .to_owned(),
+                        }),
+                        ..Default::default()
+                    },
+                    dry_run: Some(false),
+                    attribute_registry_base_url: None,
+                    templates: Some("tests/markdown_update_dryrun/templates".to_owned()),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                    param: None,
+                    params: None,
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli);
+        assert_eq!(exit_directive.exit_code, 0);
+        let warnings = exit_directive
+            .warnings
+            .expect("invalid marker should be reported as a warning");
+        assert_eq!(warnings.len(), 1);
+        assert!(!warnings.has_error());
     }
 
     #[test]
