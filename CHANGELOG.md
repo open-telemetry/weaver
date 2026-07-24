@@ -26,6 +26,8 @@ All notable changes to this project will be documented in this file.
   and cached ([#1504](https://github.com/open-telemetry/weaver/pull/1504) by @jsuereth).
 - Change `--include-unreferenced` so that this is the same as creating a
   a set of `import:` statements in the registry manifest. ([#1442](https://github.com/open-telemetry/weaver/pull/1442) by @jsuereth)
+- Support for describing aggregation being done on metrics
+  ([#845](https://github.com/open-telemetry/weaver/pull/822) by @thompson-tomo)
 
 # [0.24.2] - 2026-06-23
 
