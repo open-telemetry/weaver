@@ -121,6 +121,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             attributes: Vec::new(),
                             span_events: Vec::new(),
                             span_links: Vec::new(),
+                            instrumentation_scope: None,
                             live_check_result: None,
                             resource: None,
                         };

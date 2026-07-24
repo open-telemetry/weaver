@@ -1024,6 +1024,7 @@ mod tests {
             }],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1058,6 +1059,7 @@ mod tests {
                 live_check_result: None,
             }],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1135,6 +1137,7 @@ mod tests {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }));
@@ -1143,6 +1146,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Counter),
             unit: "{request}".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }));
@@ -1154,6 +1158,7 @@ mod tests {
             attributes: vec![],
             trace_id: None,
             span_id: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }));
@@ -1184,6 +1189,7 @@ mod tests {
             instrument: SampleInstrument::Unsupported("Summary".to_owned()),
             unit: String::new(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1212,6 +1218,7 @@ mod tests {
                 exemplars: vec![],
                 live_check_result: None,
             }])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1236,6 +1243,7 @@ mod tests {
                 exemplars: vec![],
                 live_check_result: None,
             }])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1265,6 +1273,7 @@ mod tests {
                     live_check_result: None,
                 },
             ])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1335,6 +1344,7 @@ mod tests {
             }],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1365,6 +1375,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
             unit: "ms".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1390,6 +1401,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Counter),
             unit: String::new(), // Empty unit
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1451,6 +1463,7 @@ mod tests {
                 live_check_result: None,
             }],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1575,6 +1588,7 @@ mod tests {
                 live_check_result: None,
             }],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
