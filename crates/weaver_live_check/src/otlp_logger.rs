@@ -678,6 +678,82 @@ mod tests {
         assert!(attrs.is_empty());
     }
 
+    /// Findings on a resource sample must carry that resource's attributes,
+    /// the same way findings on span/metric/log samples carry their parent
+    /// resource's attributes.
+    #[test]
+    fn test_resource_sample_finding_carries_resource_attributes() {
+        let resource = SampleResource {
+            attributes: vec![
+                SampleAttribute {
+                    name: "service.name".to_owned(),
+                    value: Some(json!("my-test-service")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "deployment.environment.name".to_owned(),
+                    value: Some(json!("production")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+            ],
+            live_check_result: None,
+        };
+        let parent_signal = Sample::Resource(resource.clone());
+
+        // Mirrors how `emit_finding` derives a finding's resource attributes.
+        let attrs = parent_signal
+            .resource()
+            .map(|r| flatten_resource_attributes(&r.attributes))
+            .unwrap_or_default();
+
+        assert_eq!(
+            find_attr(&attrs, "service.name"),
+            Some(&AnyValue::from("my-test-service"))
+        );
+        assert_eq!(
+            find_attr(&attrs, "deployment.environment.name"),
+            Some(&AnyValue::from("production"))
+        );
+
+        // A sample with no resource still yields no resource attributes.
+        let orphan = Sample::Span(create_test_span("test.span"));
+        assert!(orphan
+            .resource()
+            .map(|r| flatten_resource_attributes(&r.attributes))
+            .unwrap_or_default()
+            .is_empty());
+    }
+
+    #[test]
+    fn test_emit_finding_with_resource_sample() {
+        let emitter = OtlpEmitter::new_stdout();
+        let sample = SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-test-service")),
+                r#type: None,
+                live_check_result: None,
+            }],
+            live_check_result: None,
+        };
+        let parent_signal = Sample::Resource(sample.clone());
+        let sample_ref = SampleRef::Resource(&sample);
+        let finding = create_test_finding(
+            "test_finding",
+            "This is a test finding on a resource",
+            FindingLevel::Violation,
+            Some("resource"),
+            None,
+            None,
+        );
+
+        emitter.emit_finding(&finding, &sample_ref, &parent_signal);
+
+        assert!(emitter.shutdown().is_ok());
+    }
+
     #[test]
     fn test_service_to_resource_attributes_full() {
         use crate::generated::entities::{
