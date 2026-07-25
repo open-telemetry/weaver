@@ -871,32 +871,28 @@ fn resolve_inheritance_attrs_unified(
     for (parent_group_id, included_group) in include_groups {
         for parent_attr in included_group.iter() {
             let attr_id = parent_attr.spec.id();
-            match inherited_attrs.get_mut(&attr_id) {
-                Some(existing) => {
-                    existing.spec = resolve_inheritance_attr(
-                        &parent_attr.spec,
-                        &existing.spec,
-                        &mut existing.lineage,
-                    );
-                    existing.lineage.source_group = parent_group_id.to_owned();
-                }
-                None => {
-                    let lineage =
-                        AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
-                    log::debug!(
-                        "Inheriting attribute {} from group {}, resolved to {:#?}",
-                        attr_id,
-                        parent_group_id,
-                        lineage.source_group
-                    );
-                    _ = inherited_attrs.insert(
-                        attr_id.clone(),
-                        AttrWithLineage {
-                            spec: parent_attr.spec.clone(),
-                            lineage,
-                        },
-                    );
-                }
+            if let Some(existing) = inherited_attrs.get_mut(&attr_id) {
+                existing.spec = resolve_inheritance_attr(
+                    &parent_attr.spec,
+                    &existing.spec,
+                    &mut existing.lineage,
+                );
+                existing.lineage.source_group = parent_group_id.to_owned();
+            } else {
+                let lineage = AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
+                log::debug!(
+                    "Inheriting attribute {} from group {}, resolved to {:#?}",
+                    attr_id,
+                    parent_group_id,
+                    lineage.source_group
+                );
+                _ = inherited_attrs.insert(
+                    attr_id.clone(),
+                    AttrWithLineage {
+                        spec: parent_attr.spec.clone(),
+                        lineage,
+                    },
+                );
             }
         }
     }
@@ -1181,9 +1177,9 @@ mod tests {
     use crate::registry::resolve_inheritance_attrs_unified;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
-    use weaver_resolved_schema::attribute::UnresolvedAttribute;
     use crate::{WeaverResolver, WeaverResolverConfig};
     use std::sync::Arc;
+    use weaver_resolved_schema::attribute::UnresolvedAttribute;
 
     /// Settings for resolution tests.
     #[derive(Serialize, Deserialize, Default)]
@@ -1904,7 +1900,11 @@ groups:
         };
 
         // Lowest priority base (parent `extends`): sets conditionally_required.
-        let parent = vec![bare_ref("messaging.destination.name", Some(cond.clone()), None)];
+        let parent = vec![bare_ref(
+            "messaging.destination.name",
+            Some(cond.clone()),
+            None,
+        )];
         // Higher priority base (`ref_group`): only sets an example, no level.
         let included = vec![bare_ref(
             "messaging.destination.name",
@@ -1939,7 +1939,9 @@ groups:
                     "ref_group example override should still win"
                 );
             }
-            other => panic!("expected a Ref attribute, got {other:?}"),
+            other @ AttributeSpec::Id { .. } => {
+                panic!("expected a Ref attribute, got {other:?}")
+            }
         }
     }
 }
