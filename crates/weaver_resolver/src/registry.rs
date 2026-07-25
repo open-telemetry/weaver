@@ -868,14 +868,6 @@ fn resolve_inheritance_attrs_unified(
     // their id in the resolved registry. This is useful for unit tests to
     // ensure that the resolved registry is easy to compare.
     let mut inherited_attrs: BTreeMap<String, AttrWithLineage> = BTreeMap::new();
-
-    // Inherit the attributes from all bases (parent signal + included groups),
-    // lowest priority first. When the same attribute id appears in more than one
-    // base, the higher-priority base overrides the lower one *field by field*:
-    // fields it leaves unset inherit from the lower-priority base instead of
-    // replacing the whole spec. This mirrors how inline `ref:` overrides are
-    // merged below, so a bare `ref:` inside a `ref_group` behaves the same as a
-    // bare inline `ref:`.
     for (parent_group_id, included_group) in include_groups {
         for parent_attr in included_group.iter() {
             let attr_id = parent_attr.spec.id();
@@ -1903,10 +1895,6 @@ groups:
     /// example must NOT reset the `requirement_level` inherited from a
     /// lower-priority base (`extends`). It must behave the same as a bare inline
     /// `ref`: unset fields inherit rather than replacing the whole spec.
-    ///
-    /// Regression for the messaging `destination.name` flip
-    /// (`conditionally_required` -> `recommended`) caused by resolving-then-
-    /// merging `ref_group` bases instead of merging their fields in place.
     #[test]
     fn ref_group_bare_ref_preserves_inherited_requirement_level() {
         use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};

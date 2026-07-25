@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix v2 attribute resolution so a `ref` inside an included group (`ref_group`) merges field-by-field instead of replacing the whole attribute. ([#TODO](https://github.com/open-telemetry/weaver/pull/TODO) by @lmolkova)
+- Fix v2 attribute resolution so a `ref` inside an included group (`ref_group`) merges field-by-field instead of replacing the whole attribute. ([#1634](https://github.com/open-telemetry/weaver/pull/1634) by @lmolkova)
 
 # [0.25.0] - 2026-07-24
 
