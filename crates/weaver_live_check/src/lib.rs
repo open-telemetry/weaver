@@ -8,6 +8,7 @@ use finding_modifier::FindingModifier;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_instrumentation_scope::SampleInstrumentationScope;
 use sample_log::SampleLog;
 use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
@@ -387,6 +388,17 @@ impl Sample {
             Sample::Span(s) => s.resource.as_deref(),
             Sample::Metric(m) => m.resource.as_deref(),
             Sample::Log(l) => l.resource.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Returns the instrumentation scope that produced the signal, if available.
+    #[must_use]
+    pub fn instrumentation_scope(&self) -> Option<&SampleInstrumentationScope> {
+        match self {
+            Sample::Span(s) => s.instrumentation_scope.as_deref(),
+            Sample::Metric(m) => m.instrumentation_scope.as_deref(),
+            Sample::Log(l) => l.instrumentation_scope.as_deref(),
             _ => None,
         }
     }

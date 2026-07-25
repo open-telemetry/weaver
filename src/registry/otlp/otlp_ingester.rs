@@ -71,7 +71,8 @@ impl OtlpIterator {
                         let instrumentation_scope = otlp_instrumentation_scope_to_sample(
                             scope_log.scope.as_ref(),
                             &scope_log.schema_url,
-                        );
+                        )
+                        .map(Rc::new);
                         if let Some(scope) = scope_log.scope.as_ref() {
                             for attribute in &scope.attributes {
                                 self.buffer.push(Sample::Attribute(
@@ -113,7 +114,8 @@ impl OtlpIterator {
                         let instrumentation_scope = otlp_instrumentation_scope_to_sample(
                             scope_metric.scope.as_ref(),
                             &scope_metric.schema_url,
-                        );
+                        )
+                        .map(Rc::new);
                         if let Some(scope) = scope_metric.scope.as_ref() {
                             for attribute in &scope.attributes {
                                 self.buffer.push(Sample::Attribute(
@@ -155,7 +157,8 @@ impl OtlpIterator {
                         let instrumentation_scope = otlp_instrumentation_scope_to_sample(
                             scope_span.scope.as_ref(),
                             &scope_span.schema_url,
-                        );
+                        )
+                        .map(Rc::new);
                         if let Some(scope) = scope_span.scope.as_ref() {
                             for attribute in &scope.attributes {
                                 self.buffer.push(Sample::Attribute(
@@ -364,6 +367,43 @@ mod tests {
         assert_eq!(scopes[0].schema_url, "https://example.test/schema/a");
         assert_eq!(scopes[1].name, "library-b");
         assert_eq!(scopes[1].schema_url, "https://example.test/schema/b");
+    }
+
+    #[test]
+    fn spans_from_the_same_otlp_scope_share_context() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                scope_spans: vec![ScopeSpans {
+                    scope: Some(scope("shared-library")),
+                    spans: vec![
+                        Span {
+                            name: "first-operation".to_owned(),
+                            ..Default::default()
+                        },
+                        Span {
+                            name: "second-operation".to_owned(),
+                            ..Default::default()
+                        },
+                    ],
+                    schema_url: "https://example.test/schema".to_owned(),
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let scopes: Vec<_> = collect(vec![request])
+            .into_iter()
+            .filter_map(|sample| match sample {
+                Sample::Span(span) => span.instrumentation_scope,
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(scopes.len(), 2);
+        assert!(
+            Rc::ptr_eq(&scopes[0], &scopes[1]),
+            "signals in one OTLP scope must reuse the same context allocation"
+        );
     }
 
     #[test]

@@ -195,6 +195,7 @@ mod tests {
             DataPoints, SampleExemplar, SampleExponentialHistogramDataPoint, SampleInstrument,
             SampleMetric, SampleNumberDataPoint,
         },
+        sample_resource::SampleResource,
         sample_span::SampleSpan,
         LiveCheckRunner, LiveCheckStatistics, Sample,
     };
@@ -2639,15 +2640,24 @@ mod tests {
             }
 
             deny contains make_advice(advice_type, advice_level, advice_context, message) if {
-                input.sample.span.instrumentation_scope.name == "framework"
-                input.sample.span.instrumentation_scope.version == "1.2.3"
-                input.sample.span.instrumentation_scope.schema_url == "https://opentelemetry.io/schemas/1.32.0"
-                input.sample.span.instrumentation_scope.attributes[0].name == "scope.environment"
-                input.sample.span.instrumentation_scope.dropped_attributes_count == 2
+                input.instrumentation_scope.name == "framework"
+                input.instrumentation_scope.version == "1.2.3"
+                input.instrumentation_scope.schema_url == "https://opentelemetry.io/schemas/1.32.0"
+                input.instrumentation_scope.attributes[0].name == "scope.environment"
+                input.instrumentation_scope.dropped_attributes_count == 2
+                input.resource != null
                 advice_type := "instrumentation_scope_seen"
                 advice_level := "information"
                 advice_context := {"scope_name": "framework"}
                 message := "Instrumentation scope is policy-visible"
+            }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.instrumentation_scope == null
+                advice_type := "instrumentation_scope_absent"
+                advice_level := "information"
+                advice_context := {"scope_name": null}
+                message := "Missing instrumentation scope is explicitly null"
             }
         "#;
         std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
@@ -2670,7 +2680,7 @@ mod tests {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
-            instrumentation_scope: Some(SampleInstrumentationScope {
+            instrumentation_scope: Some(Rc::new(SampleInstrumentationScope {
                 name: "framework".to_owned(),
                 version: "1.2.3".to_owned(),
                 schema_url: "https://opentelemetry.io/schemas/1.32.0".to_owned(),
@@ -2681,9 +2691,12 @@ mod tests {
                     live_check_result: None,
                 }],
                 dropped_attributes_count: 2,
-            }),
+            })),
             live_check_result: None,
-            resource: None,
+            resource: Some(Rc::new(SampleResource {
+                attributes: vec![],
+                live_check_result: None,
+            })),
         });
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -2707,6 +2720,33 @@ mod tests {
                 .iter()
                 .any(|finding| finding.id == "instrumentation_scope_seen"),
             "expected custom policy to inspect instrumentation scope: {advice:?}"
+        );
+
+        let mut unscoped_sample = sample.clone();
+        match &mut unscoped_sample {
+            Sample::Span(span) => {
+                span.instrumentation_scope = None;
+                span.live_check_result = None;
+            }
+            _ => unreachable!("test constructs a span"),
+        }
+        unscoped_sample
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &unscoped_sample.clone(),
+            )
+            .expect("unscoped live check should not error");
+        let unscoped_advice = match &unscoped_sample {
+            Sample::Span(span) => &span.live_check_result.as_ref().unwrap().all_advice,
+            _ => unreachable!("test constructs a span"),
+        };
+        assert!(
+            unscoped_advice
+                .iter()
+                .any(|finding| finding.id == "instrumentation_scope_absent"),
+            "expected missing scope to be explicitly null for Rego: {unscoped_advice:?}"
         );
     }
 

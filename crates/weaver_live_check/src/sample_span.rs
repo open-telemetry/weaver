@@ -54,9 +54,9 @@ pub struct SampleSpan {
     /// SpanLinks
     #[serde(default)]
     pub span_links: Vec<SampleSpanLink>,
-    /// Instrumentation scope that produced this span.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub instrumentation_scope: Option<SampleInstrumentationScope>,
+    /// Shared instrumentation scope that produced this span (not serialized).
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
     /// Reference to the parent resource (not serialized)

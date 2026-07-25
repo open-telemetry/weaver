@@ -37,9 +37,9 @@ pub struct SampleLog {
     pub trace_id: Option<String>,
     /// Span ID if the event is correlated with a span
     pub span_id: Option<String>,
-    /// Instrumentation scope that produced this log record.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub instrumentation_scope: Option<SampleInstrumentationScope>,
+    /// Shared instrumentation scope that produced this log record (not serialized).
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
     /// Reference to the parent resource (not serialized)
