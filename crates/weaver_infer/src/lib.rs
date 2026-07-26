@@ -101,6 +101,9 @@ impl AccumulatedSamples {
             Sample::Metric(metric) => self.add_metric(metric),
             Sample::Log(log) => self.add_event(log.event_name, log.attributes),
             Sample::Attribute(attr) => accumulate_attribute(&mut self.resources, attr),
+            Sample::InstrumentationScope(_) => {
+                // Scope metadata is not part of the inferred resource or signal schema.
+            }
             other => {
                 // This shouldn't happen since we control when add_sample is called.
                 // Adding anyway just in case.

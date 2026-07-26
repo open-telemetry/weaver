@@ -46,6 +46,7 @@ pub fn otlp_instrumentation_scope_to_sample(
                 .collect()
         }),
         dropped_attributes_count: scope.map_or(0, |scope| scope.dropped_attributes_count),
+        live_check_result: None,
     })
 }
 

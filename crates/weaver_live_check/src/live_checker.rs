@@ -2691,6 +2691,7 @@ mod tests {
                     live_check_result: None,
                 }],
                 dropped_attributes_count: 2,
+                live_check_result: None,
             })),
             live_check_result: None,
             resource: Some(Rc::new(SampleResource {

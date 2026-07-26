@@ -11,7 +11,6 @@ use clap::Args;
 use include_dir::{include_dir, Dir};
 
 use log::info;
-use serde::Serialize;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::{log_success, log_warn};
@@ -27,9 +26,8 @@ use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{
-    sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
-    CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
-    LiveCheckStatistics, Sample, VersionedRegistry,
+    sample_resource::SampleResource, CumulativeStatistics, DisabledStatistics, Error, Ingester,
+    LiveCheckReport, LiveCheckRunner, LiveCheckStatistics, Sample, VersionedRegistry,
 };
 use weaver_macros::weaver_command;
 
@@ -206,55 +204,7 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
     ]
 }
 
-/// Template-only view that keeps shared signal context adjacent to the sample.
-#[derive(Serialize)]
-struct TemplateSample<'a> {
-    #[serde(flatten)]
-    sample: &'a Sample,
-    instrumentation_scope: Option<&'a SampleInstrumentationScope>,
-}
-
-impl<'a> From<&'a Sample> for TemplateSample<'a> {
-    fn from(sample: &'a Sample) -> Self {
-        Self {
-            sample,
-            instrumentation_scope: sample.instrumentation_scope(),
-        }
-    }
-}
-
-/// Template-only report view for the standard text renderer.
-#[derive(Serialize)]
-struct TemplateLiveCheckReport<'a> {
-    statistics: &'a LiveCheckStatistics,
-    samples: Vec<TemplateSample<'a>>,
-}
-
-impl<'a> TemplateLiveCheckReport<'a> {
-    fn new(samples: &'a [Sample], statistics: &'a LiveCheckStatistics) -> Self {
-        Self {
-            statistics,
-            samples: samples.iter().map(TemplateSample::from).collect(),
-        }
-    }
-}
-
-fn uses_template_context(output: &OutputProcessor) -> bool {
-    output.content_type() == "text/plain"
-}
-
-fn generate_sample(
-    output: &mut OutputProcessor,
-    sample: &Sample,
-) -> Result<(), weaver_forge::error::Error> {
-    if uses_template_context(output) {
-        output.generate(&TemplateSample::from(sample))
-    } else {
-        output.generate(sample)
-    }
-}
-
-/// Generate output for a complete report - handles line-oriented special case.
+/// Generate output for a complete report - handles line-oriented special case
 fn generate_report(
     output: &mut OutputProcessor,
     samples: Vec<Sample>,
@@ -269,8 +219,6 @@ fn generate_report(
             LiveCheckStatistics::Cumulative(_) => output.generate(&stats),
             LiveCheckStatistics::Disabled(_) => Ok(()),
         }
-    } else if uses_template_context(output) {
-        output.generate(&TemplateLiveCheckReport::new(&samples, &stats))
     } else {
         let report = LiveCheckReport {
             statistics: stats,
@@ -458,7 +406,7 @@ pub(crate) fn command(
             samples.push(sample);
         } else {
             // Output this sample immediately (streaming mode)
-            generate_sample(&mut output, &sample).map_err(DiagnosticMessages::from)?;
+            output.generate(&sample).map_err(DiagnosticMessages::from)?;
         }
     }
 
@@ -501,10 +449,6 @@ pub(crate) fn command(
                     LiveCheckStatistics::Disabled(_) => {}
                 }
                 lines.join("\n")
-            } else if uses_template_context(&output) {
-                output
-                    .generate_to_string(&TemplateLiveCheckReport::new(&samples, &stats))
-                    .map_err(DiagnosticMessages::from)?
             } else {
                 let report = LiveCheckReport {
                     statistics: stats,
@@ -553,8 +497,6 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use serde_json::json;
     use weaver_forge::{OutputProcessor, OutputTarget};
     use weaver_live_check::{
@@ -562,7 +504,7 @@ mod tests {
         sample_instrumentation_scope::SampleInstrumentationScope, LiveCheckResult, Sample,
     };
 
-    use super::{RegistryLiveCheckArgs, TemplateSample, DEFAULT_LIVE_CHECK_TEMPLATES};
+    use super::{RegistryLiveCheckArgs, DEFAULT_LIVE_CHECK_TEMPLATES};
     use crate::registry::tests::assert_config_cli_consistency;
 
     #[test]
@@ -571,12 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn ansi_output_displays_shared_instrumentation_scope() {
-        let inputs = [
-            json!({"span": {"name": "operation", "kind": "internal"}}),
-            json!({"metric": {"name": "requests", "instrument": "counter", "unit": "1"}}),
-            json!({"log": {"event_name": "request.completed"}}),
-        ];
+    fn ansi_output_displays_instrumentation_scope_through_the_normal_sample_path() {
         let output = OutputProcessor::new(
             "ansi",
             "live_check",
@@ -586,53 +523,35 @@ mod tests {
         )
         .expect("ANSI output processor should load");
 
-        for input in inputs {
-            let mut sample: Sample =
-                serde_json::from_value(input).expect("signal sample should deserialize");
-            let instrumentation_scope = Rc::new(SampleInstrumentationScope {
-                name: "scope-name".to_owned(),
-                version: "1.2.3".to_owned(),
-                schema_url: "https://example.test/schema".to_owned(),
-                attributes: vec![SampleAttribute {
-                    name: "scope.environment".to_owned(),
-                    value: Some(json!("test")),
-                    r#type: None,
-                    live_check_result: None,
-                }],
-                dropped_attributes_count: 2,
-            });
-            match &mut sample {
-                Sample::Span(span) => {
-                    span.instrumentation_scope = Some(Rc::clone(&instrumentation_scope));
-                    span.live_check_result = Some(LiveCheckResult::new());
-                }
-                Sample::Metric(metric) => {
-                    metric.instrumentation_scope = Some(Rc::clone(&instrumentation_scope));
-                    metric.live_check_result = Some(LiveCheckResult::new());
-                }
-                Sample::Log(log) => {
-                    log.instrumentation_scope = Some(Rc::clone(&instrumentation_scope));
-                    log.live_check_result = Some(LiveCheckResult::new());
-                }
-                _ => unreachable!("test only supplies whole signals"),
-            }
+        let sample = Sample::InstrumentationScope(SampleInstrumentationScope {
+            name: "scope-name".to_owned(),
+            version: "1.2.3".to_owned(),
+            schema_url: "https://example.test/schema".to_owned(),
+            attributes: vec![SampleAttribute {
+                name: "scope.environment".to_owned(),
+                value: Some(json!("test")),
+                r#type: None,
+                live_check_result: Some(LiveCheckResult::new()),
+            }],
+            dropped_attributes_count: 2,
+            live_check_result: Some(LiveCheckResult::new()),
+        });
 
-            let rendered = output
-                .generate_to_string(&TemplateSample::from(&sample))
-                .expect("ANSI sample should render");
+        let rendered = output
+            .generate_to_string(&sample)
+            .expect("ANSI sample should render");
 
-            assert_eq!(
-                rendered.matches("Instrumentation scope").count(),
-                1,
-                "{rendered}"
-            );
-            assert!(rendered.contains("scope-name"), "{rendered}");
-            assert!(rendered.contains("1.2.3"), "{rendered}");
-            assert!(
-                rendered.contains("https://example.test/schema"),
-                "{rendered}"
-            );
-            assert!(rendered.contains("scope.environment"), "{rendered}");
-        }
+        assert_eq!(
+            rendered.matches("Instrumentation scope").count(),
+            1,
+            "{rendered}"
+        );
+        assert!(rendered.contains("scope-name"), "{rendered}");
+        assert!(rendered.contains("1.2.3"), "{rendered}");
+        assert!(
+            rendered.contains("https://example.test/schema"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("scope.environment"), "{rendered}");
     }
 }

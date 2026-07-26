@@ -73,12 +73,9 @@ impl OtlpIterator {
                             &scope_log.schema_url,
                         )
                         .map(Rc::new);
-                        if let Some(scope) = scope_log.scope.as_ref() {
-                            for attribute in &scope.attributes {
-                                self.buffer.push(Sample::Attribute(
-                                    sample_attribute_from_key_value(attribute),
-                                ));
-                            }
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
                         }
 
                         for log_record in scope_log.log_records {
@@ -116,12 +113,9 @@ impl OtlpIterator {
                             &scope_metric.schema_url,
                         )
                         .map(Rc::new);
-                        if let Some(scope) = scope_metric.scope.as_ref() {
-                            for attribute in &scope.attributes {
-                                self.buffer.push(Sample::Attribute(
-                                    sample_attribute_from_key_value(attribute),
-                                ));
-                            }
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
                         }
 
                         for metric in scope_metric.metrics {
@@ -159,12 +153,9 @@ impl OtlpIterator {
                             &scope_span.schema_url,
                         )
                         .map(Rc::new);
-                        if let Some(scope) = scope_span.scope.as_ref() {
-                            for attribute in &scope.attributes {
-                                self.buffer.push(Sample::Attribute(
-                                    sample_attribute_from_key_value(attribute),
-                                ));
-                            }
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
                         }
 
                         for span in scope_span.spans {
@@ -463,10 +454,21 @@ mod tests {
             Sample::Log(log) => log.instrumentation_scope.as_ref(),
             _ => None,
         });
+        let emitted_scope_names: Vec<_> = samples
+            .iter()
+            .filter_map(|sample| match sample {
+                Sample::InstrumentationScope(scope) => Some(scope.name.as_str()),
+                _ => None,
+            })
+            .collect();
 
         assert_eq!(span_scope.expect("span scope").name, "trace-library");
         assert_eq!(metric_scope.expect("metric scope").name, "metric-library");
         assert_eq!(log_scope.expect("log scope").name, "log-library");
+        assert_eq!(
+            emitted_scope_names,
+            ["trace-library", "metric-library", "log-library"]
+        );
     }
 
     #[test]
@@ -495,10 +497,18 @@ mod tests {
             }],
         });
 
-        let spans: Vec<_> = collect(vec![request])
-            .into_iter()
+        let samples = collect(vec![request]);
+        let spans: Vec<_> = samples
+            .iter()
             .filter_map(|sample| match sample {
                 Sample::Span(span) => Some(span),
+                _ => None,
+            })
+            .collect();
+        let emitted_scopes: Vec<_> = samples
+            .iter()
+            .filter_map(|sample| match sample {
+                Sample::InstrumentationScope(scope) => Some(scope),
                 _ => None,
             })
             .collect();
@@ -510,10 +520,15 @@ mod tests {
             .expect("schema URL is ownership metadata even when scope is absent");
         assert_eq!(schema_only.name, "");
         assert_eq!(schema_only.schema_url, "https://example.test/schema-only");
+        assert_eq!(emitted_scopes.len(), 1);
+        assert_eq!(
+            emitted_scopes[0].schema_url,
+            "https://example.test/schema-only"
+        );
     }
 
     #[test]
-    fn scope_attributes_are_attached_and_emitted_for_checking_exactly_once() {
+    fn instrumentation_scope_is_emitted_once_and_attached_to_its_signal() {
         let request = OtlpRequest::Traces(ExportTraceServiceRequest {
             resource_spans: vec![ResourceSpans {
                 resource: Some(Resource {
@@ -533,13 +548,39 @@ mod tests {
         });
 
         let samples = collect(vec![request]);
-        let checked_scope_attributes = samples
+        let emitted_scopes: Vec<_> = samples
             .iter()
-            .filter(|sample| {
-                matches!(sample, Sample::Attribute(attribute) if attribute.name == "scope.environment")
+            .filter_map(|sample| {
+                let value = serde_json::to_value(sample).expect("sample serializes");
+                value.get("instrumentation_scope").cloned()
             })
-            .count();
-        assert_eq!(checked_scope_attributes, 1);
+            .collect();
+        assert_eq!(emitted_scopes.len(), 1);
+        assert_eq!(emitted_scopes[0]["name"], "trace-library");
+        assert_eq!(
+            emitted_scopes[0]["attributes"][0]["name"],
+            "scope.environment"
+        );
+        assert!(
+            samples.iter().all(
+                |sample| !matches!(sample, Sample::Attribute(attribute) if attribute.name == "scope.environment")
+            ),
+            "scope attributes should be grouped under the scope sample"
+        );
+        let resource_position = samples
+            .iter()
+            .position(|sample| matches!(sample, Sample::Resource(_)))
+            .expect("resource sample");
+        let scope_position = samples
+            .iter()
+            .position(|sample| matches!(sample, Sample::InstrumentationScope(_)))
+            .expect("instrumentation scope sample");
+        let span_position = samples
+            .iter()
+            .position(|sample| matches!(sample, Sample::Span(_)))
+            .expect("span sample");
+        assert!(resource_position < scope_position);
+        assert!(scope_position < span_position);
 
         let span = samples
             .iter()

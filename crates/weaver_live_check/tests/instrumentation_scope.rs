@@ -7,7 +7,7 @@ use std::rc::Rc;
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute, sample_instrumentation_scope::SampleInstrumentationScope,
-    Sample,
+    Sample, SampleRef, SampleType,
 };
 
 fn scope(name: &str) -> Rc<SampleInstrumentationScope> {
@@ -22,7 +22,32 @@ fn scope(name: &str) -> Rc<SampleInstrumentationScope> {
             live_check_result: None,
         }],
         dropped_attributes_count: 2,
+        live_check_result: None,
     })
+}
+
+#[test]
+fn instrumentation_scope_serializes_as_a_root_sample_carrier() {
+    let instrumentation_scope = scope("library");
+    let sample = Sample::InstrumentationScope((*instrumentation_scope).clone());
+    assert!(
+        sample.instrumentation_scope().is_none(),
+        "the root scope is input.sample context, not its own adjacent signal context"
+    );
+    let value = serde_json::to_value(sample).expect("scope sample serializes");
+
+    assert_eq!(value["instrumentation_scope"]["name"], "library");
+    assert_eq!(
+        value["instrumentation_scope"]["schema_url"],
+        "https://opentelemetry.io/schemas/1.32.0"
+    );
+    assert_eq!(
+        value["instrumentation_scope"]["attributes"][0]["name"],
+        "scope.environment"
+    );
+    let sample_ref = SampleRef::InstrumentationScope(instrumentation_scope.as_ref());
+    assert_eq!(sample_ref.sample_type(), SampleType::InstrumentationScope);
+    assert_eq!(sample_ref.sample_name(), Some("library"));
 }
 
 #[test]
@@ -72,6 +97,13 @@ fn scope_metadata_is_not_serialized_on_every_signal() {
             Sample::Log(log) => log.instrumentation_scope = Some(instrumentation_scope),
             _ => unreachable!("test only supplies whole signals"),
         }
+        assert_eq!(
+            sample
+                .instrumentation_scope()
+                .expect("signal keeps adjacent scope context")
+                .name,
+            scope_name
+        );
 
         let output = serde_json::to_value(sample).expect("sample must serialize");
         let signal = output
