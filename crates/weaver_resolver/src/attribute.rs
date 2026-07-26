@@ -146,15 +146,21 @@ impl AttributeCatalog {
         // Make sure we pick the attribute from the *correct* version of a transitive dependency.
         new_attr = Self::upgrade_attribute_with_source(new_attr, cache_lookup)?;
 
-        // If we have a version conflict - resolve it.
-        let winning_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
+        // Return a ref to this group's own copy of the attribute. Different
+        // groups may reference the same attribute with different
+        // `requirement_level` or `role`, so we must not return a variant
+        // registered earlier by another group.
+        let attr_ref = self.attribute_ref(new_attr.attribute.clone());
+
+        // Separately, keep `root_attributes` (one entry per attribute name,
+        // used for provenance lookups) up to date. If the name was already
+        // registered, `resolve_conflict` decides which source wins.
+        let root_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
             resolve_conflict(&attr_name, new_attr, existing.clone())?
         } else {
             new_attr
         };
-
-        let attr_ref = self.attribute_ref(winning_attr.attribute.clone());
-        let _ = self.root_attributes.insert(attr_name, winning_attr);
+        let _ = self.root_attributes.insert(attr_name, root_attr);
 
         Ok(attr_ref)
     }
