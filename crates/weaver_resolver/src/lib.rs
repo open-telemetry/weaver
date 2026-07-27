@@ -1788,8 +1788,7 @@ groups:
     }
 
     #[test]
-    fn test_upgraded_group_keeps_winning_version_provenance(
-    ) -> Result<(), weaver_semconv::Error> {
+    fn test_upgraded_group_keeps_winning_version_provenance() -> Result<(), weaver_semconv::Error> {
         // `main` imports `c.metric.1` via A (which pins C v1.1) and
         // `c.span.2` via B (which pins C v1.2). The compatible version
         // conflict resolves in favor of C v1.2 and the attribute catalog is
@@ -1817,7 +1816,9 @@ groups:
         let metric = metrics
             .get("metric.c.metric.1")
             .expect("metric.c.metric.1 not found");
-        let provenance = metric.provenance().expect("metric.c.metric.1 has no lineage");
+        let provenance = metric
+            .provenance()
+            .expect("metric.c.metric.1 has no lineage");
         assert_eq!(
             provenance.schema_url.to_string(),
             "https://example.com/c/1.2.0"
