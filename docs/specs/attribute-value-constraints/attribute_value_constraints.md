@@ -51,6 +51,9 @@ own and can ship on its own, so each gets its own phase.
 
 ## Problem 1: a single, fixed value
 
+Tracked by [weaver#1617](https://github.com/open-telemetry/weaver/issues/1617) and
+[weaver#803](https://github.com/open-telemetry/weaver/issues/803).
+
 This is by far the most common case, and the attribute is almost always a *system identifier* — one that says
 which technology the signal describes.
 
@@ -151,6 +154,14 @@ Weaver can then validate that:
 
 ## Problem 3: a known limited set
 
+Tracked by [weaver#479](https://github.com/open-telemetry/weaver/issues/479). Eleven TODOs across the semantic
+conventions point at that issue: `db.system.name` and `messaging.system` are kept out of common attribute groups
+because of it ([db/spans.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/db/spans.yaml),
+[messaging/common.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/messaging/common.yaml)),
+and notes that want to be YAML stay prose
+([kestrel/metrics.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/kestrel/metrics.yaml),
+[feature-flags/events.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/feature-flags/events.yaml)).
+
 Here the value is not fixed, but the set of values used in this context is much smaller than the one the global
 definition allows.
 
@@ -236,7 +247,8 @@ have, and changing a value's description for this context.
 > It is listed here to show that the phases above do not block solving it later.
 
 The process CPU case needs both — it uses three of the eight defined modes, adds `wait`, which is not defined at
-all, and describes `system` in process terms rather than host terms:
+all, and describes `system` in process terms rather than host terms. It is also what blocks
+[semconv#3694](https://github.com/open-telemetry/semantic-conventions/issues/3694), stabilizing `cpu.mode`:
 
 ```yaml
 attributes:
@@ -303,10 +315,23 @@ has to decide which span types it belongs to.
 
 - [weaver#1617](https://github.com/open-telemetry/weaver/issues/1617) — Indicate which attributes will have a
   constant value. The original request behind Problem 1.
+- [weaver#803](https://github.com/open-telemetry/weaver/issues/803) — Allow specifying fixed values for
+  attributes in refinements. The same ask, scoped to refinements.
 - [weaver#479](https://github.com/open-telemetry/weaver/issues/479) — Allow updating enum values when referencing
   an attribute. A long design discussion that phases 3 and 4 are intended to close.
 - [weaver#520](https://github.com/open-telemetry/weaver/issues/520) — Removed the flag that made enums closed.
   This document assumes enums are open because of it.
+- [weaver#1590](https://github.com/open-telemetry/weaver/issues/1590) — Don't allow refining refinements. Phase 2
+  relies on that.
+- [weaver#892](https://github.com/open-telemetry/weaver/issues/892) — Re-design type definitions. Overlaps
+  phase 4 and the named-enum item under Out of Scope.
+- [weaver#878](https://github.com/open-telemetry/weaver/issues/878) — Deprecating enum members, and
+  [weaver#1146](https://github.com/open-telemetry/weaver/issues/1146) — stability required on members. Both apply
+  to members added at a reference site in phase 4.
+- [weaver#1623](https://github.com/open-telemetry/weaver/issues/1623) — Weaver filters return refinements. The
+  template side of Problem 2.
 - [weaver#329](https://github.com/open-telemetry/weaver/issues/329) — Arrays of enum values.
+- [semconv#3694](https://github.com/open-telemetry/semantic-conventions/issues/3694) — Stabilize `cpu.mode`,
+  blocked on being able to restate its members per reference.
 - [semconv#3904](https://github.com/open-telemetry/semantic-conventions/pull/3904) — The messaging refactor that
   produced 37 copies of the same note.
