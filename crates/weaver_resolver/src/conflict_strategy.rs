@@ -25,6 +25,14 @@ pub(crate) struct UseLatestMajorVersion;
 
 impl DependencyVersionConflictStrategy for UseLatestMajorVersion {
     fn resolve_conflict(&self, url1: &SchemaUrl, url2: &SchemaUrl) -> Result<SchemaUrl, Error> {
+        // The same version seen twice is not a conflict, and saying so must not
+        // depend on parsing the version: a dependency declared without a
+        // `schema_url` gets a synthesized, version-less URL, which would
+        // otherwise fail `semver()` below and be reported as unresolvable
+        // against itself.
+        if url1 == url2 {
+            return Ok(url1.clone());
+        }
         if url1.name() != url2.name() {
             return Err(Error::AmbiguousReference {
                 r#ref: format!("registry mismatch: {} vs {}", url1.name(), url2.name()),
@@ -62,6 +70,21 @@ mod tests {
 
         assert_eq!(strategy.resolve_conflict(&u1, &u2).unwrap(), u2);
         assert_eq!(strategy.resolve_conflict(&u2, &u1).unwrap(), u2);
+    }
+
+    /// The same registry seen twice needs no resolution, and must not require a
+    /// parseable version to say so: a dependency declared without a `schema_url`
+    /// gets a synthesized, version-less URL (`https://<name>/unknown`), and two
+    /// sightings of it were reported as a conflict rather than as one registry.
+    #[test]
+    fn test_resolve_conflict_identical_urls_without_semver() {
+        let strategy = UseLatestMajorVersion;
+        let unknown = SchemaUrl::try_from_name_version("otel", "unknown").unwrap();
+
+        assert_eq!(
+            strategy.resolve_conflict(&unknown, &unknown).unwrap(),
+            unknown
+        );
     }
 
     #[test]
