@@ -268,13 +268,13 @@ attributes:
           stability: stable
 
 spans:
-  - type: dotnet.socket.connect.internal
-    kind: internal
+  - type: socket.connect
     attributes:
       - ref: error.type
         brief: Socket error code.
         type:
           members:
+            - ref: other
             - id: network_down
               brief: The network subsystem is unavailable.
               stability: development
