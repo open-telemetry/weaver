@@ -4,6 +4,9 @@
 
 use globset::GlobSet;
 use weaver_resolved_schema::attribute::Attribute;
+use weaver_resolved_schema::lineage::{
+    decode_dependency_schema_url, decode_dependency_source, dependency_matches,
+};
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::entity::Entity;
@@ -413,14 +416,20 @@ fn find_attribute_source(
     my_schema_url: &SchemaUrl,
 ) -> AttributeSource {
     if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
-        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
-            schema.registry.groups.iter().find(|g| {
-                if let Some(prov) = g.provenance() {
-                    prov.schema_url.name() == schema_name
-                } else {
-                    false
-                }
-            })
+        // The lineage records the defining registry's URL, so use it rather than
+        // hunting for a local group that carries the same provenance: a registry
+        // that only `ref:`s an attribute has no such group, and falling back to
+        // `my_schema_url` would republish the attribute under this registry's
+        // identity — making it look like two different attributes downstream.
+        if let Some(schema_url) = decode_dependency_schema_url(source_group_id) {
+            return AttributeSource::Dependency { schema_url };
+        }
+        let group = if let Some(dependency) = decode_dependency_source(source_group_id) {
+            schema
+                .registry
+                .groups
+                .iter()
+                .find(|g| dependency_matches(g.provenance().as_ref(), dependency))
         } else {
             schema
                 .registry

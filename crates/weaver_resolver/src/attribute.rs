@@ -9,7 +9,10 @@ use serde::Deserialize;
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::attribute::{self};
 use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::lineage::{
+    decode_dependency_schema_url, decode_dependency_source, dependency_matches,
+    encode_dependency_source, AttributeLineage, GroupLineage,
+};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::attribute::AttributeSpec;
@@ -335,10 +338,7 @@ impl AttributeCatalog {
                     let mut attr_lineage = match &root_attr.source {
                         AttributeSource::Local { group_id } => AttributeLineage::new(group_id),
                         AttributeSource::Dependency { schema_url } => {
-                            // Note: We didn't want to break V1 schema - so we encode v2 schema_url tracking via
-                            // this special string for now. This can round-trip for now, but looks odd when using
-                            // V2 with V1 output.  We expect this to be temporary.
-                            AttributeLineage::new(&format!("v2_dependency.{}", schema_url.name()))
+                            AttributeLineage::new(&encode_dependency_source(schema_url))
                         }
                     };
 
@@ -473,7 +473,7 @@ impl From<AttributeCatalog> for Catalog {
                 let source_str = match v.source {
                     AttributeSource::Local { group_id } => group_id,
                     AttributeSource::Dependency { schema_url } => {
-                        format!("v2_dependency.{}", schema_url.name())
+                        encode_dependency_source(&schema_url)
                     }
                 };
                 (k, (v.attribute, source_str))
@@ -561,15 +561,23 @@ impl AttributeLookup for ResolvedDependency {
 impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
         if let Some((attr, group_id)) = self.catalog.root_attribute(key) {
-            // We encode pure schema_url dependencies with magic strings in V1.
-            let group = if let Some(schema_name) = group_id.strip_prefix("v2_dependency.") {
-                self.registry.groups.iter().find(|g| {
-                    if let Some(prov) = g.provenance() {
-                        prov.schema_url.name() == schema_name
-                    } else {
-                        false
-                    }
-                })
+            // The lineage records the defining registry's URL, so use it rather
+            // than hunting for a local group that carries the same provenance:
+            // a registry that only `ref:`s an attribute has no such group, and
+            // guessing would attribute the attribute to the wrong registry.
+            if let Some(schema_url) = decode_dependency_schema_url(group_id) {
+                return Ok(Some(AttributeWithSource {
+                    attribute: attr.clone(),
+                    source: AttributeSource::Dependency { schema_url },
+                }));
+            }
+            // Older schemas encoded only the registry name; recover the URL from
+            // a group whose provenance matches it.
+            let group = if let Some(dependency) = decode_dependency_source(group_id) {
+                self.registry
+                    .groups
+                    .iter()
+                    .find(|g| dependency_matches(g.provenance().as_ref(), dependency))
             } else {
                 self.registry.groups.iter().find(|g| g.id == group_id)
             };

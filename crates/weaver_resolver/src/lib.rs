@@ -1805,7 +1805,9 @@ groups:
             .root_attribute("c.attr1")
             .expect("c.attr1 not found in standalone A");
         assert_eq!(attr_a.brief, "Attribute 1 from C v1.1");
-        assert_eq!(source_a, "v2_dependency.example.com/c");
+        // The source pins the exact version the attribute came from, not just
+        // the registry name.
+        assert_eq!(source_a, "v2_dependency.https://example.com/c/1.1.0");
         assert!(v1_a.dependencies.contains(&url_c_v1_1));
 
         // 3. Now resolve main, which imports from both A and B (with B bringing C v1.2).
@@ -1826,7 +1828,9 @@ groups:
             .root_attribute("c.attr1")
             .expect("c.attr1 not found in main");
         assert_eq!(attr_main.brief, "Attribute 1 from C v1.2 (updated)");
-        assert_eq!(source_main, "v2_dependency.example.com/c");
+        // Upgrading the attribute to C v1.2 must move its recorded source too,
+        // otherwise it reports v1.2 content against a v1.1 origin.
+        assert_eq!(source_main, "v2_dependency.https://example.com/c/1.2.0");
         let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
         assert!(v1_main.dependencies.contains(&url_a));
         assert!(v1_main.dependencies.contains(&url_b));
@@ -1845,7 +1849,7 @@ groups:
             .root_attribute("c.attr1")
             .expect("c.attr1 not found in cached A");
         assert_eq!(attr_a_again.brief, "Attribute 1 from C v1.1");
-        assert_eq!(source_a_again, "v2_dependency.example.com/c");
+        assert_eq!(source_a_again, "v2_dependency.https://example.com/c/1.1.0");
         assert!(v1_a_again.dependencies.contains(&url_c_v1_1));
 
         Ok(())

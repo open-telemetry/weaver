@@ -81,7 +81,7 @@
         },
         "attributes": {
           "a": {
-            "source_group": "v2_dependency.opentelemetry.io/schemas",
+            "source_group": "v2_dependency.https://opentelemetry.io/schemas/1.0.0",
             "inherited_fields": [
               "annotations",
               "brief",

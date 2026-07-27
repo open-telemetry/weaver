@@ -11,8 +11,58 @@ use weaver_semconv::attribute::{AttributeRole, AttributeSpec, Examples, Requirem
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::provenance::Provenance;
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
+
+/// Marks an [`AttributeLineage::source_group`] that names a dependency schema
+/// rather than a group in this registry.
+const V2_DEPENDENCY_PREFIX: &str = "v2_dependency.";
+
+/// Encodes a dependency's schema URL as a `source_group`.
+///
+/// V1 lineage records the group an attribute came from, but an attribute pulled
+/// in from a V2 dependency has no local group to name. Rather than change the V1
+/// format, the dependency's schema URL is encoded into the group id. The full
+/// URL is used, not just the registry name, so that a registry present at more
+/// than one version is attributed to the version the attribute actually came
+/// from. Temporary: expected to disappear along with V1.
+#[must_use]
+pub fn encode_dependency_source(schema_url: &SchemaUrl) -> String {
+    format!("{V2_DEPENDENCY_PREFIX}{}", schema_url.as_str())
+}
+
+/// The dependency's schema URL, when the `source_group` recorded a full one.
+///
+/// Returns `None` for a `source_group` that names a local group, and for
+/// schemas resolved before the URL was recorded (which encoded only the
+/// registry name); those callers must fall back to locating the group that
+/// carries the provenance.
+#[must_use]
+pub fn decode_dependency_schema_url(source_group: &str) -> Option<SchemaUrl> {
+    SchemaUrl::try_from(decode_dependency_source(source_group)?).ok()
+}
+
+/// Whether a group's provenance refers to the dependency encoded in a
+/// `source_group`.
+///
+/// Accepts a full schema URL or a bare registry name, so schemas resolved
+/// before the URL was recorded still match.
+#[must_use]
+pub fn dependency_matches(provenance: Option<&Provenance>, dependency: &str) -> bool {
+    provenance
+        .is_some_and(|p| p.schema_url.as_str() == dependency || p.schema_url.name() == dependency)
+}
+
+/// The dependency schema encoded in a `source_group`, if it names one.
+///
+/// Returns whatever was encoded, which is a full schema URL. Callers matching
+/// against a registry name should accept either, since older resolved schemas
+/// encoded the bare name.
+#[must_use]
+pub fn decode_dependency_source(source_group: &str) -> Option<&str> {
+    source_group.strip_prefix(V2_DEPENDENCY_PREFIX)
+}
 
 /// Attribute lineage (at the field level).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

@@ -15,6 +15,7 @@ use weaver_semconv::{
 };
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
+use crate::lineage::decode_dependency_source;
 use crate::{
     v2::{
         attribute::Attribute,
@@ -207,11 +208,19 @@ pub fn convert_v1_to_v2(
                 return get_provenance(group);
             }
             // Is it a V2 dependency group?
-            // See crates/weaver_resolver/src/attribute.rs for more information on this
-            // workaround for V2 -> V1 -> V2.
-            if let Some(dep_name) = source_group_id.strip_prefix("v2_dependency.") {
+            // See crates/weaver_resolved_schema/src/lineage.rs for more
+            // information on this workaround for V2 -> V1 -> V2.
+            if let Some(dependency) = decode_dependency_source(source_group_id) {
                 let mut prov = provenance::Provenance::default();
-                if let Some(idx) = deps_list.iter().position(|u| u.name() == dep_name) {
+                // Match the exact schema URL first: the same registry can appear
+                // at several versions, and the attribute belongs to the one it
+                // was actually resolved from. Fall back to the registry name for
+                // schemas resolved before the URL was recorded.
+                let index = deps_list
+                    .iter()
+                    .position(|u| u.as_str() == dependency)
+                    .or_else(|| deps_list.iter().position(|u| u.name() == dependency));
+                if let Some(idx) = index {
                     prov.source = Some(provenance::DependencyRef(idx as u32));
                 }
                 return prov;
