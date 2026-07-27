@@ -22,6 +22,22 @@ attributes:
           value: "missing_event"
           brief: "An event is not defined in the semantic convention registry"
           stability: development
+        - id: missing_span
+          value: "missing_span"
+          brief: "A span type is not defined in the semantic convention registry"
+          stability: development
+        - id: span_kind_mismatch
+          value: "span_kind_mismatch"
+          brief: "A span kind does not match the kind defined in the registry"
+          stability: development
+        - id: span_status_ok
+          value: "span_status_ok"
+          brief: "A span status is set to 'ok', which is reserved for application code"
+          stability: development
+        - id: error_type_without_error_status
+          value: "error_type_without_error_status"
+          brief: "The 'error.type' attribute is set on a span whose status is not 'error'"
+          stability: development
         - id: deprecated
           value: "deprecated"
           brief: "A deprecated attribute or signal is in use"

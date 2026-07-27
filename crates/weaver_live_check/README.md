@@ -85,6 +85,9 @@ Sample entities are assessed by the set of `Advisors` and augmented with `Advice
 
 Beyond the fundamentals, external `Advisors` can be defined in Rego policies. The OpenTelemetry Semantic Conventions rules are included out-of-the-box by default. They provide `Advice` on name-spacing and formatting aligned with the standard. These default policies can be overridden at the command line with your own.
 
+Signals are resolved against the registry by name (metrics, events) or by span type
+(spans — see [Span checks](docs/span-checks.md)).
+
 ### PolicyFinding
 
 As mentioned, a list of `PolicyFinding` is returned in the report for each sample entity. The snippet below shows `PolicyFinding` from one `Advisor`, a builtin providing `missing_attribute`. The fields of `PolicyFinding` are intended to be used like so:

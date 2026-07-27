@@ -86,6 +86,12 @@ pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 /// Entity type key in advice context
 pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
+/// Span type key in advice context
+pub const SPAN_TYPE_ADVICE_CONTEXT_KEY: &str = "span_type";
+/// Span kind key in advice context
+pub const SPAN_KIND_ADVICE_CONTEXT_KEY: &str = "span_kind";
+/// Span status code key in advice context
+pub const SPAN_STATUS_ADVICE_CONTEXT_KEY: &str = "span_status";
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
