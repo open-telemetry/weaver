@@ -24,8 +24,10 @@ jobs:
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
+            cache-scope: linux-amd64
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+            cache-scope: linux-arm64
     steps:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
     - # Installs the pnpm CLI tool
@@ -60,6 +62,8 @@ jobs:
         platforms: ${{ matrix.platform }}
         tags: ${{ env.TEST_WEAVER_TAG }}
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=weaver-docker-${{ matrix.cache-scope }}
+        cache-to: type=gha,mode=max,scope=weaver-docker-${{ matrix.cache-scope }}
     - name: Test
       run: |
         docker run --rm ${{ env.TEST_WEAVER_TAG }} --help
@@ -111,6 +115,8 @@ jobs:
         sbom: true
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=gha,scope=weaver-docker-${{ matrix.cache-scope }}
+        cache-to: type=gha,mode=max,scope=weaver-docker-${{ matrix.cache-scope }}
     - name: Export digest
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       run: |
