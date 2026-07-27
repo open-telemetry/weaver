@@ -397,11 +397,14 @@ impl Sample {
 
     /// Returns the signal name as a string or None if sample
     /// does not capture a whole signal.
+    ///
+    /// For spans this is the span type, which is what identifies the definition in the
+    /// registry. Spans without `otel.span.type` fall back to the span name.
     #[must_use]
     pub fn signal_name(&self) -> Option<String> {
         match self {
-            Sample::Attribute(_) => None,                  // not a signal
-            Sample::Span(span) => Some(span.name.clone()), // TODO: update to type once added
+            Sample::Attribute(_) => None, // not a signal
+            Sample::Span(span) => Some(span.span_type().unwrap_or(span.name.as_str()).to_owned()),
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,
