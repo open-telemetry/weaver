@@ -28,7 +28,7 @@ The only way to comply is more prose. The .NET socket connect span lists its 16 
 - ref: error.type
   brief: "Socket error code."
   note: |
-    The following errors codes are reported:
+    The following error codes are reported:
 
     - `network_down`
     - `address_already_in_use`
