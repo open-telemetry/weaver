@@ -46,8 +46,8 @@ own and can ship on its own, so each gets its own phase.
 | # | Problem | Field | Phase | Reference sites today |
 |---|---|---|---|---|
 | 1 | This attribute always has one specific value in this context | `constant` | 1 | ~110 |
-| 2 | Which refinement does an observed piece of telemetry belong to? | `discriminator` | 2 | ~63 refinements |
-| 3 | This reference draws from a limited set, though the global definition is open-ended | `values`, `type.members` | 3, 4 | ~32 |
+| 2 | Which refinement does an observed piece of telemetry belong to? | `discriminator` | 2, needs phase 1 | ~63 refinements |
+| 3 | This reference draws from a limited set, though the global definition is open-ended | `type.members` | 3 | ~32 |
 
 ## Problem 1: a single, fixed value
 
@@ -154,13 +154,9 @@ Weaver can then validate that:
 
 ## Problem 3: a known limited set
 
-Tracked by [weaver#479](https://github.com/open-telemetry/weaver/issues/479). Eleven TODOs across the semantic
-conventions point at that issue: `db.system.name` and `messaging.system` are kept out of common attribute groups
-because of it ([db/spans.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/db/spans.yaml),
-[messaging/common.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/messaging/common.yaml)),
-and notes that want to be YAML stay prose
-([kestrel/metrics.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/kestrel/metrics.yaml),
-[feature-flags/events.yaml](https://github.com/open-telemetry/semantic-conventions/blob/main/model/feature-flags/events.yaml)).
+Tracked by [weaver#479](https://github.com/open-telemetry/weaver/issues/479), which eleven TODOs across the
+semantic conventions point at — `db.system.name` and `messaging.system` are kept out of common attribute groups
+because of it, and notes that want to be YAML stay prose.
 
 Here the value is not fixed, but the set of values used in this context is much smaller than the one the global
 definition allows.
@@ -183,13 +179,23 @@ messaging operation names is open, because it is whatever the broker calls its o
 site the set is known — an Azure Service Bus "create" span uses `send` or `schedule`, and nothing else. That is
 the shape the design has to support: **open at definition time, known at reference time.**
 
-Reference sites also need to add values the global definition does not have: `messaging.operation.name` lives in
-the core semantic conventions registry, while the refinements using it can live in another registry and should
-not require changes to the global one.
+Reference sites also need to add values the global definition does not have. `messaging.operation.name` lives in
+the core registry, while the refinements using it can live in another one and should not require changes to the
+registry they do not own.
 
-### Proposal: `values` (phases 3 and 4)
+### Proposal: `type.members` on a reference (phase 3)
 
-For a plain string attribute, whose values are only known in context:
+A reference may restate the attribute's members. Two kinds of entry cover every case in the table above:
+
+- `- ref: <member>` selects a member the definition already has. It inherits the member's properties and may
+  update the ones a reference is allowed to update.
+- `- id: <value>` adds a member the definition does not have, and must carry `brief` and `stability` like any
+  other public definition.
+
+A reference may do this even when the definition is a plain string — it refines the string into a locally
+documented enum. That is safe because a string enum carries string values: the wire type never changes, only the
+documentation and what code generation can emit. It is also the honest model for `messaging.operation.name`,
+which is a string globally because no global vocabulary exists, and a small known set everywhere it is used:
 
 ```yaml
 attributes:
@@ -204,11 +210,18 @@ span_refinements:
     attributes:
       - ref: messaging.operation.name
         brief: Azure Service Bus operation name.
-        values: [send, schedule]
+        type:
+          members:
+            - id: send
+              brief: Sends a message to a queue or topic.
+              stability: development
+            - id: schedule
+              brief: Schedules a message for future delivery.
+              stability: development
 ```
 
-The same shorthand works for an enum when every value already exists in the definition — here the GenAI inference
-span narrows it to a subset of its members:
+When the values already exist in the definition, the entries carry nothing but refs — here the GenAI inference
+span narrows the definition to a subset of its members:
 
 ```yaml
 attributes:
@@ -232,70 +245,48 @@ spans:
     kind: client
     attributes:
       - ref: gen_ai.operation.name
-        values: [chat, generate_content, text_completion]
+        type:
+          members:
+            - ref: chat
+            - ref: generate_content
+            - ref: text_completion
 ```
 
-Redefining `type.members` on a reference (phase 4) covers two more cases: adding a value the definition does not
-have, and changing a value's description for this context.
-
-> [!WARNING]
-> Phase 4 needs more research and justification. The same results can be reached without it — by adding the
-> missing value to the definition's members, or by turning the attribute into a plain string when its members
-> turn out not to be a globally known set. It is useful in theory, but it is not clear that it is needed, and it
-> carries most of the implementation cost of this proposal.
->
-> It is listed here to show that the phases above do not block solving it later.
-
-The process CPU case needs both — it uses three of the eight defined modes, adds `wait`, which is not defined at
-all, and describes `system` in process terms rather than host terms. It is also what blocks
-[semconv#3694](https://github.com/open-telemetry/semantic-conventions/issues/3694), stabilizing `cpu.mode`:
+`error.type` needs the same field for the opposite reason — none of its values exist in the definition. Here is
+the .NET socket span from the introduction, with each code described instead of listed in prose:
 
 ```yaml
 attributes:
-  - key: cpu.mode
-    brief: The mode of the CPU.
-    stability: development
+  - key: error.type
+    stability: stable
+    brief: Describes a class of error the operation ended with.
     type:
       members:
-        - id: user
-          value: user
-          brief: User
-          stability: development
-        - id: system
-          value: system
-          brief: System
-          stability: development
-        # ... 6 more, no `wait` among them
+        - id: other
+          value: _OTHER
+          brief: A fallback error value used when the instrumentation has no custom value.
+          stability: stable
 
-metrics:
-  - name: process.cpu.time
+spans:
+  - type: dotnet.socket.connect.internal
+    kind: internal
     attributes:
-      - ref: cpu.mode
+      - ref: error.type
+        brief: Socket error code.
         type:
           members:
-            - ref: user
-            - ref: system
-              brief: Time spent in kernel mode on behalf of this process.
-            - id: wait
-              brief: Time this process spent waiting on I/O.
+            - id: network_down
+              brief: The network subsystem is unavailable.
               stability: development
+            - id: connection_refused
+              brief: The remote host actively refused the connection.
+              stability: development
+            # ... 14 more
 ```
-
-`ref` names an existing member and may update its documentation. `id` adds a new one, and must describe and
-stabilize it like any other public definition.
 
 There is no "exclude these members" form: `type.members` on a reference replaces the members of the definition.
 A new member added to `gen_ai.operation.name` must **not** silently become part of a refinement's set — someone
 has to decide which span types it belongs to.
-
-## Phases
-
-| Phase | Scope | Field | Covers |
-|---|---|---|---|
-| 1 | Pin a single value | `constant` | ~110 reference sites |
-| 2 | Identify a refinement from telemetry | `discriminator`, needs phase 1 | ~63 refinements |
-| 3 | Known values on a reference | `values` | ~10 reference sites |
-| 4 | Redefined enum members on a reference — **needs more justification** | `type.members` | ~22 reference sites |
 
 ## Compatibility
 
@@ -318,20 +309,18 @@ has to decide which span types it belongs to.
 - [weaver#803](https://github.com/open-telemetry/weaver/issues/803) — Allow specifying fixed values for
   attributes in refinements. The same ask, scoped to refinements.
 - [weaver#479](https://github.com/open-telemetry/weaver/issues/479) — Allow updating enum values when referencing
-  an attribute. A long design discussion that phases 3 and 4 are intended to close.
+  an attribute. A long design discussion that phase 3 is intended to close.
 - [weaver#520](https://github.com/open-telemetry/weaver/issues/520) — Removed the flag that made enums closed.
   This document assumes enums are open because of it.
 - [weaver#1590](https://github.com/open-telemetry/weaver/issues/1590) — Don't allow refining refinements. Phase 2
   relies on that.
 - [weaver#892](https://github.com/open-telemetry/weaver/issues/892) — Re-design type definitions. Overlaps
-  phase 4 and the named-enum item under Out of Scope.
+  phase 3 and the named-enum item under Out of Scope.
 - [weaver#878](https://github.com/open-telemetry/weaver/issues/878) — Deprecating enum members, and
   [weaver#1146](https://github.com/open-telemetry/weaver/issues/1146) — stability required on members. Both apply
-  to members added at a reference site in phase 4.
+  to members added at a reference site in phase 3.
 - [weaver#1623](https://github.com/open-telemetry/weaver/issues/1623) — Weaver filters return refinements. The
   template side of Problem 2.
 - [weaver#329](https://github.com/open-telemetry/weaver/issues/329) — Arrays of enum values.
-- [semconv#3694](https://github.com/open-telemetry/semantic-conventions/issues/3694) — Stabilize `cpu.mode`,
-  blocked on being able to restate its members per reference.
 - [semconv#3904](https://github.com/open-telemetry/semantic-conventions/pull/3904) — The messaging refactor that
   produced 37 copies of the same note.
