@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix elements inherited from a transitive dependency being reported as locally defined. A resolved schema's `dependencies` set is the table that `DependencyRef` provenance indexes into, but it listed only direct dependencies, so anything reaching the registry through a dependency-of-a-dependency had no entry to point at. It now records the full closure. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
 - Fix signals imported from a dependency losing their per-signal attribute data. When several signals reference the same attribute with different `requirement_level` or `role`, each imported signal was re-pointed at whichever variant of the attribute was registered first. E.g. silently rewriting requirement levels or dropping `role: identifying` from imported entities. Each signal now references the attribute variant it actually declares. Per-name conflict resolution still applies to root-attribute provenance. ([#1635](https://github.com/open-telemetry/weaver/pull/1635) by @jerbly)
 
 # [0.25.0] - 2026-07-24

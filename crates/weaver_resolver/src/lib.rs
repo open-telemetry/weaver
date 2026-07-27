@@ -366,6 +366,15 @@ impl WeaverResolver {
         };
         let mut attr_catalog = AttributeCatalog::default();
 
+        // Every registry this schema was built from, direct and transitive.
+        //
+        // This set is the target table that `DependencyRef` provenance indexes
+        // into, so it has to name every registry an element can have come from.
+        // Recording only the direct dependencies left elements inherited through
+        // a dependency-of-a-dependency with no entry to point at, which made them
+        // indistinguishable from locally defined ones. Each dependency's own set
+        // is already its full closure — this function builds it at every level —
+        // so folding those in once is enough.
         let mut dependencies = std::collections::BTreeSet::new();
         for d in &resolved_dependencies {
             match d {
@@ -373,9 +382,11 @@ impl WeaverResolver {
                     if let Ok(url) = SchemaUrl::try_from(schema.schema_url.as_str()) {
                         _ = dependencies.insert(url);
                     }
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
                 ResolvedDependency::V2(schema) => {
                     _ = dependencies.insert(schema.schema_url.clone());
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
             }
         }
@@ -1830,6 +1841,20 @@ groups:
         let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
         assert!(v1_main.dependencies.contains(&url_a));
         assert!(v1_main.dependencies.contains(&url_b));
+        // `dependencies` is the table `DependencyRef` provenance indexes into,
+        // so it must also name the registries reached *through* A and B —
+        // otherwise elements inherited from C have nothing to point at and are
+        // reported as locally defined.
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_1),
+            "transitive dependency C v1.1 missing from {:?}",
+            v1_main.dependencies
+        );
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_2),
+            "transitive dependency C v1.2 missing from {:?}",
+            v1_main.dependencies
+        );
 
         // 4. Check the cached A schema in isolation once again.
         // It MUST remain completely untouched and still report C v1.1.
@@ -1847,6 +1872,64 @@ groups:
         assert_eq!(attr_a_again.brief, "Attribute 1 from C v1.1");
         assert_eq!(source_a_again, "v2_dependency.example.com/c");
         assert!(v1_a_again.dependencies.contains(&url_c_v1_1));
+
+        Ok(())
+    }
+
+    /// Elements inherited through a dependency-of-a-dependency must be
+    /// attributed to the registry that actually defined them, rather than
+    /// falling back to "defined locally" because their schema URL was missing
+    /// from the `DependencyRef` target table.
+    #[test]
+    fn test_transitive_dependency_provenance_resolves() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve main: {e}"),
+        };
+
+        let v1 = resolved.as_v1().expect("Expected a V1 schema for main");
+        let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            v1.clone().try_into().expect("v1 -> v2 conversion");
+
+        // `main` defines nothing itself; everything arrives through A and B from
+        // C, so no signal may report itself as locally defined.
+        let local: Vec<&str> = v2
+            .registry
+            .metrics
+            .iter()
+            .filter(|m| m.provenance.is_empty())
+            .map(|m| m.name.as_ref())
+            .chain(
+                v2.registry
+                    .spans
+                    .iter()
+                    .filter(|s| s.provenance.is_empty())
+                    .map(|s| s.r#type.as_ref()),
+            )
+            .collect();
+        assert!(
+            local.is_empty(),
+            "signals from a transitive dependency reported as local: {local:?}"
+        );
+
+        // And the reference resolves to C, not to A or B.
+        let deps: Vec<&SchemaUrl> = v2.dependencies.iter().collect();
+        let metric = v2.registry.metrics.first().expect("main has a metric");
+        let source = metric
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("metric provenance resolves to a dependency");
+        assert!(
+            source.name().ends_with("/c"),
+            "expected the metric to come from registry C, got {source}"
+        );
 
         Ok(())
     }
