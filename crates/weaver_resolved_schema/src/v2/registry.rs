@@ -50,6 +50,60 @@ pub struct Registry {
 }
 
 impl Registry {
+    /// Every attribute reference in this registry: its own definitions first,
+    /// then one per signal attribute. The same attribute yields several
+    /// references, since each signal keeps its own variant.
+    pub fn attribute_refs(&self) -> impl Iterator<Item = &AttributeRef> {
+        self.attributes
+            .iter()
+            .chain(
+                self.attribute_groups
+                    .iter()
+                    .flat_map(|g| g.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(
+                self.metrics
+                    .iter()
+                    .flat_map(|m| m.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(
+                self.spans
+                    .iter()
+                    .flat_map(|s| s.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(
+                self.events
+                    .iter()
+                    .flat_map(|e| e.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(self.entities.iter().flat_map(|e| {
+                e.identity
+                    .iter()
+                    .chain(e.description.iter())
+                    .map(|a| &a.base)
+            }))
+    }
+
+    /// Every distinct attribute the registry can reach, de-duplicated by key.
+    ///
+    /// This is a superset of `attributes`: an attribute imported from a
+    /// dependency is referenced by the signals that use it but never listed as a
+    /// definition, so counting only `attributes` under-reports what the registry
+    /// actually contains. Definitions come first, so a key defined here is
+    /// represented by its definition rather than by a signal's reference to it.
+    #[must_use]
+    pub fn reachable_attributes<T: AttributeCatalog>(&self, catalog: &T) -> Vec<AttributeRef> {
+        let mut seen = HashSet::new();
+        self.attribute_refs()
+            .filter(|r| {
+                catalog
+                    .attribute(r)
+                    .is_some_and(|a| seen.insert(a.key.as_str()))
+            })
+            .copied()
+            .collect()
+    }
+
     /// Returns the statistics for this registry.
     #[must_use]
     pub fn stats<T: AttributeCatalog>(&self, catalog: &T) -> RegistryStats {

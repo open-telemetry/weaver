@@ -55,6 +55,48 @@ pub struct Registry {
     pub entities: Vec<Entity>,
 }
 
+impl Registry {
+    /// Every attribute reachable from this registry: the registry-level
+    /// definitions first, then the copy inlined into each signal that uses one.
+    ///
+    /// Attributes imported from a dependency are never listed in `attributes` —
+    /// they only exist inlined inside the signals that reference them — so this
+    /// is the complete set, matching the resolved schema's attribute catalog.
+    /// The same key yields several items (one per referencing signal), so
+    /// callers wanting one entry per key should keep the first occurrence, which
+    /// is the registry-level definition whenever there is one.
+    pub fn all_attributes(&self) -> impl Iterator<Item = &Attribute> {
+        self.attributes
+            .iter()
+            .chain(
+                self.attribute_groups
+                    .iter()
+                    .flat_map(|g| g.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(
+                self.metrics
+                    .iter()
+                    .flat_map(|m| m.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(
+                self.spans
+                    .iter()
+                    .flat_map(|s| s.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(
+                self.events
+                    .iter()
+                    .flat_map(|e| e.attributes.iter().map(|a| &a.base)),
+            )
+            .chain(self.entities.iter().flat_map(|e| {
+                e.identity
+                    .iter()
+                    .chain(e.description.iter())
+                    .map(|a| &a.base)
+            }))
+    }
+}
+
 /// The set of all refinements for a semantic convention registry.
 ///
 /// A refinement is a specialization of a signal for a particular purpose,

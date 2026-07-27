@@ -90,8 +90,19 @@ impl SearchContext {
         let mut event_index = HashMap::new();
         let mut entity_index = HashMap::new();
 
-        // Index all attributes
-        for attr in &registry.registry.attributes {
+        // Index every attribute the registry can reach, not just the ones it
+        // defines itself: attributes imported from a dependency are inlined into
+        // the signals that use them and never appear in `registry.attributes`,
+        // so indexing only that list would leave them unsearchable and give the
+        // links on signal detail pages nothing to resolve to.
+        //
+        // `all_attributes` yields the registry-level definitions first and then
+        // one copy per referencing signal, so skipping keys already seen keeps
+        // the definition and collapses the duplicates.
+        for attr in registry.registry.all_attributes() {
+            if attr_index.contains_key(&attr.key) || template_index.contains_key(&attr.key) {
+                continue;
+            }
             let arc_attr = Arc::new(attr.clone());
             items.push(SearchableItem::Attribute(Arc::clone(&arc_attr)));
 
@@ -577,8 +588,10 @@ fn score_fields(
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+    use weaver_forge::v2::metric::MetricAttribute;
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
-    use weaver_semconv::attribute::AttributeType;
+    use weaver_forge::v2::span::SpanAttribute;
+    use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
     use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
@@ -1131,6 +1144,103 @@ mod tests {
 
         let (_, total) = ctx.search(None, SearchType::All, Some(Stability::Stable), true, 100, 0);
         assert_eq!(total, 0);
+    }
+
+    // =========================================================================
+    // Inlined (imported) Attribute Indexing Tests
+    // =========================================================================
+
+    /// Builds a registry whose only attribute reaches the index through a
+    /// metric, mimicking an attribute imported from a dependency: such
+    /// attributes are inlined into each referencing signal and never listed in
+    /// `registry.attributes`.
+    fn registry_with_inlined_attribute(
+        registry_level: Vec<Attribute>,
+        inlined: Attribute,
+    ) -> ForgeResolvedRegistry {
+        let mut registry = make_registry_with_attributes(registry_level);
+        registry.registry.metrics = vec![Metric {
+            name: "imported.metric".to_owned().into(),
+            instrument: InstrumentSpec::Counter,
+            unit: "{x}".to_owned(),
+            requirement_level: None,
+            attributes: vec![MetricAttribute {
+                base: inlined,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            }],
+            entity_associations: vec![],
+            common: CommonFields::default(),
+            provenance: Default::default(),
+        }];
+        registry
+    }
+
+    /// An attribute that only exists inlined inside a signal is still indexed,
+    /// so it is searchable and has something for detail-page links to resolve to.
+    #[test]
+    fn test_inlined_attribute_is_indexed() {
+        let imported = make_attribute("imported.attr", "From a dependency", "A note", false);
+        let registry = registry_with_inlined_attribute(vec![], imported);
+        let ctx = SearchContext::from_registry(&registry);
+
+        let found = ctx
+            .get_attribute("imported.attr")
+            .expect("inlined attribute should be resolvable by key");
+        assert_eq!(found.common.note, "A note");
+
+        let (_, total) = ctx.search(
+            Some("imported.attr"),
+            SearchType::Attribute,
+            None,
+            false,
+            10,
+            0,
+        );
+        assert_eq!(total, 1, "inlined attribute should be searchable");
+    }
+
+    /// The same attribute inlined into several signals is indexed once.
+    #[test]
+    fn test_inlined_attribute_is_not_duplicated() {
+        let imported = make_attribute("imported.attr", "From a dependency", "", false);
+        let mut registry = registry_with_inlined_attribute(vec![], imported.clone());
+        // A second signal referencing the same attribute.
+        registry.registry.spans = vec![Span {
+            r#type: "imported.span".to_owned().into(),
+            kind: SpanKindSpec::Client,
+            name: SpanName {
+                note: "n".to_owned(),
+            },
+            requirement_level: None,
+            attributes: vec![SpanAttribute {
+                base: imported,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                sampling_relevant: None,
+            }],
+            entity_associations: vec![],
+            common: CommonFields::default(),
+            provenance: Default::default(),
+        }];
+
+        let ctx = SearchContext::from_registry(&registry);
+        let (_, total) = ctx.search(None, SearchType::Attribute, None, false, 100, 0);
+        assert_eq!(total, 1);
+    }
+
+    /// When an attribute is both defined by this registry and inlined into a
+    /// signal, the registry-level definition is the one that gets indexed.
+    #[test]
+    fn test_registry_definition_wins_over_inlined_copy() {
+        let definition = make_attribute("shared.attr", "The definition", "", false);
+        let inlined_copy = make_attribute("shared.attr", "An inlined copy", "", false);
+        let registry = registry_with_inlined_attribute(vec![definition], inlined_copy);
+
+        let ctx = SearchContext::from_registry(&registry);
+        let found = ctx.get_attribute("shared.attr").expect("attribute indexed");
+        assert_eq!(found.common.brief, "The definition");
+
+        let (_, total) = ctx.search(None, SearchType::Attribute, None, false, 100, 0);
+        assert_eq!(total, 1, "the definition and its copy are one attribute");
     }
 
     // =========================================================================

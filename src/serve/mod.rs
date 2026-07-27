@@ -7,6 +7,7 @@ use std::net::SocketAddr;
 use clap::Args;
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_resolved_schema::v2::stats::Stats;
 
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
@@ -89,9 +90,24 @@ fn run_serve(
         crate::weaver::Resolved::V2(v) => v,
     };
 
-    // Compute the full registry stats once, before the resolved schema is consumed
-    // into the template (forge) representation.
-    let stats = resolved_v2.resolved_schema().stats();
+    // Compute the full registry stats once, before the resolved schema is
+    // consumed into the template (forge) representation.
+    //
+    // Stats are taken over every attribute the registry can reach, not just the
+    // ones it defines: the search index does the same, and the stats page links
+    // its attribute tile straight into that search, so counting only the
+    // definitions would show a total that disagrees with the page it opens.
+    let stats = {
+        let schema = resolved_v2.resolved_schema();
+        let mut registry = schema.registry.clone();
+        registry.attributes = schema
+            .registry
+            .reachable_attributes(&schema.attribute_catalog);
+        Stats {
+            registry: registry.stats(&schema.attribute_catalog),
+            refinements: schema.refinements.stats(),
+        }
+    };
     let forge_registry = resolved_v2.into_template_schema();
 
     let stats_response = types::RegistryStatsResponse {
