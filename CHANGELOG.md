@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix two references to the same dependency version being reported as an unresolvable conflict. Version comparison parsed the semver of both URLs before considering whether they were the same URL, so a dependency declared without a `schema_url` — which gets a synthesized, version-less `https://<name>/unknown` — failed against itself. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
+- Fix two references to the same dependency version being reported as an unresolvable conflict. Version comparison parsed the semver of both URLs before considering whether they were the same URL, so a dependency declared without a `schema_url` — which gets a synthesized, version-less `https://<name>/unknown` — failed against itself. ([#1639](https://github.com/open-telemetry/weaver/pull/1639) by @jerbly)
 - Fix signals imported from a dependency losing their per-signal attribute data. When several signals reference the same attribute with different `requirement_level` or `role`, each imported signal was re-pointed at whichever variant of the attribute was registered first. E.g. silently rewriting requirement levels or dropping `role: identifying` from imported entities. Each signal now references the attribute variant it actually declares. Per-name conflict resolution still applies to root-attribute provenance. ([#1635](https://github.com/open-telemetry/weaver/pull/1635) by @jerbly)
 
 # [0.25.0] - 2026-07-24
