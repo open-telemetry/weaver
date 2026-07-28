@@ -28,7 +28,7 @@ description: <an optional description of the custom registry>
 schema_url: <base URL where the registry's schema files are hosted>/<version of this custom registry>
 dependencies:
   - name: <an alias for the dependency>
-    schema_url: <base URL where the dependency's schema files are hosted><version of the dependency's registry>
+    schema_url: <base URL where the dependency's schema files are hosted>/<version of the dependency's registry>
     registry_path: <the location of the dependency>
 ```
 
