@@ -128,11 +128,18 @@ impl<'de> Deserialize<'de> for Dependency {
 
         let schema_url = match (helper.schema_url, helper.name) {
             (Some(url), _) => url,
-            (None, Some(name)) => SchemaUrl::try_from_name_version(&name, "unknown")
-                .map_err(serde::de::Error::custom)?,
+            (None, Some(name)) => {
+                return Err(serde::de::Error::custom(format!(
+                    "missing required field 'schema_url' for dependency '{name}'. \
+                     The schema_url uniquely identifies the dependency registry and its \
+                     version, e.g. https://example.com/{name}/1.0.0"
+                )))
+            }
             (None, None) => {
                 return Err(serde::de::Error::custom(
-                    "Either 'schema_url' or 'name' must be provided for a dependency",
+                    "missing required field 'schema_url' for a dependency. \
+                     The schema_url uniquely identifies the dependency registry and its \
+                     version, e.g. https://example.com/my-registry/1.0.0",
                 ))
             }
         };
@@ -490,12 +497,17 @@ registry_path: "./registry"
     }
 
     #[test]
-    fn test_dependency_deserialize_with_deprecated_name() {
+    fn test_dependency_deserialize_name_only_is_rejected() {
         let yaml = r#"
 name: "acme-registry"
 "#;
-        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
-        assert_eq!(dep.schema_url.as_str(), "https://acme-registry/unknown");
+        let err = serde_yaml::from_str::<Dependency>(yaml)
+            .expect_err("a dependency without 'schema_url' must be rejected");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("schema_url") && msg.contains("acme-registry"),
+            "error should name the dependency missing 'schema_url'; got: {msg}"
+        );
     }
 
     #[test]
@@ -521,7 +533,7 @@ registry_path: "./registry"
         let err = result.unwrap_err();
         assert!(err
             .to_string()
-            .contains("Either 'schema_url' or 'name' must be provided"));
+            .contains("missing required field 'schema_url'"));
     }
 
     #[test]
