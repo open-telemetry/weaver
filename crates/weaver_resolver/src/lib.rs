@@ -1757,6 +1757,34 @@ groups:
     }
 
     #[test]
+    fn test_dependency_without_schema_url_is_rejected() {
+        // `main`'s manifest declares its dependency with only `name` and
+        // `registry_path`. `schema_url` is mandatory for dependencies — it is
+        // the identity that provenance and version-conflict resolution key
+        // on — so this must fail with an error naming the offending
+        // dependency.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/mandatory-schema-url/main".to_owned(),
+        };
+        let err_msg = match RegistryRepo::try_new(None, &registry_path, &mut vec![]) {
+            Err(e) => e.to_string(),
+            Ok(registry_repo) => {
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                    WResult::Ok(_) | WResult::OkWithNFEs(_, _) => panic!(
+                        "expected an error for the dependency missing 'schema_url', but resolution succeeded"
+                    ),
+                    WResult::FatalErr(e) => e.to_string(),
+                }
+            }
+        };
+        assert!(
+            err_msg.contains("schema_url") && err_msg.contains("dep"),
+            "error should name the dependency missing 'schema_url'; got: {err_msg}"
+        );
+    }
+
+    #[test]
     fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
         // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
         let mut config = WeaverResolverConfig::default();
