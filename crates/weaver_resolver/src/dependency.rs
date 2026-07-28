@@ -413,35 +413,34 @@ fn find_attribute_source(
     my_schema_url: &SchemaUrl,
 ) -> AttributeSource {
     if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
-        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
-            schema.registry.groups.iter().find(|g| {
-                if let Some(prov) = g.provenance() {
-                    prov.schema_url.name() == schema_name
-                } else {
-                    false
-                }
-            })
+        let schema_url = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            // The attribute originates in one of `schema`'s own dependencies.
+            // That registry may not have contributed any whole group to
+            // `schema` (e.g. only an attribute was referenced), so recover
+            // the full schema URL from the dependency list first and only
+            // fall back to the provenance of an imported group.
+            schema
+                .dependencies
+                .iter()
+                .find(|url| url.name() == schema_name)
+                .cloned()
+                .or_else(|| {
+                    schema.registry.groups.iter().find_map(|g| {
+                        g.provenance()
+                            .filter(|prov| prov.schema_url.name() == schema_name)
+                            .map(|prov| prov.schema_url)
+                    })
+                })
         } else {
             schema
                 .registry
                 .groups
                 .iter()
                 .find(|g| g.id == *source_group_id)
+                .and_then(|g| g.provenance().map(|prov| prov.schema_url))
         };
-        if let Some(group) = group {
-            if let Some(prov) = group.provenance() {
-                AttributeSource::Dependency {
-                    schema_url: prov.schema_url.clone(),
-                }
-            } else {
-                AttributeSource::Dependency {
-                    schema_url: my_schema_url.clone(),
-                }
-            }
-        } else {
-            AttributeSource::Dependency {
-                schema_url: my_schema_url.clone(),
-            }
+        AttributeSource::Dependency {
+            schema_url: schema_url.unwrap_or_else(|| my_schema_url.clone()),
         }
     } else {
         // Fallback: search in all groups to find where this attribute came from

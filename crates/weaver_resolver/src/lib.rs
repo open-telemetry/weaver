@@ -1757,6 +1757,33 @@ groups:
     }
 
     #[test]
+    fn test_imported_attribute_keeps_origin_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports one metric from `base` and one from `middle`; both
+        // use `host.id`, which is defined only in `base` (a dependency of
+        // `middle`). Middle's re-export of `host.id` must keep base's
+        // provenance so both paths agree on the attribute's origin and the
+        // schema resolves cleanly.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/correct-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let (attr, _) = resolved
+            .catalog
+            .root_attribute("host.id")
+            .expect("host.id not found in catalog");
+        assert_eq!(attr.brief, "Unique host ID.");
+        Ok(())
+    }
+
+    #[test]
     fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
         // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
         let mut config = WeaverResolverConfig::default();
