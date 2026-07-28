@@ -1757,6 +1757,42 @@ groups:
     }
 
     #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports `c.metric.1` via A (which pins C v1.1) and
+        // `c.span.2` via B (which pins C v1.2). The compatible version
+        // conflict resolves in favor of C v1.2 and the attribute catalog is
+        // upgraded accordingly (`c.attr1` reports the v1.2 brief, as covered
+        // by test_standalone_vs_graph_provenance_immutability). The group
+        // must be upgraded consistently: `metric.c.metric.1` should carry
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .get("metric.c.metric.1")
+            .expect("metric.c.metric.1 not found");
+        let provenance = metric
+            .provenance()
+            .expect("metric.c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
     fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
         // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
         let mut config = WeaverResolverConfig::default();

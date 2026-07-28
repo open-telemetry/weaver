@@ -369,13 +369,56 @@ impl ImportableDependency for V1Schema {
                 }
             }
             let mut g = g.clone();
+
+            // The group may originate in a transitive dependency (its
+            // lineage provenance points there rather than at `self`). When
+            // graph-wide version conflict resolution chose a newer
+            // compatible version of that origin registry, take the group's
+            // definition from the chosen version so its body, lineage, and
+            // attributes stay consistent with the upgraded attribute
+            // catalog.
+            let origin_url = g
+                .provenance()
+                .map(|prov| prov.schema_url)
+                .unwrap_or_else(|| my_schema_url.clone());
+            let upgraded_origin = cache_lookup
+                .chosen_version(origin_url.name())
+                .filter(|chosen_url| **chosen_url != origin_url)
+                .filter(|chosen_url| {
+                    UseLatestMajorVersion
+                        .resolve_conflict(&origin_url, chosen_url)
+                        .is_ok_and(|winning_url| winning_url == **chosen_url)
+                })
+                .and_then(|chosen_url| {
+                    cache_lookup
+                        .lookup_schema(chosen_url)
+                        .map(|schema| (schema, chosen_url.clone()))
+                });
+            let (source_schema, source_url) = match &upgraded_origin {
+                Some((schema, chosen_url)) => {
+                    match schema
+                        .as_v1()
+                        .and_then(|v1| v1.registry.groups.iter().find(|ug| ug.id == g.id))
+                    {
+                        Some(upgraded_group) => {
+                            g = upgraded_group.clone();
+                            (schema.as_v1().expect("checked above"), chosen_url)
+                        }
+                        // The chosen registry no longer defines this group
+                        // (or is not a V1 schema): keep the copy we have.
+                        None => (self, &my_schema_url),
+                    }
+                }
+                None => (self, &my_schema_url),
+            };
+
             let mut attributes = vec![];
             for a in g
                 .attributes
                 .iter()
-                .filter_map(|ar| self.catalog().attribute(ar))
+                .filter_map(|ar| source_schema.catalog().attribute(ar))
             {
-                let source = find_attribute_source(self, &a.name, &my_schema_url);
+                let source = find_attribute_source(source_schema, &a.name, source_url);
                 let ar = attribute_catalog.attribute_ref_with_provenance(
                     a.clone(),
                     source,
