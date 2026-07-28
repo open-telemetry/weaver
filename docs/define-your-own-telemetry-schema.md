@@ -27,9 +27,16 @@ name: <custom registry name>
 description: <an optional description of the custom registry>
 schema_url: <base URL where the registry's schema files are hosted>/<version of this custom registry>
 dependencies:
-  - name: <an alias for the dependency>
+  - schema_url: <base URL of the dependency>/<version of the dependency>
     registry_path: <the location of the dependency>
 ```
+
+The `schema_url` of a dependency is required. It uniquely identifies the
+dependency registry and its version, and is what provenance tracking and
+version conflict resolution key on. It does not have to be a URL the registry
+can actually be fetched from — the files themselves are located via
+`registry_path` — but it must follow the OTel schema URL format and include a
+version segment.
 
 > **Current limitations**:
 > - Weaver supports a maximum of 10 registry levels without circular
@@ -43,7 +50,7 @@ name: acme
 description: This registry contains the semantic conventions for the Acme vendor.
 schema_url: https://acme.com/schemas/0.1.0
 dependencies:
-  - name: otel
+  - schema_url: https://opentelemetry.io/schemas/1.40.0
     registry_path: https://github.com/open-telemetry/semantic-conventions@v1.40.0[model]
 ```
 

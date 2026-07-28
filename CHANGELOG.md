@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Make schema_url mandatory for manifest dependencies ([#1651](https://github.com/open-telemetry/weaver/issues/1651) by @jerbly)
 - Fix imported groups keeping the losing version's definition and provenance ([#1650](https://github.com/open-telemetry/weaver/issues/1650) by @jerbly)
 - Fix imported attributes losing their origin registry provenance ([#1649](https://github.com/open-telemetry/weaver/issues/1649) by @jerbly)
 - Fix signals imported from a dependency losing their per-signal attribute data. When several signals reference the same attribute with different `requirement_level` or `role`, each imported signal was re-pointed at whichever variant of the attribute was registered first. E.g. silently rewriting requirement levels or dropping `role: identifying` from imported entities. Each signal now references the attribute variant it actually declares. Per-name conflict resolution still applies to root-attribute provenance. ([#1635](https://github.com/open-telemetry/weaver/pull/1635) by @jerbly)
