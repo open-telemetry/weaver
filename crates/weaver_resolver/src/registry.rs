@@ -1180,6 +1180,7 @@ mod tests {
     use crate::{WeaverResolver, WeaverResolverConfig};
     use std::sync::Arc;
     use weaver_resolved_schema::attribute::UnresolvedAttribute;
+    use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 
     /// Settings for resolution tests.
     #[derive(Serialize, Deserialize, Default)]
@@ -1866,11 +1867,11 @@ groups:
 
     fn bare_ref(
         id: &str,
-        requirement_level: Option<weaver_semconv::attribute::RequirementLevel>,
-        examples: Option<weaver_semconv::attribute::Examples>,
+        requirement_level: Option<RequirementLevel>,
+        examples: Option<Examples>,
     ) -> UnresolvedAttribute {
         UnresolvedAttribute {
-            spec: weaver_semconv::attribute::AttributeSpec::Ref {
+            spec: AttributeSpec::Ref {
                 r#ref: id.to_owned(),
                 brief: None,
                 examples,
@@ -1893,8 +1894,6 @@ groups:
     /// `ref`: unset fields inherit rather than replacing the whole spec.
     #[test]
     fn ref_group_bare_ref_preserves_inherited_requirement_level() {
-        use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
-
         let cond = RequirementLevel::ConditionallyRequired {
             text: "If span describes operation on a single message.".to_owned(),
         };
