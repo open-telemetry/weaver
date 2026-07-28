@@ -28,6 +28,7 @@ description: <an optional description of the custom registry>
 schema_url: <base URL where the registry's schema files are hosted>/<version of this custom registry>
 dependencies:
   - name: <an alias for the dependency>
+    schema_url: <base URL where the dependency's schema files are hosted><version of the dependency's registry>
     registry_path: <the location of the dependency>
 ```
 
@@ -44,6 +45,7 @@ description: This registry contains the semantic conventions for the Acme vendor
 schema_url: https://acme.com/schemas/0.1.0
 dependencies:
   - name: otel
+    schema_url: https://opentelemetry.io/schemas/1.40.0
     registry_path: https://github.com/open-telemetry/semantic-conventions@v1.40.0[model]
 ```
 
