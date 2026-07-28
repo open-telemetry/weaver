@@ -2,6 +2,5 @@ name: registry_b
 description: Test registry B for circular dependency testing.
 schema_url: https://example.com/registry_b/schemas/0.1.0
 dependencies:
-  - name: registry_a
-    # schema_url: is not necessary here, we're using deprecated, but valid for now `name`
+  - schema_url: https://example.com/registry_a/schemas/0.1.0
     registry_path: data/circular-registry-test/registry_a

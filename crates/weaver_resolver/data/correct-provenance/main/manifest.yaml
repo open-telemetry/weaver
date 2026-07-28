@@ -1,0 +1,10 @@
+name: main
+description: Registry depending on both base and middle, importing a metric from each.
+schema_url: https://example.com/main/0.1.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/0.1.0
+    registry_path: data/correct-provenance/middle
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/correct-provenance/base
