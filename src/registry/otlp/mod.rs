@@ -525,20 +525,32 @@ async fn spawn_http_admin_handler(
                 .with_state(state);
 
             let _ = tasks.spawn(async move {
-                // Bounded so a stalled client can't hang the CLI forever.
-                let result = tokio::time::timeout(ADMIN_REQUEST_TIMEOUT, async {
-                    axum::serve(listener, app)
-                        .with_graceful_shutdown(async {
-                            let _ = admin_shutdown_rx.await;
-                        })
-                        .await
-                })
-                .await;
+                // ADMIN_REQUEST_TIMEOUT bounds only the graceful-shutdown drain
+                // (after the stop signal), not the server's whole lifetime.
+                // Wrapping the entire `serve` in the timeout would tear the admin
+                // server (and `/stop`) down that long after startup, so a `/stop`
+                // sent later in a long-running live-check could never stop it.
+                let (drain_started_tx, drain_started_rx) = oneshot::channel();
+                let serve = axum::serve(listener, app).with_graceful_shutdown(async move {
+                    let _ = admin_shutdown_rx.await;
+                    let _ = drain_started_tx.send(());
+                });
 
-                match result {
-                    Ok(Ok(())) => {}
-                    Ok(Err(e)) => warn!("Admin HTTP server error: {e}"),
-                    Err(_) => warn!(
+                let drain_deadline = async {
+                    if drain_started_rx.await.is_ok() {
+                        sleep(ADMIN_REQUEST_TIMEOUT).await;
+                    } else {
+                        std::future::pending::<()>().await;
+                    }
+                };
+
+                tokio::select! {
+                    result = serve => {
+                        if let Err(e) = result {
+                            warn!("Admin HTTP server error: {e}");
+                        }
+                    }
+                    _ = drain_deadline => warn!(
                         "Admin HTTP server graceful shutdown did not complete within \
                          {ADMIN_REQUEST_TIMEOUT:?}; a client may not have finished reading \
                          a response"
