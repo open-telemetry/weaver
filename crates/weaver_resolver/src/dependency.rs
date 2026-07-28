@@ -368,22 +368,29 @@ impl ImportableDependency for V1Schema {
                     continue;
                 }
             }
-            let mut g = g.clone();
-            let mut attributes = vec![];
-            for a in g
-                .attributes
-                .iter()
-                .filter_map(|ar| self.catalog().attribute(ar))
+            let g = if let Some(upgraded) =
+                upgrade_imported_group(g, &my_schema_url, attribute_catalog, cache_lookup)?
             {
-                let source = find_attribute_source(self, &a.name, &my_schema_url);
-                let ar = attribute_catalog.attribute_ref_with_provenance(
-                    a.clone(),
-                    source,
-                    cache_lookup,
-                )?;
-                attributes.push(ar);
-            }
-            g.attributes = attributes;
+                upgraded
+            } else {
+                let mut g = g.clone();
+                let mut attributes = vec![];
+                for a in g
+                    .attributes
+                    .iter()
+                    .filter_map(|ar| self.catalog().attribute(ar))
+                {
+                    let source = find_attribute_source(self, &a.name, &my_schema_url);
+                    let ar = attribute_catalog.attribute_ref_with_provenance(
+                        a.clone(),
+                        source,
+                        cache_lookup,
+                    )?;
+                    attributes.push(ar);
+                }
+                g.attributes = attributes;
+                g
+            };
             let mut g_url = my_schema_url.clone();
             if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
                 if chosen_url != &g_url {
@@ -406,6 +413,106 @@ impl ImportableDependency for V1Schema {
     }
 }
 
+/// If an imported group's origin registry (recorded in its lineage
+/// provenance, which may point at a transitive dependency rather than the
+/// immediate one) was upgraded to a newer compatible version by graph-wide
+/// version conflict resolution, returns the group's definition from the
+/// chosen registry so its body, lineage, and attributes stay consistent
+/// with the upgraded attribute catalog — mirroring what
+/// `upgrade_attribute_with_source` does for attributes.
+///
+/// Returns `None` when no upgrade applies, or when the chosen registry does
+/// not define the group; the caller then keeps the copy it has.
+fn upgrade_imported_group<C: crate::SchemaCacheLookup>(
+    group: &Group,
+    fallback_url: &SchemaUrl,
+    attribute_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<Option<Group>, Error> {
+    let origin_url = group
+        .provenance()
+        .map(|prov| prov.schema_url)
+        .unwrap_or_else(|| fallback_url.clone());
+    let Some(chosen_url) = cache_lookup.chosen_version(origin_url.name()) else {
+        return Ok(None);
+    };
+    if *chosen_url == origin_url {
+        return Ok(None);
+    }
+    let Ok(winning_url) = UseLatestMajorVersion.resolve_conflict(&origin_url, chosen_url) else {
+        return Ok(None);
+    };
+    if winning_url != *chosen_url {
+        return Ok(None);
+    }
+    let Some(chosen_schema) = cache_lookup.lookup_schema(chosen_url) else {
+        return Ok(None);
+    };
+    // TODO: also look up the group when the chosen registry is a published
+    // resolved V2 schema.
+    let Some(chosen_v1) = chosen_schema.as_v1() else {
+        return Ok(None);
+    };
+    let Some(upgraded) = chosen_v1
+        .registry
+        .groups
+        .iter()
+        .find(|candidate| is_same_imported_group(group, candidate))
+    else {
+        return Ok(None);
+    };
+    let mut upgraded = upgraded.clone();
+    let mut attributes = vec![];
+    for a in upgraded
+        .attributes
+        .iter()
+        .filter_map(|ar| chosen_v1.catalog().attribute(ar))
+    {
+        let source = find_attribute_source(chosen_v1, &a.name, chosen_url);
+        attributes.push(attribute_catalog.attribute_ref_with_provenance(
+            a.clone(),
+            source,
+            cache_lookup,
+        )?);
+    }
+    upgraded.attributes = attributes;
+    Ok(Some(upgraded))
+}
+
+/// Whether `candidate` (a group in a chosen upgraded registry) defines the
+/// same signal as `group` (an imported group). Group ids may differ in their
+/// `<type>.` prefix between the definition (V1) and published (V2) import
+/// paths, so signals are matched by type and name where available.
+fn is_same_imported_group(group: &Group, candidate: &Group) -> bool {
+    if group.r#type != candidate.r#type {
+        return false;
+    }
+    if group.metric_name.is_some() || candidate.metric_name.is_some() {
+        return group.metric_name == candidate.metric_name;
+    }
+    if group.name.is_some() || candidate.name.is_some() {
+        return group.name == candidate.name;
+    }
+    strip_group_type_prefix(&group.id) == strip_group_type_prefix(&candidate.id)
+}
+
+/// Strips a group-type id prefix, if present.
+fn strip_group_type_prefix(id: &str) -> &str {
+    for prefix in [
+        "metric.",
+        "event.",
+        "entity.",
+        "span.",
+        "attribute_group.",
+        "registry.",
+    ] {
+        if let Some(rest) = id.strip_prefix(prefix) {
+            return rest;
+        }
+    }
+    id
+}
+
 /// Finds the attribute source for a V1 attribute.
 fn find_attribute_source(
     schema: &V1Schema,
@@ -413,35 +520,34 @@ fn find_attribute_source(
     my_schema_url: &SchemaUrl,
 ) -> AttributeSource {
     if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
-        let group = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
-            schema.registry.groups.iter().find(|g| {
-                if let Some(prov) = g.provenance() {
-                    prov.schema_url.name() == schema_name
-                } else {
-                    false
-                }
-            })
+        let schema_url = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            // The attribute originates in one of `schema`'s own dependencies.
+            // That registry may not have contributed any whole group to
+            // `schema` (e.g. only an attribute was referenced), so recover
+            // the full schema URL from the dependency list first and only
+            // fall back to the provenance of an imported group.
+            schema
+                .dependencies
+                .iter()
+                .find(|url| url.name() == schema_name)
+                .cloned()
+                .or_else(|| {
+                    schema.registry.groups.iter().find_map(|g| {
+                        g.provenance()
+                            .filter(|prov| prov.schema_url.name() == schema_name)
+                            .map(|prov| prov.schema_url)
+                    })
+                })
         } else {
             schema
                 .registry
                 .groups
                 .iter()
                 .find(|g| g.id == *source_group_id)
+                .and_then(|g| g.provenance().map(|prov| prov.schema_url))
         };
-        if let Some(group) = group {
-            if let Some(prov) = group.provenance() {
-                AttributeSource::Dependency {
-                    schema_url: prov.schema_url.clone(),
-                }
-            } else {
-                AttributeSource::Dependency {
-                    schema_url: my_schema_url.clone(),
-                }
-            }
-        } else {
-            AttributeSource::Dependency {
-                schema_url: my_schema_url.clone(),
-            }
+        AttributeSource::Dependency {
+            schema_url: schema_url.unwrap_or_else(|| my_schema_url.clone()),
         }
     } else {
         // Fallback: search in all groups to find where this attribute came from
@@ -979,6 +1085,18 @@ impl ImportableDependency for V2Schema {
         if !exclusion_errors.is_empty() {
             return Err(Error::CompoundError(exclusion_errors));
         }
+
+        // The imported groups may originate in transitive dependencies that
+        // graph-wide version conflict resolution upgraded; substitute the
+        // chosen version's definition where that applies.
+        for group in result.iter_mut() {
+            if let Some(upgraded) =
+                upgrade_imported_group(group, &self.schema_url, attribute_catalog, cache_lookup)?
+            {
+                *group = upgraded;
+            }
+        }
+
         let mut g_url = self.schema_url.clone();
         if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
             if chosen_url != &g_url {

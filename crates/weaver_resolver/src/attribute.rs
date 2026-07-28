@@ -562,31 +562,40 @@ impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
         if let Some((attr, group_id)) = self.catalog.root_attribute(key) {
             // We encode pure schema_url dependencies with magic strings in V1.
-            let group = if let Some(schema_name) = group_id.strip_prefix("v2_dependency.") {
-                self.registry.groups.iter().find(|g| {
-                    if let Some(prov) = g.provenance() {
-                        prov.schema_url.name() == schema_name
-                    } else {
-                        false
-                    }
-                })
-            } else {
-                self.registry.groups.iter().find(|g| g.id == group_id)
-            };
-            let source = if let Some(g) = group {
-                if let Some(prov) = g.provenance() {
-                    AttributeSource::Dependency {
-                        schema_url: prov.schema_url.clone(),
-                    }
-                } else {
-                    AttributeSource::Local {
+            let source = if let Some(schema_name) = group_id.strip_prefix("v2_dependency.") {
+                // The attribute originates in one of this schema's own
+                // dependencies. That registry may not have contributed any
+                // whole group to this schema (e.g. only an attribute was
+                // referenced), so recover the full schema URL from the
+                // dependency list first and only fall back to the provenance
+                // of an imported group.
+                self.dependencies
+                    .iter()
+                    .find(|url| url.name() == schema_name)
+                    .cloned()
+                    .or_else(|| {
+                        self.registry.groups.iter().find_map(|g| {
+                            g.provenance()
+                                .filter(|prov| prov.schema_url.name() == schema_name)
+                                .map(|prov| prov.schema_url)
+                        })
+                    })
+                    .map(|schema_url| AttributeSource::Dependency { schema_url })
+                    .unwrap_or_else(|| AttributeSource::Local {
                         group_id: group_id.to_owned(),
-                    }
-                }
+                    })
             } else {
-                AttributeSource::Local {
-                    group_id: group_id.to_owned(),
-                }
+                self.registry
+                    .groups
+                    .iter()
+                    .find(|g| g.id == group_id)
+                    .and_then(|g| g.provenance())
+                    .map(|prov| AttributeSource::Dependency {
+                        schema_url: prov.schema_url,
+                    })
+                    .unwrap_or_else(|| AttributeSource::Local {
+                        group_id: group_id.to_owned(),
+                    })
             };
             return Ok(Some(AttributeWithSource {
                 attribute: attr.clone(),
