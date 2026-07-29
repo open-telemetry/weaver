@@ -1,0 +1,6 @@
+name: main
+description: Registry whose dependency declaration omits the mandatory `schema_url`.
+schema_url: https://example.com/main/0.1.0
+dependencies:
+  - name: dep
+    registry_path: data/mandatory-schema-url/dep

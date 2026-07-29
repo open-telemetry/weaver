@@ -867,26 +867,33 @@ fn resolve_inheritance_attrs_unified(
     // Note: we use a BTreeMap to ensure that the attributes are sorted by
     // their id in the resolved registry. This is useful for unit tests to
     // ensure that the resolved registry is easy to compare.
-    let mut inherited_attrs = BTreeMap::new();
-
-    // Inherit the attributes from all included groups.
+    let mut inherited_attrs: BTreeMap<String, AttrWithLineage> = BTreeMap::new();
     for (parent_group_id, included_group) in include_groups {
         for parent_attr in included_group.iter() {
             let attr_id = parent_attr.spec.id();
-            let lineage = AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
-            log::debug!(
-                "Inheriting attribute {} from group {}, resolved to {:#?}",
-                attr_id,
-                parent_group_id,
-                lineage.source_group
-            );
-            _ = inherited_attrs.insert(
-                attr_id.clone(),
-                AttrWithLineage {
-                    spec: parent_attr.spec.clone(),
-                    lineage,
-                },
-            );
+            if let Some(existing) = inherited_attrs.get_mut(&attr_id) {
+                existing.spec = resolve_inheritance_attr(
+                    &parent_attr.spec,
+                    &existing.spec,
+                    &mut existing.lineage,
+                );
+                existing.lineage.source_group = parent_group_id.to_owned();
+            } else {
+                let lineage = AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
+                log::debug!(
+                    "Inheriting attribute {} from group {}, resolved to {:#?}",
+                    attr_id,
+                    parent_group_id,
+                    lineage.source_group
+                );
+                _ = inherited_attrs.insert(
+                    attr_id.clone(),
+                    AttrWithLineage {
+                        spec: parent_attr.spec.clone(),
+                        lineage,
+                    },
+                );
+            }
         }
     }
 
@@ -1167,10 +1174,13 @@ mod tests {
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
+    use crate::registry::resolve_inheritance_attrs_unified;
     use crate::registry::UnresolvedGroup;
     use crate::registry::UnresolvedRegistry;
     use crate::{WeaverResolver, WeaverResolverConfig};
     use std::sync::Arc;
+    use weaver_resolved_schema::attribute::UnresolvedAttribute;
+    use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 
     /// Settings for resolution tests.
     #[derive(Serialize, Deserialize, Default)]
@@ -1853,5 +1863,84 @@ groups:
 
     fn to_json<T: Serialize + ?Sized>(value: &T) -> String {
         serde_json::to_string_pretty(value).unwrap()
+    }
+
+    fn bare_ref(
+        id: &str,
+        requirement_level: Option<RequirementLevel>,
+        examples: Option<Examples>,
+    ) -> UnresolvedAttribute {
+        UnresolvedAttribute {
+            spec: AttributeSpec::Ref {
+                r#ref: id.to_owned(),
+                brief: None,
+                examples,
+                tag: None,
+                requirement_level,
+                sampling_relevant: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                prefix: false,
+                annotations: None,
+                role: None,
+            },
+        }
+    }
+
+    /// A bare `ref` inside an included group (`ref_group`) that only narrows the
+    /// example must NOT reset the `requirement_level` inherited from a
+    /// lower-priority base (`extends`). It must behave the same as a bare inline
+    /// `ref`: unset fields inherit rather than replacing the whole spec.
+    #[test]
+    fn ref_group_bare_ref_preserves_inherited_requirement_level() {
+        let cond = RequirementLevel::ConditionallyRequired {
+            text: "If span describes operation on a single message.".to_owned(),
+        };
+
+        // Lowest priority base (parent `extends`): sets conditionally_required.
+        let parent = vec![bare_ref(
+            "messaging.destination.name",
+            Some(cond.clone()),
+            None,
+        )];
+        // Higher priority base (`ref_group`): only sets an example, no level.
+        let included = vec![bare_ref(
+            "messaging.destination.name",
+            None,
+            Some(Examples::String("MyTopic".to_owned())),
+        )];
+
+        let resolved = resolve_inheritance_attrs_unified(
+            "span.messaging.rocketmq.send.producer",
+            &[], // no inline `ref:` overrides on the refinement itself
+            vec![
+                ("messaging.attributes.common", parent.as_slice()),
+                ("messaging.rocketmq.attributes.common", included.as_slice()),
+            ],
+            None,
+        );
+
+        assert_eq!(resolved.len(), 1);
+        match &resolved[0].spec {
+            AttributeSpec::Ref {
+                requirement_level,
+                examples,
+                ..
+            } => {
+                assert_eq!(
+                    requirement_level,
+                    &Some(cond),
+                    "ref_group must not reset the inherited requirement_level"
+                );
+                assert!(
+                    matches!(examples, Some(Examples::String(s)) if s == "MyTopic"),
+                    "ref_group example override should still win"
+                );
+            }
+            other @ AttributeSpec::Id { .. } => {
+                panic!("expected a Ref attribute, got {other:?}")
+            }
+        }
     }
 }

@@ -1,0 +1,29 @@
+file_format: definition/2
+attributes:
+  - key: c.attr1
+    type: string
+    brief: Attribute 1 from C v1.2 (updated)
+    stability: stable
+  - key: c.attr2
+    type: string
+    brief: Attribute 2 from C v1.2 (new)
+    stability: stable
+
+metrics:
+  - name: c.metric.1
+    brief: Metric 1 in C v1.2 (updated)
+    unit: "1"
+    instrument: counter
+    stability: stable
+    attributes:
+      - ref: c.attr1
+
+spans:
+  - type: c.span.2
+    kind: client
+    brief: Span 2 in C v1.2 (new)
+    stability: stable
+    name:
+      note: "c.span.2"
+    attributes:
+      - ref: c.attr2
