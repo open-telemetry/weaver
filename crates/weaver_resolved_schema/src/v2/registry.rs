@@ -293,9 +293,143 @@ mod test {
         v2::{span::SpanName, CommonFields},
     };
 
-    use crate::v2::{attribute::Attribute, entity::EntityAttributeRef};
+    use crate::v2::{attribute::Attribute, entity::EntityAttributeRef, metric::MetricAttributeRef};
 
     use super::*;
+
+    /// Builds an attribute with the given key and brief.
+    fn attr(key: &str, brief: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(
+                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: brief.to_owned(),
+                note: String::new(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        }
+    }
+
+    fn required() -> weaver_semconv::attribute::RequirementLevel {
+        weaver_semconv::attribute::RequirementLevel::Basic(
+            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+        )
+    }
+
+    /// A registry whose catalog holds a definition, a second variant of that same
+    /// key, and a key only ever referenced by a signal. Only the definition is
+    /// listed in `attributes`.
+    fn registry_with_inlined_refs() -> (Vec<Attribute>, Registry) {
+        let catalog = vec![
+            attr("defined", "the definition"),
+            attr("defined", "a signal's variant"),
+            attr("inlined.only", "reached only through a signal"),
+        ];
+        let registry = Registry {
+            attributes: vec![AttributeRef(0)],
+            attribute_groups: vec![],
+            metrics: vec![Metric {
+                name: "test.metric".to_owned().into(),
+                instrument: InstrumentSpec::Counter,
+                unit: "{tests}".to_owned(),
+                attributes: vec![
+                    MetricAttributeRef {
+                        base: AttributeRef(1),
+                        requirement_level: required(),
+                    },
+                    MetricAttributeRef {
+                        base: AttributeRef(2),
+                        requirement_level: required(),
+                    },
+                ],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields::default(),
+                provenance: Default::default(),
+            }],
+            spans: vec![],
+            events: vec![],
+            entities: vec![Entity {
+                r#type: "test.entity".to_owned().into(),
+                // Identity and description are separate lists; both must be walked.
+                identity: vec![EntityAttributeRef {
+                    base: AttributeRef(2),
+                    requirement_level: required(),
+                }],
+                description: vec![EntityAttributeRef {
+                    base: AttributeRef(1),
+                    requirement_level: required(),
+                }],
+                requirement_level: None,
+                common: CommonFields::default(),
+                provenance: Default::default(),
+            }],
+        };
+        (catalog, registry)
+    }
+
+    #[test]
+    fn test_attribute_refs_yields_definitions_then_signal_refs() {
+        let (_, registry) = registry_with_inlined_refs();
+        let refs: Vec<AttributeRef> = registry.attribute_refs().copied().collect();
+
+        // Definition first, then one entry per signal attribute, including both
+        // an entity's identity and description lists.
+        assert_eq!(
+            refs,
+            vec![
+                AttributeRef(0),
+                AttributeRef(1),
+                AttributeRef(2),
+                AttributeRef(2),
+                AttributeRef(1),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_reachable_attributes_includes_signal_only_keys() {
+        let (catalog, registry) = registry_with_inlined_refs();
+        let keys: Vec<&str> = registry
+            .reachable_attributes(&catalog)
+            .iter()
+            .filter_map(|r| catalog.attribute(r))
+            .map(|a| a.key.as_str())
+            .collect();
+
+        // `inlined.only` is absent from `attributes`, so it is only present if
+        // signal references are walked.
+        assert_eq!(keys, vec!["defined", "inlined.only"]);
+    }
+
+    #[test]
+    fn test_reachable_attributes_dedups_by_key_keeping_the_definition() {
+        let (catalog, registry) = registry_with_inlined_refs();
+        let reachable = registry.reachable_attributes(&catalog);
+
+        // `defined` has two catalog entries and is referenced twice, yet appears
+        // once — as the definition listed in `attributes`, not a signal's variant.
+        assert_eq!(reachable.len(), 2);
+        assert!(!reachable.contains(&AttributeRef(1)));
+        let defined = catalog
+            .attribute(&reachable[0])
+            .expect("definition in catalog");
+        assert_eq!(defined.common.brief, "the definition");
+    }
+
+    #[test]
+    fn test_reachable_attributes_ignores_unknown_refs() {
+        let (catalog, mut registry) = registry_with_inlined_refs();
+        registry.attributes.push(AttributeRef(99));
+        // A ref with no catalog entry is skipped rather than counted.
+        assert_eq!(registry.reachable_attributes(&catalog).len(), 2);
+    }
 
     #[test]
     fn test_stats() {
