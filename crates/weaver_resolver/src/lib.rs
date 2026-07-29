@@ -2002,14 +2002,27 @@ groups:
         Ok(())
     }
 
-    /// Elements inherited through a dependency-of-a-dependency must be
-    /// attributed to the registry that actually defined them, rather than
-    /// falling back to "defined locally" because their schema URL was missing
-    /// from the `DependencyRef` target table.
+    /// An element reaching a registry through a dependency-of-a-dependency must
+    /// be attributed to the registry that defined it.
+    ///
+    /// The `transitive-provenance` fixture is a plain three-level chain:
+    /// `base <- middle <- main`, where `middle` only re-exports base's metric and
+    /// `main` depends on `middle` alone. `base` is therefore reachable solely
+    /// through `middle`.
+    ///
+    /// Provenance is a `DependencyRef` index into the resolved schema's
+    /// `dependencies` set. If that set records only the direct dependencies,
+    /// `base` has no entry for the metric to point at, its `source` is left
+    /// empty, and the metric is reported as defined by `main` itself — even
+    /// though its recorded path names a file in `base`.
     #[test]
     fn test_transitive_dependency_provenance_resolves() -> Result<(), Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        const BASE: &str = "https://example.com/base/1.0.0";
+
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/compatible-version-conflict/main".to_owned(),
+            path: "data/transitive-provenance/main".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("failed to create registry repo");
@@ -2018,44 +2031,53 @@ groups:
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
             WResult::FatalErr(e) => panic!("Failed to resolve main: {e}"),
         };
-
         let v1 = resolved.as_v1().expect("Expected a V1 schema for main");
         let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
             v1.clone().try_into().expect("v1 -> v2 conversion");
 
-        // `main` defines nothing itself; everything arrives through A and B from
-        // C, so no signal may report itself as locally defined.
-        let local: Vec<&str> = v2
+        // `base` is not a direct dependency of `main`, so it is only in the set
+        // if transitive dependencies are recorded.
+        let base_url: SchemaUrl = BASE.try_into().expect("valid schema url");
+        assert!(
+            v2.dependencies.contains(&base_url),
+            "transitive dependency `base` missing from {:?}",
+            v2.dependencies
+        );
+
+        let deps: Vec<&SchemaUrl> = v2.dependencies.iter().collect();
+        let metric = v2
             .registry
             .metrics
             .iter()
-            .filter(|m| m.provenance.is_empty())
-            .map(|m| m.name.as_ref())
-            .chain(
-                v2.registry
-                    .spans
-                    .iter()
-                    .filter(|s| s.provenance.is_empty())
-                    .map(|s| s.r#type.as_ref()),
-            )
-            .collect();
-        assert!(
-            local.is_empty(),
-            "signals from a transitive dependency reported as local: {local:?}"
-        );
+            .find(|m| &*m.name == "base.uptime")
+            .expect("main imported base.uptime");
 
-        // And the reference resolves to C, not to A or B.
-        let deps: Vec<&SchemaUrl> = v2.dependencies.iter().collect();
-        let metric = v2.registry.metrics.first().expect("main has a metric");
+        assert!(
+            !metric.provenance.is_empty(),
+            "`base.uptime` came from `base` but is reported as defined by `main`"
+        );
         let source = metric
             .provenance
             .source
             .and_then(|r| deps.get(r.0 as usize))
             .expect("metric provenance resolves to a dependency");
-        assert!(
-            source.name().ends_with("/c"),
-            "expected the metric to come from registry C, got {source}"
-        );
+        assert_eq!(source.as_str(), BASE, "attributed to the wrong registry");
+
+        // The attribute it carries came from `base` too, not from `middle`.
+        let attr_ref = metric
+            .attributes
+            .first()
+            .expect("base.uptime has attributes");
+        let attr = v2
+            .attribute_catalog
+            .attribute(&attr_ref.base)
+            .expect("attribute in catalog");
+        let attr_source = attr
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("attribute provenance resolves to a dependency");
+        assert_eq!(attr_source.as_str(), BASE);
 
         Ok(())
     }
