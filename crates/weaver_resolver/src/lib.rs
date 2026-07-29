@@ -366,6 +366,7 @@ impl WeaverResolver {
         };
         let mut attr_catalog = AttributeCatalog::default();
 
+        // Every registry this schema was built from, direct and transitive.
         let mut dependencies = std::collections::BTreeSet::new();
         for d in &resolved_dependencies {
             match d {
@@ -373,9 +374,11 @@ impl WeaverResolver {
                     if let Ok(url) = SchemaUrl::try_from(schema.schema_url.as_str()) {
                         _ = dependencies.insert(url);
                     }
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
                 ResolvedDependency::V2(schema) => {
                     _ = dependencies.insert(schema.schema_url.clone());
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
             }
         }
@@ -1956,6 +1959,20 @@ groups:
         let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
         assert!(v1_main.dependencies.contains(&url_a));
         assert!(v1_main.dependencies.contains(&url_b));
+        // `dependencies` is the table `DependencyRef` provenance indexes into,
+        // so it must also name the registries reached *through* A and B —
+        // otherwise elements inherited from C have nothing to point at and are
+        // reported as locally defined.
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_1),
+            "transitive dependency C v1.1 missing from {:?}",
+            v1_main.dependencies
+        );
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_2),
+            "transitive dependency C v1.2 missing from {:?}",
+            v1_main.dependencies
+        );
 
         // 4. Check the cached A schema in isolation once again.
         // It MUST remain completely untouched and still report C v1.1.
@@ -1973,6 +1990,86 @@ groups:
         assert_eq!(attr_a_again.brief, "Attribute 1 from C v1.1");
         assert_eq!(source_a_again, "v2_dependency.example.com/c");
         assert!(v1_a_again.dependencies.contains(&url_c_v1_1));
+
+        Ok(())
+    }
+
+    /// An element reaching a registry through a dependency-of-a-dependency must
+    /// be attributed to the registry that defined it.
+    ///
+    /// The `transitive-provenance` fixture is a plain three-level chain:
+    /// `base <- middle <- main`, where `middle` only re-exports base's metric and
+    /// `main` depends on `middle` alone. `base` is therefore reachable solely
+    /// through `middle`.
+    ///
+    /// Provenance is a `DependencyRef` index into the resolved schema's
+    /// `dependencies` set. If that set records only the direct dependencies,
+    /// `base` has no entry for the metric to point at, its `source` is left
+    /// empty, and the metric is reported as defined by `main` itself — even
+    /// though its recorded path names a file in `base`.
+    #[test]
+    fn test_transitive_dependency_provenance_resolves() -> Result<(), Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        const BASE: &str = "https://example.com/base/1.0.0";
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/transitive-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve main: {e}"),
+        };
+        let v1 = resolved.as_v1().expect("Expected a V1 schema for main");
+        let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            v1.clone().try_into().expect("v1 -> v2 conversion");
+
+        // `base` is not a direct dependency of `main`, so it is only in the set
+        // if transitive dependencies are recorded.
+        let base_url: SchemaUrl = BASE.try_into().expect("valid schema url");
+        assert!(
+            v2.dependencies.contains(&base_url),
+            "transitive dependency `base` missing from {:?}",
+            v2.dependencies
+        );
+
+        let deps: Vec<&SchemaUrl> = v2.dependencies.iter().collect();
+        let metric = v2
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "base.uptime")
+            .expect("main imported base.uptime");
+
+        assert!(
+            !metric.provenance.is_empty(),
+            "`base.uptime` came from `base` but is reported as defined by `main`"
+        );
+        let source = metric
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("metric provenance resolves to a dependency");
+        assert_eq!(source.as_str(), BASE, "attributed to the wrong registry");
+
+        // The attribute it carries came from `base` too, not from `middle`.
+        let attr_ref = metric
+            .attributes
+            .first()
+            .expect("base.uptime has attributes");
+        let attr = v2
+            .attribute_catalog
+            .attribute(&attr_ref.base)
+            .expect("attribute in catalog");
+        let attr_source = attr
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("attribute provenance resolves to a dependency");
+        assert_eq!(attr_source.as_str(), BASE);
 
         Ok(())
     }
