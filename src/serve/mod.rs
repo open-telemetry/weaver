@@ -90,13 +90,9 @@ fn run_serve(
         crate::weaver::Resolved::V2(v) => v,
     };
 
-    // Compute the full registry stats once, before the resolved schema is
-    // consumed into the template (forge) representation.
-    //
-    // Stats are taken over every attribute the registry can reach, not just the
-    // ones it defines: the search index does the same, and the stats page links
-    // its attribute tile straight into that search, so counting only the
-    // definitions would show a total that disagrees with the page it opens.
+    // Computed before the schema is consumed into the forge representation, and
+    // over every attribute the registry can reach so the total matches the search
+    // index the stats page links into.
     let stats = {
         let schema = resolved_v2.resolved_schema();
         let mut registry = schema.registry.clone();
@@ -108,6 +104,9 @@ fn run_serve(
             refinements: schema.refinements.stats(),
         }
     };
+    // From the stats, not `registry.attributes`: the latter counts only this
+    // registry's own definitions and would disagree with the API.
+    let attribute_count = stats.registry.attributes.attribute_count;
     let forge_registry = resolved_v2.into_template_schema();
 
     let stats_response = types::RegistryStatsResponse {
@@ -127,7 +126,7 @@ fn run_serve(
     info!("Registry loaded successfully");
     info!(
         "Found {} attributes, {} metrics, {} spans, {} events, {} entities",
-        forge_registry.registry.attributes.len(),
+        attribute_count,
         forge_registry.registry.metrics.len(),
         forge_registry.registry.spans.len(),
         forge_registry.registry.events.len(),

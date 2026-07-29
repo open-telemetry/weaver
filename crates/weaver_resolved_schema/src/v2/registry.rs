@@ -51,7 +51,7 @@ pub struct Registry {
 
 impl Registry {
     /// Every attribute reference in this registry: its own definitions first,
-    /// then one per signal attribute. The same attribute yields several
+    /// then one per signal attribute. A single attribute yields several
     /// references, since each signal keeps its own variant.
     pub fn attribute_refs(&self) -> impl Iterator<Item = &AttributeRef> {
         self.attributes
@@ -86,11 +86,9 @@ impl Registry {
 
     /// Every distinct attribute the registry can reach, de-duplicated by key.
     ///
-    /// This is a superset of `attributes`: an attribute imported from a
-    /// dependency is referenced by the signals that use it but never listed as a
-    /// definition, so counting only `attributes` under-reports what the registry
-    /// actually contains. Definitions come first, so a key defined here is
-    /// represented by its definition rather than by a signal's reference to it.
+    /// A superset of `attributes`: an attribute imported from a dependency is
+    /// referenced by signals but never listed as a definition. Definitions come
+    /// first, so they win de-duplication.
     #[must_use]
     pub fn reachable_attributes<T: AttributeCatalog>(&self, catalog: &T) -> Vec<AttributeRef> {
         let mut seen = HashSet::new();

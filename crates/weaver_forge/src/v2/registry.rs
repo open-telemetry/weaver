@@ -56,15 +56,11 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// Every attribute reachable from this registry: the registry-level
-    /// definitions first, then the copy inlined into each signal that uses one.
+    /// Every attribute reachable from this registry: the definitions first, then
+    /// the copy inlined into each signal that uses one.
     ///
-    /// Attributes imported from a dependency are never listed in `attributes` —
-    /// they only exist inlined inside the signals that reference them — so this
-    /// is the complete set, matching the resolved schema's attribute catalog.
-    /// The same key yields several items (one per referencing signal), so
-    /// callers wanting one entry per key should keep the first occurrence, which
-    /// is the registry-level definition whenever there is one.
+    /// Attributes imported from a dependency only ever exist inlined. A key can
+    /// appear several times; keep the first for one entry per key.
     pub fn all_attributes(&self) -> impl Iterator<Item = &Attribute> {
         self.attributes
             .iter()

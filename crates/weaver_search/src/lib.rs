@@ -90,15 +90,10 @@ impl SearchContext {
         let mut event_index = HashMap::new();
         let mut entity_index = HashMap::new();
 
-        // Index every attribute the registry can reach, not just the ones it
-        // defines itself: attributes imported from a dependency are inlined into
-        // the signals that use them and never appear in `registry.attributes`,
-        // so indexing only that list would leave them unsearchable and give the
-        // links on signal detail pages nothing to resolve to.
-        //
-        // `all_attributes` yields the registry-level definitions first and then
-        // one copy per referencing signal, so skipping keys already seen keeps
-        // the definition and collapses the duplicates.
+        // Attributes imported from a dependency only exist inlined in the signals
+        // that use them, so indexing `registry.attributes` alone would leave them
+        // unsearchable. `all_attributes` yields definitions first, so skipping
+        // seen keys keeps the definition and collapses the copies.
         for attr in registry.registry.all_attributes() {
             if attr_index.contains_key(&attr.key) || template_index.contains_key(&attr.key) {
                 continue;
@@ -1150,10 +1145,8 @@ mod tests {
     // Inlined (imported) Attribute Indexing Tests
     // =========================================================================
 
-    /// Builds a registry whose only attribute reaches the index through a
-    /// metric, mimicking an attribute imported from a dependency: such
-    /// attributes are inlined into each referencing signal and never listed in
-    /// `registry.attributes`.
+    /// Builds a registry whose only attribute reaches the index through a metric,
+    /// mimicking an attribute imported from a dependency.
     fn registry_with_inlined_attribute(
         registry_level: Vec<Attribute>,
         inlined: Attribute,
@@ -1176,7 +1169,7 @@ mod tests {
     }
 
     /// An attribute that only exists inlined inside a signal is still indexed,
-    /// so it is searchable and has something for detail-page links to resolve to.
+    /// so it stays searchable and its detail page resolves.
     #[test]
     fn test_inlined_attribute_is_indexed() {
         let imported = make_attribute("imported.attr", "From a dependency", "A note", false);
