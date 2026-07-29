@@ -1768,6 +1768,132 @@ groups:
     }
 
     #[test]
+    fn test_imported_attribute_keeps_origin_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports one metric from `base` and one from `middle`; both
+        // use `host.id`, which is defined only in `base` (a dependency of
+        // `middle`). Middle's re-export of `host.id` must keep base's
+        // provenance so both paths agree on the attribute's origin and the
+        // schema resolves cleanly.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/correct-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let (attr, _) = resolved
+            .catalog
+            .root_attribute("host.id")
+            .expect("host.id not found in catalog");
+        assert_eq!(attr.brief, "Unique host ID.");
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports `c.metric.1` via A (which pins C v1.1) and
+        // `c.span.2` via B (which pins C v1.2). The compatible version
+        // conflict resolves in favor of C v1.2 and the attribute catalog is
+        // upgraded accordingly (`c.attr1` reports the v1.2 brief, as covered
+        // by test_standalone_vs_graph_provenance_immutability). The group
+        // must be upgraded consistently: `metric.c.metric.1` should carry
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .get("metric.c.metric.1")
+            .expect("metric.c.metric.1 not found");
+        let provenance = metric
+            .provenance()
+            .expect("metric.c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance_published(
+    ) -> Result<(), weaver_semconv::Error> {
+        // Same shape as test_upgraded_group_keeps_winning_version_provenance,
+        // but A is a *published* (resolved/2.0) registry whose embedded copy
+        // of `c.metric.1` was resolved against C v1.1. B (a definition
+        // registry) pins C v1.2, which wins the version conflict. The metric
+        // imported through the published V2 path must also be upgraded to
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict-published/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .values()
+            .find(|g| g.metric_name.as_deref() == Some("c.metric.1"))
+            .expect("metric c.metric.1 not found");
+        let provenance = metric.provenance().expect("c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
+    fn test_dependency_without_schema_url_is_rejected() {
+        // `main`'s manifest declares its dependency with only `name` and
+        // `registry_path`. `schema_url` is mandatory for dependencies — it is
+        // the identity that provenance and version-conflict resolution key
+        // on — so this must fail with an error naming the offending
+        // dependency.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/mandatory-schema-url/main".to_owned(),
+        };
+        let err_msg = match RegistryRepo::try_new(None, &registry_path, &mut vec![]) {
+            Err(e) => e.to_string(),
+            Ok(registry_repo) => {
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                    WResult::Ok(_) | WResult::OkWithNFEs(_, _) => panic!(
+                        "expected an error for the dependency missing 'schema_url', but resolution succeeded"
+                    ),
+                    WResult::FatalErr(e) => e.to_string(),
+                }
+            }
+        };
+        assert!(
+            err_msg.contains("schema_url") && err_msg.contains("dep"),
+            "error should name the dependency missing 'schema_url'; got: {err_msg}"
+        );
+    }
+
+    #[test]
     fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
         // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
         let mut config = WeaverResolverConfig::default();
