@@ -2,12 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-# Unreleased
+# [0.25.1] - 2026-07-28
 
 - Fix v2 attribute resolution so a `ref` inside an included group (`ref_group`) merges field-by-field instead of replacing the whole attribute. ([#1634](https://github.com/open-telemetry/weaver/pull/1634) by @lmolkova)
-- Make schema_url mandatory for manifest dependencies ([#1651](https://github.com/open-telemetry/weaver/issues/1651) by @jerbly)
-- Fix imported groups keeping the losing version's definition and provenance ([#1650](https://github.com/open-telemetry/weaver/issues/1650) by @jerbly)
-- Fix imported attributes losing their origin registry provenance ([#1649](https://github.com/open-telemetry/weaver/issues/1649) by @jerbly)
+- Make schema_url mandatory for manifest dependencies ([#1651](https://github.com/open-telemetry/weaver/pull/1651) by @jerbly)
+- Fix imported groups keeping the losing version's definition and provenance ([#1650](https://github.com/open-telemetry/weaver/pull/1650) by @jerbly)
+- Fix imported attributes losing their origin registry provenance ([#1649](https://github.com/open-telemetry/weaver/pull/1649) by @jerbly)
+- Fix live-check admin server (and /stop) shutting down 60s after startup ([#1645](https://github.com/open-telemetry/weaver/pull/1645) by @NimrodAvni78)
 - Fix signals imported from a dependency losing their per-signal attribute data. When several signals reference the same attribute with different `requirement_level` or `role`, each imported signal was re-pointed at whichever variant of the attribute was registered first. E.g. silently rewriting requirement levels or dropping `role: identifying` from imported entities. Each signal now references the attribute variant it actually declares. Per-name conflict resolution still applies to root-attribute provenance. ([#1635](https://github.com/open-telemetry/weaver/pull/1635) by @jerbly)
 
 # [0.25.0] - 2026-07-24
