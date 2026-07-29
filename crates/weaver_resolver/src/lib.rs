@@ -367,14 +367,6 @@ impl WeaverResolver {
         let mut attr_catalog = AttributeCatalog::default();
 
         // Every registry this schema was built from, direct and transitive.
-        //
-        // This set is the target table that `DependencyRef` provenance indexes
-        // into, so it has to name every registry an element can have come from.
-        // Recording only the direct dependencies left elements inherited through
-        // a dependency-of-a-dependency with no entry to point at, which made them
-        // indistinguishable from locally defined ones. Each dependency's own set
-        // is already its full closure — this function builds it at every level —
-        // so folding those in once is enough.
         let mut dependencies = std::collections::BTreeSet::new();
         for d in &resolved_dependencies {
             match d {
