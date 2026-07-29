@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix `weaver serve` not exposing attributes imported from a dependency. Such attributes are inlined into the signals that use them rather than listed in `registry.attributes`, so they were unsearchable, had no detail page, and the attribute links on every imported signal's page dead-ended on "Attribute not found". Search, detail pages and registry stats now cover every attribute the registry can reach. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
+- Fix `weaver serve` not exposing attributes imported from a dependency. Search, detail pages and registry stats now cover every attribute the registry can reach. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
 
 # [0.25.1] - 2026-07-28
 
