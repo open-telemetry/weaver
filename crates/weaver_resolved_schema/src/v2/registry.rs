@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::AttributeType;
 
 use crate::v2::{
-    attribute::AttributeRef,
+    attribute::{Attribute, AttributeRef},
     attribute_group::AttributeGroup,
     catalog::AttributeCatalog,
     entity::Entity,
@@ -88,18 +88,16 @@ impl Registry {
     ///
     /// A superset of `attributes`: an attribute imported from a dependency is
     /// referenced by signals but never listed as a definition. Definitions come
-    /// first, so they win de-duplication.
-    #[must_use]
-    pub fn reachable_attributes<T: AttributeCatalog>(&self, catalog: &T) -> Vec<AttributeRef> {
+    /// first, so they win de-duplication. A reference with no catalog entry is
+    /// skipped.
+    pub fn reachable_attributes<'a, T: AttributeCatalog>(
+        &'a self,
+        catalog: &'a T,
+    ) -> impl Iterator<Item = &'a Attribute> {
         let mut seen = HashSet::new();
         self.attribute_refs()
-            .filter(|r| {
-                catalog
-                    .attribute(r)
-                    .is_some_and(|a| seen.insert(a.key.as_str()))
-            })
-            .copied()
-            .collect()
+            .filter_map(|r| catalog.attribute(r))
+            .filter(move |a| seen.insert(a.key.as_str()))
     }
 
     /// Returns the statistics for this registry.
@@ -109,11 +107,12 @@ impl Registry {
             let mut attribute_type_breakdown = BTreeMap::new();
             let mut stability_breakdown = HashMap::new();
             let mut deprecated_count = 0;
-            for attribute in self
-                .attributes
-                .iter()
-                .filter_map(|ar| catalog.attribute(ar))
-            {
+            let mut attribute_count = 0;
+            // Counted over reachable attributes, not `self.attributes`: an
+            // attribute imported from a dependency is only ever referenced by a
+            // signal, and would otherwise go uncounted.
+            for attribute in self.reachable_attributes(catalog) {
+                attribute_count += 1;
                 let attribute_type = if let AttributeType::Enum { members, .. } = &attribute.r#type
                 {
                     format!("enum(card:{:03})", members.len())
@@ -131,7 +130,7 @@ impl Registry {
                     .or_default() += 1;
             }
             AttributeStats {
-                attribute_count: self.attributes.len(),
+                attribute_count,
                 attribute_type_breakdown,
                 stability_breakdown,
                 deprecated_count,
@@ -398,8 +397,6 @@ mod test {
         let (catalog, registry) = registry_with_inlined_refs();
         let keys: Vec<&str> = registry
             .reachable_attributes(&catalog)
-            .iter()
-            .filter_map(|r| catalog.attribute(r))
             .map(|a| a.key.as_str())
             .collect();
 
@@ -411,16 +408,12 @@ mod test {
     #[test]
     fn test_reachable_attributes_dedups_by_key_keeping_the_definition() {
         let (catalog, registry) = registry_with_inlined_refs();
-        let reachable = registry.reachable_attributes(&catalog);
+        let reachable: Vec<&Attribute> = registry.reachable_attributes(&catalog).collect();
 
         // `defined` has two catalog entries and is referenced twice, yet appears
         // once — as the definition listed in `attributes`, not a signal's variant.
         assert_eq!(reachable.len(), 2);
-        assert!(!reachable.contains(&AttributeRef(1)));
-        let defined = catalog
-            .attribute(&reachable[0])
-            .expect("definition in catalog");
-        assert_eq!(defined.common.brief, "the definition");
+        assert_eq!(reachable[0].common.brief, "the definition");
     }
 
     #[test]
@@ -428,7 +421,22 @@ mod test {
         let (catalog, mut registry) = registry_with_inlined_refs();
         registry.attributes.push(AttributeRef(99));
         // A ref with no catalog entry is skipped rather than counted.
-        assert_eq!(registry.reachable_attributes(&catalog).len(), 2);
+        assert_eq!(registry.reachable_attributes(&catalog).count(), 2);
+    }
+
+    /// The attribute count reported to `weaver registry stats` and the serve API
+    /// includes attributes that only exist inlined in a signal.
+    #[test]
+    fn test_stats_counts_reachable_attributes() {
+        let (catalog, registry) = registry_with_inlined_refs();
+        let stats = registry.stats(&catalog);
+
+        // One definition plus one signal-only key, not the single `attributes` entry.
+        assert_eq!(stats.attributes.attribute_count, 2);
+        assert_eq!(
+            stats.attributes.attribute_type_breakdown.get("string"),
+            Some(&2)
+        );
     }
 
     #[test]
