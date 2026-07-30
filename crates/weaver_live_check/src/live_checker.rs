@@ -109,7 +109,17 @@ impl LiveChecker {
                     let entity_rc = Rc::new(VersionedEntity::V2(Box::new(entity.clone())));
                     let _ = semconv_entities.insert(entity_type, entity_rc);
                 }
-                for attribute in &registry.registry.attributes {
+                // Attributes imported from a dependency only exist inlined in the
+                // signals that use them, so indexing `registry.attributes` alone
+                // would report them as missing from the registry.
+                // `all_attributes` yields definitions first, so skipping seen keys
+                // keeps the definition and collapses the copies.
+                for attribute in registry.registry.all_attributes() {
+                    if semconv_attributes.contains_key(&attribute.key)
+                        || semconv_templates.contains_key(&attribute.key)
+                    {
+                        continue;
+                    }
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
                         AttributeType::Template(_) => {
@@ -3365,6 +3375,85 @@ mod tests {
             has_custom_advice,
             "Expected custom_advice_finding to be present. Found: {:?}",
             advice
+        );
+    }
+
+    /// Builds a v2 registry with no attribute definitions: `imported.attr` is
+    /// reachable only through the metric that references it, as happens for an
+    /// attribute pulled in by `imports:` from a dependency.
+    fn make_registry_with_imported_attribute() -> VersionedRegistry {
+        let imported = V2Attribute {
+            key: "imported.attr".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: "From a dependency".to_owned(),
+                note: String::new(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        };
+        VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+            schema_url: "https://example.com/schemas/1.2.3"
+                .try_into()
+                .expect("Should be valid schema url"),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![V2Metric {
+                    name: "imported.metric".to_owned().into(),
+                    instrument: InstrumentSpec::Counter,
+                    unit: "1".to_owned(),
+                    requirement_level: None,
+                    attributes: vec![MetricAttribute {
+                        base: imported,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        }))
+    }
+
+    /// An attribute that only exists inlined in a signal is still part of the
+    /// registry, so it must not be reported as missing.
+    #[test]
+    fn test_imported_attribute_is_found_in_registry() {
+        let live_checker =
+            LiveChecker::new(Arc::new(make_registry_with_imported_attribute()), vec![]);
+
+        let found = live_checker
+            .find_attribute("imported.attr")
+            .expect("inlined attribute should be found in the registry");
+        match found.as_ref() {
+            VersionedAttribute::V2(attr) => assert_eq!(attr.common.brief, "From a dependency"),
+            VersionedAttribute::V1(_) => panic!("Expected a v2 attribute"),
+        }
+    }
+
+    /// Registry coverage counts attributes that arrive inlined through a signal.
+    #[test]
+    fn test_imported_attribute_counts_towards_registry_coverage() {
+        let stats = CumulativeStatistics::new(&make_registry_with_imported_attribute());
+        assert!(
+            stats.seen_registry_attributes.contains_key("imported.attr"),
+            "expected the inlined attribute to seed registry coverage, got {:?}",
+            stats.seen_registry_attributes
         );
     }
 

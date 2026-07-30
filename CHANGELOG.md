@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix attributes imported from a dependency going uncounted and unsearchable. Such an attribute is only ever referenced by the signals that use it, never listed as a definition, so `weaver registry stats` reported it nowhere and `weaver serve` left it out of search and detail pages. Statistics and the search index now cover every attribute the registry can reach. ([#1656](https://github.com/open-telemetry/weaver/pull/1656) by @jerbly)
+- Fix attributes imported from a dependency being treated as if they were not part of the registry. Such an attribute is only ever referenced by the signals that use it, never listed as a definition, so `weaver registry stats` counted it nowhere, `weaver serve` left it out of search and detail pages, and `weaver registry live-check --v2` reported it as a `missing_attribute` violation and excluded it from registry coverage. All three now consider every attribute the registry can reach. ([#1656](https://github.com/open-telemetry/weaver/pull/1656) by @jerbly)
 - Fix elements inherited from a transitive dependency being reported as locally defined. A resolved schema's `dependencies` set is the table that `DependencyRef` provenance indexes into, but it listed only direct dependencies, so anything reaching the registry through a dependency-of-a-dependency had no entry to point at. It now records the full closure. ([#1655](https://github.com/open-telemetry/weaver/pull/1655) by @jerbly)
 
 # [0.25.1] - 2026-07-28

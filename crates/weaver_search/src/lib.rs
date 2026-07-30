@@ -16,12 +16,8 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use weaver_forge::v2::{
-    attribute::Attribute,
-    entity::Entity,
-    event::Event,
-    metric::Metric,
-    registry::{ForgeResolvedRegistry, Registry},
-    span::Span,
+    attribute::Attribute, entity::Entity, event::Event, metric::Metric,
+    registry::ForgeResolvedRegistry, span::Span,
 };
 use weaver_semconv::attribute::AttributeType;
 use weaver_semconv::stability::Stability;
@@ -33,47 +29,6 @@ use weaver_semconv::stability::Stability;
 /// above this are clamped. Kept in sync with the documented maximum of the
 /// `/api/v1/registry/search` endpoint (`SearchParams::limit`).
 pub const MAX_SEARCH_LIMIT: usize = 1000;
-
-/// Every attribute reachable from a registry: the definitions first, then the
-/// copy inlined into each signal that uses one.
-///
-/// Attributes imported from a dependency only ever exist inlined. A key can
-/// appear several times; the caller keeps the first for one entry per key.
-fn all_attributes(registry: &Registry) -> impl Iterator<Item = &Attribute> {
-    registry
-        .attributes
-        .iter()
-        .chain(
-            registry
-                .attribute_groups
-                .iter()
-                .flat_map(|g| g.attributes.iter().map(|a| &a.base)),
-        )
-        .chain(
-            registry
-                .metrics
-                .iter()
-                .flat_map(|m| m.attributes.iter().map(|a| &a.base)),
-        )
-        .chain(
-            registry
-                .spans
-                .iter()
-                .flat_map(|s| s.attributes.iter().map(|a| &a.base)),
-        )
-        .chain(
-            registry
-                .events
-                .iter()
-                .flat_map(|e| e.attributes.iter().map(|a| &a.base)),
-        )
-        .chain(registry.entities.iter().flat_map(|e| {
-            e.identity
-                .iter()
-                .chain(e.description.iter())
-                .map(|a| &a.base)
-        }))
-}
 
 /// Search context for performing fuzzy searches and O(1) lookups across the registry.
 pub struct SearchContext {
@@ -139,7 +94,7 @@ impl SearchContext {
         // that use them, so indexing `registry.attributes` alone would leave them
         // unsearchable. `all_attributes` yields definitions first, so skipping
         // seen keys keeps the definition and collapses the copies.
-        for attr in all_attributes(&registry.registry) {
+        for attr in registry.registry.all_attributes() {
             if attr_index.contains_key(&attr.key) || template_index.contains_key(&attr.key) {
                 continue;
             }
