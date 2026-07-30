@@ -53,7 +53,7 @@ impl Registry {
     /// Every attribute reference in this registry: its own definitions first,
     /// then one per signal attribute. A single attribute yields several
     /// references, since each signal keeps its own variant.
-    pub fn attribute_refs(&self) -> impl Iterator<Item = &AttributeRef> {
+    fn attribute_refs(&self) -> impl Iterator<Item = &AttributeRef> {
         self.attributes
             .iter()
             .chain(
@@ -90,7 +90,7 @@ impl Registry {
     /// referenced by signals but never listed as a definition. Definitions come
     /// first, so they win de-duplication. A reference with no catalog entry is
     /// skipped.
-    pub fn reachable_attributes<'a, T: AttributeCatalog>(
+    fn reachable_attributes<'a, T: AttributeCatalog>(
         &'a self,
         catalog: &'a T,
     ) -> impl Iterator<Item = &'a Attribute> {
