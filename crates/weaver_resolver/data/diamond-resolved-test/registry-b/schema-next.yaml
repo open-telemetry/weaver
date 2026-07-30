@@ -1,0 +1,16 @@
+file_format: resolved/2.0
+schema_url: http://b/schema/1.0.0
+dependencies:
+  - http://a/schema/1.1.0
+registry:
+  attribute_groups: []
+  metrics: []
+  events: []
+  spans: []
+  entities: []
+  attributes: []
+attribute_catalog: []
+refinements:
+  spans: []
+  metrics: []
+  events: []

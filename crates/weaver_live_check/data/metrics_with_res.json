@@ -1,0 +1,51 @@
+[
+  {
+    "resource": {
+      "attributes": [
+        {
+          "name": "service.name",
+          "value": "my-service",
+          "type": "string"
+        },
+        {
+          "name": "process.executable.name",
+          "value": "my-process",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  {
+    "metric": {
+      "name": "process.cpu.time",
+      "instrument": "counter",
+      "unit": "s",
+      "data_points": [
+        {
+          "attributes": [
+            {
+              "name": "cpu.mode",
+              "value": "user",
+              "type": "string"
+            }
+          ],
+          "value": 12.5,
+          "flags": 0,
+          "exemplars": []
+        },
+        {
+          "attributes": [
+            {
+              "name": "cpu.mode",
+              "value": "system",
+              "type": "string"
+            }
+          ],
+          "value": 3.2,
+          "flags": 0,
+          "exemplars": []
+        }
+      ]
+    }
+  }
+]

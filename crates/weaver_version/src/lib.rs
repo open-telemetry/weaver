@@ -25,6 +25,8 @@ pub mod metrics_changes;
 pub mod resource_changes;
 pub mod schema_changes;
 pub mod spans_changes;
+pub mod v2;
+
 /// An error that can occur while loading or resolving version changes.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -639,8 +641,8 @@ mod tests {
         let mut version = None;
 
         for (v, _) in versions.versions_asc() {
-            if version.is_some() {
-                assert!(v > version.unwrap());
+            if let Some(version) = version {
+                assert!(v > version);
             }
             version = Some(v);
         }
@@ -648,8 +650,8 @@ mod tests {
         let mut version = None;
 
         for (v, _) in versions.versions_desc() {
-            if version.is_some() {
-                assert!(v < version.unwrap());
+            if let Some(version) = version {
+                assert!(v < version);
             }
             version = Some(v);
         }

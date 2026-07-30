@@ -1,0 +1,5 @@
+file_format: manifest/2.0
+schema_url: https://parent.example.com/schemas/1.0.0
+description: Parent registry with some items hidden from dependents.
+stability: development
+resolved_registry_uri: resolved.yaml

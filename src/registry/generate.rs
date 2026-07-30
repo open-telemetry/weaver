@@ -12,29 +12,35 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::{OutputProcessor, OutputTarget};
 
-use crate::registry::{Error, PolicyArgs, RegistryArgs};
-use crate::util::prepare_main_registry;
+use crate::registry::{load_config, Error, PolicyArgs, RegistryArgs};
+use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_config::{WeaverCommand, WeaverConfig as ProjectWeaverConfig};
+use weaver_macros::weaver_command;
 
-/// Parameters for the `registry generate` sub-command
-#[derive(Debug, Args)]
+/// Generate artifacts from a semantic convention registry using Jinja templates.
+#[weaver_command(section = "generate")]
+#[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryGenerateArgs {
     /// Target to generate the artifacts for.
-    pub target: String,
+    #[config_only(default = "")]
+    pub target: Option<String>,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// Default is the `output` directory.
-    #[arg(default_value = "output")]
-    pub output: PathBuf,
+    #[config_only(default = "output")]
+    pub output: Option<PathBuf>,
 
     /// Path to the directory where the templates are located.
     /// Default is the `templates` directory.
-    #[arg(short = 't', long, default_value = "templates")]
-    pub templates: VirtualDirectoryPath,
+    #[arg(short = 't', long)]
+    #[config(default = "templates")]
+    pub templates: Option<String>,
 
     /// List of `weaver.yaml` configuration files to use. When there is a conflict, the last one
     /// will override the previous ones for the keys that are defined in both.
@@ -52,10 +58,12 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
+    #[shared(registry)]
     registry: RegistryArgs,
 
     /// Policy parameters
     #[command(flatten)]
+    #[shared(policy)]
     policy: PolicyArgs,
 
     /// Enable the most recent validation rules for the semconv registry. It is recommended
@@ -65,6 +73,7 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
+    #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 }
 
@@ -82,37 +91,61 @@ pub(crate) fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
 }
 
 /// Generate artifacts from a semantic convention registry.
-pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(
+    args: &RegistryGenerateArgs,
+    cfg: Option<&ProjectWeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    let cmd_config = load_config(args, cfg);
     info!(
         "Generating artifacts for the registry `{}`",
-        args.registry.registry
+        cmd_config.registry.registry
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-
-    let (template_registry, _) =
-        prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
-
+    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let config = cmd_config.config;
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
-    let templates_dir =
-        VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidParams {
-            params_file: PathBuf::from(args.templates.to_string()),
-            error: e.to_string(),
+    let templates: VirtualDirectoryPath = config
+        .templates
+        .parse::<VirtualDirectoryPath>()
+        .map_err(|e| {
+            DiagnosticMessages::from(Error::InvalidParams {
+                params_file: PathBuf::from(&config.templates),
+                error: e.to_string(),
+            })
         })?;
-    let loader =
-        FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
-    let config = if let Some(paths) = &args.config {
+    let target = config.target;
+    let output_path = config.output;
+    let templates_dir = VirtualDirectory::try_new_with_auth(&templates, auth).map_err(|e| {
+        Error::InvalidParams {
+            params_file: PathBuf::from(templates.to_string()),
+            error: e.to_string(),
+        }
+    })?;
+    let loader = FileSystemFileLoader::try_new(resolve_templates_root(&templates_dir), &target)?;
+    let mut config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)
     } else {
         WeaverConfig::try_from_path(loader.root())
     }?;
-    let engine = TemplateEngine::new(config, loader, params);
-
-    engine.generate(
-        &template_registry,
-        args.output.as_path(),
-        &OutputDirective::File,
+    crate::registry::apply_template_config(&mut config, cfg);
+    let mut output = OutputProcessor::from_template_config(
+        config,
+        loader,
+        params,
+        OutputTarget::Directory(output_path),
     )?;
+    resolved.check_after_resolution_policy(&mut diag_msgs)?;
+    match &resolved {
+        crate::weaver::Resolved::V2(v) => {
+            output.generate(v.template_schema())?;
+        }
+        crate::weaver::Resolved::V1(v) => {
+            output.generate(v.template_schema())?;
+        }
+    }
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -123,6 +156,19 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
         exit_code: 0,
         warnings: None,
     })
+}
+
+/// Compute the effective templates root.
+/// If a `registry` subdirectory exists under the provided templates directory,
+/// that subdirectory is returned, otherwise the original directory path is returned.
+pub(crate) fn resolve_templates_root(templates_dir: &VirtualDirectory) -> PathBuf {
+    let base = templates_dir.path();
+    let candidate = base.join("registry");
+    if candidate.is_dir() {
+        candidate
+    } else {
+        base.to_path_buf()
+    }
 }
 
 /// Generate the parameters to pass to the templates.
@@ -162,9 +208,10 @@ pub(crate) fn generate_params_shared(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
-    use tempdir::TempDir;
+    use tempfile::TempDir;
+    use weaver_diff::diff_dir;
 
     use crate::cli::{Cli, Commands};
     use crate::registry::generate::RegistryGenerateArgs;
@@ -173,35 +220,41 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
+    fn test_config_cli_consistency() {
+        use crate::registry::tests::assert_config_cli_consistency;
+        assert_config_cli_consistency::<RegistryGenerateArgs>();
+    }
+
+    #[test]
     fn test_registry_generate() {
-        let temp_output = TempDir::new("output")
+        let temp_output = tempfile::Builder::new()
+            .prefix("output")
+            .tempdir()
             .expect("Failed to create temporary directory")
-            .into_path();
+            .keep();
         let cli = Cli {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "rust".to_owned(),
-                    output: temp_output.clone(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    },
+                    target: Some("rust".to_owned()),
+                    output: Some(temp_output.clone()),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),
@@ -259,27 +312,24 @@ mod tests {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "rust".to_owned(),
-                    output: temp_output.clone(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    },
+                    target: Some("rust".to_owned()),
+                    output: Some(temp_output.clone()),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: false,
-                        display_policy_coverage: false,
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),
@@ -294,20 +344,20 @@ mod tests {
 
     #[test]
     fn test_registry_generate_with_config() {
-        let temp_output = TempDir::new("output")
+        let temp_output = TempDir::new()
             .expect("Failed to create temporary directory")
-            .into_path();
+            .keep();
         let cli = Cli {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                    target: "rust".to_owned(),
-                    output: temp_output.clone(),
-                    templates: VirtualDirectoryPath::LocalFolder {
-                        path: "crates/weaver_codegen_test/templates/".to_owned(),
-                    },
+                    target: Some("rust".to_owned()),
+                    output: Some(temp_output.clone()),
+                    templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                     config: Some(vec![
                         PathBuf::from(
                             "crates/weaver_codegen_test/templates/registry/alt_weaver.yaml",
@@ -319,16 +369,14 @@ mod tests {
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: VirtualDirectoryPath::LocalFolder {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
-                        },
-                        follow_symlinks: false,
-                        include_unreferenced: false,
+                        }),
+                        ..Default::default()
                     },
                     policy: PolicyArgs {
-                        policies: vec![],
-                        skip_policies: true,
-                        display_policy_coverage: false,
+                        skip_policies: Some(true),
+                        ..Default::default()
                     },
                     future: false,
                     diagnostic: Default::default(),
@@ -381,6 +429,7 @@ mod tests {
 
     #[test]
     fn test_registry_generate_with_symbolic_link_cases() {
+        env_logger::builder().is_test(true).init();
         let test_cases = vec![
             (
                 true, // follow_symlinks
@@ -407,35 +456,34 @@ mod tests {
         ];
 
         for (follow_symlinks, expected_files) in test_cases {
-            let temp_output = TempDir::new("output")
+            let temp_output = TempDir::new()
                 .expect("Failed to create temporary directory")
-                .into_path();
+                .keep();
 
             let cli = Cli {
-                debug: 0,
+                debug: 1,
                 quiet: false,
                 future: false,
+                allow_git_credentials: false,
+                config: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::Generate(RegistryGenerateArgs {
-                        target: "rust".to_owned(),
-                        output: temp_output.clone(),
-                        templates: VirtualDirectoryPath::LocalFolder {
-                            path: "crates/weaver_codegen_test/templates/".to_owned(),
-                        },
+                        target: Some("rust".to_owned()),
+                        output: Some(temp_output.clone()),
+                        templates: Some("crates/weaver_codegen_test/templates/".to_owned()),
                         config: None,
                         param: None,
                         params: None,
                         registry: RegistryArgs {
-                            registry: VirtualDirectoryPath::LocalFolder {
+                            registry: Some(VirtualDirectoryPath::LocalFolder {
                                 path: "data/symbolic_test/".to_owned(),
-                            },
-                            follow_symlinks,
-                            include_unreferenced: false,
+                            }),
+                            follow_symlinks: Some(follow_symlinks),
+                            ..Default::default()
                         },
                         policy: PolicyArgs {
-                            policies: vec![],
-                            skip_policies: true,
-                            display_policy_coverage: false,
+                            skip_policies: Some(true),
+                            ..Default::default()
                         },
                         future: false,
                         diagnostic: Default::default(),
@@ -477,5 +525,53 @@ mod tests {
                 "File sets don't match for follow_symlinks = {follow_symlinks}"
             );
         }
+    }
+
+    #[test]
+    fn test_registry_generate_v2() {
+        let temp_output = Path::new("tests/v2_forge/observed_output");
+
+        // Delete all the files in the observed_output/target directory
+        // before generating the new files.
+        std::fs::remove_dir_all(temp_output).unwrap_or_default();
+
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            allow_git_credentials: false,
+            config: None,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::Generate(RegistryGenerateArgs {
+                    target: Some("markdown".to_owned()),
+                    output: Some(temp_output.to_path_buf()),
+                    templates: Some("tests/v2_forge/templates/".to_owned()),
+                    config: None,
+                    param: None,
+                    params: None,
+                    registry: RegistryArgs {
+                        registry: Some(VirtualDirectoryPath::LocalFolder {
+                            path: "tests/v2_forge/model/".to_owned(),
+                        }),
+                        v2: Some(true),
+                        ..Default::default()
+                    },
+                    policy: PolicyArgs {
+                        skip_policies: Some(true),
+                        ..Default::default()
+                    },
+                    future: false,
+                    diagnostic: Default::default(),
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli);
+        // The command should succeed.
+        assert_eq!(exit_directive.exit_code, 0);
+
+        // validate expected = observed.
+        let expected_output = Path::new("tests/v2_forge/expected_output");
+        assert!(diff_dir(expected_output, temp_output).unwrap());
     }
 }

@@ -1,0 +1,14 @@
+[
+  {
+    "entities": [
+      {
+        "attributes": null,
+        "brief": "",
+        "root_namespace": "db",
+        "stability": "alpha",
+        "type": "db.client"
+      }
+    ],
+    "root_namespace": "db"
+  }
+]

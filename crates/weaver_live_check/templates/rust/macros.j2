@@ -1,0 +1,133 @@
+{#- Derive an enum name from an attribute key.
+    Uses the penultimate and last segments for single-word last segments,
+    or just the last segment if it contains an underscore.
+    For example:
+      "weaver.finding.id"           → penultimate="finding", last="id"           → FindingId
+      "weaver.finding.sample_type"  → last="sample_type" (has underscore)        → SampleType
+    This heuristic works well for 2–3 segment keys. For deeply nested keys
+    it only considers the last two segments, which may produce collisions
+    if multiple enums share the same suffix pair. -#}
+{%- macro enum_name(attr) -%}
+{%- set last_segment = attr.key | split(".") | last -%}
+{%- set prefix_key = attr.key | replace("." ~ last_segment, "") -%}
+{%- set penultimate = prefix_key | split(".") | last -%}
+{%- if "_" not in last_segment -%}
+{{ (penultimate ~ "_" ~ last_segment) | pascal_case }}
+{%- else -%}
+{{ last_segment | pascal_case }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Check if an attribute has the custom_variants annotation -#}
+{%- macro has_custom(attr) -%}
+{%- if attr.annotations is mapping and attr.annotations.custom_variants is defined and attr.annotations.custom_variants -%}
+true
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Generate a complete enum definition with derives, variants, and From impls -#}
+{%- macro enum_def(attr) -%}
+{%- set name = enum_name(attr) -%}
+{%- set custom = has_custom(attr) %}
+
+/// {{ attr.brief | trim }}
+///
+{% for line in attr.note | trim | split("\n") %}
+{% if line | trim | length > 0 %}
+/// {{ line }}
+{% else %}
+///
+{% endif %}
+{% endfor %}
+{% if custom %}
+///
+/// The `Custom` variant accepts values not listed above.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(strum::Display, strum::EnumString)]
+{% else %}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(strum::Display, strum::EnumString)]
+{% endif %}
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum {{ name }} {
+{% for member in attr.type.members %}
+{% if member.brief %}
+    /// {{ member.brief }}
+{% else %}
+    /// `{{ member.id }}`
+{% endif %}
+    {{ member.id | pascal_case }},
+{% endfor %}
+{% if custom %}
+    /// A value not defined in the known variants
+    #[serde(untagged)]
+    #[strum(default)]
+    Custom(String),
+{% endif %}
+}
+{% if custom %}
+
+impl From<{{ name }}> for String {
+    fn from(id: {{ name }}) -> Self {
+        id.to_string()
+    }
+}
+
+impl From<String> for {{ name }} {
+    fn from(s: String) -> Self {
+        s.parse().unwrap_or(Self::Custom(s))
+    }
+}
+{% endif %}
+{%- endmacro -%}
+
+{#- Derive a function parameter name from an attribute key.
+    Uses the penultimate and last segments joined by underscore for single-word
+    last segments, or just the last segment if it already contains an underscore.
+    This mirrors the enum_name logic but produces snake_case identifiers.
+    For example:
+      "weaver.finding.id"                → "finding_id"
+      "weaver.finding.sample.type"       → "sample_type"
+      "weaver.finding.signal.name"       → "signal_name"
+      "weaver.finding.resource.attribute" → "resource_attribute"
+      "weaver.finding.sample_type"       → "sample_type"  (underscore in last)
+-#}
+{%- macro param_name(attr) -%}
+{%- set last_segment = attr.key | split(".") | last -%}
+{%- set prefix_key = attr.key | replace("." ~ last_segment, "") -%}
+{%- set penultimate = prefix_key | split(".") | last -%}
+{%- if "_" not in last_segment -%}
+{{ penultimate }}_{{ last_segment }}
+{%- else -%}
+{{ last_segment }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Generate a doc comment block from a note string -#}
+{%- macro doc_note(note) %}
+{% for line in note | trim | split("\n") %}
+{% if line | trim | length > 0 %}
+/// {{ line }}
+{% else %}
+///
+{% endif %}
+{% endfor -%}
+{%- endmacro -%}
+
+{#- Generate an attribute constant -#}
+{%- macro attr_const(attr) -%}
+/// {{ attr.brief | trim }}
+pub const {{ attr.key | screaming_snake_case }}: &str = "{{ attr.key }}";
+{%- endmacro -%}
+
+{#- Map a semconv type to a Rust owned type (for struct fields) -#}
+{%- macro rust_owned_type(attr) -%}
+{%- if attr.type == "string" -%}String
+{%- elif attr.type == "int" -%}i64
+{%- elif attr.type == "double" -%}f64
+{%- elif attr.type == "boolean" -%}bool
+{%- elif attr.type is mapping and attr.type.members is defined -%}{{ enum_name(attr) }}
+{%- else -%}String
+{%- endif -%}
+{%- endmacro -%}

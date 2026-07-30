@@ -1,0 +1,13 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+# This is used with cargo-check-external-types to reduce the surface area of downstream crates from
+# the public API. Ideally this can have a few exceptions as possible.
+allowed_external_types = [
+    "serde_core::de::Deserialize",
+    "serde_core::de::DeserializeOwned",
+    "serde_core::ser::Serialize",
+    "schemars::JsonSchema",
+    "weaver_checker::*",
+    "weaver_macros::*",
+    "weaver_common::*",
+]

@@ -8,13 +8,8 @@ use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
-use weaver_semconv::registry::SemConvRegistry;
 
-use crate::{
-    registry::RegistryArgs,
-    util::{load_semconv_specs, resolve_semconv_specs},
-    DiagnosticArgs, ExitDirectives,
-};
+use crate::{registry::RegistryArgs, weaver::WeaverEngine, DiagnosticArgs, ExitDirectives};
 use ratatui::{
     crossterm::{
         event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
@@ -28,9 +23,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListState, Paragraph},
     Frame,
 };
+use ratatui_textarea::TextArea;
 use std::io::{stdout, IsTerminal};
-use tui_textarea::TextArea;
-use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
@@ -57,6 +53,8 @@ pub struct RegistrySearchArgs {
 enum Error {
     #[error("{0}")]
     StdIoError(String),
+    #[error("The search command is deprecated and not compatible with V2 schema. Please search the generated documentation instead.")]
+    V2SchemaIncompatible,
 }
 
 impl From<std::io::Error> for Error {
@@ -87,7 +85,7 @@ impl<'a> SearchApp<'a> {
             Block::default()
                 .borders(Borders::TOP)
                 .border_style(Style::default().fg(Color::Gray))
-                .title("Search (press `Esc` or `Ctrl-Q` to stop running) ")
+                .title("Search [DEPRECATED] (press `Esc` or `Ctrl-Q` to stop running) ")
                 .title_style(Style::default().fg(Color::Green)),
         );
         SearchApp {
@@ -102,19 +100,29 @@ impl<'a> SearchApp<'a> {
         let title_block = Block::default()
             .borders(Borders::TOP)
             .style(Style::default().bg(Color::Black))
-            .border_style(Style::default().fg(Color::Gray))
+            .border_style(Style::default().fg(Color::Yellow))
             .title_alignment(ratatui::layout::Alignment::Center)
-            .title_style(Style::default().fg(Color::Green))
-            .title("Weaver Search");
+            .title_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .title("Weaver Search [DEPRECATED]");
         let group_count: usize = self.schema.registry.stats().group_count;
-        let title_contents = Line::from(vec![Span::styled(
-            format!(
-                "Loaded {0:?} groups w/ {1} attributes",
-                group_count,
-                self.schema.catalog.count_attributes()
-            ),
-            Style::default().fg(Color::Gray),
-        )]);
+        let title_contents = vec![
+            Line::from(vec![Span::styled(
+                "⚠ DEPRECATED: This command will be removed. Search generated documentation instead.",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )]),
+            Line::from(vec![Span::styled(
+                format!(
+                    "Loaded {0:?} groups w/ {1} attributes",
+                    group_count,
+                    self.schema.catalog.count_attributes()
+                ),
+                Style::default().fg(Color::Gray),
+            )]),
+        ];
         Paragraph::new(title_contents).block(title_block)
     }
 
@@ -127,7 +135,7 @@ impl<'a> SearchApp<'a> {
     fn result_set(&'a self) -> impl Iterator<Item = &'a Attribute> {
         self.schema
             .catalog
-            .iter()
+            .attributes()
             .filter(|a| a.name.contains(self.search_string().as_str()))
     }
 
@@ -266,7 +274,7 @@ impl<'a> SearchApp<'a> {
             .split(frame.area());
         frame.render_widget(self.title(), chunks[0]);
 
-        // Render search reuslts.
+        // Render search results.
         if let Some(index) = self.selected_result_index {
             // If the user is viewing a result, then we split the result window to show those results.
             let main_area = Layout::default()
@@ -356,35 +364,48 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
 fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
     let results = schema
         .catalog()
-        .iter()
+        .attributes()
         .filter(|a| a.name.contains(pattern))
         .map(|a| a.name.to_owned())
         .join("\n");
     println!("{results}");
 }
 
-pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, DiagnosticMessages> {
-    info!("Resolving registry `{}`", args.registry.registry);
+pub(crate) fn command(
+    args: &RegistrySearchArgs,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    let mut registry = EffectiveRegistryConfig::default();
+    if let Some(wc) = cfg {
+        registry.layer_config(&wc.registry);
+    }
+    args.registry.apply_to(&mut registry);
+
+    info!("Resolving registry `{}`", registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let registry_path = &args.registry.registry;
-    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
-
+    let policy_config = EffectivePolicyConfig::skip_all();
+    let weaver = WeaverEngine::new(&registry, &policy_config, auth);
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
-        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-        .into_result_failing_non_fatal()?;
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
-    // We should have two modes:
-    // 1. a single input we take in and directly output some rendered result.
-    // 2. An interactive UI
+    // Display deprecation warning
+    log::warn!("The 'weaver registry search' command is deprecated and will be removed in a future version.");
+    log::warn!("It is not compatible with V2 schema.");
+    log::warn!("Please search the generated documentation instead.");
+
+    let schema_v1 = match resolved {
+        crate::weaver::Resolved::V1(v) => v.into_resolved_schema(),
+        crate::weaver::Resolved::V2(_) => {
+            return Err(DiagnosticMessages::from_error(Error::V2SchemaIncompatible))
+        }
+    };
+
     if let Some(pattern) = args.search_string.as_ref() {
-        run_command_line_search(&schema, pattern);
+        run_command_line_search(&schema_v1, pattern);
     } else if stdout().is_terminal() {
-        run_ui(&schema).map_err(DiagnosticMessages::from_error)?;
+        run_ui(&schema_v1).map_err(DiagnosticMessages::from_error)?;
     } else {
         // TODO - custom error
         println!("Error: Could not find a terminal, and no search string was provided.");

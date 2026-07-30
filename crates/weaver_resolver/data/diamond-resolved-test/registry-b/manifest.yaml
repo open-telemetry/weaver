@@ -1,0 +1,5 @@
+file_format: manifest/2.0
+schema_url: http://b/schema/1.0.0
+description: Registry B resolved
+stability: development
+resolved_schema_uri: schema-next.yaml

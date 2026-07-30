@@ -9,7 +9,7 @@ pub struct ExportTraceServiceRequest {
     #[prost(message, repeated, tag = "1")]
     pub resource_spans: ::prost::alloc::vec::Vec<super::super::super::trace::v1::ResourceSpans>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportTraceServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -29,7 +29,7 @@ pub struct ExportTraceServiceResponse {
     #[prost(message, optional, tag = "1")]
     pub partial_success: ::core::option::Option<ExportTracePartialSuccess>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportTracePartialSuccess {
     /// The number of rejected spans.
     ///
@@ -78,7 +78,7 @@ pub mod trace_service_client {
     }
     impl<T> TraceServiceClient<T>
     where
-        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T: tonic::client::GrpcService<tonic::body::Body>,
         T::Error: Into<StdError>,
         T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
@@ -99,12 +99,12 @@ pub mod trace_service_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
+                http::Request<tonic::body::Body>,
                 Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
                 Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             TraceServiceClient::new(InterceptedService::new(inner, interceptor))
@@ -140,8 +140,6 @@ pub mod trace_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        /// For performance reasons, it is recommended to keep this RPC
-        /// alive for the entire life of the application.
         pub async fn export(
             &mut self,
             request: impl tonic::IntoRequest<super::ExportTraceServiceRequest>,
@@ -150,7 +148,7 @@ pub mod trace_service_client {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
             })?;
-            let codec = tonic::codec::ProstCodec::default();
+            let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
             );
@@ -176,8 +174,6 @@ pub mod trace_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with TraceServiceServer.
     #[async_trait]
     pub trait TraceService: std::marker::Send + std::marker::Sync + 'static {
-        /// For performance reasons, it is recommended to keep this RPC
-        /// alive for the entire life of the application.
         async fn export(
             &self,
             request: tonic::Request<super::ExportTraceServiceRequest>,
@@ -248,7 +244,7 @@ pub mod trace_service_server {
         B: Body + std::marker::Send + 'static,
         B::Error: Into<StdError> + std::marker::Send + 'static,
     {
-        type Response = http::Response<tonic::body::BoxBody>;
+        type Response = http::Response<tonic::body::Body>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(
@@ -285,7 +281,7 @@ pub mod trace_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = ExportSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
+                        let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
                                 accept_compression_encodings,
@@ -301,7 +297,7 @@ pub mod trace_service_server {
                     Box::pin(fut)
                 }
                 _ => Box::pin(async move {
-                    let mut response = http::Response::new(empty_body());
+                    let mut response = http::Response::new(tonic::body::Body::default());
                     let headers = response.headers_mut();
                     headers.insert(
                         tonic::Status::GRPC_STATUS,

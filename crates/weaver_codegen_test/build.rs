@@ -17,9 +17,8 @@ use weaver_common::MemLog;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_forge::{OutputDirective, TemplateEngine};
-use weaver_resolver::SchemaResolver;
-use weaver_semconv::registry::SemConvRegistry;
+use weaver_forge::{OutputProcessor, OutputTarget};
+use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
@@ -43,33 +42,38 @@ fn main() {
     let registry_path = VirtualDirectoryPath::LocalFolder {
         path: SEMCONV_REGISTRY_PATH.into(),
     };
-    let registry_repo =
-        RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, true, FOLLOW_SYMLINKS)
+    let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+        .unwrap_or_else(|e| process_error(&logger, e));
+    let resolver_config = WeaverResolverConfig {
+        follow_symlinks: FOLLOW_SYMLINKS,
+        ..Default::default()
+    };
+    let mut resolver = WeaverResolver::new(resolver_config);
+    let schema = resolver
+        .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
-        .unwrap_or_else(|e| process_error(&logger, e));
-    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
-        .unwrap_or_else(|e| process_error(&logger, e));
-    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
-        .into_result_failing_non_fatal()
-        .unwrap_or_else(|e| process_error(&logger, e));
+        .unwrap_or_else(|e| process_error(&logger, e))
+        .into_v1()
+        .expect("Only V1 schemas are supported in this codegen test");
 
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
     let config = WeaverConfig::try_from_path("./templates/registry/rust")
         .unwrap_or_else(|e| process_error(&logger, e));
-    let engine = TemplateEngine::new(config, loader, Params::default());
     let template_registry =
         ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
             .unwrap_or_else(|e| process_error(&logger, e));
     let target_dir: PathBuf = target_dir.into();
-    engine
-        .generate(
-            &template_registry,
-            target_dir.as_path(),
-            &OutputDirective::File,
-        )
+    let mut output = OutputProcessor::from_template_config(
+        config,
+        loader,
+        Params::default(),
+        OutputTarget::Directory(target_dir.clone()),
+    )
+    .unwrap_or_else(|e| process_error(&logger, e));
+    output
+        .generate(&template_registry)
         .unwrap_or_else(|e| process_error(&logger, e));
 
     print_logs(&logger);

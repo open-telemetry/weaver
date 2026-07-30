@@ -1,0 +1,6 @@
+name: weaver-live-check
+description: Weaver Live Check Semantic Conventions
+schema_url: https://github.com/open-telemetry/weaver/crates/weaver_live_check/model/0.1.0
+dependencies:
+  - schema_url: https://github.com/open-telemetry/semantic-conventions/v1.40.0
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.40.0.zip[model]

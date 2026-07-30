@@ -1,0 +1,5 @@
+description: Consumer registry that redefines items that were migrated out of the parent.
+schema_url: https://migration.example.com/consumer/0.0.1
+dependencies:
+  - schema_url: https://migration.example.com/parent/0.0.1
+    registry_path: data/registry-test-dep-exclusion/migration_parent

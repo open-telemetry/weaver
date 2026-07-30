@@ -4,12 +4,14 @@
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
     "weaver_semconv::Error",
-    "weaver_semconv::path::RegistryPath",
-    "weaver_resolver::Error",
-    "weaver_cache::*",
     "weaver_common::*",
     "weaver_forge::error::Error",
-    "weaver_forge::TemplateEngine",
     "miette::protocol::Diagnostic",
-    "serde::ser::Serialize",
+    "serde_core::ser::Serialize",
+    "weaver_resolved_schema::v2::ResolvedTelemetrySchema",
+    "weaver_forge::v2::registry::ForgeResolvedRegistry",
+    "weaver_forge::output_processor::OutputProcessor",
+    "weaver_resolved_schema::ResolvedTelemetrySchema",
+    "weaver_semconv::registry_repo::RegistryRepo",
+    "weaver_resolver::error::Error",
 ]

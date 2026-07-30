@@ -74,7 +74,7 @@ fn extract<S: AsRef<Path>>(base_path: S, target: &str) -> std::io::Result<()> {
 mod tests {
     use std::fs;
 
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     use crate::cli::{Cli, Commands};
     use crate::diagnostic::init::DiagnosticInitArgs;
@@ -83,15 +83,19 @@ mod tests {
 
     #[test]
     fn test_diagnostic_init() {
-        let temp_output = TempDir::new("output")
+        let temp_output = tempfile::Builder::new()
+            .prefix("output")
+            .tempdir()
             .expect("Failed to create temporary directory")
-            .into_path();
+            .keep();
 
         // Let's init for all targets
         let cli = Cli {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Diagnostic(DiagnosticCommand {
                 command: DiagnosticSubCommand::Init(DiagnosticInitArgs {
                     target: "".to_owned(),
@@ -110,13 +114,15 @@ mod tests {
         assert_eq!(subdirs, 3);
 
         // Let's init for a specific target
-        let temp_output = TempDir::new("output")
+        let temp_output = TempDir::new()
             .expect("Failed to create temporary directory")
-            .into_path();
+            .keep();
         let cli = Cli {
             debug: 0,
             quiet: false,
             future: false,
+            allow_git_credentials: false,
+            config: None,
             command: Some(Commands::Diagnostic(DiagnosticCommand {
                 command: DiagnosticSubCommand::Init(DiagnosticInitArgs {
                     target: "json".to_owned(),

@@ -18,5 +18,29 @@ fn test_cli_interface() {
         .output()
         .expect("failed to execute process");
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "Process did not exit successfully. Stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_published_v2_registry_stats() {
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let result = cmd
+        .arg("registry")
+        .arg("stats")
+        .arg("--v2")
+        .arg("-r")
+        .arg("tests/published_v2_registry/")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(
+        result.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
 }

@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Intermediary format for telemetry sample logd
+
+use std::rc::Rc;
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use weaver_checker::FindingLevel;
+use weaver_semconv::entity_association::EntityAssociation;
+
+use crate::{
+    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
+    Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    VersionedSignal,
+};
+
+/// Represents a sample telemetry log parsed from any source
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SampleLog {
+    /// The name of the event
+    pub event_name: String,
+    /// Severity number (1-24)
+    pub severity_number: Option<i32>,
+    /// Severity text (e.g., "INFO", "ERROR")
+    pub severity_text: Option<String>,
+    /// Body of the event (from the log record body)
+    pub body: Option<String>,
+    /// The event's attributes
+    #[serde(default)]
+    pub attributes: Vec<SampleAttribute>,
+    /// Trace ID if the event is correlated with a trace
+    pub trace_id: Option<String>,
+    /// Span ID if the event is correlated with a span
+    pub span_id: Option<String>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
+    /// Reference to the parent resource (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
+}
+
+impl LiveCheckRunner for SampleLog {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        _parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
+    ) -> Result<(), Error> {
+        let mut result = LiveCheckResult::new();
+        let semconv_event = if self.event_name.is_empty() {
+            // We allow Logd without event_names to be checked, but they cannot be matched to the registry
+            None
+        } else {
+            // find the event in the registry
+            let semconv_event = live_checker.find_event(&self.event_name);
+            if semconv_event.is_none() {
+                let finding = FindingBuilder::new(FindingId::MissingEvent)
+                    .message(format!(
+                        "Event '{}' does not exist in the registry.",
+                        self.event_name
+                    ))
+                    .level(FindingLevel::Violation)
+                    .signal(parent_signal)
+                    .build_and_emit(
+                        &SampleRef::Log(self),
+                        live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                        parent_signal,
+                    );
+                let sample_ref = SampleRef::Log(self);
+                result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
+            };
+            semconv_event
+        };
+        for advisor in live_checker.advisors.iter_mut() {
+            let sample_ref = SampleRef::Log(self);
+            let advice_list = advisor.advise(
+                sample_ref.clone(),
+                parent_signal,
+                None,
+                semconv_event.clone(),
+                live_checker.otlp_emitter.clone(),
+            )?;
+            result.add_advice_list(
+                advice_list,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
+        }
+        // Check entity attribute requirements against the resource (empty slice if no resource)
+        let resource_attributes: &[SampleAttribute] = parent_signal
+            .resource()
+            .map(|r| r.attributes.as_slice())
+            .unwrap_or(&[]);
+        let entity_associations: &[EntityAssociation] = match semconv_event.as_deref() {
+            Some(VersionedSignal::Group(g)) => &g.entity_associations,
+            Some(VersionedSignal::Event(e)) => &e.entity_associations,
+            _ => &[],
+        };
+        let findings = check_entity_associations(
+            entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        );
+        if !findings.is_empty() {
+            let sample_ref = SampleRef::Log(self);
+            emit_findings(
+                &findings,
+                &sample_ref,
+                live_checker.otlp_emitter.as_deref(),
+                parent_signal,
+            );
+            result.add_advice_list(
+                findings,
+                live_checker.finding_modifier.as_ref(),
+                &sample_ref,
+            );
+        }
+
+        // Check attributes
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            semconv_event.clone(),
+            parent_signal,
+        )?;
+
+        self.live_check_result = Some(result);
+        stats.inc_entity_count("log");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        stats.add_event_name_to_coverage(self.event_name.clone());
+        Ok(())
+    }
+}

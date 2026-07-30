@@ -1,0 +1,5 @@
+# {{ctx.root_namespace}} Attributes
+
+{% for attr in ctx.attributes %}
+- `{{attr.key}}` - {{attr.brief}}
+{% endfor %}

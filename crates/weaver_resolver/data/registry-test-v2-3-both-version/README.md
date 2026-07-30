@@ -1,0 +1,1 @@
+This test checks whether version 2 split across files where some are version 1 works.

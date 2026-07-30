@@ -1,0 +1,4 @@
+templates:
+  - template: item.txt.j2
+    filter: .items
+    application_mode: each

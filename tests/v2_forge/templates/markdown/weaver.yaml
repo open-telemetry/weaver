@@ -1,0 +1,15 @@
+templates:
+  - template: "registry.md.j2"
+    filter: "."
+    application_mode: single
+    file_name: registry.md
+  - pattern: attribute_namespace.md.j2
+    filter: semconv_grouped_attributes({"v2":true})
+    application_mode: each
+    file_name: attributes/{{ ctx.root_namespace | lower | kebab_case }}.md
+  - pattern: metric_namespace.md.j2
+    filter: semconv_grouped_metrics({"v2":true})
+    application_mode: each
+    file_name: metrics/{{ ctx.root_namespace | lower | kebab_case }}.md
+
+  # TODO - application_mode: each will be broken given the split, we may need new application modes.

@@ -1,7 +1,16 @@
+# returns attribute unique identifier: name or key depending on schema version
+def get_attribute_name_or_key($obj):
+    if $obj | has("name") then
+        $obj.name
+    else
+        $obj.key
+    end;
+
 # Groups the attributes by their root namespace and sorts them by name.
 def semconv_group_attributes_by_root_namespace:
     group_by(.root_namespace)
-    | map({ root_namespace: .[0].root_namespace, attributes: . | sort_by(.name) });
+    | map({ root_namespace: .[0].root_namespace, attributes: . | sort_by(get_attribute_name_or_key(.)) });
+
 
 # Expands stability array that previously used "experimental" for equivalent new strings.
 def expand_stability($stability):
@@ -20,13 +29,25 @@ def stability_filter($options):
         map(
           select(.stability == "stable")
         )
-        | map(.type.members? |= map(select(.stability == "stable")))
+        | map(
+            if .type? == null then
+                .
+            else
+                .type.members? |= map(select(.stability == "stable"))
+            end
+          )
     else
         .
     end
     | if $options | has("exclude_stability") then
         map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
-        | map(.type.members? |= map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not)))
+        | map(
+            if .type? == null then
+                .
+            else
+                .type.members? |= map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
+            end
+          )
     else
         .
     end;
@@ -37,6 +58,34 @@ def signal_filter($signal):
     map(select(.type == "entity"))
   else
     map(select(.type == $signal))
+  end;
+
+# Returns the list of signal definitions based on signal type for v2 schema.
+def signal_filter_v2($signal):
+  if ($signal == "entity") then
+    .entities
+  elif ($signal == "metric") then
+    .metrics
+  elif ($signal == "span") then
+    .spans
+  elif ($signal == "event") then
+    .events
+  else
+    .[]
+  end;
+
+# Returns the unique identifier for a signal based on its type. Only used for v2 schema.
+def get_id($signal; $obj):
+  if ($signal == "entity") then
+    $obj.type
+  elif ($signal == "metric") then
+    $obj.name
+  elif ($signal == "event") then
+    $obj.name
+  elif ($signal == "span") then
+    $obj.type
+  else
+    null
   end;
 
 # Filters out attributes based on code generation annotations.
@@ -53,11 +102,34 @@ def code_generation_exclude_filter($options):
             or .annotations.code_generation.exclude == null
             or .annotations.code_generation.exclude == false
         ))
-        | map(.type.members? |= map(select(.annotations == null
-            or .annotations.code_generation == null
-            or .annotations.code_generation.exclude == null
-            or .annotations.code_generation.exclude == false)))
+        | map(
+            if .type? == null then
+                .
+            else
+                .type.members? |= map(select(.annotations == null
+                    or .annotations.code_generation == null
+                    or .annotations.code_generation.exclude == null
+                    or .annotations.code_generation.exclude == false))
+            end
+          )
     end;
+
+# Filters the input list of attributes and enum members based on deprecation status.
+# $options is an object that can contain:
+# - exclude_deprecated: a boolean to exclude deprecated attributes and enum members. False by default.
+def deprecated_filter($options):
+  if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
+    map(select(has("deprecated") | not))
+    | map(
+        if .type? == null then
+            .
+        else
+            .type.members? |= map(select(has("deprecated") | not))
+        end
+      )
+  else
+    .
+  end;
 
 #####################
 # Attribute functions
@@ -65,29 +137,32 @@ def code_generation_exclude_filter($options):
 
 # Extracts and processes semantic convention attributes based on provided options.
 # $options is an object that can contain:
+# - v2: a boolean to use v2 attribute extraction logic.
 # - exclude_deprecated: a boolean to exclude deprecated attributes.
 # - exclude_root_namespace: a list of root namespaces to exclude.
 # - stable_only: a boolean to exclude all non-stable attributes.
 # - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
 # - ignore_code_generation_annotations: a boolean to ignore code generation annotations.
 def semconv_attributes($options):
-    .groups
-    | map(select(.type == "attribute_group" and (.id | startswith("registry."))))
-    | map(.attributes) | add
-    | stability_filter($options)
-    | code_generation_exclude_filter($options)
-    | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
-        map(select(has("deprecated") | not))
-      else
-        .
-      end
-    | map(. + {root_namespace: (if .name | index(".") then .name | split(".")[0] else "other" end)})
-    | if ($options | has("exclude_root_namespace")) then
-        map(select(.root_namespace as $st | $options.exclude_root_namespace | index($st) | not))
-      else
-        .
-      end
-    | sort_by(.root_namespace, .name);
+  if ($options | has("v2") and $options.v2 == true) then
+      .registry.attributes
+      | map(. + {root_namespace: .key | split(".")[0]})
+  else
+      .groups
+      | map(select(.type == "attribute_group" and (.id | startswith("registry."))))
+      | map(.attributes) | add // []
+      | map(. + {root_namespace: (if .name | index(".") then .name | split(".")[0] else "other" end)})
+  end
+      | stability_filter($options)
+      | code_generation_exclude_filter($options)
+      | deprecated_filter($options)
+      | if ($options | has("exclude_root_namespace")) then
+          map(select(.root_namespace as $st | $options.exclude_root_namespace | index($st) | not))
+        else
+          .
+        end
+      | sort_by(.root_namespace, get_attribute_name_or_key(.));
+
 
 # Convenience function to extract all attributes without any filtering options.
 def semconv_attributes: semconv_attributes({});
@@ -98,6 +173,8 @@ def semconv_attributes: semconv_attributes({});
 # - exclude_deprecated: a boolean to exclude deprecated attributes.
 # - exclude_root_namespace: a list of root namespaces to exclude.
 # - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations.
+# - v2: a boolean to use v2 schema.
 def semconv_grouped_attributes($options):
     semconv_attributes($options)
     | semconv_group_attributes_by_root_namespace;
@@ -111,20 +188,26 @@ def semconv_grouped_attributes: semconv_grouped_attributes({});
 # Extracts and processes semantic convention signals based on provided options.
 # $signal is the type of signal to process.
 # $options is an object that can contain:
-# - stable_only: a boolean to exclude all non-stable signals.
-# - exclude_deprecated: a boolean to exclude deprecated signals.
-# - exclude_root_namespace: a list of root namespaces to exclude.
-# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable signals instead.
+# - stable_only: a boolean to exclude all non-stable signals and non-stable attributes on stable signals.
+# - exclude_deprecated: a boolean to exclude deprecated signals and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level signal and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable signals instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
 def semconv_signal($signal; $options):
+  if ($options | has("v2") and $options.v2 == true) then
+    .registry
+    | signal_filter_v2($signal)
+    | map(. + {root_namespace: get_id($signal; .) | split(".")[0]})
+  else
     .groups
     | signal_filter($signal)
-    | stability_filter($options)
-    | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
-        map(select(.id | endswith(".deprecated") | not))
-      else
-        .
-      end
     | map(. + {root_namespace: (if .id | index(".") then .id | split(".") | .[1] else "other" end)})
+  end
+    | stability_filter($options)
+    | code_generation_exclude_filter($options)
+    | deprecated_filter($options)
+    | map(.attributes = (if .attributes == null then .attributes else .attributes | stability_filter($options) | code_generation_exclude_filter($options) | deprecated_filter($options) end))
     | if ($options | has("exclude_root_namespace")) then
         map(select(.root_namespace as $st | $options.exclude_root_namespace | index($st) | not))
       else
@@ -132,30 +215,137 @@ def semconv_signal($signal; $options):
       end
     | sort_by(.root_namespace);
 
+def get_metric_name($obj):
+  if $obj | has("metric_name") then
+      $obj.metric_name
+  else
+      $obj.name
+  end;
+
 # Metric Functions
 # Groups the metrics by their root namespace and sorts metrics by metric_name.
 def semconv_group_metrics_by_root_namespace:
     group_by(.root_namespace)
-    | map({ root_namespace: .[0].root_namespace, metrics: . | sort_by(.metric_name) });
+    | map({ root_namespace: .[0].root_namespace, metrics: . | sort_by(get_metric_name(.)) });
 
 # Extracts and processes semantic convention metrics based on provided options.
 # $options is an object that can contain:
-# - stable_only: a boolean to exclude all non-stable metrics.
-# - exclude_deprecated: a boolean to exclude deprecated metrics.
-# - exclude_root_namespace: a list of root namespaces to exclude.
-# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead.
-def semconv_metrics($options): semconv_signal("metric"; $options) | sort_by(.metric_name);
+# - stable_only: a boolean to exclude all non-stable metrics and non-stable attributes on stable metrics.
+# - exclude_deprecated: a boolean to exclude deprecated metrics and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level metric and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_metrics($options): semconv_signal("metric"; $options) | sort_by(get_metric_name(.));
 
 # Convenience function to extract all metrics without any filtering options.
 def semconv_metrics: semconv_metrics({});
 
 # Groups the processed metrics by their root namespace based on provided options.
 # $options is an object that can contain:
-# - stable_only: a boolean to exclude all non-stable metrics.
-# - exclude_deprecated: a boolean to exclude deprecated metrics.
-# - exclude_root_namespace: a list of root namespaces to exclude.
-# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead.
+# - stable_only: a boolean to exclude all non-stable metrics and non-stable attributes on stable metrics.
+# - exclude_deprecated: a boolean to exclude deprecated metrics and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level metric and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
 def semconv_grouped_metrics($options): semconv_metrics($options) | semconv_group_metrics_by_root_namespace;
 
 # Convenience function to group all metrics by their root namespace without any filtering options.
 def semconv_grouped_metrics: semconv_grouped_metrics({});
+
+# Span Functions
+# Groups the spans by their root namespace and sorts spans by type.
+def semconv_group_spans_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.type) });
+
+# Extracts and processes semantic convention spans based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable spans and non-stable attributes on stable spans.
+# - exclude_deprecated: a boolean to exclude deprecated spans and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level span and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable spans instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_spans($options): semconv_signal("span"; $options) | sort_by(.type);
+
+# Convenience function to extract all spans without any filtering options.
+def semconv_spans: semconv_spans({});
+
+# Groups the processed spans by their root namespace based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable spans and non-stable attributes on stable spans.
+# - exclude_deprecated: a boolean to exclude deprecated spans and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level span and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable spans instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_grouped_spans($options): semconv_spans($options) | semconv_group_spans_by_root_namespace;
+
+# Convenience function to group all spans by their root namespace without any filtering options.
+def semconv_grouped_spans: semconv_grouped_spans({});
+
+# Event Functions
+# Groups the events by their root namespace and sorts events by name.
+def semconv_group_events_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) });
+
+# Extracts and processes semantic convention events based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable events and non-stable attributes on stable events.
+# - exclude_deprecated: a boolean to exclude deprecated events and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level events and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable events instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_events($options): semconv_signal("event"; $options) | sort_by(.name);
+
+# Convenience function to extract all events without any filtering options.
+def semconv_events: semconv_events({});
+
+# Groups the processed events by their root namespace based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable events and non-stable attributes on stable events.
+# - exclude_deprecated: a boolean to exclude deprecated events and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level events and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable events instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_grouped_events($options): semconv_events($options) | semconv_group_events_by_root_namespace;
+
+# Convenience function to group all events by their root namespace without any filtering options.
+def semconv_grouped_events: semconv_grouped_events({});
+
+# Entity Functions
+# Groups the entities by their root namespace and sorts entities by type.
+def semconv_group_entities_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, entities: . | sort_by(.type) });
+
+# Extracts and processes semantic convention entities based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable entities and non-stable attributes on stable entities.
+# - exclude_deprecated: a boolean to exclude deprecated entities and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level entity and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable entities instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_entities($options): semconv_signal("entity"; $options) | sort_by(.type);
+
+# Convenience function to extract all entities without any filtering options.
+def semconv_entities: semconv_entities({});
+
+# Groups the processed entities by their root namespace based on provided options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable entities and non-stable attributes on stable entities.
+# - exclude_deprecated: a boolean to exclude deprecated entities and deprecated attributes.
+# - exclude_root_namespace: a list of root namespaces to exclude - applies to top-level entity and does not apply to nested attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable entities instead. Applies to nested attributes as well.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations. Applies to signals and nested attributes.
+# - v2: a boolean to use v2 schema.
+def semconv_grouped_entities($options): semconv_entities($options) | semconv_group_entities_by_root_namespace;
+
+# Convenience function to group all entities by their root namespace without any filtering options.
+def semconv_grouped_entities: semconv_grouped_entities({});

@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Web API server for registry search, schema browsing, and more.
+
+use std::net::SocketAddr;
+
+use clap::Args;
+use log::info;
+use weaver_common::diagnostic::DiagnosticMessages;
+
+use crate::registry::{load_config, PolicyArgs, RegistryArgs};
+use crate::{CmdResult, DiagnosticArgs, ExitDirectives};
+use weaver_common::http_auth::HttpAuthResolver;
+use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_macros::weaver_command;
+
+mod handlers;
+mod server;
+mod types;
+mod ui;
+
+pub use server::run_server;
+
+/// Serve a resolved registry over a local HTTP API for browsing and search.
+#[weaver_command(section = "serve")]
+#[derive(Debug, Args, WeaverCommand)]
+pub struct ServeCommand {
+    /// Parameters to specify the semantic convention registry.
+    #[command(flatten)]
+    #[shared(registry)]
+    pub registry: RegistryArgs,
+
+    /// Parameters to specify the policy engine.
+    #[command(flatten)]
+    #[shared(policy)]
+    pub policy: PolicyArgs,
+
+    /// Address to bind the server to.
+    #[arg(long)]
+    #[config(default = "127.0.0.1:8080")]
+    pub bind: Option<SocketAddr>,
+
+    /// Allowed CORS origins (comma-separated). Use '*' for any origin.
+    /// If not specified, CORS is disabled (same-origin only).
+    #[arg(long)]
+    #[config]
+    pub cors_origins: Option<String>,
+
+    /// Parameters to specify the diagnostic format.
+    #[command(flatten)]
+    #[shared(diagnostic)]
+    pub diagnostic: DiagnosticArgs,
+}
+
+/// Execute the `weaver serve` command.
+pub fn command(
+    args: &ServeCommand,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> CmdResult {
+    CmdResult::new(
+        run_serve(args, cfg, auth),
+        args.diagnostic.to_effective(cfg),
+    )
+}
+
+fn run_serve(
+    args: &ServeCommand,
+    cfg: Option<&WeaverConfig>,
+    auth: &HttpAuthResolver,
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    // TODO: Currently the serve command takes a registry on the command line. Really we want to be
+    // able to hot load a registry from within the server. This would mean calling an API to load
+    // a new registry, and then the server would update its internal state to use the new registry.
+    // A UI could be built to allow selecting a registry file, or specifying a git repo/branch.
+
+    let cmd_config = load_config(args, cfg);
+    info!("Loading registry from `{}`", cmd_config.registry.registry);
+
+    let mut diag_msgs = DiagnosticMessages::empty();
+
+    // Create a weaver engine and load/resolve the registry using V2 schema
+    let weaver = crate::weaver::WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
+
+    // Convert to V2 ForgeResolvedRegistry
+    let resolved_v2 = match resolved {
+        crate::weaver::Resolved::V1(v) => v.try_into().map_err(DiagnosticMessages::from_error)?,
+        crate::weaver::Resolved::V2(v) => v,
+    };
+
+    // Compute the full registry stats once, before the resolved schema is consumed
+    // into the template (forge) representation.
+    let stats = resolved_v2.resolved_schema().stats();
+    let forge_registry = resolved_v2.into_template_schema();
+
+    let stats_response = types::RegistryStatsResponse {
+        schema_url: forge_registry.schema_url.to_string(),
+        version: "v2",
+        stats,
+    };
+    let stats_json = serde_json::to_string(&stats_response)
+        .map_err(server::Error::from)
+        .map_err(DiagnosticMessages::from_error)?;
+
+    if !diag_msgs.is_empty() {
+        // Log warnings but continue
+        diag_msgs.log();
+    }
+
+    info!("Registry loaded successfully");
+    info!(
+        "Found {} attributes, {} metrics, {} spans, {} events, {} entities",
+        forge_registry.registry.attributes.len(),
+        forge_registry.registry.metrics.len(),
+        forge_registry.registry.spans.len(),
+        forge_registry.registry.events.len(),
+        forge_registry.registry.entities.len(),
+    );
+    let bind = cmd_config.config.bind;
+    let cors_origins = cmd_config.config.cors_origins.as_deref();
+
+    info!("Starting server on {bind}");
+
+    // Run the async server using tokio runtime
+    tokio::runtime::Runtime::new()
+        .expect("Failed to create tokio runtime")
+        .block_on(async { run_server(bind, forge_registry, stats_json, cors_origins).await })
+        .map_err(DiagnosticMessages::from_error)?;
+
+    Ok(ExitDirectives {
+        exit_code: 0,
+        warnings: None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    // Note: serve is a top-level command, not a registry subcommand, so
+    // assert_config_cli_consistency cannot be used directly — it looks up
+    // subcommands under `registry`.
+    // TODO: Extend the consistency helper to support top-level commands.
+}

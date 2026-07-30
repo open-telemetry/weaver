@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_resource::SampleResource,
+    Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    VersionedSignal,
 };
 
 /// The status code of the span
@@ -55,6 +55,9 @@ pub struct SampleSpan {
     pub span_links: Vec<SampleSpanLink>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Reference to the parent resource (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
 }
 
 impl Advisable for SampleSpan {
@@ -72,16 +75,21 @@ impl LiveCheckRunner for SampleSpan {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
-        self.span_events
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+        self.span_events.run_live_check(
+            live_checker,
+            stats,
+            parent_group.clone(),
+            parent_signal,
+        )?;
         self.span_links
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -113,12 +121,13 @@ impl LiveCheckRunner for SampleSpanEvent {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -148,12 +157,13 @@ impl LiveCheckRunner for SampleSpanLink {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<VersionedSignal>>,
+        parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone())?;
+            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         Ok(())
     }
 }

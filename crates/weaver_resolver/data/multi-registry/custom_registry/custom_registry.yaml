@@ -30,6 +30,22 @@ groups:
       - ref: error.type
         requirement_level: required
 
+  - id: custom.span
+    type: span
+    span_kind: client
+    name: custom.client
+    brief: custom span
+    attributes:
+      - ref: error.type
+    extends: span.server.request
+
+  - id: custom.group
+    type: attribute_group
+    brief: custom group
+    attributes:
+      - ref: error.type
+    extends: group.server.attributes
+
 imports:
   metrics:
     - example.*
@@ -37,3 +53,7 @@ imports:
     - gcp.*
   events:
     - session.start
+  spans:
+    - server.request
+  attribute_groups:
+    - server.attributes

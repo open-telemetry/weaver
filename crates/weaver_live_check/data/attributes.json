@@ -1,66 +1,96 @@
 [
     {
-        "name": "http.request.method",
-        "value": "GET"
+        "attribute": {
+            "name": "http.request.method",
+            "value": "GET"
+        }
     },
     {
-        "name": "http.response.status_code",
-        "value": "hello"
+        "attribute": {
+            "name": "http.response.status_code",
+            "value": "200"
+        }
     },
     {
-        "name": "http.server_name",
-        "value": "example.com"
+        "attribute": {
+            "name": "service.name",
+            "value": "my_service"
+        }
     },
     {
-        "name": "aws.s3.bucket",
-        "value": "my-bucket"
+        "attribute": {
+            "name": "aws.s3.bucket",
+            "value": "my-bucket"
+        }
     },
     {
-        "name": "task.my-id",
-        "value": "12345"
+        "attribute": {
+            "name": "task.id",
+            "value": "12345"
+        }
     },
     {
-        "name": "TaskId",
-        "value": "12345"
+        "attribute": {
+            "name": "TaskId",
+            "value": "12345"
+        }
     },
     {
-        "name": "host.arch",
-        "value": "aarch64"
+        "attribute": {
+            "name": "host.arch",
+            "value": "aarch64"
+        }
     },
     {
-        "name": "host.name"
+        "attribute": {
+            "name": "host.name"
+        }
     },
     {
-        "name": "exception.message",
-        "type": "string[]"
+        "attribute": {
+            "name": "exception.message",
+            "type": "string[]"
+        }
     },
     {
-        "name": "aws.dynamodb.table_names",
-        "value": [
-            "table1",
-            "table2"
-        ]
+        "attribute": {
+            "name": "aws.dynamodb.table_names",
+            "value": [
+                "table1",
+                "table2"
+            ]
+        }
     },
     {
-        "name": "http.request.method",
-        "value": "OPEN"
+        "attribute": {
+            "name": "http.request.method",
+            "value": "OPEN"
+        }
     },
     {
-        "name": "http.request.method.not.allowed",
-        "value": "GET"
+        "attribute": {
+            "name": "http.request.method.not.allowed",
+            "value": "GET"
+        }
     },
     {
-        "name": "http.request.extension",
-        "value": 42
+        "attribute": {
+            "name": "http.request.extension",
+            "value": 42
+        }
     },
     {
-        "name": "http.request.header.content-type",
-        "value": [
-            "application/json"
-        ]
+        "attribute": {
+            "name": "http.request.header.content-type",
+            "value": [
+                "application/json"
+            ]
+        }
     },
     {
-        "name": "http.request.header.content.type",
-        "value": "application/json"
+        "attribute": {
+            "name": "http.request.header.content.type",
+            "value": "application/json"
+        }
     }
 ]

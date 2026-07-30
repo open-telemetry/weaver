@@ -1,0 +1,6 @@
+name: acme
+description: This registry contains the semantic conventions for the Acme vendor.
+schema_url: https://acme.com/schemas/0.1.0
+dependencies:
+  - schema_url: https://example.com/schemas/1.2.3
+    registry_path: data/registry-test-published-2/published

@@ -1,0 +1,16 @@
+[
+  {
+    "metrics": [
+      {
+        "attributes": null,
+        "brief": "",
+        "instrument": "histogram",
+        "name": "db.client.operation.duration",
+        "root_namespace": "db",
+        "stability": "alpha",
+        "unit": "s"
+      }
+    ],
+    "root_namespace": "db"
+  }
+]

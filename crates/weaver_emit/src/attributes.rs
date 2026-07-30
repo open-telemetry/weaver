@@ -3,6 +3,7 @@
 //! Translations from Weaver to Otel for attributes.
 
 use opentelemetry::{Array, KeyValue, Value};
+use weaver_common::ordered_float::OrderedF64;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::ValueSpec;
 use weaver_semconv::attribute::{
@@ -13,24 +14,46 @@ use weaver_semconv::attribute::{
 /// Values are generated based on the attribute type and examples where possible.
 #[must_use]
 pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
-    let name = attribute.name.clone();
-    match &attribute.r#type {
+    internal_get_attribute_name_value(
+        attribute.name.clone(),
+        &attribute.r#type,
+        attribute.examples.as_ref(),
+    )
+}
+
+/// For the given attribute, return a name/value pair.
+/// Values are generated based on the attribute type and examples where possible.
+#[must_use]
+pub fn get_attribute_name_value_v2(attribute: &weaver_forge::v2::attribute::Attribute) -> KeyValue {
+    internal_get_attribute_name_value(
+        attribute.key.clone(),
+        &attribute.r#type,
+        attribute.examples.as_ref(),
+    )
+}
+
+fn internal_get_attribute_name_value(
+    name: String,
+    r#type: &AttributeType,
+    examples: Option<&Examples>,
+) -> KeyValue {
+    match r#type {
         AttributeType::PrimitiveOrArray(primitive_or_array) => {
             let value = match primitive_or_array {
                 PrimitiveOrArrayTypeSpec::Boolean => Value::Bool(true),
-                PrimitiveOrArrayTypeSpec::Int => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::Int => match &examples {
                     Some(Examples::Int(i)) => Value::I64(*i),
                     Some(Examples::Ints(ints)) => Value::I64(*ints.first().unwrap_or(&42)),
                     _ => Value::I64(42),
                 },
-                PrimitiveOrArrayTypeSpec::Double => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::Double => match &examples {
                     Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
                     Some(Examples::Doubles(doubles)) => {
-                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                        Value::F64(f64::from(*doubles.first().unwrap_or(&OrderedF64(3.13))))
                     }
                     _ => Value::F64(3.13),
                 },
-                PrimitiveOrArrayTypeSpec::String => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::String => match &examples {
                     Some(Examples::String(s)) => Value::String(s.clone().into()),
                     Some(Examples::Strings(strings)) => Value::String(
                         strings
@@ -41,7 +64,7 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                     ),
                     _ => Value::String("value".into()),
                 },
-                PrimitiveOrArrayTypeSpec::Any => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::Any => match &examples {
                     // Boolean-based examples
                     Some(Examples::Bool(b)) => Value::Bool(*b),
                     Some(Examples::Bools(booleans)) => {
@@ -59,7 +82,7 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                     // Double-based examples
                     Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
                     Some(Examples::Doubles(doubles)) => {
-                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                        Value::F64(f64::from(*doubles.first().unwrap_or(&OrderedF64(3.13))))
                     }
                     Some(Examples::ListOfDoubles(list_of_doubles)) => Value::Array(Array::F64(
                         list_of_doubles
@@ -105,14 +128,14 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                     _ => Value::String("value".into()),
                 },
                 PrimitiveOrArrayTypeSpec::Booleans => Value::Array(Array::Bool(vec![true, false])),
-                PrimitiveOrArrayTypeSpec::Ints => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::Ints => match &examples {
                     Some(Examples::Ints(ints)) => Value::Array(Array::I64(ints.to_vec())),
                     Some(Examples::ListOfInts(list_of_ints)) => Value::Array(Array::I64(
                         list_of_ints.first().unwrap_or(&vec![42, 43]).to_vec(),
                     )),
                     _ => Value::Array(Array::I64(vec![42, 43])),
                 },
-                PrimitiveOrArrayTypeSpec::Doubles => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::Doubles => match &examples {
                     Some(Examples::Doubles(doubles)) => {
                         Value::Array(Array::F64(doubles.iter().map(|d| f64::from(*d)).collect()))
                     }
@@ -126,7 +149,7 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                     )),
                     _ => Value::Array(Array::F64(vec![3.13, 3.15])),
                 },
-                PrimitiveOrArrayTypeSpec::Strings => match &attribute.examples {
+                PrimitiveOrArrayTypeSpec::Strings => match &examples {
                     Some(Examples::Strings(strings)) => Value::Array(Array::String(
                         strings.iter().map(|s| s.clone().into()).collect(),
                     )),
@@ -177,7 +200,7 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
 mod tests {
     use super::*;
     use opentelemetry::{Array, KeyValue, Value};
-    use ordered_float::OrderedFloat;
+    use weaver_common::ordered_float::OrderedF64;
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::{
         AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -260,7 +283,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.double",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
-            Some(Examples::Double(OrderedFloat(3.15))),
+            Some(Examples::Double(OrderedF64(3.15))),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.double", 3.15));
@@ -271,10 +294,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.double",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
-            Some(Examples::Doubles(vec![
-                OrderedFloat(3.15),
-                OrderedFloat(2.71),
-            ])),
+            Some(Examples::Doubles(vec![OrderedF64(3.15), OrderedF64(2.71)])),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.double", 3.15));
@@ -387,10 +407,7 @@ mod tests {
         let attr = create_test_attribute(
             "test.doubles",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
-            Some(Examples::Doubles(vec![
-                OrderedFloat(1.1),
-                OrderedFloat(2.2),
-            ])),
+            Some(Examples::Doubles(vec![OrderedF64(1.1), OrderedF64(2.2)])),
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv.value, Value::Array(Array::F64(vec![1.1, 2.2])));
@@ -402,8 +419,8 @@ mod tests {
             "test.doubles",
             AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
             Some(Examples::ListOfDoubles(vec![
-                vec![OrderedFloat(1.1), OrderedFloat(2.2)],
-                vec![OrderedFloat(3.3), OrderedFloat(4.4)],
+                vec![OrderedF64(1.1), OrderedF64(2.2)],
+                vec![OrderedF64(3.3), OrderedF64(4.4)],
             ])),
         );
         let kv = get_attribute_name_value(&attr);
@@ -538,7 +555,7 @@ mod tests {
                 members: vec![
                     EnumEntriesSpec {
                         id: "first".to_owned(),
-                        value: ValueSpec::Double(OrderedFloat(1.5)),
+                        value: ValueSpec::Double(OrderedF64(1.5)),
                         brief: None,
                         note: None,
                         stability: None,
@@ -547,7 +564,7 @@ mod tests {
                     },
                     EnumEntriesSpec {
                         id: "second".to_owned(),
-                        value: ValueSpec::Double(OrderedFloat(2.5)),
+                        value: ValueSpec::Double(OrderedF64(2.5)),
                         brief: None,
                         note: None,
                         stability: None,
@@ -697,5 +714,28 @@ mod tests {
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv.value, Value::Array(Array::Bool(vec![true, false])));
+    }
+
+    #[test]
+    fn test_v2_attribute() {
+        use std::collections::BTreeMap;
+        use weaver_forge::v2::attribute::Attribute as V2Attribute;
+        use weaver_semconv::v2::CommonFields;
+
+        let attr = V2Attribute {
+            key: "test.v2.string".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: Some(Examples::String("v2_example".to_owned())),
+            common: CommonFields {
+                brief: "Test v2 attribute".to_owned(),
+                note: String::new(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        };
+        let kv = get_attribute_name_value_v2(&attr);
+        assert_eq!(kv, KeyValue::new("test.v2.string", "v2_example"));
     }
 }

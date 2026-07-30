@@ -17,4 +17,5 @@ serde_yaml.workspace = true
 thiserror.workspace = true
 schemars.workspace = true
 
-semver = {version =  "1.0.26", features = ["serde"]}
+semver.workspace = true
+weaver_semconv = { path = "../weaver_semconv" }

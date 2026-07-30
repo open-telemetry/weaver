@@ -1,0 +1,8 @@
+templates:
+  - template: "does-not-exist.j2"
+    filter: "."
+    application_mode: single
+
+  - template: "exists.j2"
+    filter: "."
+    application_mode: single

@@ -1,0 +1,215 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:best-practices',
+    'helpers:pinGitHubActionDigestsToSemver',
+  ],
+  packageRules: [
+    {
+      groupName: 'all digest versions',
+      matchUpdateTypes: [
+        'digest',
+      ],
+      schedule: [
+        'before 8am every weekday',
+      ],
+    },
+    {
+      enabled: false,
+      matchCategories: ['ci'],
+      matchFileNames: [
+        // this file needs to be synced with cargo dist-workspace hence using custom manager
+        ".github/workflows/release.yml"
+      ],
+    },
+    {
+      groupName: 'Release workflow updates',
+      matchDepTypes: ["action"],
+      matchFileNames: [
+        "dist-workspace.toml",
+        ".github/workflows/release.yml"
+      ],
+      branchName: "{{branchPrefix}}cargo-dist-action-updates",
+    },
+    {
+      groupName: 'all patch versions',
+      matchUpdateTypes: [
+        'patch',
+      ],
+      schedule: [
+        'before 8am every weekday',
+      ],
+    },
+    {
+      matchUpdateTypes: [
+        'minor',
+        'major',
+      ],
+      schedule: [
+        'before 8am on Monday',
+      ],
+    },
+    {
+      groupName: 'rust',
+      matchPackageNames: [
+        '/^rust$/',
+      ],
+    },
+    {
+      matchManagers: [
+        'dockerfile',
+      ],
+      groupName: 'docker',
+    },
+    {
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+        'digest',
+      ],
+      matchManagers: [
+        'cargo',
+        'dockerfile',
+        'npm',
+      ],
+      automerge: true,
+    },
+    {
+      // cargo check-external-types only works on this pinned nightly — don't let Renovate bump it
+      matchFileNames: [
+        '.github/workflows/ci.yml',
+      ],
+      matchCurrentValue: '/^nightly-/',
+      enabled: false,
+    },
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Update Cargo Dist workspace",
+      managerFilePatterns: [
+        "dist-workspace.toml",
+        ".github/workflows/release.yml"
+      ],
+      matchStrings: [
+        "(?<packageName>.+?)-version = \"(?<depVersion>[0-9.]+)\"",
+        "https:\/\/github.com\/axodotdev\/(?<packageName>.+?)\/releases\/download\/v(?<depVersion>[0-9.]+)\/"
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Cargo Dist Actions",
+      managerFilePatterns: [
+        "dist-workspace.toml",
+      ],
+      matchStrings: [
+        "\"(?<packageName>.+\/?)\" = \"(?<currentDigest>[a-f0-9]{40})\" # v(?<depVersion>[0-9.]+)"
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "\"{{depName}}\" = \"{{newDigest}}\" # v{{newVersion}}",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update Cargo Dist YAML CI Actions Template",
+      managerFilePatterns: [
+        ".github/build-setup.yml",
+      ],
+      matchStrings: [
+        "uses: (?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40}) # v(?<depVersion>[0-9.]+)"
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "uses: {{depName}}@{{newDigest}} # v{{newVersion}}",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update Cargo Dist YAML CI Actions",
+      managerFilePatterns: [
+        ".github/workflows/release.yml",
+      ],
+      matchStrings: [
+        "uses: \"?(?<packageName>.+?)@(?<currentDigest>[a-f0-9]{40})"
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      currentValueTemplate: "0.0.0",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      depTypeTemplate: "action",
+    },
+    {
+      customType: "regex",
+      description: "Update pnpm version in Dockerfile",
+      managerFilePatterns: [
+        "Dockerfile",
+      ],
+      matchStrings: [
+        "npm install -g pnpm@(?<currentValue>[0-9.]+)",
+      ],
+      depNameTemplate: "pnpm",
+      datasourceTemplate: "npm",
+      versioningTemplate: "semver",
+    },
+    {
+      customType: "regex",
+      description: "Update Just file",
+      managerFilePatterns: [
+        "justfile",
+      ],
+      matchStrings: [
+        "cargo install (?<packageName>.+\/?)@(?<depVersion>[0-9.]+)",
+      ],
+      datasourceTemplate: "crate",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      depTypeTemplate: "workspace.dependencies",
+    },
+    {
+      customType: "regex",
+      description: "Update Rust toolchain version",
+      managerFilePatterns: [
+        "rust-toolchain.toml",
+        "justfile",
+      ],
+      matchStrings: [
+        "channel\\s*=\\s*\"(?<depVersion>[0-9.]+)\"",
+        "rustup install (?<depVersion>[0-9.]+)",
+        "rustup update (?<depVersion>[0-9.]+)",
+      ],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "rust",
+      versioningTemplate: "semver",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      currentValueTemplate: "{{depVersion}}",
+      packageNameTemplate: "rust-lang/rust",
+      depTypeTemplate: "SDK",
+    },
+    {
+      customType: "regex",
+      description: "Update otel/weaver Docker image references (justfile, CI, docs)",
+      managerFilePatterns: [
+        "justfile",
+        ".github/workflows/ci.yml",
+        "crates/weaver_live_check/docs/dog-fooding.md",
+      ],
+      matchStrings: [
+        "otel\\/weaver:(?<currentValue>v[\\d.]+)",
+      ],
+      depNameTemplate: "otel/weaver",
+      datasourceTemplate: "docker",
+    },
+  ],
+  labels: [
+    'dependencies',
+  ],
+}

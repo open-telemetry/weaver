@@ -1,0 +1,6 @@
+name: weaver-attributes-only-fixture
+description: >
+  A registry containing only attributes (no metrics, spans, events, or
+  entities). Used by e2e/empty-sections.spec.ts to verify the stats dashboard
+  hides the sections for signal types that have no members.
+schema_url: https://github.com/open-telemetry/weaver/ui/e2e/fixtures/attributes-only-registry/0.1.0

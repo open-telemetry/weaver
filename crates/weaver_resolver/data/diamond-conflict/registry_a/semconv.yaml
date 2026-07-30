@@ -1,0 +1,12 @@
+file_format: definition/2
+imports:
+  attribute_groups:
+    - test.group
+
+attribute_groups:
+  - id: a_group
+    visibility: public
+    brief: Group A
+    stability: stable
+    attributes:
+      - ref: conflict_attr

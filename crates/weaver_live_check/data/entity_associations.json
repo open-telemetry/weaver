@@ -1,0 +1,51 @@
+[
+  {
+    "resource": {
+      "attributes": [
+        { "name": "service.name", "value": "my-service", "type": "string" }
+      ]
+    }
+  },
+  {
+    "log": {
+      "attributes": [],
+      "body": "",
+      "event_name": "thing.happened",
+      "severity_number": 9,
+      "severity_text": "INFO"
+    }
+  },
+  {
+    "resource": {
+      "attributes": [
+        { "name": "host.name", "value": "host-1", "type": "string" }
+      ]
+    }
+  },
+  {
+    "log": {
+      "attributes": [],
+      "body": "",
+      "event_name": "thing.happened",
+      "severity_number": 9,
+      "severity_text": "INFO"
+    }
+  },
+  {
+    "resource": {
+      "attributes": [
+        { "name": "tenant.id", "value": "t-1", "type": "string" },
+        { "name": "container.id", "value": "c-1", "type": "string" }
+      ]
+    }
+  },
+  {
+    "log": {
+      "attributes": [],
+      "body": "",
+      "event_name": "thing.happened",
+      "severity_number": 9,
+      "severity_text": "INFO"
+    }
+  }
+]

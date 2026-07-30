@@ -1,0 +1,135 @@
+{%- if ctx.version == "v2" -%}
+Resolved Telemetry Schema Stats:
+Registry
+- Attributes
+  - count: {{ ctx.registry.attributes.attribute_count }}
+  - deprecated: {{ ctx.registry.attributes.deprecated_count }}
+  - type breakdown:
+{% for k, v in ctx.registry.attributes.attribute_type_breakdown | dictsort(by="value", reverse=true) %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+  - stability breakdown:
+{% for k, v in ctx.registry.attributes.stability_breakdown | dictsort %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+- Attribute Groups
+  TODO
+- Entities
+  - count: {{ ctx.registry.entities.common.count }}
+  - deprecated: {{ ctx.registry.entities.common.deprecated_count }}
+  - stability breakdown:
+{% for k, v in ctx.registry.entities.common.stability_breakdown | dictsort %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+  - total with note: {{ ctx.registry.entities.common.total_with_note }}
+  - entity identity length distribution:
+{% for k, v in ctx.registry.entities.entity_identity_length_distribution | numsort %}
+      - {{ k }}: {{ v }}
+{% endfor %}
+- Events
+  - count: {{ ctx.registry.events.common.count }}
+  - deprecated: {{ ctx.registry.events.common.deprecated_count }}
+  - stability breakdown:
+{% for k, v in ctx.registry.events.common.stability_breakdown | dictsort %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+  - total with note: {{ ctx.registry.events.common.total_with_note }}
+- Metrics
+  - count: {{ ctx.registry.metrics.common.count }}
+  - deprecated: {{ ctx.registry.metrics.common.deprecated_count }}
+  - stability breakdown:
+{% for k, v in ctx.registry.metrics.common.stability_breakdown | dictsort %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+  - total with note: {{ ctx.registry.metrics.common.total_with_note }}
+  - instrument breakdown:
+{% for k, v in ctx.registry.metrics.instrument_breakdown | dictsort(by="value", reverse=true) %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+  - unit breakdown:
+{% for k, v in ctx.registry.metrics.unit_breakdown | dictsort(by="value", reverse=true) %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+- Spans
+  - count: {{ ctx.registry.spans.common.count }}
+  - deprecated: {{ ctx.registry.spans.common.deprecated_count }}
+  - stability breakdown:
+{% for k, v in ctx.registry.spans.common.stability_breakdown | dictsort %}
+    - {{ k }}: {{ v }}
+{% endfor %}
+  - total with note: {{ ctx.registry.spans.common.total_with_note }}
+  - span kind breakdown:
+{% for k, v in ctx.registry.spans.span_kind_breakdown | dictsort %}
+    - {{ k | capitalize_first }}: {{ v }}
+{% endfor %}
+Refinements
+  TODO
+{%- else -%}
+Resolved Telemetry Schema Stats:
+{% set ns = namespace(total_attrs=0) %}
+{% for registry in ctx.registry_stats %}
+Registry
+  - {{ registry.group_count }} groups
+{% for group_type, group_data in registry.group_breakdown | dictsort %}
+{% set group = group_data.values() | first %}
+{% set common = group.common_stats %}
+{% if group_type != "undefined" %}
+{% set ns.total_attrs = ns.total_attrs + common.total_attribute_count %}
+{% endif %}
+    - {{ common.count }} {{ group_type | pascal_case }}s
+      - Total number of attributes: {{ common.total_attribute_count }}
+        - [(attributes card: frequency), ...]: [{% for card, freq in common.attribute_card_breakdown | numsort %}{{ card }}: {{ freq }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{% if common.count > 0 %}
+      - Number of group with a prefix: {{ common.total_with_prefix }} ({{ (common.total_with_prefix * 100 / common.count) | int }}%)
+      - Number of group with a note: {{ common.total_with_note }} ({{ (common.total_with_note * 100 / common.count) | int }}%)
+{% endif %}
+{% if common.stability_breakdown %}
+      - Stability breakdown ({{ (common.stability_breakdown.values() | sum * 100 / common.count) | int }}%):
+{% for k, v in common.stability_breakdown | dictsort %}
+        - {{ k }}: {{ v }}
+{% endfor %}
+{% endif %}
+{% if common.deprecated_count > 0 %}
+      - Total number of deprecated groups: {{ common.deprecated_count }} ({{ (common.deprecated_count * 100 / common.count) | int }}%)
+{% endif %}
+{% if group.metric_names is defined %}
+      - Distinct number of metric names: {{ group.metric_names | length }}
+      - Instrument breakdown:
+{% for k, v in group.instrument_breakdown | dictsort %}
+        - {{ k }}: {{ v }}
+{% endfor %}
+      - Unit breakdown:
+{% for k, v in group.unit_breakdown | dictsort %}
+        - {{ k }}: {{ v }}
+{% endfor %}
+{% endif %}
+{% if group.span_kind_breakdown is defined %}
+      - Span kind breakdown:
+{% for k, v in group.span_kind_breakdown | dictsort %}
+        - {{ k | capitalize_first }}: {{ v }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+Shared Catalog (after resolution and deduplication):
+{% if ns.total_attrs > 0 %}
+  - Number of deduplicated attributes: {{ ctx.catalog_stats.attribute_count }} ({{ (ctx.catalog_stats.attribute_count * 100 / ns.total_attrs) | int }}%)
+{% endif %}
+    - Attribute types breakdown:
+{% for k, v in ctx.catalog_stats.attribute_type_breakdown | dictsort %}
+      - {{ k }}: {{ v }}
+{% endfor %}
+    - Requirement levels breakdown:
+{% for k, v in ctx.catalog_stats.requirement_level_breakdown | dictsort %}
+      - {{ k }}: {{ v }}
+{% endfor %}
+{% if ctx.catalog_stats.stability_breakdown %}
+    - Stability breakdown ({{ (ctx.catalog_stats.stability_breakdown.values() | sum * 100 / ctx.catalog_stats.attribute_count) | int }}%):
+{% for k, v in ctx.catalog_stats.stability_breakdown | dictsort %}
+      - {{ k }}: {{ v }}
+{% endfor %}
+{% endif %}
+{% if ctx.catalog_stats.deprecated_count > 0 %}
+    - Total number of deprecated attributes: {{ ctx.catalog_stats.deprecated_count }} ({{ (ctx.catalog_stats.deprecated_count * 100 / ctx.catalog_stats.attribute_count) | int }}%)
+{% endif %}
+{%- endif %}

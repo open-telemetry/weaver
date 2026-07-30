@@ -1,63 +1,63 @@
 [
-    {
-      "name": "client.id",
-      "type": "string",
-      "brief": "some client id\n",
-      "examples": [
-        "a.einstein"
-      ],
-      "requirement_level": "recommended",
-      "stability": "experimental"
-    },
-    {
-      "name": "geo.lat",
-      "type": "string",
-      "brief": "latitude of the geo coordinates.\n",
-      "examples": [
-        "123.456"
-      ],
-      "requirement_level": "recommended",
-      "stability": "experimental"
-    },
-    {
-      "name": "geo.lon",
-      "type": "string",
-      "brief": "longitude of the geo coordinates.\n",
-      "examples": [
-        "234.456"
-      ],
-      "requirement_level": "recommended",
-      "stability": "experimental"
-    },
-    {
-      "name": "geo.lat",
-      "type": "string",
-      "brief": "this is ref attribute",
-      "examples": [
-        "123.456"
-      ],
-      "requirement_level": "recommended",
-      "stability": "experimental"
-    },
-    {
-      "name": "client.geo.lat",
-      "type": "string",
-      "brief": "My own latitude",
-      "examples": [
-        "123.456"
-      ],
-      "requirement_level": "recommended",
-      "stability": "experimental",
-      "prefix": true
-    },
-    {
-      "name": "client.geo.lat",
-      "type": "string",
-      "brief": "this is embedded attribute",
-      "examples": [
-        "123.456"
-      ],
-      "requirement_level": "recommended",
-      "stability": "experimental"
-    }
+  {
+    "name": "client.geo.lat",
+    "type": "string",
+    "brief": "My own latitude",
+    "examples": [
+      "123.456"
+    ],
+    "requirement_level": "recommended",
+    "stability": "development",
+    "prefix": true
+  },
+  {
+    "name": "client.geo.lat",
+    "type": "string",
+    "brief": "this is embedded attribute",
+    "examples": [
+      "123.456"
+    ],
+    "requirement_level": "recommended",
+    "stability": "development"
+  },
+  {
+    "name": "client.id",
+    "type": "string",
+    "brief": "some client id\n",
+    "examples": [
+      "a.einstein"
+    ],
+    "requirement_level": "recommended",
+    "stability": "development"
+  },
+  {
+    "name": "geo.lat",
+    "type": "string",
+    "brief": "latitude of the geo coordinates.\n",
+    "examples": [
+      "123.456"
+    ],
+    "requirement_level": "recommended",
+    "stability": "development"
+  },
+  {
+    "name": "geo.lat",
+    "type": "string",
+    "brief": "this is ref attribute",
+    "examples": [
+      "123.456"
+    ],
+    "requirement_level": "recommended",
+    "stability": "development"
+  },
+  {
+    "name": "geo.lon",
+    "type": "string",
+    "brief": "longitude of the geo coordinates.\n",
+    "examples": [
+      "234.456"
+    ],
+    "requirement_level": "recommended",
+    "stability": "development"
+  }
 ]

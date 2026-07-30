@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// An instrumentation library specification.
 /// MUST be used both by applications and libraries.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstrumentationLibrary {
     /// An optional name for the instrumentation library.

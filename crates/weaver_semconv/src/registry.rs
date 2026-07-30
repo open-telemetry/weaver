@@ -4,12 +4,10 @@
 
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
-use crate::json_schema::JsonSchemaValidator;
-use crate::manifest::RegistryManifest;
-use crate::metric::MetricSpecWithProvenance;
-use crate::provenance::Provenance;
+use crate::manifest::{DefinitionRegistryManifest, RegistryManifest};
 use crate::registry_repo::RegistryRepo;
-use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+use crate::schema_url::SchemaUrl;
+use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
 use regex::Regex;
@@ -30,18 +28,13 @@ pub struct SemConvRegistry {
     semconv_spec_count: usize,
 
     /// A collection of semantic convention specifications loaded in the semantic convention registry.
-    specs: Vec<SemConvSpecWithProvenance>,
+    specs: Vec<SemConvSpecV1WithProvenance>,
 
     /// Attributes indexed by their respective id independently of their
     /// semantic convention group.
     ///
     /// This collection contains all the attributes defined in the semantic convention registry.
     attributes: HashMap<String, AttributeSpecWithProvenance>,
-
-    /// Metrics indexed by their respective id.
-    ///
-    /// This collection contains all the metrics defined in the semantic convention registry.
-    metrics: HashMap<String, MetricSpecWithProvenance>,
 
     /// The manifest of the semantic convention registry.
     manifest: Option<RegistryManifest>,
@@ -74,14 +67,17 @@ impl SemConvRegistry {
     /// # Errors
     ///
     /// If the registry path pattern is invalid.
-    pub fn try_from_path_pattern(registry_id: &str, path_pattern: &str) -> WResult<Self, Error> {
+    #[deprecated(note = "Use methods to load registry from weaver_resolve crate going forward.")]
+    pub fn try_from_path_pattern(
+        schema_url: SchemaUrl,
+        path_pattern: &str,
+    ) -> WResult<Self, Error> {
         fn create_registry_or_fatal(
-            registry_id: &str,
+            schema_url: SchemaUrl,
             path_pattern: &str,
             non_fatal_errors: &mut Vec<Error>,
         ) -> Result<SemConvRegistry, Error> {
-            let mut registry = SemConvRegistry::new(registry_id);
-            let validator = JsonSchemaValidator::new();
+            let mut registry = SemConvRegistry::new(schema_url.name());
             for sc_entry in
                 glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
                     path_pattern: path_pattern.to_owned(),
@@ -92,12 +88,9 @@ impl SemConvRegistry {
                     path_pattern: path_pattern.to_owned(),
                     error: e.to_string(),
                 })?;
-                let (semconv_spec, nfes) = SemConvSpecWithProvenance::from_file(
-                    registry_id,
-                    path_buf.as_path(),
-                    &validator,
-                )
-                .into_result_with_non_fatal()?;
+                let (semconv_spec, nfes) =
+                    SemConvSpecWithProvenance::from_file(schema_url.clone(), path_buf.as_path())
+                        .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
                 non_fatal_errors.extend(nfes);
             }
@@ -106,7 +99,7 @@ impl SemConvRegistry {
 
         let mut non_fatal_errors = vec![];
 
-        match create_registry_or_fatal(registry_id, path_pattern, &mut non_fatal_errors) {
+        match create_registry_or_fatal(schema_url, path_pattern, &mut non_fatal_errors) {
             Ok(registry) => WResult::with_non_fatal_errors(registry, non_fatal_errors),
             Err(e) => WResult::FatalErr(e),
         }
@@ -121,17 +114,17 @@ impl SemConvRegistry {
     /// * `semconv_specs` - The list of semantic convention specs to load.
     pub fn from_semconv_specs(
         registry_repo: &RegistryRepo,
-        semconv_specs: Vec<(Provenance, SemConvSpec)>,
+        semconv_specs: Vec<SemConvSpecWithProvenance>,
     ) -> Result<SemConvRegistry, Error> {
         // ToDo We should use: https://docs.rs/semver/latest/semver/ and URL parser that can give us the last element of the path to send to the parser.
         static VERSION_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
+        let mut registry = SemConvRegistry::new(registry_repo.name());
 
-        for (provenance, spec) in semconv_specs {
-            registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance });
+        for spec in semconv_specs {
+            registry.add_semconv_spec(spec);
         }
 
         if registry_repo.manifest().is_none() {
@@ -146,13 +139,17 @@ impl SemConvRegistry {
                 }
             }
 
-            registry.set_manifest(RegistryManifest {
-                name: registry_repo.id().as_ref().to_owned(),
-                description: None,
-                semconv_version,
-                schema_base_url: "".to_owned(),
-                dependencies: None,
-            });
+            let schema_url =
+                SchemaUrl::try_from_name_version(registry_repo.name(), &semconv_version).map_err(
+                    |e| Error::InvalidRegistryManifest {
+                        path: registry_repo.registry_path_repr().into(),
+                        error: e.clone(),
+                    },
+                )?;
+
+            registry.set_manifest(RegistryManifest::Definition(
+                DefinitionRegistryManifest::from_schema_url(schema_url),
+            ));
         } else {
             registry.manifest = registry_repo.manifest().cloned();
         }
@@ -183,43 +180,21 @@ impl SemConvRegistry {
     ///
     /// * `spec` - The semantic convention spec with provenance to add.
     fn add_semconv_spec(&mut self, spec: SemConvSpecWithProvenance) {
-        self.specs.push(spec);
+        self.specs.push(spec.into_v1());
         self.semconv_spec_count += 1;
     }
 
-    /// Load and add a semantic convention file to the semantic convention registry.
-    pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
-        &mut self,
-        registry_id: &str,
-        path: P,
-        validator: &JsonSchemaValidator,
-    ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_file(registry_id, path.clone(), validator)
-            .map(|spec| self.add_semconv_spec(spec))
-    }
-
-    /// Load and add a semantic convention string to the semantic convention registry.
-    pub fn add_semconv_spec_from_string(
-        &mut self,
-        provenance: Provenance,
-        spec: &str,
-    ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_string(provenance, spec)
-            .map(|spec| self.add_semconv_spec(spec))
-    }
-
     /// Loads and returns the semantic convention spec from a file.
-    pub fn semconv_spec_from_file<P: AsRef<Path>>(
+    pub fn semconv_spec_from_file<P, F>(
+        schema_url: SchemaUrl,
         semconv_path: P,
-        validator: &JsonSchemaValidator,
-    ) -> WResult<(String, SemConvSpec), Error> {
-        let provenance = semconv_path.as_ref().display().to_string();
-        SemConvSpec::from_file(semconv_path, validator).map(|spec| (provenance, spec))
-    }
-
-    /// Downloads and returns the semantic convention spec from a URL.
-    pub fn semconv_spec_from_url(sem_conv_url: &str) -> WResult<(String, SemConvSpec), Error> {
-        SemConvSpec::from_url(sem_conv_url).map(|spec| (sem_conv_url.to_owned(), spec))
+        path_fixer: F,
+    ) -> WResult<SemConvSpecWithProvenance, Error>
+    where
+        P: AsRef<Path>,
+        F: Fn(String) -> String,
+    {
+        SemConvSpecWithProvenance::from_file_with_mapped_path(schema_url, semconv_path, path_fixer)
     }
 
     /// Returns the number of semantic convention specs added in the semantic
@@ -238,7 +213,7 @@ impl SemConvRegistry {
     ) -> impl Iterator<Item = GroupSpecWithProvenance> + '_ {
         self.specs
             .iter()
-            .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
+            .flat_map(|SemConvSpecV1WithProvenance { spec, provenance }| {
                 spec.groups.iter().map(|group| GroupSpecWithProvenance {
                     spec: group.clone(),
                     provenance: provenance.clone(),
@@ -251,7 +226,7 @@ impl SemConvRegistry {
     pub fn unresolved_imports_iter(&self) -> impl Iterator<Item = ImportsWithProvenance> + '_ {
         self.specs
             .iter()
-            .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
+            .flat_map(|SemConvSpecV1WithProvenance { spec, provenance }| {
                 spec.imports.iter().map(|imports| ImportsWithProvenance {
                     imports: imports.clone(),
                     provenance: provenance.clone(),
@@ -273,7 +248,6 @@ impl SemConvRegistry {
                     acc
                 }),
             attribute_count: self.attributes.len(),
-            metric_count: self.metrics.len(),
         }
     }
 }
@@ -282,25 +256,29 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
-    use crate::json_schema::JsonSchemaValidator;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
+    use crate::schema_url::SchemaUrl;
+    use crate::semconv::{SemConvSpecV1, SemConvSpecWithProvenance, Versioned};
     use crate::Error;
-    use weaver_common::test::ServeStaticFiles;
+
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
     fn test_try_from_path_pattern() {
         // Test with a valid path pattern
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml")
+        let schema_url: SchemaUrl = "https://test/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let registry = SemConvRegistry::try_from_path_pattern(schema_url.clone(), "data/c*.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 3);
 
         // Test with an invalid path pattern
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c***.yml")
+        let registry = SemConvRegistry::try_from_path_pattern(schema_url, "data/c***.yml")
             .into_result_failing_non_fatal();
         assert!(registry.is_err());
         assert!(matches!(
@@ -310,20 +288,13 @@ mod tests {
     }
 
     #[test]
-    fn test_semconv_spec_from_url() {
-        let server = ServeStaticFiles::from("tests/test_data").unwrap();
-        let semconv_url = server.relative_path_to_url("url/common.yaml");
-        let result =
-            SemConvRegistry::semconv_spec_from_url(&semconv_url).into_result_failing_non_fatal();
-        assert!(result.is_ok());
-    }
-
-    #[test]
     fn test_from_semconv_specs() {
+        let schema_url =
+            SchemaUrl::try_from_name_version("main", "1.0.0").expect("Failed to make schema url");
         let semconv_specs = vec![
-            (
-                Provenance::new("main", "data/c1.yaml"),
-                super::SemConvSpec {
+            SemConvSpecWithProvenance {
+                provenance: Provenance::new(schema_url.clone(), "data/c1.yaml"),
+                spec: Versioned::V1(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -348,9 +319,11 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        requirement_level: None,
                         brief: "brief".to_owned(),
                         note: "note".to_owned(),
                         extends: None,
+                        include_groups: vec![],
                         stability: None,
                         deprecated: None,
                         events: vec![],
@@ -359,13 +332,16 @@ mod tests {
                         body: None,
                         annotations: None,
                         entity_associations: Vec::new(),
+                        visibility: None,
+                        is_v2: false,
+                        span_name: None,
                     }],
                     imports: None,
-                },
-            ),
-            (
-                Provenance::new("main", "data/c2.yaml"),
-                super::SemConvSpec {
+                }),
+            },
+            SemConvSpecWithProvenance {
+                provenance: Provenance::new(schema_url, "data/c2.yaml"),
+                spec: Versioned::V1(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -375,9 +351,11 @@ mod tests {
                         metric_name: None,
                         instrument: None,
                         unit: None,
+                        requirement_level: None,
                         brief: "brief".to_owned(),
                         note: "note".to_owned(),
                         extends: None,
+                        include_groups: vec![],
                         stability: None,
                         deprecated: None,
                         events: vec![],
@@ -386,15 +364,27 @@ mod tests {
                         body: None,
                         annotations: None,
                         entity_associations: Vec::new(),
+                        visibility: None,
+                        is_v2: false,
+                        span_name: None,
                     }],
                     imports: None,
-                },
-            ),
+                }),
+            },
         ];
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_new("test", &registry_path).unwrap();
+        let registry_repo = RegistryRepo::try_new(
+            Some(
+                "https://test/42"
+                    .try_into()
+                    .expect("Should be valid schema url"),
+            ),
+            &registry_path,
+            &mut vec![],
+        )
+        .unwrap();
         let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);
@@ -409,23 +399,28 @@ mod tests {
 
     #[test]
     fn test_semconv_from_path_pattern() {
-        let validator = JsonSchemaValidator::new();
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml")
-            .into_result_failing_non_fatal()
-            .unwrap();
+        let schema_url: SchemaUrl = "https://test/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let mut registry =
+            SemConvRegistry::try_from_path_pattern(schema_url.clone(), "data/c*.yaml")
+                .into_result_failing_non_fatal()
+                .unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 3);
 
-        registry
-            .add_semconv_spec_from_file("main", "data/database.yaml", &validator)
+        registry = SemConvRegistry::try_from_path_pattern(schema_url, "data/database.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(registry.semconv_spec_count(), 4);
+        assert_eq!(registry.semconv_spec_count(), 1);
     }
 
     #[test]
     fn test_stats() {
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml")
+        let schema_url: SchemaUrl = "https://test/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let registry = SemConvRegistry::try_from_path_pattern(schema_url, "data/c*.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
         let stats = registry.stats();
@@ -445,7 +440,10 @@ mod tests {
 
     #[test]
     fn test_unresolved_group_with_provenance_iter() {
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml")
+        let schema_url: SchemaUrl = "https://test/1.0.0"
+            .try_into()
+            .expect("Failed to parse schema_url");
+        let registry = SemConvRegistry::try_from_path_pattern(schema_url, "data/c*.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
 

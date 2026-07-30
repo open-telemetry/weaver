@@ -4,7 +4,7 @@
 {%- if policy_violations %}
 ::group::Policy violation report
 {%- for item in policy_violations %}
-::error file={{ item.error.provenance }}, title={{ item.error.violation.id }}::group={{ item.error.violation.group }}, attr={{ item.error.violation.attr }}
+::error file={{ item.error.provenance }}, title={{ item.error.violation.id }}::message={{ item.error.violation.message }}
 {%- endfor %}
 ::endgroup::
 {% endif %}

@@ -9,6 +9,13 @@ groups:
         stability: stable
         requirement_level: recommended
         examples: "Ex"
+  - id: db.client.metrics
+    type: attribute_group
+    brief: DB client metric attributes.
+    attributes:
+      - ref: error.type
+        brief: The type of database error.
+
   - id: otel.unused
     type: attribute_group
     brief: Unused attributes from the OTEL Registry.
@@ -77,5 +84,21 @@ groups:
       For instrumentation that tracks user behavior during user sessions, a `session.end` event SHOULD be emitted
       every time a session ends. When a session ends and continues as a new session, this event SHOULD be
       emitted prior to the `session.start` event.
+    attributes:
+      - ref: error.type
+
+  - id: span.server.request
+    type: span
+    span_kind: server
+    name: server.request
+    brief: >
+      A server request span.
+    attributes:
+      - ref: error.type
+
+  - id: group.server.attributes
+    type: attribute_group
+    brief: >
+      A group of server attributes.
     attributes:
       - ref: error.type

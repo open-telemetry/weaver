@@ -1,0 +1,5 @@
+name: weaver-render-fixture
+description: >
+  Dependency-free registry for the UI e2e tests. Exercises every field and enum
+  variant the detail pages render. Keep in sync with e2e/render.spec.ts.
+schema_url: https://github.com/open-telemetry/weaver/ui/e2e/fixtures/render-registry/0.1.0
