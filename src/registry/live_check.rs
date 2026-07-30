@@ -546,7 +546,10 @@ mod tests {
             1,
             "{rendered}"
         );
-        assert!(rendered.contains("scope-name"), "{rendered}");
+        assert!(
+            rendered.contains("\x1b[92mscope-name\x1b[0m"),
+            "scope name should use the finding-level sample header colour: {rendered}"
+        );
         assert!(rendered.contains("1.2.3"), "{rendered}");
         assert!(
             rendered.contains("https://example.test/schema"),
