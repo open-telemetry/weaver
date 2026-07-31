@@ -92,12 +92,8 @@ impl SearchContext {
 
         // Attributes imported from a dependency only exist inlined in the signals
         // that use them, so indexing `registry.attributes` alone would leave them
-        // unsearchable. `all_attributes` yields definitions first, so skipping
-        // seen keys keeps the definition and collapses the copies.
-        for attr in registry.registry.all_attributes() {
-            if attr_index.contains_key(&attr.key) || template_index.contains_key(&attr.key) {
-                continue;
-            }
+        // unsearchable.
+        for attr in registry.registry.reachable_attributes() {
             let arc_attr = Arc::new(attr.clone());
             items.push(SearchableItem::Attribute(Arc::clone(&arc_attr)));
 

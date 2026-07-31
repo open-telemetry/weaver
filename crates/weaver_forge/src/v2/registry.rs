@@ -3,6 +3,7 @@
 use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use weaver_resolved_schema::{
     attribute::AttributeRef,
     v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
@@ -56,12 +57,14 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// Every attribute reachable from this registry: the definitions first, then
-    /// the copy inlined into each signal that uses one.
+    /// Every attribute the registry can reach, one entry per key.
     ///
-    /// Attributes imported from a dependency only ever exist inlined. A key can
-    /// appear several times; callers keep the first for one entry per key.
-    pub fn all_attributes(&self) -> impl Iterator<Item = &Attribute> {
+    /// A superset of `attributes`: an attribute imported from a dependency is
+    /// never listed as a definition and exists only as the copy inlined into
+    /// each signal that uses it. Definitions are walked first, so a definition
+    /// wins over a signal's variant of the same key.
+    pub fn reachable_attributes(&self) -> impl Iterator<Item = &Attribute> {
+        let mut seen = HashSet::new();
         self.attributes
             .iter()
             .chain(
@@ -90,6 +93,7 @@ impl Registry {
                     .chain(e.description.iter())
                     .map(|a| &a.base)
             }))
+            .filter(move |a| seen.insert(a.key.as_str()))
     }
 }
 

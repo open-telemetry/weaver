@@ -7,7 +7,7 @@
 //! - `Disabled`: No-op mode for long-running sessions to prevent memory growth
 
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
 use weaver_semconv::group::GroupType;
@@ -107,12 +107,7 @@ impl CumulativeStatistics {
             VersionedRegistry::V2(reg) => {
                 // Registry coverage must account for attributes imported from a
                 // dependency, which only exist inlined in the signals using them.
-                // The first entry for a key is the definition, when there is one.
-                let mut keys = HashSet::new();
-                for attribute in reg.registry.all_attributes() {
-                    if !keys.insert(attribute.key.as_str()) {
-                        continue;
-                    }
+                for attribute in reg.registry.reachable_attributes() {
                     if attribute.common.deprecated.is_none() {
                         let _ = seen_attributes.insert(attribute.key.clone(), 0);
                     }
