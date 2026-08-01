@@ -5,7 +5,7 @@
 use serde_json::json;
 use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_forge::v2::{event::EventAttribute, metric::MetricAttribute};
+use weaver_forge::v2::{event::EventAttribute, metric::MetricAttribute, span::SpanAttribute};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -20,7 +20,8 @@ use crate::{
     sample_metric::SampleInstrument, Error, FindingId, Sample, SampleRef, VersionedAttribute,
     VersionedEntity, VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
     ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY, ENTITY_TYPE_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
+    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, SPAN_KIND_ADVICE_CONTEXT_KEY,
+    UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
@@ -48,6 +49,20 @@ impl CheckableAttribute for Attribute {
 }
 
 impl CheckableAttribute for MetricAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.base.r#type
+    }
+}
+
+impl CheckableAttribute for SpanAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
@@ -530,6 +545,44 @@ impl Advisor for TypeAdvisor {
                         }
                     }
                 }
+                Ok(advice_list)
+            }
+            SampleRef::Span(sample_span) => {
+                let Some(VersionedSignal::Span(semconv_span)) = registry_group.as_deref() else {
+                    return Ok(Vec::new());
+                };
+
+                let mut advice_list = check_attributes(
+                    &semconv_span.attributes,
+                    &sample_span.attributes,
+                    parent_signal,
+                );
+
+                if semconv_span.kind != sample_span.kind {
+                    let expected = &semconv_span.kind;
+                    let actual = &sample_span.kind;
+                    advice_list.push(
+                        FindingBuilder::new(FindingId::SpanKindMismatch)
+                            .context(json!({
+                                SPAN_KIND_ADVICE_CONTEXT_KEY: actual,
+                                EXPECTED_VALUE_ADVICE_CONTEXT_KEY: expected,
+                            }))
+                            .message(format!(
+                                "Span kind should be '{expected:?}', but found '{actual:?}'."
+                            ))
+                            .level(FindingLevel::Violation)
+                            .signal(parent_signal)
+                            .build(),
+                    );
+                }
+
+                emit_findings(
+                    &advice_list,
+                    &sample,
+                    otlp_emitter.as_deref(),
+                    parent_signal,
+                );
+
                 Ok(advice_list)
             }
             SampleRef::NumberDataPoint(sample_number_data_point) => {

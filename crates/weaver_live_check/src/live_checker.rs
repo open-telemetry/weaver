@@ -25,6 +25,8 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
+    /// v2 span definitions keyed by span type (`otel.span.type`)
+    semconv_spans: HashMap<String, Rc<VersionedSignal>>,
     #[serde(skip)]
     semconv_entities: HashMap<String, Rc<VersionedEntity>>,
     /// The advisors to run
@@ -52,6 +54,8 @@ impl LiveChecker {
         let mut semconv_metrics = HashMap::new();
         // Hashmap of events by name
         let mut semconv_events = HashMap::new();
+        // Hashmap of spans by span type (v2 only)
+        let mut semconv_spans = HashMap::new();
         // Hashmap of entities by type name
         let mut semconv_entities = HashMap::new();
 
@@ -104,6 +108,11 @@ impl LiveChecker {
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
+                for span in &registry.registry.spans {
+                    let span_type = span.r#type.to_string();
+                    let span_rc = Rc::new(VersionedSignal::Span(span.clone()));
+                    let _ = semconv_spans.insert(span_type, span_rc);
+                }
                 for entity in &registry.registry.entities {
                     let entity_type = entity.r#type.to_string();
                     let entity_rc = Rc::new(VersionedEntity::V2(Box::new(entity.clone())));
@@ -133,6 +142,7 @@ impl LiveChecker {
             semconv_templates,
             semconv_metrics,
             semconv_events,
+            semconv_spans,
             semconv_entities,
             advisors,
             templates_by_length,
@@ -162,6 +172,12 @@ impl LiveChecker {
     #[must_use]
     pub fn find_event(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_events.get(name).map(Rc::clone)
+    }
+
+    /// Find a span in the registry by span type (v2 registries only)
+    #[must_use]
+    pub fn find_span(&self, span_type: &str) -> Option<Rc<VersionedSignal>> {
+        self.semconv_spans.get(span_type).map(Rc::clone)
     }
 
     /// Find an entity in the registry by type name
@@ -3366,6 +3382,181 @@ mod tests {
             "Expected custom_advice_finding to be present. Found: {:?}",
             advice
         );
+    }
+
+    /// A span carrying a known `otel.span.type` with the expected kind and all
+    /// required attributes produces no findings.
+    #[test]
+    fn test_span_live_check_happy_path_v2() {
+        use crate::sample_span::SampleSpan;
+
+        let span_type_attr = V2Attribute {
+            key: "otel.span.type".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: "The semconv span type".to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        };
+        let method_attr = V2Attribute {
+            key: "http.request.method".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: "HTTP request method".to_owned(),
+                note: "".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        };
+
+        let registry = VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+            schema_url: "https://example.com/schemas/1.2.3"
+                .try_into()
+                .expect("Should be valid schema url"),
+            registry: Registry {
+                attributes: vec![span_type_attr.clone(), method_attr.clone()],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![V2Span {
+                    requirement_level: None,
+                    r#type: "http.client.request".to_owned().into(),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "".to_owned(),
+                    },
+                    attributes: vec![SpanAttribute {
+                        base: method_attr,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
+                        ),
+                        sampling_relevant: None,
+                    }],
+                    entity_associations: vec![],
+                    common: CommonFields {
+                        brief: "".to_owned(),
+                        note: "".to_owned(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: BTreeMap::new(),
+                    },
+                    provenance: Default::default(),
+                }],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        }));
+
+        let mut sample = Sample::Span(SampleSpan {
+            name: "GET".to_owned(),
+            kind: SpanKindSpec::Client,
+            status: None,
+            attributes: vec![
+                SampleAttribute::try_from("otel.span.type=http.client.request").unwrap(),
+                SampleAttribute::try_from("http.request.method=GET").unwrap(),
+            ],
+            span_events: vec![],
+            span_links: vec![],
+            live_check_result: None,
+            resource: None,
+        });
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(StabilityAdvisor),
+            Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
+        ];
+        let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+        sample
+            .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+            .expect("live check should succeed");
+        stats.finalize();
+
+        let Sample::Span(span) = &sample else {
+            panic!("Expected a span sample");
+        };
+        let advice = &span
+            .live_check_result
+            .as_ref()
+            .expect("Expected a live check result")
+            .all_advice;
+        assert!(advice.is_empty(), "Expected no findings, got: {advice:?}");
+    }
+
+    /// `ok` status is reserved for application code, and `error.type` only belongs on a
+    /// span whose status is `error`.
+    #[test]
+    fn test_span_status_checks() {
+        use crate::sample_span::{SampleSpan, Status, StatusCode};
+
+        let make_span = |code: StatusCode, attributes: Vec<SampleAttribute>| {
+            Sample::Span(SampleSpan {
+                name: "GET".to_owned(),
+                kind: SpanKindSpec::Client,
+                status: Some(Status {
+                    code,
+                    message: "".to_owned(),
+                }),
+                attributes,
+                span_events: vec![],
+                span_links: vec![],
+                live_check_result: None,
+                resource: None,
+            })
+        };
+
+        let error_type = || vec![SampleAttribute::try_from("error.type=_OTHER").unwrap()];
+        let mut samples = vec![
+            make_span(StatusCode::Ok, vec![]),
+            make_span(StatusCode::Unset, error_type()),
+            make_span(StatusCode::Error, error_type()),
+        ];
+
+        let mut live_checker = LiveChecker::new(Arc::new(make_registry(true)), vec![]);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+        for sample in &mut samples {
+            sample
+                .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+                .expect("live check should succeed");
+        }
+        stats.finalize();
+
+        let finding_ids = |sample: &Sample| -> Vec<String> {
+            let Sample::Span(span) = sample else {
+                panic!("Expected a span sample");
+            };
+            span.live_check_result
+                .as_ref()
+                .expect("Expected a live check result")
+                .all_advice
+                .iter()
+                .map(|a| a.id.clone())
+                .collect()
+        };
+
+        assert_eq!(finding_ids(&samples[0]), vec!["span_status_ok"]);
+        assert_eq!(
+            finding_ids(&samples[1]),
+            vec!["error_type_without_error_status"]
+        );
+        assert!(finding_ids(&samples[2]).is_empty());
     }
 
     #[test]

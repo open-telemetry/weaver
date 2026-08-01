@@ -86,6 +86,12 @@ pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 /// Entity type key in advice context
 pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
+/// Span type key in advice context
+pub const SPAN_TYPE_ADVICE_CONTEXT_KEY: &str = "span_type";
+/// Span kind key in advice context
+pub const SPAN_KIND_ADVICE_CONTEXT_KEY: &str = "span_kind";
+/// Span status code key in advice context
+pub const SPAN_STATUS_ADVICE_CONTEXT_KEY: &str = "span_status";
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -391,11 +397,14 @@ impl Sample {
 
     /// Returns the signal name as a string or None if sample
     /// does not capture a whole signal.
+    ///
+    /// For spans this is the span type, which is what identifies the definition in the
+    /// registry. Spans without `otel.span.type` fall back to the span name.
     #[must_use]
     pub fn signal_name(&self) -> Option<String> {
         match self {
-            Sample::Attribute(_) => None,                  // not a signal
-            Sample::Span(span) => Some(span.name.clone()), // TODO: update to type once added
+            Sample::Attribute(_) => None, // not a signal
+            Sample::Span(span) => Some(span.span_type().unwrap_or(span.name.as_str()).to_owned()),
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,

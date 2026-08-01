@@ -61,6 +61,14 @@ pub enum FindingId {
     MissingMetric,
     /// An event is not defined in the semantic convention registry
     MissingEvent,
+    /// A span type is not defined in the semantic convention registry
+    MissingSpan,
+    /// A span kind does not match the kind defined in the registry
+    SpanKindMismatch,
+    /// A span status is set to 'ok', which is reserved for application code
+    SpanStatusOk,
+    /// The 'error.type' attribute is set on a span whose status is not 'error'
+    ErrorTypeWithoutErrorStatus,
     /// A deprecated attribute or signal is in use
     Deprecated,
     /// An attribute value type does not match the type defined in the registry
