@@ -19,6 +19,7 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
     env.add_filter("flatten", flatten);
     env.add_filter("numsort", numsort);
     env.add_filter("split_id", split_id);
+    env.add_filter("regex_captures", regex_captures);
     env.add_filter("regex_replace", regex_replace);
     env.add_filter("toyaml", to_yaml);
 }
@@ -101,6 +102,30 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
     }
 }
 
+fn compile_regex(pattern: &str) -> Result<Regex, minijinja::Error> {
+    Regex::new(pattern).map_err(|e| {
+        minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("Invalid regex pattern: {e}"),
+        )
+    })
+}
+
+/// Return the complete match and capture groups from the first match of a regex pattern.
+fn regex_captures(
+    input: Cow<'_, str>,
+    pattern: Cow<'_, str>,
+) -> Result<Vec<Value>, minijinja::Error> {
+    let re = compile_regex(pattern.as_ref())?;
+    let Some(captures) = re.captures(input.as_ref()) else {
+        return Ok(Vec::new());
+    };
+    Ok(captures
+        .iter()
+        .map(|capture| capture.map_or_else(|| Value::from(()), |m| Value::from(m.as_str())))
+        .collect())
+}
+
 /// Replace all occurrences of a regex pattern (1st parameter) in the input string with the
 /// replacement string (2nd parameter).
 fn regex_replace(
@@ -108,12 +133,7 @@ fn regex_replace(
     pattern: Cow<'_, str>,
     replacement: Cow<'_, str>,
 ) -> Result<String, minijinja::Error> {
-    let re = Regex::new(pattern.as_ref()).map_err(|e| {
-        minijinja::Error::new(
-            ErrorKind::InvalidOperation,
-            format!("Invalid regex pattern: {e}"),
-        )
-    })?;
+    let re = compile_regex(pattern.as_ref())?;
     Ok(re
         .replace_all(input.as_ref(), replacement.as_ref())
         .to_string())
@@ -190,8 +210,41 @@ mod tests {
     use std::fs;
 
     use crate::extensions::util::add_filters;
-    use minijinja::Environment;
+    use minijinja::{Environment, ErrorKind};
     use serde_yaml::{Mapping, Number, Value};
+
+    #[test]
+    fn test_regex_captures() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+        let config = crate::config::WeaverConfig::default();
+
+        add_filters(&mut env, &config);
+
+        assert_eq!(
+            env.render_str(
+                r#"{{ "template[string] template[int]" | regex_captures("template\\[(.*?)\\]") | tojson }}"#,
+                &ctx,
+            )
+            .unwrap(),
+            r#"["template[string]","string"]"#
+        );
+        assert_eq!(
+            env.render_str(r#"{{ "abc" | regex_captures("z") | tojson }}"#, &ctx,)
+                .unwrap(),
+            "[]"
+        );
+        assert_eq!(
+            env.render_str(r#"{{ "b" | regex_captures("^(a)?(b)$") | tojson }}"#, &ctx,)
+                .unwrap(),
+            r#"["b",null,"b"]"#
+        );
+
+        let error = env
+            .render_str(r#"{{ "value" | regex_captures("(") }}"#, &ctx)
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::InvalidOperation);
+    }
 
     #[test]
     fn test_regex_replace() {

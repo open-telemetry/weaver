@@ -520,6 +520,7 @@ The following filters are available (implementation can be found in the
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the
   `weaver.yaml` configuration file.
 - `split_id`: Splits a string by '.' creating a list of nested ids.
+- `regex_captures`: Returns the first regex match and its capture groups as a list, with the full match at index 0.
 - `regex_replace`: Replace all occurrences of a regex pattern (1st parameter) in the input string with the replacement
   string (2nd parameter). Under the hood, this filter uses the `regex` crate (see
   [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details)
