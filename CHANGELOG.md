@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix elements inherited from a transitive dependency being reported as locally defined. A resolved schema's `dependencies` set is the table that `DependencyRef` provenance indexes into, but it listed only direct dependencies, so anything reaching the registry through a dependency-of-a-dependency had no entry to point at. It now records the full closure. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
+
+# [0.25.1] - 2026-07-28
+
+- Fix v2 attribute resolution so a `ref` inside an included group (`ref_group`) merges field-by-field instead of replacing the whole attribute. ([#1634](https://github.com/open-telemetry/weaver/pull/1634) by @lmolkova)
+- Make schema_url mandatory for manifest dependencies ([#1651](https://github.com/open-telemetry/weaver/pull/1651) by @jerbly)
+- Fix imported groups keeping the losing version's definition and provenance ([#1650](https://github.com/open-telemetry/weaver/pull/1650) by @jerbly)
+- Fix imported attributes losing their origin registry provenance ([#1649](https://github.com/open-telemetry/weaver/pull/1649) by @jerbly)
+- Fix live-check admin server (and /stop) shutting down 60s after startup ([#1645](https://github.com/open-telemetry/weaver/pull/1645) by @NimrodAvni78)
+- Fix signals imported from a dependency losing their per-signal attribute data. When several signals reference the same attribute with different `requirement_level` or `role`, each imported signal was re-pointed at whichever variant of the attribute was registered first. E.g. silently rewriting requirement levels or dropping `role: identifying` from imported entities. Each signal now references the attribute variant it actually declares. Per-name conflict resolution still applies to root-attribute provenance. ([#1635](https://github.com/open-telemetry/weaver/pull/1635) by @jerbly)
+
+# [0.25.0] - 2026-07-24
+
+- Use semantic conventions v2 for `weaver registry infer`. ([#1334](https://github.com/open-telemetry/weaver/pull/1334) by @ArthurSens)
+- Expand dependency conflict resolution to allow different versions of a dependency when their major versions are compatible. Llatest version in the major series wins. ([#1573](https://github.com/open-telemetry/weaver/pull/1573) by @jsuereth)
+- Add `--fail-on <violation|improvement|information|none>` to `weaver registry live-check` to choose the severity threshold that produces a non-zero exit code. ([#1517](https://github.com/open-telemetry/weaver/pull/1517) by @cijothomas)
+- Fix ([#733](https://github.com/open-telemetry/weaver/issues/733)) - default an enum member's `value` to its `id` when no explicit `value` is provided. ([#1444](https://github.com/open-telemetry/weaver/pull/1444) by @nanookclaw)
+- Regenerate the `weaver-config.json` JSON schema so it matches the current configuration. ([#1606](https://github.com/open-telemetry/weaver/pull/1606) by @jerbly)
+- Live-check: (Fixes: [#1626](https://github.com/open-telemetry/weaver/issues/1626)) fix a shutdown race where `live-check --output http` could exit before the `/stop` response was fully delivered, resetting the connection on large reports. The live-check command now waits for the admin HTTP server's graceful shutdown to finish before exiting. ([#1632](https://github.com/open-telemetry/weaver/pull/1632) by @jerbly)
 - Live-check: (Fixes: [#1614](https://github.com/open-telemetry/weaver/issues/1614)) add `[[live-check.finding_level_overrides]]` to rewrite a finding's level instead of dropping it (e.g. treat `undefined_enum_variant` as a violation), scoped by the same `signal_type`/`sample_names` rules as `finding_filters`. ([#1625](https://github.com/open-telemetry/weaver/pull/1625) by @jerbly)
 - Change v2 refinement attribute precedence so `ref_group` details win over inherited attributes. ([#1604](https://github.com/open-telemetry/weaver/pull/1604) by @lmolkova)
 - Make `deprecated.note` optional for `{reason: renamed}` - inferred from `renamed_to`. ([#1622](https://github.com/open-telemetry/weaver/pull/1622) by @lmolkova)

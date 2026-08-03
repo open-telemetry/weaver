@@ -1,0 +1,15 @@
+file_format: definition/2
+attributes:
+  - key: dep.id
+    type: string
+    stability: stable
+    brief: Unique ID.
+    examples: ["abc123"]
+metrics:
+  - name: dep.uptime
+    brief: Uptime metric defined in dep.
+    instrument: gauge
+    unit: "s"
+    stability: stable
+    attributes:
+      - ref: dep.id

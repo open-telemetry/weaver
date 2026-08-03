@@ -366,6 +366,7 @@ impl WeaverResolver {
         };
         let mut attr_catalog = AttributeCatalog::default();
 
+        // Every registry this schema was built from, direct and transitive.
         let mut dependencies = std::collections::BTreeSet::new();
         for d in &resolved_dependencies {
             match d {
@@ -373,9 +374,11 @@ impl WeaverResolver {
                     if let Ok(url) = SchemaUrl::try_from(schema.schema_url.as_str()) {
                         _ = dependencies.insert(url);
                     }
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
                 ResolvedDependency::V2(schema) => {
                     _ = dependencies.insert(schema.schema_url.clone());
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
             }
         }
@@ -1757,6 +1760,132 @@ groups:
     }
 
     #[test]
+    fn test_imported_attribute_keeps_origin_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports one metric from `base` and one from `middle`; both
+        // use `host.id`, which is defined only in `base` (a dependency of
+        // `middle`). Middle's re-export of `host.id` must keep base's
+        // provenance so both paths agree on the attribute's origin and the
+        // schema resolves cleanly.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/correct-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let (attr, _) = resolved
+            .catalog
+            .root_attribute("host.id")
+            .expect("host.id not found in catalog");
+        assert_eq!(attr.brief, "Unique host ID.");
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports `c.metric.1` via A (which pins C v1.1) and
+        // `c.span.2` via B (which pins C v1.2). The compatible version
+        // conflict resolves in favor of C v1.2 and the attribute catalog is
+        // upgraded accordingly (`c.attr1` reports the v1.2 brief, as covered
+        // by test_standalone_vs_graph_provenance_immutability). The group
+        // must be upgraded consistently: `metric.c.metric.1` should carry
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .get("metric.c.metric.1")
+            .expect("metric.c.metric.1 not found");
+        let provenance = metric
+            .provenance()
+            .expect("metric.c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance_published(
+    ) -> Result<(), weaver_semconv::Error> {
+        // Same shape as test_upgraded_group_keeps_winning_version_provenance,
+        // but A is a *published* (resolved/2.0) registry whose embedded copy
+        // of `c.metric.1` was resolved against C v1.1. B (a definition
+        // registry) pins C v1.2, which wins the version conflict. The metric
+        // imported through the published V2 path must also be upgraded to
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict-published/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .values()
+            .find(|g| g.metric_name.as_deref() == Some("c.metric.1"))
+            .expect("metric c.metric.1 not found");
+        let provenance = metric.provenance().expect("c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
+    fn test_dependency_without_schema_url_is_rejected() {
+        // `main`'s manifest declares its dependency with only `name` and
+        // `registry_path`. `schema_url` is mandatory for dependencies — it is
+        // the identity that provenance and version-conflict resolution key
+        // on — so this must fail with an error naming the offending
+        // dependency.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/mandatory-schema-url/main".to_owned(),
+        };
+        let err_msg = match RegistryRepo::try_new(None, &registry_path, &mut vec![]) {
+            Err(e) => e.to_string(),
+            Ok(registry_repo) => {
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                    WResult::Ok(_) | WResult::OkWithNFEs(_, _) => panic!(
+                        "expected an error for the dependency missing 'schema_url', but resolution succeeded"
+                    ),
+                    WResult::FatalErr(e) => e.to_string(),
+                }
+            }
+        };
+        assert!(
+            err_msg.contains("schema_url") && err_msg.contains("dep"),
+            "error should name the dependency missing 'schema_url'; got: {err_msg}"
+        );
+    }
+
+    #[test]
     fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
         // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
         let mut config = WeaverResolverConfig::default();
@@ -1830,6 +1959,20 @@ groups:
         let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
         assert!(v1_main.dependencies.contains(&url_a));
         assert!(v1_main.dependencies.contains(&url_b));
+        // `dependencies` is the table `DependencyRef` provenance indexes into,
+        // so it must also name the registries reached *through* A and B —
+        // otherwise elements inherited from C have nothing to point at and are
+        // reported as locally defined.
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_1),
+            "transitive dependency C v1.1 missing from {:?}",
+            v1_main.dependencies
+        );
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_2),
+            "transitive dependency C v1.2 missing from {:?}",
+            v1_main.dependencies
+        );
 
         // 4. Check the cached A schema in isolation once again.
         // It MUST remain completely untouched and still report C v1.1.
@@ -1847,6 +1990,86 @@ groups:
         assert_eq!(attr_a_again.brief, "Attribute 1 from C v1.1");
         assert_eq!(source_a_again, "v2_dependency.example.com/c");
         assert!(v1_a_again.dependencies.contains(&url_c_v1_1));
+
+        Ok(())
+    }
+
+    /// An element reaching a registry through a dependency-of-a-dependency must
+    /// be attributed to the registry that defined it.
+    ///
+    /// The `transitive-provenance` fixture is a plain three-level chain:
+    /// `base <- middle <- main`, where `middle` only re-exports base's metric and
+    /// `main` depends on `middle` alone. `base` is therefore reachable solely
+    /// through `middle`.
+    ///
+    /// Provenance is a `DependencyRef` index into the resolved schema's
+    /// `dependencies` set. If that set records only the direct dependencies,
+    /// `base` has no entry for the metric to point at, its `source` is left
+    /// empty, and the metric is reported as defined by `main` itself — even
+    /// though its recorded path names a file in `base`.
+    #[test]
+    fn test_transitive_dependency_provenance_resolves() -> Result<(), Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        const BASE: &str = "https://example.com/base/1.0.0";
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/transitive-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve main: {e}"),
+        };
+        let v1 = resolved.as_v1().expect("Expected a V1 schema for main");
+        let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            v1.clone().try_into().expect("v1 -> v2 conversion");
+
+        // `base` is not a direct dependency of `main`, so it is only in the set
+        // if transitive dependencies are recorded.
+        let base_url: SchemaUrl = BASE.try_into().expect("valid schema url");
+        assert!(
+            v2.dependencies.contains(&base_url),
+            "transitive dependency `base` missing from {:?}",
+            v2.dependencies
+        );
+
+        let deps: Vec<&SchemaUrl> = v2.dependencies.iter().collect();
+        let metric = v2
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "base.uptime")
+            .expect("main imported base.uptime");
+
+        assert!(
+            !metric.provenance.is_empty(),
+            "`base.uptime` came from `base` but is reported as defined by `main`"
+        );
+        let source = metric
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("metric provenance resolves to a dependency");
+        assert_eq!(source.as_str(), BASE, "attributed to the wrong registry");
+
+        // The attribute it carries came from `base` too, not from `middle`.
+        let attr_ref = metric
+            .attributes
+            .first()
+            .expect("base.uptime has attributes");
+        let attr = v2
+            .attribute_catalog
+            .attribute(&attr_ref.base)
+            .expect("attribute in catalog");
+        let attr_source = attr
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("attribute provenance resolves to a dependency");
+        assert_eq!(attr_source.as_str(), BASE);
 
         Ok(())
     }

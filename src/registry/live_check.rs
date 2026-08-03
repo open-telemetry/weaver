@@ -37,7 +37,7 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_config::WeaverCommand;
 
 use super::otlp::otlp_ingester::OtlpIngester;
-use super::otlp::AdminReportSender;
+use super::otlp::ShutdownCoordinator;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -314,7 +314,7 @@ pub(crate) fn command(
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
-    let mut admin_report_sender: Option<AdminReportSender> = None;
+    let mut shutdown_coordinator: Option<ShutdownCoordinator> = None;
     let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
@@ -331,13 +331,11 @@ pub(crate) fn command(
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout: config.otlp.inactivity_timeout,
             };
-            let (iter, sender) = otlp.ingest_otlp()?;
+            let (iter, coordinator) = otlp.ingest_otlp()?;
             if is_http_output {
-                sender
-                    .expect_report
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                coordinator.set_expect_report(true);
             }
-            admin_report_sender = Some(sender);
+            shutdown_coordinator = Some(coordinator);
             iter
         }
     };
@@ -423,12 +421,9 @@ pub(crate) fn command(
     }
 
     if is_http_output {
-        let admin_waiting = admin_report_sender.as_ref().is_some_and(|s| {
-            s.sender
-                .lock()
-                .expect("Failed to acquire lock on admin report sender")
-                .is_some()
-        });
+        let admin_waiting = shutdown_coordinator
+            .as_ref()
+            .is_some_and(ShutdownCoordinator::is_report_pending);
 
         if admin_waiting {
             // Format report and send through admin channel
@@ -463,15 +458,11 @@ pub(crate) fn command(
                     .generate_to_string(&report)
                     .map_err(DiagnosticMessages::from)?
             };
-            if let Some(report) = admin_report_sender.take() {
-                if let Some(sender) = report
-                    .sender
-                    .lock()
-                    .expect("Failed to acquire lock on admin report sender")
-                    .take()
-                {
-                    let _ = sender.send((content_type, body));
-                }
+            if let Some(coordinator) = shutdown_coordinator.take() {
+                coordinator.deliver_report(content_type, body);
+                // Don't let the process exit until the admin server has
+                // actually finished writing the /stop response.
+                coordinator.wait_for_admin_shutdown();
             }
         } else {
             // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
