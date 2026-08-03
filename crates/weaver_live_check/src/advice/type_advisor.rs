@@ -714,6 +714,7 @@ mod tests {
             unit: "".to_owned(),
             data_points: None,
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -783,6 +784,7 @@ mod tests {
             unit: "".to_owned(),
             data_points: None,
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -826,6 +828,7 @@ mod tests {
             unit: "".to_owned(),
             data_points: None,
             instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });

@@ -189,6 +189,7 @@ the telemetry pipeline generated the issue.
 | `span_event` | ![Development](https://img.shields.io/badge/-development-blue) | An event attached to a span |
 | `span_link` | ![Development](https://img.shields.io/badge/-development-blue) | A link between spans |
 | `resource` | ![Development](https://img.shields.io/badge/-development-blue) | A resource describing the telemetry source |
+| `instrumentation_scope` | ![Development](https://img.shields.io/badge/-development-blue) | An instrumentation scope that produced telemetry signals |
 | `metric` | ![Development](https://img.shields.io/badge/-development-blue) | A metric measurement |
 | `number_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | A numeric data point within a metric |
 | `histogram_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | A histogram data point within a metric |

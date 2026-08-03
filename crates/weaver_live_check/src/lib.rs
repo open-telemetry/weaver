@@ -8,6 +8,7 @@ use finding_modifier::FindingModifier;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_instrumentation_scope::SampleInstrumentationScope;
 use sample_log::SampleLog;
 use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
@@ -44,6 +45,8 @@ pub mod live_checker;
 pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// An intermediary format for instrumentation scope metadata.
+pub mod sample_instrumentation_scope;
 /// The intermediary format for logs
 pub mod sample_log;
 /// The intermediary format for metrics
@@ -288,6 +291,8 @@ pub enum Sample {
     SpanLink(SampleSpanLink),
     /// A sample resource
     Resource(SampleResource),
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope(SampleInstrumentationScope),
     /// A sample metric
     Metric(SampleMetric),
     /// A sample log
@@ -309,6 +314,8 @@ pub enum SampleRef<'a> {
     SpanLink(&'a SampleSpanLink),
     /// A sample resource
     Resource(&'a SampleResource),
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope(&'a SampleInstrumentationScope),
     /// A sample metric
     Metric(&'a SampleMetric),
     /// A sample number data point
@@ -326,15 +333,17 @@ pub enum SampleRef<'a> {
 impl SampleRef<'_> {
     /// Returns the sample name, if available for this sample type.
     ///
-    /// For attributes this is the attribute key, for spans/metrics/events
-    /// it is the signal name. Sub-signal types (data points, exemplars,
-    /// span links, resources) do not carry a name.
+    /// For attributes this is the attribute key, for instrumentation scopes
+    /// it is the scope name, and for spans/metrics/events it is the signal
+    /// name. Sub-signal types (data points, exemplars, span links, resources)
+    /// do not carry a name.
     #[must_use]
     pub fn sample_name(&self) -> Option<&str> {
         match self {
             SampleRef::Attribute(attr) => Some(&attr.name),
             SampleRef::Span(span) => Some(&span.name),
             SampleRef::SpanEvent(event) => Some(&event.name),
+            SampleRef::InstrumentationScope(scope) => Some(&scope.name),
             SampleRef::Metric(metric) => Some(&metric.name),
             SampleRef::Log(log) => Some(&log.event_name),
             _ => None,
@@ -350,6 +359,7 @@ impl SampleRef<'_> {
             SampleRef::SpanEvent(_) => SampleType::SpanEvent,
             SampleRef::SpanLink(_) => SampleType::SpanLink,
             SampleRef::Resource(_) => SampleType::Resource,
+            SampleRef::InstrumentationScope(_) => SampleType::InstrumentationScope,
             SampleRef::Metric(_) => SampleType::Metric,
             SampleRef::NumberDataPoint(_) => SampleType::NumberDataPoint,
             SampleRef::HistogramDataPoint(_) => SampleType::HistogramDataPoint,
@@ -373,6 +383,7 @@ impl Sample {
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => Some(SignalType::Resource.to_string()),
+            Sample::InstrumentationScope(_) => None,
             Sample::Metric(_) => Some(SignalType::Metric.to_string()),
             Sample::Log(_) => Some(SignalType::Log.to_string()),
         }
@@ -389,6 +400,17 @@ impl Sample {
         }
     }
 
+    /// Returns the instrumentation scope that produced the signal, if available.
+    #[must_use]
+    pub fn instrumentation_scope(&self) -> Option<&SampleInstrumentationScope> {
+        match self {
+            Sample::Span(s) => s.instrumentation_scope.as_deref(),
+            Sample::Metric(m) => m.instrumentation_scope.as_deref(),
+            Sample::Log(l) => l.instrumentation_scope.as_deref(),
+            _ => None,
+        }
+    }
+
     /// Returns the signal name as a string or None if sample
     /// does not capture a whole signal.
     #[must_use]
@@ -399,6 +421,7 @@ impl Sample {
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,
+            Sample::InstrumentationScope(_) => None,
             Sample::Metric(metric) => Some(metric.name.clone()),
             Sample::Log(log) => Some(log.event_name.clone()),
         }
@@ -429,6 +452,9 @@ impl LiveCheckRunner for Sample {
             }
             Sample::Resource(resource) => {
                 resource.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
+            Sample::InstrumentationScope(scope) => {
+                scope.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
             Sample::Metric(metric) => {
                 metric.run_live_check(live_checker, stats, parent_group, parent_signal)

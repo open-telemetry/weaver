@@ -15,6 +15,7 @@ use crate::{
     advice::{check_entity_associations, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
+    sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
     SampleRef, VersionedSignal,
@@ -288,6 +289,9 @@ pub struct SampleMetric {
     pub unit: String,
     /// Data points of the metric.
     pub data_points: Option<DataPoints>,
+    /// Shared instrumentation scope that produced this metric (not serialized).
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
     /// Reference to the parent resource (not serialized)

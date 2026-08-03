@@ -497,11 +497,64 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use super::RegistryLiveCheckArgs;
+    use serde_json::json;
+    use weaver_forge::{OutputProcessor, OutputTarget};
+    use weaver_live_check::{
+        sample_attribute::SampleAttribute,
+        sample_instrumentation_scope::SampleInstrumentationScope, LiveCheckResult, Sample,
+    };
+
+    use super::{RegistryLiveCheckArgs, DEFAULT_LIVE_CHECK_TEMPLATES};
     use crate::registry::tests::assert_config_cli_consistency;
 
     #[test]
     fn config_fields_match_cli_args() {
         assert_config_cli_consistency::<RegistryLiveCheckArgs>();
+    }
+
+    #[test]
+    fn ansi_output_displays_instrumentation_scope_through_the_normal_sample_path() {
+        let output = OutputProcessor::new(
+            "ansi",
+            "live_check",
+            Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
+            None,
+            OutputTarget::Stdout,
+        )
+        .expect("ANSI output processor should load");
+
+        let sample = Sample::InstrumentationScope(SampleInstrumentationScope {
+            name: "scope-name".to_owned(),
+            version: "1.2.3".to_owned(),
+            schema_url: "https://example.test/schema".to_owned(),
+            attributes: vec![SampleAttribute {
+                name: "scope.environment".to_owned(),
+                value: Some(json!("test")),
+                r#type: None,
+                live_check_result: Some(LiveCheckResult::new()),
+            }],
+            dropped_attributes_count: 2,
+            live_check_result: Some(LiveCheckResult::new()),
+        });
+
+        let rendered = output
+            .generate_to_string(&sample)
+            .expect("ANSI sample should render");
+
+        assert_eq!(
+            rendered.matches("Instrumentation scope").count(),
+            1,
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("\x1b[92mscope-name\x1b[0m"),
+            "scope name should use the finding-level sample header colour: {rendered}"
+        );
+        assert!(rendered.contains("1.2.3"), "{rendered}");
+        assert!(
+            rendered.contains("https://example.test/schema"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("scope.environment"), "{rendered}");
     }
 }

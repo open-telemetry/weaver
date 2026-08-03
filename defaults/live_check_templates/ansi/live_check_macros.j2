@@ -78,6 +78,20 @@
 {%- endfor %}
 {% endmacro %}
 
+{% macro display_instrumentation_scope(scope, indent=0) %}
+{{ " " * indent }}{{ ("Instrumentation scope") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(scope.live_check_result.highest_advice_level, scope.name) }}{% if scope.version %} `{{ scope.version }}`{% endif %}
+{{ display_advice(scope.live_check_result.all_advice, indent) }}
+{% if scope.schema_url %}
+{{ " " * indent }}  schema URL: {{ scope.schema_url }}
+{% endif %}
+{% if scope.dropped_attributes_count %}
+{{ " " * indent }}  dropped attributes: {{ scope.dropped_attributes_count }}
+{% endif %}
+{%- for attribute in scope.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
 {% macro summarize_data_point_value(data_point) %}
 {%- if data_point.value is defined -%}
 {{ data_point.value }}
@@ -142,6 +156,8 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {{ display_span_link(sample.span_link, indent) }}
 {%- elif sample.resource is defined -%}
 {{ display_resource(sample.resource, indent) }}
+{%- elif sample.instrumentation_scope is defined -%}
+{{ display_instrumentation_scope(sample.instrumentation_scope, indent) }}
 {%- elif sample.metric is defined -%}
 {{ display_metric(sample.metric, indent) }}
 {%- elif sample.log is defined -%}

@@ -185,6 +185,18 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
                     out.push(json!({"type": "resource", "attribute_findings": parts}));
                 }
             }
+            Sample::InstrumentationScope(scope) => {
+                let findings = extract_findings(&scope.live_check_result);
+                let attr_findings = extract_attr_findings(&scope.attributes);
+                if !findings.is_empty() || !attr_findings.is_empty() {
+                    out.push(json!({
+                        "name": scope.name,
+                        "type": "instrumentation_scope",
+                        "findings": findings,
+                        "attribute_findings": attr_findings,
+                    }));
+                }
+            }
             Sample::Metric(m) => {
                 let findings = extract_findings(&m.live_check_result);
                 if !findings.is_empty() {

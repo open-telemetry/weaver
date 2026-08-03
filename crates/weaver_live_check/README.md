@@ -153,6 +153,10 @@ make_finding(id, level, context, message) := {
 
 `input.sample` contains the sample entity for assessment wrapped in a type e.g. `input.sample.attribute` or `input.sample.span`.
 
+`input.resource` contains the resource associated with the signal being assessed, or `null` when no resource is available.
+
+`input.instrumentation_scope` contains the instrumentation scope associated with the signal being assessed, or `null` when no scope is available. When present, it includes `name`, `version`, `schema_url`, `attributes`, and `dropped_attributes_count`.
+
 `input.registry_attribute`, when present, contains the matching attribute definition from the supplied registry.
 
 `input.registry_group`, when present, contains the matching group definition from the supplied registry.

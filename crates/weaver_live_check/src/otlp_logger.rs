@@ -293,6 +293,7 @@ mod tests {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }
@@ -305,6 +306,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Gauge),
             unit: "ms".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }

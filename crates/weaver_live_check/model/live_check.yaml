@@ -192,6 +192,10 @@ attributes:
           value: "resource"
           brief: "A resource describing the telemetry source"
           stability: development
+        - id: instrumentation_scope
+          value: "instrumentation_scope"
+          brief: "An instrumentation scope that produced telemetry signals"
+          stability: development
         - id: metric
           value: "metric"
           brief: "A metric measurement"

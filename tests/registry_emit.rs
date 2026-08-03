@@ -129,9 +129,11 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .as_f64()
         .expect("Failed to get registry_coverage as f64");
 
-    assert_eq!(no_advice_count, 59);
+    // The emitted traces, metrics, and logs each add one instrumentation-scope
+    // carrier, and all three complete without advice.
+    assert_eq!(no_advice_count, 62);
     assert_eq!(total_advisories, 14);
-    assert_eq!(total_entities, 73);
+    assert_eq!(total_entities, 76);
     assert!(registry_coverage > 0.7);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope

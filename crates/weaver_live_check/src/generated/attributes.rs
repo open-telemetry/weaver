@@ -173,6 +173,8 @@ pub enum SampleType {
     SpanLink,
     /// A resource describing the telemetry source
     Resource,
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope,
     /// A metric measurement
     Metric,
     /// A numeric data point within a metric
