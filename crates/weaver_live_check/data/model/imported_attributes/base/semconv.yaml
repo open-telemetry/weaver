@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=../../../../../../schemas/semconv.schema.v2.json
+#
+# Everything the OTLP live-check tests need is defined here, in `base`. The
+# sibling `main` registry defines nothing and imports from this one, so the same
+# telemetry can be checked against a registry that owns the definitions and one
+# that only imports them.
+#
+# Attribute keys are namespaced `acme.*` so they cannot collide with real
+# semantic conventions.
+file_format: definition/2
+
+attributes:
+  # Reaches telemetry as a resource attribute, via the `acme.service` entity.
+  - key: acme.service.name
+    type: string
+    stability: stable
+    brief: Logical name of the service.
+    examples: ["shoppingcart"]
+
+  # Reaches telemetry as an instrumentation scope attribute. Declared on no
+  # signal, so it is also the probe for "attribute the matched signal does not
+  # declare". Importable only through the `acme.scope` attribute group below.
+  - key: acme.scope.env
+    type: string
+    stability: stable
+    brief: Deployment environment of the instrumentation scope.
+    examples: ["test"]
+
+  # Plain attribute carried by every signal.
+  - key: acme.host.id
+    type: string
+    stability: stable
+    brief: Unique host ID.
+    examples: ["abc123"]
+
+  # Stable here, but refined to `development` by `acme.uptime` only. A signal's
+  # refinement applies to that signal alone, so telemetry carrying this
+  # attribute on `acme.uptime` should draw a `not_stable` finding while the same
+  # key on `acme.request.done` should not.
+  - key: acme.legacy.id
+    type: string
+    stability: stable
+    brief: Legacy identifier.
+    examples: ["L-1"]
+
+attribute_groups:
+  - id: acme.scope
+    visibility: public
+    brief: Attributes describing an instrumentation scope.
+    stability: stable
+    attributes:
+      - ref: acme.scope.env
+
+entities:
+  - type: acme.service
+    brief: A service instance.
+    stability: stable
+    requirement_level: recommended
+    identity:
+      - ref: acme.service.name
+
+metrics:
+  - name: acme.uptime
+    brief: Uptime of the service.
+    instrument: gauge
+    unit: "s"
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.host.id
+      - ref: acme.legacy.id
+        # Refined for this signal only: stable -> development.
+        stability: development
+    entity_associations:
+      - acme.service
+
+events:
+  - name: acme.request.done
+    brief: A request completed.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.host.id
+      # Deliberately unrefined: the control for the refinement above.
+      - ref: acme.legacy.id
+
+spans:
+  - type: acme.operation
+    kind: internal
+    brief: An internal operation.
+    stability: stable
+    requirement_level: recommended
+    name:
+      note: "{acme.host.id}"
+    attributes:
+      - ref: acme.host.id
