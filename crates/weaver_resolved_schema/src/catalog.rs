@@ -24,7 +24,21 @@ pub struct Catalog {
     /// Attribute definitions available in this registry (including those
     /// from dependencies). Used for cross-registry attribute lookup.
     /// Not serialized — populated only for freshly resolved schemas.
-    root_attributes: HashMap<String, (Attribute, String)>,
+    root_attributes: HashMap<String, RootAttribute>,
+}
+
+/// What is known about an attribute key beyond the individual, possibly
+/// refined, copies held in the catalog.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RootAttribute {
+    /// The attribute.
+    pub attribute: Attribute,
+    /// The group, or dependency, the attribute came from.
+    pub source_group: String,
+    /// Whether this is a definition a reference may resolve against. Attributes
+    /// inherited through a refinement are recorded here for their provenance,
+    /// but they are instances of a definition owned elsewhere, not definitions.
+    pub is_definition: bool,
 }
 
 /// Statistics on a catalog.
@@ -47,7 +61,7 @@ impl Catalog {
     /// Creates a catalog from a list of attributes and root attribute definitions.
     pub fn new(
         attributes: Vec<Attribute>,
-        root_attributes: HashMap<String, (Attribute, String)>,
+        root_attributes: HashMap<String, RootAttribute>,
     ) -> Self {
         Self {
             attributes,
@@ -55,12 +69,24 @@ impl Catalog {
         }
     }
 
-    /// Looks up an attribute by name in the root attribute definitions.
+    /// Looks up an attribute by name, whether or not this registry defines it.
+    /// Use this to answer "where did this attribute come from"; use
+    /// [`Catalog::root_attribute_definition`] to resolve a reference.
     #[must_use]
     pub fn root_attribute(&self, name: &str) -> Option<(&Attribute, &str)> {
         self.root_attributes
             .get(name)
-            .map(|(attr, group_id)| (attr, group_id.as_str()))
+            .map(|root| (&root.attribute, root.source_group.as_str()))
+    }
+
+    /// Looks up the definition of an attribute, ignoring attributes that merely
+    /// passed through this registry as part of a refinement.
+    #[must_use]
+    pub fn root_attribute_definition(&self, name: &str) -> Option<(&Attribute, &str)> {
+        self.root_attributes
+            .get(name)
+            .filter(|root| root.is_definition)
+            .map(|root| (&root.attribute, root.source_group.as_str()))
     }
 
     /// Counts the number of attributes in the catalog.
@@ -145,7 +171,7 @@ pub mod test_utils {
     #[derive(Default)]
     pub struct CatalogBuilder {
         attributes: Vec<Attribute>,
-        root_attributes: HashMap<String, (Attribute, String)>,
+        root_attributes: HashMap<String, RootAttribute>,
     }
 
     impl CatalogBuilder {
@@ -164,9 +190,14 @@ pub mod test_utils {
         /// is also registered as a root definition for cross-registry lookup.
         pub fn add(&mut self, attr: Attribute, group_id: Option<&str>) -> AttributeRef {
             if let Some(gid) = group_id {
-                let _ = self
-                    .root_attributes
-                    .insert(attr.name.clone(), (attr.clone(), gid.to_owned()));
+                let _ = self.root_attributes.insert(
+                    attr.name.clone(),
+                    RootAttribute {
+                        attribute: attr.clone(),
+                        source_group: gid.to_owned(),
+                        is_definition: true,
+                    },
+                );
             }
             let idx = self.attributes.len();
             self.attributes.push(attr);
