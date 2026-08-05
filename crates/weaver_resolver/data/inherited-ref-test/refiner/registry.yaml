@@ -1,0 +1,5 @@
+file_format: definition/2
+metric_refinements:
+  - id: refiner.refined
+    ref: base.metric
+    brief: Refined base metric

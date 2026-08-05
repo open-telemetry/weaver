@@ -4,3 +4,12 @@ attributes:
     type: string
     brief: Defined by base.
     stability: stable
+metrics:
+  - name: base.metric
+    brief: Metric defined by base.
+    instrument: counter
+    unit: "1"
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: base.attr
