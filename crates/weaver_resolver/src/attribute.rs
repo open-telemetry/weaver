@@ -283,6 +283,7 @@ impl AttributeCatalog {
         group_prefix: &str,
         group_excluded: bool,
         attr: &AttributeSpec,
+        origin: Option<&SchemaUrl>,
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
         cache_lookup: &C,
@@ -449,15 +450,23 @@ impl AttributeCatalog {
                     role: role.clone(),
                 };
 
-                _ = self.root_attributes.insert(
-                    id.to_owned(),
-                    AttributeWithSource {
-                        attribute: attr.clone(),
-                        source: AttributeSource::Local {
-                            group_id: group_id.to_owned(),
-                        },
+                let source = match origin {
+                    Some(schema_url) => AttributeSource::Dependency {
+                        schema_url: schema_url.clone(),
                     },
-                );
+                    None => AttributeSource::Local {
+                        group_id: group_id.to_owned(),
+                    },
+                };
+                let root_attr = AttributeWithSource {
+                    attribute: attr.clone(),
+                    source,
+                };
+                let root_attr = match self.root_attributes.get(id) {
+                    Some(existing) => resolve_conflict(id, root_attr, existing.clone())?,
+                    None => root_attr,
+                };
+                _ = self.root_attributes.insert(id.to_owned(), root_attr);
                 Ok(Some(self.attribute_ref(attr)))
             }
         }
