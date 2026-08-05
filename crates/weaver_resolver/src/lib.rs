@@ -956,6 +956,22 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
     }
 
+    /// Refinements over two dependencies, where the attributes of one of them
+    /// are defined a level deeper. Provenance must name the registry that
+    /// defines an attribute, not the one it was reached through.
+    #[test]
+    fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// Refinement over a v1 dependency: attributes defined by the dependency
+    /// and attributes it inherited from its own dependency must be attributed
+    /// to different registries.
+    #[test]
+    fn test_v1_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/v1_dep_registry")
+    }
+
     /// Can't demote an identity attribute of a base entity.
     #[test]
     fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
