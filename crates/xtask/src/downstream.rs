@@ -78,6 +78,17 @@ impl Repo {
     }
 }
 
+/// Quotes a value for `sh -c`; checkout and `WEAVER_BIN` paths may contain spaces.
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', r#"'\''"#))
+}
+
+/// Collapses a value to a single line so it cannot break an annotation or a
+/// markdown table row. Check details carry multi-line anyhow errors.
+fn one_line(value: &str) -> String {
+    value.replace(['\r', '\n'], " ").replace('|', "\\|")
+}
+
 /// Strips the scheme and the `.git` suffix so URLs can be compared.
 fn normalize_url(url: &str) -> String {
     url.trim_start_matches("https://")
@@ -240,7 +251,7 @@ pub fn run(repos: Vec<String>) -> anyhow::Result<()> {
         };
 
         for check in &selection.repo.checks {
-            let command = check.run.replace("{weaver}", &weaver);
+            let command = check.run.replace("{weaver}", &shell_quote(&weaver));
             outcomes.push(run_check(
                 selection,
                 check,
@@ -416,8 +427,9 @@ fn run_check(
         eprintln!("!!! [{title}] {} ({detail})", status.label());
         if std::env::var("GITHUB_ACTIONS").is_ok() {
             println!(
-                "::error title={title}::{} ({detail}) - see the '{title}' group above",
-                status.label()
+                "::error title={title}::{} ({}) - see the '{title}' group above",
+                status.label(),
+                one_line(&detail)
             );
         }
     }
@@ -504,7 +516,13 @@ fn write_step_summary(outcomes: &[Outcome]) {
     let mut md = String::from("| | Repo | Check | Detail |\n|---|---|---|---|\n");
     for o in outcomes {
         let icon = if o.status == Status::Ok { "✅" } else { "❌" };
-        let _ = writeln!(md, "| {icon} | {} | {} | {} |", o.repo, o.check, o.detail);
+        let _ = writeln!(
+            md,
+            "| {icon} | {} | {} | {} |",
+            o.repo,
+            o.check,
+            one_line(&o.detail)
+        );
     }
     if let Err(e) = std::fs::OpenOptions::new()
         .append(true)

@@ -98,10 +98,12 @@ repos:
             --format json --output http >"$state/weaver.log" 2>&1 &
           pid=$!
           trap 'kill $pid 2>/dev/null || true; cat "$state/weaver.log" || true' EXIT
+          ready=""
           for _ in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:4320/health >/dev/null 2>&1; then break; fi
+            if curl -fsS http://127.0.0.1:4320/health >/dev/null 2>&1; then ready=1; break; fi
             sleep 1
           done
+          if [ -z "$ready" ]; then echo "live-check never became healthy"; exit 1; fi
           OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 cargo run -- "Hello, World!"
           curl -fsS -X POST http://127.0.0.1:4320/stop -o "$state/report.json"
           python3 -c 'import json,sys
