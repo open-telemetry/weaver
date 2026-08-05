@@ -252,8 +252,8 @@ impl SpanAttributeRef {
             requirement_level: self.base.requirement_level,
             sampling_relevant: self.sampling_relevant,
             note: self.base.note,
-            stability: self.base.stability,
-            deprecated: self.base.deprecated,
+            stability: None,
+            deprecated: None,
             prefix: false,
             annotations: if self.base.annotations.is_empty() {
                 None
