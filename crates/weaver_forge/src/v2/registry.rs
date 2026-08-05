@@ -3,10 +3,12 @@
 use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_common::result::WResult;
 use weaver_resolved_schema::{
     attribute::AttributeRef,
     v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
 };
+use weaver_resolver::SchemaResolver;
 use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
@@ -20,6 +22,16 @@ use crate::{
         span::{Span, SpanAttribute, SpanRefinement},
     },
 };
+
+/// A dependency of a resolved semantic convention registry in forge.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Dependency {
+    /// The schema URL of the dependency.
+    pub schema_url: SchemaUrl,
+    /// The forge resolved registry of the dependency.
+    pub schema: ForgeResolvedRegistry,
+}
 
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
@@ -35,6 +47,9 @@ pub struct ForgeResolvedRegistry {
     pub registry: Registry,
     /// The set of refinments defined in this registry.
     pub refinements: Refinements,
+    /// The resolved dependencies of this registry.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependencies: Vec<Dependency>,
 }
 
 /// The set of all defined signals for a given semantic convention registry.
@@ -73,21 +88,15 @@ pub struct Refinements {
     pub entities: Vec<EntityRefinement>,
 }
 
-/// Conversion from Resolved schema to the "template schema".
-impl TryFrom<weaver_resolved_schema::v2::ResolvedTelemetrySchema> for ForgeResolvedRegistry {
-    type Error = Error;
-    fn try_from(
-        value: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
-    ) -> Result<Self, Self::Error> {
-        ForgeResolvedRegistry::try_from_resolved_schema(value)
-    }
-}
-
 impl ForgeResolvedRegistry {
-    /// Create a new template registry from a resolved schema registry.
-    pub fn try_from_resolved_schema(
+    /// Create a new template registry from a resolved schema registry, resolving
+    /// all dependencies via the provided schema resolver.
+    ///
+    /// Note: Dependencies SHOULD be in cache, following normal resolution.
+    pub fn try_from_resolved_schema<R: SchemaResolver>(
         schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
-    ) -> Result<Self, Error> {
+        resolver: &mut R,
+    ) -> WResult<Self, Error> {
         let mut errors = Vec::new();
 
         let deps_list: Vec<_> = schema.dependencies.iter().cloned().collect();
@@ -461,10 +470,49 @@ impl ForgeResolvedRegistry {
         attributes.sort_by(|l, r| l.key.cmp(&r.key));
 
         if !errors.is_empty() {
-            return Err(Error::CompoundError(errors));
+            return WResult::FatalErr(Error::CompoundError(errors));
         }
 
-        Ok(Self {
+        let mut non_fatal_errors = Vec::new();
+        let mut dependencies = Vec::new();
+        for dep_url in &schema.dependencies {
+            let (resolved_bundle, dep_nfes) = match resolver.resolve_schema(dep_url) {
+                WResult::Ok(bundle) => (bundle, vec![]),
+                WResult::OkWithNFEs(bundle, nfes) => (bundle, nfes),
+                WResult::FatalErr(e) => return WResult::FatalErr(e.into()),
+            };
+
+            for nfe in dep_nfes {
+                non_fatal_errors.push(Error::from(nfe));
+            }
+
+            let dep_v2_schema = match &*resolved_bundle {
+                weaver_resolver::WeaverResolvedSchema::V2(v2) => v2.clone(),
+                weaver_resolver::WeaverResolvedSchema::V1(v1) => {
+                    match weaver_resolved_schema::v2::ResolvedTelemetrySchema::try_from(v1.clone())
+                    {
+                        Ok(v2) => v2,
+                        Err(e) => return WResult::FatalErr(Error::from(e)),
+                    }
+                }
+            };
+
+            let dep_forge = match Self::try_from_resolved_schema(dep_v2_schema, resolver) {
+                WResult::Ok(forge) => forge,
+                WResult::OkWithNFEs(forge, nfes) => {
+                    non_fatal_errors.extend(nfes);
+                    forge
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            };
+
+            dependencies.push(Dependency {
+                schema_url: dep_url.clone(),
+                schema: dep_forge,
+            });
+        }
+
+        let forge_registry = Self {
             schema_url: schema.schema_url.clone(),
             registry: Registry {
                 attributes,
@@ -480,7 +528,14 @@ impl ForgeResolvedRegistry {
                 events: event_refinements,
                 entities: entity_refinements,
             },
-        })
+            dependencies,
+        };
+
+        if non_fatal_errors.is_empty() {
+            WResult::Ok(forge_registry)
+        } else {
+            WResult::OkWithNFEs(forge_registry, non_fatal_errors)
+        }
     }
 }
 
@@ -497,6 +552,27 @@ mod tests {
     };
 
     use super::*;
+
+    struct MockSchemaResolver {
+        schemas: std::collections::HashMap<
+            SchemaUrl,
+            std::sync::Arc<weaver_resolver::WeaverResolvedSchema>,
+        >,
+    }
+
+    impl SchemaResolver for MockSchemaResolver {
+        fn resolve_schema(
+            &mut self,
+            schema_url: &SchemaUrl,
+        ) -> WResult<std::sync::Arc<weaver_resolver::WeaverResolvedSchema>, weaver_resolver::Error>
+        {
+            if let Some(s) = self.schemas.get(schema_url) {
+                WResult::Ok(s.clone())
+            } else {
+                WResult::FatalErr(weaver_resolver::Error::FailToResolveSchemaUrl {})
+            }
+        }
+    }
 
     #[test]
     fn test_try_from_resolved_schema() {
@@ -651,8 +727,49 @@ mod tests {
             },
         };
 
-        let forge_registry =
-            ForgeResolvedRegistry::try_from(resolved_schema).expect("Conversion failed");
+        let dep_url: SchemaUrl = "https://example.com/dependency".try_into().unwrap();
+        let dep_resolved_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: dep_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: std::collections::BTreeSet::new(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = MockSchemaResolver {
+            schemas: std::collections::HashMap::from([(
+                dep_url.clone(),
+                std::sync::Arc::new(weaver_resolver::WeaverResolvedSchema::V2(
+                    dep_resolved_schema,
+                )),
+            )]),
+        };
+
+        let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
+            resolved_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) => r,
+            WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(forge_registry.dependencies.len(), 1);
+        assert_eq!(forge_registry.dependencies[0].schema_url, dep_url);
+        assert_eq!(forge_registry.dependencies[0].schema.schema_url, dep_url);
 
         assert_eq!(forge_registry.registry.attributes.len(), 1);
         assert_eq!(forge_registry.registry.spans.len(), 1);
@@ -753,10 +870,12 @@ mod tests {
             },
         };
 
-        let result = ForgeResolvedRegistry::try_from(resolved_schema);
-        assert!(result.is_err());
+        let mut resolver = weaver_resolver::NullSchemaResolver;
+        let result =
+            ForgeResolvedRegistry::try_from_resolved_schema(resolved_schema, &mut resolver);
+        assert!(result.is_fatal());
 
-        if let Err(Error::CompoundError(errors)) = result {
+        if let WResult::FatalErr(Error::CompoundError(errors)) = result {
             assert_eq!(errors.len(), 1);
             if let Some(Error::AttributeNotFound { group_id, attr_ref }) = errors.first() {
                 assert_eq!(group_id, "span.my-span");
@@ -765,7 +884,133 @@ mod tests {
                 panic!("Expected AttributeNotFound error");
             }
         } else {
-            panic!("Expected CompoundError");
+            panic!("Expected FatalErr(CompoundError)");
         }
+    }
+
+    #[test]
+    fn test_try_from_resolved_schema_recursive_dependencies_and_serialization() {
+        let dep_b_url: SchemaUrl = "https://example.com/dep-b".try_into().unwrap();
+        let dep_b_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: dep_b_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: std::collections::BTreeSet::new(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let dep_a_url: SchemaUrl = "https://example.com/dep-a".try_into().unwrap();
+        let dep_a_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: dep_a_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: {
+                let mut deps = std::collections::BTreeSet::new();
+                let _ = deps.insert(dep_b_url.clone());
+                deps
+            },
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let root_url: SchemaUrl = "https://example.com/root".try_into().unwrap();
+        let root_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: root_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: {
+                let mut deps = std::collections::BTreeSet::new();
+                let _ = deps.insert(dep_a_url.clone());
+                deps
+            },
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: v2::refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = MockSchemaResolver {
+            schemas: std::collections::HashMap::from([
+                (
+                    dep_a_url.clone(),
+                    std::sync::Arc::new(weaver_resolver::WeaverResolvedSchema::V2(dep_a_schema)),
+                ),
+                (
+                    dep_b_url.clone(),
+                    std::sync::Arc::new(weaver_resolver::WeaverResolvedSchema::V2(dep_b_schema)),
+                ),
+            ]),
+        };
+
+        let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
+            root_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) => r,
+            WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(forge_registry.schema_url, root_url);
+        assert_eq!(forge_registry.dependencies.len(), 1);
+        assert_eq!(forge_registry.dependencies[0].schema_url, dep_a_url);
+        assert_eq!(forge_registry.dependencies[0].schema.schema_url, dep_a_url);
+        assert_eq!(forge_registry.dependencies[0].schema.dependencies.len(), 1);
+        assert_eq!(
+            forge_registry.dependencies[0].schema.dependencies[0].schema_url,
+            dep_b_url
+        );
+        assert_eq!(
+            forge_registry.dependencies[0].schema.dependencies[0]
+                .schema
+                .schema_url,
+            dep_b_url
+        );
+        assert!(forge_registry.dependencies[0].schema.dependencies[0]
+            .schema
+            .dependencies
+            .is_empty());
+
+        // Test serde serialization round-trip
+        let json_val = serde_json::to_value(&forge_registry).expect("Failed to serialize to JSON");
+        assert!(json_val.get("dependencies").is_some());
+        let round_trip: ForgeResolvedRegistry =
+            serde_json::from_value(json_val).expect("Failed to deserialize from JSON");
+        assert_eq!(round_trip, forge_registry);
     }
 }

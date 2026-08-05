@@ -463,7 +463,15 @@ mod tests {
         let output =
             OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?;
         let registry = test_registry();
-        let template_registry = ForgeResolvedRegistry::try_from_resolved_schema(registry.clone())?;
+        let mut null_resolver = weaver_resolver::NullSchemaResolver;
+        let template_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
+            registry.clone(),
+            &mut null_resolver,
+        ) {
+            weaver_common::result::WResult::Ok(r) => r,
+            weaver_common::result::WResult::OkWithNFEs(r, _) => r,
+            weaver_common::result::WResult::FatalErr(e) => return Err(Error::ForgeError(e)),
+        };
         let generator = SnipperGeneratorV2::new(registry, template_registry, output);
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
