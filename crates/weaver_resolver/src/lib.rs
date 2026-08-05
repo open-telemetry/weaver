@@ -992,6 +992,34 @@ mod tests {
         Ok(())
     }
 
+    /// Same as above, but resolving the dependency from source rather than from
+    /// a published artifact. Both forms must refuse the reference - otherwise a
+    /// registry resolves differently depending on how it was delivered.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition_from_source(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/refiner_user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Refinement over a v1 dependency: attributes defined by the dependency
     /// and attributes it inherited from its own dependency must be attributed
     /// to different registries.

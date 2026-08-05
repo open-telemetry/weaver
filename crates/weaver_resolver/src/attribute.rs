@@ -638,7 +638,16 @@ impl AttributeLookup for V1Schema {
             }));
         }
 
-        // Fallback: search in all groups for the attribute
+        // This schema knows the attribute but does not define it - it arrived
+        // through a refinement and belongs to another registry. Scanning the
+        // groups below would find it on the refinement and hand it out as if
+        // this schema defined it.
+        if self.catalog.root_attribute(key).is_some() {
+            return Ok(None);
+        }
+
+        // Fallback for schemas without root attributes, e.g. ones deserialized
+        // from a published artifact: search in all groups for the attribute.
         for group in self.registry.groups.iter() {
             for attr_ref in group.attributes.iter() {
                 if let Some(a) = self.catalog.attribute(attr_ref) {
