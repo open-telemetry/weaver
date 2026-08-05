@@ -4,6 +4,13 @@
   "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registries fully fleshed out and ready for codegen.",
   "type": "object",
   "properties": {
+    "dependencies": {
+      "description": "The resolved dependencies of this registry.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Dependency"
+      }
+    },
     "refinements": {
       "description": "The set of refinments defined in this registry.",
       "$ref": "#/$defs/Refinements"
@@ -266,6 +273,25 @@
           "type": "string",
           "const": "opt_in"
         }
+      ]
+    },
+    "Dependency": {
+      "description": "A dependency of a resolved semantic convention registry in forge.",
+      "type": "object",
+      "properties": {
+        "schema": {
+          "description": "The forge resolved registry of the dependency.",
+          "$ref": "#"
+        },
+        "schema_url": {
+          "description": "The schema URL of the dependency.",
+          "$ref": "#/$defs/SchemaUrl"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema_url",
+        "schema"
       ]
     },
     "Deprecated": {
