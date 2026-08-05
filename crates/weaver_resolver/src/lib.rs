@@ -933,6 +933,34 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
     }
 
+    /// An attribute a dependency inherited rather than defined reaches this
+    /// registry only through the signals that carry it. Refining such a signal
+    /// must not turn the attribute into something a bare `ref` can resolve
+    /// against - that would resolve to the refinement's own copy.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Refinement over a v1 dependency: attributes defined by the dependency
     /// and attributes it inherited from its own dependency must be attributed
     /// to different registries.
@@ -2237,6 +2265,7 @@ groups:
         let orig_aws = AttributeWithSource {
             attribute: attr.clone(),
             source: orig_source.clone(),
+            is_definition: true,
         };
 
         let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;
