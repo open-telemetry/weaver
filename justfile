@@ -8,7 +8,7 @@ install:
     cargo install cargo-check-external-types@0.5.0 --locked
     cargo install git-cliff@2.13.1 --locked
     cargo install cargo-tarpaulin@0.37.0 --locked
-    cargo install cargo-nextest@0.9.140 --locked
+    cargo install cargo-nextest@0.9.143 --locked
     cargo install typos-cli@1.48.0 --locked
 
 pre-push-check:
