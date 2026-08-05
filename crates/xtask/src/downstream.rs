@@ -380,6 +380,7 @@ fn run_check(
         .stderr(Stdio::inherit());
     // Own process group, so a timeout can take the whole check down: several of
     // them background a long-running weaver that would outlive the `sh` alone.
+    #[cfg(unix)]
     let _ = std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
 
     if let Some(bin) = weaver_bin {
@@ -442,7 +443,7 @@ fn wait_with_timeout(
         }
         if Instant::now() >= deadline {
             eprintln!("!!! timed out, killing the check");
-            kill_group(child.id());
+            kill_check(&mut child);
             let _ = child.wait();
             return Ok(None);
         }
@@ -451,14 +452,22 @@ fn wait_with_timeout(
 }
 
 /// Signals the whole process group of a check, so anything it spawned dies too.
-#[cfg(not(tarpaulin_include))]
-fn kill_group(pid: u32) {
+#[cfg(all(unix, not(tarpaulin_include)))]
+fn kill_check(child: &mut Child) {
+    let pid = child.id();
     for signal in ["-TERM", "-KILL"] {
         let _ = Command::new("kill")
             .args([signal, &format!("-{pid}")])
             .status();
         std::thread::sleep(POLL_INTERVAL);
     }
+}
+
+/// The checks are `sh` commands, so this task only really runs on unix; keep it
+/// compiling elsewhere by killing just the child we spawned.
+#[cfg(all(not(unix), not(tarpaulin_include)))]
+fn kill_check(child: &mut Child) {
+    let _ = child.kill();
 }
 
 /// Prints the summary and fails if any check did not pass.
