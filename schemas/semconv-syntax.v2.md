@@ -241,8 +241,8 @@ You can refine the following properties of the attribute (for the scope of the s
 - `note`
 - `examples`
 - `annotations`
-- `stability` can be changed from stable to unstable, but not the other way around
-- `deprecated` can be changed from not-deprecated to deprecated, but not the other way around
+
+`stability` and `deprecated` cannot be refined - they always come from the attribute definition.
 
 The following properties can be defined on the attribute references only:
 

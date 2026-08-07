@@ -275,17 +275,6 @@
             "null"
           ]
         },
-        "deprecated": {
-          "description": "Specifies if the attribute is deprecated for this signal.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Deprecated"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "examples": {
           "description": "Refined sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
           "anyOf": [
@@ -313,17 +302,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/RequirementLevel"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "stability": {
-          "description": "Refines the stability of the attribute.\nThis denotes whether an attribute is stable for a specific\nsignal.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stability"
             },
             {
               "type": "null"
@@ -1468,17 +1446,6 @@
             "null"
           ]
         },
-        "deprecated": {
-          "description": "Specifies if the attribute is deprecated for this signal.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Deprecated"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "examples": {
           "description": "Refined sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
           "anyOf": [
@@ -1517,17 +1484,6 @@
           "type": [
             "boolean",
             "null"
-          ]
-        },
-        "stability": {
-          "description": "Refines the stability of the attribute.\nThis denotes whether an attribute is stable for a specific\nsignal.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stability"
-            },
-            {
-              "type": "null"
-            }
           ]
         }
       },
