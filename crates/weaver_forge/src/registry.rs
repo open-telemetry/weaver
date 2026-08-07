@@ -194,6 +194,11 @@ impl ResolvedGroup {
 
 impl ResolvedRegistry {
     /// Create a new template registry from a resolved registry.
+    ///
+    /// V2 refinements are dropped: v1 has no notion of a refinement, and one resolves
+    /// into an extra group carrying the same signal name as the signal it refines, so
+    /// consumers selecting groups by type see it as a duplicate signal. Consumers that
+    /// need refinements use the v2 registry, where they are modelled explicitly.
     pub fn try_from_resolved_registry(
         registry: &Registry,
         catalog: &Catalog,
@@ -203,6 +208,7 @@ impl ResolvedRegistry {
         let groups = registry
             .groups
             .iter()
+            .filter(|group| !group.is_v2_refinement())
             .map(|group| {
                 let id = group.id.clone();
                 let group_type = group.r#type.clone();
@@ -272,8 +278,11 @@ mod tests {
     use schemars::schema_for;
     use serde_json::to_string_pretty;
     use weaver_resolved_schema::catalog::Catalog;
+    use weaver_resolved_schema::lineage::GroupLineage;
     use weaver_resolved_schema::registry::{Group, Registry};
     use weaver_semconv::group::GroupType;
+    use weaver_semconv::provenance::Provenance;
+    use weaver_semconv::schema_url::SchemaUrl;
 
     #[test]
     fn test_json_schema_gen() {
@@ -387,5 +396,57 @@ mod tests {
         let resolved2 = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
             .expect("Failed to create resolved registry");
         assert_eq!(resolved.groups, resolved2.groups);
+    }
+
+    #[test]
+    fn test_v2_refinements_excluded_from_v1_output() {
+        fn metric_group(id: &str, is_v2: bool, extends: Option<&str>) -> Group {
+            let mut lineage = GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), ""));
+            if let Some(extends) = extends {
+                lineage.extends(extends, GroupType::Metric);
+            }
+            Group {
+                id: id.to_owned(),
+                r#type: GroupType::Metric,
+                brief: String::new(),
+                note: String::new(),
+                prefix: String::new(),
+                extends: extends.map(str::to_owned),
+                stability: None,
+                deprecated: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: Some("hw.errors".to_owned()),
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                name: None,
+                lineage: Some(lineage),
+                display_name: None,
+                body: None,
+                entity_associations: vec![],
+                annotations: None,
+                visibility: None,
+                is_v2,
+                span_name: None,
+            }
+        }
+
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            groups: vec![
+                metric_group("metric.hw.errors", true, None),
+                metric_group("hw.errors.host", true, Some("metric.hw.errors")),
+                // A v1 group that extends another one is not a refinement.
+                metric_group("v1.derived.metric", false, Some("metric.hw.errors")),
+            ],
+        };
+        let catalog = Catalog::default();
+
+        let resolved = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect("Failed to create resolved registry");
+        let ids: Vec<_> = resolved.groups.iter().map(|g| g.id.as_str()).collect();
+        assert_eq!(ids, vec!["metric.hw.errors", "v1.derived.metric"]);
     }
 }
