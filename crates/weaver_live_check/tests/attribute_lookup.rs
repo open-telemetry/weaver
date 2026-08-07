@@ -377,11 +377,18 @@ fn finding_ids(report: &Value) -> Vec<String> {
     findings(report).into_iter().map(|(id, _, _)| id).collect()
 }
 
-/// Asserts no `missing_attribute` finding anywhere, printing the offenders.
-fn assert_no_missing_attribute(report: &Value, context: &str) {
+/// Asserts no `missing_attribute` finding, printing the offenders.
+///
+/// `sample_kind` scopes the assertion to attributes carried by that kind of
+/// sample; `None` covers the whole report. One session's telemetry carries
+/// attributes on several carriers at once — a resource, a scope and a signal —
+/// so a test about one of them must not be reddened by another.
+fn assert_no_missing_attribute(report: &Value, sample_kind: Option<&str>, context: &str) {
     let missing: Vec<_> = findings(report)
         .into_iter()
-        .filter(|(id, _, _)| id == "missing_attribute")
+        .filter(|(id, _, sample)| {
+            id == "missing_attribute" && sample_kind.is_none_or(|kind| sample == kind)
+        })
         .collect();
     assert!(
         missing.is_empty(),
@@ -401,7 +408,11 @@ fn assert_no_missing_attribute(report: &Value, context: &str) {
 #[serial]
 async fn resource_attribute_from_dependency_is_not_missing() {
     let (report, _) = run_session(IMPORTING_REGISTRY, emit_resource_and_scope).await;
-    assert_no_missing_attribute(&report, "resource attribute `acme.service.name`");
+    assert_no_missing_attribute(
+        &report,
+        Some("resource"),
+        "resource attribute `acme.service.name`",
+    );
 }
 
 /// Instrumentation scope attributes take the same untyped path (added by #1605).
@@ -419,7 +430,11 @@ async fn instrumentation_scope_attribute_from_dependency_is_not_missing() {
         .unwrap_or_else(|| panic!("no instrumentation_scope sample in:\n{report:#}"));
     assert_eq!(scope_sample["instrumentation_scope"]["name"], SCOPE_NAME);
 
-    assert_no_missing_attribute(&report, "scope attribute `acme.scope.env`");
+    assert_no_missing_attribute(
+        &report,
+        Some("instrumentation_scope"),
+        "scope attribute `acme.scope.env`",
+    );
 }
 
 /// A log with no `event_name` is explicitly allowed and cannot be matched, but
@@ -434,7 +449,11 @@ async fn log_without_event_name_still_gets_attribute_advice() {
         !ids.contains(&"missing_event".to_owned()),
         "an empty event_name is not a missing event: {ids:?}"
     );
-    assert_no_missing_attribute(&report, "attribute on a log with no event_name");
+    assert_no_missing_attribute(
+        &report,
+        Some("log"),
+        "attribute on a log with no event_name",
+    );
 }
 
 /// Spans are never matched to a registry definition, so span attributes are an
@@ -444,11 +463,11 @@ async fn log_without_event_name_still_gets_attribute_advice() {
 #[serial]
 async fn span_attributes_from_dependency_are_not_missing() {
     let (report, _) = run_session(IMPORTING_REGISTRY, emit_resource_and_scope).await;
-    assert_no_missing_attribute(&report, "span attribute `acme.host.id`");
+    assert_no_missing_attribute(&report, Some("span"), "span attribute `acme.host.id`");
 }
 
-/// Matched signals resolve their attributes by key as well, so importing breaks
-/// them too.
+/// A matched signal carries the definition of every attribute it declares, so
+/// reaching those attributes through an import must make no difference.
 #[tokio::test]
 #[cfg_attr(tarpaulin, ignore)]
 #[serial]
@@ -456,12 +475,14 @@ async fn matched_signal_attributes_from_dependency_are_not_missing() {
     let (metric_report, _) = run_session(IMPORTING_REGISTRY, emit_matched_metric).await;
     assert_no_missing_attribute(
         &metric_report,
+        Some("metric"),
         "attributes of the matched metric `acme.uptime`",
     );
 
     let (event_report, _) = run_session(IMPORTING_REGISTRY, emit_matched_event).await;
     assert_no_missing_attribute(
         &event_report,
+        Some("log"),
         "attributes of the matched event `acme.request.done`",
     );
 }
@@ -520,7 +541,11 @@ async fn unmatched_signal_still_gets_attribute_advice() {
         ids.contains(&"missing_metric".to_owned()),
         "an unknown metric name must still be reported: {ids:?}"
     );
-    assert_no_missing_attribute(&report, "attribute carried by an unmatched metric");
+    assert_no_missing_attribute(
+        &report,
+        Some("metric"),
+        "attribute carried by an unmatched metric",
+    );
 }
 
 /// An attribute the registry defines but the matched signal does not declare is
@@ -532,6 +557,7 @@ async fn attribute_not_declared_on_the_matched_signal_still_gets_advice() {
     let (report, _) = run_session(IMPORTING_REGISTRY, emit_metric_with_undeclared_attribute).await;
     assert_no_missing_attribute(
         &report,
+        Some("metric"),
         "`acme.scope.env` is defined by the registry though `acme.uptime` does not declare it",
     );
 }
@@ -585,5 +611,9 @@ async fn unrefined_attribute_on_another_signal_stays_stable() {
 #[serial]
 async fn locally_defined_attributes_are_never_missing() {
     let (report, _) = run_session(DEFINING_REGISTRY, emit_resource_and_scope).await;
-    assert_no_missing_attribute(&report, "attributes defined by the registry under check");
+    assert_no_missing_attribute(
+        &report,
+        None,
+        "attributes defined by the registry under check",
+    );
 }

@@ -217,6 +217,37 @@ impl VersionedSignal {
             VersionedSignal::Event(_) => None,
         }
     }
+
+    /// Get the definition this signal declares for the attribute `key`.
+    ///
+    /// A signal carries the resolved definition of every attribute it declares,
+    /// including any refinement it applies for itself, so within a matched
+    /// signal this definition is the one that applies.
+    #[must_use]
+    pub fn find_attribute(&self, key: &str) -> Option<VersionedAttribute> {
+        match self {
+            VersionedSignal::Group(group) => group
+                .attributes
+                .iter()
+                .find(|attribute| attribute.name == key)
+                .map(|attribute| VersionedAttribute::V1(attribute.clone())),
+            VersionedSignal::Metric(metric) => metric
+                .attributes
+                .iter()
+                .find(|attribute| attribute.base.key == key)
+                .map(|attribute| VersionedAttribute::V2(attribute.base.clone())),
+            VersionedSignal::Span(span) => span
+                .attributes
+                .iter()
+                .find(|attribute| attribute.base.key == key)
+                .map(|attribute| VersionedAttribute::V2(attribute.base.clone())),
+            VersionedSignal::Event(event) => event
+                .attributes
+                .iter()
+                .find(|attribute| attribute.base.key == key)
+                .map(|attribute| VersionedAttribute::V2(attribute.base.clone())),
+        }
+    }
 }
 
 /// Versioned enum for an entity definition
