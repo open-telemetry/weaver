@@ -1,0 +1,5 @@
+description: Uses `base.attr` on a metric without defining it.
+schema_url: https://middle.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://base.example.com/schemas/1.0.0
+    registry_path: data/inherited-ref-test/base

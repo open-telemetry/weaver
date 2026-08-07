@@ -925,6 +925,78 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
     }
 
+    /// Refinements over two dependencies, where the attributes of one of them
+    /// are defined a level deeper. Provenance must name the registry that
+    /// defines an attribute, not the one it was reached through.
+    #[test]
+    fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// An attribute a dependency inherited rather than defined reaches this
+    /// registry only through the signals that carry it. Refining such a signal
+    /// must not turn the attribute into something a bare `ref` can resolve
+    /// against - that would resolve to the refinement's own copy.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Same as above, but resolving the dependency from source rather than from
+    /// a published artifact. Both forms must refuse the reference - otherwise a
+    /// registry resolves differently depending on how it was delivered.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition_from_source(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/refiner_user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Refinement over a v1 dependency: attributes defined by the dependency
+    /// and attributes it inherited from its own dependency must be attributed
+    /// to different registries.
+    #[test]
+    fn test_v1_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/v1_dep_registry")
+    }
+
     /// Can't demote an identity attribute of a base entity.
     #[test]
     fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
@@ -2221,6 +2293,7 @@ groups:
         let orig_aws = AttributeWithSource {
             attribute: attr.clone(),
             source: orig_source.clone(),
+            is_definition: true,
         };
 
         let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;
