@@ -655,6 +655,7 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
+                dependencies: vec![],
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -897,6 +898,7 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
+                dependencies: vec![],
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -1101,6 +1103,7 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
+                dependencies: vec![],
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -1668,6 +1671,7 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
+                dependencies: vec![],
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -2266,6 +2270,7 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
+                dependencies: vec![],
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -3137,6 +3142,7 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
+                dependencies: vec![],
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {

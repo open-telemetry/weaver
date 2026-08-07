@@ -146,6 +146,29 @@ impl<'a> WeaverEngine<'a> {
 
         let res_v1 = match resolved_bundle {
             WeaverResolvedSchema::V1(resolved) => {
+                if self.registry_config.v2 {
+                    let v2_resolved: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                        resolved.try_into()?;
+                    let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                        v2_resolved.clone(),
+                        &mut resolver,
+                    ) {
+                        WResult::Ok(t) => t,
+                        WResult::OkWithNFEs(t, nfes) => {
+                            diag_msgs.extend_from_vec(
+                                nfes.into_iter().map(DiagnosticMessage::new).collect(),
+                            );
+                            t
+                        }
+                        WResult::FatalErr(e) => return Err(Error::Forge(e)),
+                    };
+                    return Ok(Resolved::V2(ResolvedV2 {
+                        resolved_schema: v2_resolved,
+                        template_schema: template,
+                        registry_path_repr,
+                        policy_engine,
+                    }));
+                }
                 let template = ResolvedRegistry::try_from_resolved_registry(
                     &resolved.registry,
                     resolved.catalog(),
@@ -161,10 +184,19 @@ impl<'a> WeaverEngine<'a> {
                 if !self.registry_config.v2 {
                     diag_msgs.extend(Error::V2FlagMissingWarning.into());
                 }
-                let template =
-                    weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
-                        resolved.clone(),
-                    )?;
+                let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                    resolved.clone(),
+                    &mut resolver,
+                ) {
+                    WResult::Ok(t) => t,
+                    WResult::OkWithNFEs(t, nfes) => {
+                        diag_msgs.extend_from_vec(
+                            nfes.into_iter().map(DiagnosticMessage::new).collect(),
+                        );
+                        t
+                    }
+                    WResult::FatalErr(e) => return Err(Error::Forge(e)),
+                };
                 return Ok(Resolved::V2(ResolvedV2 {
                     resolved_schema: resolved,
                     template_schema: template,
@@ -174,11 +206,6 @@ impl<'a> WeaverEngine<'a> {
             }
         };
 
-        if self.registry_config.v2 {
-            if let Resolved::V1(v) = res_v1 {
-                return Ok(Resolved::V2(v.try_into()?));
-            }
-        }
         Ok(res_v1)
     }
 }
@@ -432,10 +459,16 @@ impl TryFrom<ResolvedV1> for ResolvedV2 {
     fn try_from(value: ResolvedV1) -> Result<Self, Self::Error> {
         let resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
             value.resolved_schema.try_into()?;
+        let mut null_resolver = weaver_resolver::NullSchemaResolver;
         let template_schema =
-            weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+            match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                 resolved_schema.clone(),
-            )?;
+                &mut null_resolver,
+            ) {
+                WResult::Ok(t) => t,
+                WResult::OkWithNFEs(t, _) => t,
+                WResult::FatalErr(e) => return Err(Error::Forge(e)),
+            };
         Ok(Self {
             resolved_schema,
             template_schema,
