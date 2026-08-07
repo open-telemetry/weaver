@@ -23,16 +23,6 @@ use crate::{
     },
 };
 
-/// A dependency of a resolved semantic convention registry in forge.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct Dependency {
-    /// The schema URL of the dependency.
-    pub schema_url: SchemaUrl,
-    /// The forge resolved registry of the dependency.
-    pub schema: ForgeResolvedRegistry,
-}
-
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
 ///
@@ -49,7 +39,7 @@ pub struct ForgeResolvedRegistry {
     pub refinements: Refinements,
     /// The resolved dependencies of this registry.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub dependencies: Vec<Dependency>,
+    pub dependencies: Vec<ForgeResolvedRegistry>,
 }
 
 /// The set of all defined signals for a given semantic convention registry.
@@ -506,10 +496,7 @@ impl ForgeResolvedRegistry {
                 WResult::FatalErr(e) => return WResult::FatalErr(e),
             };
 
-            dependencies.push(Dependency {
-                schema_url: dep_url.clone(),
-                schema: dep_forge,
-            });
+            dependencies.push(dep_forge);
         }
 
         let forge_registry = Self {
@@ -769,7 +756,6 @@ mod tests {
 
         assert_eq!(forge_registry.dependencies.len(), 1);
         assert_eq!(forge_registry.dependencies[0].schema_url, dep_url);
-        assert_eq!(forge_registry.dependencies[0].schema.schema_url, dep_url);
 
         assert_eq!(forge_registry.registry.attributes.len(), 1);
         assert_eq!(forge_registry.registry.spans.len(), 1);
@@ -989,20 +975,12 @@ mod tests {
         assert_eq!(forge_registry.schema_url, root_url);
         assert_eq!(forge_registry.dependencies.len(), 1);
         assert_eq!(forge_registry.dependencies[0].schema_url, dep_a_url);
-        assert_eq!(forge_registry.dependencies[0].schema.schema_url, dep_a_url);
-        assert_eq!(forge_registry.dependencies[0].schema.dependencies.len(), 1);
+        assert_eq!(forge_registry.dependencies[0].dependencies.len(), 1);
         assert_eq!(
-            forge_registry.dependencies[0].schema.dependencies[0].schema_url,
+            forge_registry.dependencies[0].dependencies[0].schema_url,
             dep_b_url
         );
-        assert_eq!(
-            forge_registry.dependencies[0].schema.dependencies[0]
-                .schema
-                .schema_url,
-            dep_b_url
-        );
-        assert!(forge_registry.dependencies[0].schema.dependencies[0]
-            .schema
+        assert!(forge_registry.dependencies[0].dependencies[0]
             .dependencies
             .is_empty());
 

@@ -8,7 +8,7 @@
       "description": "The resolved dependencies of this registry.",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Dependency"
+        "$ref": "#"
       }
     },
     "refinements": {
@@ -273,25 +273,6 @@
           "type": "string",
           "const": "opt_in"
         }
-      ]
-    },
-    "Dependency": {
-      "description": "A dependency of a resolved semantic convention registry in forge.",
-      "type": "object",
-      "properties": {
-        "schema": {
-          "description": "The forge resolved registry of the dependency.",
-          "$ref": "#"
-        },
-        "schema_url": {
-          "description": "The schema URL of the dependency.",
-          "$ref": "#/$defs/SchemaUrl"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "schema_url",
-        "schema"
       ]
     },
     "Deprecated": {
