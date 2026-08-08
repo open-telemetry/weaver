@@ -278,6 +278,25 @@ fn emit_unmatched_metric_with_template_attribute(endpoint: &str) {
     );
 }
 
+/// A matched metric carrying `acme.header.host`, which the registry defines
+/// exactly and the metric declares only through the `acme.header` template.
+fn emit_matched_metric_with_shadowed_attribute(endpoint: &str) {
+    emit_metric(
+        endpoint,
+        "acme.uptime",
+        &[KeyValue::new("acme.header.host", "example.com")],
+    );
+}
+
+/// The same key on a metric whose name is NOT in the registry.
+fn emit_unmatched_metric_with_shadowed_attribute(endpoint: &str) {
+    emit_metric(
+        endpoint,
+        "acme.uptime.typo",
+        &[KeyValue::new("acme.header.host", "example.com")],
+    );
+}
+
 /// A matched metric carrying an attribute the registry defines but this metric
 /// does not declare.
 fn emit_metric_with_undeclared_attribute(endpoint: &str) {
@@ -735,6 +754,70 @@ async fn template_attribute_on_an_unmatched_signal_stays_stable() {
         "`acme.uptime.typo` matches no signal, so `acme.uptime`'s refinement of the \
          `acme.header` template must not apply. Findings: {:?}",
         findings(&report)
+    );
+}
+
+/// The template that a matched signal declares outranks an exact registry
+/// definition of the same key. A matched signal is the stronger association.
+///
+/// The registry defines `acme.header.host` as an exact key. This key is stable,
+/// and it is not a template. The metric `acme.uptime` declares only the
+/// `acme.header` template, and refines it to `development`. On that metric, the
+/// template wins. The template gives two findings that the exact definition
+/// cannot give: `template_attribute` and `not_stable`.
+///
+/// The second session sends the same key on an unmatched metric. On that
+/// metric, the exact definition wins. This session is the control. The control
+/// proves that the registry really defines `acme.header.host`. Without this
+/// proof, the test says nothing about the order.
+///
+/// A real registry is unlikely to hold both definitions. The OTel registry
+/// policies reject a key whose namespace is an existing attribute. Live-check
+/// must still resolve this key in a known order. The fixture has the full note.
+#[tokio::test]
+#[cfg_attr(tarpaulin, ignore)]
+#[serial]
+async fn matched_signal_template_outranks_an_exact_registry_attribute() {
+    let (matched_report, _) = run_session(
+        DEFINING_REGISTRY,
+        emit_matched_metric_with_shadowed_attribute,
+    )
+    .await;
+    let matched_ids = finding_ids(&matched_report);
+    assert!(
+        matched_ids.contains(&"template_attribute".to_owned()),
+        "on `acme.uptime`, `acme.header.host` must resolve to the `acme.header` template \
+         the metric declares, not to the registry's exact definition. Findings: {:?}",
+        findings(&matched_report)
+    );
+    assert!(
+        matched_ids.contains(&"not_stable".to_owned()),
+        "the template `acme.uptime` declares is refined to development, so its stability \
+         is the one that applies. Findings: {:?}\n\nreport:\n{matched_report:#}",
+        findings(&matched_report)
+    );
+
+    let (unmatched_report, _) = run_session(
+        DEFINING_REGISTRY,
+        emit_unmatched_metric_with_shadowed_attribute,
+    )
+    .await;
+    let unmatched_ids = finding_ids(&unmatched_report);
+    assert_no_missing_attribute(
+        &unmatched_report,
+        Some("metric"),
+        "`acme.header.host` is defined by the registry",
+    );
+    assert!(
+        !unmatched_ids.contains(&"template_attribute".to_owned()),
+        "with no signal matched, the registry's exact definition of `acme.header.host` \
+         must win over the `acme.header` template. Findings: {:?}\n\nreport:\n{unmatched_report:#}",
+        findings(&unmatched_report)
+    );
+    assert!(
+        !unmatched_ids.contains(&"not_stable".to_owned()),
+        "the registry defines `acme.header.host` as stable. Findings: {:?}",
+        findings(&unmatched_report)
     );
 }
 

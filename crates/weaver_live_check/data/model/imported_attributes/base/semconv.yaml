@@ -1,56 +1,76 @@
 # yaml-language-server: $schema=../../../../../../schemas/semconv.schema.v2.json
 #
-# Everything the OTLP live-check tests need is defined here, in `base`. The
-# sibling `main` registry defines nothing and imports from this one, so the same
-# telemetry can be checked against a registry that owns the definitions and one
-# that only imports them.
+# This registry, `base`, defines everything that the OTLP live-check tests
+# need. The sibling registry `main` defines nothing and imports from this one.
+# The tests send the same telemetry to both registries. One registry owns the
+# definitions. The other one only imports them.
 #
-# Attribute keys are namespaced `acme.*` so they cannot collide with real
-# semantic conventions.
+# All attribute keys use the `acme.*` namespace. Then they cannot collide with
+# real semantic conventions.
 file_format: definition/2
 
 attributes:
-  # Reaches telemetry as a resource attribute, via the `acme.service` entity.
+  # This attribute reaches telemetry as a resource attribute, through the
+  # `acme.service` entity.
   - key: acme.service.name
     type: string
     stability: stable
     brief: Logical name of the service.
     examples: ["shoppingcart"]
 
-  # Reaches telemetry as an instrumentation scope attribute. Declared on no
-  # signal, so it is also the probe for "attribute the matched signal does not
-  # declare". Importable only through the `acme.scope` attribute group below.
+  # This attribute reaches telemetry as an instrumentation scope attribute. No
+  # signal declares it. It is therefore also the probe for an attribute that
+  # the matched signal does not declare. The `acme.scope` attribute group is
+  # the only way to import it.
   - key: acme.scope.env
     type: string
     stability: stable
     brief: Deployment environment of the instrumentation scope.
     examples: ["test"]
 
-  # Plain attribute carried by every signal.
+  # Every signal carries this plain attribute.
   - key: acme.host.id
     type: string
     stability: stable
     brief: Unique host ID.
     examples: ["abc123"]
 
-  # Stable here, but refined to `development` by `acme.uptime` only. A signal's
-  # refinement applies to that signal alone, so telemetry carrying this
-  # attribute on `acme.uptime` should draw a `not_stable` finding while the same
-  # key on `acme.request.done` should not.
+  # The registry defines this attribute as stable. Only `acme.uptime` refines
+  # it to `development`. A refinement applies to its own signal alone. This
+  # attribute on `acme.uptime` must draw a `not_stable` finding. The same key
+  # on `acme.request.done` must not.
   - key: acme.legacy.id
     type: string
     stability: stable
     brief: Legacy identifier.
     examples: ["L-1"]
 
-  # The same refinement story as `acme.legacy.id`, but for a template: matched
-  # by key prefix rather than by exact key, and refined to `development` by
-  # `acme.uptime` only.
+  # This template repeats the refinement of `acme.legacy.id`. A template
+  # matches by key prefix, and not by exact key. Only `acme.uptime` refines it
+  # to `development`.
   - key: acme.header
     type: template[string]
     stability: stable
     brief: Captured request header, by header name.
     examples: ["application/json"]
+
+  # This key is also an instance of the `acme.header` template. The registry
+  # defines it as stable, and not as a template. The two definitions give
+  # different advice, so a test can tell which one applies. A matched signal
+  # that declares the template is the stronger association. On that signal,
+  # the template wins.
+  #
+  # A real registry is unlikely to hold both definitions. The OTel registry
+  # policies reject a key whose namespace is an existing attribute.
+  # `weaver registry check` passes here because this fixture does not apply
+  # those policies. Live-check must still resolve this key in a known order.
+  # The test `matched_signal_template_outranks_an_exact_registry_attribute`
+  # records that order.
+  - key: acme.header.host
+    type: string
+    stability: stable
+    brief: Value of the Host header.
+    examples: ["example.com"]
 
 attribute_groups:
   - id: acme.scope
@@ -78,10 +98,10 @@ metrics:
     attributes:
       - ref: acme.host.id
       - ref: acme.legacy.id
-        # Refined for this signal only: stable -> development.
+        # This signal alone refines the stability to development.
         stability: development
       - ref: acme.header
-        # Refined for this signal only: stable -> development.
+        # This signal alone refines the stability to development.
         stability: development
     entity_associations:
       - acme.service
@@ -93,7 +113,8 @@ events:
     requirement_level: recommended
     attributes:
       - ref: acme.host.id
-      # Deliberately unrefined: the control for the refinement above.
+      # This event does not refine the attribute. It is the control for the
+      # refinement in `acme.uptime`.
       - ref: acme.legacy.id
 
 spans:
