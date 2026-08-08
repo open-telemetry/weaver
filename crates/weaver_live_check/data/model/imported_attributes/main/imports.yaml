@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../../../../schemas/semconv.schema.v2.json
+#
+# Every attribute reaches this registry only through an imported signal or
+# attribute group, so `registry.attributes` resolves empty.
+file_format: definition/2
+imports:
+  metrics:
+    - acme.uptime
+  events:
+    - acme.request.done
+  spans:
+    - acme.operation
+  entities:
+    - acme.service
+  attribute_groups:
+    - acme.scope

@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=../../../../../../schemas/semconv.schema.v2.json
+#
+# This registry, `base`, defines everything that the OTLP live-check tests
+# need. The sibling registry `main` defines nothing and imports from this one.
+# The tests send the same telemetry to both registries. One registry owns the
+# definitions. The other one only imports them.
+#
+# All attribute keys use the `acme.*` namespace. Then they cannot collide with
+# real semantic conventions.
+file_format: definition/2
+
+attributes:
+  # This attribute reaches telemetry as a resource attribute, through the
+  # `acme.service` entity.
+  - key: acme.service.name
+    type: string
+    stability: stable
+    brief: Logical name of the service.
+    examples: ["shoppingcart"]
+
+  # This attribute reaches telemetry as an instrumentation scope attribute. No
+  # signal declares it. It is therefore also the probe for an attribute that
+  # the matched signal does not declare. The `acme.scope` attribute group is
+  # the only way to import it.
+  - key: acme.scope.env
+    type: string
+    stability: stable
+    brief: Deployment environment of the instrumentation scope.
+    examples: ["test"]
+
+  # Every signal carries this plain attribute.
+  - key: acme.host.id
+    type: string
+    stability: stable
+    brief: Unique host ID.
+    examples: ["abc123"]
+
+  # The registry defines this attribute as stable. Only `acme.uptime` refines
+  # it to `development`. A refinement applies to its own signal alone. This
+  # attribute on `acme.uptime` must draw a `not_stable` finding. The same key
+  # on `acme.request.done` must not.
+  - key: acme.legacy.id
+    type: string
+    stability: stable
+    brief: Legacy identifier.
+    examples: ["L-1"]
+
+  # This template repeats the refinement of `acme.legacy.id`. A template
+  # matches by key prefix, and not by exact key. Only `acme.uptime` refines it
+  # to `development`.
+  - key: acme.header
+    type: template[string]
+    stability: stable
+    brief: Captured request header, by header name.
+    examples: ["application/json"]
+
+  # This key is also an instance of the `acme.header` template. The registry
+  # defines it as stable, and not as a template. The two definitions give
+  # different advice, so a test can tell which one applies. A matched signal
+  # that declares the template is the stronger association. On that signal,
+  # the template wins.
+  #
+  # A real registry is unlikely to hold both definitions. The OTel registry
+  # policies reject a key whose namespace is an existing attribute.
+  # `weaver registry check` passes here because this fixture does not apply
+  # those policies. Live-check must still resolve this key in a known order.
+  # The test `matched_signal_template_outranks_an_exact_registry_attribute`
+  # records that order.
+  - key: acme.header.host
+    type: string
+    stability: stable
+    brief: Value of the Host header.
+    examples: ["example.com"]
+
+attribute_groups:
+  - id: acme.scope
+    visibility: public
+    brief: Attributes describing an instrumentation scope.
+    stability: stable
+    attributes:
+      - ref: acme.scope.env
+
+entities:
+  - type: acme.service
+    brief: A service instance.
+    stability: stable
+    requirement_level: recommended
+    identity:
+      - ref: acme.service.name
+
+metrics:
+  - name: acme.uptime
+    brief: Uptime of the service.
+    instrument: gauge
+    unit: "s"
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.host.id
+      - ref: acme.legacy.id
+        # This signal alone refines the stability to development.
+        stability: development
+      - ref: acme.header
+        # This signal alone refines the stability to development.
+        stability: development
+    entity_associations:
+      - acme.service
+
+events:
+  - name: acme.request.done
+    brief: A request completed.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.host.id
+      # This event does not refine the attribute. It is the control for the
+      # refinement in `acme.uptime`.
+      - ref: acme.legacy.id
+
+spans:
+  - type: acme.operation
+    kind: internal
+    brief: An internal operation.
+    stability: stable
+    requirement_level: recommended
+    name:
+      note: "{acme.host.id}"
+    attributes:
+      - ref: acme.host.id

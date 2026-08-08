@@ -22,7 +22,7 @@ use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
     registry::{ResolvedGroup, ResolvedRegistry},
-    v2::registry::ForgeResolvedRegistry,
+    v2::{attribute::Attribute as ForgeAttribute, registry::ForgeResolvedRegistry},
 };
 use weaver_semconv::{
     attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
@@ -217,6 +217,88 @@ impl VersionedSignal {
             VersionedSignal::Event(_) => None,
         }
     }
+
+    /// Get the definition this signal declares for the attribute `key`.
+    ///
+    /// A signal carries the resolved definition of every attribute it declares,
+    /// including any refinement it applies for itself, so within a matched
+    /// signal this definition is the one that applies.
+    #[must_use]
+    pub fn find_attribute(&self, key: &str) -> Option<VersionedAttribute> {
+        match self {
+            VersionedSignal::Group(group) => group
+                .attributes
+                .iter()
+                .find(|attribute| attribute.name == key)
+                .map(|attribute| VersionedAttribute::V1(attribute.clone())),
+            VersionedSignal::Metric(metric) => find_v2_attribute(
+                metric.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+            VersionedSignal::Span(span) => {
+                find_v2_attribute(span.attributes.iter().map(|attribute| &attribute.base), key)
+            }
+            VersionedSignal::Event(event) => find_v2_attribute(
+                event.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+        }
+    }
+
+    /// Get the template definition this signal declares that `key` is an
+    /// instance of, longest template first.
+    ///
+    /// The templated counterpart of [`Self::find_attribute`]: a template is
+    /// matched by key prefix, and a signal can refine one for itself just as it
+    /// can refine an ordinary attribute.
+    #[must_use]
+    pub fn find_template(&self, key: &str) -> Option<VersionedAttribute> {
+        match self {
+            VersionedSignal::Group(group) => group
+                .attributes
+                .iter()
+                .filter(|attribute| is_template_for(&attribute.r#type, &attribute.name, key))
+                .max_by_key(|attribute| attribute.name.len())
+                .map(|attribute| VersionedAttribute::V1(attribute.clone())),
+            VersionedSignal::Metric(metric) => find_v2_template(
+                metric.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+            VersionedSignal::Span(span) => {
+                find_v2_template(span.attributes.iter().map(|attribute| &attribute.base), key)
+            }
+            VersionedSignal::Event(event) => find_v2_template(
+                event.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+        }
+    }
+}
+
+/// Whether `key` is an instance of the template declared as `template_key`.
+fn is_template_for(attribute_type: &AttributeType, template_key: &str, key: &str) -> bool {
+    matches!(attribute_type, AttributeType::Template(_)) && key.starts_with(template_key)
+}
+
+/// The declared v2 attribute whose key is exactly `key`.
+fn find_v2_attribute<'a>(
+    mut attributes: impl Iterator<Item = &'a ForgeAttribute>,
+    key: &str,
+) -> Option<VersionedAttribute> {
+    attributes
+        .find(|attribute| attribute.key == key)
+        .map(|attribute| VersionedAttribute::V2(attribute.clone()))
+}
+
+/// The longest declared v2 template that `key` is an instance of.
+fn find_v2_template<'a>(
+    attributes: impl Iterator<Item = &'a ForgeAttribute>,
+    key: &str,
+) -> Option<VersionedAttribute> {
+    attributes
+        .filter(|attribute| is_template_for(&attribute.r#type, &attribute.key, key))
+        .max_by_key(|attribute| attribute.key.len())
+        .map(|attribute| VersionedAttribute::V2(attribute.clone()))
 }
 
 /// Versioned enum for an entity definition

@@ -1,0 +1,4 @@
+# yaml-language-server: $schema=../../../../../../schemas/definition-manifest.v2.json
+name: base
+description: Defines every attribute and signal used by the OTLP live-check tests.
+schema_url: https://example.com/base/1.0.0
