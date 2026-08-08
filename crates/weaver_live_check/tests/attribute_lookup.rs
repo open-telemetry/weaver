@@ -202,6 +202,19 @@ async fn run_session(registry: &str, emit: impl FnOnce(&str) + Send + 'static) -
 
 /// Resource and instrumentation scope only, carried by a single span.
 fn emit_resource_and_scope(endpoint: &str) {
+    emit_span(endpoint, &[KeyValue::new("acme.host.id", "abc123")]);
+}
+
+/// A span — an untyped carrier, never matched to a registry definition —
+/// carrying a key that matches the `acme.header` template.
+fn emit_span_with_template_attribute(endpoint: &str) {
+    emit_span(
+        endpoint,
+        &[KeyValue::new("acme.header.accept", "application/json")],
+    );
+}
+
+fn emit_span(endpoint: &str, attributes: &[KeyValue]) {
     let exporter = SpanExporter::builder()
         .with_tonic()
         .with_endpoint(endpoint)
@@ -215,7 +228,7 @@ fn emit_resource_and_scope(endpoint: &str) {
     let tracer = provider.tracer_with_scope(scope());
     tracer
         .span_builder("acme.operation")
-        .with_attributes([KeyValue::new("acme.host.id", "abc123")])
+        .with_attributes(attributes.to_vec())
         .start(&tracer)
         .end();
 
@@ -243,6 +256,25 @@ fn emit_unmatched_metric(endpoint: &str) {
         endpoint,
         "acme.uptime.typo",
         &[KeyValue::new("acme.host.id", "abc123")],
+    );
+}
+
+/// A matched metric carrying a key that matches the `acme.header` template the
+/// metric declares.
+fn emit_matched_metric_with_template_attribute(endpoint: &str) {
+    emit_metric(
+        endpoint,
+        "acme.uptime",
+        &[KeyValue::new("acme.header.accept", "application/json")],
+    );
+}
+
+/// The same templated key on a metric whose name is NOT in the registry.
+fn emit_unmatched_metric_with_template_attribute(endpoint: &str) {
+    emit_metric(
+        endpoint,
+        "acme.uptime.typo",
+        &[KeyValue::new("acme.header.accept", "application/json")],
     );
 }
 
@@ -466,6 +498,27 @@ async fn span_attributes_from_dependency_are_not_missing() {
     assert_no_missing_attribute(&report, Some("span"), "span attribute `acme.host.id`");
 }
 
+/// A templated key on an untyped carrier is resolved by prefix against the
+/// registry's templates, which an imported signal does not populate either.
+#[tokio::test]
+#[cfg_attr(tarpaulin, ignore)]
+#[serial]
+async fn template_attribute_on_an_untyped_carrier_from_dependency_is_not_missing() {
+    let (report, _) = run_session(IMPORTING_REGISTRY, emit_span_with_template_attribute).await;
+    let ids = finding_ids(&report);
+    assert_no_missing_attribute(
+        &report,
+        Some("span"),
+        "span attribute `acme.header.accept` matches the imported `acme.header` template",
+    );
+    assert!(
+        ids.contains(&"template_attribute".to_owned()),
+        "`acme.header.accept` must be recognised as an instance of the `acme.header` \
+         template. Findings: {:?}",
+        findings(&report)
+    );
+}
+
 /// A matched signal carries the definition of every attribute it declares, so
 /// reaching those attributes through an import must make no difference.
 #[tokio::test]
@@ -484,6 +537,31 @@ async fn matched_signal_attributes_from_dependency_are_not_missing() {
         &event_report,
         Some("log"),
         "attributes of the matched event `acme.request.done`",
+    );
+}
+
+/// The templated form of the test above: a matched signal declares the template,
+/// so the key that matches it needs no registry-wide definition.
+#[tokio::test]
+#[cfg_attr(tarpaulin, ignore)]
+#[serial]
+async fn matched_signal_template_attribute_from_dependency_is_not_missing() {
+    let (report, _) = run_session(
+        IMPORTING_REGISTRY,
+        emit_matched_metric_with_template_attribute,
+    )
+    .await;
+    let ids = finding_ids(&report);
+    assert_no_missing_attribute(
+        &report,
+        Some("metric"),
+        "`acme.header.accept` matches the `acme.header` template declared by `acme.uptime`",
+    );
+    assert!(
+        ids.contains(&"template_attribute".to_owned()),
+        "`acme.header.accept` must be recognised as an instance of the `acme.header` \
+         template. Findings: {:?}",
+        findings(&report)
     );
 }
 
@@ -596,6 +674,66 @@ async fn unrefined_attribute_on_another_signal_stays_stable() {
         !ids.contains(&"not_stable".to_owned()),
         "`acme.request.done` does not refine `acme.legacy.id`, so it must not be reported \
          unstable. Findings: {:?}",
+        findings(&report)
+    );
+}
+
+/// The templated form of `per_signal_stability_refinement_is_honoured`.
+/// `acme.uptime` refines the `acme.header` template to `development`, so a key
+/// matching that template on that metric must draw `not_stable` even though the
+/// template is `stable` where it is defined. Reaching the definition by prefix
+/// rather than by exact key is the only difference from `acme.legacy.id`.
+#[tokio::test]
+#[cfg_attr(tarpaulin, ignore)]
+#[serial]
+async fn per_signal_template_stability_refinement_is_honoured() {
+    let (report, _) = run_session(
+        DEFINING_REGISTRY,
+        emit_matched_metric_with_template_attribute,
+    )
+    .await;
+    let ids = finding_ids(&report);
+    assert!(
+        ids.contains(&"template_attribute".to_owned()),
+        "`acme.header.accept` must be recognised as an instance of the `acme.header` \
+         template. Findings: {:?}",
+        findings(&report)
+    );
+    assert!(
+        ids.contains(&"not_stable".to_owned()),
+        "`acme.uptime` refines the `acme.header` template to development, so a not_stable \
+         finding is expected. Findings: {:?}\n\nreport:\n{report:#}",
+        findings(&report)
+    );
+}
+
+/// A key matching the same template on a signal that does not refine it must
+/// stay stable. This is what makes the test above a variant test rather than a
+/// global-stability test.
+#[tokio::test]
+#[cfg_attr(tarpaulin, ignore)]
+#[serial]
+async fn template_attribute_on_an_unmatched_signal_stays_stable() {
+    let (report, _) = run_session(
+        DEFINING_REGISTRY,
+        emit_unmatched_metric_with_template_attribute,
+    )
+    .await;
+    let ids = finding_ids(&report);
+    assert!(
+        ids.contains(&"missing_metric".to_owned()),
+        "the metric name must really be unmatched, or this proves nothing: {ids:?}"
+    );
+    assert!(
+        ids.contains(&"template_attribute".to_owned()),
+        "an unmatched signal's attributes are still resolved against the registry's \
+         templates. Findings: {:?}",
+        findings(&report)
+    );
+    assert!(
+        !ids.contains(&"not_stable".to_owned()),
+        "`acme.uptime.typo` matches no signal, so `acme.uptime`'s refinement of the \
+         `acme.header` template must not apply. Findings: {:?}",
         findings(&report)
     );
 }

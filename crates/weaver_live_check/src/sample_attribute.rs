@@ -178,12 +178,17 @@ impl LiveCheckRunner for SampleAttribute {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // Within a matched signal, the definition that signal declares wins: it
-        // carries any refinement the signal makes for itself. Otherwise fall
-        // back to the registry-wide definition, then to a template match.
+        // A matched signal is the strongest association, so the definitions it
+        // declares win — they carry any refinement the signal makes for itself.
+        // Precedence: signal exact, signal template, registry exact, registry
+        // template.
         let semconv_attribute = parent_group
             .as_ref()
-            .and_then(|group| group.find_attribute(&self.name))
+            .and_then(|group| {
+                group
+                    .find_attribute(&self.name)
+                    .or_else(|| group.find_template(&self.name))
+            })
             .map(Rc::new)
             .or_else(|| live_checker.find_attribute(&self.name))
             .or_else(|| live_checker.find_template(&self.name));

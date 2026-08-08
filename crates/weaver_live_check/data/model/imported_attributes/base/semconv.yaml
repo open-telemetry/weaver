@@ -43,6 +43,15 @@ attributes:
     brief: Legacy identifier.
     examples: ["L-1"]
 
+  # The same refinement story as `acme.legacy.id`, but for a template: matched
+  # by key prefix rather than by exact key, and refined to `development` by
+  # `acme.uptime` only.
+  - key: acme.header
+    type: template[string]
+    stability: stable
+    brief: Captured request header, by header name.
+    examples: ["application/json"]
+
 attribute_groups:
   - id: acme.scope
     visibility: public
@@ -69,6 +78,9 @@ metrics:
     attributes:
       - ref: acme.host.id
       - ref: acme.legacy.id
+        # Refined for this signal only: stable -> development.
+        stability: development
+      - ref: acme.header
         # Refined for this signal only: stable -> development.
         stability: development
     entity_associations:
