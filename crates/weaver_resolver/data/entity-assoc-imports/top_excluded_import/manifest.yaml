@@ -1,0 +1,9 @@
+name: top
+description: >
+  An explicit import of the `host` entity of `base_excluded`, which excludes
+  it. Naming a private entity in `imports` must fail.
+schema_url: https://example.com/top/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base_excluded

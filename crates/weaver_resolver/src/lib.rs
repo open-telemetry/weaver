@@ -2120,6 +2120,25 @@ groups:
             .collect()
     }
 
+    /// Resolves a fixture that must fail, and returns the fatal error. Panics
+    /// when the fixture resolves, so a test cannot pass on a warning alone.
+    fn entity_assoc_fixture_fatal_error(name: &str) -> Error {
+        match load_entity_assoc_fixture(name) {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("`{name}` resolved, but it must fail")
+            }
+            WResult::FatalErr(e) => e,
+        }
+    }
+
+    /// Every error in a compound error, flattened one level.
+    fn flatten_errors(error: &Error) -> Vec<&Error> {
+        match error {
+            Error::CompoundError(errors) => errors.iter().collect(),
+            e => vec![e],
+        }
+    }
+
     fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: format!("data/entity-assoc-imports/{name}"),
@@ -2287,6 +2306,34 @@ groups:
             "`no.such.entity` is not in scope anywhere, and the resolver must \
              report it"
         );
+    }
+
+    /// An entity marked `dependency_resolution.exclude: true` is private to the
+    /// registry that defines it. A dependent must not reach it by any route.
+    ///
+    /// Naming it is an error, whether the name appears in an `imports` clause
+    /// or in `entity_associations`. Both routes name one entity, so both give
+    /// the same answer, and the answer is fatal. A private entity that arrived
+    /// in silence would leak into code gen, doc gen and live-check.
+    #[test]
+    fn test_excluded_entity_cannot_be_reached() {
+        for fixture in ["top_excluded_import", "middle_excluded_assoc"] {
+            let error = entity_assoc_fixture_fatal_error(fixture);
+            let excluded: Vec<&Error> = flatten_errors(&error)
+                .into_iter()
+                .filter(|e| matches!(e, Error::ExcludedFromDependencyResolution { .. }))
+                .collect();
+            assert_eq!(
+                excluded.len(),
+                1,
+                "`{fixture}` must fail because `host` is excluded, but reported: {error:?}"
+            );
+            let Error::ExcludedFromDependencyResolution { id, r#type, .. } = excluded[0] else {
+                unreachable!("filtered above")
+            };
+            assert_eq!(id, "entity.host");
+            assert_eq!(r#type, "entity");
+        }
     }
 
     /// An explicit import must bind against everything that its dependency

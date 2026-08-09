@@ -164,6 +164,14 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         return WResult::FatalErr(e);
     }
 
+    // An entity named in `entity_associations` is imported the way an
+    // attribute named in a `ref` is.
+    if let Err(e) =
+        resolve_entity_associations(&mut ureg, repo.schema_url(), attr_catalog, cache_lookup)
+    {
+        return WResult::FatalErr(e);
+    }
+
     // Now we do validations.
 
     // Note: this will remove all the `groups` from UnresolvedRegistry and create
@@ -386,7 +394,20 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     cache_lookup: &C,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
-    let imports = &ureg.imports;
+    let imports = std::mem::take(&mut ureg.imports);
+    let result = import_into_registry(ureg, &imports, attribute_catalog, cache_lookup);
+    ureg.imports = imports;
+    result
+}
+
+/// Imports the groups that `imports` matches in the dependencies, and adds them
+/// to the registry.
+fn import_into_registry<C: crate::SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    imports: &[ImportsWithProvenance],
+    attribute_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<(), Error> {
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
     for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
@@ -421,6 +442,109 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
             is_v2,
             provenance,
         });
+    }
+    Ok(())
+}
+
+/// The entity types that `entity_associations` names anywhere in the registry.
+fn associated_entity_types(ureg: &UnresolvedRegistry) -> Vec<String> {
+    ureg.groups
+        .iter()
+        .flat_map(|g| g.group.entity_associations.iter())
+        .flat_map(|assoc| assoc.referenced_entities())
+        .map(|name| name.to_owned())
+        .unique()
+        .collect()
+}
+
+/// The entity types that the registry defines.
+///
+/// An entity carries its type in `name`. A v1 group may leave `name` unset, so
+/// the id without its `entity.` prefix counts too.
+fn defined_entity_types(ureg: &UnresolvedRegistry) -> HashSet<&str> {
+    ureg.groups
+        .iter()
+        .map(|g| &g.group)
+        .filter(|g| g.r#type == GroupType::Entity)
+        .flat_map(|g| {
+            [
+                g.name.as_deref(),
+                Some(g.id.strip_prefix("entity.").unwrap_or(&g.id)),
+            ]
+        })
+        .flatten()
+        .collect()
+}
+
+/// Resolves the entity associations of every signal in the registry.
+///
+/// An entity named in `entity_associations` is imported the way an attribute
+/// named in a `ref` is. An association that nothing satisfies is an error, as
+/// an unresolved attribute ref is.
+///
+/// This runs after the explicit imports, because a signal can arrive from a
+/// dependency with associations of its own. An entity holds no associations, so
+/// one import pass is enough.
+fn resolve_entity_associations<C: crate::SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    schema_url: &weaver_semconv::schema_url::SchemaUrl,
+    attribute_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<(), Error> {
+    let defined = defined_entity_types(ureg);
+    let missing: Vec<String> = associated_entity_types(ureg)
+        .into_iter()
+        .filter(|entity_type| !defined.contains(entity_type.as_str()))
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    let mut wildcards = vec![];
+    for entity_type in &missing {
+        let glob = globset::Glob::new(&globset::escape(entity_type)).map_err(|e| {
+            Error::InvalidWildcard {
+                error: e.to_string(),
+            }
+        })?;
+        wildcards.push(GroupWildcard(glob));
+    }
+    let imports = [ImportsWithProvenance {
+        imports: weaver_semconv::semconv::Imports {
+            metrics: None,
+            events: None,
+            entities: Some(wildcards),
+            spans: None,
+            attribute_groups: None,
+        },
+        // Not an implicit import: the user named this entity, so an excluded
+        // entity is an error here, as it is in an `imports` clause.
+        provenance: Provenance::new(schema_url.clone(), "--entity-associations"),
+    }];
+    import_into_registry(ureg, &imports, attribute_catalog, cache_lookup)?;
+
+    // No dependency offered these, so they are in scope nowhere.
+    let defined = defined_entity_types(ureg);
+    let errors: Vec<Error> = ureg
+        .groups
+        .iter()
+        .flat_map(|g| {
+            g.group
+                .entity_associations
+                .iter()
+                .flat_map(|assoc| assoc.referenced_entities())
+                .unique()
+                .filter(|entity_type| !defined.contains(entity_type))
+                .map(|entity_type| Error::UnresolvedEntityAssociation {
+                    group_id: g.group.id.clone(),
+                    entity_type: entity_type.to_owned(),
+                    provenance: g.provenance.clone().map(Box::new),
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    if !errors.is_empty() {
+        return Err(Error::CompoundError(errors));
     }
     Ok(())
 }

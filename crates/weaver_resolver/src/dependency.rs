@@ -110,6 +110,13 @@ impl ResolvedDependency {
     }
 }
 
+/// Whether the resolver added this import itself, rather than a user naming
+/// the groups. A bulk import must skip an excluded group in silence, because
+/// nobody asked for that group by name.
+fn is_implicit_import(import: &ImportsWithProvenance) -> bool {
+    import.provenance.path == "--include-unreferenced"
+}
+
 /// A group with its source provenance.
 pub struct GroupWithProvenance {
     /// The group definition.
@@ -136,10 +143,8 @@ impl ImportableDependency for V1Schema {
         attribute_catalog: &mut AttributeCatalog,
         cache_lookup: &C,
     ) -> Result<Vec<GroupWithProvenance>, Error> {
-        let explicit_imports: Vec<&ImportsWithProvenance> = imports
-            .iter()
-            .filter(|i| i.provenance.path != "--include-unreferenced")
-            .collect();
+        let explicit_imports: Vec<&ImportsWithProvenance> =
+            imports.iter().filter(|i| !is_implicit_import(i)).collect();
 
         let explicit_metrics_matcher = build_globset(
             explicit_imports
@@ -668,10 +673,8 @@ impl ImportableDependency for V2Schema {
                 }
             };
 
-        let explicit_imports: Vec<&ImportsWithProvenance> = imports
-            .iter()
-            .filter(|i| i.provenance.path != "--include-unreferenced")
-            .collect();
+        let explicit_imports: Vec<&ImportsWithProvenance> =
+            imports.iter().filter(|i| !is_implicit_import(i)).collect();
 
         let explicit_metrics_matcher = build_globset(
             explicit_imports

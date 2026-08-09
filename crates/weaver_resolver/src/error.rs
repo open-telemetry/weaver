@@ -100,6 +100,20 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// An unresolved entity association.
+    #[error("The following entity association is not resolved for the group '{group_id}'.\nEntity association: {entity_type}\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "Define the entity locally, or depend on a registry that defines it. An entity named in `entity_associations` is imported implicitly."
+    ))]
+    UnresolvedEntityAssociation {
+        /// The id of the group containing the entity association.
+        group_id: String,
+        /// The unresolved entity type.
+        entity_type: String,
+        /// The provenance of the association (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// An unresolved `extends` clause reference.
     #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance:?}")]
     UnresolvedExtendsRef {
