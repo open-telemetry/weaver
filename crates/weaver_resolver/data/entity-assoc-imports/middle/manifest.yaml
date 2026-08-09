@@ -1,0 +1,11 @@
+name: middle
+description: >
+  This registry defines a metric. The metric holds a `ref` to an attribute from
+  base. The metric is also associated with the `host` entity of base. The
+  registry imports neither one explicitly. The `ref` resolves. The association
+  does not resolve.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

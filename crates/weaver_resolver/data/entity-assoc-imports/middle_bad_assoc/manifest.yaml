@@ -1,0 +1,10 @@
+name: middle
+description: >
+  A control case. The metric is associated with an entity that exists nowhere in
+  the dependency graph. If this registry resolves without an error, nothing
+  tests `entity_associations` against the resolved set of entities.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

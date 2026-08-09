@@ -2074,6 +2074,305 @@ groups:
         Ok(())
     }
 
+    /// True for the "`definition/2` is not yet stable" warning. Every file in
+    /// these fixtures gives this warning. These tests do not test for it.
+    fn is_unstable_format_warning(e: &Error) -> bool {
+        matches!(
+            e,
+            Error::FailToResolveDefinition(weaver_semconv::Error::UnstableFileFormat { .. })
+        )
+    }
+
+    /// Resolves one of the `entity-assoc-imports` registries. Returns the
+    /// resolved schema and the non-fatal errors.
+    fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
+        let (resolved, nfes) = match load_entity_assoc_fixture(name) {
+            WResult::Ok(r) => (r, vec![]),
+            WResult::OkWithNFEs(r, nfes) => (r, nfes),
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        };
+        let v1 = resolved
+            .as_v1()
+            .unwrap_or_else(|| panic!("Expected a V1 schema for `{name}`"))
+            .clone();
+        let v2: V2Schema = v1
+            .try_into()
+            .unwrap_or_else(|e| panic!("v1 -> v2 conversion for `{name}`: {e}"));
+        let nfes = nfes
+            .into_iter()
+            .filter(|e| !is_unstable_format_warning(e))
+            .collect();
+        (v2, nfes)
+    }
+
+    /// Resolves a fixture and returns every error it reports, fatal or not.
+    /// This function is for tests that expect an error and not a schema. Such a
+    /// test accepts either severity from the fix.
+    fn entity_assoc_fixture_errors(name: &str) -> Vec<Error> {
+        let errors = match load_entity_assoc_fixture(name) {
+            WResult::Ok(_) => vec![],
+            WResult::OkWithNFEs(_, nfes) => nfes,
+            WResult::FatalErr(e) => vec![e],
+        };
+        errors
+            .into_iter()
+            .filter(|e| !is_unstable_format_warning(e))
+            .collect()
+    }
+
+    fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/entity-assoc-imports/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+    }
+
+    /// The registry that defines the `host` entity.
+    const BASE_URL: &str = "https://example.com/base/1.0.0";
+
+    /// Entity types in the resolved registry, in registry order.
+    fn entity_types(schema: &V2Schema) -> Vec<&str> {
+        schema
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.as_ref())
+            .collect()
+    }
+
+    /// The `middle.request.count` metric of a resolved registry.
+    fn middle_metric(schema: &V2Schema) -> &weaver_resolved_schema::v2::metric::Metric {
+        schema
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "middle.request.count")
+            .expect("`middle.request.count` is in the resolved registry")
+    }
+
+    /// The schema url that an entity comes from. Returns `None` when the
+    /// resolver reports the entity as local to this registry.
+    fn entity_source<'a>(schema: &'a V2Schema, entity_type: &str) -> Option<&'a str> {
+        let deps: Vec<&SchemaUrl> = schema.dependencies.iter().collect();
+        let entity = schema
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == entity_type)
+            .expect("entity is in the resolved registry");
+        entity
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .map(|url| url.as_str())
+    }
+
+    /// A snapshot of an entity for comparison. The snapshot holds the brief and
+    /// the attribute keys under `identity` and `description`. The keys come from
+    /// the attribute catalog of the schema, so a test can compare two
+    /// registries.
+    fn entity_snapshot(schema: &V2Schema, entity_type: &str) -> (String, Vec<String>, Vec<String>) {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+        let entity = schema
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == entity_type)
+            .unwrap_or_else(|| panic!("`{entity_type}` is in the resolved registry"));
+        let keys = |refs: &[weaver_resolved_schema::v2::entity::EntityAttributeRef]| {
+            refs.iter()
+                .map(|r| {
+                    schema
+                        .attribute_catalog
+                        .attribute(&r.base)
+                        .expect("attribute is in the catalog")
+                        .key
+                        .to_string()
+                })
+                .collect::<Vec<_>>()
+        };
+        (
+            entity.common.brief.clone(),
+            keys(&entity.identity),
+            keys(&entity.description),
+        )
+    }
+
+    /// An entity named in `entity_associations` must be imported implicitly. An
+    /// attribute named in a `ref` already works this way.
+    ///
+    /// The metric in `middle` names the `host` entity of base. Beside it, the
+    /// same metric holds a `ref` to the `host.id` attribute of base. `middle`
+    /// imports neither one explicitly. The attribute arrives from the
+    /// dependency, fully populated. The entity must arrive the same way. A
+    /// consumer of `middle` can then see the entity that the metric is
+    /// associated with.
+    ///
+    /// Entities are immutable. The copy must be the definition from base,
+    /// without change. It must keep the same brief and the same identity and
+    /// description attributes. It must also keep `base` as its source. A
+    /// registry must not fork an entity when it names the entity.
+    ///
+    /// This test fails now. An `entity_associations` entry is an opaque string
+    /// that nothing resolves, so `host` never arrives.
+    #[test]
+    fn test_entity_association_implicitly_imports_entity() {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        let metric = middle_metric(&middle);
+
+        // The precedent. The attribute ref comes from base with its wording
+        // intact.
+        let attr = middle
+            .attribute_catalog
+            .attribute(&metric.attributes[0].base)
+            .expect("`host.id` resolved from the base dependency");
+        assert_eq!(&*attr.key, "host.id");
+        assert_eq!(attr.common.brief, "Unique host ID, defined in base.");
+
+        // The association in the same metric must behave the same way.
+        assert_eq!(metric.entity_associations.len(), 1);
+        assert_eq!(
+            entity_types(&middle),
+            ["host"],
+            "the resolver must import the associated entity implicitly, the way \
+             it imports the attribute ref beside it"
+        );
+        assert_eq!(entity_source(&middle, "host"), Some(BASE_URL));
+
+        // Immutable. The entity that arrived is the definition from base, not
+        // a variant of that definition.
+        let (base, _) = resolve_entity_assoc_fixture("base");
+        assert_eq!(
+            entity_snapshot(&middle, "host"),
+            entity_snapshot(&base, "host"),
+            "an implicitly imported entity must match its definition in `base`"
+        );
+
+        // `middle_reexport` names `host` in an association and also imports it
+        // explicitly. That is one entity, not two.
+        let (reexport, nfes) = resolve_entity_assoc_fixture("middle_reexport");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&reexport),
+            ["host"],
+            "an explicit import and an association that name the same entity \
+             must not import that entity twice"
+        );
+        assert_eq!(
+            entity_snapshot(&reexport, "host"),
+            entity_snapshot(&base, "host"),
+            "an explicitly imported entity must match its definition too"
+        );
+    }
+
+    /// An `entity_associations` entry that nothing in scope satisfies must be
+    /// reported. The resolver already reports an attribute ref that it cannot
+    /// resolve.
+    ///
+    /// This test fails now. Nothing tests associations against anything, so
+    /// `no.such.entity` passes without a report.
+    #[test]
+    fn test_entity_association_is_validated() {
+        // The fix must add a dedicated error for this case. Until then, any
+        // error counts.
+        let errors = entity_assoc_fixture_errors("middle_bad_assoc");
+        assert!(
+            !errors.is_empty(),
+            "`no.such.entity` is not in scope anywhere, and the resolver must \
+             report it"
+        );
+    }
+
+    /// An explicit import must bind against everything that its dependency
+    /// exports. This includes what the dependency imported implicitly.
+    ///
+    /// Imports are not transitive. They match the resolved surface of the
+    /// registries in the manifest. A registry further down the chain is
+    /// reachable only when the registry in between re-exports it.
+    ///
+    /// `top` depends on `middle` alone. So `top` can import `host` only because
+    /// the association in `middle` pulls the entity in. This is what makes the
+    /// implicit import worth having. `top_reexport` reaches `host` by the
+    /// explicit route. Both fixtures must give the same answer.
+    ///
+    /// This test fails now for `top`. `middle` imports nothing, so the import
+    /// binds to nothing.
+    #[test]
+    fn test_entity_import_binds_against_dependency_surface() {
+        for fixture in ["top", "top_reexport"] {
+            let (top, nfes) = resolve_entity_assoc_fixture(fixture);
+            assert!(
+                nfes.is_empty(),
+                "unexpected errors in `{fixture}`: {nfes:?}"
+            );
+            assert_eq!(middle_metric(&top).entity_associations.len(), 1);
+            assert_eq!(entity_types(&top), ["host"], "`{fixture}` imported `host`");
+            assert_eq!(entity_source(&top, "host"), Some(BASE_URL));
+        }
+    }
+
+    /// An import that binds to nothing must be reported.
+    ///
+    /// `top_bad_import` depends on `middle_reexport`, which does export `host`.
+    /// The import asks for `no.such.entity`. So the import fails for one reason
+    /// only: no dependency offers anything with that name.
+    ///
+    /// This test fails now. The resolver drops the unmatched import in silence
+    /// and reports success.
+    #[test]
+    fn test_import_that_binds_to_nothing_is_reported() {
+        let errors = entity_assoc_fixture_errors("top_bad_import");
+        assert!(
+            !errors.is_empty(),
+            "no dependency offers `no.such.entity`, and the resolver must report \
+             this import"
+        );
+    }
+
+    /// A definition that two dependency paths reach must be imported one time.
+    ///
+    /// `top_diamond` sees `host` directly from `base` and also through
+    /// `middle_reexport`. Both paths lead to the same definition in `base`.
+    /// There is no conflict to resolve and nothing to report. The entity must
+    /// appear one time only, with `base` as its source.
+    ///
+    /// This test fails now. The resolver applies imports for each dependency
+    /// and joins the results without deduplication. As a result, the registry
+    /// holds two identical copies. The resolver also reports duplicate id and
+    /// name warnings. Both warnings name the same single origin, `base`.
+    #[test]
+    fn test_entity_reachable_by_two_paths_is_imported_once() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_diamond");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host"],
+            "two paths reach one definition in `base`, so the result is still \
+             one entity"
+        );
+        assert_eq!(entity_source(&top, "host"), Some(BASE_URL));
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert!(
+            duplicates.is_empty(),
+            "an import of one definition by two paths is not a duplicate declaration: {duplicates:?}"
+        );
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.

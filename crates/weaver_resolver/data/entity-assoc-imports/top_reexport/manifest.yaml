@@ -1,0 +1,10 @@
+name: top
+description: >
+  This registry depends on `middle_reexport`, which does re-export the `host`
+  entity. This is the working case. It is also the minimal pair for
+  `top_diamond`.
+schema_url: https://example.com/top/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/1.0.0
+    registry_path: data/entity-assoc-imports/middle_reexport
