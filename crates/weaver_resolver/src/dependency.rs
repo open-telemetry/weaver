@@ -3,6 +3,7 @@
 //! Helpers to handle reading from dependencies.
 
 use globset::GlobSet;
+use std::collections::HashMap;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
@@ -429,10 +430,7 @@ fn upgrade_imported_group<C: crate::SchemaCacheLookup>(
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
 ) -> Result<Option<Group>, Error> {
-    let origin_url = group
-        .provenance()
-        .map(|prov| prov.schema_url)
-        .unwrap_or_else(|| fallback_url.clone());
+    let origin_url = origin_url(group, fallback_url);
     let Some(chosen_url) = cache_lookup.chosen_version(origin_url.name()) else {
         return Ok(None);
     };
@@ -1142,13 +1140,45 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         attribute_catalog: &mut AttributeCatalog,
         cache_lookup: &C,
     ) -> Result<Vec<GroupWithProvenance>, Error> {
-        self.iter()
-            .map(|d| d.import_groups(imports, attribute_catalog, cache_lookup))
-            .try_fold(vec![], |mut result, next| {
-                result.extend(next?);
-                Ok(result)
-            })
+        // A diamond in the dependency graph reaches one definition by more than
+        // one path. Keep only the first copy of each definition. The registry
+        // then holds no duplicates for `check_uniqueness` to report.
+        //
+        // `AttributeCatalog` keys its map on the definition itself, but
+        // `Group` has no `Hash` and `is_same_imported_group` is a pairwise
+        // test. So the map buckets on origin and type, and the test runs
+        // inside one bucket.
+        let mut result: Vec<GroupWithProvenance> = vec![];
+        let mut buckets: HashMap<(String, GroupType), Vec<usize>> = HashMap::new();
+        for dependency in self {
+            for candidate in dependency.import_groups(imports, attribute_catalog, cache_lookup)? {
+                let key = (
+                    origin_url(&candidate.group, &candidate.schema_url).to_string(),
+                    candidate.group.r#type.clone(),
+                );
+                let bucket = buckets.entry(key).or_default();
+                let is_duplicate = bucket
+                    .iter()
+                    .any(|&kept| is_same_imported_group(&result[kept].group, &candidate.group));
+                if !is_duplicate {
+                    bucket.push(result.len());
+                    result.push(candidate);
+                }
+            }
+        }
+        Ok(result)
     }
+}
+
+/// The registry that a group comes from. A group that was itself imported
+/// carries the provenance of its origin. A re-exported definition therefore
+/// keeps the url of the registry that declared it. A group with no provenance
+/// comes from the dependency it arrived through, which is `fallback_url`.
+fn origin_url(group: &Group, fallback_url: &SchemaUrl) -> SchemaUrl {
+    group
+        .provenance()
+        .map(|prov| prov.schema_url)
+        .unwrap_or_else(|| fallback_url.clone())
 }
 
 /// Helper trait for abstracting over V1 and V2 schema.
