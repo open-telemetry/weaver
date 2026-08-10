@@ -2234,9 +2234,6 @@ groups:
     /// without change. It must keep the same brief and the same identity and
     /// description attributes. It must also keep `base` as its source. A
     /// registry must not fork an entity when it names the entity.
-    ///
-    /// This test fails now. An `entity_associations` entry is an opaque string
-    /// that nothing resolves, so `host` never arrives.
     #[test]
     fn test_entity_association_implicitly_imports_entity() {
         use weaver_resolved_schema::v2::catalog::AttributeCatalog;
@@ -2293,9 +2290,6 @@ groups:
     /// An `entity_associations` entry that nothing in scope satisfies must be
     /// reported. The resolver already reports an attribute ref that it cannot
     /// resolve.
-    ///
-    /// This test fails now. Nothing tests associations against anything, so
-    /// `no.such.entity` passes without a report.
     #[test]
     fn test_entity_association_is_validated() {
         // The fix must add a dedicated error for this case. Until then, any
@@ -2347,9 +2341,6 @@ groups:
     /// the association in `middle` pulls the entity in. This is what makes the
     /// implicit import worth having. `top_reexport` reaches `host` by the
     /// explicit route. Both fixtures must give the same answer.
-    ///
-    /// This test fails now for `top`. `middle` imports nothing, so the import
-    /// binds to nothing.
     #[test]
     fn test_entity_import_binds_against_dependency_surface() {
         for fixture in ["top", "top_reexport"] {
@@ -2369,16 +2360,47 @@ groups:
     /// `top_bad_import` depends on `middle_reexport`, which does export `host`.
     /// The import asks for `no.such.entity`. So the import fails for one reason
     /// only: no dependency offers anything with that name.
-    ///
-    /// This test fails now. The resolver drops the unmatched import in silence
-    /// and reports success.
     #[test]
     fn test_import_that_binds_to_nothing_is_reported() {
         let errors = entity_assoc_fixture_errors("top_bad_import");
         assert!(
-            !errors.is_empty(),
+            matches!(
+                errors.as_slice(),
+                [Error::UnmatchedImport { pattern, signal }]
+                    if pattern == "no.such.entity" && signal == "entities"
+            ),
             "no dependency offers `no.such.entity`, and the resolver must report \
-             this import"
+             this import: {errors:?}"
+        );
+    }
+
+    /// Every `imports` field is checked, not only `entities`.
+    ///
+    /// `top_bad_imports_all_types` asks for one name of each signal type that
+    /// no dependency offers. It also asks for a metric and an entity that
+    /// `middle_reexport` does export, so a report of those would be wrong.
+    #[test]
+    fn test_unmatched_imports_are_reported_for_every_signal_type() {
+        let errors = entity_assoc_fixture_errors("top_bad_imports_all_types");
+        let mut reported: Vec<(&str, &str)> = errors
+            .iter()
+            .map(|e| match e {
+                Error::UnmatchedImport { pattern, signal } => (pattern.as_str(), signal.as_str()),
+                other => panic!("unexpected error: {other:?}"),
+            })
+            .collect();
+        reported.sort_unstable();
+        assert_eq!(
+            reported,
+            [
+                ("no.such.attribute_group", "attribute_groups"),
+                ("no.such.entity", "entities"),
+                ("no.such.event", "events"),
+                ("no.such.metric", "metrics"),
+                ("no.such.span", "spans"),
+            ],
+            "each signal type must report its own unmatched import, and the \
+             imports that do bind must stay silent"
         );
     }
 
@@ -2388,11 +2410,6 @@ groups:
     /// `middle_reexport`. Both paths lead to the same definition in `base`.
     /// There is no conflict to resolve and nothing to report. The entity must
     /// appear one time only, with `base` as its source.
-    ///
-    /// This test fails now. The resolver applies imports for each dependency
-    /// and joins the results without deduplication. As a result, the registry
-    /// holds two identical copies. The resolver also reports duplicate id and
-    /// name warnings. Both warnings name the same single origin, `base`.
     #[test]
     fn test_entity_reachable_by_two_paths_is_imported_once() {
         let (top, nfes) = resolve_entity_assoc_fixture("top_diamond");

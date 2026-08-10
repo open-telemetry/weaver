@@ -160,8 +160,9 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     }
 
     // We need to *import* objects from the dependencies as required.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
-        return WResult::FatalErr(e);
+    match resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
+        Ok(unmatched) => errors.extend(unmatched),
+        Err(e) => return WResult::FatalErr(e),
     }
 
     // An entity named in `entity_associations` is imported the way an
@@ -392,24 +393,28 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
-) -> Result<(), Error> {
+) -> Result<Vec<Error>, Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = std::mem::take(&mut ureg.imports);
-    let result = import_into_registry(ureg, &imports, attribute_catalog, cache_lookup);
+    let result = import_into_registry(ureg, &imports, attribute_catalog, cache_lookup)
+        // A pattern that named nothing is reported here, and only here. The
+        // imports that the resolver adds itself are checked elsewhere.
+        .and_then(|groups| crate::dependency::unmatched_import_errors(&imports, &groups));
     ureg.imports = imports;
     result
 }
 
 /// Imports the groups that `imports` matches in the dependencies, and adds them
-/// to the registry.
+/// to the registry. Returns the groups it imported.
 fn import_into_registry<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     imports: &[ImportsWithProvenance],
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
-) -> Result<(), Error> {
+) -> Result<Vec<crate::dependency::GroupWithProvenance>, Error> {
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
+    let mut imported = vec![];
     for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
         let is_v2 = group.is_v2();
         let mut prov_url = if let Some(prov) = group.provenance() {
@@ -434,6 +439,10 @@ fn import_into_registry<C: crate::SchemaCacheLookup>(
             schema_url: prov_url.clone(),
             path,
         });
+        imported.push(crate::dependency::GroupWithProvenance {
+            group: group.clone(),
+            schema_url: prov_url,
+        });
         ureg.groups.push(UnresolvedGroup {
             group,
             attributes: vec![],
@@ -443,7 +452,7 @@ fn import_into_registry<C: crate::SchemaCacheLookup>(
             provenance,
         });
     }
-    Ok(())
+    Ok(imported)
 }
 
 /// The entity types that `entity_associations` names anywhere in the registry.
@@ -521,7 +530,7 @@ fn resolve_entity_associations<C: crate::SchemaCacheLookup>(
         // entity is an error here, as it is in an `imports` clause.
         provenance: Provenance::new(schema_url.clone(), "--entity-associations"),
     }];
-    import_into_registry(ureg, &imports, attribute_catalog, cache_lookup)?;
+    let _ = import_into_registry(ureg, &imports, attribute_catalog, cache_lookup)?;
 
     // No dependency offered these, so they are in scope nowhere.
     let defined = defined_entity_types(ureg);

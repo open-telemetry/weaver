@@ -150,6 +150,19 @@ pub enum Error {
         // TODO: plumb provenance?
     },
 
+    /// An import pattern that named nothing in any dependency.
+    #[error("The import `{pattern}` under `{signal}` matched nothing in any dependency")]
+    #[diagnostic(severity(Warning))]
+    #[diagnostic(help(
+        "Check the spelling, and check that a dependency exports it. Imports are not transitive: a registry further down the chain is reachable only when the registry in between re-exports it."
+    ))]
+    UnmatchedImport {
+        /// The pattern that matched nothing.
+        pattern: String,
+        /// The `imports` field the pattern is under.
+        signal: String,
+    },
+
     /// An invalid Schema path.
     #[error("Invalid Schema path: {path}")]
     InvalidSchemaPath {

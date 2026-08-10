@@ -3,7 +3,7 @@
 //! Helpers to handle reading from dependencies.
 
 use globset::GlobSet;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
@@ -117,6 +117,198 @@ fn is_implicit_import(import: &ImportsWithProvenance) -> bool {
     import.provenance.path == "--include-unreferenced"
 }
 
+/// The `imports` field that a signal type is named under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ImportField {
+    Metrics,
+    Events,
+    Spans,
+    Entities,
+    AttributeGroups,
+}
+
+impl ImportField {
+    /// The field that imports a group of this type, or `None` when a group of
+    /// this type cannot be imported at all.
+    fn of(group_type: &GroupType) -> Option<Self> {
+        match group_type {
+            GroupType::Metric | GroupType::MetricGroup => Some(Self::Metrics),
+            GroupType::Event => Some(Self::Events),
+            GroupType::Span => Some(Self::Spans),
+            GroupType::Entity => Some(Self::Entities),
+            GroupType::AttributeGroup => Some(Self::AttributeGroups),
+            GroupType::Scope | GroupType::Undefined => None,
+        }
+    }
+
+    /// The name of the field, for a diagnostic.
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Metrics => "metrics",
+            Self::Events => "events",
+            Self::Spans => "spans",
+            Self::Entities => "entities",
+            Self::AttributeGroups => "attribute_groups",
+        }
+    }
+
+    /// The patterns under this field of one `imports` block.
+    fn patterns<'a>(&self, imports: &'a weaver_semconv::semconv::Imports) -> &'a [GroupWildcard] {
+        let field = match self {
+            Self::Metrics => &imports.metrics,
+            Self::Events => &imports.events,
+            Self::Spans => &imports.spans,
+            Self::Entities => &imports.entities,
+            Self::AttributeGroups => &imports.attribute_groups,
+        };
+        field.as_deref().unwrap_or_default()
+    }
+
+    /// Every field, in a stable order.
+    fn all() -> [Self; 5] {
+        [
+            Self::Metrics,
+            Self::Events,
+            Self::Spans,
+            Self::Entities,
+            Self::AttributeGroups,
+        ]
+    }
+}
+
+/// The strings that an import pattern can name a group by.
+///
+/// A group from a v2 definition answers to its id, to its signal name, and to
+/// its id without the group-type prefix. A v1 group answers to its signal name,
+/// or to its id for a span or an attribute group.
+fn import_match_keys(g: &Group) -> Vec<&str> {
+    let name = g.name.as_deref();
+    let metric_name = g.metric_name.as_deref();
+    if g.is_v2 {
+        let (signal_name, prefix) = match g.r#type {
+            GroupType::AttributeGroup => (None, "attribute_group."),
+            GroupType::Span => (name, "span."),
+            GroupType::Event => (name, "event."),
+            GroupType::Metric | GroupType::MetricGroup => (metric_name, "metric."),
+            GroupType::Entity => (name, "entity."),
+            GroupType::Scope | GroupType::Undefined => return vec![],
+        };
+        let mut keys = vec![g.id.as_str()];
+        keys.extend(signal_name);
+        // An attribute group also answers to its id without the `registry.`
+        // prefix, which is the older spelling.
+        if g.r#type == GroupType::AttributeGroup {
+            keys.extend(g.id.strip_prefix("registry."));
+        }
+        keys.extend(g.id.strip_prefix(prefix));
+        keys
+    } else {
+        match g.r#type {
+            GroupType::AttributeGroup | GroupType::Span => vec![g.id.as_str()],
+            GroupType::Event | GroupType::Entity => name.into_iter().collect(),
+            GroupType::Metric => metric_name.into_iter().collect(),
+            GroupType::MetricGroup | GroupType::Scope | GroupType::Undefined => vec![],
+        }
+    }
+}
+
+/// One compiled matcher per `imports` field.
+pub(crate) struct ImportMatchers {
+    metrics: GlobSet,
+    events: GlobSet,
+    spans: GlobSet,
+    entities: GlobSet,
+    attribute_groups: GlobSet,
+}
+
+impl ImportMatchers {
+    fn build<'a>(
+        imports: impl Iterator<Item = &'a ImportsWithProvenance> + Clone,
+    ) -> Result<Self, Error> {
+        let for_field = |field: ImportField| {
+            build_globset(
+                imports
+                    .clone()
+                    .flat_map(move |i| field.patterns(&i.imports)),
+            )
+        };
+        Ok(Self {
+            metrics: for_field(ImportField::Metrics)?,
+            events: for_field(ImportField::Events)?,
+            spans: for_field(ImportField::Spans)?,
+            entities: for_field(ImportField::Entities)?,
+            attribute_groups: for_field(ImportField::AttributeGroups)?,
+        })
+    }
+
+    fn field(&self, field: ImportField) -> &GlobSet {
+        match field {
+            ImportField::Metrics => &self.metrics,
+            ImportField::Events => &self.events,
+            ImportField::Spans => &self.spans,
+            ImportField::Entities => &self.entities,
+            ImportField::AttributeGroups => &self.attribute_groups,
+        }
+    }
+
+    /// Whether any pattern names this group.
+    fn matches(&self, g: &Group) -> bool {
+        let Some(field) = ImportField::of(&g.r#type) else {
+            return false;
+        };
+        let matcher = self.field(field);
+        import_match_keys(g)
+            .into_iter()
+            .any(|k| matcher.is_match(k))
+    }
+}
+
+/// Reports every explicit import pattern that named none of the imported
+/// groups.
+///
+/// An unmatched pattern is nearly always a typo or a stale name, and the
+/// resolver used to drop it in silence. This runs across all dependencies at
+/// once, because a pattern can name nothing in one dependency and still be
+/// satisfied by another.
+pub(crate) fn unmatched_import_errors(
+    imports: &[ImportsWithProvenance],
+    groups: &[GroupWithProvenance],
+) -> Result<Vec<Error>, Error> {
+    let explicit: Vec<&ImportsWithProvenance> =
+        imports.iter().filter(|i| !is_implicit_import(i)).collect();
+    let mut errors = vec![];
+    for field in ImportField::all() {
+        let patterns: Vec<&GroupWildcard> = explicit
+            .iter()
+            .flat_map(|i| field.patterns(&i.imports))
+            .collect();
+        if patterns.is_empty() {
+            continue;
+        }
+        // Built from the same list, in the same order, so a match index is an
+        // index into `patterns`.
+        let matcher = build_globset(patterns.iter().copied())?;
+        let mut matched: HashSet<usize> = HashSet::new();
+        for group in groups {
+            if ImportField::of(&group.group.r#type) != Some(field) {
+                continue;
+            }
+            for key in import_match_keys(&group.group) {
+                matched.extend(matcher.matches(key));
+            }
+        }
+        for (index, pattern) in patterns.iter().enumerate() {
+            if !matched.contains(&index) {
+                errors.push(Error::UnmatchedImport {
+                    pattern: pattern.0.glob().to_owned(),
+                    signal: field.name().to_owned(),
+                });
+            }
+        }
+    }
+    Ok(errors)
+}
+
 /// A group with its source provenance.
 pub struct GroupWithProvenance {
     /// The group definition.
@@ -146,206 +338,10 @@ impl ImportableDependency for V1Schema {
         let explicit_imports: Vec<&ImportsWithProvenance> =
             imports.iter().filter(|i| !is_implicit_import(i)).collect();
 
-        let explicit_metrics_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
-        )?;
-        let all_metrics_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_events_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
-        )?;
-        let all_events_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_entities_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
-        )?;
-        let all_entities_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_spans_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
-        )?;
-        let all_spans_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_attribute_groups_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
-        )?;
-        let all_attribute_groups_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
-        )?;
-
-        let matches_explicitly = move |g: &Group| {
-            if g.is_v2 {
-                match g.r#type {
-                    GroupType::AttributeGroup => {
-                        explicit_attribute_groups_matcher.is_match(&g.id)
-                            || g.id
-                                .strip_prefix("registry.")
-                                .is_some_and(|s| explicit_attribute_groups_matcher.is_match(s))
-                            || g.id
-                                .strip_prefix("attribute_group.")
-                                .is_some_and(|s| explicit_attribute_groups_matcher.is_match(s))
-                    }
-                    GroupType::Span => {
-                        explicit_spans_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| explicit_spans_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("span.")
-                                .is_some_and(|s| explicit_spans_matcher.is_match(s))
-                    }
-                    GroupType::Event => {
-                        explicit_events_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| explicit_events_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("event.")
-                                .is_some_and(|s| explicit_events_matcher.is_match(s))
-                    }
-                    GroupType::Metric | GroupType::MetricGroup => {
-                        explicit_metrics_matcher.is_match(&g.id)
-                            || g.metric_name.as_ref().is_some_and(|metric_name| {
-                                explicit_metrics_matcher.is_match(metric_name.as_str())
-                            })
-                            || g.id
-                                .strip_prefix("metric.")
-                                .is_some_and(|s| explicit_metrics_matcher.is_match(s))
-                    }
-                    GroupType::Entity => {
-                        explicit_entities_matcher.is_match(&g.id)
-                            || g.name.as_ref().is_some_and(|name| {
-                                explicit_entities_matcher.is_match(name.as_str())
-                            })
-                            || g.id
-                                .strip_prefix("entity.")
-                                .is_some_and(|s| explicit_entities_matcher.is_match(s))
-                    }
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            } else {
-                match g.r#type {
-                    GroupType::AttributeGroup => explicit_attribute_groups_matcher.is_match(&g.id),
-                    GroupType::Span => explicit_spans_matcher.is_match(&g.id),
-                    GroupType::Event => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| explicit_events_matcher.is_match(name.as_str())),
-                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
-                        explicit_metrics_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::MetricGroup => false,
-                    GroupType::Entity => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| explicit_entities_matcher.is_match(name.as_str())),
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            }
-        };
-
-        let matches_by_any = move |g: &Group| {
-            if g.is_v2 {
-                match g.r#type {
-                    GroupType::AttributeGroup => {
-                        all_attribute_groups_matcher.is_match(&g.id)
-                            || g.id
-                                .strip_prefix("registry.")
-                                .is_some_and(|s| all_attribute_groups_matcher.is_match(s))
-                            || g.id
-                                .strip_prefix("attribute_group.")
-                                .is_some_and(|s| all_attribute_groups_matcher.is_match(s))
-                    }
-                    GroupType::Span => {
-                        all_spans_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| all_spans_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("span.")
-                                .is_some_and(|s| all_spans_matcher.is_match(s))
-                    }
-                    GroupType::Event => {
-                        all_events_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| all_events_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("event.")
-                                .is_some_and(|s| all_events_matcher.is_match(s))
-                    }
-                    GroupType::Metric | GroupType::MetricGroup => {
-                        all_metrics_matcher.is_match(&g.id)
-                            || g.metric_name.as_ref().is_some_and(|metric_name| {
-                                all_metrics_matcher.is_match(metric_name.as_str())
-                            })
-                            || g.id
-                                .strip_prefix("metric.")
-                                .is_some_and(|s| all_metrics_matcher.is_match(s))
-                    }
-                    GroupType::Entity => {
-                        all_entities_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| all_entities_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("entity.")
-                                .is_some_and(|s| all_entities_matcher.is_match(s))
-                    }
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            } else {
-                match g.r#type {
-                    GroupType::AttributeGroup => all_attribute_groups_matcher.is_match(&g.id),
-                    GroupType::Span => all_spans_matcher.is_match(&g.id),
-                    GroupType::Event => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| all_events_matcher.is_match(name.as_str())),
-                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
-                        all_metrics_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::MetricGroup => false,
-                    GroupType::Entity => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| all_entities_matcher.is_match(name.as_str())),
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            }
-        };
+        let explicit = ImportMatchers::build(explicit_imports.iter().copied())?;
+        let any = ImportMatchers::build(imports.iter())?;
+        let matches_explicitly = |g: &Group| explicit.matches(g);
+        let matches_by_any = |g: &Group| any.matches(g);
 
         let mut exclusion_errors: Vec<Error> = vec![];
         let mut result: Vec<GroupWithProvenance> = vec![];
