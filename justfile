@@ -7,7 +7,7 @@ install:
     cargo install cargo-edit@0.13.13 --locked
     cargo install cargo-check-external-types@0.5.0 --locked
     cargo install git-cliff@2.13.1 --locked
-    cargo install cargo-tarpaulin@0.37.0 --locked
+    cargo install cargo-tarpaulin@0.37.1 --locked
     cargo install cargo-nextest@0.9.143 --locked
     cargo install typos-cli@1.48.0 --locked
 
@@ -64,6 +64,12 @@ fuzz-all seconds="30":
 
 check-external-types:
   scripts/check_external_types.sh
+
+# Run the weaver from this working tree against the CI checks of the downstream
+# repos declared in downstream-check.yaml. Args are `<url>[@<ref>]`; no args
+# runs all of them. Repos that only run weaver in docker require docker.
+downstream-check *repos:
+    cargo xtask downstream-check {{repos}}
 
 # Vulnerabilities check (OSV). Honors the osv-scanner.toml ignore files.
 # Install: `brew install osv-scanner` (or see https://google.github.io/osv-scanner/installation/)
