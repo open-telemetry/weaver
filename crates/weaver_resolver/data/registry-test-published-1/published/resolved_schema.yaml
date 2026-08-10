@@ -18,7 +18,7 @@ registry:
       - base: 0
         requirement_level: required
       entity_associations:
-      - imported.entity.a
+      - 0
       brief: a fun metric
       note: a metric note
       stability: stable
@@ -28,7 +28,7 @@ registry:
       - base: 0
         requirement_level: recommended
       entity_associations:
-      - imported.entity.a
+      - 0
       brief: a fun event
       note: an event note
       stability: stable
@@ -51,8 +51,17 @@ refinements:
     - base: 0
       requirement_level: required
     entity_associations:
-    - service
+    - 0
     brief: a fun metric
     note: a metric note
     stability: stable
   events:
+  entities:
+  - id: imported.entity.a
+    type: imported.entity.a
+    identity:
+    - base: 0
+      requirement_level: required
+    brief: a fun entity
+    note: an entity note
+    stability: stable

@@ -208,6 +208,17 @@ pub enum Error {
         attr_ref: AttributeRef,
     },
 
+    /// Entity association reference not found in the entity refinements.
+    #[error(
+        "Entity reference {entity_ref} (group: {group_id}) not found in the entity refinements"
+    )]
+    EntityNotFound {
+        /// Group id.
+        group_id: String,
+        /// Entity reference.
+        entity_ref: u32,
+    },
+
     /// Filter error.
     #[error("Filter '{filter}' failed: {}", format_details(.details))]
     FilterError {

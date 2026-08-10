@@ -108,6 +108,9 @@ impl ForgeResolvedRegistry {
         let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
             schema.attribute_catalog.attribute(r)
         };
+        // A resolved schema holds an association as an index into its entity
+        // refinements. Templates read names, so materialize the names here.
+        let entity_refinements = schema.refinements.entities.clone();
         // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
@@ -148,12 +151,18 @@ impl ForgeResolvedRegistry {
                     attr
                 })
                 .collect();
+            let entity_associations = materialize_entity_associations(
+                &metric.entity_associations,
+                &entity_refinements,
+                &format!("metric.{}", &metric.name),
+                &mut errors,
+            );
             metrics.push(Metric {
                 name: metric.name,
                 instrument: metric.instrument,
                 unit: metric.unit,
                 attributes,
-                entity_associations: metric.entity_associations,
+                entity_associations,
                 requirement_level: metric.requirement_level,
                 common: metric.common,
                 provenance: resolve_provenance(&metric.provenance),
@@ -187,6 +196,12 @@ impl ForgeResolvedRegistry {
                     attr
                 })
                 .collect();
+            let entity_associations = materialize_entity_associations(
+                &metric.metric.entity_associations,
+                &entity_refinements,
+                &format!("metric.{}", &metric.metric.name),
+                &mut errors,
+            );
             metric_refinements.push(MetricRefinement {
                 id: metric.id.clone(),
                 metric: Metric {
@@ -194,7 +209,7 @@ impl ForgeResolvedRegistry {
                     instrument: metric.metric.instrument,
                     unit: metric.metric.unit,
                     attributes,
-                    entity_associations: metric.metric.entity_associations,
+                    entity_associations,
                     requirement_level: metric.metric.requirement_level,
                     common: metric.metric.common,
                     provenance: resolve_provenance(&metric.metric.provenance),
@@ -229,12 +244,18 @@ impl ForgeResolvedRegistry {
                     attr
                 })
                 .collect();
+            let entity_associations = materialize_entity_associations(
+                &span.entity_associations,
+                &entity_refinements,
+                &format!("span.{}", &span.r#type),
+                &mut errors,
+            );
             spans.push(Span {
                 r#type: span.r#type,
                 kind: span.kind,
                 name: span.name,
                 attributes,
-                entity_associations: span.entity_associations,
+                entity_associations,
                 requirement_level: span.requirement_level,
                 common: span.common,
                 provenance: resolve_provenance(&span.provenance),
@@ -268,6 +289,12 @@ impl ForgeResolvedRegistry {
                     attr
                 })
                 .collect();
+            let entity_associations = materialize_entity_associations(
+                &span.span.entity_associations,
+                &entity_refinements,
+                &format!("span.{}", &span.id),
+                &mut errors,
+            );
             span_refinements.push(SpanRefinement {
                 id: span.id,
                 span: Span {
@@ -275,7 +302,7 @@ impl ForgeResolvedRegistry {
                     kind: span.span.kind,
                     name: span.span.name,
                     attributes,
-                    entity_associations: span.span.entity_associations,
+                    entity_associations,
                     requirement_level: span.span.requirement_level,
                     common: span.span.common,
                     provenance: resolve_provenance(&span.span.provenance),
@@ -309,10 +336,16 @@ impl ForgeResolvedRegistry {
                     attr
                 })
                 .collect();
+            let entity_associations = materialize_entity_associations(
+                &event.entity_associations,
+                &entity_refinements,
+                &format!("event.{}", &event.name),
+                &mut errors,
+            );
             events.push(Event {
                 name: event.name,
                 attributes,
-                entity_associations: event.entity_associations,
+                entity_associations,
                 requirement_level: event.requirement_level,
                 common: event.common,
                 provenance: resolve_provenance(&event.provenance),
@@ -347,12 +380,18 @@ impl ForgeResolvedRegistry {
                     attr
                 })
                 .collect();
+            let entity_associations = materialize_entity_associations(
+                &event.event.entity_associations,
+                &entity_refinements,
+                &format!("event.{}", &event.id),
+                &mut errors,
+            );
             event_refinements.push(EventRefinement {
                 id: event.id,
                 event: Event {
                     name: event.event.name,
                     attributes,
-                    entity_associations: event.event.entity_associations,
+                    entity_associations,
                     requirement_level: event.event.requirement_level,
                     common: event.event.common,
                     provenance: resolve_provenance(&event.event.provenance),
@@ -481,6 +520,26 @@ impl ForgeResolvedRegistry {
                 entities: entity_refinements,
             },
         })
+    }
+}
+
+/// Turns entity refinement indices back into names for the templates. An index
+/// that names no refinement is collected as an error.
+fn materialize_entity_associations(
+    associations: &[weaver_resolved_schema::v2::entity::EntityAssociation],
+    refinements: &[weaver_resolved_schema::v2::entity::EntityRefinement],
+    group_id: &str,
+    errors: &mut Vec<Error>,
+) -> Vec<weaver_semconv::entity_association::EntityAssociation> {
+    match weaver_resolved_schema::v2::entity::to_named_associations(associations, refinements) {
+        Ok(named) => named,
+        Err(entity_ref) => {
+            errors.push(Error::EntityNotFound {
+                group_id: group_id.to_owned(),
+                entity_ref: entity_ref.0,
+            });
+            vec![]
+        }
     }
 }
 

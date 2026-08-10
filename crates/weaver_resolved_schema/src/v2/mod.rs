@@ -153,12 +153,56 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     }
 }
 
-fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
-    if group_id.starts_with(prefix) {
-        group_id.trim_start_matches(prefix).to_owned().into()
-    } else {
-        group_id.to_owned().into()
+/// Turns the names in an association expression into entity refinement
+/// indices. The shape of the expression does not change, only the leaves.
+fn convert_entity_associations(
+    associations: &[weaver_semconv::entity_association::EntityAssociation],
+    entity_refs: &HashMap<SignalId, entity::EntityRef>,
+    group_id: &str,
+) -> Result<Vec<entity::EntityAssociation>, crate::error::Error> {
+    associations
+        .iter()
+        .map(|assoc| convert_entity_association(assoc, entity_refs, group_id))
+        .collect()
+}
+
+fn convert_entity_association(
+    association: &weaver_semconv::entity_association::EntityAssociation,
+    entity_refs: &HashMap<SignalId, entity::EntityRef>,
+    group_id: &str,
+) -> Result<entity::EntityAssociation, crate::error::Error> {
+    use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+    match association {
+        SpecAssociation::Ref(name) => entity_refs
+            .get(&SignalId::from(name.clone()))
+            .map(|r| entity::EntityAssociation::Ref(*r))
+            .ok_or_else(|| crate::error::Error::EntityAssociationNotFound {
+                group_id: group_id.to_owned(),
+                entity_type: name.clone(),
+            }),
+        SpecAssociation::OneOf { one_of } => Ok(entity::EntityAssociation::OneOf {
+            one_of: convert_entity_associations(one_of, entity_refs, group_id)?,
+        }),
+        SpecAssociation::AllOf { all_of } => Ok(entity::EntityAssociation::AllOf {
+            all_of: convert_entity_associations(all_of, entity_refs, group_id)?,
+        }),
     }
+}
+
+/// Strips the group-type prefix that a v2 definition adds to a group id.
+///
+/// A v2 definition names a signal by type alone, and the v1 group model holds
+/// every signal type in one flat id space, so reading a v2 file mints an id
+/// like `entity.host`. This undoes that.
+///
+/// Strips one prefix only. `trim_start_matches` would strip a repeat, so
+/// `entity.entity.host` would lose both.
+fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
+    group_id
+        .strip_prefix(prefix)
+        .unwrap_or(group_id)
+        .to_owned()
+        .into()
 }
 
 fn fix_span_group_id(group_id: &str) -> SignalId {
@@ -258,6 +302,88 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
+    // Entities come first. A signal names an entity, and the association is
+    // stored as an index into the entity refinements, so the refinements must
+    // exist before any signal is converted.
+    for g in r.groups.iter().filter(|g| g.r#type == GroupType::Entity) {
+        // Check if we refine another entity.
+        let is_refinement = g
+            .lineage
+            .as_ref()
+            .map(|l| l.extends_group_type == Some(GroupType::Entity))
+            .unwrap_or(false);
+        let mut id_attrs = Vec::new();
+        let mut desc_attrs = Vec::new();
+        for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
+            if let Some(a) = v2_catalog.convert_ref(attr) {
+                match attr.role {
+                    Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
+                        id_attrs.push(entity::EntityAttributeRef {
+                            base: a,
+                            requirement_level: attr.requirement_level.clone(),
+                        });
+                    }
+                    _ => {
+                        desc_attrs.push(entity::EntityAttributeRef {
+                            base: a,
+                            requirement_level: attr.requirement_level.clone(),
+                        });
+                    }
+                }
+            } else {
+                // TODO logic error!
+            }
+        }
+        let entity_type = if is_refinement {
+            let Some(extends_group) = g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
+            else {
+                return Err(crate::error::Error::RefinementBaseNotFound {
+                    group_id: g.id.clone(),
+                });
+            };
+            fix_group_id("entity.", extends_group)
+        } else {
+            fix_group_id("entity.", &g.id)
+        };
+        let entity = Entity {
+            r#type: entity_type,
+            identity: id_attrs,
+            description: desc_attrs,
+            requirement_level: g.requirement_level.clone(),
+            common: CommonFields {
+                brief: g.brief.clone(),
+                note: g.note.clone(),
+                stability: g
+                    .stability
+                    .clone()
+                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                deprecated: g.deprecated.clone(),
+                annotations: g.annotations.clone().unwrap_or_default(),
+            },
+            provenance: get_provenance(g),
+        };
+        if is_refinement {
+            entity_refinements.push(entity::EntityRefinement {
+                id: fix_group_id("entity.", &g.id),
+                entity,
+            });
+        } else {
+            entities.push(entity.clone());
+            entity_refinements.push(entity::EntityRefinement {
+                id: entity.r#type.clone(),
+                entity,
+            });
+        }
+    }
+
+    // Read the indices back off the refinements. Deriving the ids a second
+    // time here would let this map and that list disagree.
+    let entity_refs: HashMap<SignalId, entity::EntityRef> = entity_refinements
+        .iter()
+        .enumerate()
+        .map(|(index, refinement)| (refinement.id.clone(), entity::EntityRef(index as u32)))
+        .collect();
+
     for g in r.groups.iter() {
         match g.r#type {
             GroupType::Span => {
@@ -292,7 +418,11 @@ pub fn convert_v1_to_v2(
                         name: g.span_name.clone().unwrap_or_else(|| SpanName {
                             note: g.name.clone().unwrap_or_default(),
                         }),
-                        entity_associations: g.entity_associations.clone(),
+                        entity_associations: convert_entity_associations(
+                            &g.entity_associations,
+                            &entity_refs,
+                            &g.id,
+                        )?,
                         requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
                             brief: g.brief.clone(),
@@ -333,7 +463,11 @@ pub fn convert_v1_to_v2(
                             name: g.span_name.clone().unwrap_or_else(|| SpanName {
                                 note: g.name.clone().unwrap_or_default(),
                             }),
-                            entity_associations: g.entity_associations.clone(),
+                            entity_associations: convert_entity_associations(
+                                &g.entity_associations,
+                                &entity_refs,
+                                &g.id,
+                            )?,
                             requirement_level: g.requirement_level.clone(),
                             common: CommonFields {
                                 brief: g.brief.clone(),
@@ -374,7 +508,11 @@ pub fn convert_v1_to_v2(
                     let event = event::Event {
                         name: name.into(),
                         attributes: event_attributes,
-                        entity_associations: g.entity_associations.clone(),
+                        entity_associations: convert_entity_associations(
+                            &g.entity_associations,
+                            &entity_refs,
+                            &g.id,
+                        )?,
                         requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
                             brief: g.brief.clone(),
@@ -442,7 +580,11 @@ pub fn convert_v1_to_v2(
                         .clone()
                         .expect("unit must exist on metrics prior to translation to v2"),
                     attributes: metric_attributes,
-                    entity_associations: g.entity_associations.clone(),
+                    entity_associations: convert_entity_associations(
+                        &g.entity_associations,
+                        &entity_refs,
+                        &g.id,
+                    )?,
                     requirement_level: g.requirement_level.clone(),
                     common: CommonFields {
                         brief: g.brief.clone(),
@@ -466,77 +608,6 @@ pub fn convert_v1_to_v2(
                     metric_refinements.push(metric::MetricRefinement {
                         id: metric.name.clone(),
                         metric,
-                    });
-                }
-            }
-            GroupType::Entity => {
-                // Check if we refine another entity.
-                let is_refinement = g
-                    .lineage
-                    .as_ref()
-                    .map(|l| l.extends_group_type == Some(GroupType::Entity))
-                    .unwrap_or(false);
-                let mut id_attrs = Vec::new();
-                let mut desc_attrs = Vec::new();
-                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-                    if let Some(a) = v2_catalog.convert_ref(attr) {
-                        match attr.role {
-                            Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
-                                id_attrs.push(entity::EntityAttributeRef {
-                                    base: a,
-                                    requirement_level: attr.requirement_level.clone(),
-                                });
-                            }
-                            _ => {
-                                desc_attrs.push(entity::EntityAttributeRef {
-                                    base: a,
-                                    requirement_level: attr.requirement_level.clone(),
-                                });
-                            }
-                        }
-                    } else {
-                        // TODO logic error!
-                    }
-                }
-                let entity_type = if is_refinement {
-                    let Some(extends_group) =
-                        g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
-                    else {
-                        return Err(crate::error::Error::RefinementBaseNotFound {
-                            group_id: g.id.clone(),
-                        });
-                    };
-                    fix_group_id("entity.", extends_group)
-                } else {
-                    fix_group_id("entity.", &g.id)
-                };
-                let entity = Entity {
-                    r#type: entity_type,
-                    identity: id_attrs,
-                    description: desc_attrs,
-                    requirement_level: g.requirement_level.clone(),
-                    common: CommonFields {
-                        brief: g.brief.clone(),
-                        note: g.note.clone(),
-                        stability: g
-                            .stability
-                            .clone()
-                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
-                        deprecated: g.deprecated.clone(),
-                        annotations: g.annotations.clone().unwrap_or_default(),
-                    },
-                    provenance: get_provenance(g),
-                };
-                if is_refinement {
-                    entity_refinements.push(entity::EntityRefinement {
-                        id: fix_group_id("entity.", &g.id),
-                        entity,
-                    });
-                } else {
-                    entities.push(entity.clone());
-                    entity_refinements.push(entity::EntityRefinement {
-                        id: entity.r#type.clone(),
-                        entity,
                     });
                 }
             }
@@ -574,6 +645,9 @@ pub fn convert_v1_to_v2(
                         provenance: get_provenance(g),
                     });
                 }
+            }
+            GroupType::Entity => {
+                // Converted by the pass above.
             }
             GroupType::MetricGroup | GroupType::Scope | GroupType::Undefined => {
                 // Ignored for now, we should probably issue warnings.

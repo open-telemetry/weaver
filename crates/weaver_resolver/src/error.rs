@@ -238,6 +238,18 @@ pub enum Error {
         error: String,
     },
 
+    /// An entity association of a published schema points outside its own
+    /// entity refinements.
+    #[error(
+        "Invalid schema: {schema_url}. Unable to find entity refinement by index: {entity_ref}"
+    )]
+    InvalidEntityAssociationRef {
+        /// The schema with the issue.
+        schema_url: String,
+        /// The entity index that does not exist in the schema.
+        entity_ref: u32,
+    },
+
     /// We
     #[error(
         "Invalid registry: {registry_name}. Unable to find attribute by index: {attribute_ref}"

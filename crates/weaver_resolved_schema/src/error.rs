@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
 use crate::error::Error::{
-    AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl, RefinementBaseNotFound,
+    AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
+    InvalidSchemaUrl, RefinementBaseNotFound,
 };
 
 /// Errors emitted by this crate.
@@ -33,6 +34,15 @@ pub enum Error {
     RefinementBaseNotFound {
         /// Group id.
         group_id: String,
+    },
+
+    /// An entity association names an entity that the registry does not hold.
+    #[error("Group {group_id} is associated with entity {entity_type}, which this registry does not define or import")]
+    EntityAssociationNotFound {
+        /// Group id.
+        group_id: String,
+        /// The entity type that nothing defines.
+        entity_type: String,
     },
 
     /// Cannot convert from V1 to V2 schema due to invalid schema URL.
@@ -73,6 +83,7 @@ impl Error {
                     e @ AttributeNotFound { .. } => vec![e],
                     e @ EventNameNotFound { .. } => vec![e],
                     e @ RefinementBaseNotFound { .. } => vec![e],
+                    e @ EntityAssociationNotFound { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                 })
                 .collect(),

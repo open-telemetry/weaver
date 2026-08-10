@@ -4,13 +4,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
-    entity_association::EntityAssociation,
     group::SpanKindSpec,
     signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
+use crate::v2::{
+    attribute::AttributeRef, entity::EntityAssociation, provenance::Provenance, Signal,
+};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

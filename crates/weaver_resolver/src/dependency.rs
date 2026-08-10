@@ -791,7 +791,11 @@ impl ImportableDependency for V2Schema {
                 display_name: None,
                 body: None,
                 annotations: Some(m.common.annotations.clone()),
-                entity_associations: m.entity_associations.clone(),
+                entity_associations: entity_association_names(
+                    &m.entity_associations,
+                    &self.refinements.entities,
+                    &self.schema_url,
+                )?,
                 visibility: None,
                 is_v2: true,
                 span_name: None,
@@ -857,7 +861,11 @@ impl ImportableDependency for V2Schema {
                 display_name: None,
                 body: None,
                 annotations: Some(e.common.annotations.clone()),
-                entity_associations: e.entity_associations.clone(),
+                entity_associations: entity_association_names(
+                    &e.entity_associations,
+                    &self.refinements.entities,
+                    &self.schema_url,
+                )?,
                 visibility: None,
                 is_v2: true,
                 span_name: None,
@@ -1013,7 +1021,11 @@ impl ImportableDependency for V2Schema {
                 display_name: None,
                 body: None,
                 annotations: Some(s.common.annotations.clone()),
-                entity_associations: s.entity_associations.clone(),
+                entity_associations: entity_association_names(
+                    &s.entity_associations,
+                    &self.refinements.entities,
+                    &self.schema_url,
+                )?,
                 visibility: None,
                 is_v2: true,
                 span_name: Some(s.name.clone()),
@@ -1171,6 +1183,21 @@ impl ImportableDependency for Vec<ResolvedDependency> {
         }
         Ok(result)
     }
+}
+
+/// Turns the entity refinement indices of a published v2 schema back into
+/// names. A v1 group names the entity that it is associated with.
+fn entity_association_names(
+    associations: &[weaver_resolved_schema::v2::entity::EntityAssociation],
+    refinements: &[weaver_resolved_schema::v2::entity::EntityRefinement],
+    schema_url: &SchemaUrl,
+) -> Result<Vec<weaver_semconv::entity_association::EntityAssociation>, Error> {
+    weaver_resolved_schema::v2::entity::to_named_associations(associations, refinements).map_err(
+        |entity_ref| Error::InvalidEntityAssociationRef {
+            schema_url: schema_url.to_string(),
+            entity_ref: entity_ref.0,
+        },
+    )
 }
 
 /// The registry that a group comes from. A group that was itself imported

@@ -39,6 +39,93 @@ pub struct Entity {
     pub provenance: Provenance,
 }
 
+/// A reference, by index, to an entity refinement of the schema.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EntityRef(pub u32);
+
+impl std::fmt::Display for EntityRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EntityRef({})", self.0)
+    }
+}
+
+/// An entity association expression in a resolved schema.
+///
+/// The leaf is an index into the entity refinements, not a name. Every entity
+/// definition also has a base refinement, so an index can reach a definition or
+/// a refinement of one.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(untagged)]
+pub enum EntityAssociation {
+    /// A reference to one entity refinement.
+    Ref(EntityRef),
+    /// Satisfied when at least one of the contained expressions is satisfied.
+    OneOf {
+        /// The candidate expressions.
+        // `no_recursion` stops utoipa from inlining the self-referential schema
+        // forever (it would otherwise overflow the stack at generation time).
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
+        one_of: Vec<EntityAssociation>,
+    },
+    /// Satisfied when every contained expression is satisfied.
+    AllOf {
+        /// The required expressions.
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
+        all_of: Vec<EntityAssociation>,
+    },
+}
+
+impl EntityAssociation {
+    /// Returns every entity reference anywhere in this expression tree.
+    pub fn refs(&self) -> impl Iterator<Item = EntityRef> + '_ {
+        // A small explicit stack keeps this allocation-light and avoids
+        // recursion in a hot path.
+        let mut stack = vec![self];
+        std::iter::from_fn(move || {
+            while let Some(node) = stack.pop() {
+                match node {
+                    EntityAssociation::Ref(r) => return Some(*r),
+                    EntityAssociation::OneOf { one_of: children }
+                    | EntityAssociation::AllOf { all_of: children } => stack.extend(children),
+                }
+            }
+            None
+        })
+    }
+}
+
+/// Turns the indices of association expressions back into names, using the
+/// entity refinements of the schema. Returns the first index that names no
+/// refinement.
+///
+/// A resolved schema holds an index. A v1 group and a template both read a
+/// name, so every consumer of the two needs this.
+pub fn to_named_associations(
+    associations: &[EntityAssociation],
+    refinements: &[EntityRefinement],
+) -> Result<Vec<weaver_semconv::entity_association::EntityAssociation>, EntityRef> {
+    use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+    associations
+        .iter()
+        .map(|assoc| match assoc {
+            EntityAssociation::Ref(entity_ref) => refinements
+                .get(entity_ref.0 as usize)
+                .map(|refinement| SpecAssociation::Ref(refinement.id.to_string()))
+                .ok_or(*entity_ref),
+            EntityAssociation::OneOf { one_of } => Ok(SpecAssociation::OneOf {
+                one_of: to_named_associations(one_of, refinements)?,
+            }),
+            EntityAssociation::AllOf { all_of } => Ok(SpecAssociation::AllOf {
+                all_of: to_named_associations(all_of, refinements)?,
+            }),
+        })
+        .collect()
+}
+
 /// A special type of reference to attributes that remembers entity-specicific information.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

@@ -1,11 +1,12 @@
 //! Metric related definitions structs.
 
-use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
+use crate::v2::{
+    attribute::AttributeRef, entity::EntityAssociation, provenance::Provenance, Signal,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
-    entity_association::EntityAssociation,
     group::InstrumentSpec,
     signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, CommonFields},
