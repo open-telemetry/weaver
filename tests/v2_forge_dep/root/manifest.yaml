@@ -1,0 +1,5 @@
+description: A root registry depending on dep.
+schema_url: https://root.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://dep.example.com/schemas/1.0.0
+    registry_path: tests/v2_forge_dep/dep

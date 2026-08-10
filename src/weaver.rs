@@ -757,3 +757,94 @@ impl From<PolicyError> for DiagnosticMessages {
         DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use weaver_common::diagnostic::DiagnosticMessages;
+    use weaver_common::http_auth::HttpAuthResolver;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig};
+
+    use super::{Resolved, WeaverEngine};
+
+    fn assert_rendered_forge_schema(registry_dir: &str, expected_schema_file: &str) {
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: registry_dir.to_owned(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig {
+            policies: vec![],
+            skip_policies: true,
+            display_policy_coverage: false,
+        };
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2 for {registry_dir}");
+        };
+
+        let observed_yaml = serde_yaml::to_string(&v2.template_schema)
+            .expect("Failed to serialize forge schema to YAML");
+
+        let observed_dir = PathBuf::from(format!("observed_output/{registry_dir}"));
+        let _ = std::fs::create_dir_all(&observed_dir);
+        let _ = std::fs::write(observed_dir.join("forge_schema.yaml"), &observed_yaml);
+
+        let expected_path = Path::new(expected_schema_file);
+        if !expected_path.exists() {
+            let _ = std::fs::write(expected_path, &observed_yaml);
+        }
+
+        let expected_yaml = std::fs::read_to_string(expected_path).unwrap_or_else(|_| {
+            panic!("Failed to read expected schema file: {expected_schema_file}")
+        });
+
+        let observed_json: serde_json::Value = serde_yaml::from_str(&observed_yaml)
+            .expect("Failed to deserialize observed yaml to json");
+        let expected_json: serde_json::Value = serde_yaml::from_str(&expected_yaml)
+            .expect("Failed to deserialize expected yaml to json");
+
+        assert_eq!(
+            observed_json,
+            expected_json,
+            "Rendered forge schema does not match expected for `{registry_dir}`.\nDiff:\n{}",
+            weaver_diff::diff_output(&expected_yaml, &observed_yaml)
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_render_forge_schema_v2_model() {
+        assert_rendered_forge_schema(
+            "tests/v2_forge/model",
+            "tests/v2_forge/expected_schema.yaml",
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_render_forge_schema_v2_dependencies() {
+        assert_rendered_forge_schema(
+            "tests/v2_forge_dep/root",
+            "tests/v2_forge_dep/expected_schema.yaml",
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_render_forge_schema_published_v2() {
+        assert_rendered_forge_schema(
+            "tests/published_v2_registry",
+            "tests/published_v2_registry/expected_schema.yaml",
+        );
+    }
+}
