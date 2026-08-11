@@ -151,6 +151,80 @@ impl<'de> Deserialize<'de> for Dependency {
     }
 }
 
+/// Raw dependency shape used while parsing manifests so validation can depend
+/// on the manifest variant (definition vs publication).
+#[derive(Deserialize)]
+struct RawDependency {
+    name: Option<String>,
+    schema_url: Option<SchemaUrl>,
+    registry_path: Option<VirtualDirectoryPath>,
+}
+
+impl RawDependency {
+    fn into_definition_dependency(
+        self,
+        path: &std::path::Path,
+        warnings: &mut Vec<String>,
+    ) -> Result<Dependency, Error> {
+        let schema_url = match (self.schema_url, self.name) {
+            (Some(url), _) => url,
+            (None, Some(name)) => {
+                warnings.push(format!(
+                    "Dependency '{name}' uses deprecated syntax without 'schema_url'. \
+                     Please add 'schema_url' explicitly."
+                ));
+                SchemaUrl::try_from_name_version(&name, "unknown").map_err(|error| {
+                    InvalidRegistryManifest {
+                        path: path.to_path_buf(),
+                        error,
+                    }
+                })?
+            }
+            (None, None) => {
+                return Err(InvalidRegistryManifest {
+                    path: path.to_path_buf(),
+                    error: "missing required field 'schema_url' for a dependency. Either provide 'schema_url' or legacy 'name'.".into(),
+                });
+            }
+        };
+
+        Ok(Dependency {
+            schema_url,
+            registry_path: self.registry_path,
+        })
+    }
+
+    fn into_publication_dependency(self, path: &std::path::Path) -> Result<Dependency, Error> {
+        let schema_url = match (self.schema_url, self.name) {
+            (Some(url), _) => url,
+            (None, Some(name)) => {
+                return Err(Error::InvalidPublicationManifest {
+                    path: path.to_path_buf(),
+                    details: format!(
+                        "missing required field 'schema_url' for dependency '{name}'. \
+                         The schema_url uniquely identifies the dependency registry and its \
+                         version, e.g. https://example.com/{name}/1.0.0"
+                    ),
+                })
+            }
+            (None, None) => {
+                return Err(Error::InvalidPublicationManifest {
+                    path: path.to_path_buf(),
+                    details: "missing required field 'schema_url' for a dependency. \
+                              The schema_url uniquely identifies the dependency registry and its \
+                              version, e.g. https://example.com/my-registry/1.0.0"
+                        .into(),
+                })
+            }
+        };
+
+        Ok(Dependency {
+            schema_url,
+            registry_path: self.registry_path,
+        })
+    }
+}
+
 /// Raw helper for deserializing a manifest before validation.
 /// All fields are optional so we can decide on the variant first, then validate.
 #[derive(Deserialize)]
@@ -163,7 +237,7 @@ struct RawManifestFields {
     #[allow(deprecated)]
     schema_base_url: Option<String>,
     #[serde(default)]
-    dependencies: Vec<Dependency>,
+    dependencies: Vec<RawDependency>,
     #[serde(default)]
     stability: Stability,
     resolved_registry_uri: Option<String>,
@@ -181,6 +255,11 @@ impl RawManifestFields {
                     path: path.to_path_buf(),
                     details: "missing required field 'schema_url'".into(),
                 })?;
+            let dependencies = self
+                .dependencies
+                .into_iter()
+                .map(|dep| dep.into_publication_dependency(path))
+                .collect::<Result<Vec<_>, _>>()?;
             let mut warnings = vec![];
             let resolved_registry_uri = match (self.resolved_registry_uri, self.resolved_schema_uri)
             {
@@ -203,7 +282,7 @@ impl RawManifestFields {
                 file_format: PUBLICATION_MANIFEST_FILE_FORMAT.to_owned(),
                 schema_url,
                 description: self.description,
-                dependencies: self.dependencies,
+                dependencies,
                 stability: self.stability,
                 resolved_registry_uri,
                 deserialization_warnings: warnings,
@@ -242,10 +321,15 @@ impl RawManifestFields {
                     }
                 })?
             };
+            let dependencies = self
+                .dependencies
+                .into_iter()
+                .map(|dep| dep.into_definition_dependency(path, &mut warnings))
+                .collect::<Result<Vec<_>, _>>()?;
             Ok(RegistryManifest::Definition(DefinitionRegistryManifest {
                 schema_url,
                 description: self.description,
-                dependencies: self.dependencies,
+                dependencies,
                 stability: self.stability,
                 deserialization_warnings: warnings,
             }))
@@ -677,6 +761,35 @@ stability: stable
     }
 
     #[test]
+    fn test_definition_manifest_accepts_legacy_dependency_without_schema_url() {
+        let mut nfes = vec![];
+        let manifest = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+dependencies:
+  - name: "otel"
+    registry_path: "./dep"
+"#,
+            &mut nfes,
+        )
+        .expect("definition manifests should accept legacy dependency syntax");
+
+        let RegistryManifest::Definition(def) = manifest else {
+            panic!("expected Definition variant");
+        };
+        assert_eq!(def.dependencies.len(), 1);
+        assert_eq!(
+            def.dependencies[0].schema_url.as_str(),
+            "https://otel/unknown"
+        );
+        assert!(
+            nfes.iter()
+                .any(|w| matches!(w, DeprecatedSyntaxInRegistryManifest { .. })),
+            "expected deprecated syntax warning, got: {nfes:?}"
+        );
+    }
+
+    #[test]
     fn test_publication_manifest_parsed_as_publication_variant() {
         let manifest = manifest_from_yaml(
             r#"
@@ -830,6 +943,26 @@ schema_url: "https://example.com/schemas/1.0.0"
             result,
             Err(Error::InvalidPublicationManifest { details, .. })
                 if details.contains("resolved_registry_uri")
+        ));
+    }
+
+    #[test]
+    fn test_publication_manifest_rejects_legacy_dependency_without_schema_url() {
+        let result = manifest_from_yaml(
+            r#"
+file_format: "manifest/2.0"
+schema_url: "https://example.com/schemas/1.0.0"
+resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+dependencies:
+  - name: "otel"
+    registry_path: "./dep"
+"#,
+            &mut vec![],
+        );
+        assert!(matches!(
+            result,
+            Err(Error::InvalidPublicationManifest { details, .. })
+                if details.contains("missing required field 'schema_url'") && details.contains("otel")
         ));
     }
 }

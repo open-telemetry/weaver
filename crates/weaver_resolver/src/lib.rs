@@ -1858,30 +1858,27 @@ groups:
     }
 
     #[test]
-    fn test_dependency_without_schema_url_is_rejected() {
-        // `main`'s manifest declares its dependency with only `name` and
-        // `registry_path`. `schema_url` is mandatory for dependencies — it is
-        // the identity that provenance and version-conflict resolution key
-        // on — so this must fail with an error naming the offending
-        // dependency.
+    fn test_dependency_without_schema_url_is_allowed_for_definition_manifest() {
+        // `main`'s definition manifest declares its dependency with legacy
+        // syntax (`name` + `registry_path`). This remains accepted for v1
+        // definition manifests to preserve compatibility.
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/mandatory-schema-url/main".to_owned(),
         };
-        let err_msg = match RegistryRepo::try_new(None, &registry_path, &mut vec![]) {
-            Err(e) => e.to_string(),
-            Ok(registry_repo) => {
-                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
-                match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
-                    WResult::Ok(_) | WResult::OkWithNFEs(_, _) => panic!(
-                        "expected an error for the dependency missing 'schema_url', but resolution succeeded"
-                    ),
-                    WResult::FatalErr(e) => e.to_string(),
-                }
-            }
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("legacy dependency syntax in a definition manifest should be accepted");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
         };
+
+        let metrics = resolved.groups(GroupType::Metric);
         assert!(
-            err_msg.contains("schema_url") && err_msg.contains("dep"),
-            "error should name the dependency missing 'schema_url'; got: {err_msg}"
+            metrics
+                .values()
+                .any(|g| g.metric_name.as_deref() == Some("dep.uptime")),
+            "expected imported metric from dependency to resolve"
         );
     }
 
