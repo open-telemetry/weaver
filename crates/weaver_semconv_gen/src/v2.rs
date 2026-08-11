@@ -11,14 +11,8 @@ use weaver_forge::{
     OutputProcessor,
 };
 use weaver_resolved_schema::v2::{
-    attribute::Attribute,
-    attribute_group::AttributeGroup,
-    catalog::AttributeCatalog,
-    entity::{Entity, EntityRefinement},
-    event::Event,
-    metric::Metric,
-    span::Span,
-    ResolvedTelemetrySchema, Signal,
+    attribute::Attribute, attribute_group::AttributeGroup, catalog::AttributeCatalog,
+    entity::Entity, event::Event, metric::Metric, span::Span, ResolvedTelemetrySchema, Signal,
 };
 
 use crate::{
@@ -107,23 +101,23 @@ fn lookup_signal_by_id<'a, T: Signal>(signals: &'a [T], id: &str) -> Option<&'a 
 /// schema is built by this workspace, so a dangling index is a logic error.
 fn named_associations(
     associations: &[weaver_resolved_schema::v2::entity::EntityAssociation],
-    entity_refinements: &[EntityRefinement],
+    registry: &ResolvedTelemetrySchema,
 ) -> Vec<weaver_semconv::entity_association::EntityAssociation> {
-    weaver_resolved_schema::v2::entity::to_named_associations(associations, entity_refinements)
-        .unwrap_or_else(|entity_ref| {
-            panic!(
-                "Invalid schema file: Entity reference {} does not exist",
-                entity_ref.0
-            )
-        })
+    weaver_resolved_schema::v2::entity::to_named_associations(
+        associations,
+        &registry.refinements.entities,
+    )
+    .unwrap_or_else(|entity_ref| {
+        panic!(
+            "Invalid schema file: Entity reference {} does not exist",
+            entity_ref.0
+        )
+    })
 }
 
 /// Creates a renderable context for a resolved metric.
-fn resolved_metric<AC: AttributeCatalog>(
-    m: &Metric,
-    catalog: &AC,
-    entity_refinements: &[EntityRefinement],
-) -> ResolvedId {
+fn resolved_metric(m: &Metric, registry: &ResolvedTelemetrySchema) -> ResolvedId {
+    let catalog = &registry.attribute_catalog;
     let mut attributes = Vec::new();
     for ar in m.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -150,7 +144,7 @@ fn resolved_metric<AC: AttributeCatalog>(
             unit: m.unit.clone(),
             requirement_level: m.requirement_level.clone(),
             attributes,
-            entity_associations: named_associations(&m.entity_associations, entity_refinements),
+            entity_associations: named_associations(&m.entity_associations, registry),
             common: m.common.clone(),
             provenance: Default::default(),
         },
@@ -158,11 +152,8 @@ fn resolved_metric<AC: AttributeCatalog>(
 }
 
 // Creates renderable span.
-fn resolved_span<AC: AttributeCatalog>(
-    s: &Span,
-    catalog: &AC,
-    entity_refinements: &[EntityRefinement],
-) -> ResolvedId {
+fn resolved_span(s: &Span, registry: &ResolvedTelemetrySchema) -> ResolvedId {
+    let catalog = &registry.attribute_catalog;
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -189,7 +180,7 @@ fn resolved_span<AC: AttributeCatalog>(
             name: s.name.clone(),
             attributes,
             kind: s.kind.clone(),
-            entity_associations: named_associations(&s.entity_associations, entity_refinements),
+            entity_associations: named_associations(&s.entity_associations, registry),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
             provenance: Default::default(),
@@ -198,11 +189,8 @@ fn resolved_span<AC: AttributeCatalog>(
 }
 
 // Creates renderable event.
-fn resolved_event<AC: AttributeCatalog>(
-    s: &Event,
-    catalog: &AC,
-    entity_refinements: &[EntityRefinement],
-) -> ResolvedId {
+fn resolved_event(s: &Event, registry: &ResolvedTelemetrySchema) -> ResolvedId {
+    let catalog = &registry.attribute_catalog;
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -226,7 +214,7 @@ fn resolved_event<AC: AttributeCatalog>(
         event: weaver_forge::v2::event::Event {
             name: s.name.clone(),
             attributes,
-            entity_associations: named_associations(&s.entity_associations, entity_refinements),
+            entity_associations: named_associations(&s.entity_associations, registry),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
             provenance: Default::default(),
@@ -235,7 +223,8 @@ fn resolved_event<AC: AttributeCatalog>(
 }
 
 // Creates renderable entity.
-fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId {
+fn resolved_entity(s: &Entity, registry: &ResolvedTelemetrySchema) -> ResolvedId {
+    let catalog = &registry.attribute_catalog;
     let mut identity = Vec::new();
     for ar in s.identity.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -287,7 +276,8 @@ fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId
 }
 
 // Creates renderable attribute group.
-fn resolved_attribute_group<AC: AttributeCatalog>(s: &AttributeGroup, catalog: &AC) -> ResolvedId {
+fn resolved_attribute_group(s: &AttributeGroup, registry: &ResolvedTelemetrySchema) -> ResolvedId {
+    let catalog = &registry.attribute_catalog;
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -344,84 +334,47 @@ fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<Reso
             &registry.registry.attribute_groups,
             &id,
         )
-        .map(|ag| resolved_attribute_group(ag, &registry.attribute_catalog))),
+        .map(|ag| resolved_attribute_group(ag, registry))),
         IdLookupV2::Registry(RegistryLookup::Span { id }) => {
-            Ok(lookup_signal_by_id(&registry.registry.spans, &id).map(|s| {
-                resolved_span(
-                    s,
-                    &registry.attribute_catalog,
-                    &registry.refinements.entities,
-                )
-            }))
+            Ok(lookup_signal_by_id(&registry.registry.spans, &id)
+                .map(|s| resolved_span(s, registry)))
         }
         IdLookupV2::Registry(RegistryLookup::Metric { id }) => {
-            Ok(
-                lookup_signal_by_id(&registry.registry.metrics, &id).map(|m| {
-                    resolved_metric(
-                        m,
-                        &registry.attribute_catalog,
-                        &registry.refinements.entities,
-                    )
-                }),
-            )
+            Ok(lookup_signal_by_id(&registry.registry.metrics, &id)
+                .map(|m| resolved_metric(m, registry)))
         }
         IdLookupV2::Registry(RegistryLookup::Event { id }) => {
-            Ok(
-                lookup_signal_by_id(&registry.registry.events, &id).map(|e| {
-                    resolved_event(
-                        e,
-                        &registry.attribute_catalog,
-                        &registry.refinements.entities,
-                    )
-                }),
-            )
+            Ok(lookup_signal_by_id(&registry.registry.events, &id)
+                .map(|e| resolved_event(e, registry)))
         }
         IdLookupV2::Registry(RegistryLookup::Entity { id }) => {
             Ok(lookup_signal_by_id(&registry.registry.entities, &id)
-                .map(|e| resolved_entity(e, &registry.attribute_catalog)))
+                .map(|e| resolved_entity(e, registry)))
         }
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Metric { id }) => Ok(registry
             .refinements
             .metrics
             .iter()
             .find(|m| m.id == id)
-            .map(|m| {
-                resolved_metric(
-                    &m.metric,
-                    &registry.attribute_catalog,
-                    &registry.refinements.entities,
-                )
-            })),
+            .map(|m| resolved_metric(&m.metric, registry))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Event { id }) => Ok(registry
             .refinements
             .events
             .iter()
             .find(|s| s.id == id)
-            .map(|e| {
-                resolved_event(
-                    &e.event,
-                    &registry.attribute_catalog,
-                    &registry.refinements.entities,
-                )
-            })),
+            .map(|e| resolved_event(&e.event, registry))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Span { id }) => Ok(registry
             .refinements
             .spans
             .iter()
             .find(|s| s.id == id)
-            .map(|s| {
-                resolved_span(
-                    &s.span,
-                    &registry.attribute_catalog,
-                    &registry.refinements.entities,
-                )
-            })),
+            .map(|s| resolved_span(&s.span, registry))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Entity { id }) => Ok(registry
             .refinements
             .entities
             .iter()
             .find(|e| e.id == id)
-            .map(|e| resolved_entity(&e.entity, &registry.attribute_catalog))),
+            .map(|e| resolved_entity(&e.entity, registry))),
     }
 }
 

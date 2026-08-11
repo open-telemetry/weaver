@@ -18,6 +18,7 @@
     - [Diff schema](#diff-schema)
   - [Common types](#common-types)
     - [Requirement level](#requirement-level)
+    - [Entity associations](#entity-associations)
     - [Common signal and attribute properties](#common-signal-and-attribute-properties)
 
 <!-- tocstop -->
@@ -187,6 +188,9 @@ refinements:
 
 Attribute references are indexes into the `attribute_catalog` array, paired with per-signal properties such as `requirement_level`.
 
+Entity references are indexes into the `refinements.entities` array. See
+[Entity associations](#entity-associations).
+
 #### Resolved schema properties
 
 - **file_format**: `"resolved/2.0"`
@@ -213,7 +217,7 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
     - `attributes`: Attribute references (optional)
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
-    - `entity_associations`: Associated entity types (optional)
+    - `entity_associations`: [Entity associations](#entity-associations) — indexes into `refinements.entities` (optional)
     - [Common properties](#common-signal-and-attribute-properties)
   - **spans**: Span signal definitions
     - `type`: Unique span type identifier
@@ -223,14 +227,14 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
       - `sampling_relevant`: Whether this attribute must be available at span start (optional)
-    - `entity_associations`: Associated entity types (optional)
+    - `entity_associations`: [Entity associations](#entity-associations) — indexes into `refinements.entities` (optional)
     - [Common properties](#common-signal-and-attribute-properties)
   - **events**: Event signal definitions
     - `name`: Unique event name
     - `attributes`: Attribute references (optional)
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
-    - `entity_associations`: Associated entity types (optional)
+    - `entity_associations`: [Entity associations](#entity-associations) — indexes into `refinements.entities` (optional)
     - [Common properties](#common-signal-and-attribute-properties)
   - **entities**: Entity (resource) signal definitions
     - `type`: Unique entity type
@@ -319,7 +323,8 @@ refinements:
 - **schema_url**: The Schema URL where this registry is or will be published
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
-  and to `attribute_groups`.
+  and to `attribute_groups`. [Entity associations](#entity-associations) are also expanded: each index
+  is replaced by the id of the entity refinement it points at.
 - **refinements**: Same structure as in the *resolved* schema, but attribute references are fully expanded.
 
 ### Diff schema
@@ -366,6 +371,30 @@ It is either a simple string or an object carrying an explanation:
 | `{"conditionally_required": "<condition>"}` | Required when the condition holds |
 | `{"recommended": "<reason>"}` | Recommended, with explicit rationale |
 | `{"opt_in": "<reason>"}` | Opt-in, with explicit rationale |
+
+### Entity associations
+
+`entity_associations` appears on metrics, spans, events, and their refinements. It is a list of
+*entity association expressions*, each of which is one of:
+
+| Form | Meaning |
+| --- | --- |
+| `<entity reference>` | The signal is associated with this entity |
+| `{"one_of": [<expression>, ...]}` | Satisfied when at least one contained expression is satisfied |
+| `{"all_of": [<expression>, ...]}` | Satisfied when every contained expression is satisfied |
+
+`one_of` and `all_of` nest, so an expression is a tree with entity references at its leaves.
+
+How a leaf names its entity depends on the schema:
+
+- In the [definition schema](#definition-schema) a leaf is an entity type, for example `service`.
+- In the [resolved schema](#resolved-schema) a leaf is an index into the `refinements.entities` array.
+  Every entity definition in `registry.entities` also has a base refinement, so an index can reach a
+  definition or a refinement of one. An association is resolved during
+  [`weaver registry package`](/docs/usage.md#weaver-registry-package): the named entity is imported
+  from the registry that defines it, and an association that no registry in scope satisfies is an error.
+- In the [materialized schema](#materialized-resolved-schema) a leaf is the id of the entity refinement
+  the index points at.
 
 ### Common signal and attribute properties
 

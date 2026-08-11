@@ -2302,6 +2302,23 @@ groups:
         );
     }
 
+    /// A legacy `type: resource` group carries its entity type in the id and
+    /// leaves `name` unset. An association names it by that id, so the resolver
+    /// must count it as defined here rather than hunt for it in a dependency.
+    #[test]
+    fn test_association_to_legacy_resource_group() {
+        let (schema, nfes) = resolve_entity_assoc_fixture("legacy_resource");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(entity_types(&schema), ["browser"]);
+        let metric = schema
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "legacy.request.count")
+            .expect("`legacy.request.count` is in the resolved registry");
+        assert_eq!(metric.entity_associations.len(), 1);
+    }
+
     /// An entity marked `dependency_resolution.exclude: true` is private to the
     /// registry that defines it. A dependent must not reach it by any route.
     ///

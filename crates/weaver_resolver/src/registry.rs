@@ -160,9 +160,8 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     }
 
     // We need to *import* objects from the dependencies as required.
-    match resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
-        Ok(unmatched) => errors.extend(unmatched),
-        Err(e) => return WResult::FatalErr(e),
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup, &mut errors) {
+        return WResult::FatalErr(e);
     }
 
     // An entity named in `entity_associations` is imported the way an
@@ -393,15 +392,17 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
-) -> Result<Vec<Error>, Error> {
+    non_fatal_errors: &mut Vec<Error>,
+) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = std::mem::take(&mut ureg.imports);
-    let result = import_into_registry(ureg, &imports, attribute_catalog, cache_lookup)
+    let nfes = import_into_registry(ureg, &imports, attribute_catalog, cache_lookup)
         // A pattern that named nothing is reported here, and only here. The
         // imports that the resolver adds itself are checked elsewhere.
         .and_then(|groups| crate::dependency::unmatched_import_errors(&imports, &groups));
     ureg.imports = imports;
-    result
+    non_fatal_errors.extend(nfes?);
+    Ok(())
 }
 
 /// Imports the groups that `imports` matches in the dependencies, and adds them
@@ -468,8 +469,9 @@ fn associated_entity_types(ureg: &UnresolvedRegistry) -> Vec<String> {
 
 /// The entity types that the registry defines.
 ///
-/// An entity carries its type in `name`. A v1 group may leave `name` unset, so
-/// the id without its `entity.` prefix counts too.
+/// A v2 entity carries its type in `name`. A legacy `type: resource` group
+/// carries it in the id instead and leaves `name` unset, so the id without its
+/// `entity.` prefix counts too.
 fn defined_entity_types(ureg: &UnresolvedRegistry) -> HashSet<&str> {
     ureg.groups
         .iter()

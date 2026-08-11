@@ -463,6 +463,13 @@ entity_associations:
           - container
 ```
 
+Every referenced entity must be defined by this registry or by one of its dependencies. An entity
+that a dependency defines is imported the way an attribute named in a `ref` is — naming it in
+`entity_associations` is enough, it does not also need an [`imports`](#imports-definition) entry. A
+reference that no registry in scope defines fails resolution, and so does a reference to an entity
+that its registry excludes with
+[`dependency_resolution`](#dependency-resolution-annotations).
+
 ### `events` definition
 
 The events section contains a list of event definitions. An event represents a discrete occurrence at a point in time, such as a request completion, system startup, or error condition.
@@ -784,7 +791,7 @@ The `dependency_resolution` annotation hides an attribute, group, or signal from
 registries that consume this one as a dependency. The owning registry still
 sees the item normally - resolution, codegen, and docs are unaffected — but any
 dependent registry that references the item (via `ref`, `extends`,
-`include_groups`, `imports`, or a v2 refinement) fails to resolve.
+`include_groups`, `imports`, `entity_associations`, or a v2 refinement) fails to resolve.
 
 This is intended for migrations where definitions move out of a parent registry
 into a new one. Marking the old definitions excluded prevents conflicts in
