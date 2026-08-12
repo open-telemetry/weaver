@@ -162,7 +162,9 @@ impl EffectiveResolveConfig {
             let schema_url = match SchemaUrl::try_from(url_str.as_str()) {
                 Ok(url) => url,
                 Err(e) => {
-                    log::warn!("Invalid schema URL '{url_str}' in [resolve.schema_url_overrides]: {e}");
+                    log::warn!(
+                        "Invalid schema URL '{url_str}' in [resolve.schema_url_overrides]: {e}"
+                    );
                     continue;
                 }
             };

@@ -28,7 +28,6 @@ pub struct ResolveConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::WeaverConfig;
 
     #[test]

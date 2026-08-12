@@ -22,9 +22,7 @@ use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
-use weaver_config::{
-    EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig,
-};
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig};
 
 /// Visitor that runs Rego policy evaluation during semantic convention loading.
 struct PolicyVisitor<'a> {
@@ -771,9 +769,7 @@ mod tests {
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_common::http_auth::HttpAuthResolver;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_config::{
-        EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig,
-    };
+    use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig};
 
     use super::{Resolved, WeaverEngine};
 
