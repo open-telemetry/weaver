@@ -209,6 +209,26 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
     fix_group_id("span.", group_id)
 }
 
+/// Converts one attribute reference of a v1 group into the v1 definition and
+/// the v2 catalog reference.
+///
+/// A lookup that finds nothing is an error. A silent miss removes the attribute
+/// from the signal. An entity keeps its identity in these attributes.
+fn convert_attribute_ref<'a>(
+    group_id: &str,
+    attr_ref: &crate::attribute::AttributeRef,
+    c: &'a crate::catalog::Catalog,
+    v2_catalog: &Catalog,
+) -> Result<(&'a crate::attribute::Attribute, attribute::AttributeRef), crate::error::Error> {
+    let not_found = || crate::error::Error::AttributeNotFound {
+        group_id: group_id.to_owned(),
+        attr_ref: *attr_ref,
+    };
+    let attr = c.attribute(attr_ref).ok_or_else(not_found)?;
+    let v2_ref = v2_catalog.convert_ref(attr).ok_or_else(not_found)?;
+    Ok((attr, v2_ref))
+}
+
 /// Converts a V1 registry + catalog to V2.
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
@@ -314,24 +334,21 @@ pub fn convert_v1_to_v2(
             .unwrap_or(false);
         let mut id_attrs = Vec::new();
         let mut desc_attrs = Vec::new();
-        for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-            if let Some(a) = v2_catalog.convert_ref(attr) {
-                match attr.role {
-                    Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
-                        id_attrs.push(entity::EntityAttributeRef {
-                            base: a,
-                            requirement_level: attr.requirement_level.clone(),
-                        });
-                    }
-                    _ => {
-                        desc_attrs.push(entity::EntityAttributeRef {
-                            base: a,
-                            requirement_level: attr.requirement_level.clone(),
-                        });
-                    }
+        for attr_ref in g.attributes.iter() {
+            let (attr, a) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
+            match attr.role {
+                Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
+                    id_attrs.push(entity::EntityAttributeRef {
+                        base: a,
+                        requirement_level: attr.requirement_level.clone(),
+                    });
                 }
-            } else {
-                // TODO logic error!
+                _ => {
+                    desc_attrs.push(entity::EntityAttributeRef {
+                        base: a,
+                        requirement_level: attr.requirement_level.clone(),
+                    });
+                }
             }
         }
         let entity_type = if is_refinement {
@@ -1287,6 +1304,80 @@ mod tests {
             assert_eq!(entity.provenance.source, Some(provenance::DependencyRef(0)));
             assert_eq!(entity.provenance.path, "/path/to/source.yaml");
         }
+    }
+
+    /// An attribute with no stability must reach the entity that holds it. A
+    /// registry with such an attribute resolves, because the missing field is
+    /// only a warning. An entity with no identity attribute has no identity.
+    #[test]
+    fn test_convert_entity_keeps_attribute_without_stability() {
+        let mut builder = crate::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
+                    weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                // The point of this test.
+                stability: None,
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: Some(weaver_semconv::attribute::AttributeRole::Identifying),
+            },
+            None,
+        );
+        let v1_catalog = builder.build();
+        let v1_registry = crate::registry::Registry {
+            registry_url: "my.schema.url".to_owned(),
+            groups: vec![Group {
+                id: "entity.my-entity".to_owned(),
+                r#type: GroupType::Entity,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![ref0],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                name: Some("my-entity".to_owned()),
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            }],
+        };
+        let (_, v2_registry, _, _) =
+            convert_v1_to_v2(v1_catalog, v1_registry, BTreeSet::new()).expect("conversion failed");
+        let entity = v2_registry
+            .entities
+            .first()
+            .expect("the entity is in the v2 registry");
+        assert_eq!(
+            entity.identity.len(),
+            1,
+            "an identity attribute with no stability must not be dropped"
+        );
     }
 
     #[test]

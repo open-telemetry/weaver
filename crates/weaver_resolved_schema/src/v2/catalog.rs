@@ -68,11 +68,14 @@ impl Catalog {
                         && a.common.brief == attribute.brief
                         && a.common.note == attribute.note
                         && a.common.deprecated == attribute.deprecated
-                        && attribute
-                            .stability
-                            .as_ref()
-                            .map(|s| a.common.stability == *s)
-                            .unwrap_or(false)
+                        // A v1 attribute can carry no stability. The catalog
+                        // stores it as `Alpha`, so this test applies the same
+                        // default. The annotations test below does the same.
+                        && a.common.stability
+                            == *attribute
+                                .stability
+                                .as_ref()
+                                .unwrap_or(&weaver_semconv::stability::Stability::Alpha)
                         && attribute
                             .annotations
                             .as_ref()
@@ -182,5 +185,49 @@ mod test {
             role: None,
         });
         assert!(result2.is_some());
+    }
+
+    /// A catalog entry stores a missing stability as `Alpha`. A lookup for an
+    /// attribute with no stability must find that entry.
+    #[test]
+    fn test_lookup_defaults_missing_stability() {
+        let key = "test.key".to_owned();
+        let atype = AttributeType::PrimitiveOrArray(
+            weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+        );
+        let catalog = Catalog::from_attributes(vec![Attribute {
+            key: key.clone(),
+            r#type: atype.clone(),
+            examples: None,
+            common: CommonFields {
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                // What `convert_v1_to_v2` stores for an attribute with no
+                // stability.
+                stability: Stability::Alpha,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        }]);
+
+        let result = catalog.convert_ref(&crate::attribute::Attribute {
+            name: key,
+            r#type: atype,
+            brief: "brief".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note: "note".to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        });
+        assert!(result.is_some());
     }
 }
