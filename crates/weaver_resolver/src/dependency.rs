@@ -180,7 +180,8 @@ impl ImportField {
 ///
 /// A group from a v2 definition answers to its id, to its signal name, and to
 /// its id without the group-type prefix. A v1 group answers to its signal name,
-/// or to its id for a span or an attribute group.
+/// or to its id for a span or an attribute group. A v1 entity answers to both,
+/// because a legacy `resource` group has no name.
 fn import_match_keys(g: &Group) -> Vec<&str> {
     let name = g.name.as_deref();
     let metric_name = g.metric_name.as_deref();
@@ -205,7 +206,18 @@ fn import_match_keys(g: &Group) -> Vec<&str> {
     } else {
         match g.r#type {
             GroupType::AttributeGroup | GroupType::Span => vec![g.id.as_str()],
-            GroupType::Event | GroupType::Entity => name.into_iter().collect(),
+            GroupType::Event => name.into_iter().collect(),
+            // A legacy `resource` group carries its type in the id and leaves
+            // the name unset. The name alone gives it no key at all, so no
+            // import can reach it.
+            GroupType::Entity => {
+                let mut keys = vec![g.id.as_str()];
+                keys.extend(g.id.strip_prefix("entity."));
+                if let Some(name) = name.filter(|n| !keys.contains(n)) {
+                    keys.push(name);
+                }
+                keys
+            }
             GroupType::Metric => metric_name.into_iter().collect(),
             GroupType::MetricGroup | GroupType::Scope | GroupType::Undefined => vec![],
         }

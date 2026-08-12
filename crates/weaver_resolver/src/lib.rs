@@ -2319,6 +2319,20 @@ groups:
         assert_eq!(metric.entity_associations.len(), 1);
     }
 
+    /// A dependent must be able to import a legacy `type: resource` entity. The
+    /// group has no name, so the id that carries its type is the only name a
+    /// pattern can use.
+    #[test]
+    fn test_legacy_resource_entity_can_be_imported() {
+        let (schema, nfes) = resolve_entity_assoc_fixture("top_legacy_import");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&schema),
+            ["browser"],
+            "the import must reach the legacy resource group of the dependency"
+        );
+    }
+
     /// An entity marked `dependency_resolution.exclude: true` is private to the
     /// registry that defines it. A dependent must not reach it by any route.
     ///
