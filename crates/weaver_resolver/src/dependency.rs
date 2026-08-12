@@ -1279,10 +1279,16 @@ fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> Gr
                 .map(|ar| (ar, AttributeRole::Descriptive)),
         )
         .filter_map(|(ar, role)| {
-            schema
-                .attribute_catalog
-                .get(ar.base.0 as usize)
-                .map(|a| attr_spec(schema, deps, a, ar.requirement_level.clone(), None, Some(role)))
+            schema.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                attr_spec(
+                    schema,
+                    deps,
+                    a,
+                    ar.requirement_level.clone(),
+                    None,
+                    Some(role),
+                )
+            })
         })
         .collect();
     signal_summary(
@@ -1295,8 +1301,6 @@ fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> Gr
 
 impl GroupRefinementLookup for V2Schema {
     fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
-        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
-
         // An `extends` clause references either the v1 group id
         // (`entity.host`, written by v2 refinements over prefix-stripped
         // published signals) or the raw published signal id
@@ -1309,6 +1313,8 @@ impl GroupRefinementLookup for V2Schema {
                 .or_else(|| by_id(id))
         }
 
+        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
+
         if let Some(e) = find(&self.registry.entities, id, "entity.") {
             return Some(entity_group_summary(self, &deps, e));
         }
@@ -1317,9 +1323,9 @@ impl GroupRefinementLookup for V2Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                    })
                 })
                 .collect();
             let mut summary = signal_summary(
@@ -1338,9 +1344,9 @@ impl GroupRefinementLookup for V2Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                    })
                 })
                 .collect();
             return Some(signal_summary(
