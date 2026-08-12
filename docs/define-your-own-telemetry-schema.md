@@ -138,3 +138,20 @@ Matching requests are sent with `Authorization: Bearer <token>`. Then:
 weaver registry check \
   -r "https://github.com/org/repo/releases/download/v1.0.0/manifest.yaml"
 ```
+
+## Overriding dependency schema URLs locally (`.weaver.toml`)
+
+When developing custom registries that depend on upstream registries (e.g., OpenTelemetry semantic conventions), you might want to test against local directory checkouts, forks, or offline archives without modifying the canonical `registry_path` in `manifest.yaml`.
+
+You can configure schema URL overrides in `.weaver.toml` under `[resolve.schema_url_overrides]`:
+
+```toml
+[resolve.schema_url_overrides]
+# Override an upstream dependency schema URL to point to a local checkout
+"https://opentelemetry.io/schemas/1.40.0" = "../semantic-conventions/model"
+
+# Or override to point to a specific Git fork or branch
+"https://example.com/schemas/1.0.0" = "https://github.com/my-fork/semconv.git[model]"
+```
+
+When Weaver resolves dependencies during commands like `weaver registry check`, `weaver registry generate`, or `weaver registry live-check`, any dependency whose `schema_url` matches an entry in `[resolve.schema_url_overrides]` will be redirected to the specified local path or URL instead of the default location in `manifest.yaml`.

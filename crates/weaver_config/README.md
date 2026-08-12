@@ -90,6 +90,24 @@ exclude = ["missing_namespace"]
 
 See `schemas/weaver-config.json` for the full JSON schema (with VS Code / taplo completion support via the `#:schema` annotation above).
 
+### Dependency Resolution Overrides (`[resolve]`)
+
+The `[resolve]` section configures how dependencies and schema URLs are resolved. This is a configuration-only setting (no CLI flags) designed for:
+
+- **Local Development**: Developing interdependent registries simultaneously without needing to publish or modify the `manifest.yaml` dependency paths.
+- **Air-Gapped / Offline CI**: Redirecting remote schema URL fetches to local directories, archives, or internal mirrors.
+- **Testing Forks and Branches**: Redirecting a canonical dependency schema URL to a local checkout or Git fork.
+
+```toml
+[resolve.schema_url_overrides]
+# Map a canonical schema URL to a local directory
+"https://opentelemetry.io/schemas/1.25.0" = "path/to/local/1.25.0"
+# Map to a specific Git repository subfolder
+"https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
+```
+
+Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured override path.
+
 ## Architecture
 
 ### `WeaverConfig`
