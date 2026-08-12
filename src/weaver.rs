@@ -22,7 +22,9 @@ use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
-use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig};
+use weaver_config::{
+    EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig,
+};
 
 /// Visitor that runs Rego policy evaluation during semantic convention loading.
 struct PolicyVisitor<'a> {
@@ -50,6 +52,7 @@ impl<'a> SchemaLoadingVisitor for PolicyVisitor<'a> {
 pub struct WeaverEngine<'a> {
     registry_config: &'a EffectiveRegistryConfig,
     policy_config: &'a EffectivePolicyConfig,
+    resolve_config: &'a EffectiveResolveConfig,
     /// Per-URL HTTP credential resolver built from `.weaver.toml` (`[[auth]]`).
     auth: &'a HttpAuthResolver,
 }
@@ -59,11 +62,13 @@ impl<'a> WeaverEngine<'a> {
     pub fn new(
         registry: &'a EffectiveRegistryConfig,
         policy: &'a EffectivePolicyConfig,
+        resolve: &'a EffectiveResolveConfig,
         auth: &'a HttpAuthResolver,
     ) -> Self {
         Self {
             registry_config: registry,
             policy_config: policy,
+            resolve_config: resolve,
             auth,
         }
     }
@@ -95,6 +100,7 @@ impl<'a> WeaverEngine<'a> {
             follow_symlinks: self.registry_config.follow_symlinks,
             include_unreferenced: self.registry_config.include_unreferenced,
             auth: self.auth.clone(),
+            schema_url_overrides: self.resolve_config.schema_url_overrides.clone(),
             ..Default::default()
         };
         let mut resolver = WeaverResolver::new(config);
@@ -765,7 +771,9 @@ mod tests {
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_common::http_auth::HttpAuthResolver;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig};
+    use weaver_config::{
+        EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig,
+    };
 
     use super::{Resolved, WeaverEngine};
 
@@ -784,7 +792,8 @@ mod tests {
             display_policy_coverage: false,
         };
         let auth = HttpAuthResolver::default();
-        let engine = WeaverEngine::new(&registry_config, &policy_config, &auth);
+        let resolve_config = EffectiveResolveConfig::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
         let mut diag_msgs = DiagnosticMessages::empty();
 
         let resolved = engine
@@ -845,6 +854,80 @@ mod tests {
         assert_rendered_forge_schema(
             "tests/published_v2_registry",
             "tests/published_v2_registry/expected_schema.yaml",
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_schema_url_overrides() {
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/root".to_owned(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let mut resolve_config = EffectiveResolveConfig::default();
+        _ = resolve_config.schema_url_overrides.insert(
+            "https://dep.example.com/schemas/1.0.0".try_into().unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/dep".to_owned(),
+            },
+        );
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry with overrides");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2");
+        };
+        assert_eq!(
+            v2.resolved_schema().schema_url.as_str(),
+            "https://root.example.com/schemas/1.0.0"
+        );
+    }
+
+    #[test]
+    fn test_weaver_toml_resolve_override_integration() {
+        let toml_str = r#"
+[resolve.schema_url_overrides]
+"https://dep.example.com/schemas/1.0.0" = "tests/v2_forge_dep/dep"
+"#;
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join(".weaver.toml");
+        std::fs::write(&config_path, toml_str).unwrap();
+        let config = weaver_config::load(&config_path).unwrap();
+        let mut resolve_config = EffectiveResolveConfig::default();
+        resolve_config.layer_config(&config.resolve);
+
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/root".to_owned(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry using weaver.toml overrides");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2");
+        };
+        assert_eq!(
+            v2.resolved_schema().schema_url.as_str(),
+            "https://root.example.com/schemas/1.0.0"
         );
     }
 }

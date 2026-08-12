@@ -15,7 +15,9 @@ use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
+use weaver_config::{
+    EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig, WeaverConfig,
+};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum Error {
@@ -83,9 +85,14 @@ pub(crate) fn command(
     }
     args.policy.apply_to(&mut policy);
 
+    let mut resolve = EffectiveResolveConfig::default();
+    if let Some(wc) = cfg {
+        resolve.layer_config(&wc.resolve);
+    }
+
     info!("Resolving registry `{}`", registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&registry, &policy, auth);
+    let weaver = WeaverEngine::new(&registry, &policy, &resolve, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     let target = OutputTarget::from_optional_file(args.output.as_ref());

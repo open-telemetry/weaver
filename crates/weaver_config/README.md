@@ -30,6 +30,11 @@ skip = true
 [diagnostics]
 format = "ansi"   # ansi | json | gh_workflow_command
 
+# Shared resolution settings — override dependency schema URLs with local or custom locations.
+[resolve.schema_url_overrides]
+"https://opentelemetry.io/schemas/1.25.0" = "path/to/local/1.25.0"
+"https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
+
 # Shared template settings — applied on top of every template package's `weaver.yaml`.
 [template]
 acronyms = ["API", "HTTP", "SDK", "iOS"] 
@@ -89,7 +94,7 @@ See `schemas/weaver-config.json` for the full JSON schema (with VS Code / taplo 
 
 ### `WeaverConfig`
 
-The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `live_check`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
+The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `resolve`, `live_check`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
 
 ### `CliOverrides` trait
 
@@ -102,7 +107,7 @@ Each command's `*Args` struct implements `CliOverrides`, which declares:
 - `excluded_args` / `config_only_fields` — drive the consistency test
 - `apply_registry_overrides` / `apply_policy_overrides` / `apply_diagnostic_overrides` — handle shared args
 
-`load_config(args, cfg)` executes the three-layer merge and returns `CommandConfig<C>` containing the merged command config plus effective registry, policy, and diagnostic configs.
+`load_config(args, cfg)` executes the three-layer merge and returns `CommandConfig<C>` containing the merged command config plus effective registry, policy, resolution, and diagnostic configs.
 
 ### `#[derive(WeaverCommand)]` macro
 
