@@ -273,6 +273,12 @@ The materialized version of the same metric would look like:
 
 ```yaml
 schema_url: https://opentelemetry.io/schemas/semconv/1.{future}.0
+dependencies:
+  - schema_url: https://opentelemetry.io/schemas/semconv/1.29.0
+    registry:
+      attributes: ...
+      metrics: ...
+    refinements: ...
 registry:
   attributes:
   ...
@@ -317,6 +323,7 @@ refinements:
 #### Materialized schema properties
 
 - **schema_url**: The Schema URL where this registry is or will be published
+- **dependencies**: An array of materialized dependencies (having the same structure as this materialized schema) that this registry depends on
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
   and to `attribute_groups`.

@@ -296,6 +296,14 @@ pub enum Error {
     #[error("Internal error: {0}")]
     InternalError(String),
 
+    /// Resolver error.
+    #[error("Resolver error: {0}")]
+    ResolverError(#[from] weaver_resolver::Error),
+
+    /// Schema error.
+    #[error("Schema error: {0}")]
+    SchemaError(#[from] weaver_resolved_schema::error::Error),
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),

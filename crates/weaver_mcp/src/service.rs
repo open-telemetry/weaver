@@ -650,6 +650,7 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
+            dependencies: vec![],
         }
     }
 

@@ -755,6 +755,7 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
+            dependencies: vec![],
         };
 
         let result = emit(

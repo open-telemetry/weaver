@@ -1,0 +1,154 @@
+schema_url: https://root.example.com/schemas/1.0.0
+registry:
+  attributes:
+  - key: root.attr
+    type: string
+    brief: An attribute defined in root.
+    stability: stable
+    provenance:
+      path: tests/v2_forge_dep/root/registry.yaml
+  attribute_groups: []
+  metrics:
+  - name: root.metric
+    instrument: counter
+    unit: '1'
+    attributes:
+    - key: dep.port
+      type: int
+      brief: Port attribute from dependency.
+      stability: stable
+      provenance:
+        source: https://dep.example.com/schemas/1.0.0
+      requirement_level: required
+    - key: root.attr
+      type: string
+      brief: An attribute defined in root.
+      stability: stable
+      provenance:
+        path: tests/v2_forge_dep/root/registry.yaml
+      requirement_level: recommended
+    brief: A metric defined in root that uses dependency attribute.
+    stability: stable
+    provenance:
+      path: tests/v2_forge_dep/root/registry.yaml
+  spans:
+  - type: root.span
+    kind: client
+    name:
+      note: Client span.
+    attributes:
+    - key: dep.attr
+      type: string
+      brief: An attribute from dependency.
+      stability: stable
+      provenance:
+        source: https://dep.example.com/schemas/1.0.0
+      requirement_level: recommended
+    brief: A span defined in root.
+    stability: stable
+    provenance:
+      path: tests/v2_forge_dep/root/registry.yaml
+  events: []
+  entities: []
+refinements:
+  metrics:
+  - id: root.metric
+    name: root.metric
+    instrument: counter
+    unit: '1'
+    attributes:
+    - key: dep.port
+      type: int
+      brief: Port attribute from dependency.
+      stability: stable
+      provenance:
+        source: https://dep.example.com/schemas/1.0.0
+      requirement_level: required
+    - key: root.attr
+      type: string
+      brief: An attribute defined in root.
+      stability: stable
+      provenance:
+        path: tests/v2_forge_dep/root/registry.yaml
+      requirement_level: recommended
+    brief: A metric defined in root that uses dependency attribute.
+    stability: stable
+    provenance:
+      path: tests/v2_forge_dep/root/registry.yaml
+  spans:
+  - id: root.span
+    type: root.span
+    kind: client
+    name:
+      note: Client span.
+    attributes:
+    - key: dep.attr
+      type: string
+      brief: An attribute from dependency.
+      stability: stable
+      provenance:
+        source: https://dep.example.com/schemas/1.0.0
+      requirement_level: recommended
+    brief: A span defined in root.
+    stability: stable
+    provenance:
+      path: tests/v2_forge_dep/root/registry.yaml
+  events: []
+  entities: []
+dependencies:
+- schema_url: https://dep.example.com/schemas/1.0.0
+  registry:
+    attributes:
+    - key: dep.attr
+      type: string
+      brief: An attribute from dependency.
+      stability: stable
+      provenance:
+        path: tests/v2_forge_dep/dep/registry.yaml
+    - key: dep.port
+      type: int
+      brief: Port attribute from dependency.
+      stability: stable
+      provenance:
+        path: tests/v2_forge_dep/dep/registry.yaml
+    attribute_groups: []
+    metrics:
+    - name: dep.metric
+      instrument: counter
+      unit: '{request}'
+      attributes:
+      - key: dep.attr
+        type: string
+        brief: An attribute from dependency.
+        stability: stable
+        provenance:
+          path: tests/v2_forge_dep/dep/registry.yaml
+        requirement_level: recommended
+      brief: A metric from dependency.
+      stability: stable
+      provenance:
+        path: tests/v2_forge_dep/dep/registry.yaml
+    spans: []
+    events: []
+    entities: []
+  refinements:
+    metrics:
+    - id: dep.metric
+      name: dep.metric
+      instrument: counter
+      unit: '{request}'
+      attributes:
+      - key: dep.attr
+        type: string
+        brief: An attribute from dependency.
+        stability: stable
+        provenance:
+          path: tests/v2_forge_dep/dep/registry.yaml
+        requirement_level: recommended
+      brief: A metric from dependency.
+      stability: stable
+      provenance:
+        path: tests/v2_forge_dep/dep/registry.yaml
+    spans: []
+    events: []
+    entities: []
