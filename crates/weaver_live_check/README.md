@@ -162,6 +162,12 @@ make_finding(id, level, context, message) := {
 `input.registry_group`, when present, contains the matching group definition from the supplied registry.
 
 `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
+### Rego input benchmarks
+
+Run the shared-context microbenchmark with `cargo bench -p weaver_live_check --bench rego_advisor`. It measures four lanes (`serialize_input`, `set_input`, `policy_evaluation`, and `set_input_and_check`) across seven context cases (`no_context/attrs_0`, `resource_only/attrs_0`, `resource_only/attrs_16`, `resource_only/attrs_128`, `resource_and_scope/attrs_0`, `resource_and_scope/attrs_16`, and `resource_and_scope/attrs_128`) at batch sizes 1, 32, and 256. An untimed preflight verifies fixed positive and nonmatching outcomes before measurement.
+
+This is a synthetic microbenchmark, not production traffic. Report medians without subtracting one lane's median from another, and use the results only as a baseline before considering conditional optimization.
+
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
