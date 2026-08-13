@@ -24,6 +24,7 @@ pub(crate) mod conflict_strategy;
 mod dependency;
 mod dependency_resolution;
 mod error;
+mod imports;
 mod loader;
 pub(crate) mod merge;
 mod registry;
@@ -941,6 +942,17 @@ mod tests {
     fn test_v2_dependency_span_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
     {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_registry")
+    }
+
+    /// End-to-end test for a span imported from a v2 dependency.
+    ///
+    /// `sampling_relevant` is declared on the span's attribute ref, not on the
+    /// catalog attribute, so importing the span has to carry it across from
+    /// the ref. Refining the span already does (see the test above).
+    #[test]
+    fn test_v2_dependency_span_import_preserves_sampling_relevant(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
     }
 
     /// End-to-end test for an event refinement over a v2 dependency

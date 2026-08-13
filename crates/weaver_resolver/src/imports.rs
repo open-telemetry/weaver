@@ -477,10 +477,47 @@ fn import_decision(
     }
 }
 
+/// A v2 signal's reference to a catalog attribute, with the per-signal state
+/// the reference carries.
+///
+/// The v2 signal types each have their own attribute ref struct, holding
+/// whichever of these fields apply to that signal: only a span ref marks an
+/// attribute as sampling relevant, and only an entity ref carries a role.
+struct V2SignalAttribute<'a> {
+    base: &'a V2AttributeRef,
+    requirement_level: RequirementLevel,
+    sampling_relevant: Option<bool>,
+    role: Option<AttributeRole>,
+}
+
+impl<'a> V2SignalAttribute<'a> {
+    fn new(base: &'a V2AttributeRef, requirement_level: RequirementLevel) -> Self {
+        V2SignalAttribute {
+            base,
+            requirement_level,
+            sampling_relevant: None,
+            role: None,
+        }
+    }
+
+    /// Marks the attribute as (ir)relevant for sampling, as a span ref does.
+    fn with_sampling_relevant(mut self, sampling_relevant: Option<bool>) -> Self {
+        self.sampling_relevant = sampling_relevant;
+        self
+    }
+
+    /// Tags the attribute with the role it plays on an entity.
+    fn with_role(mut self, role: AttributeRole) -> Self {
+        self.role = Some(role);
+        self
+    }
+}
+
 /// Converts a V2 attribute (with no requirement level) to a v1 attribute.
 fn convert_v2_attribute(
     attr: &weaver_resolved_schema::v2::attribute::Attribute,
     requirement_level: RequirementLevel,
+    sampling_relevant: Option<bool>,
     role: Option<AttributeRole>,
 ) -> Attribute {
     Attribute {
@@ -490,7 +527,7 @@ fn convert_v2_attribute(
         examples: attr.examples.clone(),
         tag: None,
         requirement_level,
-        sampling_relevant: None,
+        sampling_relevant,
         note: attr.common.note.clone(),
         stability: Some(attr.common.stability.clone()),
         deprecated: attr.common.deprecated.clone(),
@@ -501,6 +538,7 @@ fn convert_v2_attribute(
         role,
     }
 }
+
 /// The registry a v2 signal or attribute came from: one of the schema's own
 /// dependencies when the provenance names one, otherwise the schema itself.
 fn v2_source_url(schema: &V2Schema, source: Option<&DependencyRef>) -> SchemaUrl {
@@ -522,17 +560,15 @@ fn v2_provenance(
 
 /// Resolves a v2 signal's attribute refs into the importing registry's
 /// catalog, converting each one to its v1 form.
-///
-/// The v2 signal types each have their own attribute ref struct, so callers
-/// pass the catalog ref, requirement level and role that ref carries.
 fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
     schema: &V2Schema,
-    refs: impl Iterator<Item = (&'a V2AttributeRef, RequirementLevel, Option<AttributeRole>)>,
+    refs: impl Iterator<Item = V2SignalAttribute<'a>>,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
 ) -> Result<Vec<AttributeRef>, Error> {
     let mut attributes = vec![];
-    for (base, requirement_level, role) in refs {
+    for signal_attr in refs {
+        let base = signal_attr.base;
         let attr =
             schema
                 .attribute_catalog
@@ -545,7 +581,12 @@ fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
             schema_url: v2_source_url(schema, attr.provenance.source.as_ref()),
         };
         attributes.push(attribute_catalog.attribute_ref_with_provenance(
-            convert_v2_attribute(attr, requirement_level, role),
+            convert_v2_attribute(
+                attr,
+                signal_attr.requirement_level,
+                signal_attr.sampling_relevant,
+                signal_attr.role,
+            ),
             source,
             cache_lookup,
         )?);
@@ -643,7 +684,7 @@ impl ImportableDependency for V2Schema {
                 self,
                 m.attributes
                     .iter()
-                    .map(|ar| (&ar.base, ar.requirement_level.clone(), None)),
+                    .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -670,7 +711,7 @@ impl ImportableDependency for V2Schema {
                 self,
                 e.attributes
                     .iter()
-                    .map(|ar| (&ar.base, ar.requirement_level.clone(), None)),
+                    .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -697,18 +738,12 @@ impl ImportableDependency for V2Schema {
                 e.identity
                     .iter()
                     .map(|ar| {
-                        (
-                            &ar.base,
-                            ar.requirement_level.clone(),
-                            Some(AttributeRole::Identifying),
-                        )
+                        V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
+                            .with_role(AttributeRole::Identifying)
                     })
                     .chain(e.description.iter().map(|ar| {
-                        (
-                            &ar.base,
-                            ar.requirement_level.clone(),
-                            Some(AttributeRole::Descriptive),
-                        )
+                        V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
+                            .with_role(AttributeRole::Descriptive)
                     })),
                 attribute_catalog,
                 cache_lookup,
@@ -731,9 +766,10 @@ impl ImportableDependency for V2Schema {
             }
             let attributes = import_v2_attributes(
                 self,
-                s.attributes
-                    .iter()
-                    .map(|ar| (&ar.base, ar.requirement_level.clone(), None)),
+                s.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
+                        .with_sampling_relevant(ar.sampling_relevant)
+                }),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -761,7 +797,7 @@ impl ImportableDependency for V2Schema {
                 self,
                 ag.attributes
                     .iter()
-                    .map(|ar| (&ar.base, ar.requirement_level.clone(), None)),
+                    .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -1178,4 +1214,3 @@ mod tests {
         Ok(())
     }
 }
-
