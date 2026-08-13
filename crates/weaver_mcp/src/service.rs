@@ -209,6 +209,12 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
                     out.push(json!({"type": "log", "attribute_findings": parts}));
                 }
             }
+            Sample::Profile(p) => {
+                let parts = extract_attr_findings(&p.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "profile", "attribute_findings": parts}));
+                }
+            }
         }
     }
     out

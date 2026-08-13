@@ -9,10 +9,12 @@ use weaver_live_check::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_log::SampleLog,
     sample_metric::{DataPoints, SampleInstrument, SampleMetric},
+    sample_profile::SampleProfile,
     sample_span::{Status, StatusCode},
 };
 use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 
+use super::grpc_stubs::proto::profiles::v1development::{Profile, ProfilesDictionary};
 use super::grpc_stubs::proto::trace::v1::status::StatusCode as OtlpStatusCode;
 use super::grpc_stubs::proto::{
     common::v1::{AnyValue, InstrumentationScope, KeyValue},
@@ -354,6 +356,29 @@ fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
         data_points.push(live_check_point);
     }
     DataPoints::Number(data_points)
+}
+
+/// Converts an OTLP Profile to a SampleProfile, resolving attribute indices from the dictionary.
+pub fn otlp_profile_to_sample(
+    profile: &Profile,
+    dictionary: Option<&ProfilesDictionary>,
+) -> SampleProfile {
+    let attributes = dictionary.map_or_else(Vec::new, |dict| {
+        profile
+            .attribute_indices
+            .iter()
+            .filter_map(|&idx| dict.attribute_table.get(idx as usize))
+            .map(sample_attribute_from_key_value)
+            .collect()
+    });
+
+    SampleProfile {
+        original_payload_format: profile.original_payload_format.clone(),
+        attributes,
+        instrumentation_scope: None,
+        live_check_result: None,
+        resource: None,
+    }
 }
 
 /// Converts an OTLP LogRecord to a SampleLog
