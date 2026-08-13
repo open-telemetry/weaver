@@ -38,6 +38,12 @@ can actually be fetched from — the files themselves are located via
 `registry_path` — but it must follow the OTel schema URL format and include a
 version segment.
 
+Legacy manifests that identify themselves with `schema_base_url` +
+`semconv_version` instead of `schema_url` may still declare a dependency by
+`name` + `registry_path`. Such a dependency carries no version, so it cannot be
+declared twice, and `weaver registry package` rejects it — give it a
+`schema_url` before publishing.
+
 > **Current limitations**:
 > - Weaver supports a maximum of 10 registry levels without circular
     dependencies. In practice, this is not a limitation, even for complex
