@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix `imports` never matching a legacy `type: resource` entity in a dependency. Such a group sets no `name` and holds its entity type in the group id, so the matcher now matches the group id as well as the name. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
-- Fix a definition reached by two paths through the dependency graph being imported twice, which produced duplicate groups and misleading duplicate-declaration warnings. Imported groups are now deduplicated as the per-dependency results are joined. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
-- Fix elements inherited from a transitive dependency being reported as locally defined. A resolved schema's `dependencies` set is the table that `DependencyRef` provenance indexes into, but it listed only direct dependencies, so anything reaching the registry through a dependency-of-a-dependency had no entry to point at. It now records the full closure. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
+- Fix `imports` never matching a legacy `type: resource` entity in a dependency. Such a group sets no `name` and holds its entity type in the group id, so the matcher now matches the group id as well as the name. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)
+- Fix a definition reached by two paths through the dependency graph being imported twice, which produced duplicate groups and misleading duplicate-declaration warnings. Imported groups are now deduplicated as the per-dependency results are joined. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)
+- Fix elements inherited from a transitive dependency being reported as locally defined. A resolved schema's `dependencies` set is the table that `DependencyRef` provenance indexes into, but it listed only direct dependencies, so anything reaching the registry through a dependency-of-a-dependency had no entry to point at. It now records the full closure. ([#1655](https://github.com/open-telemetry/weaver/pull/1655) by @jerbly)
 - Live-check: preserve instrumentation scope through OTLP ingestion, expose it to Rego policies, and render it in standard output. ([#1605](https://github.com/open-telemetry/weaver/pull/1605) by @McGluut)
 
 # [0.25.1] - 2026-07-28
