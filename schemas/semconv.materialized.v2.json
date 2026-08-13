@@ -4,6 +4,13 @@
   "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registries fully fleshed out and ready for codegen.",
   "type": "object",
   "properties": {
+    "dependencies": {
+      "description": "The resolved dependencies of this registry.",
+      "type": "array",
+      "items": {
+        "$ref": "#"
+      }
+    },
     "refinements": {
       "description": "The set of refinments defined in this registry.",
       "$ref": "#/$defs/Refinements"

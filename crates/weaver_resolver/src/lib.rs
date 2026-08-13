@@ -243,6 +243,37 @@ impl WeaverResolver {
     }
 }
 
+/// Trait for resolving schemas on demand from cache or remote repositories.
+pub trait SchemaResolver {
+    /// Resolves a schema by its SchemaUrl, returning the resolved bundle along with any non-fatal errors.
+    fn resolve_schema(
+        &mut self,
+        schema_url: &SchemaUrl,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
+}
+
+impl SchemaResolver for WeaverResolver {
+    fn resolve_schema(
+        &mut self,
+        schema_url: &SchemaUrl,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
+        self.resolve_schema(schema_url)
+    }
+}
+
+/// A no-op schema resolver that returns a fatal error indicating schema URL resolution failure.
+#[derive(Debug, Clone, Default)]
+pub struct NullSchemaResolver;
+
+impl SchemaResolver for NullSchemaResolver {
+    fn resolve_schema(
+        &mut self,
+        _schema_url: &SchemaUrl,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
+        WResult::FatalErr(Error::FailToResolveSchemaUrl {})
+    }
+}
+
 /// Abstraction for querying chosen dependency versions and resolved schemas from cache during resolution.
 pub(crate) trait SchemaCacheLookup {
     /// Returns the highest chosen SchemaUrl across the current graph for a given registry name.

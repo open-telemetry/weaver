@@ -61,6 +61,33 @@ cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.
 
 **Run `just` before any push to pre-validate all the steps performed by CI.**
 
+### Checking downstream repositories
+
+The `Downstream Check` workflow runs nightly against the repositories that consume
+Weaver, so that breaking changes surface before they are released.
+
+Repositories, the ref to check out and the checks to run in each of them are
+declared in [downstream-check.yaml](downstream-check.yaml) - the only place they
+are listed, for both the workflow and local runs. Only weaver-driven
+checks are listed there - linting, link checking and language tooling are left
+to those repositories' own CI.
+
+To run it against your working tree:
+
+```bash
+just downstream-check
+```
+
+Pass one or more `<url>[@<ref>]` to run a subset. The repositories are checked out under `target/downstream/`. Repositories that
+only run Weaver as a container (semantic-conventions) require Docker, and the
+image is built from this repository's `Dockerfile`. `WEAVER_BIN` and
+`WEAVER_IMAGE` can be set to reuse a prebuilt binary or image.
+
+The run ends with a summary of every check; on GitHub it is also written to the
+job summary, so a failing nightly says which repo and check broke without
+opening the logs. A failing nightly also opens (or comments on) an issue
+labeled `downstream-check`, which is closed again once the run is green.
+
 ### How to send Pull Request
 
 TODO - add any special care/comments we want for clean repo.

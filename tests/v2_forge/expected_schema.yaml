@@ -1,0 +1,172 @@
+schema_url: https://unknown/unknown
+registry:
+  attributes:
+  - key: attr2
+    type: int
+    brief: Another attribute
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  - key: my.attr
+    type: string
+    brief: A test attribute
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  attribute_groups:
+  - id: my
+    attributes:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: test group
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  metrics:
+  - name: my.metric
+    instrument: counter
+    unit: '{1}'
+    attributes:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A count of something.
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  spans:
+  - type: my.span
+    kind: client
+    name:
+      note: Some name pattern
+    attributes:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A test span
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  events:
+  - name: my.event
+    attributes:
+    - key: my.attr
+      type: string
+      brief: Attribute for the event
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A test event
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  entities:
+  - type: my.entity
+    identity:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    description:
+    - key: attr2
+      type: int
+      brief: Another attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A test entity
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+refinements:
+  metrics:
+  - id: my.metric
+    name: my.metric
+    instrument: counter
+    unit: '{1}'
+    attributes:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A count of something.
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  spans:
+  - id: my.span
+    type: my.span
+    kind: client
+    name:
+      note: Some name pattern
+    attributes:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A test span
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  events:
+  - id: my.event
+    name: my.event
+    attributes:
+    - key: my.attr
+      type: string
+      brief: Attribute for the event
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A test event
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
+  entities:
+  - id: my.entity
+    type: my.entity
+    identity:
+    - key: my.attr
+      type: string
+      brief: A test attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    description:
+    - key: attr2
+      type: int
+      brief: Another attribute
+      stability: stable
+      provenance:
+        path: tests/v2_forge/model/test.yaml
+      requirement_level: recommended
+    brief: A test entity
+    stability: stable
+    provenance:
+      path: tests/v2_forge/model/test.yaml
