@@ -69,14 +69,14 @@ impl Catalog {
                         && a.common.note == attribute.note
                         && a.common.deprecated == attribute.deprecated
                         // A v1 attribute can have no stability. The catalog
-                        // stores such an attribute as `Alpha`, so this
-                        // comparison applies the same default. The comparison
-                        // of the annotations below does the same.
+                        // stores such an attribute with the default stability,
+                        // so this comparison applies the same default. The
+                        // comparison of the annotations below does the same.
                         && a.common.stability
                             == *attribute
                                 .stability
                                 .as_ref()
-                                .unwrap_or(&weaver_semconv::stability::Stability::Alpha)
+                                .unwrap_or(&weaver_semconv::stability::Stability::default())
                         && attribute
                             .annotations
                             .as_ref()
@@ -205,7 +205,7 @@ mod test {
                 note: "note".to_owned(),
                 // What `convert_v1_to_v2` stores for an attribute with no
                 // stability.
-                stability: Stability::Alpha,
+                stability: Stability::default(),
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },

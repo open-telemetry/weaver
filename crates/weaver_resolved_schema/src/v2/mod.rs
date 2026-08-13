@@ -255,9 +255,7 @@ pub fn convert_v1_to_v2(
                 common: CommonFields {
                     brief: a.brief,
                     note: a.note,
-                    stability: a
-                        .stability
-                        .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                    stability: a.stability.unwrap_or_default(),
                     deprecated: a.deprecated,
                     annotations: a.annotations.unwrap_or_default(),
                 },
@@ -317,10 +315,7 @@ pub fn convert_v1_to_v2(
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
-                            stability: g
-                                .stability
-                                .clone()
-                                .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                            stability: g.stability.clone().unwrap_or_default(),
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
@@ -358,10 +353,7 @@ pub fn convert_v1_to_v2(
                             common: CommonFields {
                                 brief: g.brief.clone(),
                                 note: g.note.clone(),
-                                stability: g
-                                    .stability
-                                    .clone()
-                                    .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                                stability: g.stability.clone().unwrap_or_default(),
                                 deprecated: g.deprecated.clone(),
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
@@ -399,10 +391,7 @@ pub fn convert_v1_to_v2(
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
-                            stability: g
-                                .stability
-                                .clone()
-                                .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                            stability: g.stability.clone().unwrap_or_default(),
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
@@ -467,10 +456,7 @@ pub fn convert_v1_to_v2(
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
-                        stability: g
-                            .stability
-                            .clone()
-                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                        stability: g.stability.clone().unwrap_or_default(),
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
@@ -535,10 +521,7 @@ pub fn convert_v1_to_v2(
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
-                        stability: g
-                            .stability
-                            .clone()
-                            .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                        stability: g.stability.clone().unwrap_or_default(),
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
@@ -581,10 +564,7 @@ pub fn convert_v1_to_v2(
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
-                            stability: g
-                                .stability
-                                .clone()
-                                .unwrap_or(weaver_semconv::stability::Stability::Alpha),
+                            stability: g.stability.clone().unwrap_or_default(),
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
