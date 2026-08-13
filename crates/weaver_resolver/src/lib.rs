@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use lru::LruCache;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
@@ -93,7 +93,7 @@ pub struct WeaverResolverConfig {
 
     /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
     /// Used to redirect dependency graph requests to local clones, forks, or custom archives.
-    pub schema_url_overrides: HashMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
+    pub schema_url_overrides: BTreeMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
 }
 
 impl Default for WeaverResolverConfig {
@@ -103,7 +103,7 @@ impl Default for WeaverResolverConfig {
             follow_symlinks: false,
             include_unreferenced: false,
             auth: HttpAuthResolver::empty(),
-            schema_url_overrides: HashMap::new(),
+            schema_url_overrides: BTreeMap::new(),
         }
     }
 }
