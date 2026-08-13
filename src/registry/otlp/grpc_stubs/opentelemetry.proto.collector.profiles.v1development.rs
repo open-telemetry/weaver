@@ -7,14 +7,12 @@ pub struct ExportProfilesServiceRequest {
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
     #[prost(message, repeated, tag = "1")]
-    pub resource_profiles: ::prost::alloc::vec::Vec<
-        super::super::super::profiles::v1development::ResourceProfiles,
-    >,
+    pub resource_profiles:
+        ::prost::alloc::vec::Vec<super::super::super::profiles::v1development::ResourceProfiles>,
     /// The reference table containing all data shared by profiles across the message being sent.
     #[prost(message, optional, tag = "2")]
-    pub dictionary: ::core::option::Option<
-        super::super::super::profiles::v1development::ProfilesDictionary,
-    >,
+    pub dictionary:
+        ::core::option::Option<super::super::super::profiles::v1development::ProfilesDictionary>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportProfilesServiceResponse {
@@ -61,10 +59,10 @@ pub mod profiles_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service that can be used to push profiles between one Application instrumented with
     /// OpenTelemetry and a collector, or between a collector and a central collector.
     #[derive(Debug, Clone)]
@@ -110,9 +108,8 @@ pub mod profiles_service_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             ProfilesServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -150,30 +147,20 @@ pub mod profiles_service_client {
         pub async fn export(
             &mut self,
             request: impl tonic::IntoRequest<super::ExportProfilesServiceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ExportProfilesServiceResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ExportProfilesServiceResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/opentelemetry.proto.collector.profiles.v1development.ProfilesService/Export",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "opentelemetry.proto.collector.profiles.v1development.ProfilesService",
-                        "Export",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "opentelemetry.proto.collector.profiles.v1development.ProfilesService",
+                "Export",
+            ));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -185,7 +172,7 @@ pub mod profiles_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with ProfilesServiceServer.
@@ -194,10 +181,7 @@ pub mod profiles_service_server {
         async fn export(
             &self,
             request: tonic::Request<super::ExportProfilesServiceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ExportProfilesServiceResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ExportProfilesServiceResponse>, tonic::Status>;
     }
     /// Service that can be used to push profiles between one Application instrumented with
     /// OpenTelemetry and a collector, or between a collector and a central collector.
@@ -222,10 +206,7 @@ pub mod profiles_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -280,15 +261,12 @@ pub mod profiles_service_server {
                 "/opentelemetry.proto.collector.profiles.v1development.ProfilesService/Export" => {
                     #[allow(non_camel_case_types)]
                     struct ExportSvc<T: ProfilesService>(pub Arc<T>);
-                    impl<
-                        T: ProfilesService,
-                    > tonic::server::UnaryService<super::ExportProfilesServiceRequest>
-                    for ExportSvc<T> {
+                    impl<T: ProfilesService>
+                        tonic::server::UnaryService<super::ExportProfilesServiceRequest>
+                        for ExportSvc<T>
+                    {
                         type Response = super::ExportProfilesServiceResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ExportProfilesServiceRequest>,
@@ -322,25 +300,19 @@ pub mod profiles_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(
-                            tonic::body::Body::default(),
-                        );
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(tonic::body::Body::default());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(
+                        http::header::CONTENT_TYPE,
+                        tonic::metadata::GRPC_CONTENT_TYPE,
+                    );
+                    Ok(response)
+                }),
             }
         }
     }
@@ -357,7 +329,8 @@ pub mod profiles_service_server {
         }
     }
     /// Generated gRPC service name
-    pub const SERVICE_NAME: &str = "opentelemetry.proto.collector.profiles.v1development.ProfilesService";
+    pub const SERVICE_NAME: &str =
+        "opentelemetry.proto.collector.profiles.v1development.ProfilesService";
     impl<T> tonic::server::NamedService for ProfilesServiceServer<T> {
         const NAME: &'static str = SERVICE_NAME;
     }

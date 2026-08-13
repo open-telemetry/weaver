@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleInstrumentationScope, SampleResource, VersionedSignal,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleInstrumentationScope,
+    SampleRef, SampleResource, VersionedSignal,
 };
 
 /// Represents a profile collected via OTLP (v1development)
