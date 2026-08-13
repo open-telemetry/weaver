@@ -11,6 +11,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
@@ -525,7 +526,7 @@ impl WeaverResolver {
                 Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
             }
         } else {
-            let dep = weaver_semconv::manifest::Dependency {
+            let dep = Dependency {
                 schema_url: schema_url.clone(),
                 registry_path: None,
             };
@@ -1889,12 +1890,32 @@ groups:
     }
 
     #[test]
+    fn test_v1_manifest_resolves_dependency_declared_by_name() {
+        // `main` is a v1 manifest, where `name` + `registry_path` stays supported.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/v1-dependency-syntax/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("a v1 manifest may declare dependencies by name");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        assert!(
+            resolved
+                .groups(GroupType::Metric)
+                .values()
+                .any(|g| g.metric_name.as_deref() == Some("dep.uptime")),
+            "expected the imported metric from the dependency to resolve"
+        );
+    }
+
+    #[test]
     fn test_dependency_without_schema_url_is_rejected() {
-        // `main`'s manifest declares its dependency with only `name` and
-        // `registry_path`. `schema_url` is mandatory for dependencies — it is
-        // the identity that provenance and version-conflict resolution key
-        // on — so this must fail with an error naming the offending
-        // dependency.
+        // `main` is a v2 manifest (it declares its own `schema_url`) but declares its
+        // dependency with only `name` and `registry_path`. `schema_url` is mandatory there --
+        // it is the identity provenance and version-conflict resolution key on.
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/mandatory-schema-url/main".to_owned(),
         };

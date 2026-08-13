@@ -417,6 +417,17 @@ pub enum Error {
         schema_url: String,
     },
 
+    /// A registry whose dependencies do not pin a version cannot be packaged.
+    #[error("Dependency `{schema_url}` (registry_path: {}) does not pin a version, which a publication manifest requires. Declare it with a versioned `schema_url` before packaging.", .registry_path.as_deref().unwrap_or("not specified"))]
+    #[diagnostic(severity(Error))]
+    UnversionedDependencyInPublication {
+        /// The schema URL of the dependency, which carries no usable version.
+        /// It is a placeholder when the dependency is declared by `name`.
+        schema_url: String,
+        /// Where the dependency's files were declared to live, if anywhere.
+        registry_path: Option<String>,
+    },
+
     /// A schema_url has an invalid version component.
     #[error("Registry `{schema_url}` contains an invalid version: {err}.")]
     #[diagnostic(severity(Error))]
