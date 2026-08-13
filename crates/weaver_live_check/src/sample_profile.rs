@@ -56,3 +56,69 @@ impl LiveCheckRunner for SampleProfile {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
+
+    use super::*;
+    use crate::{
+        live_checker::LiveChecker, DisabledStatistics, LiveCheckStatistics, Sample, SampleRef,
+        VersionedRegistry,
+    };
+
+    fn make_profile() -> SampleProfile {
+        SampleProfile {
+            original_payload_format: "pprof".to_owned(),
+            attributes: vec![],
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+        }
+    }
+
+    fn empty_registry() -> Arc<VersionedRegistry> {
+        Arc::new(VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
+            schema_url: "https://example.com/1.0.0".try_into().unwrap(),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            dependencies: vec![],
+        })))
+    }
+
+    #[test]
+    fn test_entity_type() {
+        assert_eq!(make_profile().entity_type(), "profile");
+    }
+
+    #[test]
+    fn test_as_sample_ref() {
+        let profile = make_profile();
+        assert!(matches!(profile.as_sample_ref(), SampleRef::Profile(_)));
+    }
+
+    #[test]
+    fn test_run_live_check_no_advisors() {
+        let mut profile = make_profile();
+        let mut live_checker = LiveChecker::new(empty_registry(), vec![]);
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let parent = Sample::Profile(make_profile());
+        let result = profile.run_live_check(&mut live_checker, &mut stats, None, &parent);
+        assert!(result.is_ok());
+        assert!(profile.live_check_result.is_some());
+    }
+}

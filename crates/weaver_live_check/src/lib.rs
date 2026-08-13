@@ -635,3 +635,50 @@ pub fn get_json_schema() -> Result<String, Error> {
         error: e.to_string(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sample_profile::SampleProfile;
+
+    fn make_sample_profile() -> SampleProfile {
+        SampleProfile {
+            original_payload_format: "pprof".to_owned(),
+            attributes: vec![],
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+        }
+    }
+
+    #[test]
+    fn test_sample_profile_signal_type() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert_eq!(sample.signal_type(), Some(SignalType::Profile.to_string()));
+    }
+
+    #[test]
+    fn test_sample_profile_signal_name_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert_eq!(sample.signal_name(), None);
+    }
+
+    #[test]
+    fn test_sample_profile_resource_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert!(sample.resource().is_none());
+    }
+
+    #[test]
+    fn test_sample_profile_instrumentation_scope_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert!(sample.instrumentation_scope().is_none());
+    }
+
+    #[test]
+    fn test_sample_ref_profile_sample_type() {
+        let profile = make_sample_profile();
+        let sample_ref = SampleRef::Profile(&profile);
+        assert_eq!(sample_ref.sample_type(), SampleType::Profile);
+    }
+}
