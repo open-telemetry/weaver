@@ -13,6 +13,7 @@ use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
@@ -322,24 +323,19 @@ fn load_semconv_repository_recursive(
             // Load dependencies.
             let mut loaded_dependencies = vec![];
             let mut non_fatal_errors: Vec<Error> = vec![];
-            let mut seen_dependencies: std::collections::HashMap<String, SchemaUrl> =
+            let mut seen_dependencies: std::collections::HashMap<String, &Dependency> =
                 std::collections::HashMap::new();
 
             for d in manifest.dependencies().iter() {
                 let dep_name = d.schema_url.name().to_owned();
-
-                if let Some(prev_schema_url) = seen_dependencies.get(&dep_name) {
-                    if prev_schema_url != &d.schema_url {
-                        if let Err(e) =
-                            check_version_compatibility(&dep_name, prev_schema_url, &d.schema_url)
-                        {
-                            // Clean up the state of dependency_chain before erroring.
-                            let _ = dependency_chain.pop();
-                            return WResult::FatalErr(e);
-                        }
+                if let Some(prev) = seen_dependencies.get(&dep_name) {
+                    if let Err(e) = check_version_compatibility(prev, d) {
+                        // Clean up the state of dependency_chain before erroring.
+                        let _ = dependency_chain.pop();
+                        return WResult::FatalErr(e);
                     }
                 } else {
-                    let _ = seen_dependencies.insert(dep_name, d.schema_url.clone());
+                    let _ = seen_dependencies.insert(dep_name, d);
                 }
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 match RegistryRepo::try_new_dependency_with_auth(d, &mut semconv_nfes, auth) {
@@ -537,13 +533,17 @@ fn load_definition_repository(
     )
 }
 
-/// Checks version compatibility between two schema URLs.
-fn check_version_compatibility(
-    _registry_name: &str,
-    prev_schema_url: &SchemaUrl,
-    schema_url: &SchemaUrl,
-) -> Result<(), Error> {
-    let _ = UseLatestMajorVersion.resolve_conflict(prev_schema_url, schema_url)?;
+/// Checks that two declarations of the same registry can be reconciled.
+///
+/// An unversioned declaration has nothing to compare against, so it must be the only one for
+/// its registry.
+fn check_version_compatibility(prev: &Dependency, dep: &Dependency) -> Result<(), Error> {
+    if !prev.is_versioned() || !dep.is_versioned() {
+        return Err(Error::UnversionedDependencyConflict {
+            name: dep.schema_url.name().to_owned(),
+        });
+    }
+    let _ = UseLatestMajorVersion.resolve_conflict(&prev.schema_url, &dep.schema_url)?;
     Ok(())
 }
 
@@ -640,6 +640,33 @@ mod tests {
                 panic!("Expected fatal error due to depth limit, but got success");
             }
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_two_unversioned_dependencies_under_the_same_name_are_fatal(
+    ) -> Result<(), weaver_semconv::Error> {
+        // Both dependencies are declared by `name: dep` and neither registry carries a
+        // version, so they collapse onto the same placeholder schema URL. There is nothing
+        // to reconcile them against, so this must fail rather than silently pick one.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/unversioned-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let result = load_semconv_repository(
+            registry_repo,
+            true,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
+
+        let WResult::FatalErr(fatal) = result else {
+            panic!("Expected a fatal error for two unversioned declarations of 'dep'");
+        };
+        assert!(
+            matches!(fatal, Error::UnversionedDependencyConflict { ref name, .. } if name == "dep"),
+            "Expected an unversioned dependency conflict on 'dep', got: {fatal}"
+        );
 
         Ok(())
     }

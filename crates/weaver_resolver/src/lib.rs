@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use lru::LruCache;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
@@ -11,6 +11,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
@@ -93,7 +94,7 @@ pub struct WeaverResolverConfig {
 
     /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
     /// Used to redirect dependency graph requests to local clones, forks, or custom archives.
-    pub schema_url_overrides: HashMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
+    pub schema_url_overrides: BTreeMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
 }
 
 impl Default for WeaverResolverConfig {
@@ -103,7 +104,7 @@ impl Default for WeaverResolverConfig {
             follow_symlinks: false,
             include_unreferenced: false,
             auth: HttpAuthResolver::empty(),
-            schema_url_overrides: HashMap::new(),
+            schema_url_overrides: BTreeMap::new(),
         }
     }
 }
@@ -526,7 +527,7 @@ impl WeaverResolver {
                 Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
             }
         } else {
-            let dep = weaver_semconv::manifest::Dependency {
+            let dep = Dependency {
                 schema_url: schema_url.clone(),
                 registry_path: None,
             };
@@ -966,6 +967,78 @@ mod tests {
     #[test]
     fn test_v2_dependency_entity_refinement_preserves_roles() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
+    }
+
+    /// Refinements over two dependencies, where the attributes of one of them
+    /// are defined a level deeper. Provenance must name the registry that
+    /// defines an attribute, not the one it was reached through.
+    #[test]
+    fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// An attribute a dependency inherited rather than defined reaches this
+    /// registry only through the signals that carry it. Refining such a signal
+    /// must not turn the attribute into something a bare `ref` can resolve
+    /// against - that would resolve to the refinement's own copy.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Same as above, but resolving the dependency from source rather than from
+    /// a published artifact. Both forms must refuse the reference - otherwise a
+    /// registry resolves differently depending on how it was delivered.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition_from_source(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/refiner_user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Refinement over a v1 dependency: attributes defined by the dependency
+    /// and attributes it inherited from its own dependency must be attributed
+    /// to different registries.
+    #[test]
+    fn test_v1_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/v1_dep_registry")
     }
 
     /// Can't demote an identity attribute of a base entity.
@@ -1901,12 +1974,32 @@ groups:
     }
 
     #[test]
+    fn test_v1_manifest_resolves_dependency_declared_by_name() {
+        // `main` is a v1 manifest, where `name` + `registry_path` stays supported.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/v1-dependency-syntax/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("a v1 manifest may declare dependencies by name");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        assert!(
+            resolved
+                .groups(GroupType::Metric)
+                .values()
+                .any(|g| g.metric_name.as_deref() == Some("dep.uptime")),
+            "expected the imported metric from the dependency to resolve"
+        );
+    }
+
+    #[test]
     fn test_dependency_without_schema_url_is_rejected() {
-        // `main`'s manifest declares its dependency with only `name` and
-        // `registry_path`. `schema_url` is mandatory for dependencies — it is
-        // the identity that provenance and version-conflict resolution key
-        // on — so this must fail with an error naming the offending
-        // dependency.
+        // `main` is a v2 manifest (it declares its own `schema_url`) but declares its
+        // dependency with only `name` and `registry_path`. `schema_url` is mandatory there --
+        // it is the identity provenance and version-conflict resolution key on.
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/mandatory-schema-url/main".to_owned(),
         };
@@ -2382,6 +2475,7 @@ groups:
         let orig_aws = AttributeWithSource {
             attribute: attr.clone(),
             source: orig_source.clone(),
+            is_definition: true,
         };
 
         let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;

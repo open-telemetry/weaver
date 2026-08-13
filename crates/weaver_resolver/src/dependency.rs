@@ -8,18 +8,23 @@
 //! v2 schema.
 //!
 //! Pulling definitions in through an `imports` block lives in
-//! [`crate::imports`].
+//! [`crate::imports`], which resolves an attribute's origin registry with the
+//! same helpers used here.
 
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::entity::Entity;
+use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
 use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
+
+use crate::attribute::AttributeSource;
 
 /// Where a group lookup landed: in the local registry or in a dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,12 +120,19 @@ pub(crate) trait GroupRefinementLookup {
 
 impl GroupRefinementLookup for V1Schema {
     fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).ok();
         self.group(id).map(|g| {
             let attributes: Vec<UnresolvedAttribute> = g
                 .attributes
                 .iter()
                 .filter_map(|ar| self.catalog.attribute(ar))
                 .map(|a| UnresolvedAttribute {
+                    origin: my_schema_url.as_ref().map(|url| {
+                        match find_attribute_source(self, &a.name, url) {
+                            AttributeSource::Dependency { schema_url } => schema_url,
+                            AttributeSource::Local { .. } => url.clone(),
+                        }
+                    }),
                     spec: weaver_semconv::attribute::AttributeSpec::Id {
                         id: a.name.clone(),
                         r#type: a.r#type.clone(),
@@ -144,16 +156,98 @@ impl GroupRefinementLookup for V1Schema {
     }
 }
 
+/// Finds the attribute source for a V1 attribute: the registry that declared
+/// it, recovered from the catalog's root-attribute table or, failing that, from
+/// the provenance of a group that references it.
+pub(crate) fn find_attribute_source(
+    schema: &V1Schema,
+    attr_name: &str,
+    my_schema_url: &SchemaUrl,
+) -> AttributeSource {
+    if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
+        let schema_url = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
+            // The attribute originates in one of `schema`'s own dependencies.
+            // That registry may not have contributed any whole group to
+            // `schema` (e.g. only an attribute was referenced), so recover
+            // the full schema URL from the dependency list first and only
+            // fall back to the provenance of an imported group.
+            schema
+                .dependencies
+                .iter()
+                .find(|url| url.name() == schema_name)
+                .cloned()
+                .or_else(|| {
+                    schema.registry.groups.iter().find_map(|g| {
+                        g.provenance()
+                            .filter(|prov| prov.schema_url.name() == schema_name)
+                            .map(|prov| prov.schema_url)
+                    })
+                })
+        } else {
+            schema
+                .registry
+                .groups
+                .iter()
+                .find(|g| g.id == *source_group_id)
+                .and_then(|g| g.provenance().map(|prov| prov.schema_url))
+        };
+        AttributeSource::Dependency {
+            schema_url: schema_url.unwrap_or_else(|| my_schema_url.clone()),
+        }
+    } else {
+        // Fallback: search in all groups to find where this attribute came from
+        schema
+            .registry
+            .groups
+            .iter()
+            .find(|group| {
+                group.attributes.iter().any(|ar| {
+                    schema
+                        .catalog()
+                        .attribute(ar)
+                        .is_some_and(|attr| attr.name == attr_name)
+                })
+            })
+            .and_then(|group| {
+                group.provenance().map(|prov| AttributeSource::Dependency {
+                    schema_url: prov.schema_url.clone(),
+                })
+            })
+            .unwrap_or_else(|| AttributeSource::Dependency {
+                schema_url: my_schema_url.clone(),
+            })
+    }
+}
+
+/// The registry a v2 signal or attribute came from: one of `schema`'s own
+/// dependencies when its provenance names one, otherwise `schema` itself.
+///
+/// `deps` is `schema.dependencies` as a slice — the table a [`DependencyRef`]
+/// indexes into. Callers materialise it once per schema rather than walking
+/// the set on every lookup.
+pub(crate) fn v2_source_url(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
+    source: Option<DependencyRef>,
+) -> SchemaUrl {
+    source
+        .and_then(|dep_ref| deps.get(dep_ref.0 as usize).cloned())
+        .unwrap_or_else(|| schema.schema_url.clone())
+}
+
 /// Converts a v2 catalog attribute into an unresolved attribute spec with
 /// the given requirement level, sampling relevance and role taken from the
 /// signal's attribute reference.
 fn attr_spec(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
     a: &weaver_resolved_schema::v2::attribute::Attribute,
     requirement_level: RequirementLevel,
     sampling_relevant: Option<bool>,
     role: Option<AttributeRole>,
 ) -> UnresolvedAttribute {
     UnresolvedAttribute {
+        origin: Some(v2_source_url(schema, deps, a.provenance.source)),
         spec: weaver_semconv::attribute::AttributeSpec::Id {
             id: a.key.clone(),
             r#type: a.r#type.clone(),
@@ -200,7 +294,7 @@ fn signal_summary(
 /// Builds a group summary for an entity, with identity attributes tagged
 /// with the identifying role and description attributes with the
 /// descriptive role, so refinements inherit them correctly.
-fn entity_group_summary(schema: &V2Schema, e: &Entity) -> GroupSummary {
+fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> GroupSummary {
     let attributes = e
         .identity
         .iter()
@@ -211,10 +305,16 @@ fn entity_group_summary(schema: &V2Schema, e: &Entity) -> GroupSummary {
                 .map(|ar| (ar, AttributeRole::Descriptive)),
         )
         .filter_map(|(ar, role)| {
-            schema
-                .attribute_catalog
-                .get(ar.base.0 as usize)
-                .map(|a| attr_spec(a, ar.requirement_level.clone(), None, Some(role)))
+            schema.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                attr_spec(
+                    schema,
+                    deps,
+                    a,
+                    ar.requirement_level.clone(),
+                    None,
+                    Some(role),
+                )
+            })
         })
         .collect();
     signal_summary(
@@ -239,17 +339,19 @@ impl GroupRefinementLookup for V2Schema {
                 .or_else(|| by_id(id))
         }
 
+        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
+
         if let Some(e) = find(&self.registry.entities, id, "entity.") {
-            return Some(entity_group_summary(self, e));
+            return Some(entity_group_summary(self, &deps, e));
         }
         if let Some(m) = find(&self.registry.metrics, id, "metric.") {
             let attributes = m
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None, None))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                    })
                 })
                 .collect();
             let mut summary = signal_summary(
@@ -268,9 +370,9 @@ impl GroupRefinementLookup for V2Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None, None))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                    })
                 })
                 .collect();
             return Some(signal_summary(
@@ -286,7 +388,14 @@ impl GroupRefinementLookup for V2Schema {
                 .iter()
                 .filter_map(|ar| {
                     self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
-                        attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant, None)
+                        attr_spec(
+                            self,
+                            &deps,
+                            a,
+                            ar.requirement_level.clone(),
+                            ar.sampling_relevant,
+                            None,
+                        )
                     })
                 })
                 .collect();

@@ -8,7 +8,10 @@
 
 use schemars::JsonSchema;
 
-use crate::effective::{EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig};
+use crate::effective::{
+    EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
+    EffectiveResolveConfig,
+};
 use crate::WeaverConfig;
 
 /// The unified result of loading all configuration for a command.
@@ -21,6 +24,8 @@ pub struct CommandConfig<C> {
     pub registry: EffectiveRegistryConfig,
     /// Effective policy settings (defaults → config → CLI).
     pub policy: EffectivePolicyConfig,
+    /// Effective resolution settings (defaults → config).
+    pub resolve: EffectiveResolveConfig,
 }
 
 /// A name mapping between a config field and its CLI arg counterpart.

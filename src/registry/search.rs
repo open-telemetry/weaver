@@ -26,7 +26,9 @@ use ratatui::{
 use ratatui_textarea::TextArea;
 use std::io::{stdout, IsTerminal};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
+use weaver_config::{
+    EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig, WeaverConfig,
+};
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
@@ -386,7 +388,11 @@ pub(crate) fn command(
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy_config = EffectivePolicyConfig::skip_all();
-    let weaver = WeaverEngine::new(&registry, &policy_config, auth);
+    let mut resolve = EffectiveResolveConfig::default();
+    if let Some(wc) = cfg {
+        resolve.layer_config(&wc.resolve);
+    }
+    let weaver = WeaverEngine::new(&registry, &policy_config, &resolve, auth);
     // Load the semantic convention registry into a local cache.
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 

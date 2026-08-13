@@ -20,7 +20,6 @@ use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
-use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -31,7 +30,7 @@ use weaver_semconv::schema_url::SchemaUrl;
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
     conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion},
-    dependency::ResolvedDependency,
+    dependency::{find_attribute_source, v2_source_url, ResolvedDependency},
     dependency_resolution::is_excluded,
     Error,
 };
@@ -383,67 +382,6 @@ fn strip_group_type_prefix(id: &str) -> &str {
     id
 }
 
-/// Finds the attribute source for a V1 attribute.
-fn find_attribute_source(
-    schema: &V1Schema,
-    attr_name: &str,
-    my_schema_url: &SchemaUrl,
-) -> AttributeSource {
-    if let Some((_, source_group_id)) = schema.catalog().root_attribute(attr_name) {
-        let schema_url = if let Some(schema_name) = source_group_id.strip_prefix("v2_dependency.") {
-            // The attribute originates in one of `schema`'s own dependencies.
-            // That registry may not have contributed any whole group to
-            // `schema` (e.g. only an attribute was referenced), so recover
-            // the full schema URL from the dependency list first and only
-            // fall back to the provenance of an imported group.
-            schema
-                .dependencies
-                .iter()
-                .find(|url| url.name() == schema_name)
-                .cloned()
-                .or_else(|| {
-                    schema.registry.groups.iter().find_map(|g| {
-                        g.provenance()
-                            .filter(|prov| prov.schema_url.name() == schema_name)
-                            .map(|prov| prov.schema_url)
-                    })
-                })
-        } else {
-            schema
-                .registry
-                .groups
-                .iter()
-                .find(|g| g.id == *source_group_id)
-                .and_then(|g| g.provenance().map(|prov| prov.schema_url))
-        };
-        AttributeSource::Dependency {
-            schema_url: schema_url.unwrap_or_else(|| my_schema_url.clone()),
-        }
-    } else {
-        // Fallback: search in all groups to find where this attribute came from
-        schema
-            .registry
-            .groups
-            .iter()
-            .find(|group| {
-                group.attributes.iter().any(|ar| {
-                    schema
-                        .catalog()
-                        .attribute(ar)
-                        .is_some_and(|attr| attr.name == attr_name)
-                })
-            })
-            .and_then(|group| {
-                group.provenance().map(|prov| AttributeSource::Dependency {
-                    schema_url: prov.schema_url.clone(),
-                })
-            })
-            .unwrap_or_else(|| AttributeSource::Dependency {
-                schema_url: my_schema_url.clone(),
-            })
-    }
-}
-
 /// Outcome of an import decision for a candidate dep item.
 enum ImportDecision {
     /// Item is visible — proceed with the normal import path.
@@ -539,21 +477,14 @@ fn convert_v2_attribute(
     }
 }
 
-/// The registry a v2 signal or attribute came from: one of the schema's own
-/// dependencies when the provenance names one, otherwise the schema itself.
-fn v2_source_url(schema: &V2Schema, source: Option<&DependencyRef>) -> SchemaUrl {
-    source
-        .and_then(|dep_ref| schema.dependencies.iter().nth(dep_ref.0 as usize).cloned())
-        .unwrap_or_else(|| schema.schema_url.clone())
-}
-
 /// Maps a v2 signal provenance onto the v1 provenance an imported group carries.
 fn v2_provenance(
     schema: &V2Schema,
+    deps: &[SchemaUrl],
     provenance: &weaver_resolved_schema::v2::provenance::Provenance,
 ) -> weaver_semconv::provenance::Provenance {
     weaver_semconv::provenance::Provenance::new(
-        v2_source_url(schema, provenance.source.as_ref()),
+        v2_source_url(schema, deps, provenance.source),
         &provenance.path,
     )
 }
@@ -562,6 +493,7 @@ fn v2_provenance(
 /// catalog, converting each one to its v1 form.
 fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
     schema: &V2Schema,
+    deps: &[SchemaUrl],
     refs: impl Iterator<Item = V2SignalAttribute<'a>>,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
@@ -578,7 +510,7 @@ fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
                     attribute_ref: base.0,
                 })?;
         let source = AttributeSource::Dependency {
-            schema_url: v2_source_url(schema, attr.provenance.source.as_ref()),
+            schema_url: v2_source_url(schema, deps, attr.provenance.source),
         };
         attributes.push(attribute_catalog.attribute_ref_with_provenance(
             convert_v2_attribute(
@@ -641,6 +573,8 @@ impl ImportableDependency for V2Schema {
     ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
         let mut exclusion_errors: Vec<Error> = vec![];
+        // The table a `DependencyRef` indexes into, materialised once.
+        let deps: Vec<SchemaUrl> = self.dependencies.iter().cloned().collect();
 
         let explicit_imports: Vec<&ImportsWithProvenance> = imports
             .iter()
@@ -682,6 +616,7 @@ impl ImportableDependency for V2Schema {
             }
             let attributes = import_v2_attributes(
                 self,
+                &deps,
                 m.attributes
                     .iter()
                     .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
@@ -693,7 +628,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Metric,
                 &m.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &m.provenance))),
+                Some(GroupLineage::new(v2_provenance(self, &deps, &m.provenance))),
             );
             group.metric_name = Some(m.name.to_string());
             group.instrument = Some(m.instrument.clone());
@@ -709,6 +644,7 @@ impl ImportableDependency for V2Schema {
             }
             let attributes = import_v2_attributes(
                 self,
+                &deps,
                 e.attributes
                     .iter()
                     .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
@@ -720,7 +656,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Event,
                 &e.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &e.provenance))),
+                Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
             );
             group.name = Some(e.name.to_string());
             group.entity_associations = e.entity_associations.clone();
@@ -735,6 +671,7 @@ impl ImportableDependency for V2Schema {
             }
             let attributes = import_v2_attributes(
                 self,
+                &deps,
                 e.identity
                     .iter()
                     .map(|ar| {
@@ -753,7 +690,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Entity,
                 &e.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &e.provenance))),
+                Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
             );
             group.name = Some(e.r#type.to_string());
             result.push(group);
@@ -766,6 +703,7 @@ impl ImportableDependency for V2Schema {
             }
             let attributes = import_v2_attributes(
                 self,
+                &deps,
                 s.attributes.iter().map(|ar| {
                     V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
                         .with_sampling_relevant(ar.sampling_relevant)
@@ -778,7 +716,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Span,
                 &s.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &s.provenance))),
+                Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
             );
             group.span_kind = Some(s.kind.clone());
             group.span_name = Some(s.name.clone());
@@ -795,6 +733,7 @@ impl ImportableDependency for V2Schema {
             }
             let attributes = import_v2_attributes(
                 self,
+                &deps,
                 ag.attributes
                     .iter()
                     .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
