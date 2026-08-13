@@ -24,7 +24,10 @@ eula = false
 # Workspace definition ========================================================
 [workspace]
 members = ["crates/*"]
-exclude = ["fuzz"]
+# `target/downstream` holds the repos cloned by `cargo xtask downstream-check`.
+# Several are cargo projects themselves, and without this cargo refuses to build
+# them: they sit under this workspace's root but are not members of it.
+exclude = ["fuzz", "target/downstream"]
 
 [workspace.package]
 version = "0.25.1"

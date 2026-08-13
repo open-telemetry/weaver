@@ -117,3 +117,31 @@ repos:
       - name: custom_advisor - test
         dir: custom_advisor
         run: make test
+
+  - url: https://github.com/open-telemetry/semantic-conventions-java.git@main
+    # Generates Java from the semconv model and then compiles it, which is the
+    # only downstream check that catches weaver emitting code.
+    #
+    # The weaver image is pinned inline in build.gradle.kts with no override
+    # hook, so it is rewritten to point at ours before generating.
+    # TODO: add a WEAVER_CONTAINER-style override in semantic-conventions-java
+    # and drop the rewrite.
+    checks:
+      - name: generate-and-compile
+        timeout_minutes: 40
+        run: |
+          set -e
+          python3 - {weaver} <<'PY'
+          import re, sys
+          path = "build.gradle.kts"
+          src = open(path).read()
+          # Fail loudly rather than silently generating with the pinned released
+          # weaver, which would report a pass for a weaver we did not build.
+          out, n = re.subn(r'otel/weaver:[^"]+', sys.argv[1], src)
+          if n != 1:
+              sys.exit(f"expected 1 pinned weaver image in {path}, found {n}")
+          open(path, "w").write(out)
+          PY
+          ./gradlew --no-daemon --console=plain \
+            generateStableSemanticAttributes generateIncubatingSemanticAttributes
+          ./gradlew --no-daemon --console=plain compileJava
