@@ -4,8 +4,9 @@
 
 use crate::attribute::AttributeCatalog;
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
-use crate::dependency::{ImportableDependency, ResolvedDependency};
+use crate::dependency::ResolvedDependency;
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
+use crate::imports::ImportableDependency;
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;
@@ -389,7 +390,7 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
-    for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
+    for crate::imports::GroupWithProvenance { group, schema_url } in groups {
         let is_v2 = group.is_v2();
         let mut prov_url = if let Some(prov) = group.provenance() {
             prov.schema_url.clone()
