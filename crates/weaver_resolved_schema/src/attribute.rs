@@ -17,6 +17,7 @@ use weaver_semconv::attribute::{
     AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel,
 };
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -102,6 +103,10 @@ pub struct Attribute {
 pub struct UnresolvedAttribute {
     /// The attribute specification.
     pub spec: AttributeSpec,
+    /// The schema of the registry that defines this attribute, when it did not
+    /// originate locally.
+    #[serde(default)]
+    pub origin: Option<SchemaUrl>,
 }
 
 /// An internal reference to an attribute in the catalog.

@@ -6340,6 +6340,7 @@ dependencies = [
  "weaver_checker",
  "weaver_common",
  "weaver_macros",
+ "weaver_semconv",
 ]
 
 [[package]]

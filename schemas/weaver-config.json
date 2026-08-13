@@ -424,6 +424,20 @@
         }
       }
     },
+    "resolve": {
+      "description": "Resolution configuration — how dependencies and schema URLs are resolved.",
+      "type": "object",
+      "properties": {
+        "schema_url_overrides": {
+          "description": "Explicit overrides mapping a requested schema URL to an alternative\ndirectory, Git repository, or archive path.\n\n```toml\n[resolve.schema_url_overrides]\n\"https://opentelemetry.io/schemas/1.25.0\" = \"path/to/local/1.25.0\"\n\"https://opentelemetry.io/schemas/1.26.0\" = \"https://github.com/my-fork/semconv.git[model]\"\n```",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      }
+    },
     "serve": {
       "description": "Serve a resolved registry over a local HTTP API for browsing and search.",
       "type": "object",

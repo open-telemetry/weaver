@@ -640,11 +640,12 @@ impl ImportableDependency for V2Schema {
     ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
         let mut exclusion_errors: Vec<Error> = vec![];
+        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
 
         // Helper to map V2 provenance to V1 provenance.
         let get_source_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| -> weaver_semconv::provenance::Provenance {
             let url = if let Some(dep_ref) = &prov.source {
-                self.dependencies.iter().nth(dep_ref.0 as usize).cloned().unwrap_or_else(|| self.schema_url.clone())
+                deps.get(dep_ref.0 as usize).cloned().unwrap_or_else(|| self.schema_url.clone())
             } else {
                 self.schema_url.clone()
             };
@@ -656,10 +657,8 @@ impl ImportableDependency for V2Schema {
             |attr: &weaver_resolved_schema::v2::attribute::Attribute| -> AttributeSource {
                 if let Some(dep_ref) = &attr.provenance.source {
                     AttributeSource::Dependency {
-                        schema_url: self
-                            .dependencies
-                            .iter()
-                            .nth(dep_ref.0 as usize)
+                        schema_url: deps
+                            .get(dep_ref.0 as usize)
                             .cloned()
                             .unwrap_or_else(|| self.schema_url.clone()),
                     }
@@ -1161,12 +1160,19 @@ pub(crate) trait GroupRefinementLookup {
 
 impl GroupRefinementLookup for V1Schema {
     fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).ok();
         self.group(id).map(|g| {
             let attributes: Vec<UnresolvedAttribute> = g
                 .attributes
                 .iter()
                 .filter_map(|ar| self.catalog.attribute(ar))
                 .map(|a| UnresolvedAttribute {
+                    origin: my_schema_url.as_ref().map(|url| {
+                        match find_attribute_source(self, &a.name, url) {
+                            AttributeSource::Dependency { schema_url } => schema_url,
+                            AttributeSource::Local { .. } => url.clone(),
+                        }
+                    }),
                     spec: weaver_semconv::attribute::AttributeSpec::Id {
                         id: a.name.clone(),
                         r#type: a.r#type.clone(),
@@ -1190,16 +1196,32 @@ impl GroupRefinementLookup for V1Schema {
     }
 }
 
+/// The registry that defines a v2 attribute: one of `schema`'s own dependencies
+/// when the attribute was inherited, otherwise `schema` itself.
+fn attr_origin(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
+    a: &weaver_resolved_schema::v2::attribute::Attribute,
+) -> SchemaUrl {
+    a.provenance
+        .source
+        .and_then(|dep| deps.get(dep.0 as usize).cloned())
+        .unwrap_or_else(|| schema.schema_url.clone())
+}
+
 /// Converts a v2 catalog attribute into an unresolved attribute spec with
 /// the given requirement level, sampling relevance and role taken from the
 /// signal's attribute reference.
 fn attr_spec(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
     a: &weaver_resolved_schema::v2::attribute::Attribute,
     requirement_level: RequirementLevel,
     sampling_relevant: Option<bool>,
     role: Option<AttributeRole>,
 ) -> UnresolvedAttribute {
     UnresolvedAttribute {
+        origin: Some(attr_origin(schema, deps, a)),
         spec: weaver_semconv::attribute::AttributeSpec::Id {
             id: a.key.clone(),
             r#type: a.r#type.clone(),
@@ -1246,7 +1268,7 @@ fn signal_summary(
 /// Builds a group summary for an entity, with identity attributes tagged
 /// with the identifying role and description attributes with the
 /// descriptive role, so refinements inherit them correctly.
-fn entity_group_summary(schema: &V2Schema, e: &Entity) -> GroupSummary {
+fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> GroupSummary {
     let attributes = e
         .identity
         .iter()
@@ -1257,10 +1279,16 @@ fn entity_group_summary(schema: &V2Schema, e: &Entity) -> GroupSummary {
                 .map(|ar| (ar, AttributeRole::Descriptive)),
         )
         .filter_map(|(ar, role)| {
-            schema
-                .attribute_catalog
-                .get(ar.base.0 as usize)
-                .map(|a| attr_spec(a, ar.requirement_level.clone(), None, Some(role)))
+            schema.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                attr_spec(
+                    schema,
+                    deps,
+                    a,
+                    ar.requirement_level.clone(),
+                    None,
+                    Some(role),
+                )
+            })
         })
         .collect();
     signal_summary(
@@ -1285,17 +1313,19 @@ impl GroupRefinementLookup for V2Schema {
                 .or_else(|| by_id(id))
         }
 
+        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
+
         if let Some(e) = find(&self.registry.entities, id, "entity.") {
-            return Some(entity_group_summary(self, e));
+            return Some(entity_group_summary(self, &deps, e));
         }
         if let Some(m) = find(&self.registry.metrics, id, "metric.") {
             let attributes = m
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None, None))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                    })
                 })
                 .collect();
             let mut summary = signal_summary(
@@ -1314,9 +1344,9 @@ impl GroupRefinementLookup for V2Schema {
                 .attributes
                 .iter()
                 .filter_map(|ar| {
-                    self.attribute_catalog
-                        .get(ar.base.0 as usize)
-                        .map(|a| attr_spec(a, ar.requirement_level.clone(), None, None))
+                    self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
+                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                    })
                 })
                 .collect();
             return Some(signal_summary(
@@ -1332,7 +1362,14 @@ impl GroupRefinementLookup for V2Schema {
                 .iter()
                 .filter_map(|ar| {
                     self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
-                        attr_spec(a, ar.requirement_level.clone(), ar.sampling_relevant, None)
+                        attr_spec(
+                            self,
+                            &deps,
+                            a,
+                            ar.requirement_level.clone(),
+                            ar.sampling_relevant,
+                            None,
+                        )
                     })
                 })
                 .collect();

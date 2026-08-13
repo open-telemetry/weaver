@@ -65,7 +65,12 @@ pub(crate) fn command(
     } else {
         ExporterConfig::Otlp { endpoint }
     };
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     match resolved {
         crate::weaver::Resolved::V2(v) => {

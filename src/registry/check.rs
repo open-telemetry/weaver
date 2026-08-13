@@ -48,7 +48,12 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", cmd_config.registry.registry);
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
 
     // Initialize the main registry.
     let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
