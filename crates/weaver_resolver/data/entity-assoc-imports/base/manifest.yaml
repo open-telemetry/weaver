@@ -1,0 +1,3 @@
+name: base
+description: This registry defines the `host` entity and its attributes.
+schema_url: https://example.com/base/1.0.0

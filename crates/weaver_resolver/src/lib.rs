@@ -2105,6 +2105,124 @@ groups:
         Ok(())
     }
 
+    /// True for the "`definition/2` is not yet stable" warning. Every file in
+    /// these fixtures gives this warning, and these tests ignore it.
+    fn is_unstable_format_warning(e: &Error) -> bool {
+        matches!(
+            e,
+            Error::FailToResolveDefinition(weaver_semconv::Error::UnstableFileFormat { .. })
+        )
+    }
+
+    fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/entity-assoc-imports/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+    }
+
+    /// Resolves one of the `entity-assoc-imports` registries. Returns the
+    /// resolved schema and the non-fatal errors.
+    fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
+        let (resolved, nfes) = match load_entity_assoc_fixture(name) {
+            WResult::Ok(r) => (r, vec![]),
+            WResult::OkWithNFEs(r, nfes) => (r, nfes),
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        };
+        let v1 = resolved
+            .as_v1()
+            .unwrap_or_else(|| panic!("Expected a V1 schema for `{name}`"))
+            .clone();
+        let v2: V2Schema = v1
+            .try_into()
+            .unwrap_or_else(|e| panic!("v1 -> v2 conversion for `{name}`: {e}"));
+        let nfes = nfes
+            .into_iter()
+            .filter(|e| !is_unstable_format_warning(e))
+            .collect();
+        (v2, nfes)
+    }
+
+    /// The registry that defines the `host` entity.
+    const BASE_URL: &str = "https://example.com/base/1.0.0";
+
+    /// Entity types in the resolved registry, in registry order.
+    fn entity_types(schema: &V2Schema) -> Vec<&str> {
+        schema
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.as_ref())
+            .collect()
+    }
+
+    /// The schema url of the registry that defines an entity. Returns `None`
+    /// when the resolver reports the entity as local to this registry.
+    fn entity_source<'a>(schema: &'a V2Schema, entity_type: &str) -> Option<&'a str> {
+        let deps: Vec<&SchemaUrl> = schema.dependencies.iter().collect();
+        let entity = schema
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == entity_type)
+            .expect("entity is in the resolved registry");
+        entity
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .map(|url| url.as_str())
+    }
+
+    /// A dependent registry must import a legacy `type: resource` entity. The
+    /// group has no name, so a pattern can use only the id. The id holds the
+    /// entity type.
+    #[test]
+    fn test_legacy_resource_entity_can_be_imported() {
+        let (schema, nfes) = resolve_entity_assoc_fixture("top_legacy_import");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&schema),
+            ["browser"],
+            "the import must reach the legacy resource group of the dependency"
+        );
+    }
+
+    /// A definition that two dependency paths reach must be imported one time.
+    ///
+    /// `top_diamond` reaches `host` directly from `base`, and also through
+    /// `middle_reexport`. Both paths lead to the same definition in `base`.
+    /// There is no conflict to resolve and nothing to report. The entity must
+    /// appear one time only, with `base` as its source.
+    #[test]
+    fn test_entity_reachable_by_two_paths_is_imported_once() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_diamond");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host"],
+            "two paths reach one definition in `base`, so the result is still \
+             one entity"
+        );
+        assert_eq!(entity_source(&top, "host"), Some(BASE_URL));
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert!(
+            duplicates.is_empty(),
+            "an import of one definition by two paths is not a duplicate declaration: {duplicates:?}"
+        );
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.
