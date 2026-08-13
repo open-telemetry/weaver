@@ -38,6 +38,12 @@ can actually be fetched from — the files themselves are located via
 `registry_path` — but it must follow the OTel schema URL format and include a
 version segment.
 
+Legacy manifests that identify themselves with `schema_base_url` +
+`semconv_version` instead of `schema_url` may still declare a dependency by
+`name` + `registry_path`. Such a dependency carries no version, so it cannot be
+declared twice, and `weaver registry package` rejects it — give it a
+`schema_url` before publishing.
+
 > **Current limitations**:
 > - Weaver supports a maximum of 10 registry levels without circular
     dependencies. In practice, this is not a limitation, even for complex
@@ -138,3 +144,20 @@ Matching requests are sent with `Authorization: Bearer <token>`. Then:
 weaver registry check \
   -r "https://github.com/org/repo/releases/download/v1.0.0/manifest.yaml"
 ```
+
+## Overriding dependency schema URLs locally (`.weaver.toml`)
+
+When developing custom registries that depend on upstream registries (e.g., OpenTelemetry semantic conventions), you might want to test against local directory checkouts, forks, or offline archives without modifying the canonical `registry_path` in `manifest.yaml`.
+
+You can configure schema URL overrides in `.weaver.toml` under `[resolve.schema_url_overrides]`:
+
+```toml
+[resolve.schema_url_overrides]
+# Override an upstream dependency schema URL to point to a local checkout
+"https://opentelemetry.io/schemas/1.40.0" = "../semantic-conventions/model"
+
+# Or override to point to a specific Git fork or branch
+"https://example.com/schemas/1.0.0" = "https://github.com/my-fork/semconv.git[model]"
+```
+
+When Weaver resolves dependencies during commands like `weaver registry check`, `weaver registry generate`, or `weaver registry live-check`, any dependency whose `schema_url` matches an entry in `[resolve.schema_url_overrides]` will be redirected to the specified local path or URL instead of the default location in `manifest.yaml`.

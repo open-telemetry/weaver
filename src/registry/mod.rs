@@ -26,7 +26,10 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_warn;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_config::{CliOverrides, CommandConfig, EffectivePolicyConfig, EffectiveRegistryConfig};
+use weaver_config::{
+    CliOverrides, CommandConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
+    EffectiveResolveConfig,
+};
 
 mod check;
 mod diff;
@@ -358,10 +361,17 @@ pub fn load_config<A: CliOverrides>(
         EffectivePolicyConfig::skip_all()
     };
 
+    // Resolution: default → config
+    let mut resolve = EffectiveResolveConfig::default();
+    if let Some(wc) = weaver_config {
+        resolve.layer_config(&wc.resolve);
+    }
+
     CommandConfig {
         config,
         registry,
         policy,
+        resolve,
     }
 }
 

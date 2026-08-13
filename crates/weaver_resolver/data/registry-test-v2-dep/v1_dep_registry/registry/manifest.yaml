@@ -1,0 +1,5 @@
+description: V2 registry refining a metric from a v1 dependency whose attributes come from a registry one level deeper.
+schema_url: https://v1-dep-consumer.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://acme.com/schemas/0.1.0
+    registry_path: data/multi-registry/custom_registry

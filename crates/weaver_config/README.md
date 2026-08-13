@@ -30,6 +30,11 @@ skip = true
 [diagnostics]
 format = "ansi"   # ansi | json | gh_workflow_command
 
+# Shared resolution settings — override dependency schema URLs with local or custom locations.
+[resolve.schema_url_overrides]
+"https://opentelemetry.io/schemas/1.25.0" = "path/to/local/1.25.0"
+"https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
+
 # Shared template settings — applied on top of every template package's `weaver.yaml`.
 [template]
 acronyms = ["API", "HTTP", "SDK", "iOS"] 
@@ -85,11 +90,29 @@ exclude = ["missing_namespace"]
 
 See `schemas/weaver-config.json` for the full JSON schema (with VS Code / taplo completion support via the `#:schema` annotation above).
 
+### Dependency Resolution Overrides (`[resolve]`)
+
+The `[resolve]` section configures how dependencies and schema URLs are resolved. This is a configuration-only setting (no CLI flags) designed for:
+
+- **Local Development**: Developing interdependent registries simultaneously without needing to publish or modify the `manifest.yaml` dependency paths.
+- **Air-Gapped / Offline CI**: Redirecting remote schema URL fetches to local directories, archives, or internal mirrors.
+- **Testing Forks and Branches**: Redirecting a canonical dependency schema URL to a local checkout or Git fork.
+
+```toml
+[resolve.schema_url_overrides]
+# Map a canonical schema URL to a local directory
+"https://opentelemetry.io/schemas/1.25.0" = "path/to/local/1.25.0"
+# Map to a specific Git repository subfolder
+"https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
+```
+
+Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured override path.
+
 ## Architecture
 
 ### `WeaverConfig`
 
-The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `live_check`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
+The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `resolve`, `live_check`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
 
 ### `CliOverrides` trait
 
@@ -102,7 +125,7 @@ Each command's `*Args` struct implements `CliOverrides`, which declares:
 - `excluded_args` / `config_only_fields` — drive the consistency test
 - `apply_registry_overrides` / `apply_policy_overrides` / `apply_diagnostic_overrides` — handle shared args
 
-`load_config(args, cfg)` executes the three-layer merge and returns `CommandConfig<C>` containing the merged command config plus effective registry, policy, and diagnostic configs.
+`load_config(args, cfg)` executes the three-layer merge and returns `CommandConfig<C>` containing the merged command config plus effective registry, policy, resolution, and diagnostic configs.
 
 ### `#[derive(WeaverCommand)]` macro
 
