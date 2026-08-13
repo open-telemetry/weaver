@@ -115,8 +115,10 @@ impl Dependency {
     /// only) does not: it names a registry without saying which version of it, so it cannot be
     /// reconciled with any other declaration of the same registry.
     ///
-    /// Only the minted placeholder counts as unversioned; a `schema_url` whose version segment
-    /// is not valid semver is still an author-supplied version.
+    /// Detected by the version segment, so a `schema_url` an author wrote as `.../unknown`
+    /// counts as unversioned too. That is the intent: it says no more about which version is
+    /// wanted than the minted placeholder does. Any other segment is treated as a version,
+    /// valid semver or not.
     #[must_use]
     pub fn is_versioned(&self) -> bool {
         self.schema_url.version() != UNKNOWN_VERSION
@@ -135,6 +137,13 @@ const UNKNOWN_VERSION: &str = "unknown";
 /// declare a dependency by `name`, which then gets a placeholder, unversioned schema URL minted
 /// from that name.
 fn parse_dependency(value: serde_yaml::Value, strict: bool) -> Result<Dependency, String> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct NamedDependency {
+        name: String,
+        registry_path: VirtualDirectoryPath,
+    }
+
     if value.get("schema_url").is_some() {
         return serde_yaml::from_value(value).map_err(|e| e.to_string());
     }
@@ -149,12 +158,6 @@ fn parse_dependency(value: serde_yaml::Value, strict: bool) -> Result<Dependency
         ));
     }
 
-    #[derive(Deserialize)]
-    #[serde(deny_unknown_fields)]
-    struct NamedDependency {
-        name: String,
-        registry_path: VirtualDirectoryPath,
-    }
     let named: NamedDependency = serde_yaml::from_value(value).map_err(|e| e.to_string())?;
     Ok(Dependency {
         schema_url: SchemaUrl::try_from_name_version(&named.name, UNKNOWN_VERSION)?,
