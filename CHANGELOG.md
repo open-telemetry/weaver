@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Fix elements inherited from a transitive dependency being reported as locally defined. A resolved schema's `dependencies` set is the table that `DependencyRef` provenance indexes into, but it listed only direct dependencies, so anything reaching the registry through a dependency-of-a-dependency had no entry to point at. It now records the full closure. ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
+- Live-check: add support for OTel Profiles ([#1698](https://github.com/open-telemetry/weaver/pull/1698) by @flehner)
 - Live-check: preserve instrumentation scope through OTLP ingestion, expose it to Rego policies, and render it in standard output. ([#1605](https://github.com/open-telemetry/weaver/pull/1605) by @McGluut)
 
 # [0.25.1] - 2026-07-28
