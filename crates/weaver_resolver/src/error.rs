@@ -45,6 +45,16 @@ pub enum Error {
     #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
     FailToResolveSchemaUrl {},
 
+    /// A registry is declared more than once and at least one declaration has no version.
+    #[error("Registry '{name}' is declared by more than one dependency, but at least one declaration is unversioned")]
+    #[diagnostic(help(
+        "Use a `schema_url` with a semantic version, e.g. https://example.com/{name}/1.0.0."
+    ))]
+    UnversionedDependencyConflict {
+        /// The registry declared more than once.
+        name: String,
+    },
+
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
     #[diagnostic(help("Check the URL and try again."))]

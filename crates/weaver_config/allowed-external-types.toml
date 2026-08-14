@@ -10,4 +10,5 @@ allowed_external_types = [
     "weaver_checker::*",
     "weaver_macros::*",
     "weaver_common::*",
+    "weaver_semconv::*",
 ]

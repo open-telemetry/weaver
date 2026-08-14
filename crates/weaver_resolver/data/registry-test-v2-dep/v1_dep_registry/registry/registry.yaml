@@ -1,0 +1,10 @@
+file_format: definition/2
+metric_refinements:
+  # `auction.*` are defined by acme, `error.type` comes from the otel registry
+  # that acme itself depends on.
+  - id: refined.bid.count
+    ref: auction.bid.count
+    brief: Refined count of bids
+    attributes:
+      - ref: auction.name
+        brief: Refined auction name

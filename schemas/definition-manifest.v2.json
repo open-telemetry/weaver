@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "dependencies": {
-      "description": "List of the registry's dependencies.\nNote: In the current phase, we only support zero or one dependency.\nSee this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>",
+      "description": "List of the registry's dependencies.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Dependency"

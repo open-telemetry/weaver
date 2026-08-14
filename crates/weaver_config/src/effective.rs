@@ -4,11 +4,14 @@
 //!
 //! Each type is built via three-layer merge: defaults → `.weaver.toml` → CLI overrides.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+use crate::resolve::ResolveConfig;
 
 /// Default registry URL used when no registry is specified.
 pub const DEFAULT_REGISTRY: &str =
@@ -143,12 +146,82 @@ impl EffectiveDiagnosticConfig {
     }
 }
 
+/// Effective resolution settings — every field has a concrete value.
+///
+/// Built by layering: defaults → `.weaver.toml`.
+#[derive(Debug, Clone, Default)]
+pub struct EffectiveResolveConfig {
+    /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
+    pub schema_url_overrides: BTreeMap<SchemaUrl, VirtualDirectoryPath>,
+}
+
+impl EffectiveResolveConfig {
+    /// Apply `.weaver.toml` resolve section onto this effective config (layer 2).
+    pub fn layer_config(&mut self, cfg: &ResolveConfig) {
+        for (url_str, path_str) in &cfg.schema_url_overrides {
+            let schema_url = match SchemaUrl::try_from(url_str.as_str()) {
+                Ok(url) => url,
+                Err(e) => {
+                    log::warn!(
+                        "Invalid schema URL '{url_str}' in [resolve.schema_url_overrides]: {e}"
+                    );
+                    continue;
+                }
+            };
+            let path = match path_str.parse::<VirtualDirectoryPath>() {
+                Ok(p) => p,
+                Err(e) => {
+                    log::warn!("Invalid path '{path_str}' in [resolve.schema_url_overrides] for '{url_str}': {e}");
+                    continue;
+                }
+            };
+            _ = self.schema_url_overrides.insert(schema_url, path);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::*;
     use crate::registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+    use crate::resolve::ResolveConfig;
+
+    // ── EffectiveResolveConfig ────────────────────────────────────────────────
+
+    #[test]
+    fn test_resolve_default_values() {
+        let cfg = EffectiveResolveConfig::default();
+        assert!(cfg.schema_url_overrides.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_layer_config_applies_overrides() {
+        let mut cfg = EffectiveResolveConfig::default();
+        let mut overrides = BTreeMap::new();
+        _ = overrides.insert(
+            "https://opentelemetry.io/schemas/1.25.0".to_owned(),
+            "data/registry-test-v2-dep/app_registry".to_owned(),
+        );
+        cfg.layer_config(&ResolveConfig {
+            schema_url_overrides: overrides,
+        });
+        assert_eq!(cfg.schema_url_overrides.len(), 1);
+        let url = SchemaUrl::try_from("https://opentelemetry.io/schemas/1.25.0").unwrap();
+        assert!(cfg.schema_url_overrides.contains_key(&url));
+    }
+
+    #[test]
+    fn test_resolve_layer_config_skips_invalid() {
+        let mut cfg = EffectiveResolveConfig::default();
+        let mut overrides = BTreeMap::new();
+        _ = overrides.insert("invalid-url".to_owned(), "path/to/local".to_owned());
+        cfg.layer_config(&ResolveConfig {
+            schema_url_overrides: overrides,
+        });
+        assert!(cfg.schema_url_overrides.is_empty());
+    }
 
     // ── EffectiveRegistryConfig ───────────────────────────────────────────────
 
