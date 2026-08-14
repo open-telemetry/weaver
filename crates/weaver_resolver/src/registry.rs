@@ -162,7 +162,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     }
 
     // We need to *import* objects from the dependencies as required.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup, &mut errors) {
         return WResult::FatalErr(e);
     }
 
@@ -385,15 +385,21 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 }
 
 /// Resolves imports defined on dependencies.
+///
+/// A pattern that named nothing is reported into `errors`.
 fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
+    errors: &mut Vec<Error>,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
+    // Checked against what the imports produced, before the groups move into
+    // the registry.
+    errors.extend(crate::imports::unmatched_import_errors(imports, &groups)?);
     for crate::imports::GroupWithProvenance { group, schema_url } in groups {
         let is_v2 = group.is_v2();
         let mut prov_url = if let Some(prov) = group.provenance() {

@@ -59,6 +59,28 @@ impl ImportField {
         }
     }
 
+    /// Every field, in a stable order.
+    fn all() -> [Self; 5] {
+        [
+            Self::Metrics,
+            Self::Events,
+            Self::Spans,
+            Self::Entities,
+            Self::AttributeGroups,
+        ]
+    }
+
+    /// The name of the field, for a diagnostic.
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Metrics => "metrics",
+            Self::Events => "events",
+            Self::Spans => "spans",
+            Self::Entities => "entities",
+            Self::AttributeGroups => "attribute_groups",
+        }
+    }
+
     /// The patterns of this field, in one `imports` block.
     fn patterns<'a>(&self, imports: &'a weaver_semconv::semconv::Imports) -> &'a [GroupWildcard] {
         let field = match self {
@@ -70,6 +92,63 @@ impl ImportField {
         };
         field.as_deref().unwrap_or_default()
     }
+}
+
+/// Whether the resolver added this `imports` block itself, rather than the
+/// author writing it. `--include-unreferenced` asks for everything, so it is
+/// not a name that can be misspelled.
+fn is_implicit_import(import: &ImportsWithProvenance) -> bool {
+    import.provenance.path == "--include-unreferenced"
+}
+
+/// Reports every explicit import pattern that named none of the imported
+/// groups.
+///
+/// An unmatched pattern is nearly always a typo or a stale name, and the
+/// resolver drops it in silence. This runs across all dependencies at once,
+/// because a pattern can name nothing in one dependency and still be satisfied
+/// by another.
+pub(crate) fn unmatched_import_errors(
+    imports: &[ImportsWithProvenance],
+    groups: &[GroupWithProvenance],
+) -> Result<Vec<Error>, Error> {
+    let explicit: Vec<&ImportsWithProvenance> =
+        imports.iter().filter(|i| !is_implicit_import(i)).collect();
+    let mut errors = vec![];
+    for field in ImportField::all() {
+        let patterns: Vec<&GroupWildcard> = explicit
+            .iter()
+            .flat_map(|i| field.patterns(&i.imports))
+            .collect();
+        if patterns.is_empty() {
+            continue;
+        }
+        // Built from the same list, in the same order, so a match index is an
+        // index into `patterns`.
+        let matcher = build_globset(patterns.iter().copied())?;
+        let mut matched = vec![false; patterns.len()];
+        for group in groups {
+            if ImportField::of(&group.group.r#type) != Some(field) {
+                continue;
+            }
+            for key in import_match_keys(&group.group) {
+                for index in matcher.matches(key) {
+                    matched[index] = true;
+                }
+            }
+        }
+        errors.extend(
+            patterns
+                .iter()
+                .zip(matched)
+                .filter(|(_, matched)| !matched)
+                .map(|(pattern, _)| Error::UnmatchedImport {
+                    pattern: pattern.0.glob().to_owned(),
+                    signal: field.name().to_owned(),
+                }),
+        );
+    }
+    Ok(errors)
 }
 
 /// The strings that an import pattern can match a group by.
@@ -209,10 +288,8 @@ impl ImportableDependency for V1Schema {
         attribute_catalog: &mut AttributeCatalog,
         cache_lookup: &C,
     ) -> Result<Vec<GroupWithProvenance>, Error> {
-        let explicit_imports: Vec<&ImportsWithProvenance> = imports
-            .iter()
-            .filter(|i| i.provenance.path != "--include-unreferenced")
-            .collect();
+        let explicit_imports: Vec<&ImportsWithProvenance> =
+            imports.iter().filter(|i| !is_implicit_import(i)).collect();
 
         let explicit = ImportMatchers::build(explicit_imports.iter().copied())?;
         let any = ImportMatchers::build(imports.iter())?;
@@ -582,10 +659,8 @@ impl ImportableDependency for V2Schema {
         // The table a `DependencyRef` indexes into, materialised once.
         let deps: Vec<SchemaUrl> = self.dependencies.iter().cloned().collect();
 
-        let explicit_imports: Vec<&ImportsWithProvenance> = imports
-            .iter()
-            .filter(|i| i.provenance.path != "--include-unreferenced")
-            .collect();
+        let explicit_imports: Vec<&ImportsWithProvenance> =
+            imports.iter().filter(|i| !is_implicit_import(i)).collect();
         let explicit = ImportMatchers::build(explicit_imports.iter().copied())?;
         let any = ImportMatchers::build(imports.iter())?;
 
