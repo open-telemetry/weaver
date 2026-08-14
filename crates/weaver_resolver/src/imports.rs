@@ -78,6 +78,10 @@ impl ImportField {
 /// without the group-type prefix. A pattern can name a v1 group by its signal
 /// name. For a v1 span or attribute group, the pattern uses the id. For a v1
 /// entity, the pattern uses the id or the name.
+///
+/// Two keys exist only to keep older registries resolving: the `registry.`
+/// prefix on an attribute group id, an older spelling that a v2 group can
+/// still carry, and the id of a v1 `resource` entity.
 fn import_match_keys(g: &Group) -> Vec<&str> {
     let name = g.name.as_deref();
     let metric_name = g.metric_name.as_deref();
@@ -93,7 +97,8 @@ fn import_match_keys(g: &Group) -> Vec<&str> {
         let mut keys = vec![g.id.as_str()];
         keys.extend(signal_name);
         // A pattern can also name an attribute group by its id without the
-        // `registry.` prefix. This prefix is the older spelling.
+        // `registry.` prefix, which is the older spelling.
+        // TODO - warn on the `registry.` spelling to move authors off it.
         if g.r#type == GroupType::AttributeGroup {
             keys.extend(g.id.strip_prefix("registry."));
         }
@@ -103,9 +108,10 @@ fn import_match_keys(g: &Group) -> Vec<&str> {
         match g.r#type {
             GroupType::AttributeGroup | GroupType::Span => vec![g.id.as_str()],
             GroupType::Event => name.into_iter().collect(),
-            // A legacy `resource` group has no name. It holds its entity type
-            // in the id. A key list from the name alone is empty, so no import
-            // can find such a group.
+            // A legacy `resource` group has no name. It holds its entity
+            // type in the id. A key list from the name alone is empty, so no
+            // import can find such a group.
+            // TODO - warn on a v1 `resource` entity to move authors to v2.
             GroupType::Entity => {
                 let mut keys = vec![g.id.as_str()];
                 keys.extend(g.id.strip_prefix("entity."));

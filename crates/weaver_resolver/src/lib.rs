@@ -2328,6 +2328,41 @@ groups:
         );
     }
 
+    /// Two unrelated dependencies that each declare their own group with the
+    /// same id are a genuine conflict, not a diamond.
+    ///
+    /// `base` and `rival_base` share no history: different origin registries,
+    /// different identity attributes, one `host` entity each. Deduplication
+    /// buckets candidates by origin, so it must not collapse these two into
+    /// one — picking a winner silently would drop a definition the registry
+    /// asked for. Both are imported and the clash is reported, so the author
+    /// can resolve it.
+    #[test]
+    fn test_same_entity_from_unrelated_dependencies_is_reported() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_rival_import");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host", "host"],
+            "unrelated definitions must not be silently deduplicated"
+        );
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert_eq!(
+            duplicates.len(),
+            2,
+            "the clash must be reported by id and by name: {nfes:?}"
+        );
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.
