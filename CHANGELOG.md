@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Report an `imports` pattern that matched nothing in any dependency, as a warning. A typo or a stale name was previously dropped in silence. ([#1701](https://github.com/open-telemetry/weaver/pull/1701) by @jerbly)
 - Fix a span imported from a v2 dependency losing the `sampling_relevant` setting on its attributes. This is per-span state, held on the span's attribute reference rather than on the catalog attribute, so the import path never read it. Refining such a span was unaffected. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)
 - Fix `imports` never matching a legacy `type: resource` entity in a dependency. Such a group sets no `name` and holds its entity type in the group id, so the matcher now matches the group id as well as the name. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)
 - Fix a definition reached by two paths through the dependency graph being imported twice, which produced duplicate groups and misleading duplicate-declaration warnings. Imported groups are now deduplicated as the per-dependency results are joined. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)

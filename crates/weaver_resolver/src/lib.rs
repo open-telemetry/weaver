@@ -2251,6 +2251,11 @@ groups:
         (v2, nfes)
     }
 
+    /// The non-fatal errors of one of the `entity-assoc-imports` registries.
+    fn entity_assoc_fixture_errors(name: &str) -> Vec<Error> {
+        resolve_entity_assoc_fixture(name).1
+    }
+
     /// The registry that defines the `host` entity.
     const BASE_URL: &str = "https://example.com/base/1.0.0";
 
@@ -2325,6 +2330,55 @@ groups:
         assert!(
             duplicates.is_empty(),
             "an import of one definition by two paths is not a duplicate declaration: {duplicates:?}"
+        );
+    }
+
+    /// An import that no dependency satisfies must be reported.
+    ///
+    /// `top_bad_import` depends on `middle_reexport`, which does export `host`.
+    /// The import asks for `no.such.entity`. So the import fails for one reason
+    /// only: no dependency offers anything with that name.
+    #[test]
+    fn test_import_that_binds_to_nothing_is_reported() {
+        let errors = entity_assoc_fixture_errors("top_bad_import");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnmatchedImport { pattern, signal }]
+                    if pattern == "no.such.entity" && signal == "entities"
+            ),
+            "no dependency offers `no.such.entity`, and the resolver must report \
+             this import: {errors:?}"
+        );
+    }
+
+    /// Every `imports` field is checked, not only `entities`.
+    ///
+    /// `top_bad_imports_all_types` asks for one name of each signal type that
+    /// no dependency offers. It also asks for a metric and an entity that
+    /// `middle_reexport` does export, so a report of those would be wrong.
+    #[test]
+    fn test_unmatched_imports_are_reported_for_every_signal_type() {
+        let errors = entity_assoc_fixture_errors("top_bad_imports_all_types");
+        let mut reported: Vec<(&str, &str)> = errors
+            .iter()
+            .map(|e| match e {
+                Error::UnmatchedImport { pattern, signal } => (pattern.as_str(), signal.as_str()),
+                other => panic!("unexpected error: {other:?}"),
+            })
+            .collect();
+        reported.sort_unstable();
+        assert_eq!(
+            reported,
+            [
+                ("no.such.attribute_group", "attribute_groups"),
+                ("no.such.entity", "entities"),
+                ("no.such.event", "events"),
+                ("no.such.metric", "metrics"),
+                ("no.such.span", "spans"),
+            ],
+            "each signal type must report its own unmatched import, and the \
+             imports that do bind must stay silent"
         );
     }
 

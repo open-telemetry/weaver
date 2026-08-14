@@ -12,6 +12,8 @@ work. Each pull request in that series adds the fixtures that its tests need.
 | `top_legacy_import` | legacy_resource | `entities: [browser]` | the import reaches the legacy group |
 | `rival_base` | – | – | defines its own unrelated `host` entity |
 | `top_rival_import` | base **and** rival_base | `entities: [host]` | two `host` entities, and a reported clash |
+| `top_bad_import` | middle_reexport | `entities: [no.such.entity]` | one unmatched-import warning |
+| `top_bad_imports_all_types` | middle_reexport | one bad name per signal type | five warnings, and silence for the two names that bind |
 
 ## A diamond is not a clash
 
