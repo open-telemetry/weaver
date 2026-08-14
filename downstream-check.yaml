@@ -118,30 +118,27 @@ repos:
         dir: custom_advisor
         run: make test
 
-  - url: https://github.com/open-telemetry/semantic-conventions-java.git@main
-    # Generates Java from the semconv model and then compiles it, which is the
-    # only downstream check that catches weaver emitting code.
+  - url: https://github.com/open-telemetry/opentelemetry-rust.git@main
+    # Regenerates the semconv crate and compiles it, which is the only downstream
+    # check that catches weaver emitting code that does not build.
     #
-    # The weaver image is pinned inline in build.gradle.kts with no override
-    # hook, so it is rewritten to point at ours before generating.
-    # TODO: add a WEAVER_CONTAINER-style override in semantic-conventions-java
-    # and drop the rewrite.
+    # This inlines what scripts/generate-consts-from-spec.sh does, because that
+    # script only knows how to run weaver as a pinned container. Its
+    # post-generation `sed` fixups are deliberately skipped: they all patch
+    # rustdoc warnings, which `cargo build` does not surface.
+    # TODO: add a $WEAVER-style override in opentelemetry-rust and run the script.
     checks:
       - name: generate-and-compile
-        timeout_minutes: 40
+        timeout_minutes: 20
         run: |
           set -e
-          python3 - {weaver} <<'PY'
-          import re, sys
-          path = "build.gradle.kts"
-          src = open(path).read()
-          # Fail loudly rather than silently generating with the pinned released
-          # weaver, which would report a pass for a weaver we did not build.
-          out, n = re.subn(r'otel/weaver:[^"]+', sys.argv[1], src)
-          if n != 1:
-              sys.exit(f"expected 1 pinned weaver image in {path}, found {n}")
-          open(path, "w").write(out)
-          PY
-          ./gradlew --no-daemon --console=plain \
-            generateStableSemanticAttributes generateIncubatingSemanticAttributes
-          ./gradlew --no-daemon --console=plain compileJava
+          script=opentelemetry-semantic-conventions/scripts/generate-consts-from-spec.sh
+          # Generate against the registry the script pins, so a semconv release
+          # cannot break this check. Failing loudly keeps the pin in sync.
+          spec=$(sed -n 's/^SPEC_VERSION=//p' "$script")
+          test -n "$spec" || { echo "no SPEC_VERSION in $script"; exit 1; }
+          {weaver} registry generate \
+            --registry "https://github.com/open-telemetry/semantic-conventions.git@v$spec[model]" \
+            --templates opentelemetry-semantic-conventions/scripts/templates \
+            rust opentelemetry-semantic-conventions/src/
+          cargo build -p opentelemetry-semantic-conventions --all-features

@@ -45,13 +45,6 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
-      # semantic-conventions-java builds with Gradle; its own CI builds on 21.
-      - name: Install Java
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
-        with:
-          distribution: temurin
-          java-version: 21
-
       # The weaver binary embeds ui/dist via include_dir!, and it is not checked
       # in, so it has to be built before anything compiles weaver.
       - name: Setup pnpm

@@ -38,10 +38,7 @@ struct Config {
 ///
 /// TODO: teach semantic-conventions to use a local weaver when one is present,
 /// the way semantic-conventions-genai does, and drop this special case.
-const IMAGE_ONLY_REPOS: &[&str] = &[
-    "github.com/open-telemetry/semantic-conventions",
-    "github.com/open-telemetry/semantic-conventions-java",
-];
+const IMAGE_ONLY_REPOS: &[&str] = &["github.com/open-telemetry/semantic-conventions"];
 
 /// How weaver is handed to a downstream repo.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -595,11 +592,9 @@ mod tests {
                 .unwrap_or_else(|| panic!("'{url}' is not in downstream-check.yaml"))
                 .weaver()
         };
-        assert!(kind("github.com/open-telemetry/semantic-conventions-java") == WeaverKind::Image);
         assert!(kind("github.com/open-telemetry/semantic-conventions") == WeaverKind::Image);
-        // The `-java` suffix must not make this one match by prefix.
-        assert!(
-            kind("github.com/open-telemetry/opentelemetry-weaver-examples") == WeaverKind::Binary
-        );
+        assert!(kind("github.com/open-telemetry/opentelemetry-rust") == WeaverKind::Binary);
+        // The `-genai` suffix must not make this one match semantic-conventions by prefix.
+        assert!(kind("github.com/open-telemetry/semantic-conventions-genai") == WeaverKind::Binary);
     }
 }
