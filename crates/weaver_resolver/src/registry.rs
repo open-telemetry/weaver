@@ -4,7 +4,7 @@
 
 use crate::attribute::AttributeCatalog;
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
-use crate::dependency::ResolvedDependency;
+use crate::dependency::{EntityLookup, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
 use crate::imports::ImportableDependency;
 use crate::Error;
@@ -18,6 +18,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_resolved_schema::v2::v2_namespace_id;
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
@@ -166,6 +167,12 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         return WResult::FatalErr(e);
     }
 
+    // After the imports, because a signal can arrive from a dependency with
+    // associations of its own, and because an import satisfies an association.
+    if let Err(e) = resolve_entity_associations(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
+
     // Now we do validations.
 
     // Note: this will remove all the `groups` from UnresolvedRegistry and create
@@ -221,8 +228,48 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         },
     );
     check_root_attribute_id_duplicates(&result, &attr_name_index, &mut errors);
+    check_v2_signal_id_collisions(&result, &mut errors);
 
     WResult::OkWithNFEs(result, errors)
+}
+
+/// Checks for groups whose ids differ but that take one id in the v2 output.
+///
+/// A v2 signal id drops the group-type prefix, so the groups `entity.host` and
+/// `host` both name the entity `host`. The second then replaces the first, and
+/// a definition is lost without a word.
+///
+/// Groups that share a raw id are left to `DuplicateGroupId`, which already
+/// reports them.
+fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
+    // Keyed on the signal type as well as the id: each type has a namespace of
+    // its own in v2, so a span and an entity may share a name.
+    // A `BTreeMap` keeps the reports in a stable order.
+    let mut by_signal: BTreeMap<(String, String), Vec<&Group>> = BTreeMap::new();
+    for group in registry.groups.iter() {
+        if let Some(signal_id) = v2_namespace_id(group) {
+            by_signal
+                .entry((group.r#type.to_string(), signal_id.to_string()))
+                .or_default()
+                .push(group);
+        }
+    }
+
+    for ((_, signal_id), groups) in by_signal {
+        let group_ids: Vec<String> = groups.iter().map(|g| g.id.clone()).unique().collect();
+        if group_ids.len() < 2 {
+            continue;
+        }
+        errors.push(Error::CollidingV2SignalId {
+            signal_id,
+            group_ids,
+            provenances: groups
+                .iter()
+                .filter_map(|g| g.provenance())
+                .unique()
+                .collect(),
+        });
+    }
 }
 
 /// Generic function to check for duplicate keys in the given registry.
@@ -433,6 +480,76 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
             provenance,
         });
     }
+    Ok(())
+}
+
+/// Resolves the entity associations of every signal in the registry, and records
+/// where each one resolved.
+///
+/// A name is looked for in this registry first, then in the dependencies. A name
+/// that neither holds is an error, as an unresolved attribute `ref` is. So is a
+/// name that resolves to an entity its own registry keeps private.
+///
+/// The entities of this registry need no record: the v1 to v2 conversion sees
+/// their groups. An entity that only a dependency defines has no group here, so
+/// the origin is recorded for the conversion to read.
+fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
+    // Most registries associate nothing, and then there is no name to look up.
+    if ureg
+        .groups
+        .iter()
+        .all(|g| g.group.entity_associations.is_empty())
+    {
+        return Ok(());
+    }
+
+    // The name an association uses is the id the entity takes in the v2 output,
+    // so the lookup and the conversion agree by construction.
+    let local: HashSet<String> = ureg
+        .groups
+        .iter()
+        .map(|g| &g.group)
+        .filter(|g| g.r#type == GroupType::Entity)
+        .filter_map(|g| v2_namespace_id(g).map(|id| id.to_string()))
+        .collect();
+
+    let mut origins = BTreeMap::new();
+    let mut errors = vec![];
+    for g in ureg.groups.iter() {
+        for name in g
+            .group
+            .entity_associations
+            .iter()
+            .flat_map(|assoc| assoc.referenced_entities())
+            .unique()
+        {
+            if local.contains(name) || origins.contains_key(name) {
+                continue;
+            }
+            match ureg.dependencies.lookup_entity(name) {
+                Some(location) if location.excluded => {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: name.to_owned(),
+                        r#type: GroupType::Entity.to_string(),
+                        used_in: g.group.id.clone(),
+                    });
+                }
+                Some(location) => {
+                    _ = origins.insert(name.to_owned(), location.origin);
+                }
+                None => errors.push(Error::UnresolvedEntityAssociation {
+                    group_id: g.group.id.clone(),
+                    entity_type: name.to_owned(),
+                    provenance: g.provenance.clone().map(Box::new),
+                }),
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        return Err(Error::CompoundError(errors));
+    }
+    ureg.registry.entity_association_origins = origins;
     Ok(())
 }
 
@@ -1210,6 +1327,97 @@ mod tests {
         output_v2: bool,
     }
 
+    /// A group for the collision check: only the id, the type and the
+    /// provenance path matter to it.
+    fn collision_group(id: &str, group_type: GroupType, path: &str) -> Group {
+        Group {
+            id: id.to_owned(),
+            r#type: group_type,
+            brief: Default::default(),
+            note: Default::default(),
+            prefix: Default::default(),
+            extends: Default::default(),
+            stability: Default::default(),
+            deprecated: Default::default(),
+            attributes: vec![],
+            span_kind: Default::default(),
+            events: Default::default(),
+            metric_name: Default::default(),
+            instrument: Default::default(),
+            unit: Default::default(),
+            requirement_level: Default::default(),
+            name: Default::default(),
+            lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                Provenance {
+                    schema_url: SchemaUrl::new_unknown(),
+                    path: path.to_owned(),
+                },
+            )),
+            display_name: Default::default(),
+            body: Default::default(),
+            annotations: Default::default(),
+            entity_associations: Default::default(),
+            visibility: Default::default(),
+            is_v2: true,
+            span_name: None,
+        }
+    }
+
+    fn collision_errors(groups: Vec<Group>) -> Vec<crate::Error> {
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            entity_association_origins: Default::default(),
+            groups,
+        };
+        let mut errors = vec![];
+        super::check_v2_signal_id_collisions(&registry, &mut errors);
+        errors
+    }
+
+    /// A v2 signal id drops the group-type prefix, so two groups whose ids
+    /// differ only by that prefix become one entry in the v2 output. The second
+    /// replaces the first, so this must not pass in silence.
+    #[test]
+    fn test_groups_that_take_one_v2_id_are_reported() {
+        let errors = collision_errors(vec![
+            collision_group("entity.host", GroupType::Entity, "base.yaml"),
+            collision_group("host", GroupType::Entity, "refinement.yaml"),
+        ]);
+        let [crate::Error::CollidingV2SignalId {
+            signal_id,
+            group_ids,
+            provenances,
+        }] = errors.as_slice()
+        else {
+            panic!("expected one collision, got {errors:?}");
+        };
+        assert_eq!(signal_id, "host");
+        assert_eq!(group_ids, &["entity.host".to_owned(), "host".to_owned()]);
+        assert_eq!(provenances.len(), 2, "both locations are named");
+    }
+
+    /// Each signal type has a namespace of its own in v2, so a span and an
+    /// entity that share a name do not collide.
+    #[test]
+    fn test_one_name_in_two_signal_types_is_not_a_collision() {
+        let errors = collision_errors(vec![
+            collision_group("entity.host", GroupType::Entity, "entity.yaml"),
+            collision_group("host", GroupType::Span, "span.yaml"),
+        ]);
+        assert!(errors.is_empty(), "unexpected collisions: {errors:?}");
+    }
+
+    /// Two groups that share a raw id are already reported as a duplicate
+    /// declaration. Reporting them here as well would say one fault twice.
+    #[test]
+    fn test_groups_that_share_a_raw_id_are_left_to_the_duplicate_check() {
+        let errors = collision_errors(vec![
+            collision_group("host", GroupType::Entity, "one.yaml"),
+            collision_group("host", GroupType::Entity, "two.yaml"),
+        ]);
+        assert!(errors.is_empty(), "unexpected collisions: {errors:?}");
+    }
+
     const TEST_SETTINGS_FILE: &str = "settings.yaml";
     const EXPECTED_ERRORS_FILE: &str = "expected-errors.json";
     const EXPECTED_V1_CATALOG_FILE: &str = "expected-attribute-catalog.json";
@@ -1623,6 +1831,7 @@ groups:
         let ureg = UnresolvedRegistry {
             registry: Registry {
                 registry_url: "test".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             groups: vec![UnresolvedGroup {
@@ -1722,6 +1931,7 @@ groups:
         let ureg = UnresolvedRegistry {
             registry: Registry {
                 registry_url: "test".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             groups: vec![

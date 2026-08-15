@@ -11,8 +11,14 @@ use weaver_forge::{
     OutputProcessor,
 };
 use weaver_resolved_schema::v2::{
-    attribute::Attribute, attribute_group::AttributeGroup, catalog::AttributeCatalog,
-    entity::Entity, event::Event, metric::Metric, span::Span, ResolvedTelemetrySchema, Signal,
+    attribute::Attribute,
+    attribute_group::AttributeGroup,
+    catalog::AttributeCatalog,
+    entity::{to_named_associations, Entity},
+    event::Event,
+    metric::Metric,
+    span::Span,
+    ResolvedTelemetrySchema, Signal,
 };
 
 use crate::{
@@ -125,7 +131,7 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
             unit: m.unit.clone(),
             requirement_level: m.requirement_level.clone(),
             attributes,
-            entity_associations: m.entity_associations.clone(),
+            entity_associations: to_named_associations(&m.entity_associations),
             common: m.common.clone(),
             provenance: Default::default(),
         },
@@ -160,7 +166,7 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
             name: s.name.clone(),
             attributes,
             kind: s.kind.clone(),
-            entity_associations: s.entity_associations.clone(),
+            entity_associations: to_named_associations(&s.entity_associations),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
             provenance: Default::default(),
@@ -193,7 +199,7 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
         event: weaver_forge::v2::event::Event {
             name: s.name.clone(),
             attributes,
-            entity_associations: s.entity_associations.clone(),
+            entity_associations: to_named_associations(&s.entity_associations),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
             provenance: Default::default(),

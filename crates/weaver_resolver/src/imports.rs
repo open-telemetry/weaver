@@ -20,6 +20,7 @@ use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
+use weaver_resolved_schema::v2::entity::to_named_associations;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -161,7 +162,7 @@ pub(crate) fn unmatched_import_errors(
 /// Two keys exist only to keep older registries resolving: the `registry.`
 /// prefix on an attribute group id, an older spelling that a v2 group can
 /// still carry, and the id of a v1 `resource` entity.
-fn import_match_keys(g: &Group) -> Vec<&str> {
+pub(crate) fn import_match_keys(g: &Group) -> Vec<&str> {
     let name = g.name.as_deref();
     let metric_name = g.metric_name.as_deref();
     if g.is_v2 {
@@ -714,7 +715,7 @@ impl ImportableDependency for V2Schema {
             group.metric_name = Some(m.name.to_string());
             group.instrument = Some(m.instrument.clone());
             group.unit = Some(m.unit.clone());
-            group.entity_associations = m.entity_associations.clone();
+            group.entity_associations = to_named_associations(&m.entity_associations);
             result.push(group);
         }
 
@@ -740,7 +741,7 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
             );
             group.name = Some(e.name.to_string());
-            group.entity_associations = e.entity_associations.clone();
+            group.entity_associations = to_named_associations(&e.entity_associations);
             result.push(group);
         }
 
@@ -802,7 +803,7 @@ impl ImportableDependency for V2Schema {
             group.span_kind = Some(s.kind.clone());
             group.span_name = Some(s.name.clone());
             group.name = Some(s.r#type.to_string());
-            group.entity_associations = s.entity_associations.clone();
+            group.entity_associations = to_named_associations(&s.entity_associations);
             result.push(group);
         }
 

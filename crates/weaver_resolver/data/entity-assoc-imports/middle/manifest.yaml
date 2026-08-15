@@ -1,0 +1,10 @@
+name: middle
+description: >
+  This registry defines a `service` entity and a metric. The metric is
+  associated with both `service` and the `host` entity of base, which it does
+  not import. Each association resolves, and each records where it resolved.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

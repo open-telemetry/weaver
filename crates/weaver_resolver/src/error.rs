@@ -110,6 +110,20 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// An `entity_associations` entry that names an entity nothing defines.
+    #[error("The following entity association is not resolved for the group '{group_id}'.\nEntity association: {entity_type}\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "Check the spelling. Define the entity in this registry, or depend on a registry that defines it."
+    ))]
+    UnresolvedEntityAssociation {
+        /// The id of the group that holds the association.
+        group_id: String,
+        /// The entity type that nothing defines.
+        entity_type: String,
+        /// The provenance of the group (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// An unresolved `extends` clause reference.
     #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance:?}")]
     UnresolvedExtendsRef {
@@ -173,6 +187,21 @@ pub enum Error {
         /// The group id.
         group_id: String,
         /// The provenances where this group is duplicated.
+        provenances: Vec<Provenance>,
+    },
+
+    /// Two groups with different ids that take one id in the v2 output.
+    #[error("The groups {group_ids:?} all become `{signal_id}` in the v2 output, so one of them replaces the others:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
+    #[diagnostic(help(
+        "A v2 signal id drops the group-type prefix, so `entity.host` and `host` name one entity. Give each group an id that differs by more than that prefix."
+    ))]
+    CollidingV2SignalId {
+        /// The id the groups share in the v2 output.
+        signal_id: String,
+        /// The ids of the groups that collide, in order.
+        group_ids: Vec<String>,
+        /// The provenances of those groups.
         provenances: Vec<Provenance>,
     },
 

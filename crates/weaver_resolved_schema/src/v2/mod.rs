@@ -153,16 +153,107 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     }
 }
 
+/// Turns the names in association expressions into entity references. The shape
+/// of an expression does not change, only its leaves.
+fn convert_entity_associations(
+    associations: &[weaver_semconv::entity_association::EntityAssociation],
+    entity_refs: &HashMap<SignalId, entity::EntityRef>,
+    group_id: &str,
+) -> Result<Vec<entity::EntityAssociation>, crate::error::Error> {
+    use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+    associations
+        .iter()
+        .map(|assoc| match assoc {
+            SpecAssociation::Ref(name) => entity_refs
+                .get(&SignalId::from(name.clone()))
+                .cloned()
+                .map(entity::EntityAssociation::Ref)
+                .ok_or_else(|| crate::error::Error::EntityAssociationNotFound {
+                    group_id: group_id.to_owned(),
+                    entity_type: name.clone(),
+                }),
+            SpecAssociation::OneOf { one_of } => Ok(entity::EntityAssociation::OneOf {
+                one_of: convert_entity_associations(one_of, entity_refs, group_id)?,
+            }),
+            SpecAssociation::AllOf { all_of } => Ok(entity::EntityAssociation::AllOf {
+                all_of: convert_entity_associations(all_of, entity_refs, group_id)?,
+            }),
+        })
+        .collect()
+}
+
+/// Strips the group-type prefix that a v2 definition adds to a group id.
+///
+/// A v2 definition names a signal by type alone, and the v1 group model holds
+/// every signal type in one flat id space, so reading a v2 file mints an id
+/// like `entity.host`. This undoes that.
+///
+/// Strips one prefix only. `trim_start_matches` would strip a repeat, so
+/// `entity.entity.host` would lose both.
 fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
-    if group_id.starts_with(prefix) {
-        group_id.trim_start_matches(prefix).to_owned().into()
-    } else {
-        group_id.to_owned().into()
-    }
+    group_id
+        .strip_prefix(prefix)
+        .unwrap_or(group_id)
+        .to_owned()
+        .into()
 }
 
 fn fix_span_group_id(group_id: &str) -> SignalId {
     fix_group_id("span.", group_id)
+}
+
+/// Whether this group refines another signal of its own type, rather than
+/// defining one of its own.
+fn is_refinement_of(group: &crate::registry::Group) -> bool {
+    group
+        .lineage
+        .as_ref()
+        .is_some_and(|l| l.extends_group_type.as_ref() == Some(&group.r#type))
+}
+
+/// The entity type that a v1 entity group declares.
+///
+/// A v1 entity holds its type in `name`, and its id is free of it: the legacy
+/// `resource` groups of semconv are `resource.host` with the name `host`. A v2
+/// definition mints the id `entity.<type>` and repeats the type in `name`, so
+/// the two agree there. A group with no name at all keeps its type in the id,
+/// which a legacy `resource` group may also do.
+fn entity_type_of(group: &crate::registry::Group) -> SignalId {
+    group
+        .name
+        .clone()
+        .map(SignalId::from)
+        .unwrap_or_else(|| fix_group_id("entity.", &group.id))
+}
+
+/// The id that a v1 group takes in the v2 namespace of its signal type.
+///
+/// A definition and a refinement of one share a namespace, because a definition
+/// also gets a refinement entry under its own name. Two v1 groups that take one
+/// id here therefore collapse onto one entry in the v2 output, and the second
+/// silently replaces the first.
+///
+/// The conversion derives every id from this one rule, and the resolver reports
+/// a collision with it, so the check and the conversion cannot drift apart.
+///
+/// Returns `None` for a group type the v2 conversion drops, and for a v1 event
+/// or metric that has no name to take.
+#[must_use]
+pub fn v2_namespace_id(group: &crate::registry::Group) -> Option<SignalId> {
+    let refines = is_refinement_of(group);
+    match group.r#type {
+        GroupType::Span => Some(fix_span_group_id(&group.id)),
+        GroupType::AttributeGroup => Some(fix_group_id("attribute_group.", &group.id)),
+        // A refinement is named by its own id. A definition is named by the
+        // signal name, which for these three types is a field of its own.
+        GroupType::Entity if refines => Some(fix_group_id("entity.", &group.id)),
+        GroupType::Entity => Some(entity_type_of(group)),
+        GroupType::Event if refines => Some(fix_group_id("event.", &group.id)),
+        GroupType::Event => group.name.clone().map(SignalId::from),
+        GroupType::Metric if refines => Some(fix_group_id("metric.", &group.id)),
+        GroupType::Metric => group.metric_name.clone().map(SignalId::from),
+        GroupType::MetricGroup | GroupType::Scope | GroupType::Undefined => None,
+    }
 }
 
 /// Converts one attribute reference of a v1 group into the v1 definition and
@@ -276,15 +367,114 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
+
+    // Entities come first. A signal names an entity, and the reference records
+    // where that entity is defined, so the entities of this registry must be
+    // known before any signal is converted.
+    for g in r.groups.iter().filter(|g| g.r#type == GroupType::Entity) {
+        // Check if we refine another entity.
+        let is_refinement = is_refinement_of(g);
+        let mut id_attrs = Vec::new();
+        let mut desc_attrs = Vec::new();
+        for attr_ref in g.attributes.iter() {
+            let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
+            let entity_attr = entity::EntityAttributeRef {
+                base,
+                requirement_level: attr.requirement_level.clone(),
+            };
+            match attr.role {
+                Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
+                    id_attrs.push(entity_attr);
+                }
+                _ => desc_attrs.push(entity_attr),
+            }
+        }
+        let entity_type = if is_refinement {
+            let Some(extends_group) = g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
+            else {
+                return Err(crate::error::Error::RefinementBaseNotFound {
+                    group_id: g.id.clone(),
+                });
+            };
+            // `extends` names the base by group id, and the base declares the
+            // type. Read it from the base rather than deriving it a second way.
+            r.groups
+                .iter()
+                .find(|base| &base.id == extends_group)
+                .map(entity_type_of)
+                .unwrap_or_else(|| fix_group_id("entity.", extends_group))
+        } else {
+            entity_type_of(g)
+        };
+        let entity = Entity {
+            r#type: entity_type,
+            identity: id_attrs,
+            description: desc_attrs,
+            requirement_level: g.requirement_level.clone(),
+            common: CommonFields {
+                brief: g.brief.clone(),
+                note: g.note.clone(),
+                stability: g.stability.clone().unwrap_or_default(),
+                deprecated: g.deprecated.clone(),
+                annotations: g.annotations.clone().unwrap_or_default(),
+            },
+            provenance: get_provenance(g),
+        };
+        if is_refinement {
+            entity_refinements.push(entity::EntityRefinement {
+                id: fix_group_id("entity.", &g.id),
+                entity,
+            });
+        } else {
+            entities.push(entity.clone());
+            entity_refinements.push(entity::EntityRefinement {
+                id: entity.r#type.clone(),
+                entity,
+            });
+        }
+    }
+
+    // An association names an entity type or a refinement id, in the one
+    // namespace that `extends` gives them. Read the names back off the
+    // refinements: deriving them a second time here would let this map and that
+    // list disagree.
+    let mut entity_refs: HashMap<SignalId, entity::EntityRef> = entity_refinements
+        .iter()
+        .map(|refinement| {
+            (
+                refinement.id.clone(),
+                entity::EntityRef::local(refinement.id.clone()),
+            )
+        })
+        .collect();
+    // An entity that a dependency defines and nothing imports has no group
+    // here, so the resolver recorded where it found it. A definition in this
+    // registry still wins.
+    for (name, origin) in r.entity_association_origins.iter() {
+        let mut provenance = provenance::Provenance::default();
+        match deps_list.iter().position(|url| url == origin) {
+            Some(index) => provenance.source = Some(provenance::DependencyRef(index as u32)),
+            // The resolver found the entity in a dependency, so its url belongs
+            // to the dependency closure that `deps_list` holds. An empty
+            // provenance would claim the entity is local.
+            None => log::warn!(
+                "Logic failure - entity `{name}` resolved to `{origin}`, which is not a dependency"
+            ),
+        }
+        let name = SignalId::from(name.clone());
+        _ = entity_refs
+            .entry(name.clone())
+            .or_insert(entity::EntityRef {
+                r#type: name,
+                provenance,
+            });
+    }
+
     for g in r.groups.iter() {
         match g.r#type {
             GroupType::Span => {
                 // Check if we extend another span.
-                let is_refinement = g
-                    .lineage
-                    .as_ref()
-                    .map(|l| l.extends_group_type == Some(GroupType::Span))
-                    .unwrap_or(false);
+                let is_refinement = is_refinement_of(g);
                 // Pull all the attribute references.
                 let mut span_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
@@ -310,7 +500,11 @@ pub fn convert_v1_to_v2(
                         name: g.span_name.clone().unwrap_or_else(|| SpanName {
                             note: g.name.clone().unwrap_or_default(),
                         }),
-                        entity_associations: g.entity_associations.clone(),
+                        entity_associations: convert_entity_associations(
+                            &g.entity_associations,
+                            &entity_refs,
+                            &g.id,
+                        )?,
                         requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
                             brief: g.brief.clone(),
@@ -348,7 +542,11 @@ pub fn convert_v1_to_v2(
                             name: g.span_name.clone().unwrap_or_else(|| SpanName {
                                 note: g.name.clone().unwrap_or_default(),
                             }),
-                            entity_associations: g.entity_associations.clone(),
+                            entity_associations: convert_entity_associations(
+                                &g.entity_associations,
+                                &entity_refs,
+                                &g.id,
+                            )?,
                             requirement_level: g.requirement_level.clone(),
                             common: CommonFields {
                                 brief: g.brief.clone(),
@@ -364,11 +562,7 @@ pub fn convert_v1_to_v2(
                 }
             }
             GroupType::Event => {
-                let is_refinement = g
-                    .lineage
-                    .as_ref()
-                    .map(|l| l.extends_group_type == Some(GroupType::Event))
-                    .unwrap_or(false);
+                let is_refinement = is_refinement_of(g);
                 let mut event_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
@@ -386,7 +580,11 @@ pub fn convert_v1_to_v2(
                     let event = event::Event {
                         name: name.into(),
                         attributes: event_attributes,
-                        entity_associations: g.entity_associations.clone(),
+                        entity_associations: convert_entity_associations(
+                            &g.entity_associations,
+                            &entity_refs,
+                            &g.id,
+                        )?,
                         requirement_level: g.requirement_level.clone(),
                         common: CommonFields {
                             brief: g.brief.clone(),
@@ -418,11 +616,7 @@ pub fn convert_v1_to_v2(
             }
             GroupType::Metric => {
                 // Check if we extend another metric.
-                let is_refinement = g
-                    .lineage
-                    .as_ref()
-                    .map(|l| l.extends_group_type == Some(GroupType::Metric))
-                    .unwrap_or(false);
+                let is_refinement = is_refinement_of(g);
                 let mut metric_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
@@ -451,7 +645,11 @@ pub fn convert_v1_to_v2(
                         .clone()
                         .expect("unit must exist on metrics prior to translation to v2"),
                     attributes: metric_attributes,
-                    entity_associations: g.entity_associations.clone(),
+                    entity_associations: convert_entity_associations(
+                        &g.entity_associations,
+                        &entity_refs,
+                        &g.id,
+                    )?,
                     requirement_level: g.requirement_level.clone(),
                     common: CommonFields {
                         brief: g.brief.clone(),
@@ -476,69 +674,7 @@ pub fn convert_v1_to_v2(
                 }
             }
             GroupType::Entity => {
-                // Check if we refine another entity.
-                let is_refinement = g
-                    .lineage
-                    .as_ref()
-                    .map(|l| l.extends_group_type == Some(GroupType::Entity))
-                    .unwrap_or(false);
-                let mut id_attrs = Vec::new();
-                let mut desc_attrs = Vec::new();
-                for attr_ref in g.attributes.iter() {
-                    let (attr, a) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
-                    match attr.role {
-                        Some(weaver_semconv::attribute::AttributeRole::Identifying) => {
-                            id_attrs.push(entity::EntityAttributeRef {
-                                base: a,
-                                requirement_level: attr.requirement_level.clone(),
-                            });
-                        }
-                        _ => {
-                            desc_attrs.push(entity::EntityAttributeRef {
-                                base: a,
-                                requirement_level: attr.requirement_level.clone(),
-                            });
-                        }
-                    }
-                }
-                let entity_type = if is_refinement {
-                    let Some(extends_group) =
-                        g.lineage.as_ref().and_then(|l| l.extends_group.as_ref())
-                    else {
-                        return Err(crate::error::Error::RefinementBaseNotFound {
-                            group_id: g.id.clone(),
-                        });
-                    };
-                    fix_group_id("entity.", extends_group)
-                } else {
-                    fix_group_id("entity.", &g.id)
-                };
-                let entity = Entity {
-                    r#type: entity_type,
-                    identity: id_attrs,
-                    description: desc_attrs,
-                    requirement_level: g.requirement_level.clone(),
-                    common: CommonFields {
-                        brief: g.brief.clone(),
-                        note: g.note.clone(),
-                        stability: g.stability.clone().unwrap_or_default(),
-                        deprecated: g.deprecated.clone(),
-                        annotations: g.annotations.clone().unwrap_or_default(),
-                    },
-                    provenance: get_provenance(g),
-                };
-                if is_refinement {
-                    entity_refinements.push(entity::EntityRefinement {
-                        id: fix_group_id("entity.", &g.id),
-                        entity,
-                    });
-                } else {
-                    entities.push(entity.clone());
-                    entity_refinements.push(entity::EntityRefinement {
-                        id: entity.r#type.clone(),
-                        entity,
-                    });
-                }
+                // Converted by the pass above.
             }
             GroupType::AttributeGroup => {
                 if g.visibility
@@ -704,6 +840,7 @@ mod tests {
     use crate::v2::event::Event;
     use crate::V1_RESOLVED_FILE_FORMAT;
     use crate::{attribute::Attribute, lineage::GroupLineage, registry::Group};
+    use std::collections::BTreeMap;
     use weaver_semconv::{provenance::Provenance, stability::Stability};
 
     use crate::lineage::AttributeLineage;
@@ -770,6 +907,7 @@ mod tests {
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("span.my-span"));
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![
                 Group {
                     id: "span.my-span".to_owned(),
@@ -891,6 +1029,7 @@ mod tests {
         refinement_lineage.extends("span.my-span", GroupType::Span);
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![
                 // The base span the refinement points at; its presence (as a
                 // span) is what makes the refinement be recognized as a
@@ -988,6 +1127,7 @@ mod tests {
             .add_attribute_lineage("test.key".to_owned(), AttributeLineage::new("metric.http"));
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![
                 Group {
                     id: "metric.http".to_owned(),
@@ -1099,6 +1239,7 @@ mod tests {
         let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![Group {
                 id: "event.my-event".to_owned(),
                 r#type: GroupType::Event,
@@ -1167,6 +1308,7 @@ mod tests {
         let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![Group {
                 id: "entity.my-entity".to_owned(),
                 r#type: GroupType::Entity,
@@ -1212,6 +1354,144 @@ mod tests {
         }
     }
 
+    /// An association leaf records where the entity is defined.
+    ///
+    /// A name that an entity group of this registry answers to carries no
+    /// provenance. A name that only a dependency defines has no group here, so
+    /// the resolver recorded its origin, and the leaf carries the index of that
+    /// dependency. A name that neither holds is an error.
+    #[test]
+    fn test_convert_entity_associations_record_where_they_resolved() {
+        use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+
+        let dep_url: SchemaUrl = "https://my.dependency.url/1.0.0"
+            .try_into()
+            .expect("valid schema url");
+        let metric_associations = |associations: Vec<SpecAssociation>| Group {
+            id: "metric.my-metric".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("my.metric".to_owned()),
+            instrument: Some(weaver_semconv::group::InstrumentSpec::Counter),
+            unit: Some("1".to_owned()),
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: associations,
+            visibility: None,
+            is_v2: true,
+            span_name: None,
+        };
+        let local_entity = Group {
+            id: "entity.service".to_owned(),
+            r#type: GroupType::Entity,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some("service".to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: true,
+            span_name: None,
+        };
+        let registry =
+            |groups: Vec<Group>, origins: BTreeMap<String, SchemaUrl>| crate::registry::Registry {
+                registry_url: "my.schema.url".to_owned(),
+                entity_association_origins: origins,
+                groups,
+            };
+        let mut dependencies = BTreeSet::new();
+        let _ = dependencies.insert(dep_url.clone());
+        let mut origins = BTreeMap::new();
+        let _ = origins.insert("host".to_owned(), dep_url);
+
+        let associations = vec![SpecAssociation::AllOf {
+            all_of: vec![
+                SpecAssociation::Ref("service".to_owned()),
+                SpecAssociation::Ref("host".to_owned()),
+            ],
+        }];
+        let (_, v2_registry, _, _) = convert_v1_to_v2(
+            crate::catalog::Catalog::default(),
+            registry(
+                vec![local_entity.clone(), metric_associations(associations)],
+                origins,
+            ),
+            dependencies.clone(),
+        )
+        .expect("Failed to convert v1 to v2");
+
+        let [metric] = v2_registry.metrics.as_slice() else {
+            panic!("expected one metric, got {:?}", v2_registry.metrics);
+        };
+        assert_eq!(
+            metric.entity_associations,
+            vec![entity::EntityAssociation::AllOf {
+                all_of: vec![
+                    entity::EntityAssociation::Ref(entity::EntityRef::local(
+                        "service".to_owned().into()
+                    )),
+                    entity::EntityAssociation::Ref(entity::EntityRef {
+                        r#type: "host".to_owned().into(),
+                        provenance: provenance::Provenance {
+                            source: Some(provenance::DependencyRef(0)),
+                            path: String::new(),
+                        },
+                    }),
+                ],
+            }],
+            "the tree keeps its shape, and each leaf says where it resolved"
+        );
+
+        // Nothing recorded an origin for `host` this time, and no group answers
+        // to the name.
+        let error = convert_v1_to_v2(
+            crate::catalog::Catalog::default(),
+            registry(
+                vec![
+                    local_entity,
+                    metric_associations(vec![SpecAssociation::Ref("host".to_owned())]),
+                ],
+                BTreeMap::new(),
+            ),
+            dependencies,
+        )
+        .expect_err("an association that nothing defines must fail the conversion");
+        assert!(
+            matches!(
+                error,
+                crate::error::Error::EntityAssociationNotFound { ref entity_type, .. }
+                    if entity_type == "host"
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
     /// Every signal keeps an attribute that has no stability, and not only an
     /// entity. The catalog lookup is common to all of them.
     #[test]
@@ -1244,6 +1524,7 @@ mod tests {
         let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![Group {
                 id: "span.my-span".to_owned(),
                 r#type: GroupType::Span,
@@ -1311,6 +1592,7 @@ mod tests {
         let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![Group {
                 id: "entity.my-entity".to_owned(),
                 r#type: GroupType::Entity,
@@ -1383,6 +1665,7 @@ mod tests {
         let v1_catalog = builder.build();
         let v1_registry = crate::registry::Registry {
             registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![Group {
                 id: "test.group".to_owned(),
                 r#type: GroupType::AttributeGroup,
@@ -1436,6 +1719,7 @@ mod tests {
             catalog: crate::catalog::Catalog::default(),
             registry: crate::registry::Registry {
                 registry_url: "http://another/url/1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             instrumentation_library: None,

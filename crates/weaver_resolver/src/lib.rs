@@ -2256,6 +2256,39 @@ groups:
         resolve_entity_assoc_fixture(name).1
     }
 
+    /// The errors of an `entity-assoc-imports` registry that must not resolve.
+    fn entity_assoc_fixture_fatal_errors(name: &str) -> Vec<Error> {
+        match load_entity_assoc_fixture(name) {
+            WResult::FatalErr(Error::CompoundError(errors)) => errors,
+            WResult::FatalErr(e) => vec![e],
+            _ => panic!("`{name}` must fail to resolve"),
+        }
+    }
+
+    /// The association expressions of the one metric in a fixture registry.
+    fn metric_associations(
+        schema: &V2Schema,
+    ) -> &[weaver_resolved_schema::v2::entity::EntityAssociation] {
+        let [metric] = schema.registry.metrics.as_slice() else {
+            panic!("expected one metric, got {:?}", schema.registry.metrics);
+        };
+        &metric.entity_associations
+    }
+
+    /// The schema url an entity reference points at. Returns `None` when the
+    /// reference names an entity of this registry.
+    fn ref_source<'a>(
+        schema: &'a V2Schema,
+        entity_ref: &weaver_resolved_schema::v2::entity::EntityRef,
+    ) -> Option<&'a str> {
+        let deps: Vec<&SchemaUrl> = schema.dependencies.iter().collect();
+        entity_ref
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .map(|url| url.as_str())
+    }
+
     /// The registry that defines the `host` entity.
     const BASE_URL: &str = "https://example.com/base/1.0.0";
 
@@ -2417,6 +2450,138 @@ groups:
         );
     }
 
+    /// An association resolves against a dependency without importing the
+    /// entity, and the reference says where the definition lives.
+    ///
+    /// `middle` defines `service`, and names both `service` and the `host` of
+    /// `base` in one `all_of`. The tree keeps its shape. The local leaf carries
+    /// no provenance, the leaf from `base` names `base`, and `host` stays in
+    /// `base`: there is one definition, in one place.
+    #[test]
+    fn test_association_resolves_against_a_dependency_without_importing() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&middle),
+            ["service"],
+            "an association must not import the entity it names"
+        );
+
+        let [EntityAssociation::AllOf { all_of }] = metric_associations(&middle) else {
+            panic!(
+                "expected one `all_of`, got {:?}",
+                metric_associations(&middle)
+            );
+        };
+        let [EntityAssociation::Ref(service), EntityAssociation::Ref(host)] = all_of.as_slice()
+        else {
+            panic!("expected two references, got {all_of:?}");
+        };
+        assert_eq!(&*service.r#type, "service");
+        assert_eq!(
+            ref_source(&middle, service),
+            None,
+            "an entity of this registry has no provenance"
+        );
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            ref_source(&middle, host),
+            Some(BASE_URL),
+            "the reference must name the registry that defines `host`"
+        );
+    }
+
+    /// A legacy `resource` group holds its entity type in `name`, and its id
+    /// carries a `resource.` prefix that is no part of the type. Every such
+    /// group in semconv v1.33.0 has this shape, and each one is named by its
+    /// type in an association.
+    #[test]
+    fn test_association_names_a_legacy_resource_entity_by_its_name() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (schema, nfes) = resolve_entity_assoc_fixture("legacy_resource");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let mut types = entity_types(&schema);
+        types.sort_unstable();
+        assert_eq!(
+            types,
+            ["browser", "device"],
+            "the entity type comes from `name`, and falls back to the id when \
+             the group has none"
+        );
+
+        let device = schema
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "legacy.device.count")
+            .expect("the metric is in the resolved registry");
+        let [EntityAssociation::Ref(entity_ref)] = device.entity_associations.as_slice() else {
+            panic!(
+                "expected one reference, got {:?}",
+                device.entity_associations
+            );
+        };
+        assert_eq!(&*entity_ref.r#type, "device");
+        assert_eq!(ref_source(&schema, entity_ref), None);
+    }
+
+    /// An import satisfies an association, and the entity is then local.
+    #[test]
+    fn test_association_to_an_imported_entity_is_local() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle_reexport");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(entity_types(&middle), ["host"]);
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&middle) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&middle)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            ref_source(&middle, host),
+            None,
+            "the import put `host` in this registry, so the reference is local"
+        );
+    }
+
+    /// An association that no registry in scope satisfies fails the resolve, as
+    /// an attribute `ref` that resolves to nothing does.
+    #[test]
+    fn test_association_that_nothing_defines_fails_the_resolve() {
+        let errors = entity_assoc_fixture_fatal_errors("middle_bad_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "no.such.entity"
+            ),
+            "nothing defines `no.such.entity`: {errors:?}"
+        );
+    }
+
+    /// A private entity is out of reach by every route, an association
+    /// included.
+    #[test]
+    fn test_association_to_a_private_entity_fails_the_resolve() {
+        let errors = entity_assoc_fixture_fatal_errors("middle_excluded_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
+                    if id == "host" && used_in == "metric.middle.request.count"
+            ),
+            "`base_excluded` keeps `host` private: {errors:?}"
+        );
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.
@@ -2429,6 +2594,7 @@ groups:
             registry_id: "base".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/base/1.0.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -2445,6 +2611,7 @@ groups:
             registry_id: "base".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/base/1.1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -2461,6 +2628,7 @@ groups:
             registry_id: "layer1_a".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/layer1_a/0.1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -2477,6 +2645,7 @@ groups:
             registry_id: "layer1_b".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/layer1_b/0.1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -2519,6 +2688,7 @@ groups:
             registry_id: "c".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/c/1.2.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),

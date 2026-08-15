@@ -8,12 +8,26 @@ work. Each pull request in that series adds the fixtures that its tests need.
 | `base` | – | – | defines the `host` entity |
 | `middle_reexport` | base | `entities: [host]` | re-exports `host` to its own consumers |
 | `top_diamond` | middle_reexport **and** base | metric + entity | one `host`, and no duplicate warnings |
-| `legacy_resource` | – | – | a v1 registry with a `type: resource` group |
+| `legacy_resource` | – | – | a v1 registry with both spellings of a `type: resource` group |
 | `top_legacy_import` | legacy_resource | `entities: [browser]` | the import reaches the legacy group |
 | `rival_base` | – | – | defines its own unrelated `host` entity |
 | `top_rival_import` | base **and** rival_base | `entities: [host]` | two `host` entities, and a reported clash |
 | `top_bad_import` | middle_reexport | `entities: [no.such.entity]` | one unmatched-import warning |
 | `top_bad_imports_all_types` | middle_reexport | one bad name per signal type | five warnings, and silence for the two names that bind |
+| `middle` | base | – | associates with a local entity and with `host` of base; both resolve |
+| `middle_bad_assoc` | base | – | an association that nothing defines fails the resolve |
+| `base_excluded` | – | – | defines `host` and keeps it private |
+| `middle_excluded_assoc` | base_excluded | – | an association to a private entity fails the resolve |
+
+## An association is not an import
+
+`middle` names the `host` entity of `base` in `entity_associations` and imports
+nothing. The association resolves, and the resolved reference names `base` as
+the registry that holds the definition. The entity itself stays in `base`: there
+is one definition, in one place.
+
+`middle_reexport` imports the same entity, so `host` is in its own registry and
+the reference carries no provenance.
 
 ## A diamond is not a clash
 

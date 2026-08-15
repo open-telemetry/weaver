@@ -33,6 +33,24 @@ pub struct Registry {
     pub registry_url: String,
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
+
+    /// The registry that defines each entity named in an `entity_associations`
+    /// clause, for the entities this registry does not hold itself.
+    ///
+    /// An association names an entity, and the definition may live in a
+    /// dependency that nothing imports. No group records it, so the v2
+    /// conversion reads the origin from here. Carried through the v1
+    /// intermediate representation during resolution; it is omitted from v1
+    /// serialization and the v1 json schema, as the other v2-only fields are.
+    ///
+    /// A published `resolved/1.0` file therefore carries no origins, and
+    /// converting one to v2 resolves an association against its own groups
+    /// alone. This is the format's limit: it has no place to record where an
+    /// entity it does not hold is defined.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub entity_association_origins: BTreeMap<String, weaver_semconv::schema_url::SchemaUrl>,
 }
 
 /// Statistics on a registry.
@@ -311,6 +329,7 @@ impl Registry {
         Self {
             registry_url: registry_url.as_ref().to_owned(),
             groups: Vec::new(),
+            entity_association_origins: BTreeMap::new(),
         }
     }
 
