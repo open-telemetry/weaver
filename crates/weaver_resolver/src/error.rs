@@ -45,6 +45,16 @@ pub enum Error {
     #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
     FailToResolveSchemaUrl {},
 
+    /// A registry is declared more than once and at least one declaration has no version.
+    #[error("Registry '{name}' is declared by more than one dependency, but at least one declaration is unversioned")]
+    #[diagnostic(help(
+        "Use a `schema_url` with a semantic version, e.g. https://example.com/{name}/1.0.0."
+    ))]
+    UnversionedDependencyConflict {
+        /// The registry declared more than once.
+        name: String,
+    },
+
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
     #[diagnostic(help("Check the URL and try again."))]
@@ -134,6 +144,19 @@ pub enum Error {
         /// Id of the group or signal using the excluded item, or `imports` for manifest imports.
         used_in: String,
         // TODO: plumb provenance?
+    },
+
+    /// An import pattern that named nothing in any dependency.
+    #[error("The import `{pattern}` under `{signal}` matched nothing in any dependency")]
+    #[diagnostic(severity(Warning))]
+    #[diagnostic(help(
+        "Check the spelling, and check that a dependency exports it. Imports are not transitive: a registry further down the chain is reachable only when the registry in between re-exports it."
+    ))]
+    UnmatchedImport {
+        /// The pattern that matched nothing.
+        pattern: String,
+        /// The `imports` field the pattern is under.
+        signal: String,
     },
 
     /// An invalid Schema path.

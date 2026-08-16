@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use lru::LruCache;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
@@ -11,6 +11,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
@@ -24,6 +25,7 @@ pub(crate) mod conflict_strategy;
 mod dependency;
 mod dependency_resolution;
 mod error;
+mod imports;
 mod loader;
 pub(crate) mod merge;
 mod registry;
@@ -92,7 +94,7 @@ pub struct WeaverResolverConfig {
 
     /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
     /// Used to redirect dependency graph requests to local clones, forks, or custom archives.
-    pub schema_url_overrides: HashMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
+    pub schema_url_overrides: BTreeMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
 }
 
 impl Default for WeaverResolverConfig {
@@ -102,7 +104,7 @@ impl Default for WeaverResolverConfig {
             follow_symlinks: false,
             include_unreferenced: false,
             auth: HttpAuthResolver::empty(),
-            schema_url_overrides: HashMap::new(),
+            schema_url_overrides: BTreeMap::new(),
         }
     }
 }
@@ -525,7 +527,7 @@ impl WeaverResolver {
                 Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
             }
         } else {
-            let dep = weaver_semconv::manifest::Dependency {
+            let dep = Dependency {
                 schema_url: schema_url.clone(),
                 registry_path: None,
             };
@@ -943,6 +945,17 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_registry")
     }
 
+    /// End-to-end test for a span imported from a v2 dependency.
+    ///
+    /// `sampling_relevant` is declared on the span's attribute ref, not on the
+    /// catalog attribute, so importing the span has to carry it across from
+    /// the ref. Refining the span already does (see the test above).
+    #[test]
+    fn test_v2_dependency_span_import_preserves_sampling_relevant(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
@@ -954,6 +967,78 @@ mod tests {
     #[test]
     fn test_v2_dependency_entity_refinement_preserves_roles() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
+    }
+
+    /// Refinements over two dependencies, where the attributes of one of them
+    /// are defined a level deeper. Provenance must name the registry that
+    /// defines an attribute, not the one it was reached through.
+    #[test]
+    fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// An attribute a dependency inherited rather than defined reaches this
+    /// registry only through the signals that carry it. Refining such a signal
+    /// must not turn the attribute into something a bare `ref` can resolve
+    /// against - that would resolve to the refinement's own copy.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Same as above, but resolving the dependency from source rather than from
+    /// a published artifact. Both forms must refuse the reference - otherwise a
+    /// registry resolves differently depending on how it was delivered.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition_from_source(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/refiner_user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Refinement over a v1 dependency: attributes defined by the dependency
+    /// and attributes it inherited from its own dependency must be attributed
+    /// to different registries.
+    #[test]
+    fn test_v1_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/v1_dep_registry")
     }
 
     /// Can't demote an identity attribute of a base entity.
@@ -1889,12 +1974,32 @@ groups:
     }
 
     #[test]
+    fn test_v1_manifest_resolves_dependency_declared_by_name() {
+        // `main` is a v1 manifest, where `name` + `registry_path` stays supported.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/v1-dependency-syntax/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("a v1 manifest may declare dependencies by name");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        assert!(
+            resolved
+                .groups(GroupType::Metric)
+                .values()
+                .any(|g| g.metric_name.as_deref() == Some("dep.uptime")),
+            "expected the imported metric from the dependency to resolve"
+        );
+    }
+
+    #[test]
     fn test_dependency_without_schema_url_is_rejected() {
-        // `main`'s manifest declares its dependency with only `name` and
-        // `registry_path`. `schema_url` is mandatory for dependencies — it is
-        // the identity that provenance and version-conflict resolution key
-        // on — so this must fail with an error naming the offending
-        // dependency.
+        // `main` is a v2 manifest (it declares its own `schema_url`) but declares its
+        // dependency with only `name` and `registry_path`. `schema_url` is mandatory there --
+        // it is the identity provenance and version-conflict resolution key on.
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/mandatory-schema-url/main".to_owned(),
         };
@@ -2105,6 +2210,213 @@ groups:
         Ok(())
     }
 
+    /// True for the "`definition/2` is not yet stable" warning. Every file in
+    /// these fixtures gives this warning, and these tests ignore it.
+    fn is_unstable_format_warning(e: &Error) -> bool {
+        matches!(
+            e,
+            Error::FailToResolveDefinition(weaver_semconv::Error::UnstableFileFormat { .. })
+        )
+    }
+
+    fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/entity-assoc-imports/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+    }
+
+    /// Resolves one of the `entity-assoc-imports` registries. Returns the
+    /// resolved schema and the non-fatal errors.
+    fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
+        let (resolved, nfes) = match load_entity_assoc_fixture(name) {
+            WResult::Ok(r) => (r, vec![]),
+            WResult::OkWithNFEs(r, nfes) => (r, nfes),
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        };
+        let v1 = resolved
+            .as_v1()
+            .unwrap_or_else(|| panic!("Expected a V1 schema for `{name}`"))
+            .clone();
+        let v2: V2Schema = v1
+            .try_into()
+            .unwrap_or_else(|e| panic!("v1 -> v2 conversion for `{name}`: {e}"));
+        let nfes = nfes
+            .into_iter()
+            .filter(|e| !is_unstable_format_warning(e))
+            .collect();
+        (v2, nfes)
+    }
+
+    /// The non-fatal errors of one of the `entity-assoc-imports` registries.
+    fn entity_assoc_fixture_errors(name: &str) -> Vec<Error> {
+        resolve_entity_assoc_fixture(name).1
+    }
+
+    /// The registry that defines the `host` entity.
+    const BASE_URL: &str = "https://example.com/base/1.0.0";
+
+    /// Entity types in the resolved registry, in registry order.
+    fn entity_types(schema: &V2Schema) -> Vec<&str> {
+        schema
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.as_ref())
+            .collect()
+    }
+
+    /// The schema url of the registry that defines an entity. Returns `None`
+    /// when the resolver reports the entity as local to this registry.
+    fn entity_source<'a>(schema: &'a V2Schema, entity_type: &str) -> Option<&'a str> {
+        let deps: Vec<&SchemaUrl> = schema.dependencies.iter().collect();
+        let entity = schema
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == entity_type)
+            .expect("entity is in the resolved registry");
+        entity
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .map(|url| url.as_str())
+    }
+
+    /// A dependent registry must import a legacy `type: resource` entity. The
+    /// group has no name, so a pattern can use only the id. The id holds the
+    /// entity type.
+    #[test]
+    fn test_legacy_resource_entity_can_be_imported() {
+        let (schema, nfes) = resolve_entity_assoc_fixture("top_legacy_import");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&schema),
+            ["browser"],
+            "the import must reach the legacy resource group of the dependency"
+        );
+    }
+
+    /// A definition that two dependency paths reach must be imported one time.
+    ///
+    /// `top_diamond` reaches `host` directly from `base`, and also through
+    /// `middle_reexport`. Both paths lead to the same definition in `base`.
+    /// There is no conflict to resolve and nothing to report. The entity must
+    /// appear one time only, with `base` as its source.
+    #[test]
+    fn test_entity_reachable_by_two_paths_is_imported_once() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_diamond");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host"],
+            "two paths reach one definition in `base`, so the result is still \
+             one entity"
+        );
+        assert_eq!(entity_source(&top, "host"), Some(BASE_URL));
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert!(
+            duplicates.is_empty(),
+            "an import of one definition by two paths is not a duplicate declaration: {duplicates:?}"
+        );
+    }
+
+    /// An import that no dependency satisfies must be reported.
+    ///
+    /// `top_bad_import` depends on `middle_reexport`, which does export `host`.
+    /// The import asks for `no.such.entity`. So the import fails for one reason
+    /// only: no dependency offers anything with that name.
+    #[test]
+    fn test_import_that_binds_to_nothing_is_reported() {
+        let errors = entity_assoc_fixture_errors("top_bad_import");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnmatchedImport { pattern, signal }]
+                    if pattern == "no.such.entity" && signal == "entities"
+            ),
+            "no dependency offers `no.such.entity`, and the resolver must report \
+             this import: {errors:?}"
+        );
+    }
+
+    /// Every `imports` field is checked, not only `entities`.
+    ///
+    /// `top_bad_imports_all_types` asks for one name of each signal type that
+    /// no dependency offers. It also asks for a metric and an entity that
+    /// `middle_reexport` does export, so a report of those would be wrong.
+    #[test]
+    fn test_unmatched_imports_are_reported_for_every_signal_type() {
+        let errors = entity_assoc_fixture_errors("top_bad_imports_all_types");
+        let mut reported: Vec<(&str, &str)> = errors
+            .iter()
+            .map(|e| match e {
+                Error::UnmatchedImport { pattern, signal } => (pattern.as_str(), signal.as_str()),
+                other => panic!("unexpected error: {other:?}"),
+            })
+            .collect();
+        reported.sort_unstable();
+        assert_eq!(
+            reported,
+            [
+                ("no.such.attribute_group", "attribute_groups"),
+                ("no.such.entity", "entities"),
+                ("no.such.event", "events"),
+                ("no.such.metric", "metrics"),
+                ("no.such.span", "spans"),
+            ],
+            "each signal type must report its own unmatched import, and the \
+             imports that do bind must stay silent"
+        );
+    }
+
+    /// Two unrelated dependencies that each declare their own group with the
+    /// same id are a genuine conflict, not a diamond.
+    ///
+    /// `base` and `rival_base` share no history: different origin registries,
+    /// different identity attributes, one `host` entity each. Deduplication
+    /// buckets candidates by origin, so it must not collapse these two into
+    /// one — picking a winner silently would drop a definition the registry
+    /// asked for. Both are imported and the clash is reported, so the author
+    /// can resolve it.
+    #[test]
+    fn test_same_entity_from_unrelated_dependencies_is_reported() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_rival_import");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host", "host"],
+            "unrelated definitions must not be silently deduplicated"
+        );
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert_eq!(
+            duplicates.len(),
+            2,
+            "the clash must be reported by id and by name: {nfes:?}"
+        );
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.
@@ -2252,6 +2564,7 @@ groups:
         let orig_aws = AttributeWithSource {
             attribute: attr.clone(),
             source: orig_source.clone(),
+            is_definition: true,
         };
 
         let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;

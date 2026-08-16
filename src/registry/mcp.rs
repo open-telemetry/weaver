@@ -68,7 +68,12 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
 
     // Use WeaverEngine to load and resolve the registry (always use v2)
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry

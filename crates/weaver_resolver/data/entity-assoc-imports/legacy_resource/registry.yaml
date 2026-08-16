@@ -1,0 +1,23 @@
+groups:
+  # The legacy spelling, as published registries still carry it. The group is an
+  # entity, its type is `browser`, and it has no `name`.
+  - id: browser
+    type: resource
+    stability: stable
+    brief: The web browser in which the application is running.
+    attributes:
+      - id: browser.brands
+        type: string[]
+        stability: stable
+        brief: Array of brand name and version separated by a space.
+        examples: [["Not A;Brand 99"], ["Chromium 99"]]
+
+  - id: metric.legacy.request.count
+    type: metric
+    metric_name: legacy.request.count
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    brief: Count of requests.
+    entity_associations:
+      - browser

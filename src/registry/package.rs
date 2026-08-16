@@ -92,7 +92,12 @@ pub(crate) fn command(
     }
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let registry_path = &cmd_config.registry.registry;
 
     let mut nfes = vec![];
@@ -136,7 +141,7 @@ pub(crate) fn command(
     let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
         &definition_manifest,
         resolved_registry_uri,
-    );
+    )?;
 
     write_yaml(&output.join("resolved.yaml"), resolved_v2.resolved_schema())?;
     write_yaml(&output.join("manifest.yaml"), &publication_manifest)?;
@@ -221,10 +226,10 @@ mod tests {
         // manifest.yaml must exist and contain the correct fields
         let manifest_path = output.path().join("manifest.yaml");
         assert!(manifest_path.exists(), "manifest.yaml not written");
-        let manifest_content =
-            fs::read_to_string(&manifest_path).expect("failed to read manifest.yaml");
-        let manifest: PublicationRegistryManifest =
-            serde_yaml::from_str(&manifest_content).expect("manifest.yaml is not valid YAML");
+        let manifest = match RegistryManifest::try_from_file(&manifest_path, &mut vec![]) {
+            Ok(RegistryManifest::Publication(manifest)) => manifest,
+            other => panic!("expected manifest.yaml to be a publication manifest, got: {other:?}"),
+        };
 
         assert_eq!(manifest.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
         assert_eq!(manifest.schema_url.as_str(), "https://test/schemas/1.0.0");

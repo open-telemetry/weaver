@@ -1,0 +1,9 @@
+name: top_legacy_import
+description: >
+  Imports the legacy `type: resource` entity of `legacy_resource` by the id that
+  carries its type. The group has no name, so the id is the only name it has.
+schema_url: https://example.com/top-legacy-import/1.0.0
+dependencies:
+  - name: legacy_resource
+    schema_url: https://example.com/legacy-resource/1.0.0
+    registry_path: data/entity-assoc-imports/legacy_resource

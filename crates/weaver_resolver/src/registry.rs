@@ -4,8 +4,9 @@
 
 use crate::attribute::AttributeCatalog;
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
-use crate::dependency::{ImportableDependency, ResolvedDependency};
+use crate::dependency::ResolvedDependency;
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
+use crate::imports::ImportableDependency;
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;
@@ -23,6 +24,7 @@ use weaver_semconv::group::{
 };
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 
@@ -160,7 +162,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     }
 
     // We need to *import* objects from the dependencies as required.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup, &mut errors) {
         return WResult::FatalErr(e);
     }
 
@@ -324,7 +326,10 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
         .spec
         .attributes
         .into_iter()
-        .map(|attr| UnresolvedAttribute { spec: attr })
+        .map(|attr| UnresolvedAttribute {
+            spec: attr,
+            origin: None,
+        })
         .collect::<Vec<UnresolvedAttribute>>();
 
     UnresolvedGroup {
@@ -380,16 +385,22 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 }
 
 /// Resolves imports defined on dependencies.
+///
+/// A pattern that named nothing is reported into `errors`.
 fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
+    errors: &mut Vec<Error>,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
-    for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
+    // Checked against what the imports produced, before the groups move into
+    // the registry.
+    errors.extend(crate::imports::unmatched_import_errors(imports, &groups)?);
+    for crate::imports::GroupWithProvenance { group, schema_url } in groups {
         let is_v2 = group.is_v2();
         let mut prov_url = if let Some(prov) = group.provenance() {
             prov.schema_url.clone()
@@ -465,6 +476,7 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
                     &unresolved_group.group.prefix,
                     group_excluded,
                     &attr.spec,
+                    attr.origin.as_ref(),
                     unresolved_group.group.lineage.as_mut(),
                     &ureg.dependencies,
                     cache_lookup,
@@ -860,6 +872,7 @@ fn resolve_inheritance_attrs_unified(
     struct AttrWithLineage {
         spec: AttributeSpec,
         lineage: AttributeLineage,
+        origin: Option<SchemaUrl>,
     }
 
     // A map attribute_id -> attribute_spec + lineage.
@@ -878,6 +891,7 @@ fn resolve_inheritance_attrs_unified(
                     &mut existing.lineage,
                 );
                 existing.lineage.source_group = parent_group_id.to_owned();
+                existing.origin = parent_attr.origin.clone();
             } else {
                 let lineage = AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
                 log::debug!(
@@ -891,6 +905,7 @@ fn resolve_inheritance_attrs_unified(
                     AttrWithLineage {
                         spec: parent_attr.spec.clone(),
                         lineage,
+                        origin: parent_attr.origin.clone(),
                     },
                 );
             }
@@ -904,6 +919,7 @@ fn resolve_inheritance_attrs_unified(
                 if let Some(AttrWithLineage {
                     spec: parent_attr,
                     lineage,
+                    ..
                 }) = inherited_attrs.get_mut(r#ref)
                 {
                     *parent_attr = resolve_inheritance_attr(&attr.spec, parent_attr, lineage);
@@ -913,6 +929,7 @@ fn resolve_inheritance_attrs_unified(
                         AttrWithLineage {
                             spec: attr.spec.clone(),
                             lineage: AttributeLineage::new(group_id),
+                            origin: attr.origin.clone(),
                         },
                     );
                 }
@@ -923,6 +940,7 @@ fn resolve_inheritance_attrs_unified(
                     AttrWithLineage {
                         spec: attr.spec.clone(),
                         lineage: AttributeLineage::new(group_id),
+                        origin: attr.origin.clone(),
                     },
                 );
             }
@@ -941,6 +959,7 @@ fn resolve_inheritance_attrs_unified(
                 }
                 UnresolvedAttribute {
                     spec: attr_with_lineage.spec,
+                    origin: attr_with_lineage.origin,
                 }
             })
             .collect()
@@ -948,6 +967,7 @@ fn resolve_inheritance_attrs_unified(
         inherited_attrs
             .map(|attr_with_lineage| UnresolvedAttribute {
                 spec: attr_with_lineage.spec,
+                origin: attr_with_lineage.origin,
             })
             .collect()
     }
@@ -1871,6 +1891,7 @@ groups:
         examples: Option<Examples>,
     ) -> UnresolvedAttribute {
         UnresolvedAttribute {
+            origin: None,
             spec: AttributeSpec::Ref {
                 r#ref: id.to_owned(),
                 brief: None,
