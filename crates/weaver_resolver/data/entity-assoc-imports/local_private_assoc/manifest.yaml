@@ -1,0 +1,5 @@
+name: local_private_assoc
+description: >
+  The `host` entity is kept out of the surface offered to dependents. This
+  registry may still associate its own signals with it.
+schema_url: https://example.com/local-private/1.0.0

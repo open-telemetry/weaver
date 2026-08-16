@@ -4,7 +4,7 @@
 
 use crate::attribute::AttributeCatalog;
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
-use crate::dependency::{EntityLookup, ResolvedDependency};
+use crate::dependency::{resolve_entity, EntityResolution, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
 use crate::imports::ImportableDependency;
 use crate::Error;
@@ -552,22 +552,29 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
                     .insert(name.to_owned(), origin.clone());
                 continue;
             }
-            match ureg.dependencies.lookup_entity(name) {
-                Some(location) if location.excluded => {
+            match resolve_entity(&ureg.dependencies, name) {
+                EntityResolution::Found(origin) => {
+                    _ = origins
+                        .entry(g.group.id.clone())
+                        .or_default()
+                        .insert(name.to_owned(), origin.clone());
+                    _ = found.insert(name.to_owned(), origin);
+                }
+                EntityResolution::Private => {
                     errors.push(Error::ExcludedFromDependencyResolution {
                         id: name.to_owned(),
                         r#type: GroupType::Entity.to_string(),
                         used_in: g.group.id.clone(),
                     });
                 }
-                Some(location) => {
-                    _ = origins
-                        .entry(g.group.id.clone())
-                        .or_default()
-                        .insert(name.to_owned(), location.origin.clone());
-                    _ = found.insert(name.to_owned(), location.origin);
+                EntityResolution::Ambiguous(registries) => {
+                    errors.push(Error::AmbiguousEntityAssociation {
+                        group_id: g.group.id.clone(),
+                        entity_type: name.to_owned(),
+                        registries: registries.iter().map(|url| url.to_string()).collect(),
+                    });
                 }
-                None => errors.push(Error::UnresolvedEntityAssociation {
+                EntityResolution::Unknown => errors.push(Error::UnresolvedEntityAssociation {
                     group_id: g.group.id.clone(),
                     entity_type: name.to_owned(),
                     provenance: g.provenance.clone().map(Box::new),

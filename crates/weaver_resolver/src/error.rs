@@ -124,6 +124,20 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// An `entity_associations` entry that two dependencies both answer to.
+    #[error("The entity association '{entity_type}' of group '{group_id}' is ambiguous.\nDeclared by: {}", registries.join(", "))]
+    #[diagnostic(help(
+        "These registries declare unrelated entities under one name. Import the one you mean, or define the entity in this registry."
+    ))]
+    AmbiguousEntityAssociation {
+        /// The id of the group that holds the association.
+        group_id: String,
+        /// The entity type that more than one registry declares.
+        entity_type: String,
+        /// The registries that declare an entity under that name.
+        registries: Vec<String>,
+    },
+
     /// An unresolved `extends` clause reference.
     #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance:?}")]
     UnresolvedExtendsRef {

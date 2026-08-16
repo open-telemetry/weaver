@@ -180,25 +180,45 @@ impl EntityLookup for V2Schema {
     }
 }
 
-impl EntityLookup for Vec<ResolvedDependency> {
-    fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
-        // A private entity is no part of the surface a dependency offers, so
-        // pass over it and keep looking: another dependency may publish one of
-        // the same name. Stopping at the first hit would let the order of the
-        // manifest decide the answer.
-        let mut private = None;
-        for location in self.iter().filter_map(|d| d.lookup_entity(name)) {
-            if !location.excluded {
-                return Some(location);
-            }
-            if private.is_none() {
-                private = Some(location);
-            }
+/// What the dependencies answer when an association names an entity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EntityResolution {
+    /// One registry declares the entity, and it is the one named here.
+    Found(SchemaUrl),
+    /// Every registry that holds the name keeps the entity private.
+    Private,
+    /// Two or more registries declare unrelated entities under the name, and
+    /// nothing says which one is meant.
+    Ambiguous(Vec<SchemaUrl>),
+    /// No dependency holds the name.
+    Unknown,
+}
+
+/// Looks an association name up across every dependency at once.
+///
+/// The order the manifest lists dependencies in says nothing about which one an
+/// association means, so every dependency is asked and the answers are weighed
+/// together rather than the first hit being taken.
+///
+/// Candidates are counted by the registry that declared the entity, as importing
+/// does. One definition reached by two paths through the dependency graph is
+/// still one definition. Two definitions that merely share a name are not.
+pub(crate) fn resolve_entity(deps: &[ResolvedDependency], name: &str) -> EntityResolution {
+    let mut origins: Vec<SchemaUrl> = vec![];
+    let mut private = false;
+    for location in deps.iter().filter_map(|d| d.lookup_entity(name)) {
+        if location.excluded {
+            // A private entity is no part of the surface a dependency offers.
+            private = true;
+        } else if !origins.contains(&location.origin) {
+            origins.push(location.origin);
         }
-        // Nothing publishes the name. Returning the private definition tells
-        // the caller the entity exists and is out of reach, which is a better
-        // report than "no such entity".
-        private
+    }
+    match origins.len() {
+        0 if private => EntityResolution::Private,
+        0 => EntityResolution::Unknown,
+        1 => EntityResolution::Found(origins.swap_remove(0)),
+        _ => EntityResolution::Ambiguous(origins),
     }
 }
 

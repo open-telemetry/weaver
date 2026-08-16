@@ -2665,6 +2665,236 @@ groups:
         }
     }
 
+    /// Two dependencies that each declare their own entity under one name leave
+    /// an association with no answer.
+    ///
+    /// `top_ambiguous_assoc` depends on `base` and `rival_base`, which share a
+    /// name and nothing else, and imports neither. Picking one would make the
+    /// order of the manifest decide which entity the metric belongs to. The
+    /// author is the one who has to say.
+    #[test]
+    fn test_association_that_two_dependencies_answer_is_reported() {
+        let errors = entity_assoc_fixture_fatal_errors("top_ambiguous_assoc");
+        let [Error::AmbiguousEntityAssociation {
+            entity_type,
+            registries,
+            ..
+        }] = errors.as_slice()
+        else {
+            panic!("expected one ambiguity, got {errors:?}");
+        };
+        assert_eq!(entity_type, "host");
+        let mut registries = registries.clone();
+        registries.sort();
+        assert_eq!(
+            registries,
+            [BASE_URL, "https://rival.example.com/rival/1.0.0"],
+            "the report must name every registry that declares the entity"
+        );
+    }
+
+    /// One definition reached by two paths is not ambiguous.
+    ///
+    /// `top_diamond_assoc` reaches `host` through `middle_reexport` and again
+    /// through its own dependency on `base`. Both paths lead to the definition
+    /// in `base`, so there is nothing to choose between, and the association
+    /// resolves to it. This is the case that separates a diamond from a clash.
+    #[test]
+    fn test_association_reachable_by_two_paths_resolves() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (top, nfes) = resolve_entity_assoc_fixture("top_diamond_assoc");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&top) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&top)
+            );
+        };
+        assert_eq!(ref_source(&top, host), Some(BASE_URL));
+    }
+
+    /// An association is not a re-export.
+    ///
+    /// `middle_assoc_export` names the `host` of `base` and does not import it,
+    /// so `host` is no part of what `middle_assoc_export` offers.
+    /// `top_transitive_assoc` depends on it alone and cannot reach `host`, as it
+    /// could not reach it through an `imports` block either.
+    #[test]
+    fn test_association_does_not_re_export_the_entity_it_names() {
+        let errors = entity_assoc_fixture_fatal_errors("top_transitive_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "host"
+            ),
+            "naming an entity does not pass it on: {errors:?}"
+        );
+    }
+
+    /// Every expression shape resolves, on every signal type that has one, and a
+    /// leaf may name an entity refinement as well as an entity type.
+    #[test]
+    fn test_association_expression_shapes_resolve() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (schema, nfes) = resolve_entity_assoc_fixture("local_shapes");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        // `all_of: [service, one_of: [host, host.windows]]`, where `host` is an
+        // entity type and `host.windows` refines it.
+        let [EntityAssociation::AllOf { all_of }] = metric_associations(&schema) else {
+            panic!(
+                "expected one `all_of`, got {:?}",
+                metric_associations(&schema)
+            );
+        };
+        let [EntityAssociation::Ref(service), EntityAssociation::OneOf { one_of }] =
+            all_of.as_slice()
+        else {
+            panic!("expected a reference and a `one_of`, got {all_of:?}");
+        };
+        assert_eq!(&*service.r#type, "service");
+        let [EntityAssociation::Ref(host), EntityAssociation::Ref(windows)] = one_of.as_slice()
+        else {
+            panic!("expected two references, got {one_of:?}");
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            &*windows.r#type, "host.windows",
+            "a leaf may name an entity refinement by its id"
+        );
+        for entity_ref in [service, host, windows] {
+            assert_eq!(ref_source(&schema, entity_ref), None);
+        }
+
+        // A span and an event carry associations too, not metrics alone.
+        let [span] = schema.registry.spans.as_slice() else {
+            panic!("expected one span, got {:?}", schema.registry.spans);
+        };
+        assert!(
+            matches!(
+                span.entity_associations.as_slice(),
+                [EntityAssociation::OneOf { one_of }] if one_of.len() == 2
+            ),
+            "a span keeps its expression: {:?}",
+            span.entity_associations
+        );
+        let [event] = schema.registry.events.as_slice() else {
+            panic!("expected one event, got {:?}", schema.registry.events);
+        };
+        assert!(
+            matches!(
+                event.entity_associations.as_slice(),
+                [EntityAssociation::Ref(r)] if &*r.r#type == "service"
+            ),
+            "an event keeps its expression: {:?}",
+            event.entity_associations
+        );
+    }
+
+    /// A leaf may name an entity refinement that a dependency declares, and the
+    /// reference says which registry to read it from.
+    #[test]
+    fn test_association_names_a_refinement_of_a_dependency() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle_refinement_assoc");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert!(
+            entity_types(&middle).is_empty(),
+            "an association must not import the entity it names"
+        );
+
+        let [EntityAssociation::Ref(windows)] = metric_associations(&middle) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&middle)
+            );
+        };
+        assert_eq!(&*windows.r#type, "host.windows");
+        assert_eq!(ref_source(&middle, windows), Some(BASE_URL));
+    }
+
+    /// A signal refinement declares associations of its own, and they resolve
+    /// against the dependencies as a signal's do.
+    #[test]
+    fn test_refinement_association_resolves_against_a_dependency() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle_refined_signal");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [refinement] = middle.refinements.metrics.as_slice() else {
+            panic!(
+                "expected one metric refinement, got {:?}",
+                middle.refinements.metrics
+            );
+        };
+        let [EntityAssociation::Ref(host)] = refinement.metric.entity_associations.as_slice()
+        else {
+            panic!(
+                "expected one reference, got {:?}",
+                refinement.metric.entity_associations
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(ref_source(&middle, host), Some(BASE_URL));
+    }
+
+    /// An entity is looked for among the entities. A signal of another kind
+    /// that happens to share the name does not satisfy an association.
+    #[test]
+    fn test_association_does_not_match_a_signal_of_another_kind() {
+        let errors = entity_assoc_fixture_fatal_errors("middle_name_clash");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "host"
+            ),
+            "a metric called `host` is no entity: {errors:?}"
+        );
+    }
+
+    /// A legacy `type: resource` group holds its entity type in `name`, and an
+    /// association names the type. The group id is another thing, and an
+    /// `imports` pattern that may use it does not make it an entity type.
+    #[test]
+    fn test_association_to_a_legacy_resource_by_group_id_fails() {
+        let errors = entity_assoc_fixture_fatal_errors("legacy_by_id");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "resource.device"
+            ),
+            "the entity type is `device`, not the group id: {errors:?}"
+        );
+    }
+
+    /// `dependency_resolution.exclude` hides an entity from dependents. The
+    /// registry that declares it is not a dependent of itself, and its own
+    /// signals may name it.
+    #[test]
+    fn test_association_to_a_private_entity_of_this_registry_resolves() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (schema, nfes) = resolve_entity_assoc_fixture("local_private_assoc");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&schema) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&schema)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(ref_source(&schema, host), None);
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.

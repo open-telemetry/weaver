@@ -1,0 +1,13 @@
+name: top_ambiguous
+description: >
+  Depends on two unrelated registries that each publish their own `host`, and
+  associates a metric with `host` without importing either. Nothing says which
+  one is meant.
+schema_url: https://example.com/top-ambiguous/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base
+  - name: rival
+    schema_url: https://rival.example.com/rival/1.0.0
+    registry_path: data/entity-assoc-imports/rival_base
