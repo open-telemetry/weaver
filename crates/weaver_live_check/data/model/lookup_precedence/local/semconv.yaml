@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../../../../schemas/semconv.schema.v2.json
+#
+# The local half of the lookup precedence fixture. Each template here competes
+# with a definition in the dependency, and each one wins because the registry
+# under check is searched first.
+file_format: definition/2
+
+attributes:
+  # Matches `probe.a.b`, which the dependency defines as an exact key. This
+  # template is found at step 4, before the dependency's exact key at step 5.
+  - key: probe.a
+    type: template[string]
+    stability: stable
+    brief: A template that outranks a dependency's exact key.
+    examples: ["x"]
+
+  # Matches `probe.long.prefix.x`, as does the dependency's longer
+  # `probe.long.prefix` template. Length only decides between templates in the
+  # same step, so this shorter local one wins.
+  - key: probe.long
+    type: template[string]
+    stability: stable
+    brief: A template that outranks a dependency's longer template.
+    examples: ["x"]
+
+  # The live copy of a key that the dependency also defines, and deprecates.
+  # Step 3 finds this one.
+  - key: probe.dup
+    type: string
+    stability: stable
+    brief: The live copy, held by the registry under check.
+    examples: ["x"]

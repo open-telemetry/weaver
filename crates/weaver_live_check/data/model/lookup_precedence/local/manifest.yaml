@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../../../../../schemas/definition-manifest.v2.json
+#
+# `registry_path` is resolved against the process working directory, which for
+# this crate's tests is `crates/weaver_live_check`.
+name: local
+description: Holds only the templates that lose to the dependency.
+schema_url: https://example.com/lookup-precedence-local/1.0.0
+dependencies:
+  - name: dep
+    schema_url: https://example.com/lookup-precedence-dep/1.0.0
+    registry_path: data/model/lookup_precedence/dep

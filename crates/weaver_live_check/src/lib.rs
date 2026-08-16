@@ -22,7 +22,10 @@ use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
     registry::{ResolvedGroup, ResolvedRegistry},
-    v2::{attribute::Attribute as ForgeAttribute, registry::ForgeResolvedRegistry},
+    v2::{
+        attribute::Attribute as ForgeAttribute,
+        registry::{ForgeResolvedRegistry, Registry},
+    },
 };
 use weaver_semconv::{
     attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
@@ -109,6 +112,47 @@ pub enum VersionedRegistry {
     V1(Box<ResolvedRegistry>),
     /// v2 ForgeResolvedRegistry
     V2(Box<ForgeResolvedRegistry>),
+}
+
+/// Where the definition used to check a sample attribute came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttributeSource {
+    /// No definition was found for the attribute.
+    NotFound,
+    /// The matched signal, or the registry under check.
+    Registry,
+    /// Only a dependency of the registry under check defines the attribute.
+    Dependency,
+}
+
+/// A registry and its dependency closure, nearest first.
+///
+/// Depth-first: the registry, then each dependency, then that dependency's own
+/// dependencies.
+#[must_use]
+pub fn registries_nearest_first(registry: &ForgeResolvedRegistry) -> Vec<&ForgeResolvedRegistry> {
+    fn collect<'a>(registry: &'a ForgeResolvedRegistry, out: &mut Vec<&'a ForgeResolvedRegistry>) {
+        out.push(registry);
+        for dependency in &registry.dependencies {
+            collect(dependency, out);
+        }
+    }
+
+    let mut out = Vec::new();
+    collect(registry, &mut out);
+    out
+}
+
+/// The attributes of every attribute group of the registry.
+///
+/// A group is in a resolved registry only when it is public. An internal group
+/// exists to compose a signal, and its attributes reach a sample through that
+/// signal alone.
+pub fn attribute_group_attributes(registry: &Registry) -> impl Iterator<Item = &ForgeAttribute> {
+    registry
+        .attribute_groups
+        .iter()
+        .flat_map(|group| group.attributes.iter().map(|attribute| &attribute.base))
 }
 
 /// Versioned enum for the attribute
@@ -218,11 +262,9 @@ impl VersionedSignal {
         }
     }
 
-    /// Get the definition this signal declares for the attribute `key`.
-    ///
-    /// A signal carries the resolved definition of every attribute it declares,
-    /// including any refinement it applies for itself, so within a matched
-    /// signal this definition is the one that applies.
+    /// Get the definition this signal declares for the attribute `key`,
+    /// including any refinement the signal applies for itself. Step 1 of the
+    /// lookup; see `docs/attribute_lookup.md`.
     #[must_use]
     pub fn find_attribute(&self, key: &str) -> Option<VersionedAttribute> {
         match self {
@@ -246,11 +288,8 @@ impl VersionedSignal {
     }
 
     /// Get the template definition this signal declares that `key` is an
-    /// instance of, longest template first.
-    ///
-    /// The templated counterpart of [`Self::find_attribute`]: a template is
-    /// matched by key prefix, and a signal can refine one for itself just as it
-    /// can refine an ordinary attribute.
+    /// instance of, longest first. Step 2 of the lookup, and the templated
+    /// counterpart of [`Self::find_attribute`].
     #[must_use]
     pub fn find_template(&self, key: &str) -> Option<VersionedAttribute> {
         match self {

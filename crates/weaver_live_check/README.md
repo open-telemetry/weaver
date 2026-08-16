@@ -178,7 +178,7 @@ weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.
 ### Live-check settings
 
 ```toml
-[live_check]
+[live-check]
 input_source = "otlp"
 input_format = "json"
 format = "ansi"
@@ -190,19 +190,23 @@ output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
-[live_check.otlp]
+[live-check.otlp]
 grpc_address = "0.0.0.0"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
 
-[live_check.emit]
+[live-check.emit]
 otlp_logs = false
 otlp_logs_endpoint = "http://localhost:4317"
 otlp_logs_stdout = false
 ```
 
 Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+### Attribute lookup
+
+A sample attribute resolves against the matched signal first, then the registry, then the registry's dependencies. See [docs/attribute_lookup.md](docs/attribute_lookup.md) for the full order, the v1/v2 differences, and how the statistics follow from them.
 
 ### Finding filters
 
@@ -318,12 +322,15 @@ These should be self-explanatory, but:
 - `highest_advice_level_counts` is a per advice level count of the highest advice level given to each sample
 - `no_advice_count` is the number of samples that received no advice
 - `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
+- `seen_dependency_attributes` is a record of how many times each attribute outside the registry, that only a dependency defines, was seen in the samples
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
 - `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
 - `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
+
+The three attribute records are the answer to "is this registry responsible for the attribute?". An attribute counts as a registry attribute when a signal or entity of the registry declares it, or when it is in the registry's own definitions or one of its public attribute groups, wherever the definition itself came from. An attribute outside that surface, which only a dependency defines, is real and draws no `missing_attribute` finding, but this registry does not own it: it is counted in `seen_dependency_attributes` and left out of `registry_coverage`. Reference it from a local attribute group to count it. See [docs/attribute_lookup.md](docs/attribute_lookup.md).
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 

@@ -14,3 +14,4 @@ imports:
     - acme.service
   attribute_groups:
     - acme.scope
+    - acme.deploy

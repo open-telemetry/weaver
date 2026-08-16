@@ -72,6 +72,26 @@ attributes:
     brief: Value of the Host header.
     examples: ["example.com"]
 
+  # Only the `acme.operation` span declares this attribute. Live-check cannot
+  # match a sample to an individual span, so it treats every span attribute as
+  # reachable by any span, the way a public attribute group works. This
+  # attribute is therefore part of the registry surface. The test
+  # `a_span_only_attribute_is_part_of_the_registry_surface` records that.
+  - key: acme.operation.step
+    type: string
+    stability: stable
+    brief: Name of the step in the operation.
+    examples: ["validate"]
+
+  # No signal declares this attribute, and only the `acme.deploy` attribute
+  # group holds it. It is the second public group, so a test can show that
+  # every public group is part of the registry and not just the first.
+  - key: acme.deploy.tier
+    type: string
+    stability: stable
+    brief: Deployment tier.
+    examples: ["canary"]
+
 attribute_groups:
   - id: acme.scope
     visibility: public
@@ -79,6 +99,15 @@ attribute_groups:
     stability: stable
     attributes:
       - ref: acme.scope.env
+
+  # A second public group, so that a test can select one group and leave this
+  # one out.
+  - id: acme.deploy
+    visibility: public
+    brief: Attributes describing a deployment.
+    stability: stable
+    attributes:
+      - ref: acme.deploy.tier
 
 entities:
   - type: acme.service
@@ -127,3 +156,4 @@ spans:
       note: "{acme.host.id}"
     attributes:
       - ref: acme.host.id
+      - ref: acme.operation.step

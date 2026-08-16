@@ -9,8 +9,9 @@ use std::sync::Arc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
-    advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
-    VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
+    advice::Advisor, attribute_group_attributes, finding_modifier::FindingModifier,
+    otlp_logger::OtlpEmitter, registries_nearest_first, VersionedAttribute, VersionedEntity,
+    VersionedRegistry, VersionedSignal,
 };
 
 #[cfg(test)]
@@ -21,8 +22,13 @@ use crate::CumulativeStatistics;
 pub struct LiveChecker {
     /// The resolved registry
     pub registry: Arc<VersionedRegistry>,
+    /// Exact-key definitions of the registry under check.
     semconv_attributes: HashMap<String, Rc<VersionedAttribute>>,
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
+    /// Exact-key definitions from the dependency closure, searched only when
+    /// the registry under check holds nothing for the key.
+    dependency_attributes: HashMap<String, Rc<VersionedAttribute>>,
+    dependency_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
     #[serde(skip)]
@@ -32,6 +38,8 @@ pub struct LiveChecker {
     pub advisors: Vec<Box<dyn Advisor>>,
     #[serde(skip)]
     templates_by_length: Vec<(String, Rc<VersionedAttribute>)>,
+    #[serde(skip)]
+    dependency_templates_by_length: Vec<(String, Rc<VersionedAttribute>)>,
     /// Optional OTLP emitter for emitting findings as log records
     #[serde(skip)]
     pub otlp_emitter: Option<Rc<OtlpEmitter>>,
@@ -43,11 +51,15 @@ pub struct LiveChecker {
 impl LiveChecker {
     #[must_use]
     /// Create a new LiveChecker
+    ///
     pub fn new(registry: Arc<VersionedRegistry>, advisors: Vec<Box<dyn Advisor>>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
         let mut templates_by_length = Vec::new();
+        let mut dependency_attributes = HashMap::new();
+        let mut dependency_templates = HashMap::new();
+        let mut dependency_templates_by_length = Vec::new();
         // Hashmap of metrics by name
         let mut semconv_metrics = HashMap::new();
         // Hashmap of events by name
@@ -109,33 +121,83 @@ impl LiveChecker {
                     let entity_rc = Rc::new(VersionedEntity::V2(Box::new(entity.clone())));
                     let _ = semconv_entities.insert(entity_type, entity_rc);
                 }
-                for attribute in &registry.registry.attributes {
-                    let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
-                    match &attribute.r#type {
-                        AttributeType::Template(_) => {
-                            templates_by_length.push((attribute.key.clone(), attribute_rc.clone()));
-                            let _ = semconv_templates.insert(attribute.key.clone(), attribute_rc);
-                        }
-                        _ => {
-                            let _ = semconv_attributes.insert(attribute.key.clone(), attribute_rc);
+                // Steps 3 to 6 of the lookup: `attributes` and public
+                // attribute groups, with the registry under check kept apart
+                // from its dependency closure so it can be searched first.
+                // Signals are not a source. See `docs/attribute_lookup.md`.
+                for (depth, forge_registry) in
+                    registries_nearest_first(registry).into_iter().enumerate()
+                {
+                    // The first entry is the registry under check; the rest are
+                    // its dependency closure.
+                    let from_dependency = depth > 0;
+                    let declared = forge_registry
+                        .registry
+                        .attributes
+                        .iter()
+                        .chain(attribute_group_attributes(&forge_registry.registry));
+                    for attribute in declared {
+                        let is_template = matches!(attribute.r#type, AttributeType::Template(_));
+                        match (from_dependency, is_template) {
+                            (false, true) => {
+                                if !semconv_templates.contains_key(&attribute.key) {
+                                    let attribute_rc =
+                                        Rc::new(VersionedAttribute::V2(attribute.clone()));
+                                    templates_by_length
+                                        .push((attribute.key.clone(), attribute_rc.clone()));
+                                    let _ = semconv_templates
+                                        .insert(attribute.key.clone(), attribute_rc);
+                                }
+                            }
+                            (false, false) => {
+                                if !semconv_attributes.contains_key(&attribute.key) {
+                                    let _ = semconv_attributes.insert(
+                                        attribute.key.clone(),
+                                        Rc::new(VersionedAttribute::V2(attribute.clone())),
+                                    );
+                                }
+                            }
+                            (true, true) => {
+                                if !dependency_templates.contains_key(&attribute.key) {
+                                    let attribute_rc =
+                                        Rc::new(VersionedAttribute::V2(attribute.clone()));
+                                    dependency_templates_by_length
+                                        .push((attribute.key.clone(), attribute_rc.clone()));
+                                    let _ = dependency_templates
+                                        .insert(attribute.key.clone(), attribute_rc);
+                                }
+                            }
+                            (true, false) => {
+                                let _ = dependency_attributes
+                                    .entry(attribute.key.clone())
+                                    .or_insert_with(|| {
+                                        Rc::new(VersionedAttribute::V2(attribute.clone()))
+                                    });
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Sort templates by name length in descending order
-        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
+        // Sort templates by name length in descending order. The sort is
+        // stable, so among templates of the same length the nearest registry
+        // stays first.
+        templates_by_length.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
+        dependency_templates_by_length.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
 
         LiveChecker {
             registry,
             semconv_attributes,
             semconv_templates,
+            dependency_attributes,
+            dependency_templates,
             semconv_metrics,
             semconv_events,
             semconv_entities,
             advisors,
             templates_by_length,
+            dependency_templates_by_length,
             otlp_emitter: None,
             finding_modifier: None,
         }
@@ -150,6 +212,20 @@ impl LiveChecker {
     #[must_use]
     pub fn find_attribute(&self, name: &str) -> Option<Rc<VersionedAttribute>> {
         self.semconv_attributes.get(name).map(Rc::clone)
+    }
+
+    /// Find an attribute by exact key in the dependency closure. Step 5 of the
+    /// lookup, reached only when the registry under check holds nothing.
+    #[must_use]
+    pub fn find_dependency_attribute(&self, name: &str) -> Option<Rc<VersionedAttribute>> {
+        self.dependency_attributes.get(name).map(Rc::clone)
+    }
+
+    /// Find the template in the dependency closure that `attribute_name` is an
+    /// instance of, longest first. Step 6 of the lookup.
+    #[must_use]
+    pub fn find_dependency_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
+        find_matching_template(&self.dependency_templates_by_length, attribute_name)
     }
 
     /// Find a metric in the registry
@@ -173,14 +249,22 @@ impl LiveChecker {
     /// Find a template in the registry
     #[must_use]
     pub fn find_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
-        // Use the pre-sorted list to find the first (longest) matching template
-        for (template_name, attribute) in &self.templates_by_length {
-            if attribute_name.starts_with(template_name) {
-                return Some(Rc::clone(attribute));
-            }
-        }
-        None
+        find_matching_template(&self.templates_by_length, attribute_name)
     }
+}
+
+/// The first template in `templates` that `attribute_name` is an instance of.
+///
+/// `templates` is sorted by key length, descending, so the longest matching
+/// prefix is found first.
+fn find_matching_template(
+    templates: &[(String, Rc<VersionedAttribute>)],
+    attribute_name: &str,
+) -> Option<Rc<VersionedAttribute>> {
+    templates
+        .iter()
+        .find(|(template_name, _)| attribute_name.starts_with(template_name))
+        .map(|(_, attribute)| Rc::clone(attribute))
 }
 
 #[cfg(test)]

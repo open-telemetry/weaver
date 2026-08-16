@@ -205,7 +205,7 @@ fn emit_resource_and_scope(endpoint: &str) {
     emit_span(endpoint, &[KeyValue::new("acme.host.id", "abc123")]);
 }
 
-/// A span — an untyped carrier, never matched to a registry definition —
+/// A span is an untyped carrier, never matched to a registry definition, and
 /// carrying a key that matches the `acme.header` template.
 fn emit_span_with_template_attribute(endpoint: &str) {
     emit_span(
@@ -432,7 +432,7 @@ fn finding_ids(report: &Value) -> Vec<String> {
 ///
 /// `sample_kind` scopes the assertion to attributes carried by that kind of
 /// sample; `None` covers the whole report. One session's telemetry carries
-/// attributes on several carriers at once — a resource, a scope and a signal —
+/// attributes on several carriers at once (a resource, a scope and a signal)
 /// so a test about one of them must not be reddened by another.
 fn assert_no_missing_attribute(report: &Value, sample_kind: Option<&str>, context: &str) {
     let missing: Vec<_> = findings(report)
@@ -449,7 +449,7 @@ fn assert_no_missing_attribute(report: &Value, sample_kind: Option<&str>, contex
 }
 
 // ---------------------------------------------------------------------------
-// Group 1 — untyped carriers, against the importing registry
+// Group 1: untyped carriers, against the importing registry
 // ---------------------------------------------------------------------------
 
 /// A resource attribute has no signal to match against, so it is resolved purely
@@ -623,7 +623,7 @@ async fn dependency_attributes_count_as_registry_attributes() {
 }
 
 // ---------------------------------------------------------------------------
-// Group 2 — advice must not depend on the signal matching
+// Group 2: advice must not depend on the signal matching
 // ---------------------------------------------------------------------------
 
 /// A misspelled metric name is itself a finding, but the attributes it carries
@@ -660,7 +660,7 @@ async fn attribute_not_declared_on_the_matched_signal_still_gets_advice() {
 }
 
 // ---------------------------------------------------------------------------
-// Group 3 — per-signal attribute variants, against the defining registry
+// Group 3: per-signal attribute variants, against the defining registry
 // ---------------------------------------------------------------------------
 
 /// `acme.uptime` refines `acme.legacy.id` to `development`, so telemetry
@@ -822,7 +822,7 @@ async fn matched_signal_template_outranks_an_exact_registry_attribute() {
 }
 
 // ---------------------------------------------------------------------------
-// Group 4 — control
+// Group 4: control
 // ---------------------------------------------------------------------------
 
 /// The same telemetry against the registry that owns the definitions. Proves the
