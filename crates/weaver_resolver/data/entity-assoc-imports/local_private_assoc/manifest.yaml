@@ -1,5 +1,6 @@
 name: local_private_assoc
 description: >
-  The `host` entity is kept out of the surface offered to dependents. This
-  registry may still associate its own signals with it.
+  The `host` entity is kept out of the surface offered to dependents, and a
+  public metric is associated with it. A dependent that imports the metric
+  cannot reach the entity it names.
 schema_url: https://example.com/local-private/1.0.0

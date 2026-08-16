@@ -2875,14 +2875,34 @@ groups:
         );
     }
 
-    /// `dependency_resolution.exclude` hides an entity from dependents. The
-    /// registry that declares it is not a dependent of itself, and its own
-    /// signals may name it.
+    /// A public signal must not name an entity its own registry keeps private.
+    ///
+    /// `dependency_resolution.exclude` keeps the entity out of the surface
+    /// offered to dependents, while the metric stays in it. A dependent that
+    /// imports the metric gets an association it cannot follow, and the same
+    /// name may mean an unrelated entity there. An attribute `ref` and an
+    /// `extends` clause both refuse this already.
     #[test]
-    fn test_association_to_a_private_entity_of_this_registry_resolves() {
+    fn test_public_signal_associated_with_a_private_entity_is_reported() {
+        let errors = entity_assoc_fixture_fatal_errors("local_private_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
+                    if id == "host" && used_in == "metric.private.request.count"
+            ),
+            "a public metric must not export a reference to a private entity: {errors:?}"
+        );
+    }
+
+    /// A private signal may name a private entity: neither is in the surface
+    /// offered to dependents, so nothing dangling leaves the registry. This is
+    /// the pass an excluded group gets for an excluded attribute too.
+    #[test]
+    fn test_private_signal_may_associate_with_a_private_entity() {
         use weaver_resolved_schema::v2::entity::EntityAssociation;
 
-        let (schema, nfes) = resolve_entity_assoc_fixture("local_private_assoc");
+        let (schema, nfes) = resolve_entity_assoc_fixture("local_private_pair");
         assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
 
         let [EntityAssociation::Ref(host)] = metric_associations(&schema) else {

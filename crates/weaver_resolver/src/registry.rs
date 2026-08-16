@@ -509,6 +509,11 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
 /// the registry that declared it, and [`crate::imports`] carried that answer
 /// over. Asking the question again here would answer it in a registry where the
 /// same name may mean a different entity.
+///
+/// A private entity of this registry satisfies an association only for a signal
+/// that is private too. Otherwise the registry publishes a signal that names an
+/// entity no dependent can reach. This is the rule an attribute `ref` and an
+/// `extends` clause already follow, in [`excluded_parent_error`].
 fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     // Most registries associate nothing, and then there is no name to look up.
     if ureg
@@ -520,13 +525,17 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
     }
 
     // The name an association uses is the id the entity takes in the v2 output,
-    // so the lookup and the conversion agree by construction.
-    let local: HashSet<String> = ureg
+    // so the lookup and the conversion agree by construction. The value says
+    // whether this registry keeps the entity from its dependents.
+    let local: HashMap<String, bool> = ureg
         .groups
         .iter()
-        .map(|g| &g.group)
-        .filter(|g| g.r#type == GroupType::Entity)
-        .filter_map(|g| v2_namespace_id(g).map(|id| id.to_string()))
+        .filter(|g| g.group.r#type == GroupType::Entity)
+        .filter_map(|g| {
+            let excluded =
+                is_group_excluded(&g.group.annotations, g.visibility.as_ref(), &g.group.r#type);
+            v2_namespace_id(&g.group).map(|id| (id.to_string(), excluded))
+        })
         .collect();
 
     let mut origins: weaver_resolved_schema::registry::EntityAssociationOrigins = BTreeMap::new();
@@ -535,6 +544,8 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
     let mut found: HashMap<String, SchemaUrl> = HashMap::new();
     for g in ureg.groups.iter() {
         let imported = ureg.registry.entity_association_origins.get(&g.group.id);
+        let group_excluded =
+            is_group_excluded(&g.group.annotations, g.visibility.as_ref(), &g.group.r#type);
         for name in g
             .group
             .entity_associations
@@ -542,8 +553,24 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
             .flat_map(|assoc| assoc.referenced_entities())
             .unique()
         {
-            if local.contains(name) || imported.is_some_and(|m| m.contains_key(name)) {
+            // An imported signal is asked first: it brought its own answer, and
+            // a local entity of the same name is a different entity.
+            if imported.is_some_and(|m| m.contains_key(name)) {
                 continue;
+            }
+            match local.get(name) {
+                Some(false) => continue,
+                // Private, and reachable only from a signal that is private too.
+                Some(true) if group_excluded => continue,
+                Some(true) => {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: name.to_owned(),
+                        r#type: GroupType::Entity.to_string(),
+                        used_in: g.group.id.clone(),
+                    });
+                    continue;
+                }
+                None => {}
             }
             if let Some(origin) = found.get(name) {
                 _ = origins

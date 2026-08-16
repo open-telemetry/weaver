@@ -30,7 +30,8 @@ work. Each pull request in that series adds the fixtures that its tests need.
 | `base_metric` | – | – | defines `host` and a metric a dependent can refine |
 | `middle_refined_signal` | base_metric | – | a metric refinement declares its own association |
 | `local_shapes` | – | – | every expression shape, on a metric, an event and a span |
-| `local_private_assoc` | – | – | a registry associates with an entity it keeps private from dependents |
+| `local_private_assoc` | – | – | a public metric names an entity kept private, and the resolve fails |
+| `local_private_pair` | – | – | a private metric names the same private entity, and it resolves |
 | `middle_name_clash` | – | – | a metric named `host` does not satisfy an association naming `host` |
 | `legacy_by_id` | – | – | naming a legacy `resource` group by its id, rather than its type, fails |
 
@@ -91,6 +92,18 @@ opposite orders. `base_excluded` keeps its `host` private and `rival_base`
 publishes one, so exactly one `host` is reachable and the order the two are
 listed in says nothing about which. A lookup that stops at the first dependency
 holding the name would answer differently for the two.
+
+At home the rule is not "out of reach" but "reach no further than the entity
+does". `local_private_assoc` and `local_private_pair` differ in one line: the
+metric of the second is private too. The first publishes a metric that names an
+entity no dependent can see, so a consumer that imports it gets an association
+it cannot follow — or, worse, one that binds to an unrelated entity of its own
+under the same name. The second exports neither, so nothing dangles.
+
+This is the rule an attribute `ref` and an `extends` clause already follow: an
+excluded definition is for excluded groups. An entity of a *dependency* has no
+such pass, in `middle_excluded_assoc`, because no group here can be inside the
+registry that hid it.
 
 ## Imports are not transitive
 
