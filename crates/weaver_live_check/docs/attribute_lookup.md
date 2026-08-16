@@ -113,10 +113,11 @@ A sample has a *matched signal* when its signal name matches one in the
 registry. Attributes on a resource, on an instrumentation scope, or on an
 unrecognised metric or event have none.
 
-> **Spans are never matched signals.** A span sample carries only its runtime
-> name, such as `SELECT orders`, which cannot be mapped back to the `db.query`
-> span type. Steps 1 and 2 are never reached for a span, a span event or a span
-> link, so span samples start at step 3. See [Spans](#spans).
+> **Spans and profiles are never matched signals.** A span sample carries only
+> its runtime name, such as `SELECT orders`, which cannot be mapped back to the
+> `db.query` span type. A profile carries no name at all. Steps 1 and 2 are
+> never reached for a span, a span event, a span link or a profile, so these
+> samples start at step 3. See [Spans](#spans) and [Profiles](#profiles).
 
 With a matched signal, the search tries six steps in order and stops at the
 first hit:
@@ -258,9 +259,23 @@ No special case implements this. The registry-wide map is built from
 construction, and a span attribute is always present because references resolve
 somewhere in the chain.
 
+## Profiles
+
+A profile sample carries the attributes of the OTLP profiles dictionary and
+little else live-check can use. A registry has no profile signal to name, so
+there is nothing to match against and nothing to pool.
+
+Profile attributes are searched from step 3 onwards, like any attribute with no
+matched signal, and they land in the statistics on the same rules as the rest. A
+profile attribute counts towards coverage when the registry declares it
+somewhere else, falls to `seen_dependency_attributes` when only a dependency
+defines it, and draws `missing_attribute` when nothing in the chain does. To put
+the attributes a profile carries on the registry surface, reference them from a
+public attribute group.
+
 ## v1 registries
 
-The four-step order applies to v1 as well. A matched metric or event is itself a
+The six-step order applies to v1 as well. A matched metric or event is itself a
 group holding its own attributes, so steps 1 and 2 work. Steps 3 and 4 differ:
 they search a map built from the attributes of *every* group, since a flat group
 list is all a resolved v1 registry has. Three consequences follow.

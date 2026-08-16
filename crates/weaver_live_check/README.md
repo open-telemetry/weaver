@@ -91,8 +91,8 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 - `level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `id`: _string_ - a simple machine readable string to group findings of a particular kind or type.
-- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log` or `resource`
-- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name
+- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log`, `profile` or `resource`
+- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name. Profiles have no name.
 - `context`: _any_ - a map that describes details about the finding in a structured way,
   for example `{ "attribute_key": "foo.bar", "attribute_value": "bar" }`.
 - `message`: _string_ - verbose string describing the finding. It contains the same details as `context` but
@@ -242,7 +242,7 @@ The `exclude_samples` and `sample_names` fields match by sample name: attribute 
 
 Level overrides are applied before finding filters, so a `min_level` filter evaluated afterwards sees the overridden level rather than the original one.
 
-Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/resource that attribute belongs to.
+Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/profile/resource that attribute belongs to.
 
 ```toml
 # undefined_enum_variant is information by default; treat it as a violation everywhere
